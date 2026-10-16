@@ -1,0 +1,71 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "native",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/.local/var/cpp/build/native",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "MAINZ_LINT": "ON",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "sanitize",
+      "inherits": "native",
+      "binaryDir": "${sourceDir}/.local/var/cpp/build/sanitize",
+      "cacheVariables": { "MAINZ_SANITIZE": "ON", "MAINZ_LINT": "OFF" }
+    },
+    {
+      "name": "wasm",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/.local/var/cpp/build/wasm",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/.local/var/cpp/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+        "MAINZ_QPDF_SOURCE": "${sourceDir}/.local/src/qpdf",
+        "MAINZ_LINT": "OFF",
+        "BUILD_TESTING": "ON",
+        "CMAKE_CXX_FLAGS": "-fexceptions",
+        "CMAKE_C_FLAGS": "--use-port=zlib --use-port=libjpeg",
+        "PKG_CONFIG_EXECUTABLE": "/usr/bin/false",
+        "ZLIB_H_PATH": "${sourceDir}/.local/var/cpp/emsdk/upstream/emscripten/cache/sysroot/include",
+        "ZLIB_LIB_PATH": "${sourceDir}/.local/var/cpp/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/libz.a",
+        "LIBJPEG_H_PATH": "${sourceDir}/.local/var/cpp/emsdk/upstream/emscripten/cache/sysroot/include",
+        "LIBJPEG_LIB_PATH": "${sourceDir}/.local/var/cpp/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/libjpeg.a"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "native", "configurePreset": "native", "jobs": 2 },
+    { "name": "lint", "configurePreset": "native", "targets": ["lint"] },
+    { "name": "format", "configurePreset": "native", "targets": ["format"] },
+    { "name": "format-check", "configurePreset": "native", "targets": ["format-check"] },
+    { "name": "sanitize", "configurePreset": "sanitize", "jobs": 2 },
+    { "name": "wasm", "configurePreset": "wasm", "targets": ["mainz"], "jobs": 2 }
+  ],
+  "testPresets": [
+    {
+      "name": "native",
+      "configurePreset": "native",
+      "filter": { "include": { "name": "^(contract|producer|cli|inspector|package)$" } },
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "sanitize",
+      "configurePreset": "sanitize",
+      "filter": { "include": { "name": "^(contract|producer|cli|inspector|package)$" } },
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "wasm",
+      "configurePreset": "wasm",
+      "filter": { "include": { "name": "^parity$" } },
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+Checks: >-
+  -*, clang-analyzer-*, bugprone-*, -bugprone-easily-swappable-parameters, performance-*, portability-*,
+  cppcoreguidelines-init-variables, cppcoreguidelines-pro-type-member-init, cppcoreguidelines-owning-memory,
+  cppcoreguidelines-slicing
+WarningsAsErrors: "*"
+HeaderFilterRegex: "(^|/)(lib|cli)/.*"
+CheckOptions:
+  performance-unnecessary-value-param.AllowedTypes: "JSON;QPDFObjectHandle;Object"

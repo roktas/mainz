@@ -1,0 +1,18 @@
+{
+  "name": "mainz",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix web run dev --",
+    "preview": "npm --prefix web run preview --",
+    "build": "npm --prefix web run build --",
+    "check": "npm --prefix web run check --",
+    "format": "web/node_modules/.bin/oxfmt .",
+    "format:check": "web/node_modules/.bin/oxfmt --check .",
+    "lint": "web/node_modules/.bin/oxlint web",
+    "test": "npm --prefix web test --",
+    "test:browser": "npm --prefix web run test:browser --"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

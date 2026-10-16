@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "sources": { "sample": { "input": "fixture", "overrides": {} } },
+  "parts": [
+    {
+      "copies": 34,
+      "front": false,
+      "pages": [
+        { "source": "sample", "page": 0 },
+        { "source": "sample", "page": 1 },
+        { "source": "sample", "page": 2 },
+        { "source": "sample", "page": 3 },
+        { "source": "sample", "page": 4 },
+        { "source": "sample", "page": 5 },
+        { "source": "sample", "page": 6 }
+      ]
+    },
+    {
+      "copies": 1,
+      "front": false,
+      "pages": [
+        { "source": "sample", "page": 0 },
+        { "source": "sample", "page": 1 }
+      ]
+    }
+  ]
+}

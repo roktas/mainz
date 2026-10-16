@@ -1,0 +1,186 @@
+<!-- Shows the active Source's applicable Style profiles and parameter groups. -->
+<script lang="ts">
+  import { available, feedback, groups, matchingProfile, objects } from "./styles.ts";
+  import { pageRanges } from "./pages.ts";
+  import type { Entry } from "./styles.ts";
+  import type { Source, Part } from "./model.ts";
+  import Control from "./Control.svelte";
+  import Icon from "./Icon.svelte";
+  import Quartet from "./Quartet.svelte";
+  import type { TourStep } from "./Help.svelte";
+  let {
+    source,
+    parts,
+    style,
+    profile,
+    reset,
+    cancel,
+    toolbarOnly = false,
+    tour,
+  }: {
+    source: Source;
+    parts: Part[];
+    style: (id: string, text: string) => void;
+    profile: (setId: string, profileId: string) => void;
+    reset: (id?: string) => void;
+    cancel: () => void;
+    toolbarOnly?: boolean;
+    tour?: TourStep;
+  } = $props();
+  const definition = $derived(source.input.description);
+  const groupObjects = $derived(objects(definition));
+  const controls = $derived(available(source, parts));
+  const profiles = $derived(
+    (definition.profileSets ?? []).filter(
+      (set) => set.profiles.length > 1 && set.parameters.some((id) => controls.includes(id)),
+    ),
+  );
+  const sections = $derived(
+    groups(definition)
+      .map((group) => ({
+        ...group,
+        parameters: group.parameters.filter((id) => controls.includes(id)),
+      }))
+      .filter((group) => group.parameters.length),
+  );
+  const changed = $derived(Object.keys(source.overrides).length > 0 || Object.keys(source.drafts).length > 0);
+  const status = $derived(
+    source.status === "error"
+      ? "Styles need retry"
+      : Object.entries(source.drafts).some(([id, text]) => feedback(definition.parameters[id], text))
+        ? "Invalid style draft"
+        : "",
+  );
+  function entry(id: string): Entry {
+    const initial = definition.parameters[id];
+    const parameter = { ...initial.parameter };
+    delete parameter.value;
+    if (Object.hasOwn(source.overrides, id)) parameter.value = source.overrides[id];
+    return {
+      ...initial,
+      parameter,
+      pages: [pageRanges(initial.pages.map((page) => definition.pages[page].index).toSorted((a, b) => a - b))],
+    };
+  }
+</script>
+
+{#snippet field(id: string, caption?: string, compact = false)}
+  {@const eligible = definition.parameters[id].pages.map((page) => definition.pages[page].index)}
+  {@const coverage = parts.reduce(
+    (total, part) =>
+      total +
+      part.pages.filter(
+        (page) => "source" in page.content && page.content.source === source.id && eligible.includes(page.content.page),
+      ).length *
+        (Number.isSafeInteger(Number(part.copies)) && Number(part.copies) > 0 ? Number(part.copies) : 0),
+    0,
+  )}
+  <Control
+    {id}
+    entry={entry(id)}
+    draft={Object.hasOwn(source.drafts, id) ? source.drafts[id] : undefined}
+    change={style}
+    reset={(id) => reset(id)}
+    {coverage}
+    {caption}
+    {compact}
+  />
+{/snippet}
+
+{#snippet fields(ids: string[])}
+  {@const items = groupObjects(ids)}
+  {#each items as object (object.parameters[0])}
+    {#if object.quartet}
+      {@const label = entry(object.quartet.visibility).parameter.schema.title ?? object.quartet.visibility}
+      <div class="style-object" role="group" aria-label={label}>
+        <h4>
+          <span>{label}</span>
+          {#if entry(object.quartet.visibility).parameter.schema.description}
+            <span class="control-description">
+              {entry(object.quartet.visibility).parameter.schema.description}
+            </span>
+          {/if}
+        </h4>
+        <Quartet quartet={object.quartet} {entry} drafts={source.drafts} {field} change={style} />
+      </div>
+    {:else}
+      {@render field(object.parameters[0])}
+    {/if}
+  {/each}
+{/snippet}
+
+{#if toolbarOnly}
+  <div class="style-status">
+    {#if status}<span class="danger" role="status">{status}</span>{/if}
+    <button
+      class="icon-button danger"
+      disabled={!changed}
+      onclick={() => reset()}
+      aria-label="Reset all styles"
+      title="Reset Input styles"><Icon name="reset" /></button
+    >
+  </div>
+{:else}
+  <div class="workspace-content">
+    <div class="source-layout">
+      <div class="source-tools">
+        {#each profiles as set (set.id)}
+          {@const selected = matchingProfile(set, source.overrides, source.drafts)}
+          {@const description =
+            selected?.description ||
+            (selected
+              ? set.description || `Styles from ${selected.name}.`
+              : "Custom styles. Choose a profile to apply its values.")}
+          {@const pages = pageRanges(
+            [...new Set(set.parameters.flatMap((id) => definition.parameters[id].pages))]
+              .map((page) => definition.pages[page].index)
+              .toSorted((a, b) => a - b),
+          )}
+          <div
+            class="style-profile"
+            data-tour-target={set === profiles[0] ? "style-profile" : undefined}
+            data-tour-active={tour === "style-profile" && set === profiles[0]}
+          >
+            <select
+              aria-label={set.name}
+              value={selected?.id ?? ""}
+              title={`${set.name}. Applies to Input pages: ${pages}.`}
+              aria-describedby={`profile-note-${source.id}-${set.id}`}
+              onchange={(event) => profile(set.id, event.currentTarget.value)}
+            >
+              {#if !selected}<option value="" disabled>Custom</option>{/if}
+              {#each set.profiles as choice (choice.id)}<option value={choice.id}>{choice.name}</option>{/each}
+            </select>
+            <p id={`profile-note-${source.id}-${set.id}`} class="control-description">
+              {description}
+            </p>
+          </div>
+        {/each}
+        <div class="control-list">
+          {#each sections as group (group.parameters[0])}
+            {@const count = new Set(
+              group.parameters.map((id) =>
+                JSON.stringify(definition.parameters[id].parameter.binding.targets.toSorted()),
+              ),
+            ).size}
+            {@const countLabel = `${count} ${count === 1 ? "Style object" : "Style objects"}`}
+            <details class="style-group" open>
+              <summary>
+                <Icon name="next" />
+                <span>
+                  <span>{group.title}</span>
+                  {#if group.description}<span class="control-description">{group.description}</span>{/if}
+                </span>
+                <span class="count" role="img" aria-label={countLabel} title={countLabel}>{count}</span>
+              </summary>
+              <fieldset aria-label={group.title}>{@render fields(group.parameters)}</fieldset>
+            </details>
+          {/each}
+        </div>
+
+        {#if source.status === "pending"}<button class="text-button" onclick={cancel}>Cancel style processing</button
+          >{/if}
+      </div>
+    </div>
+  </div>
+{/if}

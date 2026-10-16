@@ -1,0 +1,33 @@
+{
+  "name": "mainz-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "format": "npm --prefix .. run format --",
+    "format:check": "npm --prefix .. run format:check --",
+    "lint": "npm --prefix .. run lint --",
+    "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc --project tsconfig.worker.json",
+    "test": "node --test test/*.test.ts",
+    "test:browser": "node --test test/browser.test.js",
+    "build": "npm run check && vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "pdfjs-dist": "6.3.289",
+    "svelte": "5.57.1"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@types/node": "26.6.4",
+    "oxfmt": "0.71.0",
+    "oxlint": "1.86.0",
+    "playwright": "1.63.0",
+    "svelte-check": "4.7.6",
+    "typescript": "6.0.3",
+    "vite": "8.3.2"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
