@@ -1,4 +1,5 @@
 <!-- Controls lens magnification and shows application details. -->
+
 <script lang="ts">
   import Icon from "./Icon.svelte"
   let {

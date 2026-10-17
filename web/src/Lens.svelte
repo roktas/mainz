@@ -1,4 +1,5 @@
 <!-- Magnifies bounded PDF crops under a settled mouse or a held touch. -->
+
 <script lang="ts">
   import { loadRenderer } from "./pdf.ts"
   import type { PDFDocumentProxy } from "pdfjs-dist"

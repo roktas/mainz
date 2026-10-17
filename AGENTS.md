@@ -142,8 +142,8 @@ existing controls, and both themes. Follow DESIGN's focus and reduced-motion rul
 values stay out of the offline cache.
 
 Start each CSS, TypeScript, and Svelte file under `web/src/` with a one-line comment about its responsibility or
-ownership boundary. Make it useful for people and agents who need to locate code. Update it when that responsibility
-changes.
+ownership boundary. Separate it from code with one blank line. Make it useful for people and agents who need to locate
+code. Update it when that responsibility changes.
 
 Before committing, pushing, or handing off a UI change, pass DESIGN's [alignment rules](web/doc/DESIGN.md#alignment) and
 [validation cases](web/doc/DESIGN.md#validation) using rendered bounds and screenshots. Check every affected width

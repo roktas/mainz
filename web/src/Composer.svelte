@@ -1,4 +1,5 @@
 <!-- Coordinates pane views, page selections, Output edits, and transfers. -->
+
 <script lang="ts">
   import { onDestroy, tick } from "svelte"
   import { MediaQuery } from "svelte/reactivity"

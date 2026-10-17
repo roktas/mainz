@@ -1,4 +1,5 @@
 <!-- Summarizes a Style object and opens its Fill, Stroke, Width, and Visibility editors. -->
+
 <script lang="ts">
   import type { Snippet } from "svelte"
   import { current, feedback } from "./styles.ts"

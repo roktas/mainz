@@ -1,4 +1,5 @@
 <!-- Offers local PDF opening, file drops, and the landing logo animation. -->
+
 <script lang="ts">
   import Icon from "./Icon.svelte"
   import Logo from "./Logo.svelte"

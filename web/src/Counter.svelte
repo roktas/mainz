@@ -1,4 +1,5 @@
 <!-- Edits the inspected page number and returns focus to its viewport. -->
+
 <script lang="ts">
   import { tick } from "svelte"
 

@@ -1,4 +1,5 @@
 <!-- Provides shortcut help, onboarding, the product tour, and the addition hint. -->
+
 <script module lang="ts">
   export type TourStep =
     | "input"

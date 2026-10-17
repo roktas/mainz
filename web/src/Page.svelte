@@ -1,4 +1,5 @@
 <!-- Displays the inspected page and preserves viewport position and panning. -->
+
 <script module lang="ts">
   export const zoomLevels = [50, 100, 150, 200, 300, 400]
 </script>

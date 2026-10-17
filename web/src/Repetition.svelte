@@ -1,4 +1,5 @@
 <!-- Edits whole-sequence repetitions and front-face alignment. -->
+
 <script lang="ts">
   import { copyError, maxCopies } from "./model.ts"
   import Icon from "./Icon.svelte"

@@ -1,4 +1,5 @@
 <!-- Renders a fitted PDF page and supplies its hover lens. -->
+
 <script module lang="ts">
   let measurements: (() => void)[] = []
   function measure<T>(read: () => T): Promise<T> {

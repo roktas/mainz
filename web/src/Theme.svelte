@@ -1,4 +1,5 @@
 <!-- Switches the page theme and keeps the browser tint in sync. -->
+
 <script lang="ts">
   import { onMount } from "svelte"
   function tint() {

@@ -1,4 +1,5 @@
 <!-- Installs offline assets and coordinates application updates. -->
+
 <script lang="ts">
   import { onMount } from "svelte"
   let {

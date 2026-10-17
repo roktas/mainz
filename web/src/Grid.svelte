@@ -1,4 +1,5 @@
 <!-- Batches thumbnails and connects mouse selection with keyboard navigation. -->
+
 <script lang="ts">
   import { tick, untrack } from "svelte"
   import type { Snippet } from "svelte"

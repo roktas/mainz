@@ -1,4 +1,5 @@
 <!-- Embeds the application logo with unique SVG IDs and the current theme. -->
+
 <script lang="ts">
   import svg from "../public/logo.svg?raw"
 

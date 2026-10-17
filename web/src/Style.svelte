@@ -1,4 +1,5 @@
 <!-- Shows the active Source's applicable Style profiles and parameter groups. -->
+
 <script lang="ts">
   import { available, feedback, groups, matchingProfile, objects, resolve } from "./styles.ts"
   import { pageRanges } from "./pages.ts"

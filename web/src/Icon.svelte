@@ -1,4 +1,5 @@
 <!-- Draws the shared interface icons. -->
+
 <script module lang="ts">
   const paths = {
     input: "M5 17H3V2h8l4 4v1M11 2v4h4M8 7h9l4 4v11H8V7Zm9 0v4h4",
