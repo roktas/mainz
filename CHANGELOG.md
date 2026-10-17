@@ -17,6 +17,7 @@
   same thumbnail width.
 - Drag feedback on touch screens. Grid drops and selection actions keep the keyboard closed.
 - Repeated Page image activation copies the current page and preserves Selection.
+- Build IDs use Istanbul time and retain the full UTC build timestamp in their details.
 
 ## 1.0.0 - 2026-10-17
 

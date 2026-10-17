@@ -8559,7 +8559,17 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     const buildId = await identifier.textContent();
     assert.match(buildId, /^\d{4}-\d{4}-\d{4}-\d{4}$/);
     assert.equal(await identifier.getAttribute("aria-label"), `Build ${buildId}`);
-    assert.match(await identifier.getAttribute("title"), /^Built \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z \(UTC\)/);
+    assert.match(
+      await identifier.getAttribute("title"),
+      /^Build ID: Europe\/Istanbul · Built \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z \(UTC\)/,
+    );
+    const localBuild = new Date(Date.parse(await identifier.getAttribute("datetime")) + 3 * 60 * 60 * 1000)
+      .toISOString()
+      .replace(/\D/g, "");
+    assert.equal(
+      buildId,
+      `${localBuild.slice(0, 4)}-${localBuild.slice(4, 8)}-${localBuild.slice(8, 12)}-${localBuild.slice(12, 16)}`,
+    );
     await page.getByText("Installing offline application…", { exact: true }).waitFor();
     const installingPage = await context.newPage();
     await installingPage.goto(`${url}?demo`);

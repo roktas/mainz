@@ -425,8 +425,9 @@ context. Other Inputs are named only for operations concerning them. Opening pro
 not repeat in the footer. The offline-ready and update-ready events use Notices. An installed application does not
 repeat offline-ready guidance. Update controls remain after their Notice expires.
 
-Build ID identifies the application build, separately from software version. Its format is `YYYY-MMDD-HHmm-sscc` in UTC.
-Hover exposes the full timestamp and available Git revision. An offline installation retains its build's ID.
+Build ID identifies the application build, separately from software version. Its format is `YYYY-MMDD-HHmm-sscc` in
+`Europe/Istanbul` time. Hover identifies this time zone and exposes the full UTC timestamp and available Git revision.
+An offline installation retains its build's ID.
 
 ## Processing boundaries
 
@@ -466,7 +467,7 @@ The [library glossary](../../lib/doc/SPEC.md#glossary) owns PDF and painting ter
 | Term               | Meaning                                                                                                 |
 | ------------------ | ------------------------------------------------------------------------------------------------------- |
 | Blank              | A content-free page with defined physical dimensions. It can be explicit or generated as Padding.       |
-| Build ID           | UTC timestamp identifying an application build, separate from version and Git revision.                 |
+| Build ID           | Istanbul timestamp identifying an application build, separate from version and Git revision.            |
 | Compare            | Preview of the same Output occurrence with completed styles or its opened Input appearance.             |
 | Composition        | Ordered assembly of Source pages and Blanks into Output.                                                |
 | Copy count         | Number of repetitions of one complete Part.                                                             |

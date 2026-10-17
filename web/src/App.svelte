@@ -856,7 +856,7 @@
   <time
     datetime={import.meta.env.BUILD_TIME}
     aria-label={`Build ${import.meta.env.BUILD_ID}`}
-    title={`Built ${import.meta.env.BUILD_TIME} (UTC)${import.meta.env.BUILD_REVISION ? ` · Git ${import.meta.env.BUILD_REVISION}` : ""}`}
+    title={`Build ID: Europe/Istanbul · Built ${import.meta.env.BUILD_TIME} (UTC)${import.meta.env.BUILD_REVISION ? ` · Git ${import.meta.env.BUILD_REVISION}` : ""}`}
     >{import.meta.env.BUILD_ID}</time
   >
 </footer>

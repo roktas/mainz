@@ -15,9 +15,24 @@ import { execFileSync } from "node:child_process";
 import { join, resolve } from "node:path";
 
 const version = readFileSync(resolve("../VERSION"), "utf8").trim();
-const builtAt = new Date().toISOString();
-const stamp = builtAt.replace(/\D/g, "");
-const buildId = `${stamp.slice(0, 4)}-${stamp.slice(4, 8)}-${stamp.slice(8, 12)}-${stamp.slice(12, 16)}`;
+const now = new Date();
+const builtAt = now.toISOString();
+const clock = Object.fromEntries(
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Istanbul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    fractionalSecondDigits: 2,
+    hourCycle: "h23",
+  })
+    .formatToParts(now)
+    .map(({ type, value }) => [type, value]),
+);
+const buildId = `${clock.year}-${clock.month}${clock.day}-${clock.hour}${clock.minute}-${clock.second}${clock.fractionalSecond}`;
 let revision = "";
 try {
   revision = execFileSync("git", ["rev-parse", "--short=7", "HEAD"], {
