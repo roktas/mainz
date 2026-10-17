@@ -352,6 +352,10 @@ filenames, five-digit page numbers, loading, errors, cancellation, and reduced m
 overflow or conceals an action behind a fold, toolbar, or fixed status row. Touch emulation covers taps and scrolling.
 Physical-device drag behavior and assistive technology require separate evidence.
 
+Animation assertions wait for the rendered effect to start before checking its duration or geometry. Updated document
+totals do not prove that a transition has started. Edit feedback checks also run with CPU throttling and identify the
+viewport and density in their diagnostics. Do not use fixed sleeps or automatic retries to hide timing failures.
+
 Alignment is an acceptance gate for every layout change. Exercise every affected width range from the
 [capacity references](#workspace), including both ends when a range changes. Check Input and Output in Normal and
 Compact, both themes, normal and 200% text, selected and unselected cards, and one- through five-digit numbers. Measure

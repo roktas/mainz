@@ -4260,17 +4260,17 @@ test("Input additions move previews to Output without delaying edits or taking f
 test(
   "Output additions, removals, and moves animate across page actions and shortcuts",
   { timeout: 120000 },
-  async () => {
+  async (t) => {
     const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
     let browser;
     try {
       await server.listen();
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
-      for (const [width, height, hasTouch, colorScheme] of [
-        [1440, 1100, false, "light"],
-        [1024, 768, true, "dark"],
-        [810, 1080, true, "dark"],
-        [390, 844, true, "light"],
+      for (const [width, height, hasTouch, colorScheme, cpu] of [
+        [1440, 1100, false, "light", 4],
+        [1024, 768, true, "dark", 1],
+        [810, 1080, true, "dark", 1],
+        [390, 844, true, "light", 4],
       ]) {
         const page = await browser.newPage({
           viewport: { width, height },
@@ -4279,6 +4279,8 @@ test(
           colorScheme,
           reducedMotion: "no-preference",
         });
+        await (await page.context().newCDPSession(page)).send("Emulation.setCPUThrottlingRate", { rate: cpu });
+        t.diagnostic(`${width} × ${height}, ${colorScheme}, ${cpu}× CPU slowdown`);
         page.setDefaultTimeout(10000);
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"));
         await page.goto(`${server.resolvedUrls.local[0]}?demo`);
@@ -4348,7 +4350,10 @@ test(
           await action();
           assert.equal(await total(), before - quantity, "Removal updates the document without waiting");
           const outgoing = output.locator(".composition-card.removing");
-          assert.equal(await outgoing.count(), quantity);
+          await page.waitForFunction(
+            (expected) => document.querySelectorAll(".composition-card.removing").length === expected,
+            quantity,
+          );
           assert.equal(
             await outgoing.evaluateAll((cards) =>
               cards.every(
@@ -4427,6 +4432,7 @@ test(
           .locator(".composition-grid")
           .evaluate((grid) => grid.getAnimations({ subtree: true }).forEach((animation) => animation.finish()));
         for (const density of ["Normal", "Compact"]) {
+          t.diagnostic(`${width}: ${density} edit feedback`);
           await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click();
           const clear = output.getByRole("button", { name: "Clear Output selection", exact: true });
           if (await clear.isVisible()) await clear.click();
