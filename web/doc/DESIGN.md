@@ -151,6 +151,10 @@ numbers at the start, grips in the center, and face information at the upper-rig
 corner. Front retains its normal corner. The fold continues the current contour without leaving a rectangular border
 behind it. Accessible labels and hover help identify both faces. Page corners do not intercept tool interactions.
 
+Column sizing follows one policy shared by both panes and Page's thumbnail reference. Density, pointer targets, and
+available pane width select the minimum card width and column gap. CSS fills complete columns from these values. Keep
+the width ranges together so each layout change has one place to maintain.
+
 Compact uses smaller page numbers. Three or more digits shift the grip toward the end to avoid the number and fold.
 Four- and five-digit numbers also shrink. Numbers through 10,000 keep at least 2 px of separation without widening the
 card. Tabular digits keep semibold weight. Hover changes their color without changing geometry.
