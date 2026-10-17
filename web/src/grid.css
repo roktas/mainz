@@ -60,17 +60,17 @@
         }
       }
 
-      @media (any-pointer: coarse) and (orientation: portrait) {
-        /* Eight cards fit before the ordinary minimum width admits the eighth column. */
-        @container catalog (760px <= width < 838px) {
-          &[data-density="compact"] :is(.composition-grid, .page-reference) {
-            --grid-width: max(88px, calc(5 * var(--body)));
-            column-gap: 8px;
+      @media (any-pointer: coarse) {
+        @container composer (width <= 55em) {
+          /* Eight cards fit before the ordinary minimum width admits the eighth column. */
+          @container catalog (760px <= width < 838px) {
+            &[data-density="compact"] :is(.composition-grid, .page-reference) {
+              --grid-width: max(88px, calc(5 * var(--body)));
+              column-gap: 8px;
+            }
           }
         }
-      }
 
-      @media (any-pointer: coarse) and (orientation: landscape) {
         @container composer (width > 55em) {
           &[data-density="normal"] :is(.composition-grid, .page-reference) {
             column-gap: 0.75rem;

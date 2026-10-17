@@ -152,21 +152,22 @@ corner. Front retains its normal corner. The fold continues the current contour 
 behind it. Accessible labels and hover help identify both faces. Page corners do not intercept tool interactions.
 
 Column sizing follows one policy shared by both panes and Page's thumbnail reference. Density, pointer targets, and
-available pane width select the minimum card width and column gap. CSS fills complete columns from these values. Keep
-the width ranges together so each layout change has one place to maintain.
+available pane width select the minimum card width and column gap. CSS fills complete columns from these values.
+Viewport height and orientation do not select column widths. Keep the width ranges together so each layout change has
+one place to maintain.
 
 Compact uses smaller page numbers. Three or more digits shift the grip toward the end to avoid the number and fold.
 Four- and five-digit numbers also shrink. Numbers through 10,000 keep at least 2 px of separation without widening the
 card. Tabular digits keep semibold weight. Hover changes their color without changing geometry.
 
 Touch Compact cards use two equal header cells for the number and grip. Both retain 44 px touch targets. Card width
-follows the content and these targets instead of reserving an empty third header cell. Portrait touch panes can fit an
-eighth column with narrower cards and horizontal gaps when both header targets still fit. Card height, thumbnail fit
-rules, and row spacing stay fixed. Other layouts keep their ordinary capacity.
+follows the content and these targets instead of reserving an empty third header cell. Single-pane touch workspaces can
+fit an eighth column with narrower cards and horizontal gaps when both header targets still fit. Card height, thumbnail
+fit rules, and row spacing stay fixed. Other layouts keep their ordinary capacity.
 
-Landscape touch workspaces with both panes visible use the smallest control gap between Normal columns. This admits a
-third column without reducing portrait thumbnails. Compact can add a fifth column where both heading targets still fit.
-Both densities retain their card heights and vertical spacing.
+Touch workspaces with both panes visible use the smallest control gap between Normal columns. This admits a third column
+without reducing portrait thumbnails. Compact can add a fifth column where both heading targets still fit. Both
+densities retain their card heights and vertical spacing.
 
 Selection hides individual actions without moving the image or changing card dimensions. Normal footers keep their
 height and separator. Input centers addition. Output places removal left of duplication with one control gap. Page

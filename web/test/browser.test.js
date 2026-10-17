@@ -2668,6 +2668,8 @@ test(
               [640, 960, 5],
               [768, 1024, 6],
               [810, 1080, 8],
+              [810, 790, 8],
+              [810, 600, 8],
               [820, 1180, 8],
               [834, 1194, 8],
               [1024, 768, 4],
@@ -2756,7 +2758,7 @@ test(
           }
           if (hasTouch && width === 1080) {
             for (const [nextHeight, capacity] of [
-              [1200, 20],
+              [1200, 25],
               [810, 25],
             ]) {
               await page.setViewportSize({ width, height: nextHeight });

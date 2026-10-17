@@ -11,7 +11,7 @@
 
 ### Fixed
 
-- Touch tablet grids fit more columns with smaller image margins.
+- Touch tablet grids fit more columns with smaller image margins and retain columns when viewport height changes.
 - Drag feedback on touch screens. Grid drops and selection actions keep the keyboard closed.
 - Repeated Page image activation copies the current page and preserves Selection.
 
