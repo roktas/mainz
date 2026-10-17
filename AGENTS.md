@@ -54,10 +54,11 @@ Run commands from the repository root. Required tools:
 - SVG producer: Cairo, librsvg, libxml2, Pango, and Fontconfig development files.
 - Maintenance and PDF tests: direnv, Ruby, Bundler, OpenSSL development files, `rsvg-convert`, QPDF, and Poppler's
   `pdftoppm`.
-- Web: Node.js 24+. WebAssembly compilation also requires the pinned Emscripten SDK and Python.
+- Web: the Node.js version in [`.node-version`](.node-version). WebAssembly compilation also requires the pinned
+  Emscripten SDK and Python.
 
-`.ruby-version`, `Gemfile.lock`, `CMakePresets.json`, package locks, and the CI workflow own tool versions. Initial
-setup and native checks:
+`.ruby-version`, `.node-version`, `Gemfile.lock`, `CMakePresets.json`, package locks, and the CI workflow own tool
+versions. Initial setup and native checks:
 
 ```sh
 direnv allow .
@@ -136,6 +137,9 @@ diagnostics and `svelte-check` cover templates and types. Do not add competing f
 from the DOM application.
 
 ### Setup and checks
+
+Use the Node.js version in root `.node-version` for these checks. Confirm `node --version` before comparing local
+results with CI.
 
 Root npm scripts use dependencies linked from `web/node_modules` to `.local/var/js/node_modules/`. After dependency
 changes or removal of `.local/var/js/`, run `direnv exec . bundle exec rake setup:web`. Build and package WASM before

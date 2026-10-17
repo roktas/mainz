@@ -30,7 +30,8 @@ Try [mainz.roktas.dev](https://mainz.roktas.dev/). The [specification and glossa
 
 ## Development
 
-Use Node.js 24+ and the [root build dependencies](../AGENTS.md#build-and-validation). Run from the repository root:
+Use the Node.js version in [`.node-version`](../.node-version) and the
+[root build dependencies](../AGENTS.md#build-and-validation). Run from the repository root:
 
 ```sh
 direnv exec . bundle exec rake build:wasm package:wasm setup:web
