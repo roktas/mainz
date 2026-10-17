@@ -126,11 +126,12 @@ fixed removable Blanks, and discard internal Part boundaries.
 | Insert Blank         | Adds one fixed-size Blank before the first selected page or at the end, and selects it.                     |
 | Repeat sequence      | Repeats consecutive occurrences, including Sources and Blanks, in order.                                    |
 
-The Output page actions menu offers movement actions. They disappear at their respective boundaries. A selection
-touching both boundaries has neither action. Nonconsecutive selections retain duplication and movement but show an
-explanation instead of repetition controls. Repetition includes the current sequence: two copies of A B produce A B A B.
-One copy without alignment offers no action. Success selects the final copy's content pages and resets repetitions to 2
-and front alignment off. Failure preserves the configuration. Selections do not establish persistent copy groups.
+Output offers movement actions in its selection bar, or in the page actions menu when space is limited. They disappear
+at their respective boundaries. A selection touching both boundaries has neither action. Nonconsecutive selections
+retain duplication and movement but show an explanation instead of repetition controls. Repetition includes the current
+sequence: two copies of A B produce A B A B. One copy without alignment offers no action. Success selects the final
+copy's content pages and resets repetitions to 2 and front alignment off. Failure preserves the configuration.
+Selections do not establish persistent copy groups.
 
 ### Duplex alignment and Blanks
 
@@ -259,8 +260,8 @@ PDF when the final Input is removed.
 
 For mouse and keyboard input, a disappearing field action returns focus to its field. Available selection-bar actions
 keep focus. Group removal and Clear return focus to the field while pages remain. Grid keyboard duplication focuses the
-final new Output copy. Movement retains focus on the same occurrence. Removal chooses a surviving neighbor. Starting a
-mouse drag does not move focus.
+final new Output copy after arrival. Grid retains keyboard navigation while the copy is hidden. Movement retains focus
+on the same occurrence. Removal chooses a surviving neighbor. Starting a mouse drag does not move focus.
 
 On touch screens, only direct activation of the Selection field focuses it. Other Selection actions return focus to Grid
 or Page. Touch dragging dismisses the keyboard and does not focus Selection on completion.

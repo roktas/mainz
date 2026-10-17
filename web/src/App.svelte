@@ -1,6 +1,7 @@
 <!-- Owns PDF lifetimes, Source styles, Output state, and Download. -->
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte";
+  import { animateRemoval } from "./page-motion.ts";
   import { fade } from "svelte/transition";
   import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
   import { appearance, downloadName, expand, job, maxPages, positionAfterEdit, sizeOf, uid } from "./model.ts";
@@ -338,6 +339,10 @@
       error("Remove this Input's pages from Output before removing it.");
       return;
     }
+    for (const sheet of document.querySelectorAll<HTMLElement>(
+      ".selection-panel .page-image canvas, .selection-panel .page-scroll canvas",
+    ))
+      animateRemoval(sheet, () => {});
     const id = active.id;
     const name = active.input.name;
     cancelRender(id);

@@ -264,7 +264,7 @@
 }
 
 @layer components {
-  @scope (.drag-image, .addition-preview) {
+  @scope (.drag-image, .addition-preview, .removal-preview) {
     :scope {
       position: fixed;
       inset-block-start: 0;
@@ -273,7 +273,7 @@
       pointer-events: none;
     }
   }
-  @scope (.addition-preview) {
+  @scope (.addition-preview, .removal-preview) {
     :scope {
       opacity: 0.95;
       background: oklch(100% 0 none);
@@ -297,6 +297,9 @@
   }
   @scope (.composer) {
     [data-adding] {
+      visibility: hidden;
+    }
+    [data-removing] .page-scroll > * {
       visibility: hidden;
     }
   }

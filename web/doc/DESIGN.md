@@ -150,10 +150,12 @@ thumbnails. Narrow Compact fills complete rows within the visible pane's fitted 
 
 Selection fields and Style profiles span the pane width. Both page fields have the accessible name Page selection.
 Action menus occupy the first position and open below the field's start edge. Menus share padding, corners, and viewport
-bounds. Output's menu groups earlier/later movement before Blank insertion. Removal and duplication stay in the field
-bar. Individual page controls use transparent surfaces. Input + and Output duplicate + use the same primary treatment
-through the field's outer edge. Active Output removal uses a red surface and white minus. Invalid targets use the
-disabled treatment. The + remains legible while disabled. Empty fields show an `Example:` placeholder.
+bounds. Output shows movement buttons in the field bar when the pane fits seven 44 px controls and a ten-character
+field. Narrower panes put movement before Blank insertion in the menu. This rule uses pane width and font metrics,
+including tablet and desktop layouts. Removal and duplication stay in the field bar. Individual page controls use
+transparent surfaces. Input + and Output duplicate + use the same primary treatment through the field's outer edge.
+Active Output removal uses a red surface and white minus. Invalid targets use the disabled treatment. The + remains
+legible while disabled. Empty fields show an `Example:` placeholder.
 
 Hints align below the field. Selection counts use accent emphasis. Errors replace the hint with danger text at the same
 small size. Hints reserve space and wrap naturally, so errors, bold counts, and drag guidance do not move fitted page
@@ -312,16 +314,28 @@ New footer status briefly highlights the message with a light accent tint and a 
 fades to its ordinary treatment. A successful Page image copy briefly brightens the image and its contour. Repeated
 operations restart the feedback. Reduced motion skips these effects. Neither effect changes geometry.
 
-Input additions move a page preview along a shallow curve toward the new Output page image when both panes are visible.
-A group uses a small page stack. If the new page is outside the visible batch, the preview moves toward the Output
-heading. Single-pane layouts use the Output workspace button. Preview centers follow the visible Input image and the
-target Output image on both axes. Grid arrivals match the target image size across pane densities.
+All page additions use a 1200 ms preview along a shallow curve, including copies, repetition, and Blank insertion. A
+group uses a small page stack. Input additions use the Output workspace button on single-pane layouts. Otherwise, the
+preview moves toward the new Output image, or the Output heading when the image is outside the visible Grid batch or in
+Page. Single-pane layouts use the Output button when no new image is displayed. Preview centers follow the visible
+source image and target on both axes. Grid arrivals match the target image size across pane densities. A Blank uses a
+blank preview.
 
-The preview uses a rendered Input page. It does not delay the edit or change focus, selection, scrolling, or the active
-view. New Output cards reserve their space but stay hidden and inert until arrival. If Page displays a new occurrence,
+The preview uses a rendered page when available. It does not delay the edit or change selection, scrolling, or the
+active view. New Output cards reserve their space but stay hidden and inert until arrival. Keyboard duplication keeps
+focus in Grid, then focuses the copy on arrival unless the user navigates elsewhere. If Page displays a new occurrence,
 it also waits for arrival. Cancellation reveals the completed edit. Repeated additions replace the previous preview.
 
-Drag and drop retains its own preview. Reduced motion shows additions immediately.
+Removal shrinks and fades each visible outgoing card over 1200 ms. Cards keep their places until the exit completes and
+cannot receive input. Page retains a snapshot of the removed image during the exit, then shows its replacement. Removing
+an Input uses the same exit for its visible page images. Document edits and totals update immediately.
+
+Moves slide existing cards and their neighbors to their new positions over 1200 ms. A position change in Page gives the
+image a short movement in that direction. The inspected occurrence, Selection, and focus follow their existing rules.
+These animations use the same paths for buttons, menus, keyboard shortcuts, and gestures.
+
+Drag and drop retains its own preview during movement. Reduced motion shows all edits immediately, without these
+effects.
 
 Notices use no colored surface or border. They can wrap beside their icon and keyboard-accessible dismiss button. The
 header remains visible during a Notice. Notice text keeps its full contrast between entry and dismissal. Entry and

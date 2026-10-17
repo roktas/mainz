@@ -96,6 +96,23 @@
         block-size: 18px;
       }
     }
+    .inline-moves {
+      display: none;
+    }
+    .output-panel > .sequence-entry {
+      container: selection / inline-size;
+    }
+    .menu-moves {
+      display: contents;
+    }
+    @container selection (width > calc(7 * 44px + 10ch + 26px)) {
+      .inline-moves {
+        display: block flex;
+      }
+      .menu-moves {
+        display: none;
+      }
+    }
     .output-selection > .danger:not(:disabled) {
       color: oklch(100% 0 none);
       background: var(--danger-fill);

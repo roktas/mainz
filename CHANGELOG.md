@@ -8,7 +8,8 @@
 - Numeric Selection keyboards on touch screens.
 - Pinch zoom in Page, with the same range as the zoom controls.
 - Brief status emphasis after operations and page emphasis after a double-tap or double-click copy.
-- Input additions move a page or group preview toward Output, then reveal the added pages.
+- Page additions, including copies, repeats, and Blanks, move a preview toward Output before the new pages appear.
+- Page removal fades and shrinks outgoing pages. Moves animate cards into their new positions.
 
 ### Fixed
 
@@ -17,6 +18,7 @@
   same thumbnail width.
 - Drag feedback on touch screens. Grid drops and selection actions keep the keyboard closed.
 - Repeated Page image activation copies the current page and preserves Selection.
+- Move controls stay in the Output selection bar when space permits, including tablet landscape layouts.
 - Build IDs use Istanbul time and retain the full UTC build timestamp in their details.
 
 ## 1.0.0 - 2026-10-17

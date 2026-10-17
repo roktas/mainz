@@ -220,7 +220,8 @@
       if (!["shift", "arrowleft", "arrowright", "arrowup", "arrowdown", "home", "end", "n", "p"].includes(key)) return;
       const buttons = images();
       const index = buttons.indexOf(event.target as HTMLButtonElement);
-      let cursor = event.target === element && boundary ? (boundary < 0 ? 0 : count) : index < 0 ? -1 : start + index;
+      let cursor =
+        event.target === element ? (boundary ? (boundary < 0 ? 0 : count) : position) : index < 0 ? -1 : start + index;
       if (cursor < 0) return;
       if (key === "shift") {
         if (pointerSelection === cursor) {

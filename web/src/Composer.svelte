@@ -2,8 +2,8 @@
 <script lang="ts">
   import { onDestroy, tick } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
-  import { fade } from "svelte/transition";
-  import { cubicOut } from "svelte/easing";
+  import { scale } from "svelte/transition";
+  import { cubicInOut } from "svelte/easing";
   import type { Snippet } from "svelte";
   import { appearance, copyError, expand, move, positionAfterEdit, sizeOf, uid } from "./model.ts";
   import type { Content, Expanded, Page, Part, Source } from "./model.ts";
@@ -13,7 +13,7 @@
   import { available } from "./styles.ts";
   import Pdf from "./Pdf.svelte";
   import { createDragImage, retainFocus } from "./drag.ts";
-  import { animateAddition } from "./addition.ts";
+  import { animateAddition, animateMove, animateOrder, animateRemoval, editDuration } from "./page-motion.ts";
   import Repetition from "./Repetition.svelte";
   import Grid from "./Grid.svelte";
   import PageView, { zoomLevels } from "./Page.svelte";
@@ -65,6 +65,15 @@
   } = $props();
   const key = $props.id();
   const motion = new MediaQuery("(prefers-reduced-motion: no-preference)");
+  $effect(() => {
+    if (motion.current) return;
+    document
+      .getElementById(`${key}-output-panel`)
+      ?.querySelectorAll(".composition-card")
+      .forEach((card) => {
+        for (const animation of card.getAnimations()) animation.finish();
+      });
+  });
   type InputView = {
     tab: "grid" | "page" | "style";
     density?: "normal" | "compact";
@@ -126,7 +135,11 @@
   let dragPosition: number | undefined;
   let dragImage: ReturnType<typeof createDragImage>;
   let cancelAddition: (() => void) | undefined;
-  let pendingAddition = $state<string>();
+  let pendingAddition = $state.raw(new Set<string>());
+  let removing = $state.raw(new Set<string>());
+  let cancelRemoval: (() => void) | undefined;
+  let cancelMove: (() => void) | undefined;
+  let removingPage = $state(false);
   let contact:
     | {
         id: number;
@@ -274,6 +287,7 @@
   }
   function density(pane: "Input" | "Output", value: "normal" | "compact") {
     originOpen = undefined;
+    cancelMotion();
     if (pane === "Input") inspectInput({ density: value });
     else outputDensity = value;
   }
@@ -292,6 +306,7 @@
     });
   }
   function setOutputTab(tab: typeof outputTab) {
+    cancelMotion();
     outputTab = tab;
     if (tab === "grid") outputOffset = outputPosition;
   }
@@ -661,11 +676,84 @@
   function group(pages: Page[], quantity = "1", align = false): Part {
     return { id: uid(), pages, copies: quantity, front: align };
   }
-  function commit(next: Part[], text: string, select?: (pages: Expanded[]) => string[]) {
+  function cancelMotion() {
+    cancelAddition?.();
+    cancelAddition = undefined;
+    cancelRemoval?.();
+    cancelRemoval = undefined;
+    cancelMove?.();
+    cancelMove = undefined;
+  }
+  function animateEdit(expanded: Expanded[], ids: Set<string>, origin?: HTMLElement | null) {
+    const previous = new Set(output.pages.map((page) => page.id));
+    const added = expanded.filter((page) => !previous.has(page.id));
+    removing = new Set(output.pages.filter((page) => !ids.has(page.id)).map((page) => page.id));
+    const reordering =
+      !added.length && !removing.size && expanded.some((page, index) => page.id !== output.pages[index]?.id);
+    cancelMotion();
+    const panel = document.getElementById(`${key}-output-panel`);
+    if (added.length && !drag) {
+      const sheet =
+        origin ??
+        panel?.querySelector<HTMLElement>(
+          activeOutputTab === "page"
+            ? ".page-scroll canvas, .blank-sheet"
+            : ".composition-card.selected .page-image :is(canvas, .composition-blank)",
+        ) ??
+        panel?.querySelector<HTMLElement>(".page-image :is(canvas, .composition-blank)") ??
+        panel?.querySelector<HTMLElement>(".sequence-entry");
+      if (sheet) {
+        cancelAddition = animateAddition(
+          sheet,
+          sizeOf(added[0].content, sources),
+          "blank" in added[0].content,
+          added.length,
+          () => {
+            const button = panel
+              ?.closest(".composer")
+              ?.querySelector<HTMLElement>(".mobile-workspace-tabs > button:last-child");
+            const image = document.getElementById(`${key}-${added[0].id}`)?.querySelector<HTMLElement>(".page-image");
+            if (button?.offsetWidth && (origin?.closest(".selection-panel") || !image)) return button;
+            return image ?? document.getElementById(`${key}-output`);
+          },
+          () => {
+            const id = inspected?.id;
+            const focused = document.activeElement;
+            const restore = id && pendingAddition.has(id) && focused?.matches(".composition-output .composition-grid");
+            pendingAddition = new Set();
+            if (restore)
+              void tick().then(() => {
+                if (document.activeElement === focused && inspected?.id === id)
+                  document
+                    .getElementById(`${key}-${id}`)
+                    ?.querySelector<HTMLElement>(".page-image")
+                    ?.focus({ preventScroll: true });
+              });
+          },
+        );
+      }
+      pendingAddition = cancelAddition ? new Set(added.map((page) => page.id)) : new Set();
+    }
+    if (inspected && removing.has(inspected.id) && activeOutputTab === "page") {
+      const sheet = panel?.querySelector<HTMLElement>(".page-scroll canvas, .blank-sheet");
+      if (sheet) cancelRemoval = animateRemoval(sheet, () => (removingPage = false));
+      removingPage = !!cancelRemoval;
+    }
+    if (reordering && inspected && activeOutputTab === "page") {
+      const position = expanded.findIndex((page) => page.id === inspected.id);
+      const sheet = panel?.querySelector<HTMLElement>(".page-scroll canvas, .blank-sheet");
+      if (sheet && position !== outputPosition) cancelMove = animateMove(sheet, position - outputPosition);
+    }
+    if (reordering && activeOutputTab === "grid") {
+      const grid = panel?.querySelector<HTMLElement>(".composition-grid");
+      if (grid) cancelMove = animateOrder(grid);
+    }
+  }
+  function commit(next: Part[], text: string, select?: (pages: Expanded[]) => string[], origin?: HTMLElement | null) {
     try {
       const expanded = expand(next, sources);
-      if (pendingAddition && !next.some((part) => part.id === pendingAddition)) cancelAddition?.();
       const ids = new Set(expanded.map((page) => page.id));
+      animateEdit(expanded, ids, origin);
       const selection = (select?.(expanded) ?? selected).filter((id) => ids.has(id));
       const anchor = select ? selection.at(-1) : output.pages[outputAnchor ?? -1]?.id;
       const focused = document.activeElement as HTMLElement | null;
@@ -704,10 +792,10 @@
             return;
           }
           if (grid && select && destination !== undefined && destination >= 0) {
-            document
-              .getElementById(`${key}-${selection.at(-1)}`)
-              ?.querySelector<HTMLButtonElement>(".page-image")
-              ?.focus();
+            (pendingAddition.has(selection.at(-1)!)
+              ? focused
+              : document.getElementById(`${key}-${selection.at(-1)}`)?.querySelector<HTMLElement>(".page-image")
+            )?.focus({ preventScroll: true });
             return;
           }
           if (!selection.length || !focused?.isConnected || focused.matches(":disabled")) {
@@ -734,13 +822,16 @@
               ? document.getElementById(`${key}-output-panel`)?.querySelector<HTMLElement>(".page-scroll")
               : undefined;
           (
-            neighbor?.querySelector<HTMLButtonElement>(".page-image") ??
+            (page && pendingAddition.has(page.id)
+              ? document.getElementById(`${key}-output-panel`)?.querySelector<HTMLElement>(".composition-grid")
+              : neighbor?.querySelector<HTMLButtonElement>(".page-image")) ??
             viewport ??
             document.getElementById(`${key}-output-${activeOutputTab}`)
-          )?.focus();
+          )?.focus({ preventScroll: !!pageAction });
         });
       return true;
     } catch (reason) {
+      cancelMotion();
       error(`Output could not update. ${reason instanceof Error ? reason.message : "Try the action again."}`);
       return false;
     }
@@ -779,38 +870,15 @@
             next,
             ...(at < currentPages.length ? [group(currentPages.slice(at))] : []),
           ];
-    cancelAddition?.();
     const panel = document.getElementById(`${key}-source-panel`);
     const sheet =
-      panel?.querySelector<HTMLCanvasElement>(
+      panel?.querySelector<HTMLElement>(
         activeTab === "page" ? ".page-scroll canvas" : `.page-image[data-page="${(pages ?? parsed.pages)[0]}"] canvas`,
       ) ??
       (pages === undefined
-        ? panel?.querySelector<HTMLCanvasElement>(".composition-card.selected .page-image canvas")
-        : undefined);
-    cancelAddition =
-      !drag && sheet
-        ? animateAddition(
-            sheet,
-            quantity,
-            () => {
-              const button = panel
-                ?.closest(".composer")
-                ?.querySelector<HTMLElement>(".mobile-workspace-tabs > button:last-child");
-              if (button?.offsetWidth) return button;
-              return (
-                document
-                  .getElementById(`${key}-output-panel`)
-                  ?.querySelector<HTMLElement>(`.composition-card[data-part="${next.id}"] .page-image:has(canvas)`) ??
-                document.getElementById(`${key}-output`)
-              );
-            },
-            () => {
-              if (pendingAddition === next.id) pendingAddition = undefined;
-            },
-          )
-        : undefined;
-    pendingAddition = cancelAddition ? next.id : undefined;
+        ? panel?.querySelector<HTMLElement>(".composition-card.selected .page-image canvas")
+        : undefined) ??
+      panel?.querySelector<HTMLElement>(".sequence-entry");
     const completed = commit(
       updated,
       at === undefined
@@ -821,8 +889,8 @@
       selection === "new"
         ? (expanded) => expanded.filter((page) => page.part === next.id).map((page) => page.id)
         : undefined,
+      sheet,
     );
-    if (!completed) cancelAddition?.();
     if (completed && pages === undefined) {
       clearInput();
       if (inputBar && !touchDragging) focusAfterSelection("Input");
@@ -1074,7 +1142,7 @@
       return;
     }
     originOpen = undefined;
-    cancelAddition?.();
+    cancelMotion();
     target = undefined;
     overOutput = false;
     drag = value;
@@ -1257,7 +1325,7 @@
     leaveNavigation();
     clearTimeout(highlightTimeout);
     dragImage?.image.remove();
-    cancelAddition?.();
+    cancelMotion();
   });
   function interact(event: Event) {
     if (
@@ -1772,6 +1840,25 @@
   </details>
 {/snippet}
 
+{#snippet outputMoves(inline = false)}
+  {#if chosen.length && positions[0] > 0}<button
+      class={inline ? "step" : undefined}
+      aria-label="Move selected pages earlier"
+      title="Move selected pages earlier · Ctrl+←"
+      disabled={!!outputSelectionError}
+      onclick={() => order(-1)}
+      ><Icon name="earlier" />{#if !inline}Move selected pages earlier{/if}</button
+    >{/if}
+  {#if chosen.length && positions.at(-1)! < output.pages.length - 1}<button
+      class={inline ? "step" : undefined}
+      aria-label="Move selected pages later"
+      title="Move selected pages later · Ctrl+→"
+      disabled={!!outputSelectionError}
+      onclick={() => order(1)}
+      ><Icon name="later" />{#if !inline}Move selected pages later{/if}</button
+    >{/if}
+{/snippet}
+
 {#snippet outputTools()}
   <details class="sequence-options output-options" bind:this={outputMenu}>
     <summary id={`${key}-output-actions`} aria-label="Output page actions" title="Output page actions"
@@ -1779,18 +1866,7 @@
     >
     <div class="menu-options">
       <div class="selected-actions">
-        {#if chosen.length && positions[0] > 0}<button
-            aria-label="Move selected pages earlier"
-            title="Move selected pages earlier · Ctrl+←"
-            disabled={!!outputSelectionError}
-            onclick={() => order(-1)}><Icon name="earlier" />Move selected pages earlier</button
-          >{/if}
-        {#if chosen.length && positions.at(-1)! < output.pages.length - 1}<button
-            aria-label="Move selected pages later"
-            title="Move selected pages later · Ctrl+→"
-            disabled={!!outputSelectionError}
-            onclick={() => order(1)}><Icon name="later" />Move selected pages later</button
-          >{/if}
+        <div class="menu-moves">{@render outputMoves()}</div>
         {#if chosen.length}<button disabled={!!outputSelectionError} onclick={() => blank(positions[0])}
             ><Icon name="blank" />Blank before first selected page</button
           >{/if}
@@ -1823,13 +1899,21 @@
   {@attach trackTouch}
 >
   <nav class="mobile-workspace-tabs" aria-label="Workspace view">
-    <button aria-pressed={activeView === "input" && !!source} disabled={!source} onclick={() => (view = "input")}
-      ><Icon name="input" />Input</button
+    <button
+      aria-pressed={activeView === "input" && !!source}
+      disabled={!source}
+      onclick={() => {
+        cancelMotion();
+        view = "input";
+      }}><Icon name="input" />Input</button
     >
     <button
       aria-pressed={activeView === "output"}
       data-drop={touchDragging && drag?.kind === "source" && activeView === "input" && overOutput ? true : undefined}
-      onclick={() => (view = "output")}><Icon name="output" />Output</button
+      onclick={() => {
+        cancelMotion();
+        view = "output";
+      }}><Icon name="output" />Output</button
     >
   </nav>
   <div class="composition-panels">
@@ -2285,6 +2369,7 @@
               >{/if}
             {#if chosen.length}
               <div class="output-selection" role="group" aria-label="Selected Output pages">
+                <div class="inline-moves">{@render outputMoves(true)}</div>
                 <button
                   class="step danger"
                   aria-label="Remove selected Output pages"
@@ -2332,8 +2417,8 @@
           {#if activeOutputTab === "page"}
             <div
               class="inspection-target"
-              data-adding={pendingAddition && inspected?.part === pendingAddition ? true : undefined}
-              inert={!!pendingAddition && inspected?.part === pendingAddition}
+              data-adding={(inspected && pendingAddition.has(inspected.id)) || undefined}
+              data-removing={removingPage || undefined}
               role="group"
               aria-label="Output page drop target"
               data-drop={!blockedDrop && target?.index === outputPosition
@@ -2391,23 +2476,17 @@
                     {@const place = preview?.positions.get(index)}
                     <li
                       id={`${key}-${page.id}`}
-                      data-part={page.part}
-                      data-adding={page.part === pendingAddition || undefined}
-                      inert={page.part === pendingAddition}
+                      data-adding={pendingAddition.has(page.id) || undefined}
+                      inert={pendingAddition.has(page.id)}
                       class={["composition-card", { selected: selectedIds.has(page.id) }]}
                       class:range-highlight={highlight?.kind === "output" && highlight.ids.includes(page.id)}
-                      out:fade|global={{
-                        duration:
-                          motion.current &&
-                          highlight?.kind === "output" &&
-                          highlight.removing &&
-                          highlight.ids.includes(page.id)
-                            ? 140
-                            : 0,
-                        easing: cubicOut,
+                      out:scale|global={{
+                        duration: motion.current && removing.has(page.id) ? editDuration : 0,
+                        start: 0.86,
+                        easing: cubicInOut,
                       }}
                       onoutrostart={(event) => {
-                        if (highlight?.kind === "output" && highlight.removing && highlight.ids.includes(page.id)) {
+                        if (removing.has(page.id)) {
                           event.currentTarget.inert = true;
                           event.currentTarget.setAttribute("aria-hidden", "true");
                           event.currentTarget.classList.add("removing");
