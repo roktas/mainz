@@ -184,6 +184,32 @@ function fixture(
   return Buffer.from(pdf);
 }
 
+async function checkGrips(pane, label) {
+  const page = pane.page();
+  const button = pane.locator(".composition-card").first().locator(".page-image");
+  for (let state = 0; state < 2; state++) {
+    await button.click();
+    for (const colorScheme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme });
+      const offsets = await pane.locator(".composition-card").evaluateAll((cards) =>
+        cards.map((card) => {
+          const bounds = card.getBoundingClientRect();
+          const header = card.querySelector(".page-label").getBoundingClientRect();
+          const grip = card.querySelector(".page-grip svg").getBoundingClientRect();
+          return [
+            grip.left + grip.width / 2 - bounds.left - bounds.width / 2,
+            grip.top + grip.height / 2 - header.top - header.height / 2,
+          ];
+        }),
+      );
+      assert.ok(
+        offsets.every((axes) => axes.every((offset) => Math.abs(offset) < 1)),
+        `${label}, ${colorScheme}`,
+      );
+    }
+  }
+}
+
 async function checkGeometry(group) {
   assert.deepEqual(await group.locator(".quartet-fields .quartet-caption > span").allTextContents(), [
     "Fill",
@@ -1995,8 +2021,8 @@ test("Grid scales desktop capacity, balances Page, and retains compact actions",
         ]),
       );
     assert.ok(
-      touchTargets.every(([width, height]) => width >= 44 && height === 44),
-      "Touch retains two separate heading targets of at least 44 px",
+      touchTargets.every(([width, height]) => width >= 24 && height === 44),
+      "Touch retains separate heading targets of at least 24 by 44 px",
     );
     await touch.close();
     assert.deepEqual(errors, []);
@@ -2062,7 +2088,7 @@ test("Compact pagination retains readable four- and five-digit numbers", { timeo
           }),
         );
         assert.ok(
-          spacing.every(({ numberGap, foldGap, offset }) => numberGap >= 2 && foldGap >= 2 && offset >= 3),
+          spacing.every(({ numberGap, foldGap, offset }) => numberGap >= 2 && foldGap >= 2 && Math.abs(offset) < 1),
           `${family}: ${total} pages keep numbers, grips, and folds apart`,
         );
         const last = spacing.at(-1);
@@ -2644,8 +2670,8 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
 });
 
 test(
-  "Touch grids fit extra columns while preserving thumbnails, Page references, and desktop capacities",
-  { timeout: 90000 },
+  "Grid layouts preserve column capacity, centered grips, usable targets, and Page thumbnail references",
+  { timeout: 180000 },
   async () => {
     const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
     let browser;
@@ -2663,67 +2689,65 @@ test(
         await page.locator(".composition-totals strong").waitFor({ state: "attached" });
         const cases = hasTouch
           ? [
-              [320, 568, 2],
-              [390, 844, 3],
-              [440, 956, 4],
-              [640, 960, 5],
-              [744, 1133, 7],
-              [744, 600, 7],
-              [768, 1024, 7],
-              [810, 1080, 8],
-              [810, 790, 8],
-              [810, 600, 8],
-              [820, 1180, 8],
-              [834, 1194, 8],
-              [1024, 768, 5],
-              [1080, 810, 5],
-              [1133, 744, 5],
-              [1180, 820, 5],
-              [1440, 1100, 5],
+              [320, 568, 1, 2],
+              [390, 844, 2, 3],
+              [440, 956, 2, 4],
+              [640, 960, 3, 5],
+              [744, 1133, 4, 7],
+              [744, 600, 4, 7],
+              [768, 1024, 4, 7],
+              [810, 1080, 4, 8],
+              [810, 790, 4, 8],
+              [810, 600, 4, 8],
+              [820, 1180, 4, 8],
+              [834, 1194, 4, 8],
+              [1024, 768, 3, 5],
+              [1080, 810, 3, 5],
+              [1133, 744, 3, 5],
+              [1180, 820, 3, 5],
+              [1440, 1100, 3, 5],
             ]
           : [
-              [390, 844, 4],
-              [810, 1080, 9],
-              [1440, 1100, 6],
+              [390, 844, 2, 4],
+              [810, 1080, 4, 9],
+              [1440, 1100, 3, 6],
+              [1920, 1080, 3, 6],
+              [2560, 1440, 4, 8],
             ];
-        for (const [width, height, columns] of cases) {
+        for (const [width, height, normal, columns] of cases) {
           await page.setViewportSize({ width, height });
           await page.emulateMedia({ colorScheme: width === 810 ? "light" : "dark" });
           for (const name of ["Input", "Output"]) {
             const views = page.locator(".mobile-workspace-tabs");
             if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click();
             const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output");
-            const normal = { 390: 2, 440: 2, 744: 4, 768: 4, 810: 4, 1024: 3, 1080: 3, 1133: 3, 1180: 3, 1440: 3 }[
-              width
-            ];
-            if (normal !== undefined) {
-              await pane.getByRole("button", { name: `Normal ${name} grid`, exact: true }).click();
-              assert.equal(
-                await pane
-                  .locator(".composition-grid")
-                  .evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length),
-                normal,
-              );
-              const margin = hasTouch ? { 1024: 14, 1080: 18 }[width] : undefined;
-              if (margin !== undefined) {
-                await pane.locator('.thumbnail[aria-busy="false"] canvas').first().waitFor();
-                const geometry = await pane
-                  .locator(".composition-card")
-                  .first()
-                  .evaluate((card) => {
-                    const bounds = card.getBoundingClientRect(),
-                      pageBounds = card.querySelector("canvas").getBoundingClientRect();
-                    return {
-                      width: pageBounds.width,
-                      height: pageBounds.height,
-                      margin: (bounds.width - pageBounds.width) / 2,
-                    };
-                  });
-                assert.ok(geometry.width > 118 && geometry.width < 120);
-                assert.equal(geometry.height, 168);
-                assert.ok(geometry.margin < margin, "Normal adds a column without shrinking its image");
-              }
+            await pane.getByRole("button", { name: `Normal ${name} grid`, exact: true }).click();
+            assert.equal(
+              await pane
+                .locator(".composition-grid")
+                .evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length),
+              normal,
+            );
+            const normalMargin = hasTouch ? { 1024: 14, 1080: 18 }[width] : undefined;
+            if (normalMargin !== undefined) {
+              await pane.locator('.thumbnail[aria-busy="false"] canvas').first().waitFor();
+              const geometry = await pane
+                .locator(".composition-card")
+                .first()
+                .evaluate((card) => {
+                  const bounds = card.getBoundingClientRect(),
+                    pageBounds = card.querySelector("canvas").getBoundingClientRect();
+                  return {
+                    width: pageBounds.width,
+                    height: pageBounds.height,
+                    margin: (bounds.width - pageBounds.width) / 2,
+                  };
+                });
+              assert.ok(geometry.width > 118 && geometry.width < 120);
+              assert.equal(geometry.height, 168);
+              assert.ok(geometry.margin < normalMargin, "Normal adds a column without shrinking its image");
             }
+            await checkGrips(pane, `${name} Normal, ${width}×${height}: grips stay centered in both selection states`);
             await pane.getByRole("button", { name: `Compact ${name} grid`, exact: true }).click();
             assert.equal(
               await pane
@@ -2754,7 +2778,7 @@ test(
               assert.ok(Math.abs(geometry.left - geometry.right) < 1, "The image stays centered");
               assert.ok(geometry.image > 57 && geometry.image < 59, "The portrait thumbnail retains its size");
               assert.ok(
-                geometry.targets.every((target) => target >= 44),
+                geometry.targets.every((target) => target >= 24),
                 "Both heading targets remain usable",
               );
               if (width === 810)
@@ -2763,6 +2787,7 @@ test(
                   name === "Input" ? ".selection-panel .composition-grid" : ".composition-output .composition-grid",
                 );
             }
+            await checkGrips(pane, `${name} Compact, ${width}×${height}: grips stay centered in both selection states`);
             const card = await pane.locator(".composition-card").first().boundingBox();
             await tab(pane, "Page");
             const reference = await pane.locator(".page-reference").evaluate((element) => ({
@@ -2789,6 +2814,18 @@ test(
               }
             }
           }
+          await page.evaluate(() => (document.documentElement.style.fontSize = "200%"));
+          for (const name of ["Input", "Output"]) {
+            const views = page.locator(".mobile-workspace-tabs");
+            if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click();
+            const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output");
+            for (const density of ["Normal", "Compact"]) {
+              await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click();
+              await checkGrips(pane, `${name} ${density}, ${width}×${height}, 200% text`);
+              assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+            }
+          }
+          await page.evaluate(() => (document.documentElement.style.fontSize = "100%"));
         }
         await page.close();
       }

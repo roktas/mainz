@@ -403,14 +403,9 @@
         }
 
         & > .page-label {
-          --grip-offset: clamp(0px, calc((var(--digits) - 2) * 3px), 6px);
-          grid-template-columns:
-            calc(100% / 3 + var(--grip-offset)) minmax(24px, 1fr)
-            calc(100% / 3 - var(--grip-offset));
-          @media (any-pointer: coarse) {
-            grid-template-columns: repeat(2, minmax(44px, 1fr));
-          }
+          grid-template-columns: repeat(3, minmax(24px, 1fr));
           grid-template-rows: minmax(0, 1fr);
+          container-type: inline-size;
           margin-inline: calc(-1 * (var(--card-inset) + var(--page-stroke)));
           block-size: 100%;
           min-block-size: 0;
@@ -449,7 +444,8 @@
             border: 0;
             color: inherit;
             background: transparent;
-            font-size: calc(var(--small) * min(0.9, 3.4 / var(--digits)));
+            /* Budget wide tabular digits within their cell so the grip keeps its center. */
+            font-size: min(calc(0.9 * var(--small)), calc((100cqi / 3 - 3 * var(--gap) / 8) / (0.65 * var(--digits))));
             font-variant-numeric: tabular-nums;
             box-shadow: none;
 

@@ -59,6 +59,9 @@ Each visual group has an explicit alignment reference: an edge, centerline, or t
 and footers use the same reference on both axes. Align text by its baseline and icons by their visible bounds. A
 centered control stays on the content's centerline when adjacent controls have different widths.
 
+Grid grips use the card's inline center and the header's block center in both densities. Page numbers, folded corners,
+digit counts, and interaction target sizes do not move these references. Size text and interaction areas around them.
+
 Use the visible content as the reference when controls belong to an image or document. Container edges, padding, and
 invisible control boxes do not establish that alignment. Keep usable interaction targets around aligned content. Check
 alignment again when fitting, aspect ratio, zoom, font size, wrapping, or conditional controls change the layout.
@@ -168,14 +171,13 @@ available pane width select the minimum card width and column gap. CSS fills com
 Viewport height and orientation do not select column widths. Keep the width ranges together so each layout change has
 one place to maintain.
 
-Compact uses smaller page numbers. With fine pointers, three or more digits shift the grip toward the end to avoid the
-number and fold. Four- and five-digit numbers also shrink. Numbers through 10,000 keep at least 2 px of separation
-without widening the card. Tabular digits keep semibold weight. Hover changes their color without changing geometry.
+Compact headers use three equal cells. The number occupies the first cell and the grip occupies the center cell. Both
+targets are at least 24 px wide and 44 px tall, without overlap. Page numbers fit their cell through smaller text.
+Numbers through 10,000 keep at least 2 px of separation without moving the grip or widening the card. Tabular digits
+keep semibold weight. Hover changes their color without changing geometry.
 
-Touch Compact cards use two equal header cells for the number and grip. Both retain 44 px touch targets. Card width
-follows the content and these targets instead of reserving an empty third header cell. Available pane width can select
-narrower cards and smaller horizontal gaps to fit another column. Both header targets still fit. Card height, thumbnail
-fit rules, and row spacing stay fixed. Other layouts keep their ordinary capacity.
+Available pane width can select narrower Compact cards and smaller horizontal gaps to fit another column. Header targets
+still fit. Card height, thumbnail fit rules, and row spacing stay fixed. Other layouts keep their ordinary capacity.
 
 Touch workspaces with both panes visible use the smallest control gap between Normal columns and can narrow Normal
 cards. This admits a third column without reducing portrait thumbnails. Compact can add a fifth column with a smaller
@@ -324,6 +326,14 @@ mixed page sizes, both densities, and Grid/Page alignment. Relevant cases includ
 filenames, five-digit page numbers, loading, errors, cancellation, and reduced motion. No layout introduces horizontal
 overflow or conceals an action behind a fold, toolbar, or fixed status row. Touch emulation covers taps and scrolling.
 Physical-device drag behavior and assistive technology require separate evidence.
+
+Alignment is an acceptance gate for every layout change. Exercise every affected width range from the
+[capacity references](#workspace), including both ends when a range changes. Check Input and Output in Normal and
+Compact, both themes, normal and 200% text, selected and unselected cards, and one- through five-digit numbers. Measure
+visible icon bounds against their declared references on both axes. Center offsets must stay below 1 CSS px; targets
+must remain separate and usable. Compare Grid with Page's thumbnail reference and preserve the required column counts.
+Screenshots confirm the surrounding visual groups. Passing column counts, target sizes, or overflow checks alone does
+not pass this gate.
 
 ## UI glossary
 

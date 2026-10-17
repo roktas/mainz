@@ -123,10 +123,11 @@ Run the Svelte autofixer on affected components. Reuse [styles](web/src/style.cs
 existing controls, and both themes. Follow DESIGN's focus and reduced-motion rules. User PDFs and document-derived
 values stay out of the offline cache.
 
-Before a UI handoff, check DESIGN's [alignment rules](web/doc/DESIGN.md#alignment) on both axes using rendered bounds
-and screenshots. Exercise its [validation cases](web/doc/DESIGN.md#validation). A formatter, type check, or
-non-overflowing layout does not prove visual alignment. Cover a corrected alignment defect with a focused browser
-regression test.
+Before committing, pushing, or handing off a UI change, pass DESIGN's [alignment rules](web/doc/DESIGN.md#alignment) and
+[validation cases](web/doc/DESIGN.md#validation) using rendered bounds and screenshots. Check every affected width
+range, both densities, and both panes. Compare visible icon centers with their owning content on both axes, including
+selected states and long labels. A formatter, type check, or non-overflowing layout does not pass this gate. Cover a
+corrected alignment defect with a focused browser regression test.
 
 [Oxfmt](.oxfmtrc.json) owns formatting across supported repository files, including Markdown. Generated `.local/` files
 and `node_modules/` stay excluded. [Oxlint](.oxlintrc.json) covers web scripts and Svelte script blocks. Svelte compiler
