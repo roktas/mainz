@@ -66,7 +66,7 @@ test("Vite verifies Mainz packages and preserves watched asset directories durin
         "-e",
         `
       import assert from "node:assert/strict";
-      import { existsSync, statSync, writeFileSync } from "node:fs";
+      import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
       import { createServer } from "vite";
       const server = await createServer();
       await server.close();
@@ -79,6 +79,10 @@ test("Vite verifies Mainz packages and preserves watched asset directories durin
       assert.ok(existsSync("../.local/tmp/web/assets/logo.svg"));
       assert.ok(existsSync("../.local/tmp/web/assets/processor.wasm"));
       assert.ok(existsSync("../.local/tmp/web/assets/demo.pdf"));
+      const manifest = JSON.parse(readFileSync("../.local/tmp/web/assets/manifest.webmanifest", "utf8"));
+      assert.equal(manifest.name, "PDF Composer");
+      assert.equal(manifest.short_name, "PDF Composer");
+      assert.equal(manifest.description, "Select, copy, and arrange PDF pages. Style prepared PDFs on your device.");
     `,
       ],
       {

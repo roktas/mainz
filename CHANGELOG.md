@@ -11,6 +11,10 @@
 - Page additions, including copies, repeats, and Blanks, move a preview toward Output before the new pages appear.
 - Page removal fades and shrinks outgoing pages. Moves animate cards into their new positions.
 
+### Changed
+
+- The web application is named PDF Composer.
+
 ### Fixed
 
 - Grid grips stay centered across card widths, selection states, and page-number lengths.

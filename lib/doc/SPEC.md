@@ -2,7 +2,7 @@
 
 ## Prepared PDFs
 
-A prepared PDF carries editable painting choices, their original baselines, and saved overrides. PDF Studio can change
+A prepared PDF carries editable painting choices, their original baselines, and saved overrides. PDF Composer can change
 its declared colors, line widths, opacity, or visibility while keeping text, layout, and path geometry fixed. The PDF
 remains editable and resettable without its drawing source or producer. Ordinary viewers render its saved appearance.
 Ordinary PDFs support page composition but have no Mainz Style controls.
@@ -853,7 +853,7 @@ The [Web glossary](../../web/doc/SPEC.md#glossary) owns workspace terms.
 | Extraction               | Retaining unique pages in order and rebuilding bindings, without changing drawing content.                    |
 | Input                    | Immutable PDF bytes supplied separately under an opaque Input ID. Several Sources can share them.             |
 | Job                      | Versioned composition request with complete Source overrides, repetition, and duplex alignment.               |
-| Mainz                    | Project, contract, processor, reference producer, CLI, and WASM boundary, consumed by PDF Studio.             |
+| Mainz                    | Project, contract, processor, reference producer, CLI, and WASM boundary, consumed by PDF Composer.           |
 | Manifest                 | Embedded declaration of pages, regions, baselines, targets, parameters, overrides, and optional presentation. |
 | Locator                  | Ordered Form invocation path and paint marker resolving one record in a page region.                          |
 | Marker                   | Local empty PDF property resource identifying one balanced Figure sequence.                                   |
@@ -867,7 +867,7 @@ The [Web glossary](../../web/doc/SPEC.md#glossary) owns workspace terms.
 | Path geometry            | Path operators and coordinates, preserved by styling.                                                         |
 | Prepared PDF             | Materialized editable geometry, valid manifest, resolved bindings, and immutable baselines in one PDF.        |
 | Presentation group       | Ordered parameter references with title/description, without style identity or assignment scope.              |
-| PDF Studio               | Local web consumer for page composition and Source styling.                                                   |
+| PDF Composer             | Local web consumer for page composition and Source styling.                                                   |
 | Processor                | Library applying the PDF contract and contract-aware page operations independently of producers.              |
 | Producer                 | Software publishing prepared geometry and declarations into the PDF contract.                                 |
 | Reference application    | Consumer exposing the common processor. File conformance does not depend on its widgets.                      |

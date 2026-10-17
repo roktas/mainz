@@ -95,7 +95,7 @@
   }}
 >
   <div class="welcome">
-    <p class="brand-title"><span>PDF</span> Studio</p>
+    <p class="brand-title"><span>PDF</span> Composer</p>
     <h1>
       <span class="expanded">Select pages and style</span><span class="compact">Select &amp; style</span>
       <a href="https://github.com/roktas/mainz/blob/HEAD/lib/doc/SPEC.md#prepared-pdfs" title="About prepared PDFs"

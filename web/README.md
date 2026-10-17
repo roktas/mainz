@@ -1,10 +1,11 @@
-# Mainz PDF Studio
+# PDF Composer
 
-PDF Studio selects, repeats, and orders pages from local PDFs. It changes declared styles in prepared PDFs and downloads
-one Output. Your PDFs stay on your device. The application works offline after installation.
+PDF Composer builds one PDF from pages you choose across local PDFs. Extract pages, duplicate or repeat them, remove
+unwanted pages, and arrange the result. Prepared PDFs also expose declared styles, such as colors, line widths, opacity,
+and visibility. Your PDFs stay on your device. The application works offline after installation.
 
-PDF Studio uses modern browser features. Older systems, including iOS 16, can show a broken layout or fail to open PDFs.
-We do not claim a tested minimum OS or browser version.
+PDF Composer uses modern browser features. Older systems, including iOS 16, can show a broken layout or fail to open
+PDFs. We do not claim a tested minimum OS or browser version.
 
 Grid shows thumbnails, and Page shows one large page. Both views share selections and page operations. Input shows the
 PDF as opened. Style changes applicable Output pages from the active Input.

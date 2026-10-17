@@ -32,7 +32,7 @@
   </fieldset>
   <section class="about" aria-labelledby="about-title">
     <div class="dialog-heading">
-      <h3 id="about-title">PDF Studio</h3>
+      <h3 id="about-title">PDF Composer</h3>
       <a
         class="icon-button"
         href="https://github.com/roktas/mainz"

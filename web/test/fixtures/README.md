@@ -1,6 +1,6 @@
 # Prepared PDF sample
 
-[demo.pdf](demo.pdf) contains the cover and six practice Pages from Megic's Ital Winters 7.9 mm A4 Book. PDF Studio's
+[demo.pdf](demo.pdf) contains the cover and six practice Pages from Megic's Ital Winters 7.9 mm A4 Book. PDF Composer's
 `?demo` mode opens it in development, production, and offline after application installation.
 
 The sample has eight Style objects and 35 parameters for patterns, guide lines, and the SAMPLE watermark. Pattern fills

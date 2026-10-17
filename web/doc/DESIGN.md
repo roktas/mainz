@@ -1,4 +1,4 @@
-# PDF Studio design
+# PDF Composer design
 
 This document owns visual rules, layout reference cases, and the [UI glossary](#ui-glossary). [SPEC.md](SPEC.md) owns
 workspace behavior and product terminology. [Stylesheets](../src/style.css) and their imported component styles own
@@ -366,7 +366,7 @@ not pass this gate.
 
 ## UI glossary
 
-This glossary gives English names and Turkish equivalents for the UI elements in PDF Studio. The tables group repeated
+This glossary gives English names and Turkish equivalents for the UI elements in PDF Composer. The tables group repeated
 instances by element type. PDF-authored group and object labels vary with each document.
 
 ### Glossary topics
@@ -546,7 +546,7 @@ The pagination slider changes thumbnail groups. A scrollbar changes the visible 
 | Show original page button | Özgün sayfayı gösterme düğmesi       | The button that opens the corresponding original Input page.                                |
 | Zoom level indicator      | Yakınlaştırma düzeyi göstergesi      | The displayed zoom percentage, such as `100%`.                                              |
 | Zoom in/out buttons       | Yakınlaştırma/uzaklaştırma düğmeleri | The + and − buttons that change the page-image scale.                                       |
-| Fit page button           | Sayfayı sığdırma düğmesi             | The button that fits the page in the available area. PDF Studio displays Fit as `100%`.     |
+| Fit page button           | Sayfayı sığdırma düğmesi             | The button that fits the page in the available area. PDF Composer displays Fit as `100%`.   |
 
 #### Viewport and navigation
 
@@ -701,7 +701,7 @@ Their visual popover name does not require every panel to use the browser's Popo
 | ----------------- | --------------------- | ------------------------------------------------------------------------------------------ |
 | Landing page      | Açılış sayfası        | The page visible before the workspace opens.                                               |
 | Hero section      | Ana tanıtım alanı     | The main area with the product name, heading, explanation, file picker, and large graphic. |
-| Product name      | Ürün adı              | The large “PDF Studio” text.                                                               |
+| Product name      | Ürün adı              | The large “PDF Composer” text.                                                             |
 | Hero heading      | Ana başlık            | The “Select pages and style prepared PDFs.” heading.                                       |
 | Supporting copy   | Destekleyici açıklama | The short explanation and desktop ordinary-PDF support text below the heading.             |
 | Inline link       | Metin içi bağlantı    | The prepared link within the hero heading.                                                 |

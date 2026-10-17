@@ -13,7 +13,7 @@
   import { available } from "./styles.ts";
   import Pdf from "./Pdf.svelte";
   import { createDragImage, retainFocus } from "./drag.ts";
-  import { animateAddition, animateMove, animateOrder, animateRemoval, editDuration } from "./page-motion.ts";
+  import { animateAddition, animateMove, animateOrder, animateRemoval, editDuration } from "./motion.ts";
   import Repetition from "./Repetition.svelte";
   import Grid from "./Grid.svelte";
   import PageView, { zoomLevels } from "./Page.svelte";
@@ -1160,7 +1160,7 @@
     dragImage?.image.remove();
     dragImage = createDragImage(control, quantity, source?.input.sizes[parsed.pages[0]]);
     if ("dataTransfer" in event && event.dataTransfer) {
-      event.dataTransfer.setData("text/plain", "PDF Studio pages");
+      event.dataTransfer.setData("text/plain", "PDF Composer pages");
       event.dataTransfer.effectAllowed = value.kind === "source" ? "copy" : "move";
       if (dragImage) {
         const image = dragImage.image;

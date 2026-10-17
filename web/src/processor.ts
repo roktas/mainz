@@ -3,14 +3,14 @@ import type { Job } from "./model.ts";
 import type { Scalar } from "./styles.ts";
 
 const messages: Record<string, string> = {
-  "pdf-syntax": "PDF Studio cannot read this PDF. Try an unprotected copy that opens in a PDF viewer.",
+  "pdf-syntax": "PDF Composer cannot read this PDF. Try an unprotected copy that opens in a PDF viewer.",
   "missing-contract": "This PDF has no editable styles. Choose a PDF prepared for styling.",
   "unsupported-version":
-    "This PDF uses a style format that PDF Studio does not support. Update PDF Studio or ask its creator for a compatible PDF.",
+    "This PDF uses a style format that PDF Composer does not support. Update PDF Composer or ask its creator for a compatible PDF.",
   "unsupported-context":
-    "This PDF contains drawing features that PDF Studio cannot style. Ask its creator for a supported PDF.",
+    "This PDF contains drawing features that PDF Composer cannot style. Ask its creator for a supported PDF.",
   "invalid-contract":
-    "The style information in this PDF is invalid or incompatible with PDF Studio. Ask its creator to prepare it again with the current Mainz format.",
+    "The style information in this PDF is invalid or incompatible with PDF Composer. Ask its creator to prepare it again with the current Mainz format.",
   "invalid-request": "The page or style choices are invalid. Review your choices and try again.",
   "limit-exceeded": "This PDF or Output exceeds the processing limits. Try a smaller PDF or fewer Output pages.",
 };
@@ -63,7 +63,7 @@ export class Processor {
       });
       this.worker.addEventListener("error", (event) => {
         event.preventDefault();
-        this.stop(new Error("PDF processing failed. Reload PDF Studio and try again."));
+        this.stop(new Error("PDF processing failed. Reload PDF Composer and try again."));
       });
       this.worker.addEventListener("messageerror", () =>
         this.stop(new Error("PDF processing returned an unreadable result. Try the action again.")),

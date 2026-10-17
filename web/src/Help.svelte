@@ -672,7 +672,7 @@
   }}
 >
   <div class="dialog-heading">
-    <h2 id={`${id}-welcome-title`}>Welcome to PDF Studio</h2>
+    <h2 id={`${id}-welcome-title`}>Welcome to PDF Composer</h2>
     <button class="icon-button" aria-label="Close welcome" onclick={() => welcome.close()}><Icon name="close" /></button
     >
   </div>

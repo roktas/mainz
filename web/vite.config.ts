@@ -91,9 +91,9 @@ function prepare() {
   writeFileSync(
     `${assets}/manifest.webmanifest`,
     JSON.stringify({
-      name: "PDF Studio",
-      short_name: "PDF Studio",
-      description: "PDF Studio",
+      name: "PDF Composer",
+      short_name: "PDF Composer",
+      description: "Select, copy, and arrange PDF pages. Style prepared PDFs on your device.",
       start_url: "./",
       scope: "./",
       display: "standalone",

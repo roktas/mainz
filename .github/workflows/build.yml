@@ -99,7 +99,7 @@ jobs:
         env:
           MAINZ_REVISION: ${{ github.sha }}
         run: bundle exec rake package:wasm
-      - name: Check and build PDF Studio
+      - name: Check and build PDF Composer
         run: |
           bundle exec rake setup:web test:web
           npm run format:check
@@ -108,7 +108,7 @@ jobs:
           npm run build
           npm --prefix web exec -- playwright install --with-deps chromium
           npm run test:browser
-      - name: Upload PDF Studio for GitHub Pages
+      - name: Upload PDF Composer for GitHub Pages
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
@@ -126,6 +126,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy PDF Studio to GitHub Pages
+      - name: Deploy PDF Composer to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -541,7 +541,7 @@ test("Help follows the primary pointer and touch tours retain visible focus", as
     for (const hasTouch of [false, true]) {
       const page = await browser.newPage({ hasTouch, reducedMotion: "reduce" });
       await page.goto(`${server.resolvedUrls.local[0]}?demo=empty`);
-      const welcome = page.getByRole("dialog", { name: "Welcome to PDF Studio", exact: true });
+      const welcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true });
       await welcome.getByRole("button", { name: "Take a tour", exact: true }).click();
       await page
         .getByRole("dialog", { name: "Product tour", exact: true })
@@ -636,6 +636,8 @@ test("Landing compact headings fit phones and tablets and logos follow theme cha
     const page = await browser.newPage({ reducedMotion: "reduce", hasTouch: true });
     await page.goto(server.resolvedUrls.local[0]);
     await page.evaluate(() => document.fonts.ready);
+    assert.equal(await page.title(), "PDF Composer");
+    assert.equal(await page.locator(".brand-title").innerText(), "PDF Composer");
     const heading = page.getByRole("heading", { level: 1 });
     const ordinary = page.getByText("Ordinary PDFs also support page selection and repetition.", { exact: true });
     for (const [width, height] of [
@@ -886,7 +888,7 @@ test("Landing logo replays entry and keeps parallax inside its framed area", asy
     );
     await page.goto(server.resolvedUrls.local[0] + "?demo");
     await page.locator(".input-current").waitFor();
-    assert.equal(await page.getByRole("link", { name: "PDF Studio home" }).count(), 1);
+    assert.equal(await page.getByRole("link", { name: "PDF Composer home" }).count(), 1);
     assert.equal(await page.getByRole("button", { name: "Replay logo animation" }).count(), 0);
   } finally {
     await browser?.close();
@@ -1085,7 +1087,7 @@ test("Demo variants open the maintained Input with populated or empty Output", a
         ])
           assert.equal(await button.locator("svg").evaluate((svg) => getComputedStyle(svg).strokeWidth), "3px");
       }
-      const welcome = page.getByRole("dialog", { name: "Welcome to PDF Studio", exact: true });
+      const welcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true });
       if (query) {
         await welcome.getByRole("button", { name: "Close welcome", exact: true }).click();
         await page.locator(".page-flight:popover-open").waitFor();
@@ -4245,7 +4247,7 @@ test("Input additions move previews to Output without delaying edits or taking f
         await copy();
         await flight.waitFor();
         page.once("dialog", (dialog) => dialog.accept());
-        await page.getByRole("link", { name: "PDF Studio home", exact: true }).click();
+        await page.getByRole("link", { name: "PDF Composer home", exact: true }).click();
         await page.locator(".drop-zone").waitFor();
         assert.equal(await flight.count(), 0, "Leaving the workspace removes the paused preview");
       }
@@ -5873,7 +5875,7 @@ test("Home asks once before discarding changes and cancellation retains the work
     const preparation = page.locator(".selection-panel").getByLabel("Page selection", { exact: true });
     await preparation.fill("1");
     await preparation.press("Enter");
-    const home = page.getByRole("link", { name: "PDF Studio home", exact: true });
+    const home = page.getByRole("link", { name: "PDF Composer home", exact: true });
     const warnings = [];
     page.once("dialog", async (dialog) => {
       warnings.push(dialog.type());
@@ -8060,7 +8062,7 @@ test(
         });
       await page.locator(".error-banner").filter({ hasText: "Could not open Broken.pdf." }).waitFor();
       assert.equal(await status.count(), 0);
-      assert.match(await page.locator(".error-banner").textContent(), /PDF Studio cannot read this PDF/);
+      assert.match(await page.locator(".error-banner").textContent(), /PDF Composer cannot read this PDF/);
       assert.equal(await page.locator(".composition-totals strong").textContent(), "2 PDF pages");
       assert.equal(await page.locator(".error-banner").count(), 1);
       // Preserve PDF byte offsets to isolate an unknown manifest field.
@@ -8579,7 +8581,7 @@ test("Onboarding reset is consumed once and preserves other preferences", { time
       [null, "dark"],
     );
     await open();
-    const welcome = page.getByRole("dialog", { name: "Welcome to PDF Studio", exact: true });
+    const welcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true });
     await welcome.waitFor();
     await welcome.getByRole("button", { name: "Skip", exact: true }).click();
     await page.reload();
@@ -8724,7 +8726,7 @@ test(
       const notice = page.getByRole("banner").getByRole("status");
       const instructionText = notice.locator("p");
       const flight = page.locator(".page-flight:popover-open");
-      const hintWelcome = page.getByRole("dialog", { name: "Welcome to PDF Studio", exact: true });
+      const hintWelcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true });
       const hintTour = page.getByRole("dialog", { name: "Product tour", exact: true });
       await hintWelcome.waitFor();
       const statusStyle = await status.evaluate((element) => ({
@@ -8893,7 +8895,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     const previous = process.env.NODE_ENV;
     try {
       process.env.NODE_ENV = "production";
-      await build({ base: "/studio/", build: { outDir, emptyOutDir: true }, logLevel: "warn" });
+      await build({ base: "/composer/", build: { outDir, emptyOutDir: true }, logLevel: "warn" });
     } finally {
       if (previous === undefined) delete process.env.NODE_ENV;
       else process.env.NODE_ENV = previous;
@@ -8904,7 +8906,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
       release = "initial",
       incompatible = false;
     server = await preview({
-      base: "/studio/",
+      base: "/composer/",
       build: { outDir },
       preview: { host: "127.0.0.1", port: 0 },
       plugins: [
@@ -8912,7 +8914,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
           name: "offline-release-test",
           configurePreviewServer(value) {
             value.middlewares.use((request, response, next) => {
-              if (request.url === "/studio/sw.js") {
+              if (request.url === "/composer/sw.js") {
                 response.setHeader("Content-Type", "text/javascript");
                 response.setHeader("Cache-Control", "no-store");
                 response.end(
@@ -8922,9 +8924,9 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
                        return activate();
                      };\n` + worker.replace(/const VERSION = '[^']+';/, `const VERSION = '${release}';`),
                 );
-              } else if (paused && request.url === "/studio/notices/svelte.txt") {
+              } else if (paused && request.url === "/composer/notices/svelte.txt") {
                 void installation.then(next);
-              } else if (incompatible && request.url === "/studio/processor.mjs") {
+              } else if (incompatible && request.url === "/composer/processor.mjs") {
                 response.setHeader("Content-Type", "text/javascript");
                 response.end("throw new Error('incompatible processor');");
               } else next();
@@ -9014,8 +9016,8 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     const initialCaches = await page.evaluate(() => caches.keys());
     assert.equal(initialCaches.length, 1);
     assert.ok(initialCaches[0].startsWith("mainz:"));
-    assert.match(initialCaches[0], /\/studio\/:initial$/);
-    const installed = page.getByText("PDF Studio is ready for offline use.", { exact: true });
+    assert.match(initialCaches[0], /\/composer\/:initial$/);
+    const installed = page.getByText("PDF Composer is ready for offline use.", { exact: true });
     await installed.waitFor();
     assert.equal(await page.getByRole("banner").getByRole("status").count(), 1);
     const installedBox = await installed.boundingBox(),
@@ -9036,7 +9038,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     assert.equal(await demo.locator(".footnote > time").textContent(), buildId);
     assert.equal(await demo.locator(".status-input").textContent(), "demo.pdf");
     assert.equal(await demo.locator(".composition-totals strong").textContent(), "6 PDF pages");
-    assert.equal(await demo.getByRole("dialog", { name: "Welcome to PDF Studio", exact: true }).count(), 0);
+    assert.equal(await demo.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true }).count(), 0);
     await demo.locator(".selection-panel").getByRole("tab", { name: "Style", exact: true }).click();
     await demo.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("inkjet");
     await demo.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"));
@@ -9046,7 +9048,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     assert.equal(await demoArtifact.failure(), null);
     assert.match((await readFile(await demoArtifact.path())).subarray(0, 8).toString(), /^%PDF-/);
     await demo.close();
-    console.log("The bundled production demo opens, styles and downloads offline under /studio/.");
+    console.log("The bundled production demo opens, styles and downloads offline under /composer/.");
     await page.goto(`${url}?reset`);
     await page.waitForURL(url);
     assert.equal(await page.evaluate(() => localStorage.getItem("mainz:onboarding")), null);
@@ -9074,7 +9076,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
       (await (await caches.open((await caches.keys())[0])).keys()).map((request) => request.url),
     );
     assert.ok(cachedURLs.length > 100);
-    assert.ok(cachedURLs.every((path) => path.startsWith(new URL(url).origin + "/studio/")));
+    assert.ok(cachedURLs.every((path) => path.startsWith(new URL(url).origin + "/composer/")));
     assert.ok(cachedURLs.includes(new URL("demo.pdf", url).href));
     assert.ok(cachedURLs.every((path) => !/Offline\.pdf|blob:/.test(path)));
     await context.setOffline(false);
@@ -9097,13 +9099,13 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     assert.equal(await update.isDisabled(), true);
     assert.equal(await output.locator(".composition-totals strong").textContent(), "2 PDF pages");
     assert.equal(await input.getByRole("textbox", { name: "Guide Color", exact: true }).inputValue(), "#884488");
-    await page.getByRole("link", { name: "PDF Studio home", exact: true }).click();
+    await page.getByRole("link", { name: "PDF Composer home", exact: true }).click();
     await update.waitFor();
     assert.equal(await update.isEnabled(), true);
     const other = await context.newPage();
     await other.goto(url);
     await update.click();
-    await page.getByText("Close other PDF Studio tabs before updating.", { exact: true }).waitFor();
+    await page.getByText("Close other PDF Composer tabs before updating.", { exact: true }).waitFor();
     assert.notEqual(
       await page.locator(".error-banner").evaluate((element) => getComputedStyle(element).color),
       await page.locator(".footnote").evaluate((element) => getComputedStyle(element).color),
@@ -9173,7 +9175,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     );
     assert.deepEqual(
       await page.evaluate(async () =>
-        (await document.fonts.load('500 32px "EB Garamond"', "PDF Studio Select pages and style prepared PDFs.")).map(
+        (await document.fonts.load('500 32px "EB Garamond"', "PDF Composer Select pages and style prepared PDFs.")).map(
           (font) => font.status,
         ),
       ),

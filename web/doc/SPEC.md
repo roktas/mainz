@@ -1,7 +1,9 @@
-# Mainz PDF Studio Specification
+# PDF Composer Specification
 
-PDF Studio composes local PDF pages and edits declared styles in prepared PDFs. Input retains its opened appearance.
-Output shows the composition with completed Source styles. Download executes a Mainz Job.
+PDF Composer builds one Output from selected pages of local PDFs. Composition includes extraction, duplication,
+repetition, removal, and ordering across Inputs. Prepared PDFs also expose their declared Style controls. Ordinary PDFs
+support page composition. Input retains its opened appearance. Output shows the composition with completed Source
+styles. Download executes a Mainz Job.
 
 This document owns workspace behavior and the [product glossary](#glossary). [DESIGN.md](DESIGN.md) owns visual rules,
 layout reference cases, and the [UI glossary](DESIGN.md#ui-glossary). The [library specification](../../lib/doc/SPEC.md)
@@ -432,11 +434,11 @@ An offline installation retains its build's ID.
 
 ## Processing boundaries
 
-The [Job contract](../../lib/doc/SPEC.md#63-job-and-composition) owns serialization and processor validation. PDF Studio
-sends only referenced Sources, with complete override maps, and binds Input IDs to immutable bytes separately. A
-Blank-only Job has no Sources or Inputs. Selections, labels, view state, invalid drafts, local paths, and PDF bytes stay
-outside the Job. The application supplies immediate field feedback. The processor remains authoritative for references,
-values, resource limits, repetition, and Padding.
+The [Job contract](../../lib/doc/SPEC.md#63-job-and-composition) owns serialization and processor validation. PDF
+Composer sends only referenced Sources, with complete override maps, and binds Input IDs to immutable bytes separately.
+A Blank-only Job has no Sources or Inputs. Selections, labels, view state, invalid drafts, local paths, and PDF bytes
+stay outside the Job. The application supplies immediate field feedback. The processor remains authoritative for
+references, values, resource limits, repetition, and Padding.
 
 Parameter IDs are opaque. Labels and descriptions are plain text. The application adds no painting engine, executable
 document markup, or authoritative contract validator. Downloaded prepared content remains editable without the original
@@ -491,7 +493,7 @@ The [library glossary](../../lib/doc/SPEC.md#glossary) owns PDF and painting ter
 | Padding            | Alignment-generated Blanks that remain visible and count toward Output pages.                           |
 | Paint duo          | Combined color and opacity control retaining separate parameter identities and resets.                  |
 | Part               | Internal flat page sequence with one Copy count and front-alignment choice, without independent styles. |
-| PDF Studio         | Mainz's local web application for page composition and Source styling.                                  |
+| PDF Composer       | Local web application for page composition and declared styles in prepared PDFs.                        |
 | Product tour       | Contextual explanation of actual controls without changing document choices.                            |
 | Quartet            | Fill, Stroke, Width, and Visibility presentation for one Style object.                                  |
 | Selection          | Temporary ordered physical pages from one Source, including repeats, prepared for addition.             |

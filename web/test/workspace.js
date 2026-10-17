@@ -51,7 +51,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   };
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  const welcome = page.getByRole("dialog", { name: "Welcome to PDF Studio", exact: true });
+  const welcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true });
   const tour = page.getByRole("dialog", { name: "Product tour", exact: true });
   const help = page.getByRole("button", { name: "Help", exact: true });
   const startTour = async () => {
@@ -653,13 +653,13 @@ export async function checkWorkspace(page, prepared, ordinary) {
   );
   await entry.fill("3-5,2,2,7");
   check(
-    await page.getByRole("link", { name: "PDF Studio home", exact: true }).isVisible(),
+    await page.getByRole("link", { name: "PDF Composer home", exact: true }).isVisible(),
     "Header PDF symbol provides the home link",
   );
   const settingsButton = page.getByRole("button", { name: "Settings", exact: true });
   const settings = page.getByRole("dialog", { name: "Settings", exact: true });
   await settingsButton.click();
-  const about = settings.getByRole("region", { name: "PDF Studio", exact: true });
+  const about = settings.getByRole("region", { name: "PDF Composer", exact: true });
   check(
     await about.getByText((await readFile("../VERSION", "utf8")).trim(), { exact: true }).isVisible(),
     "Settings shows the software version",
@@ -1470,7 +1470,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
     await warning.dismiss();
   };
   page.on("dialog", dismissWarning);
-  await page.getByRole("link", { name: "PDF Studio home", exact: true }).click();
+  await page.getByRole("link", { name: "PDF Composer home", exact: true }).click();
   await page.waitForLoadState("networkidle");
   check(
     warnings === 0 && (await page.locator(".drop-zone").isVisible()),
@@ -1487,7 +1487,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await entry.fill("1");
   await input.getByRole("button", { name: "Add to Output", exact: true }).click();
   await download(1);
-  await page.getByRole("link", { name: "PDF Studio home", exact: true }).click();
+  await page.getByRole("link", { name: "PDF Composer home", exact: true }).click();
   check(
     warnings === 1 && (await page.locator(".input-current").textContent()) === "Used.pdf",
     "Downloading Output retains the warning for undownloaded styles on unused Inputs",
@@ -1501,7 +1501,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click();
   await choose(2);
   await download(1);
-  await page.getByRole("link", { name: "PDF Studio home", exact: true }).click();
+  await page.getByRole("link", { name: "PDF Composer home", exact: true }).click();
   check(warnings === 2, "Unused invalid drafts do not block Download and retain their unsaved warning");
   page.off("dialog", dismissWarning);
   check(errors.length === 0, `No browser runtime errors: ${errors.join("; ")}`);

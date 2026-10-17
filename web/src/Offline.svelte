@@ -26,7 +26,7 @@
   const message = (event: MessageEvent) => {
     if (event.data === "update-blocked") {
       updating = false;
-      report("Close other PDF Studio tabs before updating.", "error");
+      report("Close other PDF Composer tabs before updating.", "error");
     }
   };
   onMount(() => {
@@ -49,7 +49,7 @@
             if (disposed) return;
             if (worker.state === "installed") {
               waiting = navigator.serviceWorker.controller ? worker : undefined;
-              report(waiting ? updateReady : "PDF Studio is ready for offline use.", "notice");
+              report(waiting ? updateReady : "PDF Composer is ready for offline use.", "notice");
             }
             if (worker.state === "redundant")
               report("Offline installation failed. The current application is retained.", "error");
@@ -85,7 +85,7 @@
   <button
     type="button"
     disabled={busy || updating}
-    title={busy ? "Download and close your PDF before updating." : "Update PDF Studio"}
+    title={busy ? "Download and close your PDF before updating." : "Update PDF Composer"}
     onclick={update}>Update application</button
   >
 {/if}

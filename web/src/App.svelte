@@ -1,7 +1,7 @@
 <!-- Owns PDF lifetimes, Source styles, Output state, and Download. -->
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte";
-  import { animateRemoval } from "./page-motion.ts";
+  import { animateRemoval } from "./motion.ts";
   import { fade } from "svelte/transition";
   import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
   import { appearance, downloadName, expand, job, maxPages, positionAfterEdit, sizeOf, uid } from "./model.ts";
@@ -215,7 +215,7 @@
           }
           openingTask = loadingTask;
           const pdf = await loadingTask.promise;
-          if (pdf.numPages > maxPages) throw new Error(`PDF Studio supports up to ${maxPages} pages.`);
+          if (pdf.numPages > maxPages) throw new Error(`PDF Composer supports up to ${maxPages} pages.`);
           await verifyPDF(pdf);
           const sizes = [];
           for (let start = 0; start < pdf.numPages; start += 64) {
@@ -768,7 +768,7 @@
         aria-label="Replay logo animation"
         title="Replay logo animation"
         onclick={() => logoReplay++}><Logo /></button
-      >{:else}<a class="brand" href={import.meta.env.BASE_URL} aria-label="PDF Studio home" onclick={home}><Logo /></a
+      >{:else}<a class="brand" href={import.meta.env.BASE_URL} aria-label="PDF Composer home" onclick={home}><Logo /></a
       >{/if}
     {#if notice}<div
         class="notice"

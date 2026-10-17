@@ -8,12 +8,12 @@ page layout stay intact. You can restore the original styles without the source 
 For example, you can change guide colors or line widths in a practice sheet without changing its lettering or grid
 spacing.
 
-[Open PDF Studio](https://mainz.roktas.dev/) in a modern browser. Your PDFs stay on your device. The application also
+[Open PDF Composer](https://mainz.roktas.dev/) in a modern browser. Your PDFs stay on your device. The application also
 works offline after installation.
 
 ## Components
 
-- [Web](web/README.md): PDF Studio, the browser application.
+- [Web](web/README.md): PDF Composer, the browser application.
 - [CLI](cli/README.md): The `mainz` command-line tool for scripts and batch operations.
 - [Library](lib/README.md): The shared C++ processor for native and WebAssembly applications, plus a native SVG
   producer.
