@@ -11,7 +11,8 @@
 
 ### Fixed
 
-- Compact card spacing and drag feedback on touch screens. Grid drops and selection actions keep the keyboard closed.
+- Touch tablet grids fit more columns with smaller image margins.
+- Drag feedback on touch screens. Grid drops and selection actions keep the keyboard closed.
 - Repeated Page image activation copies the current page and preserves Selection.
 
 ## 1.0.0 - 2026-10-17

@@ -2643,6 +2643,142 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
   }
 });
 
+test(
+  "Touch tablet grids fit extra columns while preserving thumbnails and other capacities",
+  { timeout: 90000 },
+  async () => {
+    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
+    let browser;
+    try {
+      await server.listen();
+      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
+      for (const hasTouch of [false, true]) {
+        const page = await browser.newPage({ hasTouch, isMobile: hasTouch, reducedMotion: "reduce" });
+        page.setDefaultTimeout(10000);
+        await page.route("**/grid.pdf", (route) =>
+          route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
+        );
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"));
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`);
+        await page.locator(".composition-totals strong").waitFor({ state: "attached" });
+        const cases = hasTouch
+          ? [
+              [320, 568, 2],
+              [390, 844, 3],
+              [640, 960, 5],
+              [768, 1024, 6],
+              [810, 1080, 8],
+              [820, 1180, 8],
+              [834, 1194, 8],
+              [1024, 768, 4],
+              [1080, 810, 5],
+              [1180, 820, 5],
+              [1440, 1100, 5],
+            ]
+          : [
+              [390, 844, 4],
+              [810, 1080, 9],
+              [1440, 1100, 6],
+            ];
+        for (const [width, height, columns] of cases) {
+          await page.setViewportSize({ width, height });
+          await page.emulateMedia({ colorScheme: width === 810 ? "light" : "dark" });
+          for (const name of ["Input", "Output"]) {
+            const views = page.locator(".mobile-workspace-tabs");
+            if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click();
+            const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output");
+            const normal = { 390: 2, 810: 4, 1024: 2, 1080: 3, 1180: 3, 1440: 3 }[width];
+            if (normal !== undefined) {
+              await pane.getByRole("button", { name: `Normal ${name} grid`, exact: true }).click();
+              assert.equal(
+                await pane
+                  .locator(".composition-grid")
+                  .evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length),
+                normal,
+              );
+              if (hasTouch && width === 1080) {
+                await pane.locator('.thumbnail[aria-busy="false"] canvas').first().waitFor();
+                const geometry = await pane
+                  .locator(".composition-card")
+                  .first()
+                  .evaluate((card) => {
+                    const bounds = card.getBoundingClientRect(),
+                      pageBounds = card.querySelector("canvas").getBoundingClientRect();
+                    return {
+                      width: pageBounds.width,
+                      height: pageBounds.height,
+                      margin: (bounds.width - pageBounds.width) / 2,
+                    };
+                  });
+                assert.ok(geometry.width > 118 && geometry.width < 120);
+                assert.equal(geometry.height, 168);
+                assert.ok(geometry.margin < 18, "Normal adds a column without shrinking its image");
+              }
+            }
+            await pane.getByRole("button", { name: `Compact ${name} grid`, exact: true }).click();
+            assert.equal(
+              await pane
+                .locator(".composition-grid")
+                .evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length),
+              columns,
+              `${name}, ${width}×${height}, ${hasTouch ? "touch" : "mouse"}`,
+            );
+            if (hasTouch && width === 810) {
+              await pane.locator('.thumbnail[aria-busy="false"] canvas').first().waitFor();
+              const geometry = await pane
+                .locator(".composition-card")
+                .first()
+                .evaluate((card) => {
+                  const pageBounds = card.querySelector("canvas").getBoundingClientRect(),
+                    bounds = card.getBoundingClientRect();
+                  return {
+                    image: pageBounds.width,
+                    left: pageBounds.left - bounds.left,
+                    right: bounds.right - pageBounds.right,
+                    targets: [...card.querySelector(".page-label").children]
+                      .slice(0, 2)
+                      .map((element) => element.getBoundingClientRect().width),
+                  };
+                });
+              assert.ok(geometry.left < 16 && geometry.right < 16);
+              assert.ok(Math.abs(geometry.left - geometry.right) < 1, "The image stays centered");
+              assert.ok(geometry.image > 57 && geometry.image < 59, "The portrait thumbnail retains its size");
+              assert.ok(
+                geometry.targets.every((target) => target >= 44),
+                "Both heading targets remain usable",
+              );
+              await page.waitForFunction(
+                (selector) => document.querySelector(selector).children.length === 56,
+                name === "Input" ? ".selection-panel .composition-grid" : ".composition-output .composition-grid",
+              );
+            }
+            assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+          }
+          if (hasTouch && width === 1080) {
+            for (const [nextHeight, capacity] of [
+              [1200, 20],
+              [810, 25],
+            ]) {
+              await page.setViewportSize({ width, height: nextHeight });
+              for (const selector of [".selection-panel", ".composition-output"]) {
+                await page.waitForFunction(
+                  (value) =>
+                    document.querySelector(`${value.selector} .composition-grid`).children.length === value.capacity,
+                  { selector, capacity },
+                );
+              }
+            }
+          }
+        }
+        await page.close();
+      }
+    } finally {
+      await browser?.close();
+      await server.close();
+    }
+  },
+);
+
 test("Page pinch zoom preserves its anchor and shares the button zoom range", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
   let browser;

@@ -76,16 +76,20 @@
       if (batch !== previous) offset = anchor;
       notify?.(batch);
     }
-    const observer = new ResizeObserver(() => {
+    const scheduleResize = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(resize);
-    });
+    };
+    const observer = new ResizeObserver(scheduleResize);
     observer.observe(element);
     if (navigation) observer.observe(navigation);
+    // Viewport queries can change columns without resizing the fitted frame.
+    window.addEventListener("resize", scheduleResize);
     untrack(resize);
     return () => {
       disposed = true;
       cancelAnimationFrame(frame);
+      window.removeEventListener("resize", scheduleResize);
       observer.disconnect();
     };
   }

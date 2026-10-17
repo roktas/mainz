@@ -156,7 +156,13 @@ Four- and five-digit numbers also shrink. Numbers through 10,000 keep at least 2
 card. Tabular digits keep semibold weight. Hover changes their color without changing geometry.
 
 Touch Compact cards use two equal header cells for the number and grip. Both retain 44 px touch targets. Card width
-follows the content and these targets instead of reserving an empty third header cell.
+follows the content and these targets instead of reserving an empty third header cell. Portrait touch panes can fit an
+eighth column with narrower cards and horizontal gaps when both header targets still fit. Card height, thumbnail fit
+rules, and row spacing stay fixed. Other layouts keep their ordinary capacity.
+
+Landscape touch workspaces with both panes visible use the smallest control gap between Normal columns. This admits a
+third column without reducing portrait thumbnails. Compact can add a fifth column where both heading targets still fit.
+Both densities retain their card heights and vertical spacing.
 
 Selection hides individual actions without moving the image or changing card dimensions. Normal footers keep their
 height and separator. Input centers addition. Output places removal left of duplication with one control gap. Page

@@ -293,6 +293,24 @@
         grid-template-rows: minmax(min-content, 1fr);
       }
 
+      @media (any-pointer: coarse) and (orientation: landscape) {
+        :is(.selection-panel, .composition-output)[data-density="normal"] {
+          .composition-grid,
+          .page-reference {
+            column-gap: 0.75rem;
+          }
+        }
+
+        @container catalog (480px <= width < 520px) {
+          :is(.selection-panel, .composition-output)[data-density="compact"] {
+            .composition-grid,
+            .page-reference {
+              --grid-width: max(88px, calc(5 * var(--body)));
+            }
+          }
+        }
+      }
+
       .composition-panels {
         grid-template-rows: repeat(4, auto);
 
@@ -344,6 +362,17 @@
 
       @media (any-pointer: coarse) {
         --grid-width: max(96px, calc(5 * var(--body)));
+
+        @media (orientation: portrait) {
+          /* Eight cards fit before the ordinary minimum width admits the eighth column. */
+          @container catalog (760px <= width < 838px) {
+            .composition-grid,
+            .page-reference {
+              --grid-width: max(88px, calc(5 * var(--body)));
+              column-gap: 8px;
+            }
+          }
+        }
       }
 
       .drop-placeholder {
