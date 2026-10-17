@@ -775,16 +775,16 @@ terms.
 
 #### Project documents and components
 
-| Reference                                                                                                        | Responsibility                                                            |
-| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| [Web SPEC](SPEC.md) and [glossary](SPEC.md#glossary)                                                             | Workspace behavior and product terminology.                               |
-| [Design rules](#tokens-and-assets)                                                                               | Visual rules and layout references.                                       |
-| [App](../src/App.svelte), [Landing](../src/Landing.svelte), and [Theme](../src/Theme.svelte)                     | Application shell, pane header controls, landing page, and theme control. |
-| [Composer](../src/Composer.svelte) and [Repetition](../src/Repetition.svelte)                                    | Panes, view controls, selection bars, page actions, and repetition.       |
-| [Grid](../src/Grid.svelte), [Page](../src/Page.svelte), [Pdf](../src/Pdf.svelte), and [Lens](../src/Lens.svelte) | Thumbnail pagination, page viewer, page images, and magnifier.            |
-| [Style](../src/Style.svelte), [Quartet](../src/Quartet.svelte), and [Control](../src/Control.svelte)             | Profiles, groups, Style objects, property summaries, and editors.         |
-| [Help](../src/Help.svelte) and [Settings](../src/Settings.svelte)                                                | Help, welcome, Product tour, and Settings.                                |
-| [Offline](../src/Offline.svelte) and [drag](../src/drag.ts)                                                      | Offline/update status and drag images.                                    |
+| Reference                                                                                                                                          | Responsibility                                                             |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| [Web SPEC](SPEC.md) and [glossary](SPEC.md#glossary)                                                                                               | Workspace behavior and product terminology.                                |
+| [Design rules](#tokens-and-assets)                                                                                                                 | Visual rules and layout references.                                        |
+| [App](../src/App.svelte), [Landing](../src/Landing.svelte), and [Theme](../src/Theme.svelte)                                                       | Application shell, pane header controls, landing page, and theme control.  |
+| [Composer](../src/Composer.svelte) and [Repetition](../src/Repetition.svelte)                                                                      | Panes, view controls, selection bars, page actions, and repetition.        |
+| [Grid](../src/Grid.svelte), [Page](../src/Page.svelte), [Counter](../src/Counter.svelte), [Pdf](../src/Pdf.svelte), and [Lens](../src/Lens.svelte) | Thumbnail pagination, page viewer, page entry, page images, and magnifier. |
+| [Style](../src/Style.svelte), [Quartet](../src/Quartet.svelte), and [Control](../src/Control.svelte)                                               | Profiles, groups, Style objects, property summaries, and editors.          |
+| [Help](../src/Help.svelte) and [Settings](../src/Settings.svelte)                                                                                  | Help, welcome, Product tour, and Settings.                                 |
+| [Offline](../src/Offline.svelte) and [drag](../src/drag.ts)                                                                                        | Offline/update status and drag images.                                     |
 
 #### Standard terminology
 

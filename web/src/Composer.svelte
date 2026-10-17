@@ -18,6 +18,7 @@
   import Grid from "./Grid.svelte";
   import PageView, { zoomLevels } from "./Page.svelte";
   import type { Inspection, Region } from "./Page.svelte";
+  import Counter from "./Counter.svelte";
   import Icon from "./Icon.svelte";
   import type { TourStep } from "./Help.svelte";
   let {
@@ -117,7 +118,8 @@
   let touchPointer = $state(false);
   let touchTap: { element: EventTarget | null; time: number; restore: () => void } | undefined;
   let pointerX: number | undefined;
-  let pageEntry = $state<{ pane: "Input" | "Output"; text: string; invalid?: boolean }>();
+  let inputCounter: ReturnType<typeof Counter> | undefined;
+  let outputCounter: ReturnType<typeof Counter> | undefined;
   let originOpen = $state<string>();
   let inputMenu = $state<HTMLDetailsElement>(null!);
   let outputMenu = $state<HTMLDetailsElement>(null!);
@@ -503,43 +505,9 @@
     }
     return true;
   }
-  function focusNumber(element: HTMLInputElement) {
-    element.focus({ preventScroll: true });
-    element.select();
-  }
   function editPage(pane: "Input" | "Output") {
     originOpen = undefined;
-    pageEntry = { pane, text: String((pane === "Input" ? inputPosition : outputPosition) + 1) };
-  }
-  async function jump(event: KeyboardEvent, pane: "Input" | "Output") {
-    if (
-      !pageEntry ||
-      event.isComposing ||
-      event.altKey ||
-      event.ctrlKey ||
-      event.metaKey ||
-      event.shiftKey ||
-      !["Enter", "Escape"].includes(event.key)
-    )
-      return;
-    event.preventDefault();
-    if (event.key === "Enter") {
-      const text = pageEntry.text.trim(),
-        number = Number(text);
-      const total = pane === "Input" ? count : output.pages.length;
-      if (!/^\d+$/.test(text) || !Number.isSafeInteger(number) || number < 1 || number > total) {
-        pageEntry.invalid = true;
-        return;
-      }
-      if (pane === "Input") inspectInput({ position: number - 1, alignment: undefined });
-      else outputPosition = number - 1;
-    }
-    pageEntry = undefined;
-    await tick();
-    document
-      .getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`)
-      ?.querySelector<HTMLElement>(".page-scroll")
-      ?.focus({ preventScroll: true });
+    (pane === "Input" ? inputCounter : outputCounter)?.edit();
   }
   function showOriginal() {
     if (!inspected || !("source" in inspected.content)) return;
@@ -1379,13 +1347,7 @@
     touchTap = undefined;
     touchPointer = false;
     if (opening) return;
-    if (
-      event.key === "Escape" &&
-      pageEntry &&
-      event.target instanceof HTMLElement &&
-      event.target.closest(".page-jump")
-    )
-      return;
+    if (event.key === "Escape" && event.target instanceof HTMLElement && event.target.closest(".page-jump")) return;
     if (shortcuts(event)) return;
     if (event.key === "Tab" && !event.isComposing && !event.altKey && !event.ctrlKey && !event.metaKey)
       usingKeyboard = true;
@@ -1544,49 +1506,14 @@
   </span>
 {/snippet}
 
-{#snippet pagePosition(pane: "Input" | "Output", position: number, total: number)}
-  <strong class="page-position">
-    <span class="page-current">
-      <span aria-hidden={pageEntry?.pane === pane} style:visibility={pageEntry?.pane === pane ? "hidden" : undefined}
-        >{position + 1}</span
-      >
-      {#if pageEntry?.pane === pane}
-        <input
-          class="page-jump"
-          type="text"
-          inputmode="numeric"
-          aria-label={`Go to ${pane} page`}
-          title=""
-          aria-describedby={`${key}-${pane}-page-entry-help`}
-          aria-invalid={pageEntry.invalid || undefined}
-          size={String(total).length}
-          style:--digits={String(total).length}
-          bind:value={pageEntry.text}
-          oninput={() => {
-            if (pageEntry) pageEntry.invalid = false;
-          }}
-          onkeydown={(event) => void jump(event, pane)}
-          onblur={() => (pageEntry = undefined)}
-          {@attach focusNumber}
-        />
-        <span hidden id={`${key}-${pane}-page-entry-help`}
-          >Enter a page number from 1 to {total}. Enter confirms. Escape cancels.</span
-        >
-      {/if}
-    </span><span class="page-total">/ {total}</span>
-  </strong>
-{/snippet}
-
 {#snippet inputPageHeading()}
   <span class="page-number"
-    >{#if pageEntry?.pane === "Input"}<span class="page-number-control"
-        >{@render pagePosition("Input", inputPosition, count)}</span
-      >{:else}<button
-        class="page-number-control"
-        aria-label="Go to Input page"
-        title=""
-        onclick={() => editPage("Input")}>{@render pagePosition("Input", inputPosition, count)}</button
-      >{/if}
+    ><Counter
+      pane="Input"
+      bind:this={inputCounter}
+      bind:position={() => inputView.position, (position) => inspectInput({ position, alignment: undefined })}
+      {count}
+    />
     {#if source?.input.labels[inputPosition] && source.input.labels[inputPosition] !== String(inputPosition + 1)}<span
         class="page-context">{source.input.labels[inputPosition]}</span
       >{/if}
@@ -1795,14 +1722,7 @@
 
 {#snippet outputPageHeading()}
   <span class="page-number">
-    {#if pageEntry?.pane === "Output"}<span class="page-number-control"
-        >{@render pagePosition("Output", outputPosition, output.pages.length)}</span
-      >{:else}<button
-        class="page-number-control"
-        aria-label="Go to Output page"
-        title=""
-        onclick={() => editPage("Output")}>{@render pagePosition("Output", outputPosition, output.pages.length)}</button
-      >{/if}
+    <Counter pane="Output" bind:this={outputCounter} bind:position={outputPosition} count={output.pages.length} />
   </span>
   {@render pageTools("Output")}
   {@render pageFace(outputPosition)}
