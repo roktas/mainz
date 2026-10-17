@@ -137,7 +137,7 @@ direnv exec . bundle exec rake 'preserve[original.pdf,edited.pdf,reset.pdf]'
 
 Use the pinned Svelte, TypeScript, Vite, and PDF.js stack. When available, use `svelte-code-writer` and
 `svelte-core-bestpractices` before component or module work. When available, use `good-css` and `modern-css` for CSS.
-Run the Svelte autofixer on affected components. Reuse [styles](web/src/css/main.css), the [logo](web/public/logo.svg),
+Run the Svelte autofixer on affected components. Reuse [styles](web/src/main.css), the [logo](web/public/logo.svg),
 existing controls, and both themes. Follow DESIGN's focus and reduced-motion rules. User PDFs and document-derived
 values stay out of the offline cache.
 
