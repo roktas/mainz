@@ -1844,6 +1844,13 @@
         flex: 1 1 18em;
         min-inline-size: 0;
         text-align: center;
+        & .status-message {
+          display: inline flow-root;
+          border-radius: var(--radius);
+          @media (prefers-reduced-motion: no-preference) {
+            animation: status-flash 2000ms var(--ease-out);
+          }
+        }
       }
       & > time {
         margin-inline-start: auto;
@@ -1854,6 +1861,19 @@
             color: var(--accent);
           }
         }
+      }
+    }
+    @keyframes status-flash {
+      from,
+      35% {
+        color: var(--accent);
+        background-color: color-mix(in oklch, var(--accent) 12%, var(--paper));
+        box-shadow: 0 0 12px 0.35em color-mix(in oklch, var(--accent) 20%, transparent);
+      }
+      to {
+        color: var(--info);
+        background-color: transparent;
+        box-shadow: 0 0 12px 0.35em transparent;
       }
     }
     main:has(.composer) + .footnote {

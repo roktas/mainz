@@ -126,6 +126,36 @@
     .sequence-help strong {
       color: var(--accent);
     }
+    .page-grip,
+    .entry > button[draggable] {
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .composer[data-touch] [draggable] {
+      -webkit-user-drag: none;
+    }
+    .composer[data-touch] .page-grip[data-press] {
+      color: var(--accent);
+      background: var(--tint);
+    }
+    .composer[data-touch] .composition-card {
+      &:has(.page-grip[data-press]):not([data-dragging]) {
+        --page-border: var(--accent);
+        background: var(--tint);
+        @media (prefers-reduced-motion: no-preference) {
+          scale: 0.98;
+        }
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        transition:
+          translate 280ms var(--ease-out),
+          rotate 160ms var(--ease-out),
+          scale 160ms var(--ease-out),
+          opacity 120ms var(--ease-out);
+      }
+    }
 
     .composition-grid,
     .page-reference {
@@ -144,6 +174,10 @@
     }
     .composition-grid {
       position: relative;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
     }
     .drop-placeholder {
       position: absolute;
@@ -386,6 +420,9 @@
     .mobile-workspace-tabs {
       display: none;
     }
+    .input-drop-hint {
+      display: none;
+    }
     .composer {
       &[data-drag] {
         --shift-duration: 500ms;
@@ -399,14 +436,16 @@
             }
           }
         }
-        & .composition-output {
+        &:not([data-touch-drag]) .composition-output,
+        &[data-touch-drag] .composition-output :is(.composition-grid, .composition-empty) {
           outline: 1px dashed var(--accent);
           outline-offset: 6px;
           border-radius: var(--radius);
-          &[data-drop="end"] {
-            outline-style: solid;
-            background: color-mix(in oklch, var(--accent) 5%, var(--paper));
-          }
+        }
+        &:not([data-touch-drag]) .composition-output[data-drop="end"],
+        &[data-touch-drag] .composition-output[data-drop="end"] :is(.composition-grid, .composition-empty) {
+          outline-style: solid;
+          background: color-mix(in oklch, var(--accent) 5%, var(--paper));
         }
         & .composition-output .sequence-help {
           color: var(--accent);
@@ -947,6 +986,49 @@
       }
     }
     @container composer (width <= 55em) {
+      .composer[data-touch-drag][data-drag="source"][data-view="input"] {
+        & .mobile-workspace-tabs > button:last-child {
+          border-color: var(--accent);
+          border-style: dashed;
+          color: var(--accent);
+          background: var(--tint);
+          &[data-drop] {
+            border-style: solid;
+          }
+        }
+        & .selection-panel .page-content {
+          position: relative;
+        }
+        & .selection-panel:has(.input-drop-hint) :is(.composition-grid, .page-view) {
+          outline: 1px dashed var(--danger);
+          outline-offset: 6px;
+          border-radius: var(--radius);
+        }
+        & .input-drop-hint {
+          position: absolute;
+          inset-block-start: calc(var(--gap) / 2);
+          inset-inline-start: 50%;
+          translate: -50% 0;
+          display: block flex;
+          align-items: center;
+          gap: calc(var(--gap) / 2);
+          inline-size: max-content;
+          max-inline-size: calc(100% - var(--gap));
+          padding: calc(var(--gap) / 2);
+          border: 1px solid var(--danger);
+          border-radius: var(--radius);
+          color: var(--danger);
+          background: var(--paper);
+          font-size: var(--small);
+          pointer-events: none;
+          z-index: 5;
+          & svg {
+            flex: none;
+            inline-size: 1.25em;
+            block-size: 1.25em;
+          }
+        }
+      }
       .composer .mobile-workspace-tabs {
         margin-block-end: var(--gap);
         & button {

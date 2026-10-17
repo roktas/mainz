@@ -1,4 +1,8 @@
 <!-- Displays the inspected page and preserves viewport position and panning. -->
+<script module lang="ts">
+  export const zoomLevels = [50, 100, 150, 200, 300, 400];
+</script>
+
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
   import type { Snippet } from "svelte";
@@ -24,7 +28,7 @@
     sheet,
     position = $bindable(0),
     comparing = $bindable(false),
-    zoom = 100,
+    zoom = $bindable(100),
     error,
     magnification = 16,
     heading,
@@ -50,7 +54,7 @@
     heading?: Snippet;
     headingHeight?: number;
     actions?: Snippet;
-    add?: () => void;
+    add?: () => boolean | undefined;
     grid: (event: MouseEvent | KeyboardEvent) => void;
     selected?: boolean;
     region?: Region;
@@ -66,11 +70,16 @@
   let panning = $state(false);
   let thumbnailWidth = $state(0);
   let headingFrame: number;
+  let copyFlash: Animation | undefined;
+  let pinchAnchor: { x: number; y: number; clientX: number; clientY: number; width: number; zoom: number } | undefined;
   function measureHeading(height: number) {
     cancelAnimationFrame(headingFrame);
     headingFrame = requestAnimationFrame(() => (headingHeight = height));
   }
-  onDestroy(() => cancelAnimationFrame(headingFrame));
+  onDestroy(() => {
+    cancelAnimationFrame(headingFrame);
+    copyFlash?.cancel();
+  });
   function measureThumbnail(element: HTMLSpanElement) {
     const dense = compact;
     let frame: number;
@@ -91,10 +100,38 @@
     let offset = alignment ?? untrack(() => region);
     let frame: number;
     const image = element.querySelector<HTMLElement>("canvas, .blank-sheet");
+    let pinch:
+      | {
+          distance: number;
+          zoom: number;
+          next: number;
+          x: number;
+          y: number;
+          clientX: number;
+          clientY: number;
+          width: number;
+        }
+      | undefined;
     function restore() {
-      if (!element.clientWidth || element.querySelector("canvas")?.clientWidth === 0) return;
-      element.scrollLeft = offset.x * Math.max(0, element.scrollWidth - element.clientWidth);
-      element.scrollTop = offset.y * Math.max(0, element.scrollHeight - element.clientHeight);
+      if (pinch || !element.clientWidth || element.querySelector("canvas")?.clientWidth === 0) return;
+      if (pinchAnchor && image) {
+        if (Math.abs(image.offsetWidth - (pinchAnchor.width * level) / pinchAnchor.zoom) > 2) return;
+        image.style.removeProperty("transform");
+        image.style.removeProperty("transform-origin");
+        const bounds = image.getBoundingClientRect();
+        element.scrollLeft += bounds.left + pinchAnchor.x * bounds.width - pinchAnchor.clientX;
+        element.scrollTop += bounds.top + pinchAnchor.y * bounds.height - pinchAnchor.clientY;
+        const anchored = image.getBoundingClientRect();
+        window.scrollBy({
+          top: anchored.top + pinchAnchor.y * anchored.height - pinchAnchor.clientY,
+          behavior: "instant",
+        });
+        pinchAnchor = undefined;
+        remember();
+      } else {
+        element.scrollLeft = offset.x * Math.max(0, element.scrollWidth - element.clientWidth);
+        element.scrollTop = offset.y * Math.max(0, element.scrollHeight - element.clientHeight);
+      }
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         if (image?.clientWidth)
@@ -104,20 +141,96 @@
           );
       });
     }
-    const observer = new ResizeObserver(restore);
+    const observer = new ResizeObserver(() => {
+      if (pinchAnchor) {
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(restore);
+      } else restore();
+    });
     observer.observe(element);
     if (sheet && element.firstElementChild) observer.observe(element.firstElementChild);
     if (image) observer.observe(image);
     function remember() {
-      if (!element.clientWidth || element.querySelector("canvas")?.width === 0) return;
+      if (pinch || pinchAnchor || !element.clientWidth || element.querySelector("canvas")?.width === 0) return;
       region = offset = {
         x: element.scrollLeft / Math.max(1, element.scrollWidth - element.clientWidth),
         y: element.scrollTop / Math.max(1, element.scrollHeight - element.clientHeight),
       };
     }
+    function begin(event: TouchEvent) {
+      if (event.touches.length > 2) return cancel();
+      if (event.touches.length !== 2 || !image || pinchAnchor) return;
+      const [first, second] = event.touches;
+      const bounds = image.getBoundingClientRect();
+      const distance = Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+      if (!bounds.width || !distance) return;
+      if (event.cancelable) event.preventDefault();
+      const clientX = (first.clientX + second.clientX) / 2,
+        clientY = (first.clientY + second.clientY) / 2;
+      pinch = {
+        distance,
+        zoom,
+        next: zoom,
+        x: (clientX - bounds.left) / bounds.width,
+        y: (clientY - bounds.top) / bounds.height,
+        clientX,
+        clientY,
+        width: bounds.width,
+      };
+      image.style.transformOrigin = `${pinch.x * 100}% ${pinch.y * 100}%`;
+    }
+    function move(event: TouchEvent) {
+      if (!pinch || !image) return;
+      if (event.touches.length !== 2) return cancel();
+      if (event.cancelable) event.preventDefault();
+      const [first, second] = event.touches;
+      const distance = Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+      pinch.next = Math.max(
+        zoomLevels[0],
+        Math.min(zoomLevels.at(-1)!, Math.round((pinch.zoom * distance) / pinch.distance)),
+      );
+      const clientX = (first.clientX + second.clientX) / 2,
+        clientY = (first.clientY + second.clientY) / 2;
+      image.style.transform = `translate(${clientX - pinch.clientX}px, ${clientY - pinch.clientY}px) scale(${pinch.next / pinch.zoom})`;
+    }
+    function finish(event: TouchEvent) {
+      if (!pinch || event.touches.length >= 2) return;
+      if (event.cancelable) event.preventDefault();
+      const next = pinch.next;
+      const bounds = image!.getBoundingClientRect();
+      pinchAnchor = {
+        x: pinch.x,
+        y: pinch.y,
+        clientX: bounds.left + bounds.width * pinch.x,
+        clientY: bounds.top + bounds.height * pinch.y,
+        width: pinch.width,
+        zoom: pinch.zoom,
+      };
+      pinch = undefined;
+      zoom = next;
+      restore();
+    }
+    function cancel() {
+      if (!pinch) return;
+      pinch = undefined;
+      image?.style.removeProperty("transform");
+      image?.style.removeProperty("transform-origin");
+      restore();
+    }
     element.addEventListener("scroll", remember);
+    element.addEventListener("touchstart", begin, { passive: false });
+    element.addEventListener("touchmove", move, { passive: false });
+    element.addEventListener("touchend", finish, { passive: false });
+    element.addEventListener("touchcancel", cancel);
+    window.addEventListener("blur", cancel);
     return () => {
       element.removeEventListener("scroll", remember);
+      element.removeEventListener("touchstart", begin);
+      element.removeEventListener("touchmove", move);
+      element.removeEventListener("touchend", finish);
+      element.removeEventListener("touchcancel", cancel);
+      window.removeEventListener("blur", cancel);
+      cancel();
       observer.disconnect();
       cancelAnimationFrame(frame);
     };
@@ -186,7 +299,16 @@
     if (modified) grid(event);
     else {
       viewport.focus({ preventScroll: true });
-      add?.();
+      if (add?.() && matchMedia("(prefers-reduced-motion: no-preference)").matches) {
+        copyFlash?.cancel();
+        copyFlash = image.animate(
+          [
+            { filter: "brightness(1.12)", boxShadow: "0 0 20px var(--accent)" },
+            { filter: "none", boxShadow: getComputedStyle(image).boxShadow },
+          ],
+          { duration: 700, easing: "ease-out" },
+        );
+      }
     }
   }
 </script>

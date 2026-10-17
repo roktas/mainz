@@ -15,7 +15,7 @@
   import { createDragImage, retainFocus } from "./drag.ts";
   import Repetition from "./Repetition.svelte";
   import Grid from "./Grid.svelte";
-  import PageView from "./Page.svelte";
+  import PageView, { zoomLevels } from "./Page.svelte";
   import type { Inspection, Region } from "./Page.svelte";
   import Icon from "./Icon.svelte";
   import type { TourStep } from "./Help.svelte";
@@ -63,7 +63,6 @@
     tour?: TourStep;
   } = $props();
   const key = $props.id();
-  const levels = [50, 100, 150, 200, 300, 400];
   const motion = new MediaQuery("(prefers-reduced-motion: no-preference)");
   type InputView = {
     tab: "grid" | "page" | "style";
@@ -105,6 +104,8 @@
   let outputRegion = $state<Region>({ x: 0, y: 0 });
   let view = $state<"input" | "output">("input");
   let usingKeyboard = $state(false);
+  let touchPointer = $state(false);
+  let touchTap: { element: EventTarget | null; time: number; restore: () => void } | undefined;
   let pointerX: number | undefined;
   let pageEntry = $state<{ pane: "Input" | "Output"; text: string; invalid?: boolean }>();
   let originOpen = $state<string>();
@@ -123,6 +124,22 @@
   let overOutput = $state(false);
   let dragPosition: number | undefined;
   let dragImage: ReturnType<typeof createDragImage>;
+  let contact:
+    | {
+        id: number;
+        x: number;
+        y: number;
+        control: HTMLElement;
+        value: NonNullable<typeof drag>;
+        distance?: number;
+        warning?: ReturnType<typeof setTimeout>;
+      }
+    | undefined;
+  let touchDragging = $state(false);
+  let dropWarning = $state(false);
+  let touchPoint: PointerEvent | undefined;
+  let touchFrame: number | undefined;
+  let consumeTouchClick = false;
   let dwell: ReturnType<typeof setTimeout> | undefined;
   let dropGrid = $state<{
     from: number;
@@ -281,6 +298,15 @@
       ?.querySelector<HTMLElement>(".page-image, .page-scroll");
     page?.focus({ preventScroll: true });
   }
+  function focusAfterSelection(pane: "Input" | "Output", event?: MouseEvent) {
+    const control =
+      touchPointer && event?.detail !== 0
+        ? document
+            .getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`)
+            ?.querySelector<HTMLElement>(".composition-grid, .page-scroll")
+        : document.getElementById(`${key}-${pane === "Input" ? "input" : "output"}-selection`);
+    control?.focus({ preventScroll: true });
+  }
   async function toggleView(pane: "Input" | "Output", event: MouseEvent | KeyboardEvent) {
     const keyboard = event instanceof KeyboardEvent || event.detail === 0;
     const tab = (pane === "Input" ? activeTab : activeOutputTab) === "page" ? "grid" : "page";
@@ -305,7 +331,10 @@
   }
   function zoomBy(pane: "Input" | "Output", offset: number) {
     const zoom = pane === "Input" ? inputView.zoom : outputZoom;
-    setZoom(pane, levels[Math.max(0, Math.min(levels.length - 1, levels.indexOf(zoom) + offset))]);
+    setZoom(
+      pane,
+      (offset > 0 ? zoomLevels.find((level) => level > zoom) : zoomLevels.findLast((level) => level < zoom)) ?? zoom,
+    );
   }
   function shortcutPane(page = false) {
     const inputAvailable =
@@ -452,8 +481,7 @@
     else if (pressed === "g") {
       if (!event.repeat) editPage(pane);
     } else if (!event.repeat) {
-      if (pane === "Input") add(undefined, inputTargets(inputPosition));
-      else if (!chosen.length && !outputSelectionError) duplicate(outputTargets(inspected?.id));
+      copyCurrent(pane);
     }
     return true;
   }
@@ -521,6 +549,42 @@
     set({ text, pages: next.error ? draft.pages : next.pages });
     sourceAnchor = undefined;
   }
+  function touchPage(pane: "Input" | "Output", event: MouseEvent) {
+    if (!touchPointer || !event.detail || event.ctrlKey || event.metaKey || event.altKey) {
+      touchTap = undefined;
+      return false;
+    }
+    const now = performance.now();
+    if (touchTap?.element === event.currentTarget && now - touchTap.time < 350) {
+      touchTap.restore();
+      touchTap = undefined;
+      void toggleView(pane, event);
+      return true;
+    }
+    const preparation = draft,
+      sourceId = source?.id,
+      anchor = sourceAnchor;
+    const selection = [...selected],
+      text = outputText,
+      outputFrom = outputAnchor;
+    touchTap = {
+      element: event.currentTarget,
+      time: now,
+      restore: () => {
+        if (pane === "Input" && sourceId) {
+          choose(sourceId, preparation);
+          sourceAnchor = anchor;
+          inputClick = undefined;
+        } else {
+          selected = selection;
+          outputText = text;
+          outputAnchor = outputFrom;
+        }
+        highlightRange();
+      },
+    };
+    return false;
+  }
   function selectAll(pane: "Input" | "Output") {
     if (pane === "Input") {
       if (count) numbers(`1${count > 1 ? `-${count}` : ""}`);
@@ -578,6 +642,7 @@
   function selectInput(page: number, event: MouseEvent) {
     if (!source) return;
     inspectInput({ position: page });
+    if (touchPage("Input", event)) return;
     if (event.ctrlKey || event.metaKey) {
       void toggleView("Input", event);
       return;
@@ -626,9 +691,14 @@
         outputPosition = destination;
         outputOffset = destination;
       }
+      if (touchDragging) return true;
       if (menu) menu.querySelector("summary")?.focus();
       else if (selectionAction)
         void tick().then(() => {
+          if (touchPointer && expanded.length) {
+            focusAfterSelection("Output");
+            return;
+          }
           if (grid && select && destination !== undefined && destination >= 0) {
             document
               .getElementById(`${key}-${selection.at(-1)}`)
@@ -636,13 +706,10 @@
               ?.focus();
             return;
           }
-          const control =
-            !selection.length || !focused?.isConnected || focused.matches(":disabled")
-              ? document.getElementById(
-                  expanded.length ? `${key}-output-selection` : `${key}-output-${activeOutputTab}`,
-                )
-              : focused;
-          control?.focus({ preventScroll: true });
+          if (!selection.length || !focused?.isConnected || focused.matches(":disabled")) {
+            if (expanded.length) focusAfterSelection("Output");
+            else document.getElementById(`${key}-output-${activeOutputTab}`)?.focus({ preventScroll: true });
+          } else focused.focus({ preventScroll: true });
         });
       else if (card || pageAction)
         void tick().then(() => {
@@ -685,7 +752,7 @@
     if (id !== undefined) return chosen.length ? [] : [id];
     return chosen.map((page) => page.id);
   }
-  function add(at = insertion, pages?: number[]) {
+  function add(at = insertion, pages?: number[], selection: "new" | "keep" = "new") {
     if (!source) return;
     if (pages === undefined && (selectionError || !parsed.pages.length)) return;
     const inputBar = (document.activeElement as HTMLElement | null)?.closest(".selection-panel .sequence-entry");
@@ -715,11 +782,13 @@
         : at === 0
           ? `Inserted ${label} at the start of Output.`
           : `Inserted ${label} after Output page ${at}.`,
-      (expanded) => expanded.filter((page) => page.part === next.id).map((page) => page.id),
+      selection === "new"
+        ? (expanded) => expanded.filter((page) => page.part === next.id).map((page) => page.id)
+        : undefined,
     );
     if (completed && pages === undefined) {
       clearInput();
-      if (inputBar) document.getElementById(`${key}-input-selection`)?.focus({ preventScroll: true });
+      if (inputBar && !touchDragging) focusAfterSelection("Input");
     }
     return completed;
   }
@@ -751,7 +820,7 @@
       if (activeOutputTab === "grid") outputOffset = outputPosition;
     }
   }
-  function duplicate(ids = outputTargets()) {
+  function duplicate(ids = outputTargets(), selection: "new" | "keep" = "new") {
     const pages = contentPages();
     const copying = new Set(ids);
     const indices = pages.flatMap((page, index) => (copying.has(page.id) ? [index] : []));
@@ -762,8 +831,12 @@
     return replace(
       pages,
       `Copied ${copies.length} ${copies.length === 1 ? "page" : "pages"} after Output page ${at}.`,
-      () => copies.map((page) => page.id),
+      selection === "new" ? () => copies.map((page) => page.id) : undefined,
     );
+  }
+  function copyCurrent(pane: "Input" | "Output") {
+    if (pane === "Input") return add(undefined, [inputPosition], "keep");
+    if (inspected && !outputSelectionError) return duplicate([inspected.id], "keep");
   }
   function remove(ids = outputTargets()) {
     const removed = new Set(ids);
@@ -817,6 +890,15 @@
   }
   function endDrag(completed = false) {
     leaveNavigation();
+    if (touchDragging) consumeTouchClick = true;
+    cancelAnimationFrame(touchFrame ?? 0);
+    touchFrame = undefined;
+    touchPoint = undefined;
+    clearTimeout(contact?.warning);
+    dropWarning = false;
+    contact?.control.removeAttribute("data-press");
+    contact = undefined;
+    touchDragging = false;
     dragImage?.image.remove();
     dragImage = undefined;
     if (!completed && dragPosition !== undefined) outputPosition = dragPosition;
@@ -826,9 +908,9 @@
     overOutput = false;
     dropGrid = undefined;
   }
-  function hoverNavigation(event: DragEvent, offset: number) {
+  function hoverNavigation(event: DragEvent | PointerEvent, offset: number, element?: HTMLElement) {
     if (!drag) return;
-    over(event, outputPosition);
+    over(event, outputPosition, element);
     if (dwell !== undefined) return;
     dwell = setTimeout(() => {
       dwell = undefined;
@@ -836,13 +918,15 @@
       target = { index: outputPosition, after: offset > 0 };
     }, 450);
   }
-  function over(event: DragEvent, index?: number) {
+  function over(event: DragEvent | PointerEvent, index?: number, element?: HTMLElement) {
     if (!drag) return;
     event.preventDefault();
     event.stopPropagation();
     overOutput = true;
-    if (event.dataTransfer) event.dataTransfer.dropEffect = drag.kind === "source" ? "copy" : "move";
-    const grid = event.target instanceof Element ? event.target.closest<HTMLOListElement>(".output-pages") : null;
+    const transfer = "dataTransfer" in event ? event.dataTransfer : null;
+    if (transfer) transfer.dropEffect = drag.kind === "source" ? "copy" : "move";
+    const hit = element ?? (event.target instanceof Element ? event.target : null);
+    const grid = hit?.closest<HTMLOListElement>(".output-pages");
     if (grid) {
       const cards = grid.querySelectorAll<HTMLElement>(":scope > .composition-card");
       const bounds = grid.getBoundingClientRect();
@@ -874,23 +958,28 @@
         const entry = preview
           ? [...preview.positions].find(([, position]) => position === slot)?.[0]
           : layout.from + slot;
-        dropGrid = layout;
-        if (entry !== undefined && entry < layout.from + layout.count)
-          target = { index: entry, after: x - column * (layout.width + layout.columnGap) >= layout.width / 2 };
-        else target = undefined;
-        if (blockedDrop && event.dataTransfer) event.dataTransfer.dropEffect = "none";
+        if (
+          !dropGrid ||
+          Object.entries(layout).some(([property, value]) => dropGrid![property as keyof typeof layout] !== value)
+        )
+          dropGrid = layout;
+        if (entry !== undefined && entry < layout.from + layout.count) {
+          const after = x - column * (layout.width + layout.columnGap) >= layout.width / 2;
+          if (target?.index !== entry || target.after !== after) target = { index: entry, after };
+        } else target = undefined;
+        if (blockedDrop && transfer) transfer.dropEffect = "none";
         return;
       }
     }
     if (index === undefined) target = undefined;
     else {
-      const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      const bounds = (element ?? (event.currentTarget as HTMLElement)).getBoundingClientRect();
       const after = event.clientX >= bounds.left + bounds.width / 2;
       if (target?.index !== index || target.after !== after) target = { index, after };
     }
-    if (blockedDrop && event.dataTransfer) event.dataTransfer.dropEffect = "none";
+    if (blockedDrop && transfer) transfer.dropEffect = "none";
   }
-  function drop(event: DragEvent) {
+  function drop(event: DragEvent | PointerEvent) {
     if (!drag) return;
     event.preventDefault();
     event.stopPropagation();
@@ -921,8 +1010,17 @@
       }
     }
     endDrag(completed);
+    return completed;
   }
-  function start(event: DragEvent, value: NonNullable<typeof drag>) {
+  function start(
+    event: DragEvent | PointerEvent,
+    value: NonNullable<typeof drag>,
+    control = event.currentTarget as HTMLElement,
+  ) {
+    if ("dataTransfer" in event && touchPointer) {
+      event.preventDefault();
+      return;
+    }
     if (value.kind === "source" && value.page !== undefined && inputSelected.has(value.page)) {
       if (activeTab === "grid") inspectInput({ position: value.page });
       value = { kind: "source" };
@@ -947,18 +1045,164 @@
       inspectInput({ position: value.page });
     if (value.kind === "output" && activeOutputTab === "grid")
       outputPosition = output.pages.findIndex((page) => page.id === value.ids[0]);
-    event.dataTransfer?.setData("text/plain", "PDF Studio pages");
-    if (event.dataTransfer) {
+    const quantity =
+      value.kind === "output"
+        ? value.ids.length
+        : value.page === undefined
+          ? parsed.pages.length * Number(draft.repeat)
+          : 1;
+    dragImage?.image.remove();
+    dragImage = createDragImage(control, quantity, source?.input.sizes[parsed.pages[0]]);
+    if ("dataTransfer" in event && event.dataTransfer) {
+      event.dataTransfer.setData("text/plain", "PDF Studio pages");
       event.dataTransfer.effectAllowed = value.kind === "source" ? "copy" : "move";
-      const quantity =
-        value.kind === "output"
-          ? value.ids.length
-          : value.page === undefined
-            ? parsed.pages.length * Number(draft.repeat)
-            : 1;
-      dragImage?.image.remove();
-      dragImage = createDragImage(event, quantity, source?.input.sizes[parsed.pages[0]]);
+      if (dragImage) {
+        const image = dragImage.image;
+        event.dataTransfer.setDragImage(image, image.width / 2, 12);
+        // Keep the canvas visible until the browser captures its native drag image.
+        requestAnimationFrame(() => (image.style.visibility = "hidden"));
+      }
     }
+  }
+
+  function pressDrag(event: PointerEvent, value: NonNullable<typeof drag>) {
+    if (event.pointerType === "mouse" || !event.isPrimary || event.button !== 0) return;
+    contact = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      control: event.currentTarget as HTMLElement,
+      value,
+    };
+    contact.control.setAttribute("data-press", "");
+  }
+  function updateTouch() {
+    touchFrame = undefined;
+    if (!touchDragging || !touchPoint || !drag) return;
+    const event = touchPoint;
+    const hit = document.elementFromPoint(event.clientX, event.clientY);
+    const pane = hit?.closest<HTMLElement>(
+      ".composition-output :is(.composition-grid, .composition-empty, .inspection-target)",
+    );
+    const workspace = hit?.closest(".mobile-workspace-tabs button");
+    if (workspace?.textContent?.trim() === "Output" && activeView !== "output") {
+      leaveNavigation();
+      overOutput = true;
+      target = insertion === undefined ? undefined : { index: insertion - 1, after: true };
+      dropGrid = undefined;
+    } else if (pane) {
+      const navigation = hit?.closest<HTMLButtonElement>(
+        'button[aria-label="Previous Output page"], button[aria-label="Next Output page"]',
+      );
+      const card = hit?.closest<HTMLElement>(".composition-card");
+      const page = hit?.closest<HTMLElement>(".inspection-target");
+      if (navigation)
+        hoverNavigation(event, navigation.getAttribute("aria-label")!.startsWith("Previous") ? -1 : 1, navigation);
+      else {
+        leaveNavigation();
+        const index = card
+          ? output.pages.findIndex((item) => `${key}-${item.id}` === card.id)
+          : page
+            ? outputPosition
+            : undefined;
+        over(event, index, card ?? page ?? (hit as HTMLElement));
+      }
+    } else {
+      leaveNavigation();
+      target = undefined;
+      overOutput = false;
+      dropGrid = undefined;
+    }
+    if (contact) {
+      const button = document.querySelector<HTMLElement>(".mobile-workspace-tabs > button:last-child");
+      const invalid =
+        drag.kind === "source" &&
+        activeView === "input" &&
+        button?.offsetWidth &&
+        hit?.closest(".selection-panel :is(.composition-grid, .page-view)");
+      if (invalid) {
+        const bounds = button.getBoundingClientRect();
+        const distance = Math.hypot(
+          event.clientX - bounds.left - bounds.width / 2,
+          event.clientY - bounds.top - bounds.height / 2,
+        );
+        if (contact.distance === undefined || distance < contact.distance - 4) {
+          clearTimeout(contact.warning);
+          contact.warning = undefined;
+          dropWarning = false;
+          contact.distance = distance;
+        } else if (distance > contact.distance + 4) contact.distance = distance;
+        if (contact.warning === undefined && !dropWarning)
+          contact.warning = setTimeout(() => {
+            dropWarning = true;
+          }, 650);
+      } else {
+        clearTimeout(contact.warning);
+        contact.warning = undefined;
+        contact.distance = undefined;
+        dropWarning = false;
+      }
+    }
+    const image = dragImage?.image;
+    if (image)
+      image.style.translate = `${Math.max(0, Math.min(innerWidth - image.width, event.clientX - image.width / 2))}px ${Math.max(0, event.clientY - image.height - 20)}px`;
+    const scroll =
+      event.clientY < 56
+        ? (event.clientY - 56) / 4
+        : event.clientY > innerHeight - 56
+          ? (event.clientY - innerHeight + 56) / 4
+          : 0;
+    if (scroll) {
+      const previous = scrollY;
+      window.scrollBy({ top: scroll, behavior: "instant" });
+      if (scrollY !== previous) touchFrame = requestAnimationFrame(updateTouch);
+    }
+  }
+  function moveTouch(event: PointerEvent) {
+    if (!contact || event.pointerId !== contact.id) return;
+    if (!touchDragging) {
+      if (Math.hypot(event.clientX - contact.x, event.clientY - contact.y) < 6) return;
+      start(event, contact.value, contact.control);
+      if (!drag) {
+        endDrag();
+        return;
+      }
+      touchDragging = true;
+      touchTap = undefined;
+      if (document.activeElement instanceof HTMLInputElement) document.activeElement.blur();
+    }
+    event.preventDefault();
+    touchPoint = event;
+    if (touchFrame === undefined) touchFrame = requestAnimationFrame(updateTouch);
+  }
+  function finishTouch(event: PointerEvent) {
+    if (!contact || event.pointerId !== contact.id) return;
+    if (touchDragging) {
+      consumeTouchClick = true;
+      cancelAnimationFrame(touchFrame ?? 0);
+      touchPoint = event;
+      updateTouch();
+      if (overOutput) {
+        const reveal = drag?.kind === "source" && activeView === "input";
+        if (drop(event) && reveal) view = "output";
+      } else endDrag();
+    } else endDrag();
+  }
+  function cancelTouch() {
+    if (contact) endDrag();
+  }
+  function stopTouchClick(event: TouchEvent) {
+    if (!consumeTouchClick) return;
+    if (event.cancelable) event.preventDefault();
+    consumeTouchClick = false;
+  }
+  function trackTouch() {
+    // The source grip can disappear when a narrow workspace switches panes.
+    window.addEventListener("touchend", stopTouchClick, { passive: false });
+    return () => {
+      window.removeEventListener("touchend", stopTouchClick);
+      cancelTouch();
+    };
   }
 
   function ghost(canvas: HTMLCanvasElement) {
@@ -1013,8 +1257,20 @@
 </script>
 
 <svelte:window
+  onpointermove={moveTouch}
+  onpointerup={finishTouch}
+  onpointercancel={cancelTouch}
+  onblur={cancelTouch}
+  onclickcapture={(event) => {
+    if (!consumeTouchClick || !event.detail) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    consumeTouchClick = false;
+  }}
   ondragend={() => endDrag()}
   onkeydowncapture={(event) => {
+    touchTap = undefined;
+    touchPointer = false;
     if (opening) return;
     if (
       event.key === "Escape" &&
@@ -1105,6 +1361,10 @@
     }
   }}
   onpointerdown={(event) => {
+    consumeTouchClick = false;
+    if (contact && event.pointerId !== contact.id) endDrag();
+    touchPointer = event.pointerType === "touch" || event.pointerType === "pen";
+    if (!(event.target as Element).closest(".page-image")) touchTap = undefined;
     if (event.pointerType === "mouse") pointerX = event.clientX;
     usingKeyboard = false;
     interact(event);
@@ -1140,14 +1400,14 @@
         class="tool"
         aria-label="Zoom out"
         title="Zoom out"
-        disabled={zoom === levels[0]}
+        disabled={zoom <= zoomLevels[0]}
         onclick={() => zoomBy(pane, -1)}>−</button
       >
       <button
         class="tool"
         aria-label="Zoom in"
         title="Zoom in"
-        disabled={zoom === levels.at(-1)}
+        disabled={zoom >= zoomLevels.at(-1)!}
         onclick={() => zoomBy(pane, 1)}>+</button
       >
       <button class="tool" aria-label="Fit page" title="Fit page · 0 or Z" onclick={() => setZoom(pane, 100)}>
@@ -1236,6 +1496,7 @@
       focusPage(event.currentTarget);
     }}
     ondragstart={(event) => start(event, { kind: "source", page: inputView.position })}
+    onpointerdown={(event) => pressDrag(event, { kind: "source", page: inputView.position })}
     ondragend={() => endDrag()}><Icon name="reorder" /></button
   >
   {@render pageTools("Input")}
@@ -1372,6 +1633,7 @@
       focusPage(event.currentTarget);
     }}
     ondragstart={(event) => start(event, { kind: "output", ids: [page.id] })}
+    onpointerdown={(event) => pressDrag(event, { kind: "output", ids: [page.id] })}
     ondragend={() => endDrag()}
   >
     <Icon name="reorder" />
@@ -1514,16 +1776,21 @@
   style:--page-heading-height={frameHeadingHeight ? `${frameHeadingHeight + 1}px` : undefined}
   data-view={activeView}
   data-drag={drag?.kind}
+  data-touch={touchPointer || undefined}
+  data-touch-drag={touchDragging || undefined}
   data-keyboard={usingKeyboard}
   inert={opening}
   aria-busy={opening}
+  {@attach trackTouch}
 >
   <nav class="mobile-workspace-tabs" aria-label="Workspace view">
     <button aria-pressed={activeView === "input" && !!source} disabled={!source} onclick={() => (view = "input")}
       ><Icon name="input" />Input</button
     >
-    <button aria-pressed={activeView === "output"} onclick={() => (view = "output")}
-      ><Icon name="output" />Output</button
+    <button
+      aria-pressed={activeView === "output"}
+      data-drop={touchDragging && drag?.kind === "source" && activeView === "input" && overOutput ? true : undefined}
+      onclick={() => (view = "output")}><Icon name="output" />Output</button
     >
   </nav>
   <div class="composition-panels">
@@ -1608,6 +1875,10 @@
                 <input
                   id={`${key}-input-selection`}
                   aria-label="Page selection"
+                  inputmode="numeric"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck={false}
                   value={draft.text}
                   placeholder="Example: 3-5,2,2,7"
                   title="Page numbers in order, including copies. Example: 3-5,2,2,7."
@@ -1633,18 +1904,18 @@
                     aria-label="Select all"
                     title="Select all · Ctrl+A / ⌘A"
                     aria-keyshortcuts="Control+A Meta+A"
-                    onclick={() => {
+                    onclick={(event) => {
                       selectAll("Input");
-                      document.getElementById(`${key}-input-selection`)?.focus({ preventScroll: true });
+                      focusAfterSelection("Input", event);
                     }}><Icon name="select" /></button
                   >{/if}
                 {#if draft.text || draft.pages.length || draft.repeat !== "1" || draft.front}<button
                     class="reset"
                     aria-label="Clear page sequence"
                     title="Clear"
-                    onclick={() => {
+                    onclick={(event) => {
                       clearInput();
-                      document.getElementById(`${key}-input-selection`)?.focus({ preventScroll: true });
+                      focusAfterSelection("Input", event);
                     }}><Icon name="close" /></button
                   >{/if}
                 {#if draft.pages.length}<button
@@ -1654,6 +1925,7 @@
                     draggable="true"
                     disabled={!!selectionError}
                     ondragstart={(event) => start(event, { kind: "source" })}
+                    onpointerdown={(event) => pressDrag(event, { kind: "source" })}
                     ondragend={() => endDrag()}
                     onclick={() => add()}><Icon name="add" /></button
                   >{/if}
@@ -1679,6 +1951,9 @@
               </p>
             </div>
             <div class="page-content">
+              {#if dropWarning && touchDragging && drag?.kind === "source" && activeView === "input"}
+                <div class="input-drop-hint" role="status"><Icon name="ban" />Move to Output.</div>
+              {/if}
               {#if activeTab === "page"}
                 {#key source.id}<PageView
                     pane="Input"
@@ -1689,12 +1964,12 @@
                     bind:position={
                       () => inputView.position, (position) => inspectInput({ position, alignment: undefined })
                     }
-                    zoom={inputView.zoom}
+                    bind:zoom={() => inputView.zoom, (zoom) => setZoom("Input", zoom)}
                     bind:region={() => inputView.region, (region) => inspectInput({ region, alignment: undefined })}
                     alignment={inputView.alignment}
                     heading={inputPageHeading}
                     actions={!draft.pages.length ? inputPageActions : undefined}
-                    add={() => add(undefined, inputTargets(inputPosition))}
+                    add={() => copyCurrent("Input")}
                     grid={(event) => void toggleView("Input", event)}
                     selected={inputSelected.has(inputPosition)}
                     {error}
@@ -1771,6 +2046,7 @@
                               focusPage(event.currentTarget);
                             }}
                             ondragstart={(event) => start(event, { kind: "source", page })}
+                            onpointerdown={(event) => pressDrag(event, { kind: "source", page })}
                             ondragend={() => endDrag()}><Icon name="reorder" /></button
                           >
                         </div>
@@ -1786,6 +2062,7 @@
                           onmousedown={retainFocus}
                           onclick={(event) => selectInput(page, event)}
                           ondblclick={(event) => {
+                            if (touchPointer) return;
                             if (!event.ctrlKey && !event.metaKey) {
                               if (source && inputClick?.source === source.id && inputClick.page === page) {
                                 choose(source.id, inputClick.sequence);
@@ -1924,6 +2201,10 @@
               id={`${key}-output-selection`}
               disabled={!output.pages.length}
               aria-label="Page selection"
+              inputmode="numeric"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck={false}
               title="Output page numbers and ranges. Repeated numbers select the same page once."
               value={outputText ?? pageRanges(positions)}
               placeholder="Example: 2,4-6"
@@ -1949,18 +2230,18 @@
                 aria-label="Select all"
                 title="Select all · Ctrl+A / ⌘A"
                 aria-keyshortcuts="Control+A Meta+A"
-                onclick={() => {
+                onclick={(event) => {
                   selectAll("Output");
-                  document.getElementById(`${key}-output-selection`)?.focus({ preventScroll: true });
+                  focusAfterSelection("Output", event);
                 }}><Icon name="select" /></button
               >{/if}
             {#if chosen.length || outputText}<button
                 class="reset"
                 aria-label="Clear Output selection"
                 title="Clear selection to use page actions"
-                onclick={() => {
+                onclick={(event) => {
                   clearOutput();
-                  document.getElementById(`${key}-output-selection`)?.focus({ preventScroll: true });
+                  focusAfterSelection("Output", event);
                 }}><Icon name="close" /></button
               >{/if}
             {#if chosen.length}
@@ -2028,14 +2309,12 @@
                 sheet={inspection}
                 bind:headingHeight={outputHeadingHeight}
                 bind:position={outputPosition}
-                zoom={outputZoom}
+                bind:zoom={outputZoom}
                 bind:comparing
                 bind:region={outputRegion}
                 heading={inspected ? outputPageHeading : undefined}
                 actions={inspected && !chosen.length ? outputPageActions : undefined}
-                add={inspected && !chosen.length && !outputSelectionError
-                  ? () => duplicate(outputTargets(inspected.id))
-                  : undefined}
+                add={inspected && !outputSelectionError ? () => copyCurrent("Output") : undefined}
                 grid={(event) => void toggleView("Output", event)}
                 selected={!!inspected && selectedIds.has(inspected.id)}
                 navigationOver={hoverNavigation}
@@ -2117,6 +2396,7 @@
                         onmousedown={retainFocus}
                         onclick={(event) => {
                           outputPosition = index;
+                          if (touchPage("Output", event)) return;
                           if (event.ctrlKey || event.metaKey) {
                             void toggleView("Output", event);
                             return;

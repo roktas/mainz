@@ -342,6 +342,10 @@
         --grid-width: max(72.5px, calc(5 * var(--body)));
       }
 
+      @media (any-pointer: coarse) {
+        --grid-width: max(96px, calc(5 * var(--body)));
+      }
+
       .drop-placeholder {
         padding-block: 34.5px 8.5px;
         padding-inline: 8.5px;
@@ -362,6 +366,9 @@
           grid-template-columns:
             calc(100% / 3 + var(--grip-offset)) minmax(24px, 1fr)
             calc(100% / 3 - var(--grip-offset));
+          @media (any-pointer: coarse) {
+            grid-template-columns: repeat(2, minmax(44px, 1fr));
+          }
           grid-template-rows: minmax(0, 1fr);
           margin-inline: calc(-1 * (var(--card-inset) + var(--page-stroke)));
           block-size: 100%;

@@ -1,5 +1,12 @@
 @layer components {
   @scope (#app) {
+    .thumbnail,
+    .pdf-viewport {
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+    }
     .thumbnail {
       inline-size: 100%;
       position: relative;
@@ -134,6 +141,7 @@
       }
     }
     .page-scroll {
+      touch-action: pan-x pan-y;
       container-type: inline-size;
       display: block grid;
       grid-template-columns: minmax(0, 1fr);

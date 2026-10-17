@@ -1,4 +1,4 @@
-<!-- Magnifies bounded PDF crops under a settled mouse pointer. -->
+<!-- Magnifies bounded PDF crops under a settled mouse or a held touch. -->
 <script lang="ts">
   import { loadRenderer } from "./pdf.ts";
   import type { PDFDocumentProxy } from "pdfjs-dist";
@@ -20,10 +20,47 @@
   let point = $state<{ x: number; y: number; left: number; top: number }>();
   let refining = $state(false);
   let opening: ReturnType<typeof setTimeout> | undefined;
+  let finger: { id: number; x: number; y: number } | undefined;
+  let holding = false;
   function dismiss() {
     clearTimeout(opening);
     opening = undefined;
     point = undefined;
+    finger = undefined;
+    holding = false;
+  }
+  function touchStart(event: TouchEvent) {
+    dismiss();
+    if (event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    finger = { id: touch.identifier, x: touch.clientX, y: touch.clientY };
+    opening = setTimeout(() => {
+      opening = undefined;
+      if (!finger) return;
+      holding = true;
+      show(finger.x, finger.y, true);
+    }, 280);
+  }
+  function touchMove(event: TouchEvent) {
+    if (!finger) return;
+    const touch = Array.from(event.touches).find((contact) => contact.identifier === finger!.id);
+    if (!touch || event.touches.length !== 1) return dismiss();
+    if (!holding) {
+      if (Math.hypot(touch.clientX - finger.x, touch.clientY - finger.y) > 8) dismiss();
+      return;
+    }
+    if (event.cancelable) event.preventDefault();
+    show(touch.clientX, touch.clientY, true);
+  }
+  function touchEnd(event: TouchEvent) {
+    if (holding && event.type === "touchend") {
+      if (event.cancelable) event.preventDefault();
+      event.stopPropagation();
+    }
+    dismiss();
+  }
+  function leave(event: PointerEvent) {
+    if (event.pointerType === "mouse") dismiss();
   }
   function float(element: HTMLElement) {
     document.getElementById("app")!.append(element);
@@ -37,15 +74,23 @@
     }
     dismiss();
     target.addEventListener("pointermove", inspect);
-    target.addEventListener("pointerleave", dismiss);
+    target.addEventListener("pointerleave", leave);
     target.addEventListener("pointerdown", dismiss);
     target.addEventListener("wheel", dismiss);
+    target.addEventListener("touchstart", touchStart, { passive: true });
+    target.addEventListener("touchmove", touchMove, { passive: false });
+    target.addEventListener("touchend", touchEnd, { passive: false });
+    target.addEventListener("touchcancel", touchEnd);
     document.addEventListener("scroll", dismiss, true);
     return () => {
       target.removeEventListener("pointermove", inspect);
-      target.removeEventListener("pointerleave", dismiss);
+      target.removeEventListener("pointerleave", leave);
       target.removeEventListener("pointerdown", dismiss);
       target.removeEventListener("wheel", dismiss);
+      target.removeEventListener("touchstart", touchStart);
+      target.removeEventListener("touchmove", touchMove);
+      target.removeEventListener("touchend", touchEnd);
+      target.removeEventListener("touchcancel", touchEnd);
       document.removeEventListener("scroll", dismiss, true);
       dismiss();
     };
@@ -141,20 +186,31 @@
       show(event.clientX, event.clientY);
     }, 180);
   }
-  function show(x: number, y: number) {
+  function show(x: number, y: number, touch = false) {
     if (!canvas || !pdf || rendering) return;
     const bounds = canvas.getBoundingClientRect(),
       width = Math.min(320, innerWidth - 24);
     point = {
-      x: (x - bounds.left) / bounds.width,
-      y: (y - bounds.top) / bounds.height,
-      left: bounds.right + width + 28 <= innerWidth ? bounds.right + 16 : Math.max(12, bounds.left - width - 16),
-      top: Math.max(12, Math.min(bounds.top, innerHeight - width - 12)),
+      x: Math.max(0, Math.min(1, (x - bounds.left) / bounds.width)),
+      y: Math.max(0, Math.min(1, (y - bounds.top) / bounds.height)),
+      left: touch
+        ? Math.max(12, Math.min(x - width / 2, innerWidth - width - 12))
+        : bounds.right + width + 28 <= innerWidth
+          ? bounds.right + 16
+          : Math.max(12, bounds.left - width - 16),
+      top: Math.max(
+        12,
+        Math.min(touch ? (y - width - 32 >= 12 ? y - width - 32 : y + 32) : bounds.top, innerHeight - width - 12),
+      ),
     };
   }
 </script>
 
 <svelte:window
+  onpointerdown={(event) => {
+    if (finger && !event.isPrimary) dismiss();
+  }}
+  onblur={dismiss}
   onkeydown={(event) => {
     if (event.key === "Escape" && (point || opening !== undefined)) dismiss();
   }}

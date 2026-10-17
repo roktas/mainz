@@ -78,7 +78,9 @@
   }
 </script>
 
-{#if status}<p class="offline" role="status">{status}</p>{/if}
+{#if status}<p class="offline" role="status">
+    {#key status}<span class="status-message">{status}</span>{/key}
+  </p>{/if}
 {#if waiting}
   <button
     type="button"

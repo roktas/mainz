@@ -437,8 +437,8 @@
         {mode === "grid"
           ? "Select or unselect page"
           : pane === "Input"
-            ? "Add pages to Output"
-            : "Duplicate page (no selection)"}
+            ? "Add the current page to Output"
+            : "Duplicate the current page"}
       </dd>
     </div>
     {#if mode === "grid"}
@@ -627,11 +627,10 @@
             <dd>Switch the current page between Grid and Page</dd>
           </div>
           <div>
-            <dt>Double-click an image</dt>
+            <dt>Double-click a Page image</dt>
             <dd>
-              Input adds the prepared selection, or one current page without a selection. Output Page duplicates the
-              current page without an Output selection. Output selection disables Page duplication. Continue with the
-              keyboard after either action.
+              Add one current Input page or duplicate the current Output page. Selection stays unchanged, so the action
+              can repeat. Double-clicking an Input Grid image adds the preparation, or one current page.
             </dd>
           </div>
           <div>

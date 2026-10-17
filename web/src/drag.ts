@@ -24,9 +24,7 @@ export function retainFocus(event: MouseEvent) {
   frame = requestAnimationFrame(restore);
 }
 
-export function createDragImage(event: DragEvent, quantity: number, size?: Size) {
-  if (!event.dataTransfer) return;
-  const control = event.currentTarget as HTMLElement;
+export function createDragImage(control: HTMLElement, quantity: number, size?: Size) {
   const card =
     control.closest(".composition-card, .page-view") ??
     control.closest(".selection-panel")?.querySelector(".composition-card.selected, .page-view");
@@ -78,9 +76,6 @@ export function createDragImage(event: DragEvent, quantity: number, size?: Size)
       image.setAttribute("aria-hidden", "true");
       document.body.append(image);
       image.getBoundingClientRect();
-      event.dataTransfer.setDragImage(image, image.width / 2, 12);
-      // Keep the canvas rendered until the browser captures its drag image.
-      requestAnimationFrame(() => (image.style.visibility = "hidden"));
       return { image, thumbnail };
     }
   }

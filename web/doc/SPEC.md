@@ -78,13 +78,14 @@ is a set of occurrences identified by current positions. Repeated Output numbers
 use print order. Field edits prepare targets without changing existing Output. Invalid text retains the last valid
 selection and blocks selection actions.
 
-| Control            | Input                                                    | Output                                                      |
-| ------------------ | -------------------------------------------------------- | ----------------------------------------------------------- |
-| Select all         | Every physical page once, in original order.             | Every occurrence once.                                      |
-| Clear              | Clears Selection, repetitions to 1, front alignment off. | Clears selection, repetitions to 2, front alignment off.    |
-| Field Enter        | Adds the exact preparation.                              | Removes selected occurrences.                               |
-| Individual +       | Adds one current page without a Selection.               | Duplicates one current occurrence without a selection.      |
-| Double-click image | Adds the preparation, or one current page.               | Duplicates the current Page occurrence without a selection. |
+| Control                               | Input                                                    | Output                                                     |
+| ------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------- |
+| Select all                            | Every physical page once, in original order.             | Every occurrence once.                                     |
+| Clear                                 | Clears Selection, repetitions to 1, front alignment off. | Clears selection, repetitions to 2, front alignment off.   |
+| Field Enter                           | Adds the exact preparation.                              | Removes selected occurrences.                              |
+| Individual +                          | Adds one current page without a Selection.               | Duplicates one current occurrence without a selection.     |
+| Double-click Grid image               | Adds the preparation, or one current page.               | Keeps the first click's selection.                         |
+| Double-click or double-tap Page image | Adds one current page and preserves Selection.           | Duplicates the current occurrence and preserves Selection. |
 
 Select all disappears for a complete selection. Reordered or repeated Input sequences still offer it. Clear appears for
 entered text, selected pages, or nondefault Input configuration. It preserves Output. Empty Output has a disabled field
@@ -95,9 +96,13 @@ Clicking a Grid image or grip toggles selection and gives normal page focus. Shi
 the anchored range. The Input Page grip uses the same selection. Field values and page borders represent the same
 targets.
 
+On touch screens, Selection requests the numeric keyboard. Grid content does not support text selection or touch
+callouts. Double-tapping a Grid image opens that page in Page without changing Selection or Output.
+
 Input additions follow the last selected Output occurrence, or append without an Output selection. The Input hint
-identifies this destination. Success clears Input preparation and selects the new Output block. Failure or cancellation
-preserves preparation. A single-page addition selects its new occurrence.
+identifies this destination. Adding a preparation clears it and selects the new Output block after success. Grid and
+individual + additions select their new occurrences. Page image activation and Space preserve the Input preparation and
+selected Output occurrences. Failure or cancellation preserves preparation.
 
 Any selection hides that pane's individual card and Page action controls. The shared bar edits one or several selected
 pages. Clearing selection restores individual controls. Grid editing shortcuts require selection. Navigation and zoom
@@ -153,8 +158,8 @@ edge. Booklet imposition, multiple pages per sheet, crop, scaling, and rotation 
 
 Dragging selected Input pages or its Page grip adds the complete preparation, including repetition and alignment.
 Dragging the field's + does the same. Dragging an unselected Input page adds one copy and preserves preparation.
-Dragging an unselected Output page moves only that occurrence. Starting a drag preserves selection and focus. A press
-without a drag completes its click action on release.
+Dragging an unselected Output page moves only that occurrence. Starting a drag preserves selection. A press without a
+drag completes its click action on release.
 
 An Output card's left/right halves insert before/after it. The Output background appends. Dropping on a selected Output
 occurrence leaves order unchanged. A prospective slot never changes document order before drop. Output Page navigation
@@ -162,6 +167,13 @@ advances the inspected drop target after a hover dwell. Cancellation or rejectio
 the composition unchanged. A completed move follows the moved occurrence. Drop, cancellation, and leaving Output clear
 temporary feedback. Native drag support depends on the browser and input device. Buttons support keyboard and touch
 alternatives.
+
+Touch dragging starts from a grip when the finger moves. It uses the same selections and insertion rules as mouse
+dragging. In Grid, only the card area accepts and highlights drops. On narrow layouts, Input rejects drops and
+highlights the Output workspace tab as the target. Dropping there adds the pages at the prepared destination and then
+reveals Output. Hover alone does not switch panes. Input shows a delayed rejection hint when movement toward Output
+stops. Cancellation preserves the document, selection, and inspected Output page. Scrolling from an image remains
+native.
 
 ## Keyboard and focus
 
@@ -224,15 +236,15 @@ movement and presses hide the cursor without clearing selection.
 
 ### Page
 
-| Key                    | Action                                                                                                   |
-| ---------------------- | -------------------------------------------------------------------------------------------------------- |
-| Arrows                 | Scrolls the image. Reaching an edge never changes page.                                                  |
-| N/P or PageDown/PageUp | Goes forward/back one page at every zoom level.                                                          |
-| Home/End               | Goes to the first/last page.                                                                             |
-| Space                  | Performs the current + action. Input uses preparation or one current page. Output requires no selection. |
-| + or = / −             | Changes zoom through the heading controls' steps.                                                        |
-| 0 or Z                 | Restores Fit at 100%.                                                                                    |
-| G or click counter     | Opens page entry with its current value selected.                                                        |
+| Key                    | Action                                                       |
+| ---------------------- | ------------------------------------------------------------ |
+| Arrows                 | Scrolls the image. Reaching an edge never changes page.      |
+| N/P or PageDown/PageUp | Goes forward/back one page at every zoom level.              |
+| Home/End               | Goes to the first/last page.                                 |
+| Space                  | Adds or duplicates one current page and preserves Selection. |
+| + or = / −             | Changes zoom through the heading controls' steps.            |
+| 0 or Z                 | Restores Fit at 100%.                                        |
+| G or click counter     | Opens page entry with its current value selected.            |
 
 Page navigation stops at document boundaries without changing focus or selection. Letter shortcuts accept either case.
 Page entry accepts integers from 1 to the page count. Invalid values remain editable with local feedback. Enter accepts,
@@ -241,12 +253,17 @@ Escape cancels, and both return focus to that Page viewport. Outside click close
 ### Focus after actions
 
 Image and grip activation gives normal page focus. Keyboard view switching focuses the inspected page. Pointer switching
-does not. Input addition keeps focus in Input. A disappearing field action returns focus to its field. Keyboard
-duplication focuses the final new Output copy. Movement retains focus on the same occurrence. Removal chooses a
-surviving neighbor. Selection-bar actions keep focus while available. Group removal or Clear returns focus to the field
-while pages remain. Menu actions close their menu and return focus to its trigger. Removing the final Output page
-focuses its active view tab. Starting a drag does not move focus. Removing an Input returns focus to the filename
-chooser, or to Open PDF when the final Input is removed.
+does not. Input addition keeps focus in Input. Menu actions close their menu and return focus to its trigger. Removing
+the final Output page focuses its active view tab. Removing an Input returns focus to the filename chooser, or to Open
+PDF when the final Input is removed.
+
+For mouse and keyboard input, a disappearing field action returns focus to its field. Available selection-bar actions
+keep focus. Group removal and Clear return focus to the field while pages remain. Grid keyboard duplication focuses the
+final new Output copy. Movement retains focus on the same occurrence. Removal chooses a surviving neighbor. Starting a
+mouse drag does not move focus.
+
+On touch screens, only direct activation of the Selection field focuses it. Other Selection actions return focus to Grid
+or Page. Touch dragging dismisses the keyboard and does not focus Selection on completion.
 
 ## Source styles
 
@@ -312,8 +329,10 @@ choices.
 ## Page preview and comparison
 
 Page preserves physical proportions for PDF content, Blank, and Padding. Fit is 100%. The zoom steps are 50%, 100%,
-150%, 200%, 300%, and 400%. Application zoom is independent of browser zoom. View changes, Input switches, selection
-changes, and resizing retain each pane's zoom and latest visible region.
+150%, 200%, 300%, and 400%. Pinching a Page image changes zoom continuously within 50–400%, around the midpoint of the
+two fingers. Zoom buttons and keyboard controls choose the next step from that value. Pinching preserves Selection and
+Output. Application zoom is independent of browser zoom. View changes, Input switches, selection changes, and resizing
+retain each pane's zoom and latest visible region.
 
 At enlarged zoom, mouse dragging pans the image. Input transfer uses the Page grip. Output reordering uses Grid,
 selection actions, or keyboard controls. At 100% or below, the wheel scrolls the workspace. Above 100%, it scrolls the
@@ -328,11 +347,12 @@ previews. It matches Output zoom and visible region once. Later navigation, zoom
 Selections, styles, Output position, and Compare stay unchanged. On mobile it activates Input. Blank and Padding disable
 the action.
 
-The hover lens uses opened Input appearance and completed Output styles, or opened appearance during Compare. It opens
-after the mouse settles for 180 ms, follows movement immediately once open, and closes on leaving the image. All lenses
-share Settings' 8×, 16×, or 32× magnification, initially 16×. The pane's thumbnail defines reference magnification. Page
-and zoom compensate for their size difference to retain the same crop scale. The lens does not change layout or
-intercept touch.
+The lens uses opened Input appearance and completed Output styles, or opened appearance during Compare. It opens after
+the mouse settles for 180 ms, follows movement immediately once open, and closes on leaving the image. All lenses share
+Settings' 8×, 16×, or 32× magnification, initially 16×. The pane's thumbnail defines reference magnification. Page and
+zoom compensate for their size difference to retain the same crop scale. The lens does not change layout or intercept
+mouse input. On touch screens, holding an image opens the lens. Moving the held finger changes the crop. Release,
+cancellation, a second finger, or scrolling dismisses it. A hold does not select, add, duplicate, or move pages.
 
 ## Download and recovery
 
@@ -393,6 +413,10 @@ A new Notice replaces the old Notice and restarts its timer without replacing op
 including actionable guidance. Associated controls remain available. An Error clears the current Notice and operation
 status. Local errors retain their nearby explanation and retry action. Delayed completion cannot replace newer operation
 feedback. Temporary selection, navigation, and hover use local feedback.
+
+Each operation status briefly emphasizes its message area, including repeated reports with the same text. Successful
+Page image copies also briefly emphasize the image. These effects preserve focus, Selection, and message lifetime, and
+respect reduced motion.
 
 Errors use plain language and user-visible values rather than raw processor fields or codes.
 

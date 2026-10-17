@@ -155,6 +155,9 @@ Compact uses smaller page numbers. Three or more digits shift the grip toward th
 Four- and five-digit numbers also shrink. Numbers through 10,000 keep at least 2 px of separation without widening the
 card. Tabular digits keep semibold weight. Hover changes their color without changing geometry.
 
+Touch Compact cards use two equal header cells for the number and grip. Both retain 44 px touch targets. Card width
+follows the content and these targets instead of reserving an empty third header cell.
+
 Selection hides individual actions without moving the image or changing card dimensions. Normal footers keep their
 height and separator. Input centers addition. Output places removal left of duplication with one control gap. Page
 places navigation chevrons at the outer edges around these actions. Movement actions use stemmed arrows, distinct from
@@ -183,6 +186,9 @@ cover the grip.
 The lens overlays the image without receiving input. Its magnifier cursor remains visible over light and dark page
 content. Inherited image tooltips stay out of the lens. Page details use a click interaction, leaving image hover
 available for inspection.
+
+Touch holds place the lens above or below the finger within the viewport. Grip dragging responds directly to finger
+movement. Grid text and page images suppress native selection and touch callouts while retaining ordinary scrolling.
 
 ## Style presentation
 
@@ -220,7 +226,13 @@ active Style tab row holds processing feedback and the danger-colored reset icon
 Visible grips and field hints identify drag sources. The pointer carries a proportionate image of the visible page, with
 slight tilt only under motion. Two pages show two sheets. Larger groups show three. Blank and Padding use plain bordered
 sheets. Source cards fade while Output gains an accent outline. Guidance distinguishes adding from moving and announces
-the exact destination.
+the exact destination. Touch Grid outlines only the card area, excluding pane headers, tabs, and Selection. The drag
+image follows the finger directly while neighboring cards ease into their prospective positions. Pressing a touch grip
+immediately highlights the grip and card. A small scale change marks the press when motion is enabled.
+
+During a narrow touch transfer, Output's workspace button gains a dashed accent border that becomes solid under the
+finger. Input's forbidden-drop marker appears only after a pause away from the valid target. Movement toward Output
+postpones the marker. The pane changes after a successful drop.
 
 Grid opens a stable card-sized slot and shifts neighboring cards into prospective positions. The slot holds a faint copy
 without contour or shadow. Output Page shows that copy beside the image on the insertion side. Reduced motion keeps
@@ -270,6 +282,10 @@ Operation and offline feedback share a centered column. Update controls appear b
 workspace views show the active filename at the start and Build ID at the end. Narrow mobile workspace views retain
 feedback and offline actions only. The landing places Build ID at the bottom center. It can wrap between groups with
 enlarged text. Long filenames truncate with full hover text.
+
+New footer status briefly highlights the message with a light accent tint and a soft glow just around the text, then
+fades to its ordinary treatment. A successful Page image copy briefly brightens the image and its contour. Repeated
+operations restart the feedback. Reduced motion skips these effects. Neither effect changes geometry.
 
 Notices use no colored surface or border. They can wrap beside their icon and keyboard-accessible dismiss button. The
 header remains visible during a Notice. Notice text keeps its full contrast between entry and dismissal. Entry and

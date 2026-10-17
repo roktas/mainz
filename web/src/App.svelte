@@ -33,7 +33,7 @@
   let notice = $state("");
   let noticeDismissed = $state(false);
   let noticeTimer: ReturnType<typeof setTimeout> | undefined;
-  let messageRevision = 0;
+  let messageRevision = $state(0);
   const firstAction = "Select pages · Use + to add to Output.";
   let failure = $state("");
   let loading = $state(false);
@@ -849,7 +849,7 @@
   {#if active}<span class="status-input" title={active.input.name}>{active.input.name}</span>{/if}
   <div class="status-messages">
     {#if !loading && message}<p role="status" aria-atomic="true">
-        <span>{message}</span>
+        {#key messageRevision}<span class="status-message">{message}</span>{/key}
       </p>{/if}
     <Offline busy={sources.length > 0 || parts.length > 0 || loading} bind:updating {notify} {error} />
   </div>

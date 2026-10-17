@@ -2344,6 +2344,423 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
   }
 });
 
+test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 60000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
+  let browser;
+  try {
+    await server.listen();
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
+    for (const [width, height, colorScheme, reducedMotion] of [
+      [810, 1080, "light", "no-preference"],
+      [1080, 810, "dark", "reduce"],
+      [390, 844, "dark", "no-preference"],
+    ]) {
+      const page = await browser.newPage({
+        viewport: { width, height },
+        hasTouch: true,
+        isMobile: true,
+        reducedMotion,
+      });
+      const errors = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      await page.emulateMedia({ colorScheme });
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"));
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`);
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output");
+      await output.locator(".composition-totals strong").waitFor({ state: "attached" });
+      const views = page.locator(".mobile-workspace-tabs");
+      if (await views.isVisible()) await views.getByRole("button", { name: "Output", exact: true }).tap();
+      await output.getByRole("button", { name: "Compact Output grid", exact: true }).tap();
+      const cards = output.locator(".composition-card");
+      const ids = () => cards.evaluateAll((items) => items.map((item) => item.id));
+      const before = await ids();
+      const selection = output.getByRole("textbox", { name: "Page selection", exact: true });
+      const originalSelection = await selection.inputValue();
+      const session = await page.context().newCDPSession(page);
+      const send = (type, point) =>
+        session.send("Input.dispatchTouchEvent", { type, touchPoints: point ? [{ ...point, id: 1 }] : [] });
+      const begin = async () => {
+        const grip = cards.first().locator(".page-grip");
+        await grip.scrollIntoViewIfNeeded();
+        const bounds = await grip.boundingBox();
+        const point = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+        await send("touchStart", point);
+        const press = await cards.first().evaluate((element) => ({
+          border: getComputedStyle(element).borderColor,
+          accent: getComputedStyle(element.querySelector(".page-grip")).color,
+          dragging: document.querySelector(".composer").hasAttribute("data-touch-drag"),
+        }));
+        assert.equal(press.border, press.accent, "Pressing a grip highlights its card before any movement");
+        assert.equal(press.dragging, false);
+        await send("touchMove", { ...point, x: point.x + 10 });
+        await page.locator(".composer[data-touch-drag]").waitFor();
+      };
+      await begin();
+      const targets = await output.evaluate((element) => {
+        const grid = element.querySelector(".composition-grid");
+        const card = grid.querySelector(".composition-card");
+        return {
+          pane: getComputedStyle(element).outlineStyle,
+          grid: getComputedStyle(grid).outlineStyle,
+          duration: getComputedStyle(card).transitionDuration,
+          selection: getComputedStyle(grid).userSelect,
+        };
+      });
+      assert.equal(targets.pane, "none", "The pane header and Selection are outside the drop outline");
+      assert.equal(targets.grid, "dashed");
+      assert.equal(targets.selection, "none");
+      assert.equal(targets.duration.split(", ")[0], reducedMotion === "reduce" ? "0s" : "0.28s");
+      const heading = await output.locator(".editing-toolbar").boundingBox();
+      await send("touchMove", { x: heading.x + heading.width / 2, y: heading.y + heading.height / 2 });
+      await send("touchEnd");
+      assert.deepEqual(await ids(), before, "Dropping on the toolbar leaves the document unchanged");
+      assert.equal(await selection.inputValue(), originalSelection);
+      await begin();
+      const destination = await cards.nth(2).boundingBox();
+      await send("touchMove", {
+        x: destination.x + destination.width * 0.8,
+        y: destination.y + destination.height / 2,
+      });
+      await page.locator(".composition-output[data-preview]").waitFor();
+      assert.deepEqual(await ids(), before, "A preview does not commit the move");
+      await send("touchEnd");
+      await page.waitForFunction(
+        (id) => document.querySelectorAll(".output-pages > .composition-card")[2]?.id === id,
+        before[0],
+      );
+      assert.deepEqual(await ids(), [before[1], before[2], before[0], ...before.slice(3)]);
+      assert.equal(await selection.inputValue(), originalSelection, "The release does not select the source grip");
+      assert.equal(await selection.evaluate((element) => element === document.activeElement), false);
+      assert.equal(
+        await page.locator(".drag-image, .composer[data-touch-drag], .composition-output[data-preview]").count(),
+        0,
+      );
+      await begin();
+      await send("touchCancel");
+      assert.deepEqual(await ids(), [before[1], before[2], before[0], ...before.slice(3)]);
+      assert.equal(await page.locator(".drag-image, .composer[data-touch-drag]").count(), 0);
+
+      if (await views.isVisible()) {
+        await views.getByRole("button", { name: "Input", exact: true }).tap();
+        await input.getByRole("button", { name: "Compact Input grid", exact: true }).tap();
+        const preparation = input.getByRole("textbox", { name: "Page selection", exact: true });
+        await preparation.fill("1");
+        const grip = input.getByRole("button", { name: "Select or drag Input page 1 to Output", exact: true });
+        await grip.scrollIntoViewIfNeeded();
+        const bounds = await grip.boundingBox();
+        await send("touchStart", { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 });
+        await send("touchMove", { x: bounds.x + bounds.width / 2 + 10, y: bounds.y + bounds.height / 2 });
+        assert.equal(await input.locator(".input-drop-hint").count(), 0);
+        await input.locator(".input-drop-hint").waitFor();
+        assert.equal(
+          await views
+            .getByRole("button", { name: "Output", exact: true })
+            .evaluate((element) => getComputedStyle(element).borderStyle),
+          "dashed",
+        );
+        await send("touchMove", { x: bounds.x + bounds.width / 2 + 10, y: bounds.y + bounds.height / 2 - 20 });
+        assert.equal(
+          await input.locator(".input-drop-hint").count(),
+          0,
+          "Progress toward Output dismisses the delayed hint",
+        );
+        await send("touchEnd");
+        assert.equal(await page.locator(".composition-totals strong").innerText(), "6 PDF pages");
+        assert.equal(await preparation.inputValue(), "1", "Input rejects drops without consuming the preparation");
+        await send("touchStart", { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 });
+        await send("touchMove", { x: bounds.x + bounds.width / 2 + 10, y: bounds.y + bounds.height / 2 });
+        const outputTab = await views.getByRole("button", { name: "Output", exact: true }).boundingBox();
+        await send("touchMove", { x: outputTab.x + outputTab.width / 2, y: outputTab.y + outputTab.height / 2 });
+        await page.waitForTimeout(750);
+        assert.equal(await input.isVisible(), true, "Hovering Output does not change the pane before the drop");
+        assert.equal(await input.locator(".input-drop-hint").count(), 0);
+        await send("touchEnd");
+        await output.waitFor({ state: "visible" });
+        await page.waitForFunction(
+          () => document.querySelector(".composition-totals strong")?.textContent === "7 PDF pages",
+        );
+        assert.equal(await input.locator('input[aria-label="Page selection"]').inputValue(), "");
+        assert.equal(await page.evaluate(() => document.activeElement instanceof HTMLInputElement), false);
+      }
+      assert.deepEqual(errors, []);
+      await session.detach();
+      await page.close();
+    }
+  } finally {
+    await browser?.close();
+    await server.close();
+  }
+});
+
+test("Touch Selection keeps the keyboard closed and image gestures preserve pages", { timeout: 60000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
+  let browser;
+  try {
+    await server.listen();
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
+    for (const [width, height, colorScheme, textSize] of [
+      [810, 1080, "light", "100%"],
+      [390, 844, "dark", "200%"],
+    ]) {
+      const page = await browser.newPage({ viewport: { width, height }, hasTouch: true, isMobile: true });
+      page.setDefaultTimeout(10000);
+      const errors = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      await page.emulateMedia({ colorScheme });
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"));
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`);
+      await page.locator(".composition-totals strong").waitFor({ state: "attached" });
+      await page.evaluate((size) => (document.documentElement.style.fontSize = size), textSize);
+      const session = await page.context().newCDPSession(page);
+      const send = (type, point) =>
+        session.send("Input.dispatchTouchEvent", { type, touchPoints: point ? [{ ...point, id: 1 }] : [] });
+      const total = () => page.locator(".composition-totals strong").innerText();
+      const lens = page.getByRole("region", { name: /^Magnified page / });
+      for (const name of ["Input", "Output"]) {
+        await page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true }).tap();
+        const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output");
+        const field = pane.getByRole("textbox", { name: "Page selection", exact: true });
+        assert.equal(await field.getAttribute("inputmode"), "numeric");
+        await pane.getByRole("button", { name: `Compact ${name} grid`, exact: true }).tap();
+        const cards = pane.locator(".composition-card");
+        const clear = pane.getByRole("button", {
+          name: name === "Input" ? "Clear page sequence" : "Clear Output selection",
+          exact: true,
+        });
+        await field.fill("2-4,6");
+        await clear.tap();
+        assert.equal(await field.inputValue(), "");
+        assert.equal(
+          await pane.locator(".composition-grid").evaluate((element) => element === document.activeElement),
+          true,
+        );
+        await cards.first().locator(".page-image").tap();
+        assert.equal(await field.inputValue(), "1");
+        await clear.tap();
+        assert.equal(await field.inputValue(), "");
+        assert.equal(await page.evaluate(() => document.activeElement instanceof HTMLInputElement), false);
+        await pane.getByRole("button", { name: "Select all", exact: true }).tap();
+        assert.equal(await field.inputValue(), name === "Input" ? "1-7" : "1-6");
+        assert.equal(await page.evaluate(() => document.activeElement instanceof HTMLInputElement), false);
+        await clear.press("Space");
+        assert.equal(await field.inputValue(), "");
+        assert.equal(await field.evaluate((element) => element === document.activeElement), true);
+        if (name === "Output") {
+          await field.fill("1");
+          await pane.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).tap();
+          assert.equal(await total(), "7 PDF pages");
+          assert.equal(await page.evaluate(() => document.activeElement instanceof HTMLInputElement), false);
+          await pane.getByRole("button", { name: "Remove selected Output pages", exact: true }).tap();
+          assert.equal(await total(), "6 PDF pages");
+          assert.equal(await page.evaluate(() => document.activeElement instanceof HTMLInputElement), false);
+        }
+        await field.fill("2-4,6");
+        await pane.getByRole("tab", { name: "Grid", exact: true }).tap();
+        const header = await cards
+          .first()
+          .locator(".page-label")
+          .evaluate((element) => {
+            const columns = getComputedStyle(element).gridTemplateColumns.split(" ").map(parseFloat);
+            return { columns, card: element.parentElement.getBoundingClientRect().width };
+          });
+        assert.equal(header.columns.length, 2);
+        assert.ok(header.columns.every((column) => column >= 44));
+        assert.ok(Math.abs(header.columns[0] - header.columns[1]) < 1);
+        if (width === 810) assert.ok(header.card <= 112, "Tablet Compact does not stretch the card around its image");
+        const before = await total();
+        const target = cards.first().locator(".page-image canvas");
+        await target.scrollIntoViewIfNeeded();
+        const bounds = await target.boundingBox();
+        const point = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+        await send("touchStart", point);
+        await lens.waitFor();
+        const crop = await lens.boundingBox();
+        assert.ok(crop.x >= 12 && crop.x + crop.width <= width - 12);
+        assert.ok(crop.y >= 12 && crop.y + crop.height <= height - 12);
+        await send("touchMove", { ...point, x: point.x + 8 });
+        await lens.waitFor();
+        await send("touchEnd");
+        await lens.waitFor({ state: "hidden" });
+        assert.equal(await field.inputValue(), "2-4,6", "Holding and releasing the lens leaves Selection unchanged");
+        assert.equal(await total(), before);
+        await send("touchStart", point);
+        await lens.waitFor();
+        await session.send("Input.dispatchTouchEvent", {
+          type: "touchStart",
+          touchPoints: [
+            { ...point, id: 1 },
+            { x: width - 16, y: 100, id: 2 },
+          ],
+        });
+        await lens.waitFor({ state: "hidden" });
+        await send("touchCancel");
+        await send("touchStart", point);
+        await send("touchMove", { ...point, y: point.y - 40 });
+        await send("touchCancel");
+        await page.waitForTimeout(320);
+        assert.equal(await lens.count(), 0, "Scrolling before the hold cancels a pending lens");
+        assert.equal(await field.inputValue(), "2-4,6");
+        await target.tap();
+        await target.tap();
+        await pane.locator(".page-view").waitFor();
+        assert.equal(await field.inputValue(), "2-4,6", "Double tap restores Selection before opening Page");
+        assert.match(await pagePosition(pane), name === "Input" ? /^1\s*\/\s*7$/ : /^1\s*\/\s*6$/);
+        assert.equal(await total(), before);
+        const sheet = pane.locator(".page-scroll canvas");
+        await pane.locator('.pdf-viewport[aria-busy="false"]').waitFor();
+        await sheet.scrollIntoViewIfNeeded();
+        const pageBounds = await sheet.boundingBox();
+        await send("touchStart", {
+          x: pageBounds.x + pageBounds.width / 2,
+          y: Math.min(height - 16, Math.max(16, pageBounds.y + pageBounds.height / 2)),
+        });
+        await lens.waitFor();
+        await send("touchEnd");
+        await lens.waitFor({ state: "hidden" });
+        assert.equal(await field.inputValue(), "2-4,6");
+        assert.equal(await total(), before, "Holding a Page image does not add or duplicate it");
+        if (name === "Output") {
+          for (const expected of ["7 PDF pages", "8 PDF pages"]) {
+            await sheet.tap();
+            await sheet.tap();
+            await page.waitForFunction(
+              (text) => document.querySelector(".composition-totals strong")?.textContent === text,
+              expected,
+            );
+            await page.waitForTimeout(400);
+          }
+          assert.equal(await field.inputValue(), "4-6, 8", "Double taps preserve the originally selected occurrences");
+        }
+      }
+      assert.deepEqual(errors, []);
+      await session.detach();
+      await page.close();
+    }
+  } finally {
+    await browser?.close();
+    await server.close();
+  }
+});
+
+test("Page pinch zoom preserves its anchor and shares the button zoom range", { timeout: 60000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
+  let browser;
+  try {
+    await server.listen();
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
+    for (const [width, height, colorScheme] of [
+      [810, 1080, "light"],
+      [390, 844, "dark"],
+    ]) {
+      const page = await browser.newPage({ viewport: { width, height }, isMobile: true, hasTouch: true });
+      page.setDefaultTimeout(10000);
+      const errors = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      await page.emulateMedia({ colorScheme });
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"));
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`);
+      await page.locator(".composition-totals strong").waitFor({ state: "attached" });
+      const session = await page.context().newCDPSession(page);
+      for (const name of ["Input", "Output"]) {
+        await page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true }).tap();
+        const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output");
+        const selection = pane.getByRole("textbox", { name: "Page selection", exact: true });
+        const prepared = await selection.inputValue();
+        await tab(pane, "Page");
+        await pane.locator('.pdf-viewport[aria-busy="false"]').waitFor();
+        const canvas = pane.locator(".page-scroll canvas");
+        await canvas.scrollIntoViewIfNeeded();
+        const before = await canvas.boundingBox();
+        const raster = await canvas.evaluate((element) => element.width);
+        const center = { x: before.x + before.width * 0.6, y: Math.min(height - 100, before.y + before.height * 0.55) };
+        const anchor = { x: (center.x - before.x) / before.width, y: (center.y - before.y) / before.height };
+        const points = (distance) => [
+          { x: center.x - distance / 2, y: center.y, id: 1 },
+          { x: center.x + distance / 2, y: center.y, id: 2 },
+        ];
+        await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: points(80) });
+        await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: points(140) });
+        const enlarged = await canvas.boundingBox();
+        assert.ok(Math.abs(enlarged.width - before.width * 1.75) < 1);
+        assert.equal(
+          await canvas.evaluate((element) => element.width),
+          raster,
+          "The live gesture reuses the existing raster",
+        );
+        await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        await page.waitForFunction(
+          (label) =>
+            [...document.querySelectorAll("output")].some(
+              (element) => element.getAttribute("aria-label") === label && element.textContent === "175%",
+            ),
+          `${name} page zoom`,
+        );
+        await page.waitForFunction(
+          (selector) => {
+            const element = document.querySelector(`${selector} .page-scroll canvas`);
+            return element && !element.style.transform && element.parentElement.getAttribute("aria-busy") === "false";
+          },
+          name === "Input" ? ".selection-panel" : ".composition-output",
+        );
+        const after = await canvas.boundingBox();
+        assert.ok(
+          Math.abs(after.x + after.width * anchor.x - center.x) < 2,
+          "Pinch keeps the horizontal anchor under the fingers",
+        );
+        assert.ok(
+          Math.abs(after.y + after.height * anchor.y - center.y) < 2,
+          "Pinch keeps the vertical anchor under the fingers",
+        );
+        assert.equal(await page.evaluate(() => visualViewport.scale), 1);
+        assert.equal(await selection.inputValue(), prepared);
+        assert.equal(await page.locator(".composition-totals strong").innerText(), "6 PDF pages");
+        await zoom(pane, "Zoom in");
+        assert.equal(await pane.locator("output").textContent(), "200%");
+        await zoom(pane, "Zoom out");
+        assert.equal(await pane.locator("output").textContent(), "150%");
+        await zoom(pane, "Fit page");
+        assert.equal(await pane.locator("output").textContent(), "100%");
+        if (width === 810 && name === "Output") {
+          await pane.locator('.pdf-viewport[aria-busy="false"]').waitFor();
+          await canvas.scrollIntoViewIfNeeded();
+          const bounds = await canvas.boundingBox();
+          const pointsAt = (distance) => [
+            { x: width / 2 - distance / 2, y: bounds.y + 150, id: 1 },
+            { x: width / 2 + distance / 2, y: bounds.y + 150, id: 2 },
+          ];
+          await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pointsAt(80) });
+          await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: pointsAt(160) });
+          await session.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+          assert.equal(await pane.locator("output").textContent(), "100%", "Cancellation retains the previous zoom");
+          assert.equal(await canvas.evaluate((element) => element.style.transform), "");
+          for (const [start, end, expected] of [
+            [80, 480, "400%"],
+            [400, 40, "50%"],
+          ]) {
+            await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pointsAt(start) });
+            await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: pointsAt(end) });
+            await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+            assert.equal(await pane.locator("output").textContent(), expected);
+            await page.waitForFunction(() => {
+              const element = document.querySelector(".composition-output .page-scroll canvas");
+              return !element.style.transform && element.parentElement.getAttribute("aria-busy") === "false";
+            });
+          }
+          assert.equal(await selection.inputValue(), prepared);
+          assert.equal(await page.locator(".composition-totals strong").innerText(), "6 PDF pages");
+        }
+      }
+      assert.deepEqual(errors, []);
+      await session.detach();
+      await page.close();
+    }
+  } finally {
+    await browser?.close();
+    await server.close();
+  }
+});
+
 test("The lens waits for a settled mouse and cancels pending openings", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
   let browser;
@@ -3188,7 +3605,7 @@ async function checkMobile(browser, url) {
   }
 }
 
-test("Page images respect selection modes and retain focus after addition", { timeout: 60000 }, async () => {
+test("Page image activation repeats current-page copies and preserves selections", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
   let browser;
   try {
@@ -3237,36 +3654,35 @@ test("Page images respect selection modes and retain focus after addition", { ti
     assert.equal(await pageFocused(), true);
     await prepared.fill("1,3");
     await image(input).dblclick();
-    assert.equal(
-      await total(),
-      "11 PDF pages",
-      "Page addition uses selection even when the current page is outside it",
-    );
-    assert.equal(await prepared.inputValue(), "");
-    assert.equal(await selected.inputValue(), "10-11");
+    assert.equal(await total(), "10 PDF pages", "Page adds only the inspected page while preserving the preparation");
+    assert.equal(await prepared.inputValue(), "1,3");
+    assert.equal(await selected.inputValue(), "1-8");
     await input.getByRole("region", { name: "PDF viewport", exact: true }).dblclick({ position: { x: 2, y: 2 } });
-    assert.equal(await total(), "11 PDF pages", "Viewport gutters do not add pages");
+    assert.equal(await total(), "10 PDF pages", "Viewport gutters do not add pages");
     await zoom(input, "Zoom in");
     await ready();
     await image(input).dblclick({ position: { x: 100, y: 100 } });
-    assert.equal(await total(), "12 PDF pages", "Double-click works while the enlarged page supports panning");
+    assert.equal(await total(), "11 PDF pages", "Double-click works while the enlarged page supports panning");
     assert.equal(await pageFocused(), true);
     await ready();
     await tab(output, "Page");
     await selected.fill("1,3");
     await ready();
     await image(output).dblclick();
-    assert.equal(await total(), "12 PDF pages", "Multiple selection disables Page image duplication");
+    assert.equal(await total(), "12 PDF pages", "A selection does not block copying the inspected page");
+    await image(output).dblclick();
+    assert.equal(await total(), "13 PDF pages", "A second double-click creates another copy");
     await output.getByRole("region", { name: "PDF viewport", exact: true }).press("Space");
-    assert.equal(await total(), "12 PDF pages", "Space follows the disabled Page duplication control");
+    assert.equal(await total(), "14 PDF pages", "Space uses the same current-page operation");
+    assert.equal(await selected.inputValue(), "1, 6", "Inserted copies preserve the originally selected occurrences");
     assert.equal(
       await output.locator(".page-actions button").count(),
       0,
       "Selection temporarily removes individual Page actions",
     );
     await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click();
-    assert.equal(await total(), "14 PDF pages");
-    assert.equal(await selected.inputValue(), "4-5", "Page duplication selects the complete new group");
+    assert.equal(await total(), "16 PDF pages");
+    assert.equal(await selected.inputValue(), "7-8", "The selection bar still selects the complete new group");
     assert.equal(
       await output
         .getByRole("button", { name: "Duplicate selected Output pages", exact: true })
@@ -3274,15 +3690,15 @@ test("Page images respect selection modes and retain focus after addition", { ti
       true,
       "Group duplication retains focus in the selection actions",
     );
-    assert.match(await pagePosition(output), /1\s*\/ 14/, "Page duplication retains the inspected occurrence");
+    assert.match(await pagePosition(output), /1\s*\/ 16/, "Page duplication retains the inspected occurrence");
     await output.getByLabel("Output page actions", { exact: true }).click();
     await output.getByRole("button", { name: "Add blank page at end", exact: true }).click();
     await output.getByRole("button", { name: "Clear Output selection", exact: true }).click();
-    for (let index = 0; index < 14; index++)
+    for (let index = 0; index < 16; index++)
       await output.getByRole("button", { name: "Next Output page", exact: true }).click();
     await output.locator(".blank-sheet span").dblclick();
-    assert.equal(await total(), "16 PDF pages", "Blank images support the same duplication action");
-    assert.equal(await selected.inputValue(), "16");
+    assert.equal(await total(), "18 PDF pages", "Blank images support the same duplication action");
+    assert.equal(await selected.inputValue(), "");
     assert.equal(await pageFocused(), true);
     await output.getByRole("button", { name: "Select all", exact: true }).click();
     await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click();
@@ -3302,6 +3718,111 @@ test("Page images respect selection modes and retain focus after addition", { ti
     await server.close();
   }
 });
+
+test(
+  "Repeated Page copies emphasize the image and status without changing focus or geometry",
+  { timeout: 60000 },
+  async () => {
+    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
+    let browser;
+    try {
+      await server.listen();
+      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
+      for (const [width, height, colorScheme, hasTouch, reducedMotion] of [
+        [1440, 1100, "light", false, "no-preference"],
+        [810, 1080, "dark", true, "no-preference"],
+        [390, 844, "light", true, "reduce"],
+      ]) {
+        const page = await browser.newPage({
+          viewport: { width, height },
+          colorScheme,
+          hasTouch,
+          isMobile: hasTouch,
+          reducedMotion,
+        });
+        page.setDefaultTimeout(10000);
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"));
+        await page.goto(`${server.resolvedUrls.local[0]}?demo`);
+        await page.locator(".composition-totals strong").waitFor({ state: "attached" });
+        if (hasTouch)
+          await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).tap();
+        const pane = page.locator(".composition-output");
+        await tab(pane, "Page");
+        await pane.locator('.pdf-viewport[aria-busy="false"]').waitFor();
+        const canvas = image(pane),
+          status = page.locator(".status-messages [role=status] .status-message");
+        await canvas.scrollIntoViewIfNeeded();
+        const before = await canvas.boundingBox();
+        let previous = [-1, -1],
+          message;
+        for (const count of [7, 8]) {
+          if (hasTouch) {
+            await canvas.tap();
+            await canvas.tap();
+          } else await canvas.dblclick();
+          assert.equal(await pane.locator(".composition-totals strong").innerText(), `${count} PDF pages`);
+          assert.equal(await pane.getByLabel("Page selection", { exact: true }).inputValue(), "");
+          assert.equal(
+            await pane.locator(".page-scroll").evaluate((element) => element === document.activeElement),
+            true,
+          );
+          const after = await canvas.boundingBox();
+          assert.equal(after.width, before.width);
+          assert.equal(after.height, before.height);
+          if (message) assert.equal(await status.textContent(), message, "Repeated reports have the same text");
+          message = await status.textContent();
+          const starts = await Promise.all(
+            [canvas, status].map((locator) =>
+              locator.evaluate((element) => element.getAnimations()[0]?.startTime ?? -1),
+            ),
+          );
+          if (reducedMotion === "reduce") assert.deepEqual(starts, [-1, -1]);
+          else {
+            starts.forEach((start, index) =>
+              assert.ok(start > previous[index], "Both effects restart on a repeated copy"),
+            );
+            assert.equal(
+              await status.evaluate(
+                (element) =>
+                  getComputedStyle(element).backgroundColor !== getComputedStyle(element.parentElement).backgroundColor,
+              ),
+              true,
+            );
+          }
+          const statusBounds = await status.boundingBox(),
+            column = await page.locator(".status-messages").boundingBox();
+          if (width >= 810) assert.ok(statusBounds.width < column.width - 20, "Emphasis stays around the message");
+          previous = starts;
+          if (count === 7) await page.waitForTimeout(400);
+        }
+        await Promise.all(
+          [canvas, status].map((locator) =>
+            locator.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished))),
+          ),
+        );
+        assert.equal(await canvas.evaluate((element) => getComputedStyle(element).filter), "none");
+        assert.equal(
+          await status.evaluate(
+            (element) =>
+              getComputedStyle(element).backgroundColor === getComputedStyle(element.parentElement).backgroundColor,
+          ),
+          true,
+        );
+        assert.equal(
+          await status.evaluate(
+            (element) => getComputedStyle(element).color === getComputedStyle(element.parentElement).color,
+          ),
+          true,
+        );
+        assert.equal(await status.textContent(), message, "Emphasis ends without dismissing the report");
+        await page.close();
+      }
+    } finally {
+      await browser?.close();
+      await server.close();
+    }
+  },
+);
 
 test("Grid and Page switches preserve selections, zoom, and the inspected page", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
@@ -4115,7 +4636,7 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
           ? /move between Style controls/
           : inputMode === "Grid"
             ? /Select or unselect page/
-            : /Add pages to Output/,
+            : /Add the current page to Output/,
       );
       assert.match(await outputHelp.innerText(), outputMode === "Grid" ? /Remove page/ : /Zoom in \/ out/);
       if (inputMode === "Grid")
@@ -4916,11 +5437,12 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     await tab(output, "Page");
     assert.equal(await output.locator(".page-actions button").count(), 0);
     await output.getByRole("region", { name: "PDF viewport", exact: true }).press("Space");
-    assert.equal(await output.locator(".composition-totals strong").innerText(), "7 PDF pages");
+    assert.equal(await output.locator(".composition-totals strong").innerText(), "8 PDF pages");
+    assert.equal(await selected.inputValue(), "1");
     await output.getByRole("button", { name: "Clear Output selection", exact: true }).click();
     assert.equal(await output.locator(".page-actions button").count(), 2);
     await tab(output, "Grid");
-    await selected.fill("1-7");
+    await selected.fill("1-8");
     await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click();
     assert.equal(
       await output
@@ -5882,8 +6404,8 @@ test("Page and Grid keyboard actions respect key priority and the visible page o
     assert.match(await pagePosition(input), /7\s*\/ 7/);
     await page.keyboard.press("Control+ArrowLeft");
     assert.match(await pagePosition(input), /7\s*\/ 7/);
-    await output.getByRole("button", { name: "Clear Output selection", exact: true }).click();
     await outputViewport.focus();
+    await outputViewport.hover();
     await page.keyboard.press("Space");
     assert.equal(await total(), "4 PDF pages");
     await page.keyboard.press("Home");
