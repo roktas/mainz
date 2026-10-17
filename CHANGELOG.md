@@ -8,6 +8,7 @@
 - Numeric Selection keyboards on touch screens.
 - Pinch zoom in Page, with the same range as the zoom controls.
 - Brief status emphasis after operations and page emphasis after a double-tap or double-click copy.
+- Input additions move a page or group preview toward Output, then reveal the added pages.
 
 ### Fixed
 

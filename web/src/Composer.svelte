@@ -13,6 +13,7 @@
   import { available } from "./styles.ts";
   import Pdf from "./Pdf.svelte";
   import { createDragImage, retainFocus } from "./drag.ts";
+  import { animateAddition } from "./addition.ts";
   import Repetition from "./Repetition.svelte";
   import Grid from "./Grid.svelte";
   import PageView, { zoomLevels } from "./Page.svelte";
@@ -124,6 +125,8 @@
   let overOutput = $state(false);
   let dragPosition: number | undefined;
   let dragImage: ReturnType<typeof createDragImage>;
+  let cancelAddition: (() => void) | undefined;
+  let pendingAddition = $state<string>();
   let contact:
     | {
         id: number;
@@ -661,6 +664,7 @@
   function commit(next: Part[], text: string, select?: (pages: Expanded[]) => string[]) {
     try {
       const expanded = expand(next, sources);
+      if (pendingAddition && !next.some((part) => part.id === pendingAddition)) cancelAddition?.();
       const ids = new Set(expanded.map((page) => page.id));
       const selection = (select?.(expanded) ?? selected).filter((id) => ids.has(id));
       const anchor = select ? selection.at(-1) : output.pages[outputAnchor ?? -1]?.id;
@@ -775,6 +779,38 @@
             next,
             ...(at < currentPages.length ? [group(currentPages.slice(at))] : []),
           ];
+    cancelAddition?.();
+    const panel = document.getElementById(`${key}-source-panel`);
+    const sheet =
+      panel?.querySelector<HTMLCanvasElement>(
+        activeTab === "page" ? ".page-scroll canvas" : `.page-image[data-page="${(pages ?? parsed.pages)[0]}"] canvas`,
+      ) ??
+      (pages === undefined
+        ? panel?.querySelector<HTMLCanvasElement>(".composition-card.selected .page-image canvas")
+        : undefined);
+    cancelAddition =
+      !drag && sheet
+        ? animateAddition(
+            sheet,
+            quantity,
+            () => {
+              const button = panel
+                ?.closest(".composer")
+                ?.querySelector<HTMLElement>(".mobile-workspace-tabs > button:last-child");
+              if (button?.offsetWidth) return button;
+              return (
+                document
+                  .getElementById(`${key}-output-panel`)
+                  ?.querySelector<HTMLElement>(`.composition-card[data-part="${next.id}"] .page-image:has(canvas)`) ??
+                document.getElementById(`${key}-output`)
+              );
+            },
+            () => {
+              if (pendingAddition === next.id) pendingAddition = undefined;
+            },
+          )
+        : undefined;
+    pendingAddition = cancelAddition ? next.id : undefined;
     const completed = commit(
       updated,
       at === undefined
@@ -786,6 +822,7 @@
         ? (expanded) => expanded.filter((page) => page.part === next.id).map((page) => page.id)
         : undefined,
     );
+    if (!completed) cancelAddition?.();
     if (completed && pages === undefined) {
       clearInput();
       if (inputBar && !touchDragging) focusAfterSelection("Input");
@@ -1037,6 +1074,7 @@
       return;
     }
     originOpen = undefined;
+    cancelAddition?.();
     target = undefined;
     overOutput = false;
     drag = value;
@@ -1219,6 +1257,7 @@
     leaveNavigation();
     clearTimeout(highlightTimeout);
     dragImage?.image.remove();
+    cancelAddition?.();
   });
   function interact(event: Event) {
     if (
@@ -2293,6 +2332,8 @@
           {#if activeOutputTab === "page"}
             <div
               class="inspection-target"
+              data-adding={pendingAddition && inspected?.part === pendingAddition ? true : undefined}
+              inert={!!pendingAddition && inspected?.part === pendingAddition}
               role="group"
               aria-label="Output page drop target"
               data-drop={!blockedDrop && target?.index === outputPosition
@@ -2350,6 +2391,9 @@
                     {@const place = preview?.positions.get(index)}
                     <li
                       id={`${key}-${page.id}`}
+                      data-part={page.part}
+                      data-adding={page.part === pendingAddition || undefined}
+                      inert={page.part === pendingAddition}
                       class={["composition-card", { selected: selectedIds.has(page.id) }]}
                       class:range-highlight={highlight?.kind === "output" && highlight.ids.includes(page.id)}
                       out:fade|global={{

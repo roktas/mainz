@@ -264,13 +264,40 @@
 }
 
 @layer components {
-  @scope (.drag-image) {
+  @scope (.drag-image, .addition-preview) {
     :scope {
       position: fixed;
       inset-block-start: 0;
       inset-inline-start: 0;
       z-index: 1000;
       pointer-events: none;
+    }
+  }
+  @scope (.addition-preview) {
+    :scope {
+      opacity: 0.95;
+      background: oklch(100% 0 none);
+      box-shadow: 0 4px 12px var(--shadow);
+      outline: 1px solid var(--accent);
+      &[data-copies="2"] {
+        box-shadow:
+          4px 4px oklch(100% 0 none),
+          5px 5px var(--accent),
+          0 4px 12px var(--shadow);
+      }
+      &[data-copies="3"] {
+        box-shadow:
+          4px 4px oklch(100% 0 none),
+          5px 5px var(--accent),
+          8px 8px oklch(100% 0 none),
+          9px 9px var(--accent),
+          0 4px 12px var(--shadow);
+      }
+    }
+  }
+  @scope (.composer) {
+    [data-adding] {
+      visibility: hidden;
     }
   }
   @scope (.notice) {

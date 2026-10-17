@@ -4006,6 +4006,252 @@ test(
   },
 );
 
+test("Input additions move previews to Output without delaying edits or taking focus", { timeout: 90000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
+  let browser;
+  try {
+    await server.listen();
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
+    for (const [width, height, hasTouch, colorScheme] of [
+      [1440, 1100, false, "light"],
+      [1024, 768, true, "dark"],
+      [810, 1080, true, "light"],
+      [744, 1133, true, "dark"],
+      [440, 956, true, "light"],
+      [320, 568, true, "dark"],
+    ]) {
+      const page = await browser.newPage({
+        viewport: { width, height },
+        hasTouch,
+        isMobile: hasTouch,
+        colorScheme,
+        reducedMotion: "no-preference",
+      });
+      page.setDefaultTimeout(10000);
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"));
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`);
+      await page.waitForFunction(
+        () => document.querySelector(".composition-totals strong")?.textContent === "6 PDF pages",
+      );
+      // Freeze the moving preview before its first paint so geometry checks do not depend on machine speed.
+      await page.evaluate(() => {
+        new MutationObserver(() => {
+          document.querySelectorAll(".addition-preview").forEach((element) => {
+            element.getAnimations().forEach((animation) => {
+              animation.pause();
+              animation.currentTime = 0;
+            });
+          });
+        }).observe(document.body, { childList: true });
+      });
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output"),
+        prepared = input.getByLabel("Page selection", { exact: true }),
+        flight = page.locator(".addition-preview");
+      const total = async () => Number.parseInt(await output.locator(".composition-totals strong").textContent(), 10);
+      const finish = async () => {
+        await flight.evaluate((element) => element.getAnimations().forEach((animation) => animation.finish()));
+        await flight.waitFor({ state: "detached" });
+      };
+      let count = 6;
+      const densities = [
+        ["Normal", "Normal"],
+        ["Compact", "Compact"],
+      ];
+      if (width === 1440) densities.push(["Normal", "Compact"], ["Compact", "Normal"]);
+      for (const [density, outputDensity] of densities) {
+        await input.getByRole("button", { name: `${density} Input grid`, exact: true }).click();
+        if (width >= 1024)
+          await output.getByRole("button", { name: `${outputDensity} Output grid`, exact: true }).click();
+        await prepared.fill("1,2");
+        await input.locator(".thumbnail[aria-busy=false]").first().waitFor();
+        if (density === "Compact") await prepared.press("Enter");
+        else await input.getByRole("button", { name: "Add to Output", exact: true }).click();
+        count += 2;
+        await flight.waitFor();
+        assert.equal(await total(), count, "The complete group is added while the preview is paused");
+        assert.equal(await prepared.inputValue(), "");
+        assert.equal(await flight.getAttribute("data-copies"), "2");
+        assert.equal(await flight.getAttribute("aria-hidden"), "true");
+        assert.equal(await flight.evaluate((element) => element.getAnimations()[0].effect.getTiming().duration), 1200);
+        assert.equal(await flight.evaluate((element) => getComputedStyle(element).pointerEvents), "none");
+        const pending = output.locator(".composition-card[data-adding]");
+        assert.ok(await pending.count());
+        assert.equal(
+          await pending.evaluateAll((elements) =>
+            elements.every((element) => element.inert && getComputedStyle(element).visibility === "hidden"),
+          ),
+          true,
+          "New cards wait for the moving preview",
+        );
+        const focused = await page.evaluate(() => document.activeElement?.outerHTML);
+        const source = await input.locator('.page-image[data-page="0"] canvas').boundingBox();
+        const start = await flight.boundingBox();
+        const sourceX = (Math.max(0, source.x) + Math.min(width, source.x + source.width)) / 2,
+          sourceY = (Math.max(0, source.y) + Math.min(height, source.y + source.height)) / 2;
+        assert.ok(Math.abs(start.x + start.width / 2 - sourceX) < 1, `${width} ${density}: Input x`);
+        assert.ok(Math.abs(start.y + start.height / 2 - sourceY) < 1, `${width} ${density}: Input y`);
+        const button = page.locator(".mobile-workspace-tabs > button:last-child");
+        const destination = (await button.isVisible())
+          ? button
+          : output.locator(".composition-card.selected .page-image").first();
+        if (!(await button.isVisible()))
+          await page.waitForFunction(
+            () =>
+              document
+                .querySelector(".composition-output .composition-card.selected .thumbnail")
+                ?.getAttribute("aria-busy") === "false",
+          );
+        const end = await destination.evaluate((element) => {
+          const bounds = element.querySelector("canvas")?.getBoundingClientRect();
+          const rectangle = bounds?.width && bounds.height ? bounds : element.getBoundingClientRect();
+          return { x: rectangle.x, y: rectangle.y, width: rectangle.width, height: rectangle.height };
+        });
+        await flight.evaluate((element) => {
+          const animation = element.getAnimations()[0];
+          animation.currentTime = animation.effect.getTiming().duration / 2;
+        });
+        const middle = await flight.boundingBox();
+        const dx = end.x + end.width / 2 - sourceX,
+          dy = end.y + end.height / 2 - sourceY;
+        const bend =
+          Math.abs(dx * (middle.y + middle.height / 2 - sourceY) - dy * (middle.x + middle.width / 2 - sourceX)) /
+          Math.hypot(dx, dy);
+        assert.ok(bend > 8, `${width} ${density}: the preview follows a curve`);
+        await flight.evaluate((element) => {
+          const animation = element.getAnimations()[0];
+          animation.currentTime = animation.effect.getTiming().duration - 1;
+        });
+        const landed = await flight.boundingBox();
+        assert.ok(Math.abs(landed.x + landed.width / 2 - end.x - end.width / 2) < 1, `${width} ${density}: Output x`);
+        assert.ok(Math.abs(landed.y + landed.height / 2 - end.y - end.height / 2) < 1, `${width} ${density}: Output y`);
+        assert.ok(
+          await flight.evaluate((element) => Number(getComputedStyle(element).opacity) > 0.9),
+          "The preview stays visible until arrival",
+        );
+        if (!(await button.isVisible())) {
+          const canvas = await destination.locator("canvas").evaluate((element) => {
+            const bounds = element.getBoundingClientRect();
+            return { width: bounds.width, height: bounds.height };
+          });
+          assert.ok(Math.abs(landed.width - canvas.width) < 1, `${density} to ${outputDensity}: image width`);
+          assert.ok(Math.abs(landed.height - canvas.height) < 1, `${density} to ${outputDensity}: image height`);
+        }
+        assert.equal(await page.evaluate(() => document.activeElement?.outerHTML), focused);
+        assert.equal(await page.locator(".composer").getAttribute("data-view"), "input");
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+        await finish();
+        assert.equal(await pending.count(), 0, "Arrival reveals the complete group");
+        assert.equal(
+          await output
+            .locator(".composition-card.selected")
+            .first()
+            .evaluate((element) => getComputedStyle(element).visibility),
+          "visible",
+        );
+      }
+      if (width === 1440) {
+        await input.getByRole("button", { name: "Details for Input page 1", exact: true }).click();
+        await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click();
+        count++;
+        await flight.waitFor();
+        assert.equal(await total(), count);
+        assert.equal(await flight.getAttribute("data-copies"), "1");
+        await page.setViewportSize({ width: width + 1, height });
+        await flight.waitFor({ state: "detached" });
+        assert.equal(await output.locator("[data-adding]").count(), 0, "Resize reveals the completed addition");
+        assert.equal(await total(), count);
+        await page.setViewportSize({ width, height });
+        await tab(output, "Page");
+        await prepared.fill("1");
+        await prepared.press("Enter");
+        count++;
+        await flight.waitFor();
+        const heading = await output.locator("h2").boundingBox();
+        await flight.evaluate((element) => {
+          const animation = element.getAnimations()[0];
+          animation.currentTime = animation.effect.getTiming().duration - 1;
+        });
+        const landed = await flight.boundingBox();
+        assert.ok(Math.abs(landed.x + landed.width / 2 - heading.x - heading.width / 2) < 1);
+        assert.ok(Math.abs(landed.y + landed.height / 2 - heading.y - heading.height / 2) < 1);
+        assert.equal(await total(), count, "An undisplayed insertion uses the Output heading");
+        await finish();
+        await output.getByRole("button", { name: "Select all", exact: true }).click();
+        await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click();
+        count = 0;
+      }
+      await tab(input, "Page");
+      await input.locator('.pdf-viewport[aria-busy="false"]').waitFor();
+      for (let index = 0; index < 3; index++) await zoom(input, "Zoom in");
+      await input.locator('.pdf-viewport[aria-busy="false"]').waitFor();
+      await image(input).scrollIntoViewIfNeeded();
+      const copy = async () => {
+        if (hasTouch) {
+          // Separate native double-tap gestures; four rapid taps need not produce two double-clicks.
+          await page.waitForTimeout(400);
+          await image(input).tap();
+          await image(input).tap();
+        } else await image(input).dblclick();
+      };
+      await copy();
+      count++;
+      await flight.waitFor();
+      assert.equal(await total(), count);
+      assert.equal(await flight.getAttribute("data-copies"), "1");
+      const visible = await input.locator(".page-scroll").boundingBox(),
+        enlarged = await image(input).boundingBox(),
+        origin = await flight.boundingBox();
+      const x =
+          (Math.max(0, visible.x, enlarged.x) +
+            Math.min(width, visible.x + visible.width, enlarged.x + enlarged.width)) /
+          2,
+        y =
+          (Math.max(0, visible.y, enlarged.y) +
+            Math.min(height, visible.y + visible.height, enlarged.y + enlarged.height)) /
+          2;
+      assert.ok(Math.abs(origin.x + origin.width / 2 - x) < 1, "Enlarged Page starts inside its visible viewport on x");
+      assert.ok(
+        Math.abs(origin.y + origin.height / 2 - y) < 1,
+        "Enlarged Page starts inside its visible viewport on y",
+      );
+      if (width === 1440) {
+        assert.equal(await output.locator(".inspection-target").getAttribute("data-adding"), "true");
+        assert.equal(
+          await output.locator(".inspection-target").evaluate((element) => getComputedStyle(element).visibility),
+          "hidden",
+          "A new Page image also waits for arrival",
+        );
+      }
+      await copy();
+      count++;
+      await flight.waitFor();
+      assert.equal(await total(), count, "Another addition does not wait for the paused preview");
+      assert.equal(await flight.count(), 1, "Repeated additions replace the previous preview");
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await flight.waitFor({ state: "detached" });
+      assert.equal(await output.locator("[data-adding]").count(), 0);
+      await copy();
+      count++;
+      assert.equal(await total(), count);
+      assert.equal(await flight.count(), 0, "Reduced motion skips the preview and still adds the page");
+      if (width === 1440) {
+        await page.emulateMedia({ reducedMotion: "no-preference" });
+        await copy();
+        await flight.waitFor();
+        page.once("dialog", (dialog) => dialog.accept());
+        await page.getByRole("link", { name: "PDF Studio home", exact: true }).click();
+        await page.locator(".drop-zone").waitFor();
+        assert.equal(await flight.count(), 0, "Leaving the workspace removes the paused preview");
+      }
+      await page.close();
+    }
+  } finally {
+    await browser?.close();
+    await server.close();
+  }
+});
+
 test("Grid and Page switches preserve selections, zoom, and the inspected page", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
   let browser;

@@ -312,6 +312,17 @@ New footer status briefly highlights the message with a light accent tint and a 
 fades to its ordinary treatment. A successful Page image copy briefly brightens the image and its contour. Repeated
 operations restart the feedback. Reduced motion skips these effects. Neither effect changes geometry.
 
+Input additions move a page preview along a shallow curve toward the new Output page image when both panes are visible.
+A group uses a small page stack. If the new page is outside the visible batch, the preview moves toward the Output
+heading. Single-pane layouts use the Output workspace button. Preview centers follow the visible Input image and the
+target Output image on both axes. Grid arrivals match the target image size across pane densities.
+
+The preview uses a rendered Input page. It does not delay the edit or change focus, selection, scrolling, or the active
+view. New Output cards reserve their space but stay hidden and inert until arrival. If Page displays a new occurrence,
+it also waits for arrival. Cancellation reveals the completed edit. Repeated additions replace the previous preview.
+
+Drag and drop retains its own preview. Reduced motion shows additions immediately.
+
 Notices use no colored surface or border. They can wrap beside their icon and keyboard-accessible dismiss button. The
 header remains visible during a Notice. Notice text keeps its full contrast between entry and dismissal. Entry and
 dismissal can fade the Notice. Reduced motion keeps the instruction static. Errors retain their local explanation and do
@@ -698,7 +709,7 @@ Their visual popover name does not require every panel to use the browser's Popo
 | Processing status           | İşleme durum alanı                    | Information such as “Updating PDF…” in the Download action area.                       |
 | Empty state                 | Boş durum görünümü                    | Explanatory content such as “Your Output starts here.”                                 |
 | Operation highlight         | İşlem vurgusu                         | Temporary emphasis after addition, movement, or removal.                               |
-| Page transfer animation     | Sayfa aktarım animasyonu              | The page image that moves from Input to Output during the first-addition guidance.     |
+| Page transfer animation     | Sayfa aktarım animasyonu              | A page or stack moving toward Output after addition or during first-addition guidance. |
 | Offline/update status       | Çevrimdışı kullanım/güncelleme durumu | Offline installation and update messages, with the Update application button.          |
 
 #### Drop targets and previews
