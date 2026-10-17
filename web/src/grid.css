@@ -46,11 +46,6 @@
         --grid-height: 125px;
         --grid-gap: 10px;
 
-        .composition-grid,
-        .page-reference {
-          inline-size: 100%;
-        }
-
         @media (hover: hover) and (pointer: fine) {
           --grid-width: max(72.5px, calc(5 * var(--body)));
         }
@@ -62,10 +57,15 @@
 
       @media (any-pointer: coarse) {
         @container composer (width <= 55em) {
+          @container catalog (382px <= width < 414px) or (676px <= width < 838px) {
+            &[data-density="compact"] :is(.composition-grid, .page-reference) {
+              --grid-width: max(88px, calc(5 * var(--body)));
+            }
+          }
+
           /* Eight cards fit before the ordinary minimum width admits the eighth column. */
           @container catalog (760px <= width < 838px) {
             &[data-density="compact"] :is(.composition-grid, .page-reference) {
-              --grid-width: max(88px, calc(5 * var(--body)));
               column-gap: 8px;
             }
           }
@@ -74,11 +74,19 @@
         @container composer (width > 55em) {
           &[data-density="normal"] :is(.composition-grid, .page-reference) {
             column-gap: 0.75rem;
+
+            @container catalog (456px <= width < 486px) {
+              --grid-width: 9rem;
+            }
           }
 
-          @container catalog (480px <= width < 520px) {
+          @container catalog (460px <= width < 520px) {
             &[data-density="compact"] :is(.composition-grid, .page-reference) {
               --grid-width: max(88px, calc(5 * var(--body)));
+
+              @container catalog (width < 480px) {
+                column-gap: 5px;
+              }
             }
           }
         }

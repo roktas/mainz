@@ -2644,7 +2644,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
 });
 
 test(
-  "Touch tablet grids fit extra columns while preserving thumbnails and other capacities",
+  "Touch grids fit extra columns while preserving thumbnails, Page references, and desktop capacities",
   { timeout: 90000 },
   async () => {
     const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
@@ -2665,15 +2665,19 @@ test(
           ? [
               [320, 568, 2],
               [390, 844, 3],
+              [440, 956, 4],
               [640, 960, 5],
-              [768, 1024, 6],
+              [744, 1133, 7],
+              [744, 600, 7],
+              [768, 1024, 7],
               [810, 1080, 8],
               [810, 790, 8],
               [810, 600, 8],
               [820, 1180, 8],
               [834, 1194, 8],
-              [1024, 768, 4],
+              [1024, 768, 5],
               [1080, 810, 5],
+              [1133, 744, 5],
               [1180, 820, 5],
               [1440, 1100, 5],
             ]
@@ -2689,7 +2693,9 @@ test(
             const views = page.locator(".mobile-workspace-tabs");
             if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click();
             const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output");
-            const normal = { 390: 2, 810: 4, 1024: 2, 1080: 3, 1180: 3, 1440: 3 }[width];
+            const normal = { 390: 2, 440: 2, 744: 4, 768: 4, 810: 4, 1024: 3, 1080: 3, 1133: 3, 1180: 3, 1440: 3 }[
+              width
+            ];
             if (normal !== undefined) {
               await pane.getByRole("button", { name: `Normal ${name} grid`, exact: true }).click();
               assert.equal(
@@ -2698,7 +2704,8 @@ test(
                   .evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length),
                 normal,
               );
-              if (hasTouch && width === 1080) {
+              const margin = hasTouch ? { 1024: 14, 1080: 18 }[width] : undefined;
+              if (margin !== undefined) {
                 await pane.locator('.thumbnail[aria-busy="false"] canvas').first().waitFor();
                 const geometry = await pane
                   .locator(".composition-card")
@@ -2714,7 +2721,7 @@ test(
                   });
                 assert.ok(geometry.width > 118 && geometry.width < 120);
                 assert.equal(geometry.height, 168);
-                assert.ok(geometry.margin < 18, "Normal adds a column without shrinking its image");
+                assert.ok(geometry.margin < margin, "Normal adds a column without shrinking its image");
               }
             }
             await pane.getByRole("button", { name: `Compact ${name} grid`, exact: true }).click();
@@ -2725,7 +2732,8 @@ test(
               columns,
               `${name}, ${width}×${height}, ${hasTouch ? "touch" : "mouse"}`,
             );
-            if (hasTouch && width === 810) {
+            const margin = hasTouch ? { 440: 19, 744: 17, 768: 19, 810: 16, 1024: 16 }[width] : undefined;
+            if (margin !== undefined) {
               await pane.locator('.thumbnail[aria-busy="false"] canvas').first().waitFor();
               const geometry = await pane
                 .locator(".composition-card")
@@ -2742,18 +2750,28 @@ test(
                       .map((element) => element.getBoundingClientRect().width),
                   };
                 });
-              assert.ok(geometry.left < 16 && geometry.right < 16);
+              assert.ok(geometry.left < margin && geometry.right < margin);
               assert.ok(Math.abs(geometry.left - geometry.right) < 1, "The image stays centered");
               assert.ok(geometry.image > 57 && geometry.image < 59, "The portrait thumbnail retains its size");
               assert.ok(
                 geometry.targets.every((target) => target >= 44),
                 "Both heading targets remain usable",
               );
-              await page.waitForFunction(
-                (selector) => document.querySelector(selector).children.length === 56,
-                name === "Input" ? ".selection-panel .composition-grid" : ".composition-output .composition-grid",
-              );
+              if (width === 810)
+                await page.waitForFunction(
+                  (selector) => document.querySelector(selector).children.length === 56,
+                  name === "Input" ? ".selection-panel .composition-grid" : ".composition-output .composition-grid",
+                );
             }
+            const card = await pane.locator(".composition-card").first().boundingBox();
+            await tab(pane, "Page");
+            const reference = await pane.locator(".page-reference").evaluate((element) => ({
+              columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
+              width: element.firstElementChild.getBoundingClientRect().width,
+            }));
+            assert.equal(reference.columns, columns, "Page uses the same columns as Grid");
+            assert.ok(Math.abs(reference.width - card.width) < 1, "Page retains Grid's thumbnail reference width");
+            await tab(pane, "Grid");
             assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
           }
           if (hasTouch && width === 1080) {

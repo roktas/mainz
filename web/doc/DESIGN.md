@@ -125,6 +125,18 @@ Full HD, the Compact frame is approximately 889 px high and fits a 508 × 718 px
 the frame is approximately 1056 px high and fits a 608 × 860 px page with 36 px side margins. Browser zoom out can grow
 Fit in CSS pixels to retain the page's screen size. Controls and Grid cards continue following browser zoom.
 
+Touch emulation uses these column references at normal text size:
+
+| CSS viewport | Normal columns | Compact columns |
+| ------------ | -------------- | --------------- |
+| 440 × 956    | 2              | 4               |
+| 744 × 1133   | 4              | 7               |
+| 768 × 1024   | 4              | 7               |
+| 810 × 1080   | 4              | 8               |
+| 1024 × 768   | 3              | 5               |
+| 1080 × 810   | 3              | 5               |
+| 1133 × 744   | 3              | 5               |
+
 Mobile has a persistent one-tap Input/Output switch and preserves pane state. Headings retain the chooser or totals
 beside Open PDF/Download. Enlarged text can stack these groups. Labels stay complete. Long filenames truncate, with
 their full text available through hover and the chooser. Remove Input remains available in the chooser at every width.
@@ -156,18 +168,18 @@ available pane width select the minimum card width and column gap. CSS fills com
 Viewport height and orientation do not select column widths. Keep the width ranges together so each layout change has
 one place to maintain.
 
-Compact uses smaller page numbers. Three or more digits shift the grip toward the end to avoid the number and fold.
-Four- and five-digit numbers also shrink. Numbers through 10,000 keep at least 2 px of separation without widening the
-card. Tabular digits keep semibold weight. Hover changes their color without changing geometry.
+Compact uses smaller page numbers. With fine pointers, three or more digits shift the grip toward the end to avoid the
+number and fold. Four- and five-digit numbers also shrink. Numbers through 10,000 keep at least 2 px of separation
+without widening the card. Tabular digits keep semibold weight. Hover changes their color without changing geometry.
 
 Touch Compact cards use two equal header cells for the number and grip. Both retain 44 px touch targets. Card width
-follows the content and these targets instead of reserving an empty third header cell. Single-pane touch workspaces can
-fit an eighth column with narrower cards and horizontal gaps when both header targets still fit. Card height, thumbnail
+follows the content and these targets instead of reserving an empty third header cell. Available pane width can select
+narrower cards and smaller horizontal gaps to fit another column. Both header targets still fit. Card height, thumbnail
 fit rules, and row spacing stay fixed. Other layouts keep their ordinary capacity.
 
-Touch workspaces with both panes visible use the smallest control gap between Normal columns. This admits a third column
-without reducing portrait thumbnails. Compact can add a fifth column where both heading targets still fit. Both
-densities retain their card heights and vertical spacing.
+Touch workspaces with both panes visible use the smallest control gap between Normal columns and can narrow Normal
+cards. This admits a third column without reducing portrait thumbnails. Compact can add a fifth column with a smaller
+horizontal gap where both heading targets still fit. Both densities retain their card heights and vertical spacing.
 
 Selection hides individual actions without moving the image or changing card dimensions. Normal footers keep their
 height and separator. Input centers addition. Output places removal left of duplication with one control gap. Page
