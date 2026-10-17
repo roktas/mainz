@@ -1,0 +1,172 @@
+/* Styles drag sources, drop previews, and touch transfer guidance. */
+
+@layer layouts {
+  @scope (#app) {
+    .drop-description {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      overflow: clip;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .page-grip,
+    .entry > button[draggable] {
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .composer[data-touch] [draggable] {
+      -webkit-user-drag: none;
+    }
+    .composer[data-touch] .page-grip[data-press] {
+      color: var(--accent);
+      background: var(--tint);
+    }
+    .composer[data-touch] .composition-card {
+      &:has(.page-grip[data-press]):not([data-dragging]) {
+        --page-border: var(--accent);
+        background: var(--tint);
+        @media (prefers-reduced-motion: no-preference) {
+          scale: 0.98;
+        }
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        transition:
+          translate 280ms var(--ease-out),
+          rotate 160ms var(--ease-out),
+          scale 160ms var(--ease-out),
+          opacity 120ms var(--ease-out);
+      }
+    }
+    .drop-placeholder {
+      position: absolute;
+      inset-block-start: 0;
+      inset-inline-start: 0;
+      display: grid;
+      place-items: center;
+      margin: 0;
+      padding-block: 50px;
+      padding-inline: 3px;
+      pointer-events: none;
+    }
+    :is(.drop-placeholder, .page-drop-ghost) > canvas {
+      inline-size: 100%;
+      block-size: 100%;
+      min-block-size: 0;
+      object-fit: contain;
+      opacity: 0.25;
+    }
+    .composition-empty > .drop-placeholder {
+      position: relative;
+      inline-size: var(--grid-width, 158px);
+      block-size: var(--grid-height, 268px);
+    }
+    .input-drop-hint {
+      display: none;
+    }
+    .composer {
+      &[data-drag] {
+        --shift-duration: 500ms;
+        & .composition-card {
+          box-shadow: none;
+          translate: 0;
+          @media (prefers-reduced-motion: no-preference) {
+            &[data-dragging] {
+              rotate: -2deg;
+              scale: 0.98;
+            }
+          }
+        }
+        &:not([data-touch-drag]) .composition-output,
+        &[data-touch-drag] .composition-output :is(.composition-grid, .composition-empty) {
+          outline: 1px dashed var(--accent);
+          outline-offset: 6px;
+          border-radius: var(--radius);
+        }
+        &:not([data-touch-drag]) .composition-output[data-drop="end"],
+        &[data-touch-drag] .composition-output[data-drop="end"] :is(.composition-grid, .composition-empty) {
+          outline-style: solid;
+          background: color-mix(in oklch, var(--accent) 5%, var(--paper));
+        }
+        & .composition-output .sequence-help {
+          color: var(--accent);
+        }
+        & [draggable="true"] {
+          cursor: grabbing;
+        }
+      }
+      & .composition-output[data-preview] .composition-card {
+        z-index: 1;
+
+        &[data-preview-hidden] {
+          visibility: hidden;
+          pointer-events: none;
+        }
+      }
+      & .transfer:not(:disabled) {
+        cursor: grab;
+        &:active {
+          cursor: grabbing;
+        }
+      }
+    }
+    @container composer (width <= 55em) {
+      .composer[data-touch-drag][data-drag="source"][data-view="input"] {
+        & .mobile-workspace-tabs > button:last-child {
+          border-color: var(--accent);
+          border-style: dashed;
+          color: var(--accent);
+          background: var(--tint);
+          &[data-drop] {
+            border-style: solid;
+          }
+        }
+        & .selection-panel .page-content {
+          position: relative;
+        }
+        & .selection-panel:has(.input-drop-hint) :is(.composition-grid, .page-view) {
+          outline: 1px dashed var(--danger);
+          outline-offset: 6px;
+          border-radius: var(--radius);
+        }
+        & .input-drop-hint {
+          position: absolute;
+          inset-block-start: calc(var(--gap) / 2);
+          inset-inline-start: 50%;
+          translate: -50% 0;
+          display: block flex;
+          align-items: center;
+          gap: calc(var(--gap) / 2);
+          inline-size: max-content;
+          max-inline-size: calc(100% - var(--gap));
+          padding: calc(var(--gap) / 2);
+          border: 1px solid var(--danger);
+          border-radius: var(--radius);
+          color: var(--danger);
+          background: var(--paper);
+          font-size: var(--small);
+          pointer-events: none;
+          z-index: 5;
+          & svg {
+            flex: none;
+            inline-size: 1.25em;
+            block-size: 1.25em;
+          }
+        }
+      }
+    }
+  }
+}
+
+@layer views {
+  @scope (.composer) {
+    :is(.selection-panel, .composition-output)[data-density="compact"] {
+      .drop-placeholder {
+        padding-block: 34.5px 8.5px;
+        padding-inline: 8.5px;
+      }
+    }
+  }
+}

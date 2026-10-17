@@ -1,3 +1,5 @@
+// Parses ordered page sequences for selections and formats physical page ranges.
+
 import { maxPages } from "./model.ts";
 
 export type Sequence = {

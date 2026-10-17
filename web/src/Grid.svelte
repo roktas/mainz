@@ -4,7 +4,6 @@
   import type { Snippet } from "svelte";
   import Icon from "./Icon.svelte";
   import { blocked, fields } from "./keyboard.ts";
-  import "./grid.css";
 
   let {
     pane,
@@ -132,7 +131,7 @@
           element.focus({ preventScroll: true });
         } else {
           delete element.dataset.cursorBoundary;
-          element.querySelector<HTMLButtonElement>(`[aria-label="Select ${pane} page ${position + 1}"]`)?.focus();
+          element.querySelector<HTMLButtonElement>(`.page-image[data-page="${position}"]`)?.focus();
         }
       }
       advancing = false;

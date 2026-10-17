@@ -10,7 +10,6 @@
   import type { Size } from "./model.ts";
   import Icon from "./Icon.svelte";
   import Pdf from "./Pdf.svelte";
-  import "./grid.css";
   export type Inspection = {
     size: Size;
     page?: number;
@@ -366,6 +365,7 @@
     <nav class="page-navigation" aria-label={`${pane} page navigation`}>
       <button
         class="icon-button"
+        data-step="-1"
         aria-label={`Previous ${pane} page`}
         title={`Previous ${pane} page`}
         disabled={index === 0}
@@ -378,6 +378,7 @@
       </div>
       <button
         class="icon-button"
+        data-step="1"
         aria-label={`Next ${pane} page`}
         title={`Next ${pane} page`}
         disabled={index === count - 1}

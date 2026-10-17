@@ -1,3 +1,5 @@
+// Defines Source style schemas and resolves values, profiles, applicability, and preview requirements.
+
 import type { Part } from "./model.ts";
 
 export type Scalar = number | string;
@@ -196,6 +198,13 @@ export function needsRender(
           source.overrides[id] !== rendered.overrides[id],
       ))
   );
+}
+
+export function resolve(entry: Entry, overrides: Record<string, Scalar>, id: string): Entry {
+  const parameter = { ...entry.parameter };
+  delete parameter.value;
+  if (Object.hasOwn(overrides, id)) parameter.value = overrides[id];
+  return { ...entry, parameter };
 }
 
 export function current(entry: Entry, draft?: string): string {

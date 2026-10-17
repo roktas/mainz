@@ -24,6 +24,23 @@ Before a commit or final handoff, review the final diff. Align context-relevant 
 documents only for durable changes to behavior, contracts, terminology, design rules, or workflows. If current
 documentation already describes the final change, leave it unchanged.
 
+## Refactoring
+
+- Optimize for readable, discoverable, maintainable code. Inspect responsibilities, data structures, callers, and tests
+  before editing. File length is a signal, not a target: distinguish inherent complexity from mixed concerns or
+  repetition.
+- Split only when ownership and dependencies become clearer. Keep code that must change together in one place. Extra
+  props, callbacks, shared mutable state, or indirect access can outweigh a smaller file. Avoid artificial layers and
+  abstractions.
+- Keep domain data separate from presentation. Give shared logic one owner. Reuse existing patterns; remove dead or
+  redundant code. Prefer short names that state the role; avoid generic names and unnecessary compounds. Group by
+  responsibility, not file extension alone.
+- Write the concrete sequence in root `PLAN.md` before refactoring. For each step, assess regression risk and existing
+  coverage. Prefer E2E or integration tests of real behavior over more unit tests. Add a focused test only for a
+  concrete coverage gap, and verify it against the current behavior first.
+- Preserve behavior. Make coherent steps, verify each affected flow, and update the plan with results. Keep tests and
+  refactors proportional to the maintenance benefit.
+
 ## Ownership and layout
 
 | Path                       | Responsibility                                                                    |
@@ -120,9 +137,13 @@ direnv exec . bundle exec rake 'preserve[original.pdf,edited.pdf,reset.pdf]'
 
 Use the pinned Svelte, TypeScript, Vite, and PDF.js stack. When available, use `svelte-code-writer` and
 `svelte-core-bestpractices` before component or module work. When available, use `good-css` and `modern-css` for CSS.
-Run the Svelte autofixer on affected components. Reuse [styles](web/src/style.css), the [logo](web/public/logo.svg),
+Run the Svelte autofixer on affected components. Reuse [styles](web/src/css/main.css), the [logo](web/public/logo.svg),
 existing controls, and both themes. Follow DESIGN's focus and reduced-motion rules. User PDFs and document-derived
 values stay out of the offline cache.
+
+Start each CSS, TypeScript, and Svelte file under `web/src/` with a one-line comment about its responsibility or
+ownership boundary. Make it useful for people and agents who need to locate code. Update it when that responsibility
+changes.
 
 Before committing, pushing, or handing off a UI change, pass DESIGN's [alignment rules](web/doc/DESIGN.md#alignment) and
 [validation cases](web/doc/DESIGN.md#validation) using rendered bounds and screenshots. Check every affected width

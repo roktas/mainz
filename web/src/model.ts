@@ -1,3 +1,5 @@
+// Defines workspace data, occurrence identities, page expansion, and composition job validation.
+
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { Description, Scalar } from "./styles.ts";
 

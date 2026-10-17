@@ -1,3 +1,5 @@
+// Bridges style and composition requests to WASM and manages document handles and input buffers.
+
 /// <reference lib="webworker" />
 import type { Failure, Request, Reply, Result, Report } from "./protocol.ts";
 

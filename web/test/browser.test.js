@@ -2638,6 +2638,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
       [810, 1080, "light", "no-preference"],
       [1080, 810, "dark", "reduce"],
       [390, 844, "dark", "no-preference"],
+      [1440, 1600, "light", "reduce"],
     ]) {
       const page = await browser.newPage({
         viewport: { width, height },
@@ -2766,6 +2767,63 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
         );
         assert.equal(await input.locator('input[aria-label="Page selection"]').inputValue(), "");
         assert.equal(await page.evaluate(() => document.activeElement instanceof HTMLInputElement), false);
+      }
+      if (width === 1440) {
+        const beforePage = await ids();
+        await tab(output, "Page");
+        await output.locator('.pdf-viewport[aria-busy="false"]').waitFor();
+        await page.evaluate(
+          () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+        );
+        const inspected = await pagePosition(output);
+        assert.match(inspected, /^3\s*\/\s*6$/);
+        const preparation = input.getByRole("textbox", { name: "Page selection", exact: true });
+        await preparation.fill("3");
+        const beginPage = async () => {
+          const grip = input.getByRole("button", { name: "Select or drag Input page 3 to Output", exact: true });
+          await grip.scrollIntoViewIfNeeded();
+          const bounds = await grip.boundingBox();
+          const point = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+          await send("touchStart", point);
+          await send("touchMove", { ...point, x: point.x + 10 });
+          await page.locator(".composer[data-touch-drag]").waitFor();
+        };
+        const hover = async (direction, position) => {
+          const bounds = await output
+            .getByRole("button", { name: `${direction} Output page`, exact: true })
+            .boundingBox();
+          assert.ok(
+            bounds.y >= 0 && bounds.y + bounds.height <= height,
+            "The navigation target is inside the viewport",
+          );
+          await send("touchMove", {
+            x: bounds.x + bounds.width * (direction === "Previous" ? 0.25 : 0.75),
+            y: bounds.y + bounds.height / 2,
+          });
+          await output
+            .locator(".page-position")
+            .filter({ hasText: new RegExp(`^${position}\\s*/\\s*6$`) })
+            .waitFor();
+          await output.locator(".page-drop-ghost canvas").waitFor();
+        };
+        await beginPage();
+        await hover("Next", 4);
+        await send("touchCancel");
+        assert.equal(await pagePosition(output), inspected, "Cancelling Page navigation restores inspection");
+        assert.equal(await preparation.inputValue(), "3");
+        await beginPage();
+        await hover("Previous", 2);
+        await send("touchEnd");
+        assert.match(await pagePosition(output), /^3\s*\/\s*7$/, "Insertion preserves the inspected occurrence");
+        assert.equal(await preparation.inputValue(), "");
+        assert.equal(await output.locator(".composition-totals strong").innerText(), "7 PDF pages");
+        assert.equal(await page.locator(".drag-image, .page-drop-ghost, .composer[data-touch-drag]").count(), 0);
+        await tab(output, "Grid");
+        await cards.nth(2).waitFor();
+        const afterPage = await ids();
+        assert.equal(afterPage[0], beforePage[0]);
+        assert.ok(!beforePage.includes(afterPage[1]), "The new page occupies the insertion slot");
+        assert.deepEqual(afterPage.slice(2), beforePage.slice(1, afterPage.length - 1));
       }
       assert.deepEqual(errors, []);
       await session.detach();
@@ -5217,6 +5275,119 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     assert.equal(await input.locator(".composition-card.selected").count(), 2);
     assert.equal(await total(), "0 PDF pages");
     await data.dispose();
+  } finally {
+    await browser?.close();
+    await server.close();
+  }
+});
+
+test("Edited Padding retains its dimensions and page order in the downloaded PDF", { timeout: 60000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
+  let browser;
+  try {
+    await server.listen();
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
+    const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" });
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"));
+    await page.goto(server.resolvedUrls.local[0]);
+    const original = fixture();
+    await page.locator("input[type=file]").first().setInputFiles({
+      name: "Padding.pdf",
+      mimeType: "application/pdf",
+      buffer: original,
+    });
+    const input = page.locator(".selection-panel"),
+      output = page.locator(".composition-output");
+    const prepared = input.getByRole("textbox", { name: "Page selection", exact: true });
+    const selected = output.getByRole("textbox", { name: "Page selection", exact: true });
+    const options = output.getByLabel("Output page actions", { exact: true });
+    await prepared.fill("7");
+    await prepared.press("Enter");
+    await prepared.fill("1-3");
+    await input.getByLabel("Input page actions", { exact: true }).click();
+    await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill("2");
+    await input.getByLabel("Start each repeat on front", { exact: true }).check();
+    await prepared.press("Enter");
+    assert.equal(await output.locator(".composition-totals strong").innerText(), "10 PDF pages");
+    assert.match(await output.locator(".output-state").innerText(), /3 Padding pages/);
+    await selected.fill("2");
+    await options.click();
+    await output.getByRole("button", { name: "Move selected pages later", exact: true }).click();
+    assert.equal(await selected.inputValue(), "3");
+    assert.doesNotMatch(await output.locator(".output-state").innerText(), /Padding/);
+    await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click();
+    assert.equal(await selected.inputValue(), "4");
+    await selected.fill("3");
+    await selected.press("Enter");
+    await selected.fill("1");
+    await options.click();
+    await output.getByRole("button", { name: "Blank before first selected page", exact: true }).click();
+    assert.equal(await selected.inputValue(), "1");
+    assert.deepEqual(await output.locator(".page-origin-info .page-context").allTextContents(), [
+      "297.0 × 210.0 mm",
+      "p. 7",
+      "p. 1",
+      "297.0 × 210.0 mm",
+      "p. 2",
+      "p. 3",
+      "210.0 × 297.0 mm",
+      "p. 1",
+      "p. 2",
+      "p. 3",
+      "210.0 × 297.0 mm",
+    ]);
+    const saved = page.waitForEvent("download");
+    await output.getByRole("button", { name: "Download", exact: true }).click();
+    const download = await saved;
+    assert.equal(await download.failure(), null);
+    const result = await page.evaluate(
+      async ({ inputBytes, downloaded }) => {
+        const { openPDF, loadRenderer } = await import("/src/pdf.ts");
+        const { AnnotationMode } = await loadRenderer();
+        const tasks = await Promise.all([openPDF(Uint8Array.from(inputBytes)), openPDF(Uint8Array.from(downloaded))]);
+        try {
+          const [sourceDocument, resultDocument] = await Promise.all(tasks.map((task) => task.promise));
+          const expected = ["landscape", 7, 1, "landscape", 2, 3, "portrait", 1, 2, 3, "portrait"];
+          const failures = [];
+          for (const [index, source] of expected.entries()) {
+            const actual = await resultDocument.getPage(index + 1);
+            const size = actual.getViewport({ scale: 1 });
+            const reference = await sourceDocument.getPage(
+              typeof source === "number" ? source : source === "landscape" ? 7 : 1,
+            );
+            const dimensions = reference.getViewport({ scale: 1 });
+            if (Math.abs(size.width - dimensions.width) > 0.01 || Math.abs(size.height - dimensions.height) > 0.01)
+              failures.push(`Page ${index + 1}: dimensions differ from ${source}`);
+            const render = async (sheet) => {
+              const canvas = document.createElement("canvas");
+              const viewport = sheet.getViewport({ scale: 0.25 });
+              canvas.width = Math.ceil(viewport.width);
+              canvas.height = Math.ceil(viewport.height);
+              await sheet.render({ canvas, viewport, annotationMode: AnnotationMode.DISABLE }).promise;
+              return canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+            };
+            const pixels = await render(actual);
+            const expectedPixels = typeof source === "number" ? await render(reference) : undefined;
+            if (
+              expectedPixels
+                ? pixels.length !== expectedPixels.length || pixels.some((value, i) => value !== expectedPixels[i])
+                : pixels.some((value) => value !== 255)
+            )
+              failures.push(`Page ${index + 1}: appearance differs from ${source}`);
+            actual.cleanup();
+            reference.cleanup();
+          }
+          return { count: resultDocument.numPages, failures };
+        } finally {
+          await Promise.all(tasks.map((task) => task.destroy()));
+        }
+      },
+      { inputBytes: Array.from(original), downloaded: Array.from(await readFile(await download.path())) },
+    );
+    assert.deepEqual(result, { count: 11, failures: [] });
+    assert.deepEqual(errors, []);
   } finally {
     await browser?.close();
     await server.close();
@@ -8113,6 +8284,102 @@ test(
   },
 );
 
+test("Concurrent Source previews isolate resets and ignore obsolete worker replies", { timeout: 60000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
+  let browser;
+  try {
+    await server.listen();
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
+    const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" });
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.addInitScript(() => {
+      localStorage.setItem("mainz:onboarding", "19");
+      window.pendingReplies = [];
+      const Original = Worker;
+      window.Worker = class extends Original {
+        constructor(url, options) {
+          super(url, options);
+          this.processor = String(url).includes("processor.worker");
+        }
+        addEventListener(type, listener, options) {
+          if (type !== "message" || !this.processor) return super.addEventListener(type, listener, options);
+          super.addEventListener(
+            type,
+            (event) => {
+              if (window.holdReplies) window.pendingReplies.push(() => listener.call(this, event));
+              else listener.call(this, event);
+            },
+            options,
+          );
+        }
+      };
+    });
+    await page.goto(server.resolvedUrls.local[0]);
+    const input = page.locator(".selection-panel"),
+      output = page.locator(".composition-output");
+    for (const name of ["First.pdf", "Second.pdf"]) {
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({
+          name,
+          mimeType: "application/pdf",
+          buffer: fixture(true, false, 0, true, true),
+        });
+      await input.locator(".input-current").filter({ hasText: name }).waitFor();
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click();
+    }
+    const choose = async (index) => {
+      await input.locator(".input-picker > summary").click();
+      await input.locator(".input-list button[data-source]").nth(index).click();
+      await tab(input, "Style");
+      await input.getByRole("button", { name: "Edit Fill", exact: true }).click();
+    };
+    const color = input.getByRole("textbox", { name: "Fill Color", exact: true });
+    await page.evaluate(() => (window.holdReplies = true));
+    await choose(0);
+    await color.fill("#ff0000");
+    await page.waitForFunction(() => window.pendingReplies.length === 1);
+    await choose(1);
+    await color.fill("#00ff00");
+    await page.waitForFunction(() => window.pendingReplies.length === 2);
+    await choose(0);
+    await input.getByRole("button", { name: "Reset Fill Color", exact: true }).click();
+    assert.equal(await color.inputValue(), "#000000");
+    assert.equal(await output.locator(".download-action button").isDisabled(), true);
+    await page.evaluate(() => {
+      window.holdReplies = false;
+      for (const reply of window.pendingReplies.splice(0).toReversed()) reply();
+    });
+    await page.waitForFunction(() => !document.querySelector('.output-status[aria-hidden="false"]'));
+    assert.equal(await color.inputValue(), "#000000", "An obsolete reply cannot undo the first Source's reset");
+    const canvases = output.locator(".composition-card .thumbnail canvas");
+    await page.waitForFunction(() => {
+      const images = [...document.querySelectorAll(".composition-output .composition-card .thumbnail canvas")];
+      return (
+        images.length === 2 &&
+        images.every((canvas) => canvas.width > 0 && canvas.parentElement.getAttribute("aria-busy") === "false")
+      );
+    });
+    assert.deepEqual(await pixel(canvases.nth(0), 0.7), [0, 0, 0, 255]);
+    assert.deepEqual(await pixel(canvases.nth(1), 0.7), [0, 255, 0, 255]);
+    await choose(1);
+    assert.equal(await color.inputValue(), "#00ff00", "The second Source completes independently");
+    await output.getByRole("textbox", { name: "Page selection", exact: true }).fill("2");
+    await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click();
+    await input.locator(".input-picker > summary").click();
+    await input.getByRole("button", { name: "Remove Input", exact: true }).click();
+    assert.equal(await input.locator(".input-current").innerText(), "First.pdf");
+    assert.equal(await output.locator(".composition-totals strong").innerText(), "1 PDF page");
+    assert.equal(await page.locator(".error-banner").count(), 0);
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser?.close();
+    await server.close();
+  }
+});
+
 test("Style and Download cancellation release preview workers and retain choices", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
   let browser;
@@ -8712,9 +8979,12 @@ test("Opaque parameter IDs retain style edits, draft errors, and downloaded valu
     await color.fill("invalid");
     assert.equal(await color.getAttribute("aria-invalid"), "true");
     assert.match(await input.locator(".control .error").innerText(), /six hexadecimal digits/);
+    assert.equal(await input.locator('.quartet-text[title^="Stroke color:"] > span:last-child').innerText(), "Invalid");
+    assert.equal(await input.locator(".control .scope").first().textContent(), "Input pages: 1-7");
     await color.fill("#ff0000");
     await page.waitForFunction(() => !document.querySelector('.output-status[aria-hidden="false"]'));
     assert.equal(await color.inputValue(), "#ff0000");
+    assert.equal(await input.locator('.quartet-text[title^="Stroke color:"] > span:last-child').innerText(), "#ff0000");
     await input.getByRole("button", { name: "Edit Width", exact: true }).click();
     await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).fill("0.4");
     await page.waitForFunction(() => !document.querySelector('.output-status[aria-hidden="false"]'));

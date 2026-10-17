@@ -1,3 +1,5 @@
+// Opens PDFs through PDF.js and owns the bounded memory cache of preview rasters.
+
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
 const assets = new URL(`${import.meta.env.BASE_URL}pdfjs/`, location.href).href;

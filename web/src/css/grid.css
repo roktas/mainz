@@ -1,0 +1,223 @@
+/* Styles thumbnail pagination, density controls, and the Grid viewport. */
+
+@layer components {
+  @scope (.grid-view) {
+    :scope {
+      display: contents;
+    }
+  }
+}
+
+@layer views {
+  @scope (.composer) {
+    @container composer (width > 55em) {
+      .grid-view {
+        display: block grid;
+        grid-template-rows: minmax(0, 1fr) var(--grid-pager-height);
+        block-size: min(var(--grid-view-height), var(--frame-height-limit));
+        min-inline-size: 0;
+      }
+
+      .composition-grid {
+        align-content: start;
+        min-block-size: 0;
+      }
+    }
+
+    .page-batches {
+      display: block grid;
+      grid-template-columns: 44px minmax(0, 1fr) 44px;
+      grid-template-rows: 44px minmax(0, 1fr);
+      align-items: center;
+      justify-items: center;
+      gap: 0;
+      block-size: var(--grid-pager-height);
+      margin-block: var(--gap);
+      padding-block-start: calc(var(--gap) / 2 + 8px);
+      border-block-start: 0;
+      font-variant-numeric: tabular-nums;
+
+      & > .batch-slider {
+        position: relative;
+        display: block;
+        inline-size: 100%;
+        min-inline-size: 0;
+        block-size: 44px;
+
+        & input[type="range"] {
+          inline-size: 100%;
+          block-size: 44px;
+          margin: 0;
+          cursor: pointer;
+        }
+
+        & .batch-marks {
+          position: absolute;
+          inset-block-start: 21px;
+          inset-inline: 8px;
+          block-size: 2px;
+          pointer-events: none;
+
+          & > span {
+            position: absolute;
+            inset-inline-start: calc(var(--position) * 100%);
+            translate: -50% 0;
+
+            inline-size: 2px;
+            block-size: 2px;
+            border-radius: 50%;
+            background: var(--muted);
+
+            &.passed {
+              inline-size: 3px;
+              block-size: 3px;
+              background: var(--border);
+              translate: -50% -0.5px;
+            }
+
+            &.current {
+              visibility: hidden;
+            }
+          }
+        }
+      }
+
+      & > .batch-caption {
+        grid-column: 1 / -1;
+        display: block flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        column-gap: calc(var(--gap) / 2);
+        line-height: 1.5;
+
+        & > span {
+          white-space: nowrap;
+        }
+
+        & .batch-separator {
+          margin-inline-end: calc(var(--gap) / 2);
+        }
+      }
+
+      & strong {
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      & .batch-total {
+        color: var(--muted);
+      }
+    }
+
+    .grid-density {
+      display: inline flex;
+      inline-size: var(--view-tools-width);
+      align-items: center;
+      flex: none;
+      margin-inline-start: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--soft);
+
+      & > button {
+        inline-size: 44px;
+        min-inline-size: 44px;
+        block-size: 44px;
+        min-block-size: 44px;
+        padding: 0;
+        border-radius: calc(var(--radius) - 1px);
+        color: var(--muted);
+        background: transparent;
+
+        &[aria-pressed="true"] {
+          color: var(--accent);
+          background: var(--tint);
+        }
+
+        &:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: -2px;
+        }
+
+        &:active {
+          color: var(--accent);
+          background: var(--tint);
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            color: var(--accent);
+            background: var(--tint);
+          }
+        }
+
+        & svg {
+          inline-size: 1.3em;
+          block-size: 1.3em;
+        }
+      }
+
+      & > button + button {
+        border-inline-start: 1px solid var(--border);
+      }
+    }
+
+    @container composer (width > 55em) {
+      .page-batches {
+        position: relative;
+        grid-template-columns: 22px minmax(0, 1fr) 22px;
+        grid-template-rows: minmax(0, 1fr);
+        padding-block-start: calc(var(--grid-pager-height) - 44px);
+        margin: 0;
+
+        & > button:first-child {
+          justify-self: end;
+        }
+
+        & > button:last-of-type {
+          justify-self: start;
+        }
+
+        & > button svg {
+          inline-size: 20px;
+          block-size: 20px;
+        }
+
+        & > .batch-caption {
+          position: absolute;
+          inset-inline: 0;
+          inset-block-start: auto;
+          inset-block-end: 40px;
+          pointer-events: none;
+        }
+      }
+    }
+
+    :is(.selection-panel, .composition-output)[data-density="compact"] {
+      .composition-grid {
+        grid-auto-rows: var(--grid-height);
+        align-content: start;
+        min-block-size: 0;
+      }
+
+      @container composer (width <= 55em) {
+        .grid-view {
+          display: block grid;
+          grid-template-rows: minmax(0, 1fr) var(--grid-pager-height);
+          block-size: min(var(--grid-view-height), var(--frame-height-limit));
+          min-inline-size: 0;
+        }
+
+        .page-batches {
+          margin: 0;
+        }
+      }
+    }
+
+    @container catalog (width <= 28rem) {
+      .grid-view {
+        --grid-pager-height: calc(44px + 4.5 * var(--small) + var(--gap) + 8px);
+      }
+    }
+  }
+}

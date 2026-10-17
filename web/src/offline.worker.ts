@@ -1,3 +1,5 @@
+// Caches verified application assets per deployment and coordinates offline updates across tabs.
+
 declare const VERSION: string;
 declare const ASSETS: { path: string; sha256: string }[];
 const worker = self as unknown as ServiceWorkerGlobalScope;

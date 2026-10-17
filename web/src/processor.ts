@@ -1,3 +1,5 @@
+// Runs cancellable processor requests and owns their worker lifetime.
+
 import type { Failure, Operation, Reply, Result } from "./protocol.ts";
 import type { Job } from "./model.ts";
 import type { Scalar } from "./styles.ts";

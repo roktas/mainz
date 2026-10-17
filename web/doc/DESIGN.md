@@ -1,7 +1,7 @@
 # PDF Composer design
 
 This document owns visual rules, layout reference cases, and the [UI glossary](#ui-glossary). [SPEC.md](SPEC.md) owns
-workspace behavior and product terminology. [Stylesheets](../src/style.css) and their imported component styles own
+workspace behavior and product terminology. [Stylesheets](../src/css/main.css) and their imported component styles own
 exact CSS values, breakpoints, and animation keyframes. The rules below retain deliberate visual constraints without
 duplicating the implementation or the interaction specification.
 

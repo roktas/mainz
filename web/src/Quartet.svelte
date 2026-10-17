@@ -21,9 +21,13 @@
   const panelId = $props.id();
   const percent = new Intl.NumberFormat("en", { style: "percent", maximumFractionDigits: 1 });
   const number = new Intl.NumberFormat("en", { maximumSignificantDigits: 4 });
-  type Setting = { label: string; icon: Name; slots: { label: string; id?: string }[] };
+  type Setting = { key: keyof Quartet; label: string; icon: Name; slots: { label: string; id?: string }[] };
+  type Summary =
+    | { kind: "invalid" | "mixed" | "unassigned"; text: string }
+    | { kind: "value"; text: string; value: string };
   const components: Setting[] = $derived([
     {
+      key: "fill",
       label: "Fill",
       icon: "palette",
       slots: [
@@ -32,6 +36,7 @@
       ],
     },
     {
+      key: "stroke",
       label: "Stroke",
       icon: "palette",
       slots: [
@@ -39,33 +44,36 @@
         { label: "Opacity", id: quartet.stroke.opacity },
       ],
     },
-    { label: "Width", icon: "width", slots: [{ label: "Width", id: quartet.width }] },
-    { label: "Visibility", icon: "eye", slots: [{ label: "Visibility", id: quartet.visibility }] },
+    { key: "width", label: "Width", icon: "width", slots: [{ label: "Width", id: quartet.width }] },
+    { key: "visibility", label: "Visibility", icon: "eye", slots: [{ label: "Visibility", id: quartet.visibility }] },
   ]);
   let root: HTMLElement;
-  let active = $state<string | null>(null);
-  const selected = $derived(components.find((part) => part.label === active));
-  function toggleSetting(label: string) {
-    active = active === label ? null : label;
+  let active = $state<Setting["key"] | null>(null);
+  const selected = $derived(components.find((part) => part.key === active));
+  function toggleSetting(key: Setting["key"]) {
+    active = active === key ? null : key;
   }
-  function summary(id: string): string {
+  function summary(id: string): Summary {
     const initial = entry(id);
     const draft = Object.hasOwn(drafts, id) ? drafts[id] : undefined;
     const text = current(initial, draft);
-    if (draft !== undefined && feedback(initial, text)) return "Invalid";
-    if (text === "") return initial.baseline.kind === "mixed" ? "Mixed" : "—";
+    if (draft !== undefined && feedback(initial, text)) return { kind: "invalid", text: "Invalid" };
+    if (text === "")
+      return initial.baseline.kind === "mixed" ? { kind: "mixed", text: "Mixed" } : { kind: "unassigned", text: "—" };
     const property = initial.parameter.binding.property;
-    if (property === "display") return text === "inline" ? "Show" : "Hide";
-    if (property.endsWith("opacity")) return percent.format(Number(text));
-    if (property === "stroke-width") return `${number.format(Number(text))} mm`;
-    return text;
+    let label = text;
+    if (property === "display") label = text === "inline" ? "Show" : "Hide";
+    else if (property.endsWith("opacity")) label = percent.format(Number(text));
+    else if (property === "stroke-width") label = `${number.format(Number(text))} mm`;
+    return { kind: "value", text: label, value: text };
   }
   function hint(id: string): string {
     const value = summary(id);
     const baseline = entry(id).baseline;
-    if (value === "—" && baseline.kind === "unrepresentable") return `Original style retained. ${baseline.reason}`;
-    if (value === "Mixed") return "Original styles retained. The objects use different values.";
-    return value;
+    if (value.kind === "unassigned" && baseline.kind === "unrepresentable")
+      return `Original style retained. ${baseline.reason}`;
+    if (value.kind === "mixed") return "Original styles retained. The objects use different values.";
+    return value.text;
   }
   function closeEditors(target?: EventTarget | null) {
     if (active && (!target || !root.contains(target as Node))) {
@@ -90,14 +98,14 @@
       class={[
         "quartet-value",
         {
-          invalid: value === "Invalid",
-          uncertain: value === "—" || value === "Mixed",
+          invalid: value.kind === "invalid",
+          uncertain: value.kind === "unassigned" || value.kind === "mixed",
         },
       ]}
     >
       <span class="quartet-text" title={`${label}: ${hint(id)} · ${entry(id).parameter.schema.title ?? label}`}>
-        <span aria-hidden="true" data-value={value}></span>
-        <span>{value}</span>
+        <span aria-hidden="true" data-value={value.text}></span>
+        <span>{value.text}</span>
       </span>
     </span>
   {:else}
@@ -164,18 +172,18 @@
 {#snippet visibility(id: string)}
   {@const value = summary(id)}
   <label
-    class={["quartet-switch", { invalid: value === "Invalid" }]}
+    class={["quartet-switch", { invalid: value.kind === "invalid" }]}
     title="Object visibility, including its outlines and fill."
   >
     <input
       type="checkbox"
-      checked={value === "Show"}
-      indeterminate={value !== "Show" && value !== "Hide"}
+      checked={value.kind === "value" && value.value === "inline"}
+      indeterminate={value.kind !== "value"}
       aria-label={`${entry(id).parameter.schema.title ?? "Visibility"} · Show/Hide object`}
-      aria-invalid={value === "Invalid"}
+      aria-invalid={value.kind === "invalid"}
       onchange={(event) => change(id, event.currentTarget.checked ? "inline" : "none")}
     />
-    <span>{value}</span>
+    <span>{value.text}</span>
   </label>
 {/snippet}
 
@@ -202,10 +210,10 @@
 {#snippet component(part: Setting)}
   <span class="quartet-component">
     <span class="quartet-type">{@render heading(part)}</span>
-    {#if part.label === "Visibility" && part.slots[0].id}
+    {#if part.key === "visibility" && part.slots[0].id}
       {@render visibility(part.slots[0].id)}
     {:else if part.slots.length === 2}
-      {@render paint(part.label, part.label === "Fill" ? quartet.fill : quartet.stroke)}
+      {@render paint(part.label, part.key === "fill" ? quartet.fill : quartet.stroke)}
     {:else}
       {@render metric(part.label, part.slots[0].id)}
     {/if}
@@ -215,17 +223,17 @@
 <section class="quartet" aria-label="Quartet" bind:this={root}>
   <div class="quartet-bar">
     <div class="quartet-fields">
-      {#each components as part (part.label)}
+      {#each components as part (part.key)}
         <div class="quartet-property">
           {#if part.slots.some((slot) => slot.id)}
-            {#if part.label === "Visibility"}
+            {#if part.key === "visibility"}
               <span class="quartet-component">
                 <button
                   class="quartet-trigger quartet-type"
                   aria-label="Edit Visibility"
-                  aria-expanded={selected?.label === part.label}
+                  aria-expanded={selected?.key === part.key}
                   aria-controls={panelId}
-                  onclick={() => toggleSetting(part.label)}>{@render heading(part)}</button
+                  onclick={() => toggleSetting(part.key)}>{@render heading(part)}</button
                 >
                 {@render visibility(part.slots[0].id!)}
               </span>
@@ -233,9 +241,9 @@
               <button
                 class="quartet-trigger"
                 aria-label={`Edit ${part.label}`}
-                aria-expanded={selected?.label === part.label}
+                aria-expanded={selected?.key === part.key}
                 aria-controls={panelId}
-                onclick={() => toggleSetting(part.label)}>{@render component(part)}</button
+                onclick={() => toggleSetting(part.key)}>{@render component(part)}</button
               >
             {/if}
           {:else}{@render component(part)}{/if}

@@ -1,6 +1,6 @@
 <!-- Shows the active Source's applicable Style profiles and parameter groups. -->
 <script lang="ts">
-  import { available, feedback, groups, matchingProfile, objects } from "./styles.ts";
+  import { available, feedback, groups, matchingProfile, objects, resolve } from "./styles.ts";
   import { pageRanges } from "./pages.ts";
   import type { Entry } from "./styles.ts";
   import type { Source, Part } from "./model.ts";
@@ -52,20 +52,13 @@
         : "",
   );
   function entry(id: string): Entry {
-    const initial = definition.parameters[id];
-    const parameter = { ...initial.parameter };
-    delete parameter.value;
-    if (Object.hasOwn(source.overrides, id)) parameter.value = source.overrides[id];
-    return {
-      ...initial,
-      parameter,
-      pages: [pageRanges(initial.pages.map((page) => definition.pages[page].index).toSorted((a, b) => a - b))],
-    };
+    return resolve(definition.parameters[id], source.overrides, id);
   }
 </script>
 
 {#snippet field(id: string, caption?: string, compact = false)}
-  {@const eligible = new Set(definition.parameters[id].pages.map((page) => definition.pages[page].index))}
+  {@const pages = definition.parameters[id].pages.map((page) => definition.pages[page].index)}
+  {@const eligible = new Set(pages)}
   {@const coverage = parts.reduce(
     (total, part) =>
       total +
@@ -82,6 +75,7 @@
     change={style}
     reset={(id) => reset(id)}
     {coverage}
+    scope={pageRanges(pages.toSorted((a, b) => a - b))}
     {caption}
     {compact}
   />

@@ -16,6 +16,7 @@
     draftError,
     feedback,
     needsRender,
+    resolve,
   } from "./styles.ts";
   import type { Render, Scalar } from "./styles.ts";
   import { loadRenderer, openPDF } from "./pdf.ts";
@@ -68,11 +69,14 @@
   let outputPosition = $state(0);
   let outputZoom = $state(100);
   let comparing = $state(false);
-  const processors = new Map<string, Processor>();
-  const timers = new Map<string, ReturnType<typeof setTimeout>>();
-  const rendered = new Map<string, Render>();
-  const requests = new Map<string, Render>();
-  const previewTasks = new Map<string, PDFDocumentLoadingTask>();
+  type Preview = {
+    processor?: Processor;
+    timer?: ReturnType<typeof setTimeout>;
+    rendered: Render;
+    request?: Render;
+    task?: PDFDocumentLoadingTask;
+  };
+  const previews = new Map<string, Preview>();
   const documents = new Map<PDFDocumentProxy, PDFDocumentLoadingTask>();
   let openingProcessor: Processor | undefined;
   let openingTask: PDFDocumentLoadingTask | undefined;
@@ -120,10 +124,7 @@
         ) &&
         eligible.some((id) => {
           const entry = source.input.description.parameters[id];
-          const parameter = { ...entry.parameter };
-          delete parameter.value;
-          if (Object.hasOwn(source.overrides, id)) parameter.value = source.overrides[id];
-          return current({ ...entry, parameter }).toLowerCase() !== current(entry).toLowerCase();
+          return current(resolve(entry, source.overrides, id)).toLowerCase() !== current(entry).toLowerCase();
         }),
       size: sizeOf(page.content, sources),
       padding: page.padding,
@@ -165,13 +166,14 @@
     parts = next;
     outputChanged = true;
     failure = "";
-    for (const source of sources)
+    for (const source of sources) {
+      const preview = previews.get(source.id)!;
       if (
         source.status === "pending" ||
-        (needsRender(source, next, rendered.get(source.id)!) &&
-          !needsRender(source, previous, rendered.get(source.id)!))
+        (needsRender(source, next, preview.rendered) && !needsRender(source, previous, preview.rendered))
       )
         schedule(source.id);
+    }
     if (notice === firstAction) notify("");
     info(text);
   }
@@ -277,7 +279,8 @@
         overrides,
       };
       documents.set(pdf, loadingTask!);
-      rendered.set(source.id, { overrides });
+      const editable = Object.keys(input.description.parameters).length > 0;
+      previews.set(source.id, { rendered: { overrides }, processor: editable ? processor : undefined });
       choose(source.id, {
         text: pdf.numPages === 1 ? "1" : "",
         pages: pdf.numPages === 1 ? [0] : [],
@@ -287,8 +290,7 @@
       sources = [...sources, source];
       activeId = source.id;
       openingSource = undefined;
-      if (Object.keys(input.description.parameters).length) processors.set(source.id, processor);
-      else processor.dispose();
+      if (!editable) processor.dispose();
       committed = true;
       info(`Opened ${pdf.numPages} ${pdf.numPages === 1 ? "page" : "pages"}.`);
       return source;
@@ -357,9 +359,8 @@
     const id = active.id;
     const name = active.input.name;
     cancelRender(id);
-    processors.get(id)?.dispose();
-    processors.delete(id);
-    rendered.delete(id);
+    previews.get(id)?.processor?.dispose();
+    previews.delete(id);
     const nextSequences = { ...sequences };
     delete nextSequences[id];
     sequences = nextSequences;
@@ -421,18 +422,21 @@
     schedule(active.id, `Applied ${profile.name} profile.`);
   }
   function cancelRender(id: string) {
-    clearTimeout(timers.get(id));
-    timers.delete(id);
-    processors.get(id)?.cancel();
-    requests.delete(id);
-    void previewTasks.get(id)?.destroy();
-    previewTasks.delete(id);
+    const preview = previews.get(id);
+    if (!preview) return;
+    clearTimeout(preview.timer);
+    preview.timer = undefined;
+    preview.processor?.cancel();
+    preview.request = undefined;
+    void preview.task?.destroy();
+    preview.task = undefined;
   }
   function schedule(id: string, text?: string) {
     const source = sources.find((item) => item.id === id);
     if (!source) return;
-    const needed = needsRender(source, parts, rendered.get(id)!);
-    const requested = requests.get(id);
+    const preview = previews.get(id)!;
+    const needed = needsRender(source, parts, preview.rendered);
+    const requested = preview.request;
     if (needed && requested && !needsRender(source, parts, requested)) {
       if (text) info(text, source);
       return;
@@ -444,29 +448,23 @@
       if (text) info(text, source);
       return;
     }
-    requests.set(id, { overrides: { ...source.overrides }, pages: bufferPages(source, parts) });
+    preview.request = { overrides: { ...source.overrides }, pages: bufferPages(source, parts) };
     update({ ...source, status: "pending", error: undefined, revision });
     const statusRevision = info("Updating styles…", source);
-    timers.set(
-      id,
-      setTimeout(() => {
-        timers.delete(id);
-        void renderSource(id, revision, text ?? "Updated styles.", statusRevision);
-      }, 200),
-    );
+    preview.timer = setTimeout(() => {
+      preview.timer = undefined;
+      void renderSource(id, revision, text ?? "Updated styles.", statusRevision);
+    }, 200);
   }
   async function renderSource(id: string, revision: number, text: string, statusRevision: number) {
     const source = sources.find((item) => item.id === id);
     if (!source) return;
-    let processor = processors.get(id);
-    if (!processor) {
-      processor = new Processor();
-      processors.set(id, processor);
-    }
+    const preview = previews.get(id)!;
+    const processor = (preview.processor ??= new Processor());
     const overrides: Record<string, Scalar> = { ...source.overrides };
     const pages = bufferPages(source, parts);
     const ids = pages ? applicable(source.input.description, pages) : Object.keys(source.input.description.parameters);
-    requests.set(id, { overrides, pages });
+    preview.request = { overrides, pages };
     let loadingTask: PDFDocumentLoadingTask | undefined;
     try {
       const result = await processor.run(source.input.bytes, revision, {
@@ -480,7 +478,7 @@
         void loadingTask.destroy();
         return;
       }
-      previewTasks.set(id, loadingTask);
+      preview.task = loadingTask;
       const pdf = await loadingTask.promise;
       await verifyPDF(pdf);
       const latest = sources.find((item) => item.id === id);
@@ -489,8 +487,8 @@
         return;
       }
       documents.set(pdf, loadingTask);
-      rendered.set(id, { overrides, pages });
-      requests.delete(id);
+      preview.rendered = { overrides, pages };
+      preview.request = undefined;
       update({ ...latest, pdf, pdfPages: pages, status: "ready", error: undefined });
       if (statusRevision === messageRevision) info(text, latest);
       void releaseUnused();
@@ -498,7 +496,7 @@
       void loadingTask?.destroy();
       const latest = sources.find((item) => item.id === id);
       if (!disposed && latest?.revision === revision) {
-        requests.delete(id);
+        preview.request = undefined;
         update({
           ...latest,
           status: "error",
@@ -507,7 +505,7 @@
         if (statusRevision === messageRevision) info("");
       }
     } finally {
-      if (previewTasks.get(id) === loadingTask) previewTasks.delete(id);
+      if (preview.task === loadingTask) preview.task = undefined;
     }
   }
   function cancelStyle() {
@@ -686,9 +684,11 @@
     downloadProcessor?.dispose();
     void downloadTask?.destroy();
     releaseDownload();
-    for (const timer of timers.values()) clearTimeout(timer);
-    for (const processor of processors.values()) processor.dispose();
-    for (const loadingTask of previewTasks.values()) void loadingTask.destroy();
+    for (const preview of previews.values()) {
+      clearTimeout(preview.timer);
+      preview.processor?.dispose();
+      void preview.task?.destroy();
+    }
     for (const loadingTask of documents.values()) void loadingTask.destroy();
   });
 </script>

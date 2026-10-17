@@ -1,3 +1,5 @@
+// Identifies editable fields and UI states that take priority over workspace shortcuts.
+
 export const fields = "input, textarea, select, [contenteditable]:not([contenteditable='false'])";
 
 export function blocked() {

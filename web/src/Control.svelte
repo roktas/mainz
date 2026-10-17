@@ -10,6 +10,7 @@
     change,
     reset,
     coverage,
+    scope,
     caption,
     compact = false,
   }: {
@@ -19,6 +20,7 @@
     change: (id: string, text: string) => void;
     reset: (id: string) => void;
     coverage?: number;
+    scope: string;
     caption?: string;
     compact?: boolean;
   } = $props();
@@ -105,7 +107,7 @@
         {:else if entry.baseline.kind === "mixed"}Mixed baseline · no single original value.
         {:else}Unrepresentable baseline: {entry.baseline.reason}{/if}
       </p>
-      <p id={`${key}-scope`} class="scope">Input pages: {entry.pages.join(", ")}</p>
+      <p id={`${key}-scope`} class="scope">Input pages: {scope}</p>
       {#if coverage !== undefined}<p>{coverage} eligible Output pages</p>{/if}
       {#if schema.type === "number"}<p id={`${key}-constraints`} class="constraints">
           {schema.minimum !== undefined ? `Minimum: ${schema.minimum}. ` : ""}

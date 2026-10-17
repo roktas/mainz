@@ -1,3 +1,5 @@
+// Preserves mouse focus during drags and builds page images for native and touch transfers.
+
 import type { Size } from "./model.ts";
 
 export function retainFocus(event: MouseEvent) {

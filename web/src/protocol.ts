@@ -1,3 +1,5 @@
+// Defines requests, results, and structured failures shared by the processor host and worker.
+
 import type { Description, Scalar } from "./styles.ts";
 import type { Content, Job } from "./model.ts";
 

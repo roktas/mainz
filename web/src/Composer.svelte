@@ -5,14 +5,17 @@
   import { scale } from "svelte/transition";
   import { cubicInOut } from "svelte/easing";
   import type { Snippet } from "svelte";
-  import { appearance, copyError, expand, move, positionAfterEdit, sizeOf, uid } from "./model.ts";
+  import { appearance, copyError, expand, positionAfterEdit, sizeOf, uid } from "./model.ts";
   import type { Content, Expanded, Page, Part, Source } from "./model.ts";
+  import * as composition from "./composition.ts";
   import { pageRanges, parseSequence } from "./pages.ts";
   import { blocked, fields } from "./keyboard.ts";
   import type { Sequence } from "./pages.ts";
   import { available } from "./styles.ts";
   import Pdf from "./Pdf.svelte";
-  import { createDragImage, retainFocus } from "./drag.ts";
+  import { retainFocus } from "./drag.ts";
+  import { Transfer } from "./transfer.svelte.ts";
+  import type { Payload } from "./transfer.svelte.ts";
   import { animateAddition, animateMove, animateOrder, animateRemoval, editDuration } from "./motion.ts";
   import Repetition from "./Repetition.svelte";
   import Grid from "./Grid.svelte";
@@ -127,6 +130,7 @@
   let originOpen = $state<string>();
   let inputMenu = $state<HTMLDetailsElement>(null!);
   let outputMenu = $state<HTMLDetailsElement>(null!);
+  let outputTarget = $state<HTMLButtonElement>();
   let sourceAnchor: { source: string; page: number } | undefined;
   let inputClick: { source: string; page: number; sequence: Sequence; anchor: typeof sourceAnchor } | undefined;
   let outputAnchor: number | undefined;
@@ -135,80 +139,21 @@
     | { kind: "output"; ids: string[]; removing?: boolean }
   >();
   let highlightTimeout: ReturnType<typeof setTimeout> | undefined;
-  let drag = $state<{ kind: "source"; page?: number } | { kind: "output"; ids: string[] }>();
   const sourceId = $derived(source?.id);
   $effect(() => {
     if (!sourceId) return;
     return () => {
       if (touchTap?.pane === "Input") touchTap = undefined;
       inputClick = undefined;
-      if (drag?.kind === "source" || contact?.value.kind === "source") endDrag();
+      transfer.cancelInput();
     };
   });
-  let target = $state<{ index: number; after: boolean }>();
-  let overOutput = $state(false);
-  let dragPosition: number | undefined;
-  let dragImage: ReturnType<typeof createDragImage>;
   let cancelAddition: (() => void) | undefined;
   let pendingAddition = $state.raw(new Set<string>());
   let removing = $state.raw(new Set<string>());
   let cancelRemoval: (() => void) | undefined;
   let cancelMove: (() => void) | undefined;
   let removingPage = $state(false);
-  let contact:
-    | {
-        id: number;
-        x: number;
-        y: number;
-        control: HTMLElement;
-        value: NonNullable<typeof drag>;
-        distance?: number;
-        warning?: ReturnType<typeof setTimeout>;
-      }
-    | undefined;
-  let touchDragging = $state(false);
-  let dropWarning = $state(false);
-  let touchPoint: PointerEvent | undefined;
-  let touchFrame: number | undefined;
-  let consumeTouchClick = false;
-  let dwell: ReturnType<typeof setTimeout> | undefined;
-  let dropGrid = $state<{
-    from: number;
-    count: number;
-    limit: number;
-    columns: number;
-    width: number;
-    height: number;
-    columnGap: number;
-    rowGap: number;
-  }>();
-  const dropLabel = $derived(
-    target ? `${target.after ? "After" : "Before"} page ${target.index + 1}` : "At the end of Output",
-  );
-  const blockedDrop = $derived(
-    drag?.kind === "output" && !!target && drag.ids.includes(output.pages[target.index]?.id),
-  );
-  const preview = $derived.by(() => {
-    if (!drag || !overOutput || blockedDrop || !dropGrid) return;
-    const { from, count } = dropGrid;
-    const moving = new Set(drag.kind === "output" ? drag.ids : []);
-    const at = target ? target.index + Number(target.after) : output.pages.length;
-    const before = output.pages.slice(0, from).filter((page) => !moving.has(page.id)).length;
-    const slot = output.pages.slice(0, at).filter((page) => !moving.has(page.id)).length - before;
-    const pages = output.pages
-      .slice(from, from + count)
-      .flatMap((page, index) => (moving.has(page.id) ? [] : [from + index]));
-    if (slot < 0 || slot > pages.length) return;
-    const positions = new Map(pages.map((index, position) => [index, position + Number(position >= slot)]));
-    return { slot, positions };
-  });
-  function displacement(position: number, original = 0) {
-    if (!dropGrid) return;
-    const { columns, width, height, columnGap, rowGap } = dropGrid;
-    return `${((position % columns) - (original % columns)) * (width + columnGap)}px ${
-      (Math.floor(position / columns) - Math.floor(original / columns)) * (height + rowGap)
-    }px`;
-  }
   const count = $derived(source?.input.pdf.numPages ?? 0);
   const styleable = $derived(!!source && available(source, parts).length > 0);
   const hasStyles = $derived(!!source && Object.keys(source.input.description.parameters).length > 0);
@@ -293,6 +238,35 @@
   const adjacent = $derived(positions.every((position, i) => i === 0 || position === positions[i - 1] + 1));
   const repeatError = $derived(copyError(repetitions));
   const inputSelected = $derived(new Set(draft.pages));
+  const transfer = new Transfer({
+    key,
+    get pages() {
+      return output.pages;
+    },
+    get position() {
+      return outputPosition;
+    },
+    set position(value) {
+      outputPosition = value;
+    },
+    get input() {
+      return activeView === "input";
+    },
+    get insertion() {
+      return insertion;
+    },
+    get outputTarget() {
+      return outputTarget;
+    },
+    start(event, value, control) {
+      start(event, value, control);
+      if (transfer.touching) touchTap = undefined;
+    },
+    drop,
+    reveal() {
+      view = "output";
+    },
+  });
   export function views() {
     return { input: activeTab, output: activeOutputTab };
   }
@@ -351,7 +325,7 @@
     const control =
       tab === "page"
         ? panel?.querySelector<HTMLElement>(".page-scroll")
-        : panel?.querySelector<HTMLElement>(`[aria-label="Select ${pane} page ${position + 1}"]`);
+        : panel?.querySelector<HTMLElement>(`.page-image[data-page="${position}"]`);
     control?.scrollIntoView({ block: "nearest" });
     if (keyboard)
       (control ?? document.getElementById(`${key}-${pane === "Output" ? "output-" : ""}${tab}`))?.focus({
@@ -652,12 +626,6 @@
     toggle(page, event.shiftKey);
     if (event.detail) (event.currentTarget as HTMLElement).focus({ preventScroll: true });
   }
-  function contentPages(): Page[] {
-    return output.pages.map((page) => ({ id: page.id, content: page.content }));
-  }
-  function group(pages: Page[], quantity = "1", align = false): Part {
-    return { id: uid(), pages, copies: quantity, front: align };
-  }
   function cancelMotion() {
     cancelAddition?.();
     cancelAddition = undefined;
@@ -674,7 +642,7 @@
       !added.length && !removing.size && expanded.some((page, index) => page.id !== output.pages[index]?.id);
     cancelMotion();
     const panel = document.getElementById(`${key}-output-panel`);
-    if (added.length && !drag) {
+    if (added.length && !transfer.value) {
       const sheet =
         origin ??
         panel?.querySelector<HTMLElement>(
@@ -691,9 +659,7 @@
           "blank" in added[0].content,
           added.length,
           () => {
-            const button = panel
-              ?.closest(".composer")
-              ?.querySelector<HTMLElement>(".mobile-workspace-tabs > button:last-child");
+            const button = outputTarget;
             const image = document.getElementById(`${key}-${added[0].id}`)?.querySelector<HTMLElement>(".page-image");
             if (button?.offsetWidth && (origin?.closest(".selection-panel") || !image)) return button;
             return image ?? document.getElementById(`${key}-output`);
@@ -765,7 +731,7 @@
         outputPosition = destination;
         outputOffset = destination;
       }
-      if (touchDragging) return true;
+      if (transfer.touching) return true;
       if (menu) menu.querySelector("summary")?.focus();
       else if (selectionAction)
         void tick().then(() => {
@@ -819,7 +785,7 @@
     }
   }
   function replace(pages: Page[], text: string, select?: (pages: Expanded[]) => string[]) {
-    return commit(pages.length ? [group(pages)] : [], text, select);
+    return commit(composition.materialize(pages), text, select);
   }
   function inputTargets(page: number) {
     return draft.pages.length ? undefined : [page];
@@ -833,7 +799,7 @@
     if (!source) return;
     if (pages === undefined && (selectionError || !parsed.pages.length)) return;
     const inputBar = (document.activeElement as HTMLElement | null)?.closest(".selection-panel .sequence-entry");
-    const next = group(
+    const next = composition.part(
       (pages ?? parsed.pages).map((number) => ({
         id: uid(),
         content: { source: source.id, page: number },
@@ -843,15 +809,7 @@
     );
     const quantity = next.pages.length * Number(next.copies);
     const label = `${quantity} ${quantity === 1 ? "page" : "pages"}`;
-    const currentPages = contentPages();
-    const updated =
-      at === undefined
-        ? [...parts, next]
-        : [
-            ...(at ? [group(currentPages.slice(0, at))] : []),
-            next,
-            ...(at < currentPages.length ? [group(currentPages.slice(at))] : []),
-          ];
+    const updated = composition.insert(parts, output.pages, next, at);
     const panel = document.getElementById(`${key}-source-panel`);
     const sheet =
       panel?.querySelector<HTMLElement>(
@@ -875,7 +833,7 @@
     );
     if (completed && pages === undefined) {
       clearInput();
-      if (inputBar && !touchDragging) focusAfterSelection("Input");
+      if (inputBar && !transfer.touching) focusAfterSelection("Input");
     }
     return completed;
   }
@@ -893,14 +851,12 @@
     highlightRange(adding && range && first < last ? { kind: "output", ids } : undefined);
   }
   function order(offset: number, ids = outputTargets()) {
-    const pages = contentPages();
-    const moving = new Set(ids);
-    const indices = pages.flatMap((page, index) => (moving.has(page.id) ? [index] : []));
-    if (!indices.length || (offset < 0 ? indices[0] === 0 : indices.at(-1) === pages.length - 1)) return;
+    const next = composition.order(output.pages, ids, offset);
+    if (!next) return;
     if (
       replace(
-        move(pages, indices, offset),
-        `Moved ${indices.length} ${indices.length === 1 ? "page" : "pages"} ${offset < 0 ? "earlier" : "later"}.`,
+        next.pages,
+        `Moved ${next.count} ${next.count === 1 ? "page" : "pages"} ${offset < 0 ? "earlier" : "later"}.`,
       )
     ) {
       highlightRange({ kind: "output", ids });
@@ -908,17 +864,12 @@
     }
   }
   function duplicate(ids = outputTargets(), selection: "new" | "keep" = "new") {
-    const pages = contentPages();
-    const copying = new Set(ids);
-    const indices = pages.flatMap((page, index) => (copying.has(page.id) ? [index] : []));
-    if (!indices.length) return;
-    const copies = indices.map((index) => ({ id: uid(), content: pages[index].content }));
-    const at = indices.at(-1)! + 1;
-    pages.splice(at, 0, ...copies);
+    const next = composition.duplicate(output.pages, ids);
+    if (!next) return;
     return replace(
-      pages,
-      `Copied ${copies.length} ${copies.length === 1 ? "page" : "pages"} after Output page ${at}.`,
-      selection === "new" ? () => copies.map((page) => page.id) : undefined,
+      next.pages,
+      `Copied ${next.ids.length} ${next.ids.length === 1 ? "page" : "pages"} after Output page ${next.at}.`,
+      selection === "new" ? () => next.ids : undefined,
     );
   }
   function copyCurrent(pane: "Input" | "Output") {
@@ -926,42 +877,28 @@
     if (inspected && !outputSelectionError) return duplicate([inspected.id], "keep");
   }
   function remove(ids = outputTargets()) {
-    const removed = new Set(ids);
-    const pages = contentPages();
-    const remaining = pages.filter((page) => !removed.has(page.id));
-    const quantity = pages.length - remaining.length;
-    if (!quantity) return;
+    const next = composition.remove(output.pages, ids);
+    if (!next) return;
     highlightRange({ kind: "output", ids, removing: true });
-    const completed = replace(remaining, `Removed ${quantity} ${quantity === 1 ? "page" : "pages"} from Output.`);
+    const completed = replace(next.pages, `Removed ${next.count} ${next.count === 1 ? "page" : "pages"} from Output.`);
     if (!completed) highlightRange();
     return completed;
   }
   function blank(at: number) {
-    const pages = contentPages(),
-      neighbor = pages[at - 1] ?? pages[at];
-    if (!neighbor) return;
-    const page = {
-      id: uid(),
-      content: { blank: { ...sizeOf(neighbor.content, sources) } },
-    };
-    pages.splice(at, 0, page);
-    replace(pages, `Inserted a Blank at Output position ${at + 1}, using the adjacent page's dimensions.`, () => [
-      page.id,
+    const next = composition.blank(output.pages, at, sources);
+    if (!next) return;
+    replace(next.pages, `Inserted a Blank at Output position ${at + 1}, using the adjacent page's dimensions.`, () => [
+      next.id,
     ]);
   }
   function repeat() {
     if (!chosen.length || !adjacent || repeatError || outputSelectionError) return;
-    const pages = contentPages(),
-      first = positions[0],
+    const first = positions[0],
       last = positions.at(-1)!;
-    const next = group(pages.slice(first, last + 1), repetitions, front);
+    const next = composition.part(chosen, repetitions, front);
     if (
       commit(
-        [
-          ...(first ? [group(pages.slice(0, first))] : []),
-          next,
-          ...(last + 1 < pages.length ? [group(pages.slice(last + 1))] : []),
-        ],
+        composition.insert(parts, output.pages, next, first, last + 1),
         `Repeated ${chosen.length} selected ${chosen.length === 1 ? "page" : "pages"} ${repetitions} times${front ? ", starting each repeat on the front" : ""}.`,
         (expanded) =>
           expanded
@@ -971,139 +908,23 @@
     )
       resetRepeat();
   }
-  function leaveNavigation() {
-    clearTimeout(dwell);
-    dwell = undefined;
-  }
-  function endDrag(completed = false) {
-    leaveNavigation();
-    if (touchDragging) consumeTouchClick = true;
-    cancelAnimationFrame(touchFrame ?? 0);
-    touchFrame = undefined;
-    touchPoint = undefined;
-    clearTimeout(contact?.warning);
-    dropWarning = false;
-    contact?.control.removeAttribute("data-press");
-    contact = undefined;
-    touchDragging = false;
-    dragImage?.image.remove();
-    dragImage = undefined;
-    if (!completed && dragPosition !== undefined) outputPosition = dragPosition;
-    dragPosition = undefined;
-    drag = undefined;
-    target = undefined;
-    overOutput = false;
-    dropGrid = undefined;
-  }
-  function hoverNavigation(event: DragEvent | PointerEvent, offset: number, element?: HTMLElement) {
-    if (!drag) return;
-    over(event, outputPosition, element);
-    if (dwell !== undefined) return;
-    dwell = setTimeout(() => {
-      dwell = undefined;
-      outputPosition = Math.max(0, Math.min(output.pages.length - 1, outputPosition + offset));
-      target = { index: outputPosition, after: offset > 0 };
-    }, 450);
-  }
-  function over(event: DragEvent | PointerEvent, index?: number, element?: HTMLElement) {
-    if (!drag) return;
-    event.preventDefault();
-    event.stopPropagation();
-    overOutput = true;
-    const transfer = "dataTransfer" in event ? event.dataTransfer : null;
-    if (transfer) transfer.dropEffect = drag.kind === "source" ? "copy" : "move";
-    const hit = element ?? (event.target instanceof Element ? event.target : null);
-    const grid = hit?.closest<HTMLOListElement>(".output-pages");
-    if (grid) {
-      const cards = grid.querySelectorAll<HTMLElement>(":scope > .composition-card");
-      const bounds = grid.getBoundingClientRect();
-      if (cards.length && event.clientX >= bounds.left && event.clientY >= bounds.top) {
-        const style = getComputedStyle(grid);
-        const columns = style.gridTemplateColumns.split(" ");
-        const height = cards[0].offsetHeight;
-        const rowGap = parseFloat(style.rowGap);
-        const layout = {
-          from: Number(grid.getAttribute("start") ?? 1) - 1,
-          count: cards.length,
-          limit: Number(grid.parentElement!.dataset.batch),
-          columns: columns.length,
-          width: parseFloat(columns[0]),
-          height,
-          columnGap: parseFloat(style.columnGap),
-          rowGap,
-        };
-        const x = event.clientX - bounds.left;
-        const column = Math.min(layout.columns - 1, Math.floor(x / (layout.width + layout.columnGap)));
-        const row = Math.floor((event.clientY - bounds.top) / (layout.height + layout.rowGap));
-        const slot = row * layout.columns + column;
-        if (preview && slot === preview.slot) {
-          // Keep the open slot steady until the pointer clearly crosses its center.
-          const fraction = (x - column * (layout.width + layout.columnGap)) / layout.width;
-          if (target && (target.after ? fraction < 0.3 : fraction > 0.7)) target = { ...target, after: !target.after };
-          return;
-        }
-        const entry = preview
-          ? [...preview.positions].find(([, position]) => position === slot)?.[0]
-          : layout.from + slot;
-        if (
-          !dropGrid ||
-          Object.entries(layout).some(([property, value]) => dropGrid![property as keyof typeof layout] !== value)
-        )
-          dropGrid = layout;
-        if (entry !== undefined && entry < layout.from + layout.count) {
-          const after = x - column * (layout.width + layout.columnGap) >= layout.width / 2;
-          if (target?.index !== entry || target.after !== after) target = { index: entry, after };
-        } else target = undefined;
-        if (blockedDrop && transfer) transfer.dropEffect = "none";
-        return;
-      }
+  function drop(value: Payload, at: number) {
+    if (value.kind === "source") return !!add(at, value.page === undefined ? undefined : [value.page]);
+    if (transfer.blocked) return true;
+    const id = value.ids[0];
+    const next = composition.transfer(output.pages, value.ids, at);
+    const completed = replace(
+      next.pages,
+      `Moved ${next.count} ${next.count === 1 ? "page" : "pages"} to Output position ${next.position + 1}.`,
+    );
+    if (completed) {
+      outputPosition = next.pages.findIndex((page) => page.id === id);
+      outputOffset = outputPosition;
+      highlightRange({ kind: "output", ids: value.ids });
     }
-    if (index === undefined) target = undefined;
-    else {
-      const bounds = (element ?? (event.currentTarget as HTMLElement)).getBoundingClientRect();
-      const after = event.clientX >= bounds.left + bounds.width / 2;
-      if (target?.index !== index || target.after !== after) target = { index, after };
-    }
-    if (blockedDrop && transfer) transfer.dropEffect = "none";
-  }
-  function drop(event: DragEvent | PointerEvent) {
-    if (!drag) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const at = target ? target.index + Number(target.after) : output.pages.length;
-    let completed = false;
-    if (drag?.kind === "source") {
-      const page = drag.page;
-      completed = !!add(at, page === undefined ? undefined : [page]);
-    } else if (drag?.kind === "output") {
-      if (blockedDrop) completed = true;
-      else {
-        const id = drag.ids[0];
-        const ids = new Set(drag.ids);
-        const pages = contentPages();
-        const moving = pages.filter((page) => ids.has(page.id));
-        const remaining = pages.filter((page) => !ids.has(page.id));
-        const position = at - pages.slice(0, at).filter((page) => ids.has(page.id)).length;
-        remaining.splice(position, 0, ...moving);
-        completed = replace(
-          remaining,
-          `Moved ${moving.length} ${moving.length === 1 ? "page" : "pages"} to Output position ${position + 1}.`,
-        );
-        if (completed) {
-          outputPosition = remaining.findIndex((page) => page.id === id);
-          outputOffset = outputPosition;
-          highlightRange({ kind: "output", ids: drag.ids });
-        }
-      }
-    }
-    endDrag(completed);
     return completed;
   }
-  function start(
-    event: DragEvent | PointerEvent,
-    value: NonNullable<typeof drag>,
-    control = event.currentTarget as HTMLElement,
-  ) {
+  function start(event: DragEvent | PointerEvent, value: Payload, control = event.currentTarget as HTMLElement) {
     if ("dataTransfer" in event && touchPointer) {
       event.preventDefault();
       return;
@@ -1125,188 +946,25 @@
     }
     originOpen = undefined;
     cancelMotion();
-    target = undefined;
-    overOutput = false;
-    drag = value;
-    dragPosition = outputPosition;
-    if (value.kind === "source" && value.page !== undefined && activeTab === "grid")
-      inspectInput({ position: value.page });
-    if (value.kind === "output" && activeOutputTab === "grid")
-      outputPosition = output.pages.findIndex((page) => page.id === value.ids[0]);
     const quantity =
       value.kind === "output"
         ? value.ids.length
         : value.page === undefined
           ? parsed.pages.length * Number(draft.repeat)
           : 1;
-    dragImage?.image.remove();
-    dragImage = createDragImage(control, quantity, source?.input.sizes[parsed.pages[0]]);
-    if ("dataTransfer" in event && event.dataTransfer) {
-      event.dataTransfer.setData("text/plain", "PDF Composer pages");
-      event.dataTransfer.effectAllowed = value.kind === "source" ? "copy" : "move";
-      if (dragImage) {
-        const image = dragImage.image;
-        event.dataTransfer.setDragImage(image, image.width / 2, 12);
-        // Keep the canvas visible until the browser captures its native drag image.
-        requestAnimationFrame(() => (image.style.visibility = "hidden"));
-      }
-    }
-  }
-
-  function pressDrag(event: PointerEvent, value: NonNullable<typeof drag>) {
-    if (event.pointerType === "mouse" || !event.isPrimary || event.button !== 0) return;
-    contact = {
-      id: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      control: event.currentTarget as HTMLElement,
-      value,
-    };
-    contact.control.setAttribute("data-press", "");
-  }
-  function updateTouch() {
-    touchFrame = undefined;
-    if (!touchDragging || !touchPoint || !drag) return;
-    const event = touchPoint;
-    const hit = document.elementFromPoint(event.clientX, event.clientY);
-    const pane = hit?.closest<HTMLElement>(
-      ".composition-output :is(.composition-grid, .composition-empty, .inspection-target)",
-    );
-    const workspace = hit?.closest(".mobile-workspace-tabs button");
-    if (workspace?.textContent?.trim() === "Output" && activeView !== "output") {
-      leaveNavigation();
-      overOutput = true;
-      target = insertion === undefined ? undefined : { index: insertion - 1, after: true };
-      dropGrid = undefined;
-    } else if (pane) {
-      const navigation = hit?.closest<HTMLButtonElement>(
-        'button[aria-label="Previous Output page"], button[aria-label="Next Output page"]',
-      );
-      const card = hit?.closest<HTMLElement>(".composition-card");
-      const page = hit?.closest<HTMLElement>(".inspection-target");
-      if (navigation)
-        hoverNavigation(event, navigation.getAttribute("aria-label")!.startsWith("Previous") ? -1 : 1, navigation);
-      else {
-        leaveNavigation();
-        const index = card
-          ? output.pages.findIndex((item) => `${key}-${item.id}` === card.id)
-          : page
-            ? outputPosition
-            : undefined;
-        over(event, index, card ?? page ?? (hit as HTMLElement));
-      }
-    } else {
-      leaveNavigation();
-      target = undefined;
-      overOutput = false;
-      dropGrid = undefined;
-    }
-    if (contact) {
-      const button = document.querySelector<HTMLElement>(".mobile-workspace-tabs > button:last-child");
-      const invalid =
-        drag.kind === "source" &&
-        activeView === "input" &&
-        button?.offsetWidth &&
-        hit?.closest(".selection-panel :is(.composition-grid, .page-view)");
-      if (invalid) {
-        const bounds = button.getBoundingClientRect();
-        const distance = Math.hypot(
-          event.clientX - bounds.left - bounds.width / 2,
-          event.clientY - bounds.top - bounds.height / 2,
-        );
-        if (contact.distance === undefined || distance < contact.distance - 4) {
-          clearTimeout(contact.warning);
-          contact.warning = undefined;
-          dropWarning = false;
-          contact.distance = distance;
-        } else if (distance > contact.distance + 4) contact.distance = distance;
-        if (contact.warning === undefined && !dropWarning)
-          contact.warning = setTimeout(() => {
-            dropWarning = true;
-          }, 650);
-      } else {
-        clearTimeout(contact.warning);
-        contact.warning = undefined;
-        contact.distance = undefined;
-        dropWarning = false;
-      }
-    }
-    const image = dragImage?.image;
-    if (image)
-      image.style.translate = `${Math.max(0, Math.min(innerWidth - image.width, event.clientX - image.width / 2))}px ${Math.max(0, event.clientY - image.height - 20)}px`;
-    const scroll =
-      event.clientY < 56
-        ? (event.clientY - 56) / 4
-        : event.clientY > innerHeight - 56
-          ? (event.clientY - innerHeight + 56) / 4
-          : 0;
-    if (scroll) {
-      const previous = scrollY;
-      window.scrollBy({ top: scroll, behavior: "instant" });
-      if (scrollY !== previous) touchFrame = requestAnimationFrame(updateTouch);
-    }
-  }
-  function moveTouch(event: PointerEvent) {
-    if (!contact || event.pointerId !== contact.id) return;
-    if (!touchDragging) {
-      if (Math.hypot(event.clientX - contact.x, event.clientY - contact.y) < 6) return;
-      start(event, contact.value, contact.control);
-      if (!drag) {
-        endDrag();
-        return;
-      }
-      touchDragging = true;
-      touchTap = undefined;
-      if (document.activeElement instanceof HTMLInputElement) document.activeElement.blur();
-    }
-    event.preventDefault();
-    touchPoint = event;
-    if (touchFrame === undefined) touchFrame = requestAnimationFrame(updateTouch);
-  }
-  function finishTouch(event: PointerEvent) {
-    if (!contact || event.pointerId !== contact.id) return;
-    if (touchDragging) {
-      consumeTouchClick = true;
-      cancelAnimationFrame(touchFrame ?? 0);
-      touchPoint = event;
-      updateTouch();
-      if (overOutput) {
-        const reveal = drag?.kind === "source" && activeView === "input";
-        if (drop(event) && reveal) view = "output";
-      } else endDrag();
-    } else endDrag();
-  }
-  function cancelTouch() {
-    if (contact) endDrag();
-  }
-  function stopTouchClick(event: TouchEvent) {
-    if (!consumeTouchClick) return;
-    if (event.cancelable) event.preventDefault();
-    consumeTouchClick = false;
-  }
-  function trackTouch() {
-    // The source grip can disappear when a narrow workspace switches panes.
-    window.addEventListener("touchend", stopTouchClick, { passive: false });
-    return () => {
-      window.removeEventListener("touchend", stopTouchClick);
-      cancelTouch();
-    };
-  }
-
-  function ghost(canvas: HTMLCanvasElement) {
-    if (!dragImage) return;
-    canvas.width = dragImage.thumbnail.width;
-    canvas.height = dragImage.thumbnail.height;
-    canvas.getContext("2d")!.drawImage(dragImage.thumbnail, 0, 0);
+    transfer.begin(event, value, quantity, control, source?.input.sizes[parsed.pages[0]]);
+    if (value.kind === "source" && value.page !== undefined && activeTab === "grid")
+      inspectInput({ position: value.page });
+    if (value.kind === "output" && activeOutputTab === "grid")
+      outputPosition = output.pages.findIndex((page) => page.id === value.ids[0]);
   }
 
   function provenance(content: Content) {
     return "source" in content ? sources.find((item) => item.id === content.source) : undefined;
   }
   onDestroy(() => {
-    leaveNavigation();
+    transfer.end(true);
     clearTimeout(highlightTimeout);
-    dragImage?.image.remove();
     cancelMotion();
   });
   function interact(event: Event) {
@@ -1346,17 +1004,12 @@
 </script>
 
 <svelte:window
-  onpointermove={moveTouch}
-  onpointerup={finishTouch}
-  onpointercancel={cancelTouch}
-  onblur={cancelTouch}
-  onclickcapture={(event) => {
-    if (!consumeTouchClick || !event.detail) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    consumeTouchClick = false;
-  }}
-  ondragend={() => endDrag()}
+  onpointermove={transfer.moveTouch}
+  onpointerup={transfer.finishTouch}
+  onpointercancel={transfer.cancelTouch}
+  onblur={transfer.cancelTouch}
+  onclickcapture={transfer.click}
+  ondragend={() => transfer.end()}
   onkeydowncapture={(event) => {
     touchTap = undefined;
     touchPointer = false;
@@ -1379,8 +1032,9 @@
       )
     )
       return;
-    const dismissing = !!drag || !!document.querySelector(".page-origin[open]") || inputMenu?.open || outputMenu?.open;
-    endDrag();
+    const dismissing =
+      !!transfer.value || !!document.querySelector(".page-origin[open]") || inputMenu?.open || outputMenu?.open;
+    transfer.end();
     originOpen = undefined;
     if (inputMenu?.open) {
       inputMenu.open = false;
@@ -1444,8 +1098,7 @@
     }
   }}
   onpointerdown={(event) => {
-    consumeTouchClick = false;
-    if (contact && event.pointerId !== contact.id) endDrag();
+    transfer.pointer(event);
     touchPointer = event.pointerType === "touch" || event.pointerType === "pen";
     if (!(event.target as Element).closest(".page-image")) touchTap = undefined;
     if (event.pointerType === "mouse") pointerX = event.clientX;
@@ -1544,8 +1197,8 @@
       focusPage(event.currentTarget);
     }}
     ondragstart={(event) => start(event, { kind: "source", page: inputView.position })}
-    onpointerdown={(event) => pressDrag(event, { kind: "source", page: inputView.position })}
-    ondragend={() => endDrag()}><Icon name="reorder" /></button
+    onpointerdown={(event) => transfer.press(event, { kind: "source", page: inputView.position })}
+    ondragend={() => transfer.end()}><Icon name="reorder" /></button
   >
   {@render pageTools("Input")}
   {@render pageFace(inputView.position)}
@@ -1681,8 +1334,8 @@
       focusPage(event.currentTarget);
     }}
     ondragstart={(event) => start(event, { kind: "output", ids: [page.id] })}
-    onpointerdown={(event) => pressDrag(event, { kind: "output", ids: [page.id] })}
-    ondragend={() => endDrag()}
+    onpointerdown={(event) => transfer.press(event, { kind: "output", ids: [page.id] })}
+    ondragend={() => transfer.end()}
   >
     <Icon name="reorder" />
   </button>
@@ -1824,13 +1477,13 @@
   style:--frame-ratio={frameRatio}
   style:--page-heading-height={frameHeadingHeight ? `${frameHeadingHeight + 1}px` : undefined}
   data-view={activeView}
-  data-drag={drag?.kind}
+  data-drag={transfer.value?.kind}
   data-touch={touchPointer || undefined}
-  data-touch-drag={touchDragging || undefined}
+  data-touch-drag={transfer.touching || undefined}
   data-keyboard={usingKeyboard}
   inert={opening}
   aria-busy={opening}
-  {@attach trackTouch}
+  {@attach transfer.track}
 >
   <nav class="mobile-workspace-tabs" aria-label="Workspace view">
     <button
@@ -1842,8 +1495,11 @@
       }}><Icon name="input" />Input</button
     >
     <button
+      bind:this={outputTarget}
       aria-pressed={activeView === "output"}
-      data-drop={touchDragging && drag?.kind === "source" && activeView === "input" && overOutput ? true : undefined}
+      data-drop={transfer.touching && transfer.value?.kind === "source" && activeView === "input" && transfer.inside
+        ? true
+        : undefined}
       onclick={() => {
         cancelMotion();
         view = "output";
@@ -1982,8 +1638,8 @@
                     draggable="true"
                     disabled={!!selectionError}
                     ondragstart={(event) => start(event, { kind: "source" })}
-                    onpointerdown={(event) => pressDrag(event, { kind: "source" })}
-                    ondragend={() => endDrag()}
+                    onpointerdown={(event) => transfer.press(event, { kind: "source" })}
+                    ondragend={() => transfer.end()}
                     onclick={() => add()}><Icon name="add" /></button
                   >{/if}
               </div>
@@ -2008,7 +1664,7 @@
               </p>
             </div>
             <div class="page-content">
-              {#if dropWarning && touchDragging && drag?.kind === "source" && activeView === "input"}
+              {#if transfer.warning && transfer.touching && transfer.value?.kind === "source" && activeView === "input"}
                 <div class="input-drop-hint" role="status"><Icon name="ban" />Move to Output.</div>
               {/if}
               {#if activeTab === "page"}
@@ -2060,8 +1716,8 @@
                         data-tour-target={first ? "first-page" : undefined}
                         data-face={page % 2 === 0 ? "front" : "back"}
                         style:--digits={String(page + 1).length}
-                        data-dragging={drag?.kind === "source" &&
-                        (drag.page === page || (drag.page === undefined && inputSelected.has(page)))
+                        data-dragging={transfer.value?.kind === "source" &&
+                        (transfer.value.page === page || (transfer.value.page === undefined && inputSelected.has(page)))
                           ? true
                           : undefined}
                       >
@@ -2103,8 +1759,8 @@
                               focusPage(event.currentTarget);
                             }}
                             ondragstart={(event) => start(event, { kind: "source", page })}
-                            onpointerdown={(event) => pressDrag(event, { kind: "source", page })}
-                            ondragend={() => endDrag()}><Icon name="reorder" /></button
+                            onpointerdown={(event) => transfer.press(event, { kind: "source", page })}
+                            ondragend={() => transfer.end()}><Icon name="reorder" /></button
                           >
                         </div>
                         <button
@@ -2135,7 +1791,7 @@
                             add(undefined, inputTargets(page));
                           }}
                           ondragstart={(event) => start(event, { kind: "source", page })}
-                          ondragend={() => endDrag()}
+                          ondragend={() => transfer.end()}
                         >
                           <Pdf
                             pdf={source.input.pdf}
@@ -2165,26 +1821,12 @@
       class="composition-output"
       data-density={outputDensity}
       style:--pane-ratio={inspection ? inspection.size.width / inspection.size.height : 1}
-      data-preview={preview ? true : undefined}
+      data-preview={transfer.preview ? true : undefined}
       aria-labelledby={`${key}-output`}
-      data-drop={drag && overOutput && !target ? "end" : undefined}
-      ondragover={(event) => over(event)}
-      ondragleave={(event) => {
-        const pane = event.currentTarget;
-        if (event.relatedTarget instanceof Node && pane.contains(event.relatedTarget)) return;
-        const bounds = pane.getBoundingClientRect();
-        if (
-          event.clientX < bounds.left ||
-          event.clientX > bounds.right ||
-          event.clientY < bounds.top ||
-          event.clientY > bounds.bottom
-        ) {
-          leaveNavigation();
-          target = undefined;
-          overOutput = false;
-        }
-      }}
-      ondrop={(event) => drop(event)}
+      data-drop={transfer.value && transfer.inside && !transfer.target ? "end" : undefined}
+      ondragover={(event) => transfer.over(event)}
+      ondragleave={transfer.leaveOutput}
+      ondrop={(event) => transfer.drop(event)}
     >
       <div class="section-heading">
         <div>
@@ -2326,27 +1968,27 @@
             {/if}
           </div>
           <p id={`${key}-output-hint`} class="sequence-help" role={outputSelectionError ? "alert" : "status"}>
-            <span aria-hidden={!!outputSelectionError || !!drag}>
+            <span aria-hidden={!!outputSelectionError || !!transfer.value}>
               {#if chosen.length}<strong>{chosen.length} {chosen.length === 1 ? "page" : "pages"} selected</strong> · Use
                 the selection bar.{:else if activeOutputTab === "page"}Select in Grid or type numbers.{:else}Select
                 pages or type numbers.{/if}
             </span>
             {#if outputSelectionError}<span class="error">{outputSelectionError}</span>
-            {:else if drag}<span class="drag-status"
+            {:else if transfer.value}<span class="drag-status"
                 ><strong
-                  >{drag.kind === "output"
-                    ? drag.ids.length === 1
+                  >{transfer.value.kind === "output"
+                    ? transfer.value.ids.length === 1
                       ? "Move this page"
-                      : `Move ${drag.ids.length} pages`
-                    : drag.page === undefined
+                      : `Move ${transfer.value.ids.length} pages`
+                    : transfer.value.page === undefined
                       ? "Add sequence"
-                      : `Add Input page ${drag.page + 1}`}</strong
+                      : `Add Input page ${transfer.value.page + 1}`}</strong
                 >
                 <span class="drop-description">
-                  · {blockedDrop
+                  · {transfer.blocked
                     ? "Drop outside the selection."
-                    : overOutput
-                      ? `Release · ${dropLabel}`
+                    : transfer.inside
+                      ? `Release · ${transfer.label}`
                       : "Drag into Output"}</span
                 >
               </span>{/if}
@@ -2360,13 +2002,13 @@
               data-removing={removingPage || undefined}
               role="group"
               aria-label="Output page drop target"
-              data-drop={!blockedDrop && target?.index === outputPosition
-                ? target.after
+              data-drop={!transfer.blocked && transfer.target?.index === outputPosition
+                ? transfer.target.after
                   ? "after"
                   : "before"
                 : undefined}
-              ondragover={(event) => over(event, outputPosition)}
-              ondrop={drop}
+              ondragover={(event) => transfer.over(event, outputPosition)}
+              ondrop={transfer.drop}
             >
               <PageView
                 count={output.pages.length}
@@ -2382,14 +2024,14 @@
                 add={inspected && !outputSelectionError ? () => copyCurrent("Output") : undefined}
                 grid={(event) => void toggleView("Output", event)}
                 selected={!!inspected && selectedIds.has(inspected.id)}
-                navigationOver={hoverNavigation}
-                navigationLeave={leaveNavigation}
+                navigationOver={transfer.navigate}
+                navigationLeave={transfer.leave}
                 {error}
                 {magnification}
               />
-              {#if !blockedDrop && target?.index === outputPosition}
+              {#if !transfer.blocked && transfer.target?.index === outputPosition}
                 <div class="page-drop-ghost" aria-hidden="true">
-                  <canvas width="0" height="0" {@attach ghost}></canvas>
+                  <canvas width="0" height="0" {@attach transfer.ghost}></canvas>
                 </div>
               {/if}
             </div>
@@ -2412,7 +2054,7 @@
                   {#each output.pages.slice(from, to) as page, offset (page.id)}
                     {@const index = from + offset}
                     {@const origin = provenance(page.content)}
-                    {@const place = preview?.positions.get(index)}
+                    {@const place = transfer.preview?.positions.get(index)}
                     <li
                       id={`${key}-${page.id}`}
                       data-adding={pendingAddition.has(page.id) || undefined}
@@ -2433,18 +2075,20 @@
                       }}
                       data-face={index % 2 === 0 ? "front" : "back"}
                       style:--digits={String(index + 1).length}
-                      data-dragging={drag?.kind === "output" && drag.ids.includes(page.id) ? true : undefined}
-                      data-preview-hidden={preview && (place === undefined || place >= dropGrid!.limit)
+                      data-dragging={transfer.value?.kind === "output" && transfer.value.ids.includes(page.id)
                         ? true
                         : undefined}
-                      style:translate={place === undefined ? undefined : displacement(place, offset)}
-                      data-drop={!blockedDrop && target?.index === index
-                        ? target.after
+                      data-preview-hidden={transfer.preview && (place === undefined || place >= transfer.grid!.limit)
+                        ? true
+                        : undefined}
+                      style:translate={place === undefined ? undefined : transfer.displacement(place, offset)}
+                      data-drop={!transfer.blocked && transfer.target?.index === index
+                        ? transfer.target.after
                           ? "after"
                           : "before"
                         : undefined}
-                      ondragover={(event) => over(event, index)}
-                      ondrop={(event) => drop(event)}
+                      ondragover={(event) => transfer.over(event, index)}
+                      ondrop={(event) => transfer.drop(event)}
                     >
                       <div class="page-label">{@render outputGridHeading(page, index)}</div>
                       <button
@@ -2467,7 +2111,7 @@
                           if (event.detail) event.currentTarget.focus({ preventScroll: true });
                         }}
                         ondragstart={(event) => start(event, { kind: "output", ids: [page.id] })}
-                        ondragend={() => endDrag()}
+                        ondragend={() => transfer.end()}
                       >
                         {#if origin && "page" in page.content}<Pdf
                             {...appearance(origin, page.content.page)}
@@ -2489,22 +2133,22 @@
                       {@render occurrenceActions(page, index, !chosen.length)}
                     </li>
                   {/each}
-                  {#if preview && dropGrid && preview.slot < dropGrid.limit}
+                  {#if transfer.preview && transfer.grid && transfer.preview.slot < transfer.grid.limit}
                     <li
                       class="drop-placeholder"
                       aria-hidden="true"
-                      style:inline-size={`${dropGrid.width}px`}
-                      style:block-size={`${dropGrid.height}px`}
-                      style:translate={displacement(preview.slot)}
+                      style:inline-size={`${transfer.grid.width}px`}
+                      style:block-size={`${transfer.grid.height}px`}
+                      style:translate={transfer.displacement(transfer.preview.slot)}
                     >
-                      <canvas width="0" height="0" {@attach ghost}></canvas>
+                      <canvas width="0" height="0" {@attach transfer.ghost}></canvas>
                     </li>
                   {/if}
                 {/snippet}
               </Grid>
             {:else}<div class="composition-empty">
-                {#if drag && overOutput}<div class="drop-placeholder" aria-hidden="true">
-                    <canvas width="0" height="0" {@attach ghost}></canvas>
+                {#if transfer.value && transfer.inside}<div class="drop-placeholder" aria-hidden="true">
+                    <canvas width="0" height="0" {@attach transfer.ghost}></canvas>
                   </div>
                 {:else}<Icon name="output" />
                   <h3>Your Output starts here.</h3>

@@ -1,3 +1,5 @@
+/* Styles the fitted Page view, image viewport, and page navigation. */
+
 @layer components {
   @scope (#app) {
     .thumbnail,
@@ -405,6 +407,84 @@
         inline-size: 100%;
         aspect-ratio: 1;
         background: oklch(100% 0 none);
+      }
+    }
+  }
+}
+@layer views {
+  @scope (.composer) {
+    @container composer (width > 55em) {
+      .page-view {
+        display: block grid;
+        grid-template-rows: auto minmax(0, 1fr) 44px;
+        block-size: min(var(--grid-view-height), var(--frame-height-limit));
+        min-block-size: 0;
+
+        & > .inspection-heading {
+          grid-row: 1;
+        }
+
+        & > .page-scroll {
+          grid-row: 2;
+        }
+
+        & > .page-navigation {
+          grid-row: 3;
+        }
+      }
+      .page-scroll {
+        container-type: size;
+        min-block-size: 0;
+        max-block-size: none;
+        grid-template-rows: minmax(0, 1fr);
+      }
+      .pdf-viewport {
+        --fit-width: min(
+          calc(100cqi - var(--page-inset) - 26px),
+          calc(var(--fit-height) * var(--ratio, 1)),
+          calc((100cqb - 3 * var(--gap)) * var(--ratio, 1))
+        );
+        block-size: 100%;
+        min-block-size: 0;
+        grid-template-rows: minmax(min-content, 1fr);
+      }
+    }
+    :is(.selection-panel, .composition-output)[data-density="compact"] {
+      @container composer (width <= 55em) {
+        .page-view {
+          display: block grid;
+          grid-template-rows: auto minmax(0, 1fr) 44px;
+          block-size: min(var(--grid-view-height), var(--frame-height-limit));
+          min-block-size: 0;
+
+          & > .inspection-heading {
+            grid-row: 1;
+          }
+
+          & > .page-scroll {
+            grid-row: 2;
+          }
+
+          & > .page-navigation {
+            grid-row: 3;
+          }
+        }
+        .page-scroll {
+          container-type: size;
+          min-block-size: 0;
+          max-block-size: none;
+          grid-template-rows: minmax(0, 1fr);
+        }
+        .pdf-viewport {
+          --fit-width: min(
+            calc(100cqi - var(--page-inset) - 26px),
+            calc(var(--fit-height) * var(--ratio, 1)),
+            calc((100cqb - 3 * var(--gap)) * var(--ratio, 1))
+          );
+          block-size: 100%;
+          min-block-size: 0;
+          grid-template-rows: minmax(min-content, 1fr);
+        }
       }
     }
   }

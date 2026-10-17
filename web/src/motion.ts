@@ -1,3 +1,5 @@
+// Animates page edits with visible snapshots and reduced motion support.
+
 import { tick } from "svelte";
 import type { Size } from "./model.ts";
 

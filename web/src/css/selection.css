@@ -1,0 +1,212 @@
+/* Styles Input preparation and Output selection bars, action menus, and range feedback. */
+
+@layer layouts {
+  @scope (#app) {
+    .sequence-entry {
+      margin-block: var(--gap);
+      & > .entry {
+        position: relative;
+      }
+      & > p {
+        margin-block: 0.5em 0;
+        text-align: start;
+      }
+    }
+    .sequence-help {
+      display: block grid;
+      font-size: var(--body);
+      line-height: 1.5;
+      min-block-size: 1.75em;
+      color: var(--muted);
+      & > span {
+        grid-area: 1 / 1;
+      }
+      & > [aria-hidden="true"] {
+        visibility: hidden;
+      }
+      & > .error {
+        font-size: inherit;
+        border: 0;
+        padding: 0;
+        margin: 0;
+      }
+    }
+    .output-selection {
+      display: flex;
+      border-color: inherit;
+      & > .step,
+      & > .reset {
+        border-inline-start-color: light-dark(var(--border), color-mix(in oklch, var(--border) 65%, var(--edge)));
+      }
+      & svg {
+        inline-size: 18px;
+        block-size: 18px;
+      }
+    }
+    .inline-moves {
+      display: none;
+    }
+    .output-panel > .sequence-entry {
+      container: selection / inline-size;
+    }
+    .menu-moves {
+      display: contents;
+    }
+    @container selection (width > calc(7 * 44px + 10ch + 26px)) {
+      .inline-moves {
+        display: block flex;
+      }
+      .menu-moves {
+        display: none;
+      }
+    }
+    .output-selection > .danger:not(:disabled) {
+      color: oklch(100% 0 none);
+      background: var(--danger-fill);
+      & svg {
+        stroke-width: 3;
+        filter: none;
+      }
+      &:focus-visible {
+        outline-color: currentColor;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          background: color-mix(in oklch, var(--danger-fill) 85%, oklch(0% 0 none));
+          text-shadow: none;
+          box-shadow: none;
+        }
+      }
+      &:active {
+        filter: brightness(0.85);
+        box-shadow: none;
+      }
+    }
+    :is(.selection-panel, .composition-output):has(.composition-grid:focus-visible)
+      .sequence-entry
+      > .entry:not(.invalid) {
+      border-color: var(--accent);
+    }
+    .sequence-help strong {
+      color: var(--accent);
+    }
+
+    .sequence-options {
+      font-size: var(--body);
+      & > summary {
+        color: var(--ink);
+      }
+      & .menu-options > label:not(.align) {
+        display: block;
+        margin-block-end: 0.4em;
+        font-weight: 600;
+        &:not(:first-child) {
+          margin-block-start: 0.75em;
+        }
+      }
+      & .menu-options > .entry {
+        max-inline-size: 20rem;
+      }
+      & .menu-options > p {
+        color: var(--muted);
+        font-size: var(--small);
+        margin-block: 0.6em;
+      }
+      & .align {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        margin-block: 0.75em;
+      }
+      & input[type="checkbox"] {
+        inline-size: 1.2em;
+        block-size: 1.2em;
+        margin-block: 0.6em;
+        margin-inline: 0;
+      }
+    }
+    .selected-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.5em;
+      & button {
+        justify-content: start;
+        padding-inline: 0.5em;
+        overflow-wrap: anywhere;
+      }
+    }
+    .composer {
+      & .sequence-entry.range-highlight > .entry {
+        background: color-mix(in oklch, var(--accent) 24%, var(--soft));
+      }
+      & .sequence-entry.removing > .entry {
+        background: color-mix(in oklch, var(--danger) 24%, var(--soft));
+      }
+      & .sequence-entry .sequence-options {
+        position: static;
+        padding: 0;
+        margin: 0;
+        border: 0;
+        & > summary {
+          min-inline-size: 44px;
+          min-block-size: 44px;
+          justify-content: center;
+          padding: 0;
+          border-inline-end: 1px solid var(--border);
+          border-radius: var(--radius) 0 0 var(--radius);
+        }
+        & .menu-options {
+          position: absolute;
+          z-index: 25;
+          inset-inline-start: 0;
+          inset-block-start: calc(100% + 0.5em);
+          inline-size: min(22rem, 100cqi);
+          max-block-size: min(70dvb, 40rem);
+          overflow: auto;
+          overscroll-behavior: contain;
+          padding: var(--gap);
+          border: 1px solid var(--edge);
+          border-radius: var(--radius);
+          background: var(--surface);
+          box-shadow: 0 4px 16px var(--shadow);
+          font-size: var(--body);
+          color: var(--ink);
+        }
+      }
+      & .transfer,
+      & .output-selection > .primary {
+        align-self: stretch;
+        margin-block: -1px;
+        margin-inline-end: -1px;
+        border-inline-start-color: transparent;
+        border-radius: 0 var(--radius) var(--radius) 0;
+        &:not(:disabled) svg {
+          stroke-width: 3;
+        }
+        &:disabled {
+          border-block: 1px solid;
+          border-inline-end: 1px solid;
+          border-color: inherit;
+        }
+      }
+      & .sequence-entry > .entry {
+        & > .transfer:disabled,
+        & > .output-selection > .primary:disabled {
+          color: color-mix(in oklch, var(--accent) 65%, var(--muted));
+          background: color-mix(in oklch, var(--accent) 18%, var(--surface));
+          & svg {
+            stroke-width: 2.4;
+          }
+        }
+        & > .step:not(.transfer),
+        & > .reset,
+        & > .transfer:disabled {
+          border-inline-start-color: light-dark(var(--border), color-mix(in oklch, var(--border) 65%, var(--edge)));
+        }
+        & > .sequence-options > summary {
+          border-inline-end-color: light-dark(var(--border), color-mix(in oklch, var(--border) 65%, var(--edge)));
+        }
+      }
+    }
+  }
+}
