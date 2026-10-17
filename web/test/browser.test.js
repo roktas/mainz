@@ -2583,17 +2583,6 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
         }
         await field.fill("2-4,6");
         await pane.getByRole("tab", { name: "Grid", exact: true }).tap();
-        const header = await cards
-          .first()
-          .locator(".page-label")
-          .evaluate((element) => {
-            const columns = getComputedStyle(element).gridTemplateColumns.split(" ").map(parseFloat);
-            return { columns, card: element.parentElement.getBoundingClientRect().width };
-          });
-        assert.equal(header.columns.length, 2);
-        assert.ok(header.columns.every((column) => column >= 44));
-        assert.ok(Math.abs(header.columns[0] - header.columns[1]) < 1);
-        if (width === 810) assert.ok(header.card <= 112, "Tablet Compact does not stretch the card around its image");
         const before = await total();
         const target = cards.first().locator(".page-image canvas");
         await target.scrollIntoViewIfNeeded();

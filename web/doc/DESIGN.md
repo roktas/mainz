@@ -43,8 +43,8 @@ at normal text size.
 
 The spacing scale uses a 28 px workspace gutter and fluid control gaps of 12–16 px at normal text size. Narrow layouts
 reduce gutters before reducing usable control space. Standard controls use 4 px corners. The landing frame uses softer
-12 px corners. Primary buttons are at least 104 × 46 px. Interactive targets are at least 44 px. Fine-pointer Compact
-headings permit targets 24 px wide and 44 px high. Coarse pointers retain two full 44 px heading targets.
+12 px corners. Primary buttons are at least 104 × 46 px. Interactive targets are at least 44 px. Compact headers use the
+target sizes in [Grid and Page](#grid-and-page).
 
 The shared `--icon-size` token sets ordinary icons to 1.125 rem. Control-specific icon sizes use their own visual role.
 
