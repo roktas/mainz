@@ -1,7 +1,7 @@
 <!-- Offers local PDF opening, file drops, and the landing logo animation. -->
 <script lang="ts">
-  import Icon from "./Icon.svelte";
-  import Logo from "./Logo.svelte";
+  import Icon from "./Icon.svelte"
+  import Logo from "./Logo.svelte"
   let {
     loading,
     updating,
@@ -10,62 +10,62 @@
     cancel,
     open,
   }: {
-    loading: boolean;
-    updating: boolean;
-    status: string;
-    replay: number;
-    cancel: () => void;
-    open: (list: FileList | File[]) => Promise<void>;
-  } = $props();
-  let dragging = $state(false);
-  let dragDepth = 0;
+    loading: boolean
+    updating: boolean
+    status: string
+    replay: number
+    cancel: () => void
+    open: (list: FileList | File[]) => Promise<void>
+  } = $props()
+  let dragging = $state(false)
+  let dragDepth = 0
   function parallax(element: HTMLDivElement) {
-    const zone = element.parentElement!;
-    const events = new AbortController();
-    const { signal } = events;
-    const motion = matchMedia("(prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine)");
-    let entered = false;
+    const zone = element.parentElement!
+    const events = new AbortController()
+    const { signal } = events
+    const motion = matchMedia("(prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine)")
+    let entered = false
     const reset = () => {
-      element.style.removeProperty("--logo-x");
-      element.style.removeProperty("--logo-y");
-    };
+      element.style.removeProperty("--logo-x")
+      element.style.removeProperty("--logo-y")
+    }
     element.addEventListener(
       "animationstart",
       () => {
-        entered = false;
-        reset();
+        entered = false
+        reset()
       },
       { signal },
-    );
+    )
     element.addEventListener(
       "animationend",
       () => {
-        entered = true;
+        entered = true
       },
       { signal },
-    );
+    )
     zone.addEventListener(
       "pointermove",
       (event) => {
-        if (!entered || !motion.matches || event.pointerType !== "mouse") return;
-        const bounds = zone.getBoundingClientRect();
-        const x = Math.max(-1, Math.min(1, (2 * (event.clientX - bounds.left)) / bounds.width - 1));
-        const y = Math.max(-1, Math.min(1, (2 * (event.clientY - bounds.top)) / bounds.height - 1));
-        element.style.setProperty("--logo-x", `${x}`);
-        element.style.setProperty("--logo-y", `${y}`);
+        if (!entered || !motion.matches || event.pointerType !== "mouse") return
+        const bounds = zone.getBoundingClientRect()
+        const x = Math.max(-1, Math.min(1, (2 * (event.clientX - bounds.left)) / bounds.width - 1))
+        const y = Math.max(-1, Math.min(1, (2 * (event.clientY - bounds.top)) / bounds.height - 1))
+        element.style.setProperty("--logo-x", `${x}`)
+        element.style.setProperty("--logo-y", `${y}`)
       },
       { signal, passive: true },
-    );
-    zone.addEventListener("pointerleave", reset, { signal });
-    motion.addEventListener("change", reset, { signal });
-    return () => events.abort();
+    )
+    zone.addEventListener("pointerleave", reset, { signal })
+    motion.addEventListener("change", reset, { signal })
+    return () => events.abort()
   }
 </script>
 
 <svelte:window
   ondragend={() => {
-    dragDepth = 0;
-    dragging = false;
+    dragDepth = 0
+    dragging = false
   }}
 />
 
@@ -73,25 +73,25 @@
   class="drop-zone"
   aria-label="Open a local PDF"
   ondragenter={(event) => {
-    if (!event.dataTransfer?.types.includes("Files") || loading || updating) return;
-    dragDepth++;
-    dragging = true;
+    if (!event.dataTransfer?.types.includes("Files") || loading || updating) return
+    dragDepth++
+    dragging = true
   }}
   ondragover={(event) => {
-    event.preventDefault();
+    event.preventDefault()
     if (event.dataTransfer)
       event.dataTransfer.dropEffect =
-        event.dataTransfer.types.includes("Files") && !loading && !updating ? "copy" : "none";
+        event.dataTransfer.types.includes("Files") && !loading && !updating ? "copy" : "none"
   }}
   ondragleave={() => {
-    dragDepth = Math.max(0, dragDepth - 1);
-    dragging = dragDepth > 0;
+    dragDepth = Math.max(0, dragDepth - 1)
+    dragging = dragDepth > 0
   }}
   ondrop={(event) => {
-    event.preventDefault();
-    dragDepth = 0;
-    dragging = false;
-    if (event.dataTransfer?.files && !loading && !updating) void open(event.dataTransfer.files);
+    event.preventDefault()
+    dragDepth = 0
+    dragging = false
+    if (event.dataTransfer?.files && !loading && !updating) void open(event.dataTransfer.files)
   }}
 >
   <div class="welcome">
@@ -115,8 +115,8 @@
             multiple
             disabled={loading || updating}
             onchange={(event) => {
-              if (event.currentTarget.files) void open(event.currentTarget.files);
-              event.currentTarget.value = "";
+              if (event.currentTarget.files) void open(event.currentTarget.files)
+              event.currentTarget.value = ""
             }}
           /></label
         >

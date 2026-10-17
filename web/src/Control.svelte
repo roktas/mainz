@@ -1,8 +1,8 @@
 <!-- Edits one Style parameter with its baseline, constraints, and reset. -->
 <script lang="ts">
-  import { current, feedback, step } from "./styles.ts";
-  import type { Entry } from "./styles.ts";
-  import Icon from "./Icon.svelte";
+  import { current, feedback, step } from "./styles.ts"
+  import type { Entry } from "./styles.ts"
+  import Icon from "./Icon.svelte"
   let {
     id,
     entry,
@@ -14,35 +14,35 @@
     caption,
     compact = false,
   }: {
-    id: string;
-    entry: Entry;
-    draft?: string;
-    change: (id: string, text: string) => void;
-    reset: (id: string) => void;
-    coverage?: number;
-    scope: string;
-    caption?: string;
-    compact?: boolean;
-  } = $props();
-  const key = $props.id();
-  let hovering = $state(false);
-  let pinned = $state(false);
-  let details = $state<HTMLDetailsElement>(null!);
-  const schema = $derived(entry.parameter.schema);
+    id: string
+    entry: Entry
+    draft?: string
+    change: (id: string, text: string) => void
+    reset: (id: string) => void
+    coverage?: number
+    scope: string
+    caption?: string
+    compact?: boolean
+  } = $props()
+  const key = $props.id()
+  let hovering = $state(false)
+  let pinned = $state(false)
+  let details = $state<HTMLDetailsElement>(null!)
+  const schema = $derived(entry.parameter.schema)
   const title = $derived(
     (schema.title ?? id.replaceAll("-", " ")).replace(
       /(^|[^\p{L}\p{N}])(\p{L})/gu,
       (_, prefix, letter) => prefix + letter.toUpperCase(),
     ),
-  );
-  const property = $derived(entry.parameter.binding.property);
-  const text = $derived(current(entry, draft));
-  const error = $derived(draft !== undefined ? feedback(entry, text) : undefined);
-  const override = $derived(draft !== undefined || Object.hasOwn(entry.parameter, "value"));
-  const unit = $derived(property === "stroke-width" ? "mm" : property.endsWith("opacity") ? "ratio" : "");
-  const color = $derived(property.endsWith("color") && !schema.enum);
-  const width = $derived(property === "stroke-width" && !schema.enum);
-  const swatch = $derived(color && /^#[0-9a-fA-F]{6}$/.test(text));
+  )
+  const property = $derived(entry.parameter.binding.property)
+  const text = $derived(current(entry, draft))
+  const error = $derived(draft !== undefined ? feedback(entry, text) : undefined)
+  const override = $derived(draft !== undefined || Object.hasOwn(entry.parameter, "value"))
+  const unit = $derived(property === "stroke-width" ? "mm" : property.endsWith("opacity") ? "ratio" : "")
+  const color = $derived(property.endsWith("color") && !schema.enum)
+  const width = $derived(property === "stroke-width" && !schema.enum)
+  const swatch = $derived(color && /^#[0-9a-fA-F]{6}$/.test(text))
   const opacity = $derived(
     property.endsWith("opacity") &&
       !schema.enum &&
@@ -50,9 +50,9 @@
       !error &&
       schema.exclusiveMinimum === undefined &&
       schema.exclusiveMaximum === undefined,
-  );
-  const decrease = $derived(color || width ? step(entry, text, -1) : undefined);
-  const increase = $derived(color || width ? step(entry, text, 1) : undefined);
+  )
+  const decrease = $derived(color || width ? step(entry, text, -1) : undefined)
+  const increase = $derived(color || width ? step(entry, text, 1) : undefined)
   const describedBy = $derived(
     [
       schema.description ? `${key}-description` : "",
@@ -64,20 +64,20 @@
     ]
       .filter(Boolean)
       .join(" "),
-  );
+  )
 </script>
 
 <svelte:window
   onkeydown={(event) => {
     if (event.key === "Escape") {
-      pinned = false;
-      hovering = false;
+      pinned = false
+      hovering = false
     }
   }}
 />
 <svelte:document
   onpointerdown={(event) => {
-    if (!details?.contains(event.target as Node)) pinned = false;
+    if (!details?.contains(event.target as Node)) pinned = false
   }}
 />
 
@@ -87,7 +87,7 @@
     bind:this={details}
     open={hovering || pinned}
     onpointerenter={(event) => {
-      if (event.pointerType === "mouse") hovering = true;
+      if (event.pointerType === "mouse") hovering = true
     }}
     onpointerleave={() => (hovering = false)}
   >
@@ -95,9 +95,9 @@
       aria-label={`Details for ${title}`}
       title={`Details for ${title}`}
       onclick={(event) => {
-        event.preventDefault();
-        pinned = !pinned;
-        hovering = false;
+        event.preventDefault()
+        pinned = !pinned
+        hovering = false
       }}><Icon name="info" /></summary
     >
     <div>

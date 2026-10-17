@@ -1,25 +1,25 @@
 <!-- Switches the page theme and keeps the browser tint in sync. -->
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount } from "svelte"
   function tint() {
-    const theme = document.documentElement.dataset.theme;
-    const dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
-    document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')!.content = dark ? "#e5c39c" : "#800080";
+    const theme = document.documentElement.dataset.theme
+    const dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)
+    document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')!.content = dark ? "#e5c39c" : "#800080"
   }
   onMount(() => {
-    const system = matchMedia("(prefers-color-scheme: dark)");
-    tint();
-    system.addEventListener("change", tint);
-    return () => system.removeEventListener("change", tint);
-  });
+    const system = matchMedia("(prefers-color-scheme: dark)")
+    tint()
+    system.addEventListener("change", tint)
+    return () => system.removeEventListener("change", tint)
+  })
   function toggle() {
-    const theme = document.documentElement.dataset.theme;
-    const dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
-    const next = dark ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    tint();
+    const theme = document.documentElement.dataset.theme
+    const dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)
+    const next = dark ? "light" : "dark"
+    document.documentElement.dataset.theme = next
+    tint()
     try {
-      localStorage.setItem("mainz:theme", next);
+      localStorage.setItem("mainz:theme", next)
     } catch {
       /* Theme selection also works without storage. */
     }

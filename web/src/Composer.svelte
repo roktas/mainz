@@ -1,29 +1,29 @@
 <!-- Coordinates pane views, page selections, Output edits, and transfers. -->
 <script lang="ts">
-  import { onDestroy, tick } from "svelte";
-  import { MediaQuery } from "svelte/reactivity";
-  import { scale } from "svelte/transition";
-  import { cubicInOut } from "svelte/easing";
-  import type { Snippet } from "svelte";
-  import { appearance, copyError, expand, positionAfterEdit, sizeOf, uid } from "./model.ts";
-  import type { Content, Expanded, Page, Part, Source } from "./model.ts";
-  import * as composition from "./composition.ts";
-  import { pageRanges, parseSequence } from "./pages.ts";
-  import { blocked, fields } from "./keyboard.ts";
-  import type { Sequence } from "./pages.ts";
-  import { available } from "./styles.ts";
-  import Pdf from "./Pdf.svelte";
-  import { retainFocus } from "./drag.ts";
-  import { Transfer } from "./transfer.svelte.ts";
-  import type { Payload } from "./transfer.svelte.ts";
-  import { animateAddition, animateMove, animateOrder, animateRemoval, editDuration } from "./motion.ts";
-  import Repetition from "./Repetition.svelte";
-  import Grid from "./Grid.svelte";
-  import PageView, { zoomLevels } from "./Page.svelte";
-  import type { Inspection, Region } from "./Page.svelte";
-  import Counter from "./Counter.svelte";
-  import Icon from "./Icon.svelte";
-  import type { TourStep } from "./Help.svelte";
+  import { onDestroy, tick } from "svelte"
+  import { MediaQuery } from "svelte/reactivity"
+  import { scale } from "svelte/transition"
+  import { cubicInOut } from "svelte/easing"
+  import type { Snippet } from "svelte"
+  import { appearance, copyError, expand, positionAfterEdit, sizeOf, uid } from "./model.ts"
+  import type { Content, Expanded, Page, Part, Source } from "./model.ts"
+  import * as composition from "./composition.ts"
+  import { pageRanges, parseSequence } from "./pages.ts"
+  import { blocked, fields } from "./keyboard.ts"
+  import type { Sequence } from "./pages.ts"
+  import { available } from "./styles.ts"
+  import Pdf from "./Pdf.svelte"
+  import { retainFocus } from "./drag.ts"
+  import { Transfer } from "./transfer.svelte.ts"
+  import type { Payload } from "./transfer.svelte.ts"
+  import { animateAddition, animateMove, animateOrder, animateRemoval, editDuration } from "./motion.ts"
+  import Repetition from "./Repetition.svelte"
+  import Grid from "./Grid.svelte"
+  import PageView, { zoomLevels } from "./Page.svelte"
+  import type { Inspection, Region } from "./Page.svelte"
+  import Counter from "./Counter.svelte"
+  import Icon from "./Icon.svelte"
+  import type { TourStep } from "./Help.svelte"
   let {
     source,
     sources,
@@ -47,48 +47,48 @@
     magnification = 16,
     tour,
   }: {
-    source?: Source;
-    sources: Source[];
-    parts: Part[];
-    output: { pages: Expanded[]; error: string };
-    sequence?: Sequence;
-    choose: (id: string, sequence: Sequence) => void;
-    change: (parts: Part[], text?: string) => void;
-    download: () => void;
-    error: (message: string) => void;
-    styling?: Snippet<[toolbarOnly?: boolean]>;
-    input: Snippet<[heading: string]>;
-    inspection?: Inspection;
-    outputPosition?: number;
-    outputZoom?: number;
-    comparing?: boolean;
-    activate: (id: string) => void;
-    outputProcessing?: boolean;
-    downloadError?: string;
-    opening?: boolean;
-    magnification?: 8 | 16 | 32;
-    tour?: TourStep;
-  } = $props();
-  const key = $props.id();
-  const motion = new MediaQuery("(prefers-reduced-motion: no-preference)");
+    source?: Source
+    sources: Source[]
+    parts: Part[]
+    output: { pages: Expanded[]; error: string }
+    sequence?: Sequence
+    choose: (id: string, sequence: Sequence) => void
+    change: (parts: Part[], text?: string) => void
+    download: () => void
+    error: (message: string) => void
+    styling?: Snippet<[toolbarOnly?: boolean]>
+    input: Snippet<[heading: string]>
+    inspection?: Inspection
+    outputPosition?: number
+    outputZoom?: number
+    comparing?: boolean
+    activate: (id: string) => void
+    outputProcessing?: boolean
+    downloadError?: string
+    opening?: boolean
+    magnification?: 8 | 16 | 32
+    tour?: TourStep
+  } = $props()
+  const key = $props.id()
+  const motion = new MediaQuery("(prefers-reduced-motion: no-preference)")
   $effect(() => {
-    if (motion.current) return;
+    if (motion.current) return
     document
       .getElementById(`${key}-output-panel`)
       ?.querySelectorAll(".composition-card")
       .forEach((card) => {
-        for (const animation of card.getAnimations()) animation.finish();
-      });
-  });
+        for (const animation of card.getAnimations()) animation.finish()
+      })
+  })
   type InputView = {
-    tab: "grid" | "page" | "style";
-    density?: "normal" | "compact";
-    position: number;
-    zoom: number;
-    offset: number;
-    region: Region;
-    alignment?: Region;
-  };
+    tab: "grid" | "page" | "style"
+    density?: "normal" | "compact"
+    position: number
+    zoom: number
+    offset: number
+    region: Region
+    alignment?: Region
+  }
   const initialView: InputView = {
     tab:
       import.meta.env.DEV &&
@@ -102,61 +102,59 @@
     zoom: 100,
     offset: 0,
     region: { x: 0, y: 0 },
-  };
-  let inputViews = $state.raw<Record<string, InputView>>({});
-  const inputView = $derived((source && inputViews[source.id]) ?? initialView);
-  const inputPosition = $derived(inputView.position);
-  const inputCompact = $derived(inputView.density === "compact");
-  let outputDensity = $state<"normal" | "compact">("normal");
-  const outputCompact = $derived(outputDensity === "compact");
-  let outputOffset = $state(0);
-  let selected = $state<string[]>([]);
-  let outputText = $state<string>();
-  let repetitions = $state("2");
-  let front = $state(false);
+  }
+  let inputViews = $state.raw<Record<string, InputView>>({})
+  const inputView = $derived((source && inputViews[source.id]) ?? initialView)
+  const inputPosition = $derived(inputView.position)
+  const inputCompact = $derived(inputView.density === "compact")
+  let outputDensity = $state<"normal" | "compact">("normal")
+  const outputCompact = $derived(outputDensity === "compact")
+  let outputOffset = $state(0)
+  let selected = $state<string[]>([])
+  let outputText = $state<string>()
+  let repetitions = $state("2")
+  let front = $state(false)
   let outputTab = $state<"grid" | "page">(
     import.meta.env.DEV && new URLSearchParams(location.search).get("output") === "page" ? "page" : "grid",
-  );
-  let outputRegion = $state<Region>({ x: 0, y: 0 });
-  let view = $state<"input" | "output">("input");
-  let usingKeyboard = $state(false);
-  let touchPointer = $state(false);
-  let touchTap:
-    | { pane: "Input" | "Output"; element: EventTarget | null; time: number; restore: () => void }
-    | undefined;
-  let pointerX: number | undefined;
-  let inputCounter: ReturnType<typeof Counter> | undefined;
-  let outputCounter: ReturnType<typeof Counter> | undefined;
-  let originOpen = $state<string>();
-  let inputMenu = $state<HTMLDetailsElement>(null!);
-  let outputMenu = $state<HTMLDetailsElement>(null!);
-  let outputTarget = $state<HTMLButtonElement>();
-  let sourceAnchor: { source: string; page: number } | undefined;
-  let inputClick: { source: string; page: number; sequence: Sequence; anchor: typeof sourceAnchor } | undefined;
-  let outputAnchor: number | undefined;
+  )
+  let outputRegion = $state<Region>({ x: 0, y: 0 })
+  let view = $state<"input" | "output">("input")
+  let usingKeyboard = $state(false)
+  let touchPointer = $state(false)
+  let touchTap: { pane: "Input" | "Output"; element: EventTarget | null; time: number; restore: () => void } | undefined
+  let pointerX: number | undefined
+  let inputCounter: ReturnType<typeof Counter> | undefined
+  let outputCounter: ReturnType<typeof Counter> | undefined
+  let originOpen = $state<string>()
+  let inputMenu = $state<HTMLDetailsElement>(null!)
+  let outputMenu = $state<HTMLDetailsElement>(null!)
+  let outputTarget = $state<HTMLButtonElement>()
+  let sourceAnchor: { source: string; page: number } | undefined
+  let inputClick: { source: string; page: number; sequence: Sequence; anchor: typeof sourceAnchor } | undefined
+  let outputAnchor: number | undefined
   let highlight = $state<
     | { kind: "source"; source: string; first: number; last: number }
     | { kind: "output"; ids: string[]; removing?: boolean }
-  >();
-  let highlightTimeout: ReturnType<typeof setTimeout> | undefined;
-  const sourceId = $derived(source?.id);
+  >()
+  let highlightTimeout: ReturnType<typeof setTimeout> | undefined
+  const sourceId = $derived(source?.id)
   $effect(() => {
-    if (!sourceId) return;
+    if (!sourceId) return
     return () => {
-      if (touchTap?.pane === "Input") touchTap = undefined;
-      inputClick = undefined;
-      transfer.cancelInput();
-    };
-  });
-  let cancelAddition: (() => void) | undefined;
-  let pendingAddition = $state.raw(new Set<string>());
-  let removing = $state.raw(new Set<string>());
-  let cancelRemoval: (() => void) | undefined;
-  let cancelMove: (() => void) | undefined;
-  let removingPage = $state(false);
-  const count = $derived(source?.input.pdf.numPages ?? 0);
-  const styleable = $derived(!!source && available(source, parts).length > 0);
-  const hasStyles = $derived(!!source && Object.keys(source.input.description.parameters).length > 0);
+      if (touchTap?.pane === "Input") touchTap = undefined
+      inputClick = undefined
+      transfer.cancelInput()
+    }
+  })
+  let cancelAddition: (() => void) | undefined
+  let pendingAddition = $state.raw(new Set<string>())
+  let removing = $state.raw(new Set<string>())
+  let cancelRemoval: (() => void) | undefined
+  let cancelMove: (() => void) | undefined
+  let removingPage = $state(false)
+  const count = $derived(source?.input.pdf.numPages ?? 0)
+  const styleable = $derived(!!source && available(source, parts).length > 0)
+  const hasStyles = $derived(!!source && Object.keys(source.input.description.parameters).length > 0)
   const activeTab = $derived(
     tour?.startsWith("style") && styleable
       ? "style"
@@ -167,15 +165,15 @@
           : inputView.tab === "style" && !styleable
             ? "grid"
             : inputView.tab,
-  );
-  const activeOutputTab = $derived(tour === "output-page" ? "page" : tour === "output-grid" ? "grid" : outputTab);
+  )
+  const activeOutputTab = $derived(tour === "output-page" ? "page" : tour === "output-grid" ? "grid" : outputTab)
   const activeView = $derived(
     !source || tour?.startsWith("output-") || tour === "download"
       ? "output"
       : tour === "input" || tour?.startsWith("input-") || tour?.startsWith("style")
         ? "input"
         : view,
-  );
+  )
   const draft = $derived(
     sequence ?? {
       text: "",
@@ -183,13 +181,13 @@
       repeat: "1",
       front: false,
     },
-  );
-  const parsed = $derived(parseSequence(draft.text, count));
+  )
+  const parsed = $derived(parseSequence(draft.text, count))
   const allInput = $derived(
     !parsed.error && parsed.pages.length === count && parsed.pages.every((page, index) => page === index),
-  );
-  const selectionError = $derived(parsed.error ?? copyError(draft.repeat));
-  const inspected = $derived(output.pages[outputPosition]);
+  )
+  const selectionError = $derived(parsed.error ?? copyError(draft.repeat))
+  const inspected = $derived(output.pages[outputPosition])
   const inputInspection = $derived(
     source
       ? {
@@ -199,111 +197,111 @@
           size: source.input.sizes[inputPosition],
         }
       : undefined,
-  );
+  )
   const frameRatio = $derived.by(() => {
     const pages = [
       activeTab === "page" ? inputInspection : undefined,
       activeOutputTab === "page" ? inspection : undefined,
-    ].filter((page) => page !== undefined);
+    ].filter((page) => page !== undefined)
     const ratios = (pages.length ? pages : [inputInspection, inspection]).flatMap((page) =>
       page ? [page.size.width / page.size.height] : [],
-    );
-    return ratios.length ? Math.min(...ratios) : 1;
-  });
-  let inputHeadingHeight = $state(0);
-  let outputHeadingHeight = $state(0);
+    )
+    return ratios.length ? Math.min(...ratios) : 1
+  })
+  let inputHeadingHeight = $state(0)
+  let outputHeadingHeight = $state(0)
   const frameHeadingHeight = $derived(
     Math.max(
       activeTab === "page" && inputInspection ? inputHeadingHeight : 0,
       activeOutputTab === "page" && inspection ? outputHeadingHeight : 0,
     ),
-  );
-  const selectedIds = $derived(new Set(selected));
-  const positions = $derived(output.pages.flatMap((page, index) => (selectedIds.has(page.id) ? [index] : [])));
-  const chosen = $derived(positions.map((index) => output.pages[index]));
-  const insertion = $derived(positions.length ? positions.at(-1)! + 1 : undefined);
+  )
+  const selectedIds = $derived(new Set(selected))
+  const positions = $derived(output.pages.flatMap((page, index) => (selectedIds.has(page.id) ? [index] : [])))
+  const chosen = $derived(positions.map((index) => output.pages[index]))
+  const insertion = $derived(positions.length ? positions.at(-1)! + 1 : undefined)
   const outputSelectionError = $derived(
     outputText === undefined ? undefined : parseSequence(outputText, output.pages.length).error,
-  );
+  )
   const outputPositions = $derived.by(() => {
-    const mapping = new Map<number, number[]>();
+    const mapping = new Map<number, number[]>()
     for (const [index, page] of output.pages.entries())
       if ("source" in page.content && page.content.source === source?.id) {
-        const destinations = mapping.get(page.content.page) ?? [];
-        destinations.push(index);
-        mapping.set(page.content.page, destinations);
+        const destinations = mapping.get(page.content.page) ?? []
+        destinations.push(index)
+        mapping.set(page.content.page, destinations)
       }
-    return mapping;
-  });
-  const adjacent = $derived(positions.every((position, i) => i === 0 || position === positions[i - 1] + 1));
-  const repeatError = $derived(copyError(repetitions));
-  const inputSelected = $derived(new Set(draft.pages));
+    return mapping
+  })
+  const adjacent = $derived(positions.every((position, i) => i === 0 || position === positions[i - 1] + 1))
+  const repeatError = $derived(copyError(repetitions))
+  const inputSelected = $derived(new Set(draft.pages))
   const transfer = new Transfer({
     key,
     get pages() {
-      return output.pages;
+      return output.pages
     },
     get position() {
-      return outputPosition;
+      return outputPosition
     },
     set position(value) {
-      outputPosition = value;
+      outputPosition = value
     },
     get input() {
-      return activeView === "input";
+      return activeView === "input"
     },
     get insertion() {
-      return insertion;
+      return insertion
     },
     get outputTarget() {
-      return outputTarget;
+      return outputTarget
     },
     start(event, value, control) {
-      start(event, value, control);
-      if (transfer.touching) touchTap = undefined;
+      start(event, value, control)
+      if (transfer.touching) touchTap = undefined
     },
     drop,
     reveal() {
-      view = "output";
+      view = "output"
     },
-  });
+  })
   export function views() {
-    return { input: activeTab, output: activeOutputTab };
+    return { input: activeTab, output: activeOutputTab }
   }
   function inspectInput(patch: Partial<InputView>, id = source?.id) {
-    if (!id) return;
-    inputViews = { ...inputViews, [id]: { ...(inputViews[id] ?? initialView), ...patch } };
+    if (!id) return
+    inputViews = { ...inputViews, [id]: { ...(inputViews[id] ?? initialView), ...patch } }
   }
   function density(pane: "Input" | "Output", value: "normal" | "compact") {
-    originOpen = undefined;
-    cancelMotion();
-    if (pane === "Input") inspectInput({ density: value });
-    else outputDensity = value;
+    originOpen = undefined
+    cancelMotion()
+    if (pane === "Input") inspectInput({ density: value })
+    else outputDensity = value
   }
   function initializeDensity(capacity: number) {
-    if (inputView.density === undefined) inspectInput({ density: count > 2 * capacity ? "compact" : "normal" });
+    if (inputView.density === undefined) inspectInput({ density: count > 2 * capacity ? "compact" : "normal" })
   }
   function togglePreview(event: ToggleEvent) {
-    const id = (event.currentTarget as HTMLElement).id;
-    if (event.newState === "open") originOpen = id;
-    else if (originOpen === id) originOpen = undefined;
+    const id = (event.currentTarget as HTMLElement).id
+    if (event.newState === "open") originOpen = id
+    else if (originOpen === id) originOpen = undefined
   }
   function inputTab(tab: InputView["tab"]) {
     inspectInput({
       tab,
       ...(tab === "grid" ? { offset: inputView.position } : {}),
-    });
+    })
   }
   function setOutputTab(tab: typeof outputTab) {
-    cancelMotion();
-    outputTab = tab;
-    if (tab === "grid") outputOffset = outputPosition;
+    cancelMotion()
+    outputTab = tab
+    if (tab === "grid") outputOffset = outputPosition
   }
   function focusPage(control: HTMLElement) {
     const page = control
       .closest(".composition-card, .page-view")
-      ?.querySelector<HTMLElement>(".page-image, .page-scroll");
-    page?.focus({ preventScroll: true });
+      ?.querySelector<HTMLElement>(".page-image, .page-scroll")
+    page?.focus({ preventScroll: true })
   }
   function focusAfterSelection(pane: "Input" | "Output", event?: MouseEvent) {
     const control =
@@ -311,45 +309,45 @@
         ? document
             .getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`)
             ?.querySelector<HTMLElement>(".composition-grid, .page-scroll")
-        : document.getElementById(`${key}-${pane === "Input" ? "input" : "output"}-selection`);
-    control?.focus({ preventScroll: true });
+        : document.getElementById(`${key}-${pane === "Input" ? "input" : "output"}-selection`)
+    control?.focus({ preventScroll: true })
   }
   async function toggleView(pane: "Input" | "Output", event: MouseEvent | KeyboardEvent) {
-    const keyboard = event instanceof KeyboardEvent || event.detail === 0;
-    const tab = (pane === "Input" ? activeTab : activeOutputTab) === "page" ? "grid" : "page";
-    const position = pane === "Input" ? inputPosition : outputPosition;
-    if (pane === "Input") inputTab(tab);
-    else setOutputTab(tab);
-    await tick();
-    const panel = document.getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`);
+    const keyboard = event instanceof KeyboardEvent || event.detail === 0
+    const tab = (pane === "Input" ? activeTab : activeOutputTab) === "page" ? "grid" : "page"
+    const position = pane === "Input" ? inputPosition : outputPosition
+    if (pane === "Input") inputTab(tab)
+    else setOutputTab(tab)
+    await tick()
+    const panel = document.getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`)
     const control =
       tab === "page"
         ? panel?.querySelector<HTMLElement>(".page-scroll")
-        : panel?.querySelector<HTMLElement>(`.page-image[data-page="${position}"]`);
-    control?.scrollIntoView({ block: "nearest" });
+        : panel?.querySelector<HTMLElement>(`.page-image[data-page="${position}"]`)
+    control?.scrollIntoView({ block: "nearest" })
     if (keyboard)
       (control ?? document.getElementById(`${key}-${pane === "Output" ? "output-" : ""}${tab}`))?.focus({
         preventScroll: true,
-      });
+      })
   }
   function setZoom(pane: "Input" | "Output", zoom: number) {
-    if (pane === "Input") inspectInput({ zoom, alignment: undefined });
-    else outputZoom = zoom;
+    if (pane === "Input") inspectInput({ zoom, alignment: undefined })
+    else outputZoom = zoom
   }
   function zoomBy(pane: "Input" | "Output", offset: number) {
-    const zoom = pane === "Input" ? inputView.zoom : outputZoom;
+    const zoom = pane === "Input" ? inputView.zoom : outputZoom
     setZoom(
       pane,
       (offset > 0 ? zoomLevels.find((level) => level > zoom) : zoomLevels.findLast((level) => level < zoom)) ?? zoom,
-    );
+    )
   }
   function shortcutPane(page = false) {
     const inputAvailable =
-      !!source && (!page || activeTab === "page") && !!document.getElementById(`${key}-source-panel`)?.clientWidth;
+      !!source && (!page || activeTab === "page") && !!document.getElementById(`${key}-source-panel`)?.clientWidth
     const outputAvailable =
       (!page || (!!inspected && activeOutputTab === "page")) &&
-      !!document.getElementById(`${key}-output-panel`)?.clientWidth;
-    const focused = document.activeElement;
+      !!document.getElementById(`${key}-output-panel`)?.clientWidth
+    const focused = document.activeElement
     const preferred =
       pointerX === undefined
         ? focused?.closest(".composition-output")
@@ -359,14 +357,14 @@
             : activeView
         : pointerX < innerWidth / 2
           ? "input"
-          : "output";
-    if (preferred === "input" && inputAvailable) return "Input";
-    if (preferred === "output" && outputAvailable) return "Output";
-    return inputAvailable ? "Input" : outputAvailable ? "Output" : undefined;
+          : "output"
+    if (preferred === "input" && inputAvailable) return "Input"
+    if (preferred === "output" && outputAvailable) return "Output"
+    return inputAvailable ? "Input" : outputAvailable ? "Output" : undefined
   }
   function shortcuts(event: KeyboardEvent) {
-    const pressed = event.key.toLowerCase();
-    const all = pressed === "a" && (event.ctrlKey || event.metaKey);
+    const pressed = event.key.toLowerCase()
+    const all = pressed === "a" && (event.ctrlKey || event.metaKey)
     if (
       event.defaultPrevented ||
       event.isComposing ||
@@ -395,36 +393,36 @@
           " ",
         ].includes(pressed))
     )
-      return false;
-    const focused = document.activeElement;
+      return false
+    const focused = document.activeElement
     if (
       focused?.closest(fields) ||
       blocked() ||
       (focused?.matches('[role="tab"]') &&
         ["arrowleft", "arrowright", "arrowup", "arrowdown", "home", "end"].includes(pressed))
     )
-      return false;
+      return false
     if (
       (pressed === "arrowleft" || pressed === "arrowright") &&
       !(usingKeyboard && focused?.closest(".composition-grid"))
     ) {
-      const pane = shortcutPane();
+      const pane = shortcutPane()
       const grid = document
         .getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`)
-        ?.querySelector<HTMLElement>(".composition-grid");
-      const hasSelection = pane === "Input" ? !!draft.pages.length : !!chosen.length;
+        ?.querySelector<HTMLElement>(".composition-grid")
+      const hasSelection = pane === "Input" ? !!draft.pages.length : !!chosen.length
       if (grid && !hasSelection) {
-        event.preventDefault();
-        if (event.repeat) return true;
-        const images = grid.querySelectorAll<HTMLButtonElement>(".composition-card:not([inert]) > .page-image");
-        const image = pressed === "arrowleft" ? images[images.length - 1] : images[0];
-        if (!image) return true;
-        const position = Number(image.dataset.page);
-        if (pane === "Input") inspectInput({ position });
-        else outputPosition = position;
-        usingKeyboard = true;
-        image.focus();
-        return true;
+        event.preventDefault()
+        if (event.repeat) return true
+        const images = grid.querySelectorAll<HTMLButtonElement>(".composition-card:not([inert]) > .page-image")
+        const image = pressed === "arrowleft" ? images[images.length - 1] : images[0]
+        if (!image) return true
+        const position = Number(image.dataset.page)
+        if (pane === "Input") inspectInput({ position })
+        else outputPosition = position
+        usingKeyboard = true
+        image.focus()
+        return true
       }
     }
     if (
@@ -438,67 +436,67 @@
       (focused?.closest(".composition-grid") && ["+", "=", "-"].includes(pressed)) ||
       (pressed === " " && focused?.closest("button, summary, a[href]"))
     )
-      return false;
-    event.preventDefault();
-    const pane = shortcutPane(!all && pressed !== "v");
-    if (!pane) return true;
-    const panel = document.getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`);
+      return false
+    event.preventDefault()
+    const pane = shortcutPane(!all && pressed !== "v")
+    if (!pane) return true
+    const panel = document.getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`)
     if (all) {
       if (!event.repeat) {
-        selectAll(pane);
+        selectAll(pane)
         void tick().then(() => {
           if (focused instanceof HTMLElement && !focused.isConnected)
             document
               .getElementById(`${key}-${pane === "Input" ? "input" : "output"}-selection`)
-              ?.focus({ preventScroll: true });
-        });
+              ?.focus({ preventScroll: true })
+        })
       }
-      return true;
+      return true
     }
     if (pressed === "v") {
       if (!event.repeat) {
-        usingKeyboard = true;
+        usingKeyboard = true
         if (focused instanceof HTMLElement && focused.matches(".page-image") && panel?.contains(focused)) {
-          const position = Number(focused.dataset.page);
-          if (pane === "Input") inspectInput({ position });
-          else outputPosition = position;
+          const position = Number(focused.dataset.page)
+          if (pane === "Input") inspectInput({ position })
+          else outputPosition = position
         }
-        void toggleView(pane, event);
+        void toggleView(pane, event)
       }
-      return true;
+      return true
     }
-    const position = pane === "Input" ? inputPosition : outputPosition;
-    const total = pane === "Input" ? count : output.pages.length;
+    const position = pane === "Input" ? inputPosition : outputPosition
+    const total = pane === "Input" ? count : output.pages.length
     if (["n", "p", "pageup", "pagedown", "home", "end"].includes(pressed)) {
       const next =
         pressed === "home"
           ? 0
           : pressed === "end"
             ? total - 1
-            : Math.max(0, Math.min(total - 1, position + (["p", "pageup"].includes(pressed) ? -1 : 1)));
-      if (pane === "Input") inspectInput({ position: next, alignment: undefined });
-      else outputPosition = next;
+            : Math.max(0, Math.min(total - 1, position + (["p", "pageup"].includes(pressed) ? -1 : 1)))
+      if (pane === "Input") inspectInput({ position: next, alignment: undefined })
+      else outputPosition = next
     } else if (pressed.startsWith("arrow")) {
       panel?.querySelector(".page-scroll")?.scrollBy({
         left: pressed === "arrowleft" ? -40 : pressed === "arrowright" ? 40 : 0,
         top: pressed === "arrowup" ? -40 : pressed === "arrowdown" ? 40 : 0,
-      });
-    } else if (["+", "=", "-"].includes(pressed)) zoomBy(pane, pressed === "-" ? -1 : 1);
-    else if (pressed === "0" || pressed === "z") setZoom(pane, 100);
+      })
+    } else if (["+", "=", "-"].includes(pressed)) zoomBy(pane, pressed === "-" ? -1 : 1)
+    else if (pressed === "0" || pressed === "z") setZoom(pane, 100)
     else if (pressed === "g") {
-      if (!event.repeat) editPage(pane);
+      if (!event.repeat) editPage(pane)
     } else if (!event.repeat) {
-      copyCurrent(pane);
+      copyCurrent(pane)
     }
-    return true;
+    return true
   }
   function editPage(pane: "Input" | "Output") {
-    originOpen = undefined;
-    (pane === "Input" ? inputCounter : outputCounter)?.edit();
+    originOpen = undefined
+    ;(pane === "Input" ? inputCounter : outputCounter)?.edit()
   }
   function showOriginal() {
-    if (!inspected || !("source" in inspected.content)) return;
-    const { source: id, page } = inspected.content;
+    if (!inspected || !("source" in inspected.content)) return
+    const { source: id, page } = inspected.content
     inspectInput(
       {
         tab: "page",
@@ -508,140 +506,140 @@
         alignment: { ...outputRegion },
       },
       id,
-    );
-    activate(id);
-    view = "input";
+    )
+    activate(id)
+    view = "input"
   }
   function set(patch: Partial<Sequence>) {
-    if (source) choose(source.id, { ...draft, ...patch });
+    if (source) choose(source.id, { ...draft, ...patch })
   }
   function numbers(text: string) {
-    if (!source) return;
-    highlightRange();
-    const next = parseSequence(text, count);
-    set({ text, pages: next.error ? draft.pages : next.pages });
-    sourceAnchor = undefined;
+    if (!source) return
+    highlightRange()
+    const next = parseSequence(text, count)
+    set({ text, pages: next.error ? draft.pages : next.pages })
+    sourceAnchor = undefined
   }
   function touchPage(pane: "Input" | "Output", event: MouseEvent) {
     if (!touchPointer || !event.detail || event.ctrlKey || event.metaKey || event.altKey) {
-      touchTap = undefined;
-      return false;
+      touchTap = undefined
+      return false
     }
-    const now = performance.now();
+    const now = performance.now()
     if (touchTap?.element === event.currentTarget && now - touchTap.time < 350) {
-      touchTap.restore();
-      touchTap = undefined;
-      void toggleView(pane, event);
-      return true;
+      touchTap.restore()
+      touchTap = undefined
+      void toggleView(pane, event)
+      return true
     }
     const preparation = draft,
       id = source?.id,
-      anchor = sourceAnchor;
+      anchor = sourceAnchor
     const selection = [...selected],
       text = outputText,
-      outputFrom = outputAnchor;
+      outputFrom = outputAnchor
     touchTap = {
       pane,
       element: event.currentTarget,
       time: now,
       restore: () => {
         if (pane === "Input" && id) {
-          choose(id, preparation);
-          sourceAnchor = anchor;
-          inputClick = undefined;
+          choose(id, preparation)
+          sourceAnchor = anchor
+          inputClick = undefined
         } else {
-          selected = selection;
-          outputText = text;
-          outputAnchor = outputFrom;
+          selected = selection
+          outputText = text
+          outputAnchor = outputFrom
         }
-        highlightRange();
+        highlightRange()
       },
-    };
-    return false;
+    }
+    return false
   }
   function selectAll(pane: "Input" | "Output") {
     if (pane === "Input") {
-      if (count) numbers(`1${count > 1 ? `-${count}` : ""}`);
+      if (count) numbers(`1${count > 1 ? `-${count}` : ""}`)
     } else {
-      selected = output.pages.map((page) => page.id);
-      outputText = undefined;
-      outputAnchor = undefined;
+      selected = output.pages.map((page) => page.id)
+      outputText = undefined
+      outputAnchor = undefined
     }
   }
   function clearInput() {
-    if (!source) return;
-    if (highlight?.kind === "source") highlightRange();
-    set({ text: "", pages: [], repeat: "1", front: false });
-    sourceAnchor = undefined;
+    if (!source) return
+    if (highlight?.kind === "source") highlightRange()
+    set({ text: "", pages: [], repeat: "1", front: false })
+    sourceAnchor = undefined
   }
   function outputNumbers(text: string) {
-    highlightRange();
-    outputText = text;
-    const next = parseSequence(text, output.pages.length);
+    highlightRange()
+    outputText = text
+    const next = parseSequence(text, output.pages.length)
     if (!next.error) {
-      selected = [...new Set(next.pages.map((index) => output.pages[index].id))];
-      outputAnchor = undefined;
+      selected = [...new Set(next.pages.map((index) => output.pages[index].id))]
+      outputAnchor = undefined
     }
   }
   function resetRepeat() {
-    repetitions = "2";
-    front = false;
+    repetitions = "2"
+    front = false
   }
   function clearOutput() {
-    highlightRange();
-    selected = [];
-    outputText = undefined;
-    outputAnchor = undefined;
-    resetRepeat();
+    highlightRange()
+    selected = []
+    outputText = undefined
+    outputAnchor = undefined
+    resetRepeat()
   }
   function highlightRange(next?: NonNullable<typeof highlight>) {
-    clearTimeout(highlightTimeout);
-    highlight = next;
-    if (next) highlightTimeout = setTimeout(() => (highlight = undefined), 700);
+    clearTimeout(highlightTimeout)
+    highlight = next
+    if (next) highlightTimeout = setTimeout(() => (highlight = undefined), 700)
   }
   function toggle(page: number, range: boolean) {
-    if (!source) return;
-    const anchor = sourceAnchor?.source === source.id ? sourceAnchor.page : undefined;
-    const first = range && anchor !== undefined ? Math.min(anchor, page) : page;
-    const last = range && anchor !== undefined ? Math.max(anchor, page) : page;
-    const adding = !inputSelected.has(page);
-    let pages = [...draft.pages];
+    if (!source) return
+    const anchor = sourceAnchor?.source === source.id ? sourceAnchor.page : undefined
+    const first = range && anchor !== undefined ? Math.min(anchor, page) : page
+    const last = range && anchor !== undefined ? Math.max(anchor, page) : page
+    const adding = !inputSelected.has(page)
+    let pages = [...draft.pages]
     if (adding) {
-      for (let number = first; number <= last; number++) if (!inputSelected.has(number)) pages.push(number);
-    } else pages = pages.filter((number) => number < first || number > last);
-    numbers(pageRanges(pages));
-    sourceAnchor = { source: source.id, page };
-    highlightRange(adding && range && first < last ? { kind: "source", source: source.id, first, last } : undefined);
+      for (let number = first; number <= last; number++) if (!inputSelected.has(number)) pages.push(number)
+    } else pages = pages.filter((number) => number < first || number > last)
+    numbers(pageRanges(pages))
+    sourceAnchor = { source: source.id, page }
+    highlightRange(adding && range && first < last ? { kind: "source", source: source.id, first, last } : undefined)
   }
   function selectInput(page: number, event: MouseEvent) {
-    if (!source) return;
-    inspectInput({ position: page });
-    if (touchPage("Input", event)) return;
+    if (!source) return
+    inspectInput({ position: page })
+    if (touchPage("Input", event)) return
     if (event.ctrlKey || event.metaKey) {
-      void toggleView("Input", event);
-      return;
+      void toggleView("Input", event)
+      return
     }
-    if (event.detail > 1) return;
-    if (event.detail === 1) inputClick = { source: source.id, page, sequence: draft, anchor: sourceAnchor };
-    toggle(page, event.shiftKey);
-    if (event.detail) (event.currentTarget as HTMLElement).focus({ preventScroll: true });
+    if (event.detail > 1) return
+    if (event.detail === 1) inputClick = { source: source.id, page, sequence: draft, anchor: sourceAnchor }
+    toggle(page, event.shiftKey)
+    if (event.detail) (event.currentTarget as HTMLElement).focus({ preventScroll: true })
   }
   function cancelMotion() {
-    cancelAddition?.();
-    cancelAddition = undefined;
-    cancelRemoval?.();
-    cancelRemoval = undefined;
-    cancelMove?.();
-    cancelMove = undefined;
+    cancelAddition?.()
+    cancelAddition = undefined
+    cancelRemoval?.()
+    cancelRemoval = undefined
+    cancelMove?.()
+    cancelMove = undefined
   }
   function animateEdit(expanded: Expanded[], ids: Set<string>, origin?: HTMLElement | null) {
-    const previous = new Set(output.pages.map((page) => page.id));
-    const added = expanded.filter((page) => !previous.has(page.id));
-    removing = new Set(output.pages.filter((page) => !ids.has(page.id)).map((page) => page.id));
+    const previous = new Set(output.pages.map((page) => page.id))
+    const added = expanded.filter((page) => !previous.has(page.id))
+    removing = new Set(output.pages.filter((page) => !ids.has(page.id)).map((page) => page.id))
     const reordering =
-      !added.length && !removing.size && expanded.some((page, index) => page.id !== output.pages[index]?.id);
-    cancelMotion();
-    const panel = document.getElementById(`${key}-output-panel`);
+      !added.length && !removing.size && expanded.some((page, index) => page.id !== output.pages[index]?.id)
+    cancelMotion()
+    const panel = document.getElementById(`${key}-output-panel`)
     if (added.length && !transfer.value) {
       const sheet =
         origin ??
@@ -651,7 +649,7 @@
             : ".composition-card.selected .page-image :is(canvas, .composition-blank)",
         ) ??
         panel?.querySelector<HTMLElement>(".page-image :is(canvas, .composition-blank)") ??
-        panel?.querySelector<HTMLElement>(".sequence-entry");
+        panel?.querySelector<HTMLElement>(".sequence-entry")
       if (sheet) {
         cancelAddition = animateAddition(
           sheet,
@@ -659,98 +657,98 @@
           "blank" in added[0].content,
           added.length,
           () => {
-            const button = outputTarget;
-            const image = document.getElementById(`${key}-${added[0].id}`)?.querySelector<HTMLElement>(".page-image");
-            if (button?.offsetWidth && (origin?.closest(".selection-panel") || !image)) return button;
-            return image ?? document.getElementById(`${key}-output`);
+            const button = outputTarget
+            const image = document.getElementById(`${key}-${added[0].id}`)?.querySelector<HTMLElement>(".page-image")
+            if (button?.offsetWidth && (origin?.closest(".selection-panel") || !image)) return button
+            return image ?? document.getElementById(`${key}-output`)
           },
           () => {
-            const id = inspected?.id;
-            const focused = document.activeElement;
-            const restore = id && pendingAddition.has(id) && focused?.matches(".composition-output .composition-grid");
-            pendingAddition = new Set();
+            const id = inspected?.id
+            const focused = document.activeElement
+            const restore = id && pendingAddition.has(id) && focused?.matches(".composition-output .composition-grid")
+            pendingAddition = new Set()
             if (restore)
               void tick().then(() => {
                 if (document.activeElement === focused && inspected?.id === id)
                   document
                     .getElementById(`${key}-${id}`)
                     ?.querySelector<HTMLElement>(".page-image")
-                    ?.focus({ preventScroll: true });
-              });
+                    ?.focus({ preventScroll: true })
+              })
           },
-        );
+        )
       }
-      pendingAddition = cancelAddition ? new Set(added.map((page) => page.id)) : new Set();
+      pendingAddition = cancelAddition ? new Set(added.map((page) => page.id)) : new Set()
     }
     if (inspected && removing.has(inspected.id) && activeOutputTab === "page") {
-      const sheet = panel?.querySelector<HTMLElement>(".page-scroll canvas, .blank-sheet");
-      if (sheet) cancelRemoval = animateRemoval(sheet, () => (removingPage = false));
-      removingPage = !!cancelRemoval;
+      const sheet = panel?.querySelector<HTMLElement>(".page-scroll canvas, .blank-sheet")
+      if (sheet) cancelRemoval = animateRemoval(sheet, () => (removingPage = false))
+      removingPage = !!cancelRemoval
     }
     if (reordering && inspected && activeOutputTab === "page") {
-      const position = expanded.findIndex((page) => page.id === inspected.id);
-      const sheet = panel?.querySelector<HTMLElement>(".page-scroll canvas, .blank-sheet");
-      if (sheet && position !== outputPosition) cancelMove = animateMove(sheet, position - outputPosition);
+      const position = expanded.findIndex((page) => page.id === inspected.id)
+      const sheet = panel?.querySelector<HTMLElement>(".page-scroll canvas, .blank-sheet")
+      if (sheet && position !== outputPosition) cancelMove = animateMove(sheet, position - outputPosition)
     }
     if (reordering && activeOutputTab === "grid") {
-      const grid = panel?.querySelector<HTMLElement>(".composition-grid");
-      if (grid) cancelMove = animateOrder(grid);
+      const grid = panel?.querySelector<HTMLElement>(".composition-grid")
+      if (grid) cancelMove = animateOrder(grid)
     }
   }
   function commit(next: Part[], text: string, select?: (pages: Expanded[]) => string[], origin?: HTMLElement | null) {
     try {
-      const expanded = expand(next, sources);
-      const ids = new Set(expanded.map((page) => page.id));
-      animateEdit(expanded, ids, origin);
-      const selection = (select?.(expanded) ?? selected).filter((id) => ids.has(id));
-      const anchor = select ? selection.at(-1) : output.pages[outputAnchor ?? -1]?.id;
-      const focused = document.activeElement as HTMLElement | null;
-      const card = focused?.closest<HTMLElement>(".output-pages .composition-card");
-      const grid = focused?.matches(".output-pages");
-      const pageAction = focused?.closest(".composition-output .page-actions");
-      const selectionAction = focused?.closest(".composition-output .sequence-entry") ?? grid;
-      const menu = focused?.closest<HTMLDetailsElement>(".sequence-options[open]");
-      const index = output.pages.findIndex((page) => `${key}-${page.id}` === card?.id);
+      const expanded = expand(next, sources)
+      const ids = new Set(expanded.map((page) => page.id))
+      animateEdit(expanded, ids, origin)
+      const selection = (select?.(expanded) ?? selected).filter((id) => ids.has(id))
+      const anchor = select ? selection.at(-1) : output.pages[outputAnchor ?? -1]?.id
+      const focused = document.activeElement as HTMLElement | null
+      const card = focused?.closest<HTMLElement>(".output-pages .composition-card")
+      const grid = focused?.matches(".output-pages")
+      const pageAction = focused?.closest(".composition-output .page-actions")
+      const selectionAction = focused?.closest(".composition-output .sequence-entry") ?? grid
+      const menu = focused?.closest<HTMLDetailsElement>(".sequence-options[open]")
+      const index = output.pages.findIndex((page) => `${key}-${page.id}` === card?.id)
       const destination =
         select && (card || grid)
           ? expanded.findIndex((page) => page.id === selection.at(-1))
           : card
             ? positionAfterEdit(output.pages, expanded, index)
-            : undefined;
-      if (card && index >= 0) outputPosition = index;
-      change(next, text);
-      inputMenu?.removeAttribute("open");
-      outputMenu?.removeAttribute("open");
-      selected = selection;
-      outputText = undefined;
-      const anchorIndex = expanded.findIndex((page) => page.id === anchor);
-      outputAnchor = anchorIndex < 0 ? undefined : anchorIndex;
-      if (select && outputAnchor !== undefined) outputOffset = outputAnchor;
-      if (select) highlightRange({ kind: "output", ids: selection });
+            : undefined
+      if (card && index >= 0) outputPosition = index
+      change(next, text)
+      inputMenu?.removeAttribute("open")
+      outputMenu?.removeAttribute("open")
+      selected = selection
+      outputText = undefined
+      const anchorIndex = expanded.findIndex((page) => page.id === anchor)
+      outputAnchor = anchorIndex < 0 ? undefined : anchorIndex
+      if (select && outputAnchor !== undefined) outputOffset = outputAnchor
+      if (select) highlightRange({ kind: "output", ids: selection })
       if (destination !== undefined && destination >= 0) {
-        outputPosition = destination;
-        outputOffset = destination;
+        outputPosition = destination
+        outputOffset = destination
       }
-      if (transfer.touching) return true;
-      if (menu) menu.querySelector("summary")?.focus();
+      if (transfer.touching) return true
+      if (menu) menu.querySelector("summary")?.focus()
       else if (selectionAction)
         void tick().then(() => {
           if (touchPointer && expanded.length) {
-            focusAfterSelection("Output");
-            return;
+            focusAfterSelection("Output")
+            return
           }
           if (grid && select && destination !== undefined && destination >= 0) {
-            (pendingAddition.has(selection.at(-1)!)
+            ;(pendingAddition.has(selection.at(-1)!)
               ? focused
               : document.getElementById(`${key}-${selection.at(-1)}`)?.querySelector<HTMLElement>(".page-image")
-            )?.focus({ preventScroll: true });
-            return;
+            )?.focus({ preventScroll: true })
+            return
           }
           if (!selection.length || !focused?.isConnected || focused.matches(":disabled")) {
-            if (expanded.length) focusAfterSelection("Output");
-            else document.getElementById(`${key}-output-${activeOutputTab}`)?.focus({ preventScroll: true });
-          } else focused.focus({ preventScroll: true });
-        });
+            if (expanded.length) focusAfterSelection("Output")
+            else document.getElementById(`${key}-output-${activeOutputTab}`)?.focus({ preventScroll: true })
+          } else focused.focus({ preventScroll: true })
+        })
       else if (card || pageAction)
         void tick().then(() => {
           if (
@@ -760,45 +758,45 @@
             !focused.matches(":disabled") &&
             (!card || expanded.some((page) => `${key}-${page.id}` === card.id))
           ) {
-            focused.focus();
-            return;
+            focused.focus()
+            return
           }
-          const page = output.pages[destination ?? Math.min(index, output.pages.length - 1)];
-          const neighbor = page && document.getElementById(`${key}-${page.id}`);
+          const page = output.pages[destination ?? Math.min(index, output.pages.length - 1)]
+          const neighbor = page && document.getElementById(`${key}-${page.id}`)
           const viewport =
             !card && output.pages.length
               ? document.getElementById(`${key}-output-panel`)?.querySelector<HTMLElement>(".page-scroll")
-              : undefined;
-          (
+              : undefined
+          ;(
             (page && pendingAddition.has(page.id)
               ? document.getElementById(`${key}-output-panel`)?.querySelector<HTMLElement>(".composition-grid")
               : neighbor?.querySelector<HTMLButtonElement>(".page-image")) ??
             viewport ??
             document.getElementById(`${key}-output-${activeOutputTab}`)
-          )?.focus({ preventScroll: !!pageAction || pendingAddition.size > 0 });
-        });
-      return true;
+          )?.focus({ preventScroll: !!pageAction || pendingAddition.size > 0 })
+        })
+      return true
     } catch (reason) {
-      cancelMotion();
-      error(`Output could not update. ${reason instanceof Error ? reason.message : "Try the action again."}`);
-      return false;
+      cancelMotion()
+      error(`Output could not update. ${reason instanceof Error ? reason.message : "Try the action again."}`)
+      return false
     }
   }
   function replace(pages: Page[], text: string, select?: (pages: Expanded[]) => string[]) {
-    return commit(composition.materialize(pages), text, select);
+    return commit(composition.materialize(pages), text, select)
   }
   function inputTargets(page: number) {
-    return draft.pages.length ? undefined : [page];
+    return draft.pages.length ? undefined : [page]
   }
   function outputTargets(id?: string) {
-    if (outputSelectionError) return [];
-    if (id !== undefined) return chosen.length ? [] : [id];
-    return chosen.map((page) => page.id);
+    if (outputSelectionError) return []
+    if (id !== undefined) return chosen.length ? [] : [id]
+    return chosen.map((page) => page.id)
   }
   function add(at = insertion, pages?: number[], selection: "new" | "keep" = "new") {
-    if (!source) return;
-    if (pages === undefined && (selectionError || !parsed.pages.length)) return;
-    const inputBar = (document.activeElement as HTMLElement | null)?.closest(".selection-panel .sequence-entry");
+    if (!source) return
+    if (pages === undefined && (selectionError || !parsed.pages.length)) return
+    const inputBar = (document.activeElement as HTMLElement | null)?.closest(".selection-panel .sequence-entry")
     const next = composition.part(
       (pages ?? parsed.pages).map((number) => ({
         id: uid(),
@@ -806,11 +804,11 @@
       })),
       pages === undefined ? draft.repeat : "1",
       pages === undefined ? draft.front : false,
-    );
-    const quantity = next.pages.length * Number(next.copies);
-    const label = `${quantity} ${quantity === 1 ? "page" : "pages"}`;
-    const updated = composition.insert(parts, output.pages, next, at);
-    const panel = document.getElementById(`${key}-source-panel`);
+    )
+    const quantity = next.pages.length * Number(next.copies)
+    const label = `${quantity} ${quantity === 1 ? "page" : "pages"}`
+    const updated = composition.insert(parts, output.pages, next, at)
+    const panel = document.getElementById(`${key}-source-panel`)
     const sheet =
       panel?.querySelector<HTMLElement>(
         activeTab === "page" ? ".page-scroll canvas" : `.page-image[data-page="${(pages ?? parsed.pages)[0]}"] canvas`,
@@ -818,7 +816,7 @@
       (pages === undefined
         ? panel?.querySelector<HTMLElement>(".composition-card.selected .page-image canvas")
         : undefined) ??
-      panel?.querySelector<HTMLElement>(".sequence-entry");
+      panel?.querySelector<HTMLElement>(".sequence-entry")
     const completed = commit(
       updated,
       at === undefined
@@ -830,72 +828,72 @@
         ? (expanded) => expanded.filter((page) => page.part === next.id).map((page) => page.id)
         : undefined,
       sheet,
-    );
+    )
     if (completed && pages === undefined) {
-      clearInput();
-      if (inputBar && !transfer.touching) focusAfterSelection("Input");
+      clearInput()
+      if (inputBar && !transfer.touching) focusAfterSelection("Input")
     }
-    return completed;
+    return completed
   }
   function selectOutput(id: string, range: boolean) {
-    outputText = undefined;
-    const index = output.pages.findIndex((page) => page.id === id);
-    if (activeOutputTab === "grid") outputPosition = index;
-    const first = range && outputAnchor !== undefined ? Math.min(index, outputAnchor) : index;
-    const last = range && outputAnchor !== undefined ? Math.max(index, outputAnchor) : index;
-    const ids = output.pages.slice(first, last + 1).map((page) => page.id);
-    const rangeIds = new Set(ids);
-    const adding = !selectedIds.has(id);
-    selected = adding ? [...new Set([...selected, ...ids])] : selected.filter((item) => !rangeIds.has(item));
-    outputAnchor = index;
-    highlightRange(adding && range && first < last ? { kind: "output", ids } : undefined);
+    outputText = undefined
+    const index = output.pages.findIndex((page) => page.id === id)
+    if (activeOutputTab === "grid") outputPosition = index
+    const first = range && outputAnchor !== undefined ? Math.min(index, outputAnchor) : index
+    const last = range && outputAnchor !== undefined ? Math.max(index, outputAnchor) : index
+    const ids = output.pages.slice(first, last + 1).map((page) => page.id)
+    const rangeIds = new Set(ids)
+    const adding = !selectedIds.has(id)
+    selected = adding ? [...new Set([...selected, ...ids])] : selected.filter((item) => !rangeIds.has(item))
+    outputAnchor = index
+    highlightRange(adding && range && first < last ? { kind: "output", ids } : undefined)
   }
   function order(offset: number, ids = outputTargets()) {
-    const next = composition.order(output.pages, ids, offset);
-    if (!next) return;
+    const next = composition.order(output.pages, ids, offset)
+    if (!next) return
     if (
       replace(
         next.pages,
         `Moved ${next.count} ${next.count === 1 ? "page" : "pages"} ${offset < 0 ? "earlier" : "later"}.`,
       )
     ) {
-      highlightRange({ kind: "output", ids });
-      if (activeOutputTab === "grid") outputOffset = outputPosition;
+      highlightRange({ kind: "output", ids })
+      if (activeOutputTab === "grid") outputOffset = outputPosition
     }
   }
   function duplicate(ids = outputTargets(), selection: "new" | "keep" = "new") {
-    const next = composition.duplicate(output.pages, ids);
-    if (!next) return;
+    const next = composition.duplicate(output.pages, ids)
+    if (!next) return
     return replace(
       next.pages,
       `Copied ${next.ids.length} ${next.ids.length === 1 ? "page" : "pages"} after Output page ${next.at}.`,
       selection === "new" ? () => next.ids : undefined,
-    );
+    )
   }
   function copyCurrent(pane: "Input" | "Output") {
-    if (pane === "Input") return add(undefined, [inputPosition], "keep");
-    if (inspected && !outputSelectionError) return duplicate([inspected.id], "keep");
+    if (pane === "Input") return add(undefined, [inputPosition], "keep")
+    if (inspected && !outputSelectionError) return duplicate([inspected.id], "keep")
   }
   function remove(ids = outputTargets()) {
-    const next = composition.remove(output.pages, ids);
-    if (!next) return;
-    highlightRange({ kind: "output", ids, removing: true });
-    const completed = replace(next.pages, `Removed ${next.count} ${next.count === 1 ? "page" : "pages"} from Output.`);
-    if (!completed) highlightRange();
-    return completed;
+    const next = composition.remove(output.pages, ids)
+    if (!next) return
+    highlightRange({ kind: "output", ids, removing: true })
+    const completed = replace(next.pages, `Removed ${next.count} ${next.count === 1 ? "page" : "pages"} from Output.`)
+    if (!completed) highlightRange()
+    return completed
   }
   function blank(at: number) {
-    const next = composition.blank(output.pages, at, sources);
-    if (!next) return;
+    const next = composition.blank(output.pages, at, sources)
+    if (!next) return
     replace(next.pages, `Inserted a Blank at Output position ${at + 1}, using the adjacent page's dimensions.`, () => [
       next.id,
-    ]);
+    ])
   }
   function repeat() {
-    if (!chosen.length || !adjacent || repeatError || outputSelectionError) return;
+    if (!chosen.length || !adjacent || repeatError || outputSelectionError) return
     const first = positions[0],
-      last = positions.at(-1)!;
-    const next = composition.part(chosen, repetitions, front);
+      last = positions.at(-1)!
+    const next = composition.part(chosen, repetitions, front)
     if (
       commit(
         composition.insert(parts, output.pages, next, first, last + 1),
@@ -906,100 +904,100 @@
             .map((page) => page.id),
       )
     )
-      resetRepeat();
+      resetRepeat()
   }
   function drop(value: Payload, at: number) {
-    if (value.kind === "source") return !!add(at, value.page === undefined ? undefined : [value.page]);
-    if (transfer.blocked) return true;
-    const id = value.ids[0];
-    const next = composition.transfer(output.pages, value.ids, at);
+    if (value.kind === "source") return !!add(at, value.page === undefined ? undefined : [value.page])
+    if (transfer.blocked) return true
+    const id = value.ids[0]
+    const next = composition.transfer(output.pages, value.ids, at)
     const completed = replace(
       next.pages,
       `Moved ${next.count} ${next.count === 1 ? "page" : "pages"} to Output position ${next.position + 1}.`,
-    );
+    )
     if (completed) {
-      outputPosition = next.pages.findIndex((page) => page.id === id);
-      outputOffset = outputPosition;
-      highlightRange({ kind: "output", ids: value.ids });
+      outputPosition = next.pages.findIndex((page) => page.id === id)
+      outputOffset = outputPosition
+      highlightRange({ kind: "output", ids: value.ids })
     }
-    return completed;
+    return completed
   }
   function start(event: DragEvent | PointerEvent, value: Payload, control = event.currentTarget as HTMLElement) {
     if ("dataTransfer" in event && touchPointer) {
-      event.preventDefault();
-      return;
+      event.preventDefault()
+      return
     }
     if (value.kind === "source" && value.page !== undefined && inputSelected.has(value.page)) {
-      if (activeTab === "grid") inspectInput({ position: value.page });
-      value = { kind: "source" };
+      if (activeTab === "grid") inspectInput({ position: value.page })
+      value = { kind: "source" }
     } else if (value.kind === "output" && selectedIds.has(value.ids[0])) {
       if (outputSelectionError) {
-        event.preventDefault();
-        return;
+        event.preventDefault()
+        return
       }
-      const id = value.ids[0];
-      value = { kind: "output", ids: [id, ...chosen.filter((page) => page.id !== id).map((page) => page.id)] };
+      const id = value.ids[0]
+      value = { kind: "output", ids: [id, ...chosen.filter((page) => page.id !== id).map((page) => page.id)] }
     }
     if (value.kind === "source" && value.page === undefined && (selectionError || !parsed.pages.length)) {
-      event.preventDefault();
-      return;
+      event.preventDefault()
+      return
     }
-    originOpen = undefined;
-    cancelMotion();
+    originOpen = undefined
+    cancelMotion()
     const quantity =
       value.kind === "output"
         ? value.ids.length
         : value.page === undefined
           ? parsed.pages.length * Number(draft.repeat)
-          : 1;
-    transfer.begin(event, value, quantity, control, source?.input.sizes[parsed.pages[0]]);
+          : 1
+    transfer.begin(event, value, quantity, control, source?.input.sizes[parsed.pages[0]])
     if (value.kind === "source" && value.page !== undefined && activeTab === "grid")
-      inspectInput({ position: value.page });
+      inspectInput({ position: value.page })
     if (value.kind === "output" && activeOutputTab === "grid")
-      outputPosition = output.pages.findIndex((page) => page.id === value.ids[0]);
+      outputPosition = output.pages.findIndex((page) => page.id === value.ids[0])
   }
 
   function provenance(content: Content) {
-    return "source" in content ? sources.find((item) => item.id === content.source) : undefined;
+    return "source" in content ? sources.find((item) => item.id === content.source) : undefined
   }
   onDestroy(() => {
-    transfer.end(true);
-    clearTimeout(highlightTimeout);
-    cancelMotion();
-  });
+    transfer.end(true)
+    clearTimeout(highlightTimeout)
+    cancelMotion()
+  })
   function interact(event: Event) {
     if (
       !tour ||
       !(event.target instanceof Element) ||
       !event.target.closest(".composer :is(button, input, select, summary, label, .page-scroll)")
     )
-      return;
-    inputTab(activeTab);
-    outputTab = activeOutputTab;
-    view = activeView;
-    document.querySelector<HTMLElement>(".help-tour:popover-open")?.hidePopover();
+      return
+    inputTab(activeTab)
+    outputTab = activeOutputTab
+    view = activeView
+    document.querySelector<HTMLElement>(".help-tour:popover-open")?.hidePopover()
   }
   function tabKey(event: KeyboardEvent) {
-    if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    event.preventDefault();
-    const tabs: InputView["tab"][] = styleable ? ["grid", "page", "style"] : ["grid", "page"];
-    const index = tabs.indexOf(activeTab);
+    if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
+    event.preventDefault()
+    const tabs: InputView["tab"][] = styleable ? ["grid", "page", "style"] : ["grid", "page"]
+    const index = tabs.indexOf(activeTab)
     const tab =
       event.key === "Home"
         ? tabs[0]
         : event.key === "End"
           ? tabs.at(-1)!
-          : tabs[(index + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
-    inputTab(tab);
-    document.getElementById(`${key}-${tab}`)?.focus();
+          : tabs[(index + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]
+    inputTab(tab)
+    document.getElementById(`${key}-${tab}`)?.focus()
   }
   function outputKey(event: KeyboardEvent) {
-    if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    event.preventDefault();
-    setOutputTab(event.key === "Home" ? "grid" : event.key === "End" ? "page" : outputTab === "grid" ? "page" : "grid");
-    document.getElementById(`${key}-output-${outputTab}`)?.focus();
+    if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
+    event.preventDefault()
+    setOutputTab(event.key === "Home" ? "grid" : event.key === "End" ? "page" : outputTab === "grid" ? "page" : "grid")
+    document.getElementById(`${key}-output-${outputTab}`)?.focus()
   }
 </script>
 
@@ -1011,13 +1009,13 @@
   onclickcapture={transfer.click}
   ondragend={() => transfer.end()}
   onkeydowncapture={(event) => {
-    touchTap = undefined;
-    touchPointer = false;
-    if (opening) return;
-    if (event.key === "Escape" && event.target instanceof HTMLElement && event.target.closest(".page-jump")) return;
-    if (shortcuts(event)) return;
+    touchTap = undefined
+    touchPointer = false
+    if (opening) return
+    if (event.key === "Escape" && event.target instanceof HTMLElement && event.target.closest(".page-jump")) return
+    if (shortcuts(event)) return
     if (event.key === "Tab" && !event.isComposing && !event.altKey && !event.ctrlKey && !event.metaKey)
-      usingKeyboard = true;
+      usingKeyboard = true
     if (
       event.key !== "Escape" ||
       event.defaultPrevented ||
@@ -1031,37 +1029,37 @@
         "dialog[open], [popover]:popover-open, .input-picker[open], .lens, .quartet-panel, .control details[open]",
       )
     )
-      return;
+      return
     const dismissing =
-      !!transfer.value || !!document.querySelector(".page-origin[open]") || inputMenu?.open || outputMenu?.open;
-    transfer.end();
-    originOpen = undefined;
+      !!transfer.value || !!document.querySelector(".page-origin[open]") || inputMenu?.open || outputMenu?.open
+    transfer.end()
+    originOpen = undefined
     if (inputMenu?.open) {
-      inputMenu.open = false;
-      inputMenu.querySelector("summary")?.focus();
+      inputMenu.open = false
+      inputMenu.querySelector("summary")?.focus()
     }
     if (outputMenu?.open) {
-      outputMenu.open = false;
-      outputMenu.querySelector("summary")?.focus();
+      outputMenu.open = false
+      outputMenu.querySelector("summary")?.focus()
     }
-    if (dismissing) return;
-    const pane = shortcutPane();
-    if (!pane) return;
+    if (dismissing) return
+    const pane = shortcutPane()
+    if (!pane) return
     const hasSelection =
       pane === "Input"
         ? !!draft.text || !!draft.pages.length || draft.repeat !== "1" || draft.front
-        : !!chosen.length || !!outputText || repetitions !== "2" || front;
-    const panel = document.getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`);
-    if (!hasSelection && !panel?.querySelector(".composition-grid")?.contains(document.activeElement)) return;
-    if (pane === "Input") clearInput();
-    else clearOutput();
-    event.preventDefault();
+        : !!chosen.length || !!outputText || repetitions !== "2" || front
+    const panel = document.getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`)
+    if (!hasSelection && !panel?.querySelector(".composition-grid")?.contains(document.activeElement)) return
+    if (pane === "Input") clearInput()
+    else clearOutput()
+    event.preventDefault()
     document
       .getElementById(pane === "Output" ? `${key}-output-${activeOutputTab}` : `${key}-${activeTab}`)
-      ?.focus({ preventScroll: true });
+      ?.focus({ preventScroll: true })
   }}
   onkeydown={(event) => {
-    if (opening) return;
+    if (opening) return
     if (
       !event.defaultPrevented &&
       !event.isComposing &&
@@ -1071,21 +1069,21 @@
       ((event.key === "Delete" && !event.ctrlKey) ||
         (event.ctrlKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")))
     ) {
-      const control = event.target;
+      const control = event.target
       if (
         !(control instanceof HTMLElement) ||
         (!control.closest(".composer") && control !== document.body) ||
         control.closest("input, textarea, select, details[open], [contenteditable]:not([contenteditable='false'])") ||
         blocked()
       )
-        return;
-      const ids = outputTargets();
-      if (!ids.length) return;
-      event.preventDefault();
-      usingKeyboard = true;
+        return
+      const ids = outputTargets()
+      if (!ids.length) return
+      event.preventDefault()
+      usingKeyboard = true
       if (event.key === "Delete") {
-        if (!event.repeat) remove(ids);
-      } else order(event.key === "ArrowLeft" ? -1 : 1, ids);
+        if (!event.repeat) remove(ids)
+      } else order(event.key === "ArrowLeft" ? -1 : 1, ids)
     }
   }}
 />
@@ -1093,20 +1091,20 @@
   onfocusin={interact}
   onpointermove={(event) => {
     if (event.pointerType === "mouse") {
-      pointerX = event.clientX;
-      if (event.movementX || event.movementY) usingKeyboard = false;
+      pointerX = event.clientX
+      if (event.movementX || event.movementY) usingKeyboard = false
     }
   }}
   onpointerdown={(event) => {
-    transfer.pointer(event);
-    touchPointer = event.pointerType === "touch" || event.pointerType === "pen";
-    if (!(event.target as Element).closest(".page-image")) touchTap = undefined;
-    if (event.pointerType === "mouse") pointerX = event.clientX;
-    usingKeyboard = false;
-    interact(event);
-    if (!(event.target as Element).closest(".page-origin")) originOpen = undefined;
-    if (inputMenu && !inputMenu.contains(event.target as Node)) inputMenu.open = false;
-    if (outputMenu && !outputMenu.contains(event.target as Node)) outputMenu.open = false;
+    transfer.pointer(event)
+    touchPointer = event.pointerType === "touch" || event.pointerType === "pen"
+    if (!(event.target as Element).closest(".page-image")) touchTap = undefined
+    if (event.pointerType === "mouse") pointerX = event.clientX
+    usingKeyboard = false
+    interact(event)
+    if (!(event.target as Element).closest(".page-origin")) originOpen = undefined
+    if (inputMenu && !inputMenu.contains(event.target as Node)) inputMenu.open = false
+    if (outputMenu && !outputMenu.contains(event.target as Node)) outputMenu.open = false
   }}
 />
 
@@ -1193,8 +1191,8 @@
     draggable="true"
     onmousedown={retainFocus}
     onclick={(event) => {
-      toggle(inputPosition, event.shiftKey);
-      focusPage(event.currentTarget);
+      toggle(inputPosition, event.shiftKey)
+      focusPage(event.currentTarget)
     }}
     ondragstart={(event) => start(event, { kind: "source", page: inputView.position })}
     onpointerdown={(event) => transfer.press(event, { kind: "source", page: inputView.position })}
@@ -1210,10 +1208,10 @@
     aria-label={`Add Input page ${page + 1} to Output`}
     title="Add one copy"
     onclick={(event) => {
-      event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover();
+      event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
       if (add(undefined, [page])) {
-        inspectInput({ position: page });
-        focusPage(event.currentTarget);
+        inspectInput({ position: page })
+        focusPage(event.currentTarget)
       }
     }}><Icon name="add" /></button
   >
@@ -1309,8 +1307,8 @@
       <summary
         aria-label={`Details for Output page ${index + 1}`}
         onclick={(event) => {
-          event.preventDefault();
-          originOpen = originOpen === page.id ? undefined : page.id;
+          event.preventDefault()
+          originOpen = originOpen === page.id ? undefined : page.id
         }}><strong>{index + 1}</strong></summary
       >
       <div class="page-origin-info">
@@ -1330,8 +1328,8 @@
     draggable="true"
     onmousedown={retainFocus}
     onclick={(event) => {
-      selectOutput(page.id, event.shiftKey);
-      focusPage(event.currentTarget);
+      selectOutput(page.id, event.shiftKey)
+      focusPage(event.currentTarget)
     }}
     ondragstart={(event) => start(event, { kind: "output", ids: [page.id] })}
     onpointerdown={(event) => transfer.press(event, { kind: "output", ids: [page.id] })}
@@ -1352,8 +1350,8 @@
           title="Move page earlier"
           disabled={!ids.length || index === 0}
           onclick={(event) => {
-            event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover();
-            order(-1, ids);
+            event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
+            order(-1, ids)
           }}><Icon name="earlier" /></button
         >{/if}<button
         class="icon-button"
@@ -1361,8 +1359,8 @@
         title="Remove this page"
         disabled={!ids.length}
         onclick={(event) => {
-          event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover();
-          remove(ids);
+          event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
+          remove(ids)
         }}><Icon name="remove" /></button
       ><button
         class="icon-button"
@@ -1370,8 +1368,8 @@
         title="Add one adjacent copy"
         disabled={!ids.length}
         onclick={(event) => {
-          event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover();
-          duplicate(ids);
+          event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
+          duplicate(ids)
         }}><Icon name="add" /></button
       >{#if outputCompact}<button
           class="icon-button move"
@@ -1379,8 +1377,8 @@
           title="Move page later"
           disabled={!ids.length || index === output.pages.length - 1}
           onclick={(event) => {
-            event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover();
-            order(1, ids);
+            event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
+            order(1, ids)
           }}><Icon name="later" /></button
         >{/if}
     {/if}
@@ -1490,8 +1488,8 @@
       aria-pressed={activeView === "input" && !!source}
       disabled={!source}
       onclick={() => {
-        cancelMotion();
-        view = "input";
+        cancelMotion()
+        view = "input"
       }}><Icon name="input" />Input</button
     >
     <button
@@ -1501,8 +1499,8 @@
         ? true
         : undefined}
       onclick={() => {
-        cancelMotion();
-        view = "output";
+        cancelMotion()
+        view = "output"
       }}><Icon name="output" />Output</button
     >
   </nav>
@@ -1607,8 +1605,8 @@
                       !event.metaKey &&
                       !event.shiftKey
                     ) {
-                      event.preventDefault();
-                      if (!event.repeat) add();
+                      event.preventDefault()
+                      if (!event.repeat) add()
                     }
                   }}
                 />
@@ -1618,8 +1616,8 @@
                     title="Select all · Ctrl+A / ⌘A"
                     aria-keyshortcuts="Control+A Meta+A"
                     onclick={(event) => {
-                      selectAll("Input");
-                      focusAfterSelection("Input", event);
+                      selectAll("Input")
+                      focusAfterSelection("Input", event)
                     }}><Icon name="select" /></button
                   >{/if}
                 {#if draft.text || draft.pages.length || draft.repeat !== "1" || draft.front}<button
@@ -1627,8 +1625,8 @@
                     aria-label="Clear page sequence"
                     title="Clear"
                     onclick={(event) => {
-                      clearInput();
-                      focusAfterSelection("Input", event);
+                      clearInput()
+                      focusAfterSelection("Input", event)
                     }}><Icon name="close" /></button
                   >{/if}
                 {#if draft.pages.length}<button
@@ -1728,8 +1726,8 @@
                               <summary
                                 aria-label={`Details for Input page ${page + 1}`}
                                 onclick={(event) => {
-                                  event.preventDefault();
-                                  originOpen = originOpen === detail ? undefined : detail;
+                                  event.preventDefault()
+                                  originOpen = originOpen === detail ? undefined : detail
                                 }}
                                 ><strong><span>{page + 1}</span></strong>
                                 {#if source.input.labels[page] && source.input.labels[page] !== String(page + 1)}<span
@@ -1754,9 +1752,9 @@
                             draggable="true"
                             onmousedown={retainFocus}
                             onclick={(event) => {
-                              toggle(page, event.shiftKey);
-                              inspectInput({ position: page });
-                              focusPage(event.currentTarget);
+                              toggle(page, event.shiftKey)
+                              inspectInput({ position: page })
+                              focusPage(event.currentTarget)
                             }}
                             ondragstart={(event) => start(event, { kind: "source", page })}
                             onpointerdown={(event) => transfer.press(event, { kind: "source", page })}
@@ -1783,12 +1781,12 @@
                               inputClick?.source !== source.id ||
                               inputClick.page !== page
                             )
-                              return;
-                            choose(source.id, inputClick.sequence);
-                            sourceAnchor = inputClick.anchor;
-                            highlightRange();
-                            inputClick = undefined;
-                            add(undefined, inputTargets(page));
+                              return
+                            choose(source.id, inputClick.sequence)
+                            sourceAnchor = inputClick.anchor
+                            highlightRange()
+                            inputClick = undefined
+                            add(undefined, inputTargets(page))
                           }}
                           ondragstart={(event) => start(event, { kind: "source", page })}
                           ondragend={() => transfer.end()}
@@ -1924,8 +1922,8 @@
                   !event.metaKey &&
                   !event.shiftKey
                 ) {
-                  event.preventDefault();
-                  if (!event.repeat) remove();
+                  event.preventDefault()
+                  if (!event.repeat) remove()
                 }
               }}
             />
@@ -1935,8 +1933,8 @@
                 title="Select all · Ctrl+A / ⌘A"
                 aria-keyshortcuts="Control+A Meta+A"
                 onclick={(event) => {
-                  selectAll("Output");
-                  focusAfterSelection("Output", event);
+                  selectAll("Output")
+                  focusAfterSelection("Output", event)
                 }}><Icon name="select" /></button
               >{/if}
             {#if chosen.length || outputText}<button
@@ -1944,8 +1942,8 @@
                 aria-label="Clear Output selection"
                 title="Clear selection to use page actions"
                 onclick={(event) => {
-                  clearOutput();
-                  focusAfterSelection("Output", event);
+                  clearOutput()
+                  focusAfterSelection("Output", event)
                 }}><Icon name="close" /></button
               >{/if}
             {#if chosen.length}
@@ -2068,9 +2066,9 @@
                       }}
                       onoutrostart={(event) => {
                         if (removing.has(page.id)) {
-                          event.currentTarget.inert = true;
-                          event.currentTarget.setAttribute("aria-hidden", "true");
-                          event.currentTarget.classList.add("removing");
+                          event.currentTarget.inert = true
+                          event.currentTarget.setAttribute("aria-hidden", "true")
+                          event.currentTarget.classList.add("removing")
                         }
                       }}
                       data-face={index % 2 === 0 ? "front" : "back"}
@@ -2101,14 +2099,14 @@
                         draggable="true"
                         onmousedown={retainFocus}
                         onclick={(event) => {
-                          outputPosition = index;
-                          if (touchPage("Output", event)) return;
+                          outputPosition = index
+                          if (touchPage("Output", event)) return
                           if (event.ctrlKey || event.metaKey) {
-                            void toggleView("Output", event);
-                            return;
+                            void toggleView("Output", event)
+                            return
                           }
-                          if (event.detail <= 1) selectOutput(page.id, event.shiftKey);
-                          if (event.detail) event.currentTarget.focus({ preventScroll: true });
+                          if (event.detail <= 1) selectOutput(page.id, event.shiftKey)
+                          if (event.detail) event.currentTarget.focus({ preventScroll: true })
                         }}
                         ondragstart={(event) => start(event, { kind: "output", ids: [page.id] })}
                         ondragend={() => transfer.end()}

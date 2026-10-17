@@ -1,12 +1,12 @@
 <!-- Controls lens magnification and shows application details. -->
 <script lang="ts">
-  import Icon from "./Icon.svelte";
+  import Icon from "./Icon.svelte"
   let {
     magnification = $bindable(16),
   }: {
-    magnification?: 8 | 16 | 32;
-  } = $props();
-  let settingsDialog: HTMLDialogElement;
+    magnification?: 8 | 16 | 32
+  } = $props()
+  let settingsDialog: HTMLDialogElement
 </script>
 
 <button

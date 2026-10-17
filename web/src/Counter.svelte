@@ -1,29 +1,29 @@
 <!-- Edits the inspected page number and returns focus to its viewport. -->
 <script lang="ts">
-  import { tick } from "svelte";
+  import { tick } from "svelte"
 
   let {
     pane,
     position = $bindable(0),
     count,
   }: {
-    pane: "Input" | "Output";
-    position?: number;
-    count: number;
-  } = $props();
-  const id = $props.id();
-  let editing = $state(false);
-  let text = $state("");
-  let invalid = $state(false);
+    pane: "Input" | "Output"
+    position?: number
+    count: number
+  } = $props()
+  const id = $props.id()
+  let editing = $state(false)
+  let text = $state("")
+  let invalid = $state(false)
 
   export function edit() {
-    text = String(position + 1);
-    invalid = false;
-    editing = true;
+    text = String(position + 1)
+    invalid = false
+    editing = true
   }
   function focus(element: HTMLInputElement) {
-    element.focus({ preventScroll: true });
-    element.select();
+    element.focus({ preventScroll: true })
+    element.select()
   }
   async function jump(event: KeyboardEvent) {
     if (
@@ -34,23 +34,23 @@
       event.shiftKey ||
       !["Enter", "Escape"].includes(event.key)
     )
-      return;
-    event.preventDefault();
+      return
+    event.preventDefault()
     if (event.key === "Enter") {
       const value = text.trim(),
-        number = Number(value);
+        number = Number(value)
       if (!/^\d+$/.test(value) || !Number.isSafeInteger(number) || number < 1 || number > count) {
-        invalid = true;
-        return;
+        invalid = true
+        return
       }
-      position = number - 1;
+      position = number - 1
     }
     const viewport = (event.currentTarget as HTMLElement)
       .closest(".page-view")
-      ?.querySelector<HTMLElement>(".page-scroll");
-    editing = false;
-    await tick();
-    viewport?.focus({ preventScroll: true });
+      ?.querySelector<HTMLElement>(".page-scroll")
+    editing = false
+    await tick()
+    viewport?.focus({ preventScroll: true })
   }
 </script>
 

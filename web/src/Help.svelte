@@ -8,14 +8,14 @@
     | "style-profile"
     | "output-grid"
     | "output-page"
-    | "download";
+    | "download"
 </script>
 
 <script lang="ts">
-  import { tick, untrack } from "svelte";
-  import { MediaQuery } from "svelte/reactivity";
-  import Icon from "./Icon.svelte";
-  import { blocked, fields } from "./keyboard.ts";
+  import { tick, untrack } from "svelte"
+  import { MediaQuery } from "svelte/reactivity"
+  import Icon from "./Icon.svelte"
+  import { blocked, fields } from "./keyboard.ts"
 
   let {
     hasInput,
@@ -27,34 +27,34 @@
     change,
     hint,
   }: {
-    hasInput: boolean;
-    hasOutput: boolean;
-    styleable: boolean;
-    hasProfiles: boolean;
-    views: () => { input: "grid" | "page" | "style"; output: "grid" | "page" };
-    onboarding?: boolean;
-    change: (step?: TourStep) => void;
-    hint: (show: boolean) => void;
-  } = $props();
-  const id = $props.id();
-  const motion = new MediaQuery("(prefers-reduced-motion: no-preference)");
-  let welcome: HTMLDialogElement;
-  let help: HTMLDialogElement;
-  let modes = $state<ReturnType<typeof views>>({ input: "grid", output: "grid" });
-  let topic = $state<"keyboard" | "mouse">("keyboard");
-  let tour: HTMLDivElement;
-  let helpButton: HTMLButtonElement;
-  let flight: HTMLCanvasElement;
-  let index = $state(0);
-  let context: string | undefined;
-  let welcomed = false;
-  let hinted = false;
-  let hintObserver: IntersectionObserver | undefined;
-  let hintReady: MutationObserver | undefined;
-  let animation: Animation | undefined;
-  let target = $state<HTMLElement>();
-  let tab = $state<HTMLElement>();
-  let focus = $state({ x: 0, y: 0, width: 0, height: 0 });
+    hasInput: boolean
+    hasOutput: boolean
+    styleable: boolean
+    hasProfiles: boolean
+    views: () => { input: "grid" | "page" | "style"; output: "grid" | "page" }
+    onboarding?: boolean
+    change: (step?: TourStep) => void
+    hint: (show: boolean) => void
+  } = $props()
+  const id = $props.id()
+  const motion = new MediaQuery("(prefers-reduced-motion: no-preference)")
+  let welcome: HTMLDialogElement
+  let help: HTMLDialogElement
+  let modes = $state<ReturnType<typeof views>>({ input: "grid", output: "grid" })
+  let topic = $state<"keyboard" | "mouse">("keyboard")
+  let tour: HTMLDivElement
+  let helpButton: HTMLButtonElement
+  let flight: HTMLCanvasElement
+  let index = $state(0)
+  let context: string | undefined
+  let welcomed = false
+  let hinted = false
+  let hintObserver: IntersectionObserver | undefined
+  let hintReady: MutationObserver | undefined
+  let animation: Animation | undefined
+  let target = $state<HTMLElement>()
+  let tab = $state<HTMLElement>()
+  let focus = $state({ x: 0, y: 0, width: 0, height: 0 })
   const steps = $derived<{ key: TourStep; title: string; text: string[] }[]>([
     ...(hasInput
       ? [
@@ -147,37 +147,37 @@
         "The dialog shows preparation and validation. Cancel or an error keeps the workspace so you can adjust and retry.",
       ],
     },
-  ]);
-  const step = $derived(steps[Math.min(index, steps.length - 1)]);
+  ])
+  const step = $derived(steps[Math.min(index, steps.length - 1)])
 
   function remember() {
     try {
-      localStorage.setItem("mainz:onboarding", "19");
+      localStorage.setItem("mainz:onboarding", "19")
     } catch {
       /* Storage can be unavailable. */
     }
   }
   function stopFlight() {
-    animation?.cancel();
-    flight.hidePopover();
+    animation?.cancel()
+    flight.hidePopover()
   }
   function stopHint() {
-    hintObserver?.disconnect();
-    hintReady?.disconnect();
-    stopFlight();
+    hintObserver?.disconnect()
+    hintReady?.disconnect()
+    stopFlight()
   }
   function dismissHint() {
-    stopFlight();
-    hint(false);
+    stopFlight()
+    hint(false)
   }
   async function suggest() {
-    await tick();
+    await tick()
     if (hinted || !onboarding || !hasInput || hasOutput || welcome.open || help.open || tour.matches(":popover-open"))
-      return;
-    const page = document.querySelector<HTMLCanvasElement>('[data-tour-target="first-page"] .thumbnail canvas');
-    if (!page) return;
-    stopHint();
-    let visible = false;
+      return
+    const page = document.querySelector<HTMLCanvasElement>('[data-tour-target="first-page"] .thumbnail canvas')
+    if (!page) return
+    stopHint()
+    let visible = false
     async function show() {
       if (
         !page ||
@@ -190,37 +190,37 @@
         tour.matches(":popover-open") ||
         page.parentElement?.getAttribute("aria-busy") !== "false"
       )
-        return;
-      hinted = true;
-      stopHint();
-      hint(true);
-      await tick();
-      if (!page.isConnected || hasOutput || !onboarding || help.open || tour.matches(":popover-open")) return;
-      if (!motion.current) return;
+        return
+      hinted = true
+      stopHint()
+      hint(true)
+      await tick()
+      if (!page.isConnected || hasOutput || !onboarding || help.open || tour.matches(":popover-open")) return
+      if (!motion.current) return
       const destination = [
         ...document.querySelectorAll<HTMLElement>(".mobile-workspace-tabs button:last-child, .composition-empty"),
-      ].find((element) => element.getBoundingClientRect().width > 0);
-      if (!destination) return;
+      ].find((element) => element.getBoundingClientRect().width > 0)
+      if (!destination) return
       const origin = page.getBoundingClientRect(),
-        end = destination.getBoundingClientRect();
+        end = destination.getBoundingClientRect()
       const x =
         Math.max(origin.width / 2 + 8, Math.min(innerWidth - origin.width / 2 - 8, end.left + end.width / 2)) -
         origin.left -
-        origin.width / 2;
+        origin.width / 2
       const y =
         Math.max(origin.height / 2 + 8, Math.min(innerHeight - origin.height / 2 - 8, end.top + end.height / 2)) -
         origin.top -
-        origin.height / 2;
-      flight.width = page.width;
-      flight.height = page.height;
-      flight.getContext("2d")?.drawImage(page, 0, 0);
-      flight.style.insetInlineStart = `${origin.left}px`;
-      flight.style.insetBlockStart = `${origin.top}px`;
-      flight.style.inlineSize = `${origin.width}px`;
-      flight.style.blockSize = `${origin.height}px`;
-      const card = page.closest<HTMLElement>('[data-tour-target="first-page"]') ?? page;
-      focusTarget(card, card);
-      flight.showPopover();
+        origin.height / 2
+      flight.width = page.width
+      flight.height = page.height
+      flight.getContext("2d")?.drawImage(page, 0, 0)
+      flight.style.insetInlineStart = `${origin.left}px`
+      flight.style.insetBlockStart = `${origin.top}px`
+      flight.style.inlineSize = `${origin.width}px`
+      flight.style.blockSize = `${origin.height}px`
+      const card = page.closest<HTMLElement>('[data-tour-target="first-page"]') ?? page
+      focusTarget(card, card)
+      flight.showPopover()
       animation = flight.animate(
         [
           { opacity: 0, transform: "translate(0, 0) scale(1) rotate(0deg)", offset: 0 },
@@ -242,139 +242,139 @@
           },
         ],
         { delay: 3800, duration: 5600, easing: "ease-in-out", fill: "both" },
-      );
-      animation.onfinish = stopFlight;
+      )
+      animation.onfinish = stopFlight
     }
     hintObserver = new IntersectionObserver(
       ([entry]) => {
-        visible = entry.isIntersecting && entry.intersectionRatio >= 0.25;
-        void show();
+        visible = entry.isIntersecting && entry.intersectionRatio >= 0.25
+        void show()
       },
       { threshold: 0.25 },
-    );
-    hintReady = new MutationObserver(() => void show());
-    hintReady.observe(page.parentElement!, { attributes: true, attributeFilter: ["aria-busy"] });
-    hintObserver.observe(page);
+    )
+    hintReady = new MutationObserver(() => void show())
+    hintReady.observe(page.parentElement!, { attributes: true, attributeFilter: ["aria-busy"] })
+    hintObserver.observe(page)
   }
   function focusTarget(element = target, button = tab) {
-    if (!element) return;
-    const rect = element.getBoundingClientRect();
-    const heading = button?.getBoundingClientRect() ?? rect;
-    const left = Math.max(0, Math.min(innerWidth, Math.min(rect.left, heading.left) - 24));
-    const top = Math.max(0, Math.min(innerHeight, Math.min(rect.top, heading.top) - 24));
-    const right = Math.max(0, Math.min(innerWidth, Math.max(rect.right, heading.right) + 24));
-    const bottom = Math.max(0, Math.min(innerHeight, Math.max(rect.bottom, heading.bottom) + 24));
+    if (!element) return
+    const rect = element.getBoundingClientRect()
+    const heading = button?.getBoundingClientRect() ?? rect
+    const left = Math.max(0, Math.min(innerWidth, Math.min(rect.left, heading.left) - 24))
+    const top = Math.max(0, Math.min(innerHeight, Math.min(rect.top, heading.top) - 24))
+    const right = Math.max(0, Math.min(innerWidth, Math.max(rect.right, heading.right) + 24))
+    const bottom = Math.max(0, Math.min(innerHeight, Math.max(rect.bottom, heading.bottom) + 24))
     focus = {
       x: (left + right) / 2,
       y: (top + bottom) / 2,
       width: right - left,
       height: bottom - top,
-    };
+    }
   }
   async function point() {
-    const key = step.key;
-    change(key);
-    await tick();
+    const key = step.key
+    change(key)
+    await tick()
     if (tour.matches(":popover-open")) {
-      const previous = target;
-      target = document.querySelector<HTMLElement>(`[data-tour-target="${key}"]`) ?? undefined;
-      tab = document.querySelector<HTMLElement>(`[data-tour-tab="${key}"]`) ?? undefined;
+      const previous = target
+      target = document.querySelector<HTMLElement>(`[data-tour-target="${key}"]`) ?? undefined
+      tab = document.querySelector<HTMLElement>(`[data-tour-tab="${key}"]`) ?? undefined
       target?.scrollIntoView({
         block: "nearest",
         inline: "nearest",
         behavior: "instant",
-      });
-      tab?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
-      focusTarget();
+      })
+      tab?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" })
+      focusTarget()
       if (target !== previous && motion.current) {
         tour.animate([{ opacity: 0.65 }, { opacity: 1 }], {
           duration: 360,
           easing: "ease-out",
           pseudoElement: "::backdrop",
-        });
+        })
       }
     }
   }
   async function start() {
-    index = 0;
-    stopHint();
-    welcome.close();
-    help.close();
-    await tick();
-    tour.showPopover();
+    index = 0
+    stopHint()
+    welcome.close()
+    help.close()
+    await tick()
+    tour.showPopover()
   }
   function showHelp() {
-    stopHint();
-    modes = views();
-    topic = "keyboard";
-    help.showModal();
-    document.getElementById(`${id}-help-keyboard`)?.focus();
+    stopHint()
+    modes = views()
+    topic = "keyboard"
+    help.showModal()
+    document.getElementById(`${id}-help-keyboard`)?.focus()
   }
   function topicKey(event: KeyboardEvent) {
-    if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    event.preventDefault();
+    if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
+    event.preventDefault()
     topic =
-      event.key === "Home" ? "keyboard" : event.key === "End" ? "mouse" : topic === "keyboard" ? "mouse" : "keyboard";
-    document.getElementById(`${id}-help-${topic}`)?.focus();
+      event.key === "Home" ? "keyboard" : event.key === "End" ? "mouse" : topic === "keyboard" ? "mouse" : "keyboard"
+    document.getElementById(`${id}-help-${topic}`)?.focus()
   }
   function advance(delta: number) {
-    index = Math.max(0, Math.min(steps.length - 1, index + delta));
-    void point();
+    index = Math.max(0, Math.min(steps.length - 1, index + delta))
+    void point()
   }
   function close() {
-    tour.hidePopover();
+    tour.hidePopover()
     const destination = helpButton.checkVisibility()
       ? helpButton
-      : document.querySelector<HTMLButtonElement>(".settings-button, .theme");
-    destination?.focus();
+      : document.querySelector<HTMLButtonElement>(".settings-button, .theme")
+    destination?.focus()
   }
   $effect(() => {
-    if (hasOutput) hinted = true;
+    if (hasOutput) hinted = true
     if (hasOutput || !onboarding) {
-      stopHint();
-      untrack(() => hint(false));
+      stopHint()
+      untrack(() => hint(false))
     }
-    return stopHint;
-  });
+    return stopHint
+  })
   $effect(() => {
-    if (!motion.current) stopFlight();
-  });
+    if (!motion.current) stopFlight()
+  })
   $effect(() => {
-    const next = `${hasInput}:${hasOutput}:${styleable}:${hasProfiles}`;
-    if (context !== undefined && context !== next) tour.hidePopover();
-    context = next;
-  });
+    const next = `${hasInput}:${hasOutput}:${styleable}:${hasProfiles}`
+    if (context !== undefined && context !== next) tour.hidePopover()
+    context = next
+  })
   $effect(() => {
-    const observer = new ResizeObserver(() => focusTarget());
-    if (target) observer.observe(target);
-    if (tab) observer.observe(tab);
-    return () => observer.disconnect();
-  });
+    const observer = new ResizeObserver(() => focusTarget())
+    if (target) observer.observe(target)
+    if (tab) observer.observe(tab)
+    return () => observer.disconnect()
+  })
   $effect(() => {
-    if (!onboarding || !hasInput || welcomed) return;
-    welcomed = true;
+    if (!onboarding || !hasInput || welcomed) return
+    welcomed = true
     try {
       if (localStorage.getItem("mainz:onboarding") === "19") {
-        void suggest();
-        return;
+        void suggest()
+        return
       }
     } catch {
       /* Show the welcome when storage is unavailable. */
     }
-    welcome.showModal();
-    welcome.querySelector<HTMLButtonElement>(".primary")?.focus();
-  });
+    welcome.showModal()
+    welcome.querySelector<HTMLButtonElement>(".primary")?.focus()
+  })
 </script>
 
 <svelte:window
   onresize={() => {
-    stopFlight();
-    if (tour.matches(":popover-open")) void point();
+    stopFlight()
+    if (tour.matches(":popover-open")) void point()
   }}
   onkeydown={(event) => {
-    if (event.key === "Escape" && tour.matches(":popover-open")) close();
-    if (event.key === "Escape" && flight.matches(":popover-open")) stopFlight();
+    if (event.key === "Escape" && tour.matches(":popover-open")) close()
+    if (event.key === "Escape" && flight.matches(":popover-open")) stopFlight()
     if (
       event.key !== "?" ||
       event.repeat ||
@@ -385,15 +385,15 @@
       (event.target instanceof Element && event.target.closest(fields)) ||
       blocked()
     )
-      return;
-    event.preventDefault();
-    showHelp();
+      return
+    event.preventDefault()
+    showHelp()
   }}
 />
 <svelte:document
   onscrollcapture={() => {
-    focusTarget();
-    stopFlight();
+    focusTarget()
+    stopFlight()
   }}
   onclickcapture={dismissHint}
   onclick={() => void suggest()}
@@ -667,8 +667,8 @@
   class="welcome-dialog"
   aria-labelledby={`${id}-welcome-title`}
   onclose={() => {
-    remember();
-    void suggest();
+    remember()
+    void suggest()
   }}
 >
   <div class="dialog-heading">
@@ -710,16 +710,16 @@
   style:--focus-height={`${focus.height}px`}
   onbeforetoggle={(event) => {
     if (event.newState === "closed") {
-      target = undefined;
-      tab = undefined;
-      change();
+      target = undefined
+      tab = undefined
+      change()
     }
   }}
   ontoggle={(event) => {
-    if (event.newState === "closed") void suggest();
+    if (event.newState === "closed") void suggest()
     else {
-      void point();
-      tour.querySelector<HTMLButtonElement>(".help-actions .primary")?.focus();
+      void point()
+      tour.querySelector<HTMLButtonElement>(".help-actions .primary")?.focus()
     }
   }}
 >
@@ -738,8 +738,8 @@
     <button
       class="primary"
       onclick={() => {
-        if (index >= steps.length - 1) close();
-        else advance(1);
+        if (index >= steps.length - 1) close()
+        else advance(1)
       }}
     >
       {#if index >= steps.length - 1}Finish{:else}Next<Icon name="next" />{/if}

@@ -1,5 +1,5 @@
-import { defineConfig, transformWithOxc } from "vite";
-import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { defineConfig, transformWithOxc } from "vite"
+import { svelte } from "@sveltejs/vite-plugin-svelte"
 import {
   copyFileSync,
   existsSync,
@@ -9,14 +9,14 @@ import {
   rmSync,
   statSync,
   writeFileSync,
-} from "node:fs";
-import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { join, resolve } from "node:path";
+} from "node:fs"
+import { createHash } from "node:crypto"
+import { execFileSync } from "node:child_process"
+import { join, resolve } from "node:path"
 
-const version = readFileSync(resolve("../VERSION"), "utf8").trim();
-const now = new Date();
-const builtAt = now.toISOString();
+const version = readFileSync(resolve("../VERSION"), "utf8").trim()
+const now = new Date()
+const builtAt = now.toISOString()
 const clock = Object.fromEntries(
   new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Istanbul",
@@ -31,63 +31,63 @@ const clock = Object.fromEntries(
   })
     .formatToParts(now)
     .map(({ type, value }) => [type, value]),
-);
-const buildId = `${clock.year}-${clock.month}${clock.day}-${clock.hour}${clock.minute}-${clock.second}${clock.fractionalSecond}`;
-let revision = "";
+)
+const buildId = `${clock.year}-${clock.month}${clock.day}-${clock.hour}${clock.minute}-${clock.second}${clock.fractionalSecond}`
+let revision = ""
 try {
   revision = execFileSync("git", ["rev-parse", "--short=7", "HEAD"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
-  }).trim();
+  }).trim()
 } catch {
   /* Source archives can build without Git metadata. */
 }
-const assets = resolve("../.local/tmp/web/assets");
-const wasm = resolve(process.env.MAINZ_WASM_DIR ?? "../.local/var/package/wasm");
-let outputDirectory = resolve("../.local/var/js/dist");
+const assets = resolve("../.local/tmp/web/assets")
+const wasm = resolve(process.env.MAINZ_WASM_DIR ?? "../.local/var/package/wasm")
+let outputDirectory = resolve("../.local/var/js/dist")
 
 function prepare() {
   if (!existsSync(`${wasm}/provenance.json`))
-    throw new Error(`Mainz WASM package is required at ${wasm}. Build roktas/mainz or set MAINZ_WASM_DIR.`);
-  const provenance = JSON.parse(readFileSync(`${wasm}/provenance.json`, "utf8"));
-  const files = ["processor.mjs", "processor.wasm"];
+    throw new Error(`Mainz WASM package is required at ${wasm}. Build roktas/mainz or set MAINZ_WASM_DIR.`)
+  const provenance = JSON.parse(readFileSync(`${wasm}/provenance.json`, "utf8"))
+  const files = ["processor.mjs", "processor.wasm"]
   for (const name of files) {
-    const bytes = readFileSync(`${wasm}/${name}`);
+    const bytes = readFileSync(`${wasm}/${name}`)
     if (createHash("sha256").update(bytes).digest("hex") !== provenance.files?.[name])
-      throw new Error(`Mainz package digest mismatch: ${name}`);
+      throw new Error(`Mainz package digest mismatch: ${name}`)
   }
   for (const name of ["mainz.txt", "qpdf.txt", "qpdf-notice.txt", "emscripten.txt", "zlib.txt", "jpeg.txt"])
     if (!existsSync(`${wasm}/notices/${name}`) || !statSync(`${wasm}/notices/${name}`).isFile())
-      throw new Error(`Mainz package license notice is required: ${name}`);
-  const loader = readFileSync(`${wasm}/processor.mjs`, "utf8");
+      throw new Error(`Mainz package license notice is required: ${name}`)
+  const loader = readFileSync(`${wasm}/processor.mjs`, "utf8")
   for (const name of ["_mainz_input", "_mainz_clear_inputs", "_mainz_compose", "_mainz_report", "_mainz_report_size"])
     if (!new RegExp(`\\b${name}\\b`).test(loader))
-      throw new Error(`Mainz WASM package must support version 1 Jobs: missing ${name}.`);
-  const expected = new Set<string>(["manifest.webmanifest"]);
+      throw new Error(`Mainz WASM package must support version 1 Jobs: missing ${name}.`)
+  const expected = new Set<string>(["manifest.webmanifest"])
   function copy(source: string, destination: string) {
-    const target = resolve(assets, destination);
+    const target = resolve(assets, destination)
     if (statSync(source).isDirectory()) {
-      mkdirSync(target, { recursive: true });
-      for (const name of readdirSync(source)) copy(join(source, name), join(destination, name));
+      mkdirSync(target, { recursive: true })
+      for (const name of readdirSync(source)) copy(join(source, name), join(destination, name))
     } else {
       // Avoid unlinking assets that a running Vite server has already indexed.
-      if (!existsSync(target) || !readFileSync(source).equals(readFileSync(target))) copyFileSync(source, target);
-      expected.add(destination);
+      if (!existsSync(target) || !readFileSync(source).equals(readFileSync(target))) copyFileSync(source, target)
+      expected.add(destination)
     }
   }
-  mkdirSync(assets, { recursive: true });
-  copy("public", "");
-  copy("test/fixtures/demo.pdf", "demo.pdf");
-  mkdirSync(`${assets}/pdfjs`, { recursive: true });
-  copy("node_modules/pdfjs-dist/build/pdf.worker.mjs", "pdfjs/pdf.worker.mjs");
+  mkdirSync(assets, { recursive: true })
+  copy("public", "")
+  copy("test/fixtures/demo.pdf", "demo.pdf")
+  mkdirSync(`${assets}/pdfjs`, { recursive: true })
+  copy("node_modules/pdfjs-dist/build/pdf.worker.mjs", "pdfjs/pdf.worker.mjs")
   for (const name of ["cmaps", "standard_fonts", "iccs", "wasm"])
-    copy(`node_modules/pdfjs-dist/${name}`, `pdfjs/${name}`);
-  for (const name of files) copy(`${wasm}/${name}`, name);
-  copy(`${wasm}/provenance.json`, "provenance.json");
-  copy(`${wasm}/notices`, "notices");
-  copy("node_modules/pdfjs-dist/LICENSE", "pdfjs/LICENSE");
-  mkdirSync(`${assets}/notices`, { recursive: true });
-  copy("node_modules/svelte/LICENSE.md", "notices/svelte.txt");
+    copy(`node_modules/pdfjs-dist/${name}`, `pdfjs/${name}`)
+  for (const name of files) copy(`${wasm}/${name}`, name)
+  copy(`${wasm}/provenance.json`, "provenance.json")
+  copy(`${wasm}/notices`, "notices")
+  copy("node_modules/pdfjs-dist/LICENSE", "pdfjs/LICENSE")
+  mkdirSync(`${assets}/notices`, { recursive: true })
+  copy("node_modules/svelte/LICENSE.md", "notices/svelte.txt")
   writeFileSync(
     `${assets}/manifest.webmanifest`,
     JSON.stringify({
@@ -101,15 +101,15 @@ function prepare() {
       background_color: "#ffffff",
       icons: [{ src: "logo.svg", sizes: "any", type: "image/svg+xml", purpose: "any" }],
     }),
-  );
+  )
   for (const path of (readdirSync(assets, { recursive: true }) as string[]).toSorted((a, b) => b.length - a.length)) {
-    const file = resolve(assets, path);
+    const file = resolve(assets, path)
     if (statSync(file).isDirectory()) {
-      if (!readdirSync(file).length) rmSync(file, { recursive: true });
-    } else if (!expected.has(path)) rmSync(file);
+      if (!readdirSync(file).length) rmSync(file, { recursive: true })
+    } else if (!expected.has(path)) rmSync(file)
   }
 }
-prepare();
+prepare()
 
 export default defineConfig({
   base: "./",
@@ -128,43 +128,43 @@ export default defineConfig({
       name: "grid-fixture",
       configureServer(server) {
         server.middlewares.use((request, response, next) => {
-          if (request.url?.split("?")[0] !== `${server.config.base}grid.pdf`) return next();
-          const file = resolve("../.local/tmp/web/grid/sample.pdf");
+          if (request.url?.split("?")[0] !== `${server.config.base}grid.pdf`) return next()
+          const file = resolve("../.local/tmp/web/grid/sample.pdf")
           if (!existsSync(file)) {
-            response.statusCode = 404;
-            response.end("The Grid demo PDF is unavailable.");
-            return;
+            response.statusCode = 404
+            response.end("The Grid demo PDF is unavailable.")
+            return
           }
-          response.setHeader("Content-Type", "application/pdf");
-          response.setHeader("Cache-Control", "no-store");
-          response.end(readFileSync(file));
-        });
+          response.setHeader("Content-Type", "application/pdf")
+          response.setHeader("Cache-Control", "no-store")
+          response.end(readFileSync(file))
+        })
       },
     },
     {
       name: "mainz-assets",
       configResolved(config) {
-        outputDirectory = resolve(config.build.outDir);
+        outputDirectory = resolve(config.build.outDir)
       },
       async closeBundle() {
         const files = (readdirSync(outputDirectory, { recursive: true }) as string[])
           .filter((path) => statSync(resolve(outputDirectory, path)).isFile() && path !== "sw.js")
-          .toSorted();
+          .toSorted()
         const { code: source } = await transformWithOxc(
           readFileSync("src/offline.worker.ts", "utf8"),
           "src/offline.worker.ts",
-        );
-        const hash = createHash("sha256").update(source);
+        )
+        const hash = createHash("sha256").update(source)
         const list = files.map((path) => {
-          const bytes = readFileSync(resolve(outputDirectory, path));
-          hash.update(path).update(bytes);
-          return { path, sha256: createHash("sha256").update(bytes).digest("hex") };
-        });
+          const bytes = readFileSync(resolve(outputDirectory, path))
+          hash.update(path).update(bytes)
+          return { path, sha256: createHash("sha256").update(bytes).digest("hex") }
+        })
         writeFileSync(
           resolve(outputDirectory, "sw.js"),
           `const VERSION = '${hash.digest("hex")}';\nconst ASSETS = ${JSON.stringify(list)};\n${source}`,
-        );
+        )
       },
     },
   ],
-});
+})

@@ -1,10 +1,10 @@
 <!-- Summarizes a Style object and opens its Fill, Stroke, Width, and Visibility editors. -->
 <script lang="ts">
-  import type { Snippet } from "svelte";
-  import { current, feedback } from "./styles.ts";
-  import type { Entry, PaintDuo, Quartet } from "./styles.ts";
-  import Icon from "./Icon.svelte";
-  import type { Name } from "./Icon.svelte";
+  import type { Snippet } from "svelte"
+  import { current, feedback } from "./styles.ts"
+  import type { Entry, PaintDuo, Quartet } from "./styles.ts"
+  import Icon from "./Icon.svelte"
+  import type { Name } from "./Icon.svelte"
   let {
     quartet,
     entry,
@@ -12,19 +12,19 @@
     field,
     change,
   }: {
-    quartet: Quartet;
-    entry: (id: string) => Entry;
-    drafts: Record<string, string>;
-    field: Snippet<[id: string, caption?: string, compact?: boolean]>;
-    change: (id: string, text: string) => void;
-  } = $props();
-  const panelId = $props.id();
-  const percent = new Intl.NumberFormat("en", { style: "percent", maximumFractionDigits: 1 });
-  const number = new Intl.NumberFormat("en", { maximumSignificantDigits: 4 });
-  type Setting = { key: keyof Quartet; label: string; icon: Name; slots: { label: string; id?: string }[] };
+    quartet: Quartet
+    entry: (id: string) => Entry
+    drafts: Record<string, string>
+    field: Snippet<[id: string, caption?: string, compact?: boolean]>
+    change: (id: string, text: string) => void
+  } = $props()
+  const panelId = $props.id()
+  const percent = new Intl.NumberFormat("en", { style: "percent", maximumFractionDigits: 1 })
+  const number = new Intl.NumberFormat("en", { maximumSignificantDigits: 4 })
+  type Setting = { key: keyof Quartet; label: string; icon: Name; slots: { label: string; id?: string }[] }
   type Summary =
     | { kind: "invalid" | "mixed" | "unassigned"; text: string }
-    | { kind: "value"; text: string; value: string };
+    | { kind: "value"; text: string; value: string }
   const components: Setting[] = $derived([
     {
       key: "fill",
@@ -46,40 +46,40 @@
     },
     { key: "width", label: "Width", icon: "width", slots: [{ label: "Width", id: quartet.width }] },
     { key: "visibility", label: "Visibility", icon: "eye", slots: [{ label: "Visibility", id: quartet.visibility }] },
-  ]);
-  let root: HTMLElement;
-  let active = $state<Setting["key"] | null>(null);
-  const selected = $derived(components.find((part) => part.key === active));
+  ])
+  let root: HTMLElement
+  let active = $state<Setting["key"] | null>(null)
+  const selected = $derived(components.find((part) => part.key === active))
   function toggleSetting(key: Setting["key"]) {
-    active = active === key ? null : key;
+    active = active === key ? null : key
   }
   function summary(id: string): Summary {
-    const initial = entry(id);
-    const draft = Object.hasOwn(drafts, id) ? drafts[id] : undefined;
-    const text = current(initial, draft);
-    if (draft !== undefined && feedback(initial, text)) return { kind: "invalid", text: "Invalid" };
+    const initial = entry(id)
+    const draft = Object.hasOwn(drafts, id) ? drafts[id] : undefined
+    const text = current(initial, draft)
+    if (draft !== undefined && feedback(initial, text)) return { kind: "invalid", text: "Invalid" }
     if (text === "")
-      return initial.baseline.kind === "mixed" ? { kind: "mixed", text: "Mixed" } : { kind: "unassigned", text: "—" };
-    const property = initial.parameter.binding.property;
-    let label = text;
-    if (property === "display") label = text === "inline" ? "Show" : "Hide";
-    else if (property.endsWith("opacity")) label = percent.format(Number(text));
-    else if (property === "stroke-width") label = `${number.format(Number(text))} mm`;
-    return { kind: "value", text: label, value: text };
+      return initial.baseline.kind === "mixed" ? { kind: "mixed", text: "Mixed" } : { kind: "unassigned", text: "—" }
+    const property = initial.parameter.binding.property
+    let label = text
+    if (property === "display") label = text === "inline" ? "Show" : "Hide"
+    else if (property.endsWith("opacity")) label = percent.format(Number(text))
+    else if (property === "stroke-width") label = `${number.format(Number(text))} mm`
+    return { kind: "value", text: label, value: text }
   }
   function hint(id: string): string {
-    const value = summary(id);
-    const baseline = entry(id).baseline;
+    const value = summary(id)
+    const baseline = entry(id).baseline
     if (value.kind === "unassigned" && baseline.kind === "unrepresentable")
-      return `Original style retained. ${baseline.reason}`;
-    if (value.kind === "mixed") return "Original styles retained. The objects use different values.";
-    return value.text;
+      return `Original style retained. ${baseline.reason}`
+    if (value.kind === "mixed") return "Original styles retained. The objects use different values."
+    return value.text
   }
   function closeEditors(target?: EventTarget | null) {
     if (active && (!target || !root.contains(target as Node))) {
       if (!target && root.querySelector(".quartet-panel")?.contains(document.activeElement))
-        root.querySelector<HTMLButtonElement>('.quartet-trigger[aria-expanded="true"]')?.focus();
-      active = null;
+        root.querySelector<HTMLButtonElement>('.quartet-trigger[aria-expanded="true"]')?.focus()
+      active = null
     }
   }
 </script>
@@ -87,7 +87,7 @@
 <svelte:document onclick={(event) => closeEditors(event.target)} />
 <svelte:window
   onkeydown={(event) => {
-    if (event.key === "Escape") closeEditors();
+    if (event.key === "Escape") closeEditors()
   }}
 />
 

@@ -1,21 +1,21 @@
 <!-- Edits whole-sequence repetitions and front-face alignment. -->
 <script lang="ts">
-  import { copyError, maxCopies } from "./model.ts";
-  import Icon from "./Icon.svelte";
+  import { copyError, maxCopies } from "./model.ts"
+  import Icon from "./Icon.svelte"
 
   let {
     pane,
     value = $bindable(),
     front = $bindable(false),
   }: {
-    pane: "Input" | "Output";
-    value: string;
-    front?: boolean;
-  } = $props();
-  const id = $props.id();
-  const error = $derived(copyError(value));
-  const label = $derived(pane === "Input" ? "selection" : "Output");
-  const initial = $derived(pane === "Input" ? "1" : "2");
+    pane: "Input" | "Output"
+    value: string
+    front?: boolean
+  } = $props()
+  const id = $props.id()
+  const error = $derived(copyError(value))
+  const label = $derived(pane === "Input" ? "selection" : "Output")
+  const initial = $derived(pane === "Input" ? "1" : "2")
 </script>
 
 <label for={id}>{pane === "Input" ? "Repetitions" : "Repeat selected sequence"}</label>

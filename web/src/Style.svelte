@@ -1,13 +1,13 @@
 <!-- Shows the active Source's applicable Style profiles and parameter groups. -->
 <script lang="ts">
-  import { available, feedback, groups, matchingProfile, objects, resolve } from "./styles.ts";
-  import { pageRanges } from "./pages.ts";
-  import type { Entry } from "./styles.ts";
-  import type { Source, Part } from "./model.ts";
-  import Control from "./Control.svelte";
-  import Icon from "./Icon.svelte";
-  import Quartet from "./Quartet.svelte";
-  import type { TourStep } from "./Help.svelte";
+  import { available, feedback, groups, matchingProfile, objects, resolve } from "./styles.ts"
+  import { pageRanges } from "./pages.ts"
+  import type { Entry } from "./styles.ts"
+  import type { Source, Part } from "./model.ts"
+  import Control from "./Control.svelte"
+  import Icon from "./Icon.svelte"
+  import Quartet from "./Quartet.svelte"
+  import type { TourStep } from "./Help.svelte"
   let {
     source,
     parts,
@@ -18,23 +18,23 @@
     toolbarOnly = false,
     tour,
   }: {
-    source: Source;
-    parts: Part[];
-    style: (id: string, text: string) => void;
-    profile: (setId: string, profileId: string) => void;
-    reset: (id?: string) => void;
-    cancel: () => void;
-    toolbarOnly?: boolean;
-    tour?: TourStep;
-  } = $props();
-  const definition = $derived(source.input.description);
-  const groupObjects = $derived(objects(definition));
-  const controls = $derived(available(source, parts));
+    source: Source
+    parts: Part[]
+    style: (id: string, text: string) => void
+    profile: (setId: string, profileId: string) => void
+    reset: (id?: string) => void
+    cancel: () => void
+    toolbarOnly?: boolean
+    tour?: TourStep
+  } = $props()
+  const definition = $derived(source.input.description)
+  const groupObjects = $derived(objects(definition))
+  const controls = $derived(available(source, parts))
   const profiles = $derived(
     (definition.profileSets ?? []).filter(
       (set) => set.profiles.length > 1 && set.parameters.some((id) => controls.includes(id)),
     ),
-  );
+  )
   const sections = $derived(
     groups(definition)
       .map((group) => ({
@@ -42,17 +42,17 @@
         parameters: group.parameters.filter((id) => controls.includes(id)),
       }))
       .filter((group) => group.parameters.length),
-  );
-  const changed = $derived(Object.keys(source.overrides).length > 0 || Object.keys(source.drafts).length > 0);
+  )
+  const changed = $derived(Object.keys(source.overrides).length > 0 || Object.keys(source.drafts).length > 0)
   const status = $derived(
     source.status === "error"
       ? "Styles need retry"
       : Object.entries(source.drafts).some(([id, text]) => feedback(definition.parameters[id], text))
         ? "Invalid style draft"
         : "",
-  );
+  )
   function entry(id: string): Entry {
-    return resolve(definition.parameters[id], source.overrides, id);
+    return resolve(definition.parameters[id], source.overrides, id)
   }
 </script>
 
