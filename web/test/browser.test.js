@@ -4309,6 +4309,11 @@ test(
           await action();
           const flight = page.locator(".addition-preview");
           await flight.waitFor();
+          await flight.evaluate(async (element) => {
+            await element.getAnimations()[0].ready;
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          });
+          assert.equal(await flight.count(), 1, "Focus recovery does not cancel addition feedback");
           assert.equal(await total(), before + quantity, "Additions update the document before arrival");
           assert.equal(
             await flight.evaluate((element) => element.getAnimations()[0].effect.getTiming().duration),

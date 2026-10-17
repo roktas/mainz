@@ -827,7 +827,7 @@
               : neighbor?.querySelector<HTMLButtonElement>(".page-image")) ??
             viewport ??
             document.getElementById(`${key}-output-${activeOutputTab}`)
-          )?.focus({ preventScroll: !!pageAction });
+          )?.focus({ preventScroll: !!pageAction || pendingAddition.size > 0 });
         });
       return true;
     } catch (reason) {
