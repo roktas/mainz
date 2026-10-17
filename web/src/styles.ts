@@ -148,6 +148,20 @@ export function available(source: { id: string; input: { description: Descriptio
   return applicable(source.input.description, usedPages(source, parts));
 }
 
+export function draftError(
+  source: { id: string; input: { name: string; description: Description }; drafts: Record<string, string> },
+  parts: Part[],
+): string | undefined {
+  if (!Object.keys(source.drafts).length) return;
+  const scope = new Set(available(source, parts));
+  for (const [id, text] of Object.entries(source.drafts)) {
+    if (!scope.has(id)) continue;
+    const entry = source.input.description.parameters[id];
+    if (feedback(entry, text))
+      return `${source.input.name}: fix ${entry.parameter.schema.title ?? id} before Download.`;
+  }
+}
+
 function usedPages(source: { id: string }, parts: Part[]): number[] {
   return parts.flatMap((part) =>
     part.pages.flatMap((page) =>

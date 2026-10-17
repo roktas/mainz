@@ -36,6 +36,22 @@ const hasCursor = (element = document.activeElement) => {
 };
 const createServer = (config) => createViteServer({ cacheDir: resolvePath("../.local/tmp/web/cache"), ...config });
 
+function trackWorkers() {
+  window.workers = [];
+  const Original = Worker;
+  window.Worker = class extends Original {
+    constructor(url, options) {
+      super(url, options);
+      this.record = { url: String(url), terminated: false };
+      window.workers.push(this.record);
+    }
+    terminate() {
+      this.record.terminated = true;
+      super.terminate();
+    }
+  };
+}
+
 function fixture(
   prepared = true,
   mixedDisplay = false,
@@ -932,6 +948,55 @@ test("PDF opening and composition work over non-secure HTTP", { timeout: 60000 }
   }
 });
 
+test(
+  "Ordinary Inputs release validation workers while preview and Download stay available",
+  { timeout: 60000 },
+  async () => {
+    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
+    let browser;
+    try {
+      await server.listen();
+      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" });
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"));
+      await page.addInitScript(trackWorkers);
+      await page.goto(server.resolvedUrls.local[0]);
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output");
+      for (const name of ["First.pdf", "Second.pdf"]) {
+        await page
+          .locator("input[type=file]")
+          .first()
+          .setInputFiles({ name, mimeType: "application/pdf", buffer: fixture(false) });
+        await input.locator(".input-current").filter({ hasText: name }).waitFor();
+        await page.locator(".composer:not([inert])").waitFor();
+        assert.equal(await input.getByRole("tab", { name: "Style", exact: true }).count(), 0);
+        assert.equal(
+          await page.evaluate(
+            () =>
+              window.workers.filter((worker) => worker.url.includes("processor.worker") && !worker.terminated).length,
+          ),
+          0,
+          "Ordinary Inputs have no style processing to retain a WASM worker for",
+        );
+        await input.getByRole("button", { name: "Add to Output", exact: true }).click();
+        await input.locator(".thumbnail[aria-busy=false] canvas").waitFor();
+        assert.ok(await input.locator(".thumbnail canvas").evaluate((canvas) => canvas.width > 0));
+      }
+      assert.equal(await output.locator(".composition-totals strong").innerText(), "2 PDF pages");
+      const pending = page.waitForEvent("download");
+      await output.getByRole("button", { name: "Download", exact: true }).click();
+      assert.equal(await (await pending).failure(), null);
+      await page.waitForFunction(() =>
+        window.workers.filter((worker) => worker.url.includes("processor.worker")).every((worker) => worker.terminated),
+      );
+    } finally {
+      await browser?.close();
+      await server.close();
+    }
+  },
+);
+
 test("The first PDF previews before validation and commits only after success", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
   let browser;
@@ -1260,6 +1325,197 @@ test("A delayed demo cannot replace local pages or report obsolete failures", { 
     await server.close();
   }
 });
+
+test(
+  "Input changes cancel their pending gestures and transfers while Output stays independent",
+  { timeout: 60000 },
+  async () => {
+    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
+    let browser;
+    try {
+      await server.listen();
+      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" });
+      await page.addInitScript(() => {
+        localStorage.setItem("mainz:onboarding", "19");
+        const Original = Worker;
+        window.Worker = class extends Original {
+          postMessage(message, ...rest) {
+            if (window.pauseOpening && message.moduleUrl && message.bytes && !message.changes) {
+              window.resumeOpening = () => super.postMessage(message, ...rest);
+              return;
+            }
+            super.postMessage(message, ...rest);
+          }
+        };
+      });
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`);
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output");
+      const open = async (name) => {
+        await page.evaluate(() => {
+          window.pauseOpening = true;
+          window.resumeOpening = undefined;
+        });
+        await input.locator("input[type=file]").setInputFiles({ name, mimeType: "application/pdf", buffer: fixture() });
+        await page.waitForFunction(() => !!window.resumeOpening);
+      };
+      await output.locator(".composition-totals strong").filter({ hasText: "6 PDF pages" }).waitFor();
+      await output.getByRole("button", { name: "Select Output page 1", exact: true }).click();
+      await open("Second.pdf");
+      const transfer = await page.evaluateHandle(() => new DataTransfer());
+      await input.getByRole("button", { name: "Select Input page 1", exact: true }).dispatchEvent("dragstart", {
+        dataTransfer: transfer,
+      });
+      await page.locator('.composer[data-drag="source"]').waitFor();
+      await page.keyboard.press("Delete");
+      assert.equal(await output.locator(".composition-totals strong").innerText(), "6 PDF pages");
+      assert.equal(await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "1");
+      await page.evaluate(() => window.resumeOpening());
+      await input.locator(".input-current").filter({ hasText: "Second.pdf" }).waitFor();
+      await page.waitForFunction(() => !document.querySelector(".composer[data-drag]"));
+      assert.equal(await page.locator(".drag-image").count(), 0);
+      await output.dispatchEvent("drop", { dataTransfer: transfer });
+      assert.equal(await output.locator(".composition-totals strong").innerText(), "6 PDF pages");
+      await input.locator(".input-picker > summary").click();
+      await input.locator(".input-list button[data-source]").first().click();
+      assert.equal(await input.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "3-5,2,2,7");
+      await open("Third.pdf");
+      const contact = { pointerType: "touch", pointerId: 7, isPrimary: true, button: 0, clientX: 100, clientY: 500 };
+      await input
+        .getByRole("button", { name: "Select or drag Input page 1 to Output", exact: true })
+        .dispatchEvent("pointerdown", contact);
+      assert.equal(await input.locator("[data-press]").count(), 1);
+      await page.evaluate(() => window.resumeOpening());
+      await input.locator(".input-current").filter({ hasText: "Third.pdf" }).waitFor();
+      assert.equal(
+        await input.locator("[data-press]").count(),
+        0,
+        "Input switching also releases a pending touch grip",
+      );
+      await output.dispatchEvent("pointermove", { ...contact, clientX: 1000 });
+      await output.dispatchEvent("pointerup", { ...contact, clientX: 1000 });
+      assert.equal(await page.locator(".composer").getAttribute("data-drag"), null);
+      assert.equal(await output.locator(".composition-totals strong").innerText(), "6 PDF pages");
+      await open("Fourth.pdf");
+      await page.evaluate(() => {
+        const time = performance.now();
+        performance.now = () => time;
+      });
+      const thumbnail = input.getByRole("button", { name: "Select Input page 1", exact: true });
+      await thumbnail.dispatchEvent("pointerdown", contact);
+      await thumbnail.dispatchEvent("click", { detail: 1 });
+      await page.evaluate(() => window.resumeOpening());
+      await input.locator(".input-current").filter({ hasText: "Fourth.pdf" }).waitFor();
+      await thumbnail.dispatchEvent("pointerdown", contact);
+      await thumbnail.dispatchEvent("click", { detail: 1 });
+      await page.evaluate(() => delete performance.now);
+      assert.equal(await input.getByRole("tab", { name: "Grid", exact: true }).getAttribute("aria-selected"), "true");
+      assert.equal(
+        await input.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(),
+        "1",
+        "The first tap in a new Input starts a new gesture",
+      );
+      await open("Fifth.pdf");
+      await thumbnail.dispatchEvent("pointerdown", { pointerType: "mouse", isPrimary: true, button: 0 });
+      await thumbnail.dispatchEvent("click", { detail: 1 });
+      await page.evaluate(() => window.resumeOpening());
+      await input.locator(".input-current").filter({ hasText: "Fifth.pdf" }).waitFor();
+      await thumbnail.dispatchEvent("click", { detail: 2 });
+      await thumbnail.dispatchEvent("dblclick", { detail: 2 });
+      assert.equal(
+        await output.locator(".composition-totals strong").innerText(),
+        "6 PDF pages",
+        "A double-click cannot start in one Input and add pages from another",
+      );
+      await thumbnail.dblclick();
+      assert.equal(
+        await output.locator(".composition-totals strong").innerText(),
+        "7 PDF pages",
+        "A complete double-click still adds the current page",
+      );
+      await open("Sixth.pdf");
+      await page.evaluate(() => {
+        const time = performance.now();
+        performance.now = () => time;
+      });
+      const outputImage = output.getByRole("button", { name: "Select Output page 1", exact: true });
+      await outputImage.dispatchEvent("pointerdown", contact);
+      await outputImage.dispatchEvent("click", { detail: 1 });
+      await page.evaluate(() => window.resumeOpening());
+      await input.locator(".input-current").filter({ hasText: "Sixth.pdf" }).waitFor();
+      await outputImage.dispatchEvent("pointerdown", contact);
+      await outputImage.dispatchEvent("click", { detail: 1 });
+      await page.evaluate(() => delete performance.now);
+      assert.equal(
+        await output.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected"),
+        "true",
+        "Output's double-tap continues independently of Input changes",
+      );
+      assert.equal(await output.locator(".composition-totals strong").innerText(), "7 PDF pages");
+    } finally {
+      await browser?.close();
+      await server.close();
+    }
+  },
+);
+
+test(
+  "Download blocks only invalid styles used by Output, including after Input switching",
+  { timeout: 60000 },
+  async () => {
+    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
+    let browser;
+    try {
+      await server.listen();
+      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" });
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"));
+      await page.goto(server.resolvedUrls.local[0]);
+      await page.locator("input[type=file]").first().setInputFiles({
+        name: "Styled.pdf",
+        mimeType: "application/pdf",
+        buffer: fixture(),
+      });
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output");
+      const download = output.getByRole("button", { name: "Download", exact: true });
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click();
+      await tab(input, "Style");
+      const color = input.getByRole("textbox", { name: "Guide Color", exact: true });
+      await color.fill("invalid");
+      assert.equal(await download.isDisabled(), true);
+      assert.match(await download.getAttribute("title"), /Styled\.pdf: fix Guide color before Download/);
+      await input.locator("input[type=file]").setInputFiles({
+        name: "Ordinary.pdf",
+        mimeType: "application/pdf",
+        buffer: fixture(false),
+      });
+      await input.locator(".input-current").filter({ hasText: "Ordinary.pdf" }).waitFor();
+      await input.getByRole("button", { name: "Add to Output", exact: true }).click();
+      assert.equal(await download.isDisabled(), true, "An inactive Input's relevant draft still blocks Download");
+      const selection = output.getByRole("textbox", { name: "Page selection", exact: true });
+      await selection.fill("1");
+      await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click();
+      assert.equal(await download.isEnabled(), true, "Unused invalid styles do not block Download");
+      const pending = page.waitForEvent("download");
+      await download.click();
+      assert.equal(await (await pending).failure(), null);
+      await input.locator(".input-picker > summary").click();
+      await input.locator(".input-list button[data-source]").first().click();
+      await tab(input, "Grid");
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click();
+      assert.equal(await download.isDisabled(), true, "Adding an affected page restores the draft error");
+      await tab(input, "Style");
+      await color.fill("#123456");
+      await page.waitForFunction(() => !document.querySelector('.output-status[aria-hidden="false"]'));
+      assert.equal(await download.isEnabled(), true);
+    } finally {
+      await browser?.close();
+      await server.close();
+    }
+  },
+);
 
 test("Input density starts from two Normal batches and retains each Source choice", { timeout: 90000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } });
@@ -7865,22 +8121,8 @@ test("Style and Download cancellation release preview workers and retain choices
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" });
     page.setDefaultTimeout(10000);
-    await page.addInitScript(() => {
-      localStorage.setItem("mainz:onboarding", "19");
-      window.previewWorkers = [];
-      const Original = window.Worker;
-      window.Worker = class extends Original {
-        constructor(url, options) {
-          super(url, options);
-          this.record = { url: String(url), terminated: false };
-          window.previewWorkers.push(this.record);
-        }
-        terminate() {
-          this.record.terminated = true;
-          super.terminate();
-        }
-      };
-    });
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"));
+    await page.addInitScript(trackWorkers);
     await page.goto(server.resolvedUrls.local[0]);
     await page
       .locator("input[type=file]")
@@ -7916,7 +8158,7 @@ test("Style and Download cancellation release preview workers and retain choices
     await page.waitForFunction(() => window.pdfContinuations.length > 0);
     await input.getByRole("button", { name: "Cancel style processing", exact: true }).click();
     await page.waitForFunction(
-      () => window.previewWorkers.filter((worker) => worker.url.includes("pdf.worker")).at(-1).terminated,
+      () => window.workers.filter((worker) => worker.url.includes("pdf.worker")).at(-1).terminated,
     );
     assert.equal(await input.getByRole("combobox", { name: "Style profile", exact: true }).inputValue(), "inkjet");
     assert.equal(await output.locator(".composition-totals strong").textContent(), "2 PDF pages");
@@ -7934,7 +8176,7 @@ test("Style and Download cancellation release preview workers and retain choices
     await page.waitForFunction(() => window.pdfContinuations.length > 0);
     await input.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("inkjet");
     await page.waitForFunction(
-      () => window.previewWorkers.filter((worker) => worker.url.includes("pdf.worker")).at(-1).terminated,
+      () => window.workers.filter((worker) => worker.url.includes("pdf.worker")).at(-1).terminated,
     );
     assert.equal(await output.getByRole("button", { name: "Download", exact: true }).isEnabled(), true);
     assert.equal(await page.locator(".error-banner").count(), 0);
@@ -7946,7 +8188,7 @@ test("Style and Download cancellation release preview workers and retain choices
     await page.waitForFunction(() => window.pdfContinuations.length > 0);
     await page.getByRole("dialog", { name: "Download", exact: true }).press("Escape");
     await page.waitForFunction(
-      () => window.previewWorkers.filter((worker) => worker.url.includes("pdf.worker")).at(-1).terminated,
+      () => window.workers.filter((worker) => worker.url.includes("pdf.worker")).at(-1).terminated,
     );
     assert.equal(await page.getByRole("dialog", { name: "Download", exact: true }).isVisible(), false);
     assert.equal(downloads.length, 0);

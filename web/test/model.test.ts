@@ -7,6 +7,7 @@ import {
   applyProfile,
   available,
   bufferPages,
+  draftError,
   feedback,
   groups,
   matchingProfile,
@@ -289,6 +290,33 @@ test("Preview processing follows changed Output parameters and retains deferred 
   assert.equal(needsRender(reset, [part("reset", [0])], rendered), true);
   assert.equal(needsRender(reset, [part("unassigned", [2])], rendered), false);
   assert.deepEqual(source.overrides, { first: "#111111", last: "#222222" });
+});
+
+test("Invalid style drafts block only their Source's eligible Output pages", () => {
+  const entry: Entry = {
+    parameter: { binding: { property: "stroke-color", targets: [] }, schema: { type: "string", title: "Ink" } },
+    baseline: { kind: "mixed" },
+    pages: ["last"],
+  };
+  const source = {
+    id: "book",
+    drafts: { ink: "invalid" },
+    input: {
+      name: "Book.pdf",
+      description: {
+        version: 1,
+        pageCount: 3,
+        pages: { last: { index: 2 } },
+        parameters: { ink: entry },
+      } satisfies Description,
+    },
+  };
+  assert.equal(draftError(source, []), undefined);
+  assert.equal(draftError(source, [part("ordinary", [0])]), undefined);
+  assert.equal(draftError(source, [part("used", [2], "2")]), "Book.pdf: fix Ink before Download.");
+  assert.equal(draftError({ ...source, drafts: {} }, [part("used", [2])]), undefined);
+  assert.equal(draftError({ ...source, id: "other" }, [part("used", [2])]), undefined);
+  assert.equal(draftError({ ...source, drafts: { ink: "#123456" } }, [part("used", [2])]), undefined);
 });
 
 test("Small buffers apply only to large Sources with few distinct Output pages", () => {

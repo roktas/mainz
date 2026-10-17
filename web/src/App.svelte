@@ -7,7 +7,16 @@
   import { appearance, downloadName, expand, job, maxPages, positionAfterEdit, sizeOf, uid } from "./model.ts";
   import type { Input, Part, Source } from "./model.ts";
   import type { Inspection } from "./Page.svelte";
-  import { applicable, applyProfile, available, bufferPages, current, feedback, needsRender } from "./styles.ts";
+  import {
+    applicable,
+    applyProfile,
+    available,
+    bufferPages,
+    current,
+    draftError,
+    feedback,
+    needsRender,
+  } from "./styles.ts";
   import type { Render, Scalar } from "./styles.ts";
   import { loadRenderer, openPDF } from "./pdf.ts";
   import { Processor } from "./processor.ts";
@@ -91,6 +100,7 @@
     ),
   );
   const outputProcessing = $derived(outputSources.some((source) => source.status === "pending"));
+  const downloadError = $derived(outputSources.map((source) => draftError(source, parts)).find(Boolean));
   const inspection: Inspection | undefined = $derived.by(() => {
     const page = output.pages[Math.min(outputPosition, Math.max(0, output.pages.length - 1))];
     if (!page) return;
@@ -277,7 +287,8 @@
       sources = [...sources, source];
       activeId = source.id;
       openingSource = undefined;
-      processors.set(source.id, processor);
+      if (Object.keys(input.description.parameters).length) processors.set(source.id, processor);
+      else processor.dispose();
       committed = true;
       info(`Opened ${pdf.numPages} ${pdf.numPages === 1 ? "page" : "pages"}.`);
       return source;
@@ -535,22 +546,7 @@
     let loadingTask: PDFDocumentLoadingTask | undefined;
     try {
       const recipe = job(parts, sources);
-      for (const source of sources) {
-        if (!recipe.sources[source.id]) continue;
-        const used = parts.flatMap((part) =>
-          part.pages.flatMap((page) =>
-            "source" in page.content && page.content.source === source.id ? [page.content.page] : [],
-          ),
-        );
-        for (const [id, text] of Object.entries(source.drafts)) {
-          const entry = source.input.description.parameters[id];
-          if (
-            feedback(entry, text) &&
-            entry.pages.some((page) => used.includes(source.input.description.pages[page].index))
-          )
-            throw new Error(`${source.input.name}: fix ${entry.parameter.schema.title ?? id} before Download.`);
-        }
-      }
+      if (downloadError) throw new Error(downloadError);
       const inputs = sources.filter((source) => recipe.sources[source.id]).map((source) => source.input);
       if (inputs.length > 32) throw new Error("Download supports up to 32 Inputs.");
       if (inputs.reduce((total, input) => total + input.bytes.length, 0) > 128 * 1024 * 1024)
@@ -846,6 +842,7 @@
       bind:comparing
       activate={(id) => (activeId = id)}
       {outputProcessing}
+      {downloadError}
       {magnification}
       {tour}
     />{/if}
@@ -885,7 +882,8 @@
   <div class="buttons">
     <button onclick={cancelDownload}>Cancel</button>{#if !downloading}<button
         class="primary"
-        disabled={outputProcessing}
+        disabled={outputProcessing || !!downloadError}
+        title={downloadError}
         onclick={download}>Retry</button
       >{/if}
   </div>

@@ -39,6 +39,7 @@
     comparing = $bindable(false),
     activate,
     outputProcessing = false,
+    downloadError,
     opening = false,
     magnification = 16,
     tour,
@@ -60,6 +61,7 @@
     comparing?: boolean;
     activate: (id: string) => void;
     outputProcessing?: boolean;
+    downloadError?: string;
     opening?: boolean;
     magnification?: 8 | 16 | 32;
     tour?: TourStep;
@@ -116,7 +118,9 @@
   let view = $state<"input" | "output">("input");
   let usingKeyboard = $state(false);
   let touchPointer = $state(false);
-  let touchTap: { element: EventTarget | null; time: number; restore: () => void } | undefined;
+  let touchTap:
+    | { pane: "Input" | "Output"; element: EventTarget | null; time: number; restore: () => void }
+    | undefined;
   let pointerX: number | undefined;
   let inputCounter: ReturnType<typeof Counter> | undefined;
   let outputCounter: ReturnType<typeof Counter> | undefined;
@@ -132,6 +136,15 @@
   >();
   let highlightTimeout: ReturnType<typeof setTimeout> | undefined;
   let drag = $state<{ kind: "source"; page?: number } | { kind: "output"; ids: string[] }>();
+  const sourceId = $derived(source?.id);
+  $effect(() => {
+    if (!sourceId) return;
+    return () => {
+      if (touchTap?.pane === "Input") touchTap = undefined;
+      inputClick = undefined;
+      if (drag?.kind === "source" || contact?.value.kind === "source") endDrag();
+    };
+  });
   let target = $state<{ index: number; after: boolean }>();
   let overOutput = $state(false);
   let dragPosition: number | undefined;
@@ -548,17 +561,18 @@
       return true;
     }
     const preparation = draft,
-      sourceId = source?.id,
+      id = source?.id,
       anchor = sourceAnchor;
     const selection = [...selected],
       text = outputText,
       outputFrom = outputAnchor;
     touchTap = {
+      pane,
       element: event.currentTarget,
       time: now,
       restore: () => {
-        if (pane === "Input" && sourceId) {
-          choose(sourceId, preparation);
+        if (pane === "Input" && id) {
+          choose(id, preparation);
           sourceAnchor = anchor;
           inputClick = undefined;
         } else {
@@ -2105,16 +2119,20 @@
                           onmousedown={retainFocus}
                           onclick={(event) => selectInput(page, event)}
                           ondblclick={(event) => {
-                            if (touchPointer) return;
-                            if (!event.ctrlKey && !event.metaKey) {
-                              if (source && inputClick?.source === source.id && inputClick.page === page) {
-                                choose(source.id, inputClick.sequence);
-                                sourceAnchor = inputClick.anchor;
-                                highlightRange();
-                              }
-                              inputClick = undefined;
-                              add(undefined, inputTargets(page));
-                            }
+                            if (
+                              touchPointer ||
+                              event.ctrlKey ||
+                              event.metaKey ||
+                              !source ||
+                              inputClick?.source !== source.id ||
+                              inputClick.page !== page
+                            )
+                              return;
+                            choose(source.id, inputClick.sequence);
+                            sourceAnchor = inputClick.anchor;
+                            highlightRange();
+                            inputClick = undefined;
+                            add(undefined, inputTargets(page));
                           }}
                           ondragstart={(event) => start(event, { kind: "source", page })}
                           ondragend={() => endDrag()}
@@ -2187,7 +2205,8 @@
           <button
             class="primary"
             aria-hidden={outputProcessing}
-            disabled={!output.pages.length || !!output.error || outputProcessing}
+            disabled={!output.pages.length || !!output.error || outputProcessing || !!downloadError}
+            title={downloadError}
             onclick={download}><Icon name="down" />Download</button
           >
           <span class="output-status" role="status" aria-hidden={!outputProcessing}>

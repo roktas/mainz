@@ -178,6 +178,9 @@ reveals Output. Hover alone does not switch panes. Input shows a delayed rejecti
 stops. Cancellation preserves the document, selection, and inspected Output page. Scrolling from an image remains
 native.
 
+Switching Inputs cancels pending double-click, double-tap, and transfer actions from the previous Input. Output gestures
+stay independent. Keyboard page actions stay inactive during a drag.
+
 ## Keyboard and focus
 
 ### Routing and priority
@@ -450,11 +453,12 @@ cache. Preview uses bundled assets, fetches no document-specified resources, and
 Offline updates retain one complete compatible asset set without interrupting open work. Updating pauses PDF opening
 until reload. A blocked update restores opening.
 
-Each worker runs one job at a time. Cancellation, replacement, or Source removal stops obsolete processing and preview
-work. Later jobs start usable workers. Input bytes remain available for retry. Disposal releases document handles,
-registered Inputs, buffers, render tasks, and object URLs. Completed rasters use bounded memory caching, separate from
-persistent storage and the offline cache. Its budget is not a total-memory guarantee. Persistent editable workspaces,
-printer control, and independent Part or occurrence styles are outside this version.
+Each worker runs one job at a time. Ordinary Inputs release their validation worker after opening. Cancellation,
+replacement, or Source removal stops obsolete processing and preview work. Later jobs start usable workers. Input bytes
+remain available for retry. Disposal releases document handles, registered Inputs, buffers, render tasks, and object
+URLs. Completed rasters use bounded memory caching, separate from persistent storage and the offline cache. Its budget
+is not a total-memory guarantee. Persistent editable workspaces, printer control, and independent Part or occurrence
+styles are outside this version.
 
 ## Acceptance
 

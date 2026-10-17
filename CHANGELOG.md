@@ -24,6 +24,11 @@
 - Repeated Page image activation copies the current page and preserves Selection.
 - Move controls stay in the Output selection bar when space permits, including tablet landscape layouts.
 - Build IDs use Istanbul time and retain the full UTC build timestamp in their details.
+- Input changes cancel pending double-clicks, double-taps, and transfers. Output gestures stay independent. Page
+  shortcuts cannot edit the workspace during a drag.
+- Download stays disabled for invalid style drafts that affect Output, including drafts in inactive Inputs.
+- Large Style panels calculate page coverage without repeated linear searches.
+- Ordinary PDFs release their validation worker after opening instead of retaining unused WASM memory.
 
 ## 1.0.0 - 2026-10-17
 

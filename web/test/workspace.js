@@ -1124,12 +1124,13 @@ export async function checkWorkspace(page, prepared, ordinary) {
       (await output.getByRole("button", { name: "Compare page", exact: true }).isDisabled()),
     "Invalid relevant style draft disables page comparison",
   );
-  await output.getByRole("button", { name: "Download", exact: true }).click();
   check(
-    (await page.locator(".download-dialog [role=alert]").innerText()).includes("fix Guide color"),
+    (await output.getByRole("button", { name: "Download", exact: true }).isDisabled()) &&
+      (await output.getByRole("button", { name: "Download", exact: true }).getAttribute("title")).includes(
+        "fix Guide color",
+      ),
     "Invalid relevant style drafts block Download before execution",
   );
-  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Reset all styles", exact: true }).click();
   await output.getByRole("button", { name: "Download", exact: true }).waitFor({ state: "visible", timeout: 60000 });
   check(

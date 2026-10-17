@@ -8,7 +8,7 @@ const messages: Record<string, string> = {
   "unsupported-version":
     "This PDF uses a style format that PDF Composer does not support. Update PDF Composer or ask its creator for a compatible PDF.",
   "unsupported-context":
-    "This PDF contains drawing features that PDF Composer cannot style. Ask its creator for a supported PDF.",
+    "This PDF contains features that PDF Composer does not support. Ask its creator for a supported PDF.",
   "invalid-contract":
     "The style information in this PDF is invalid or incompatible with PDF Composer. Ask its creator to prepare it again with the current Mainz format.",
   "invalid-request": "The page or style choices are invalid. Review your choices and try again.",

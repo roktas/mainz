@@ -65,12 +65,12 @@
 </script>
 
 {#snippet field(id: string, caption?: string, compact = false)}
-  {@const eligible = definition.parameters[id].pages.map((page) => definition.pages[page].index)}
+  {@const eligible = new Set(definition.parameters[id].pages.map((page) => definition.pages[page].index))}
   {@const coverage = parts.reduce(
     (total, part) =>
       total +
       part.pages.filter(
-        (page) => "source" in page.content && page.content.source === source.id && eligible.includes(page.content.page),
+        (page) => "source" in page.content && page.content.source === source.id && eligible.has(page.content.page),
       ).length *
         (Number.isSafeInteger(Number(part.copies)) && Number(part.copies) > 0 ? Number(part.copies) : 0),
     0,
