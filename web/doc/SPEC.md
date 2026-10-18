@@ -469,9 +469,9 @@ styles are outside this version.
 ## Acceptance
 
 [Model tests](../test/model.test.ts) cover composition, identities, ordering, and style requests.
-[Browser tests](../test/browser.test.js) cover actual PDF edits, keyboard routing, focus, cancellation, recovery, demo,
-and offline updates. Layout reference cases and their input matrix belong in [DESIGN.md](DESIGN.md#validation). These
-documents describe current requirements, not a claim of physical-device or accessibility certification.
+[Browser tests](../test/) cover actual PDF edits, keyboard routing, focus, cancellation, recovery, demo, and offline
+updates. Layout reference cases and their input matrix belong in [DESIGN.md](DESIGN.md#validation). These documents
+describe current requirements, not a claim of physical-device or accessibility certification.
 
 ## Glossary
 

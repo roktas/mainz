@@ -90,8 +90,8 @@ Run these task groups with `direnv exec . bundle exec rake`:
 | Packaging                                    | `test:package` and the relevant package task.                         |
 | Web asset setup                              | `setup:web test:web`, followed by the web checks below.               |
 
-Run native, sanitizer, and WASM suites sequentially: they share `.local/tmp/test/lib/`. Narrow suites are
-`test:contract`, `test:producer`, `test:cli`, `test:inspector`, `test:parity`, `test:package`, and `test:web`.
+Native, sanitizer, and WASM suites share `.local/tmp/test/lib/`. Run them sequentially within each checkout. Narrow
+tasks: `test:contract`, `test:producer`, `test:cli`, `test:inspector`, `test:parity`, `test:package`, and `test:web`.
 `test:parity` refreshes contract fixtures first. `MAINZ_CLI` defaults to `.local/var/cpp/build/native/mainz`. For C++
 changes, also run `cmake --build --preset format-check` and `cmake --build --preset lint`.
 
@@ -160,9 +160,10 @@ npm run test:browser
 ```
 
 The build checks Svelte/worker types, then writes `.local/var/js/dist/`. Vite cache: `.local/var/js/cache/vite/`.
-Browser tests start their own servers. If Chromium is unavailable, run
-`npm --prefix web exec -- playwright install chromium`. `PLAYWRIGHT_CHANNEL=chrome` uses installed Chrome. Exercise
-changed flows with keyboard, narrow layouts, enlarged text, both themes, and relevant loading/error/cancellation states.
+Browser suites run sequentially locally and on four separate CI runners. They start their own servers. If Chromium is
+unavailable, run `npm --prefix web exec -- playwright install chromium`. `PLAYWRIGHT_CHANNEL=chrome` uses installed
+Chrome. Exercise changed flows with keyboard, narrow layouts, enlarged text, both themes, and relevant
+loading/error/cancellation states.
 
 ### Preview and mockups
 

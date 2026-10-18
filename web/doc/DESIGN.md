@@ -382,13 +382,13 @@ not repeat details in the footer. Loading, empty, error, and cancellation states
 
 ## Validation
 
-The [browser suite](../test/browser.test.js) owns automated visual and interaction assertions.
-[AGENTS.md](../../AGENTS.md#web) owns execution commands. Layout changes exercise both themes, keyboard focus, normal
-and 200% text, and widths of 320, 390, and 768 px. Desktop changes also exercise the [capacity references](#workspace),
-mixed page sizes, both densities, and Grid/Page alignment. Relevant cases include empty and selected states, long
-filenames, five-digit page numbers, loading, errors, cancellation, and reduced motion. No layout introduces horizontal
-overflow or conceals an action behind a fold, toolbar, or fixed status row. Touch emulation covers taps and scrolling.
-Physical-device drag behavior and assistive technology require separate evidence.
+The [browser suites](../test/) own automated visual and interaction assertions. [AGENTS.md](../../AGENTS.md#web) owns
+execution commands. Layout changes exercise both themes, keyboard focus, normal and 200% text, and widths of 320, 390,
+and 768 px. Desktop changes also exercise the [capacity references](#workspace), mixed page sizes, both densities, and
+Grid/Page alignment. Relevant cases include empty and selected states, long filenames, five-digit page numbers, loading,
+errors, cancellation, and reduced motion. No layout introduces horizontal overflow or conceals an action behind a fold,
+toolbar, or fixed status row. Touch emulation covers taps and scrolling. Physical-device drag behavior and assistive
+technology require separate evidence.
 
 Animation assertions wait for the rendered effect to start before checking its duration or geometry. Updated document
 totals do not prove that a transition has started. Edit feedback checks also run with CPU throttling and identify the
@@ -408,7 +408,7 @@ heading and do not overlap. Check these rules at Fit and other zoom levels, with
 Landscape phone checks cover 667 × 375, 844 × 390, and 956 × 440 CSS px. The browser tests retain a screenshot under
 `.local/tmp/web/layout/` when a matrix or Page-control assertion fails.
 
-CI uploads layout failure screenshots as the `layout` artifact and retains them for seven days.
+CI uploads layout failure screenshots as `layout-<shard>` artifacts and retains them for seven days.
 
 ## UI glossary
 
