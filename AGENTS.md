@@ -160,7 +160,7 @@ npm run test:browser
 ```
 
 The build checks Svelte/worker types, then writes `.local/var/js/dist/`. Vite cache: `.local/var/js/cache/vite/`.
-Browser suites run sequentially locally and on eight separate CI runners. They start their own servers. If Chromium is
+Browser suites run sequentially locally and on twelve CI runners. They start their own servers. If Chromium is
 unavailable, run `npm --prefix web exec -- playwright install chromium`. `PLAYWRIGHT_CHANNEL=chrome` uses installed
 Chrome. Exercise changed flows with keyboard, narrow layouts, enlarged text, both themes, and relevant
 loading/error/cancellation states.

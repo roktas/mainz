@@ -132,14 +132,14 @@ jobs:
           path: .local/var/js/dist
 
   browser:
-    name: Browser ${{ matrix.shard }}/8
+    name: Browser ${{ matrix.shard }}/12
     needs: build
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     env:
       BUNDLE_PATH: ${{ github.workspace }}/.local/var/ruby
       BUNDLE_APP_CONFIG: ${{ github.workspace }}/.local/var/ruby
@@ -170,7 +170,7 @@ jobs:
           path: .local/var/package/wasm
       - name: Check browser suite
         working-directory: web
-        run: node --test --test-concurrency=1 --test-shard=${{ matrix.shard }}/8 test/*.test.js
+        run: node --test --test-concurrency=1 --test-shard=${{ matrix.shard }}/12 test/*.test.js
       - name: Upload layout failure screenshots
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

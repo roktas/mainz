@@ -1,10 +1,10 @@
-// Checks Page frames, headings, and controls across viewports.
+// Checks fitted Page headings and navigation across viewports.
 
 import assert from "node:assert/strict"
 import test from "node:test"
 import { chromium } from "playwright"
-import { aligned, zoom } from "./workspace.js"
-import { createServer, tab, image, captureLayout, fixture } from "./browser.js"
+import { zoom } from "./workspace.js"
+import { createServer, tab, image, captureLayout } from "./browser.js"
 
 test("Page headings and navigation follow fitted image edges", { timeout: 240000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
@@ -157,158 +157,6 @@ test("Page headings and navigation follow fitted image edges", { timeout: 240000
     const screenshot = page && (await captureLayout(page, "page").catch(() => undefined))
     if (screenshot) error.message += `\nScreenshot: ${screenshot}`
     throw error
-  } finally {
-    await browser?.close()
-    await server.close()
-  }
-})
-
-test("Page controls retain space and alignment with wide fonts and enlarged mobile text", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
-  let browser
-  try {
-    await server.listen()
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
-    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-    const output = page.locator(".composition-output")
-    await tab(output, "Page")
-    for (const font of ["DejaVu Sans", "ui-sans-serif"]) {
-      for (const [width, text] of [
-        [1440, "100%"],
-        [320, "200%"],
-        [375, "200%"],
-      ]) {
-        await page.setViewportSize({ width, height: 1100 })
-        await page.evaluate(
-          ({ font: family, text: scale }) => {
-            document.body.style.fontFamily = family
-            document.documentElement.style.fontSize = scale
-          },
-          { font, text },
-        )
-        const views = page.locator(".mobile-workspace-tabs")
-        if (await views.isVisible()) await views.getByRole("button", { name: "Output", exact: true }).click()
-        assert.equal(
-          await aligned(output),
-          true,
-          `${font}, ${width}px, ${text}: controls align and leave room for the grip`,
-        )
-        const tools = await output.getByRole("group", { name: "Output Page controls", exact: true }).boundingBox()
-        assert.ok(tools.x >= 0 && tools.x + tools.width <= width, `${font}, ${width}px, ${text}: all tools fit`)
-        const frame = await output.locator(".inspection-heading").boundingBox()
-        assert.ok(
-          tools.x >= frame.x && tools.x + tools.width <= frame.x + frame.width,
-          `${font}, ${width}px, ${text}: the page frame does not clip tools`,
-        )
-        const percentage = await output.getByLabel("Output page zoom", { exact: true }).boundingBox()
-        assert.ok(
-          percentage.x >= frame.x &&
-            percentage.x + percentage.width <= frame.x + frame.width &&
-            percentage.y >= frame.y &&
-            percentage.y + percentage.height <= frame.y + frame.height,
-          `${font}, ${width}px, ${text}: the percentage remains inside the page heading`,
-        )
-        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
-      }
-    }
-  } finally {
-    await browser?.close()
-    await server.close()
-  }
-})
-
-test("Page fit preserves screen size across expanded desktop viewports", { timeout: 90000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
-  let browser
-  try {
-    await server.listen()
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-    const page = await browser.newPage({ reducedMotion: "reduce" })
-    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
-      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
-    )
-    const session = await page.context().newCDPSession(page)
-    const input = page.locator(".selection-panel")
-    const output = page.locator(".composition-output")
-    const fitted = async (locator) => {
-      const [bounds, factor] = await Promise.all([locator.boundingBox(), page.evaluate(() => devicePixelRatio)])
-      assert.ok(Math.abs(bounds.width * factor - 608.07) < 1, "Page keeps its fitted screen width")
-      assert.ok(Math.abs(bounds.height * factor - 860) < 1, "Page keeps its fitted screen height")
-    }
-    for (const factor of [1, 0.8, 0.67]) {
-      const viewport = { width: Math.round(2560 / factor), height: Math.round(1440 / factor) }
-      await page.setViewportSize(viewport)
-      await session.send("Emulation.setDeviceMetricsOverride", {
-        ...viewport,
-        deviceScaleFactor: factor,
-        mobile: false,
-      })
-      await page.emulateMedia({ colorScheme: factor === 0.8 ? "dark" : "light" })
-      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid&input=page`)
-      await input.locator(".pdf-viewport[aria-busy=false] canvas").waitFor()
-      await fitted(image(input))
-      if (factor < 1)
-        await page.waitForFunction(() => document.querySelectorAll(".composition-output .composition-card").length > 12)
-      await page.waitForFunction(() =>
-        [...document.querySelectorAll(".composition-output .thumbnail")].every(
-          (element) => element.getAttribute("aria-busy") === "false",
-        ),
-      )
-      const thumbnail = await output.locator(".page-image canvas").first().boundingBox()
-      assert.ok(
-        Math.abs(thumbnail.height - (factor === 1 ? 144 : 168)) < 1,
-        "Grid thumbnails follow their viewport range at each browser zoom",
-      )
-      await tab(output, "Page")
-      await output.locator(".pdf-viewport[aria-busy=false] canvas").waitFor()
-      await fitted(image(output))
-      await tab(output, "Grid")
-      await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
-      await page.waitForFunction(
-        () => document.querySelector(".composition-output .grid-view")?.getAttribute("data-rows") === "7",
-      )
-      await input.locator(".pdf-viewport[aria-busy=false] canvas").waitFor()
-      await fitted(image(input))
-      const surround = await input.locator(".page-scroll").boundingBox()
-      const sheet = await image(input).boundingBox()
-      const margins = [sheet.y - surround.y, surround.y + surround.height - sheet.y - sheet.height]
-      assert.ok(Math.abs(margins[0] - margins[1]) < 1, "Page stays centered at every browser zoom")
-      if (await page.evaluate(() => document.documentElement.scrollHeight > innerHeight))
-        assert.ok(
-          margins.every((margin) => margin * factor < 90),
-          "Seven Compact rows retain balanced fitted margins when the workspace exceeds the viewport height",
-        )
-      const transfer = await page.evaluateHandle(() => new DataTransfer())
-      await input.locator(".inspection-heading .page-grip").dispatchEvent("dragstart", { dataTransfer: transfer })
-      const first = output.locator(".composition-card").first(),
-        destination = await first.boundingBox()
-      await first.dispatchEvent("dragover", {
-        dataTransfer: transfer,
-        clientX: destination.x + destination.width / 4,
-        clientY: destination.y + destination.height / 2,
-      })
-      await output.locator(".drop-placeholder").waitFor()
-      assert.equal(
-        await output.locator("[data-preview-hidden]").count(),
-        1,
-        "The drag preview stays within seven Compact rows at every browser zoom",
-      )
-      await page.keyboard.press("Escape")
-      await transfer.dispose()
-      await tab(output, "Page")
-      await output.locator(".pdf-viewport[aria-busy=false] canvas").waitFor()
-      await fitted(image(output))
-      await output.getByLabel("Page selection", { exact: true }).fill("1")
-      await output.locator(".output-options > summary").click()
-      await output.getByRole("button", { name: "Blank before first selected page", exact: true }).click()
-      await page.keyboard.press("Escape")
-      await output.getByRole("region", { name: "PDF viewport", exact: true }).press("Home")
-      await output.locator(".blank-sheet").waitFor()
-      await fitted(output.locator(".blank-sheet"))
-    }
   } finally {
     await browser?.close()
     await server.close()

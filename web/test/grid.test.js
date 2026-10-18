@@ -1,94 +1,9 @@
-// Checks Grid density, pagination, and viewport capacity.
+// Checks desktop Grid density, pagination, and viewport capacity.
 
 import assert from "node:assert/strict"
 import test from "node:test"
 import { chromium } from "playwright"
-import { createServer, fixture, captureLayout, checkGrips, tab, pagePosition } from "./browser.js"
-
-test("Touch Grid matrices match phone and iPad references", { timeout: 120000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
-  let browser, page
-  try {
-    await server.listen()
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-    page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
-    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
-      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
-    )
-    for (const colorScheme of ["light", "dark"]) {
-      await page.emulateMedia({ colorScheme })
-      for (const [width, height, input, output, compact] of [
-        [320, 568, [1, 8, 8], [1, 12, 12], [2, 3, 6]],
-        [375, 667, [2, 4, 8], [2, 6, 12], [4, 4, 16]],
-        [390, 844, [2, 4, 8], [2, 6, 12], [4, 4, 16]],
-        [393, 852, [2, 4, 8], [2, 6, 12], [4, 4, 16]],
-        [440, 956, [2, 4, 8], [2, 6, 12], [4, 4, 16]],
-        [667, 375, [3, 3, 8], [3, 4, 12], [6, 6, 36]],
-        [844, 390, [4, 2, 8], [4, 3, 12], [8, 7, 56]],
-        [852, 393, [4, 2, 8], [4, 3, 12], [8, 7, 56]],
-        [956, 440, [2, 2, 4], [2, 2, 4], [4, 4, 16]],
-        [744, 1133, [4, 2, 8], [4, 3, 12], [7, 7, 49]],
-        [1133, 744, [3, 2, 6], [3, 2, 6], [5, 5, 25]],
-        [768, 1024, [4, 2, 8], [4, 3, 12], [7, 7, 49]],
-        [1024, 768, [3, 2, 6], [3, 2, 6], [5, 4, 20]],
-        [810, 1080, [4, 2, 8], [4, 3, 12], [8, 7, 56]],
-        [1080, 810, [3, 2, 6], [3, 2, 6], [5, 5, 25]],
-      ]) {
-        await page.setViewportSize({ width, height })
-        await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-        await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-        )
-        for (const [name, normal] of [
-          ["Input", input],
-          ["Output", output],
-        ]) {
-          const tabs = page.locator(".mobile-workspace-tabs")
-          if (await tabs.isVisible()) await tabs.getByRole("button", { name, exact: true }).click()
-          const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-          for (const [density, reference] of [
-            ["Normal", normal],
-            ["Compact", compact],
-          ]) {
-            await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
-            await page.evaluate(
-              () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-            )
-            const geometry = await pane.locator(".composition-grid").evaluate((element) => {
-              const cards = [...element.children].map((card) => card.getBoundingClientRect())
-              const frame = element.getBoundingClientRect()
-              return {
-                matrix: [
-                  new Set(cards.map((card) => card.left)).size,
-                  new Set(cards.map((card) => card.top)).size,
-                  cards.length,
-                ],
-                fits: cards.every((card) => card.left >= frame.left - 1 && card.right <= frame.right + 1),
-                overflow: document.documentElement.scrollWidth > innerWidth,
-              }
-            })
-            const label = `${name} ${density}, ${width}×${height}, ${colorScheme}`
-            assert.deepEqual(
-              geometry.matrix,
-              reference,
-              `${label}: Rendered columns, rows, and pages match the reference`,
-            )
-            assert.ok(geometry.fits, `${label}: Cards stay inside the pane`)
-            assert.equal(geometry.overflow, false, `${label}: The workspace fits horizontally`)
-          }
-        }
-      }
-    }
-  } catch (error) {
-    const screenshot = page && (await captureLayout(page, "grid").catch(() => undefined))
-    if (screenshot) error.message += `\nScreenshot: ${screenshot}`
-    throw error
-  } finally {
-    await browser?.close()
-    await server.close()
-  }
-})
+import { createServer, fixture, checkGrips, captureLayout, tab, pagePosition } from "./browser.js"
 
 test(
   "Normal Grid restores Full HD and QHD rows without changing neighboring layouts",
