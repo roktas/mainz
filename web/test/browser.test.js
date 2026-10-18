@@ -4805,6 +4805,8 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
     await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, hasTouch, colorScheme] of [
+      [1920, 1080, false, "light"],
+      [1920, 1080, false, "dark"],
       [1440, 1100, false, "light"],
       [1024, 768, true, "dark"],
       [810, 1080, true, "light"],
@@ -4865,19 +4867,23 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
         ["Compact", "Compact"],
       ]
       if (width === 1440) densities.push(["Normal", "Compact"], ["Compact", "Normal"])
-      for (const [density, outputDensity] of densities) {
+      if (width === 1920)
+        densities.push(["Normal", "Normal", 12], ["Normal", "Normal", 13], ["Compact", "Compact", "batch"])
+      for (const [density, outputDensity, quantity = 2] of densities) {
         await input.getByRole("button", { name: `${density} Input grid`, exact: true }).click()
         if (width >= 1024)
           await output.getByRole("button", { name: `${outputDensity} Output grid`, exact: true }).click()
-        await prepared.fill("1,2")
+        const added =
+          quantity === "batch" ? Number(await output.locator(".grid-view").getAttribute("data-batch")) + 1 : quantity
+        await prepared.fill(Array.from({ length: added }, (_, index) => (index % 7) + 1).join(","))
         await input.locator(".thumbnail[aria-busy=false]").first().waitFor()
         if (density === "Compact") await prepared.press("Enter")
         else await input.getByRole("button", { name: "Add to Output", exact: true }).click()
-        count += 2
+        count += added
         await flight.waitFor()
         assert.equal(await total(), count, "The complete group is added while the preview is paused")
         assert.equal(await prepared.inputValue(), "")
-        assert.equal(await flight.getAttribute("data-copies"), "2")
+        assert.equal(await flight.getAttribute("data-copies"), String(Math.min(added, 3)))
         assert.equal(await flight.getAttribute("aria-hidden"), "true")
         assert.equal(await flight.evaluate((element) => element.getAnimations()[0].effect.getTiming().duration), 1200)
         assert.equal(await flight.evaluate((element) => getComputedStyle(element).pointerEvents), "none")

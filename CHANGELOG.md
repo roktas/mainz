@@ -19,6 +19,7 @@
 
 ### Fixed
 
+- Bulk page additions target a new image in the visible Output Grid batch when both panes are displayed.
 - Normal grids fit three rows at Full HD and four at QHD, with pagination captions below the slider.
 - Style selectors retain their touch height on iPad and keep their arrows inset from the field edge.
 - Opening Settings by touch keeps the close button free of an initial focus contour.

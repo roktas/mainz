@@ -348,10 +348,10 @@ operations restart the feedback. Reduced motion skips these effects. Neither eff
 
 All page additions use a 1200 ms preview along a shallow curve, including copies, repetition, and Blank insertion. A
 group uses a small page stack. Input additions use the Output workspace button on single-pane layouts. Otherwise, the
-preview moves toward the new Output image, or the Output heading when the image is outside the visible Grid batch or in
-Page. Single-pane layouts use the Output button when no new image is displayed. Preview centers follow the visible
-source image and target on both axes. Grid arrivals match the target image size across pane densities. A Blank uses a
-blank preview.
+preview moves toward a new Output image in the visible Grid batch, or the Output heading when no new image is displayed
+or Output is in Page. Single-pane layouts use the Output button when no new image is displayed. Preview centers follow
+the visible source image and target on both axes. Grid arrivals match the target image size across pane densities. A
+Blank uses a blank preview.
 
 When the preview targets the Output workspace button, that button gains a soft accent glow over the same 1200 ms. The
 glow rises and fades during the flight. Arrival or cancellation clears it without changing the button's geometry.

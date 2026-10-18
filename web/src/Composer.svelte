@@ -665,7 +665,7 @@
           added.length,
           () => {
             const button = outputTarget
-            const image = document.getElementById(`${key}-${added[0].id}`)?.querySelector<HTMLElement>(".page-image")
+            const image = panel?.querySelector<HTMLElement>(".composition-card[data-adding] .page-image")
             if (button?.offsetWidth && (origin?.closest(".selection-panel") || !image)) return button
             return image ?? document.getElementById(`${key}-output`)
           },
