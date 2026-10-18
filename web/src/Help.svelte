@@ -4,10 +4,13 @@
   export type TourStep =
     | "input"
     | "input-grid"
+    | "input-density"
     | "input-page"
     | "style"
     | "style-profile"
     | "output-grid"
+    | "output-density"
+    | "output-selection"
     | "output-page"
     | "download"
 </script>
@@ -76,6 +79,18 @@
               "Selection moves addition into the bar and hides card buttons. Without a selection, a card’s + adds one copy.",
             ],
           },
+        ]
+      : []),
+    {
+      key: hasInput ? "input-density" : "output-density",
+      title: "Choose a Grid density",
+      text: [
+        "Normal gives each page more space. Compact fits more thumbnails so you can scan and arrange a larger set.",
+        "Use the two buttons beside Grid and Page. Input and Output keep separate density choices; changing density keeps page order and selection.",
+      ],
+    },
+    ...(hasInput
+      ? [
           {
             key: "input-page" as const,
             title: "Inspect an Input page",
@@ -125,6 +140,15 @@
             "Add Input pages. Grid shows copies in print order, with current positions and sources.",
             "Select with images, grips, or the field. Without a selection, a card’s − removes one page and + duplicates it. Selection shows bar actions for one or several pages and temporarily hides card controls.",
           ],
+    },
+    {
+      key: "output-selection",
+      title: "Edit selected Output pages",
+      text: [
+        "Select Output pages with their images, grips, or this field. The bar applies each action to the selection.",
+        "← moves pages earlier and → moves them later in print order. An unavailable direction stays in place but is disabled. On narrow screens, find these moves in the … menu.",
+        "− removes selected pages. + duplicates them beside their originals. Without a selection, these controls are disabled in this tour; your pages stay unchanged.",
+      ],
     },
     {
       key: "output-page",
@@ -278,6 +302,7 @@
     await tick()
     if (tour.matches(":popover-open")) {
       const previous = target
+      const previousTab = tab
       target = document.querySelector<HTMLElement>(`[data-tour-target="${key}"]`) ?? undefined
       tab = document.querySelector<HTMLElement>(`[data-tour-tab="${key}"]`) ?? undefined
       target?.scrollIntoView({
@@ -286,6 +311,7 @@
         behavior: "instant",
       })
       tab?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" })
+      if (target !== previous || tab !== previousTab) tour.scrollTop = 0
       focusTarget()
       if (target !== previous && motion.current) {
         tour.animate([{ opacity: 0.65 }, { opacity: 1 }], {

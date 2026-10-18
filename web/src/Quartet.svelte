@@ -114,7 +114,9 @@
       class="quartet-value unavailable"
       role="note"
       aria-label={`${label}: not applicable`}
-      title={`N/A: This PDF has no ${label.toLowerCase()} parameter for this object.`}
+      title={label === "Visibility"
+        ? "N/A: This PDF keeps the object's original visibility."
+        : `N/A: This PDF has no ${label.toLowerCase()} parameter for this object.`}
     >
       <Icon name="ban" />
     </span>

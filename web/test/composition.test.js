@@ -1068,7 +1068,10 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     assert.deepEqual(await order(), ["p. 2", "p. 1", "p. 4", "p. 3", "p. 5"])
     assert.equal(await selected.inputValue(), "1, 3")
     await outputOptions.click()
-    assert.equal(await output.getByRole("button", { name: "Move selected pages earlier", exact: true }).count(), 0)
+    assert.equal(
+      await output.getByRole("button", { name: "Move selected pages earlier", exact: true }).isDisabled(),
+      true,
+    )
     await output.getByRole("button", { name: "Move selected pages later", exact: true }).click()
     assert.deepEqual(await order(), ["p. 1", "p. 2", "p. 3", "p. 4", "p. 5"])
     assert.equal(await selected.inputValue(), "2, 4")

@@ -162,13 +162,19 @@
       ? "style"
       : tour === "input-page"
         ? "page"
-        : tour === "input-grid"
+        : tour === "input-grid" || tour === "input-density"
           ? "grid"
           : inputView.tab === "style" && !styleable
             ? "grid"
             : inputView.tab,
   )
-  const activeOutputTab = $derived(tour === "output-page" ? "page" : tour === "output-grid" ? "grid" : outputTab)
+  const activeOutputTab = $derived(
+    tour === "output-page"
+      ? "page"
+      : tour === "output-grid" || tour === "output-density" || tour === "output-selection"
+        ? "grid"
+        : outputTab,
+  )
   const activeView = $derived(
     !source || tour?.startsWith("output-") || tour === "download"
       ? "output"
@@ -1287,7 +1293,13 @@
 {/snippet}
 
 {#snippet gridDensity(pane: "Input" | "Output", compact: boolean)}
-  <div class="grid-density" role="group" aria-label={`${pane} grid density`}>
+  <div
+    class="grid-density"
+    role="group"
+    aria-label={`${pane} grid density`}
+    data-tour-target={pane === "Input" ? "input-density" : "output-density"}
+    data-tour-active={tour === (pane === "Input" ? "input-density" : "output-density")}
+  >
     <button
       class="icon-button"
       aria-label={`Normal ${pane} grid`}
@@ -1433,19 +1445,19 @@
 {/snippet}
 
 {#snippet outputMoves(inline = false)}
-  {#if chosen.length && positions[0] > 0}<button
+  {#if chosen.length || tour === "output-selection"}<button
       class={inline ? "step" : undefined}
       aria-label="Move selected pages earlier"
       title="Move selected pages earlier · Ctrl+←"
-      disabled={!!outputSelectionError}
+      disabled={!chosen.length || !!outputSelectionError || positions[0] === 0}
       onclick={() => order(-1)}
       ><Icon name="earlier" />{#if !inline}Move selected pages earlier{/if}</button
-    >{/if}
-  {#if chosen.length && positions.at(-1)! < output.pages.length - 1}<button
+    >
+    <button
       class={inline ? "step" : undefined}
       aria-label="Move selected pages later"
       title="Move selected pages later · Ctrl+→"
-      disabled={!!outputSelectionError}
+      disabled={!chosen.length || !!outputSelectionError || positions.at(-1) === output.pages.length - 1}
       onclick={() => order(1)}
       ><Icon name="later" />{#if !inline}Move selected pages later{/if}</button
     >{/if}
@@ -1901,11 +1913,13 @@
       >
         <div
           class="sequence-entry"
+          data-tour-target="output-selection"
+          data-tour-active={tour === "output-selection"}
           class:range-highlight={highlight?.kind === "output"}
           class:removing={highlight?.kind === "output" && highlight.removing}
         >
           <div class={["entry", { invalid: !!outputSelectionError }]}>
-            {#if output.pages.length}{@render outputTools()}{/if}
+            {#if output.pages.length || tour === "output-selection"}{@render outputTools()}{/if}
             <input
               id={`${key}-output-selection`}
               disabled={!output.pages.length}
@@ -1953,20 +1967,20 @@
                   focusAfterSelection("Output", event)
                 }}><Icon name="close" /></button
               >{/if}
-            {#if chosen.length}
+            {#if chosen.length || tour === "output-selection"}
               <div class="output-selection" role="group" aria-label="Selected Output pages">
                 <div class="inline-moves">{@render outputMoves(true)}</div>
                 <button
                   class="step danger"
                   aria-label="Remove selected Output pages"
                   title="Remove selected pages · Delete"
-                  disabled={!!outputSelectionError}
+                  disabled={!chosen.length || !!outputSelectionError}
                   onclick={() => remove()}><Icon name="remove" /></button
                 ><button
                   class="step primary"
                   aria-label="Duplicate selected Output pages"
                   title="Add one copy of the selected pages."
-                  disabled={!!outputSelectionError}
+                  disabled={!chosen.length || !!outputSelectionError}
                   onclick={() => duplicate()}><Icon name="add" /></button
                 >
               </div>

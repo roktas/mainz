@@ -271,10 +271,10 @@ extra width. An expanded editor follows the selected component's row without str
 and opacity share one frame and retain separate resets. Native disclosures and controls retain keyboard access.
 
 Unavailable parameters use a muted hatch and prohibition icon while retaining their component's space. N/A appears only
-in hover help with an accessible explanation. Mixed or unrepresentable baselines remain editable. Visibility can be
-indeterminate. A Show/Hide checkbox controls Quartet Visibility. Individual display fields use equal Show/Hide segments
-with native radio navigation. The selected segment has clear emphasis. Neither segment is selected for an unassigned
-original value.
+in hover help with an accessible explanation. Missing Visibility uses this treatment and preserves original display
+states. Mixed or unrepresentable baselines remain editable. Available Visibility can be indeterminate. A Show/Hide
+checkbox controls Quartet Visibility. Individual display fields use equal Show/Hide segments with native radio
+navigation. The selected segment has clear emphasis. Neither segment is selected for an unassigned original value.
 
 Hover emphasizes the relevant component or information marker without adding another border or moving values. Open
 editors retain an accent frame. Invalid drafts use danger text. Short labels retain full authored accessible names. The
@@ -330,11 +330,11 @@ the instruction. [SPEC.md](SPEC.md#help-and-onboarding) owns hint eligibility, d
 
 ## Feedback presentation
 
-| Message | Placement                                                         | Treatment                                                         |
-| ------- | ----------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Info    | Bottom status row.                                                | Small muted `--info` text.                                        |
-| Notice  | Header center, above controls on narrow screens.                  | Bold amber `--notice` text, information icon, and dismiss button. |
-| Error   | Above the workspace, or beside the affected field/dialog control. | Danger color with explanation and recovery actions.               |
+| Message | Placement                                                         | Treatment                                                                        |
+| ------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Info    | Bottom status row.                                                | Small muted `--info` text.                                                       |
+| Notice  | Header center, above controls on narrow screens.                  | Bold `--ink` text, `--secondary` information icon, and `--muted` dismiss button. |
+| Error   | Above the workspace, or beside the affected field/dialog control. | Danger color with explanation and recovery actions.                              |
 
 The status row reserves its height and stays at the viewport bottom during scrolling. Last controls remain reachable.
 Operation and offline feedback share a centered column. Update controls appear below operation feedback. Larger

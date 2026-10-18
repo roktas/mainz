@@ -9,7 +9,7 @@ export type Quartet = {
   fill: PaintDuo
   stroke: PaintDuo
   width?: string
-  visibility: string
+  visibility?: string
 }
 export type Property = "display" | "stroke-width" | "stroke-color" | "fill-color" | "stroke-opacity" | "fill-opacity"
 export type Schema = {
@@ -117,7 +117,7 @@ export function objects(description: Description) {
       const properties = Object.fromEntries(
         peers.map((other) => [description.parameters[other].parameter.binding.property, other]),
       ) as Partial<Record<Property, string>>
-      if (!complete || !properties.display || peers.length === 1) return [{ parameters: [id], quartet: undefined }]
+      if (!complete || peers.length === 1) return [{ parameters: [id], quartet: undefined }]
       const members = peers.toSorted((a, b) => order.get(a)! - order.get(b)!)
       return id === members[0]
         ? [

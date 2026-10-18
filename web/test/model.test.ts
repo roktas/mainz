@@ -498,4 +498,18 @@ test("Quartets use complete Style objects at their first parameter's position", 
     width: undefined,
     visibility: "separate",
   })
+  delete parameters.separate
+  assert.deepEqual(objects(description)(["ink"]), [{ parameters: ["ink"], quartet: undefined }])
+  delete parameters.show
+  assert.deepEqual(objects(description)(["shade", "alpha", "weight"]), [
+    {
+      parameters: ["shade", "alpha", "weight"],
+      quartet: {
+        fill: { color: "shade", opacity: "alpha" },
+        stroke: { color: undefined, opacity: undefined },
+        width: "weight",
+        visibility: undefined,
+      },
+    },
+  ])
 })

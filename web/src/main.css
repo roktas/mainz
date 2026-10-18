@@ -66,7 +66,7 @@
       align-items: center;
       justify-content: center;
       gap: 0.5em;
-      color: var(--notice);
+      color: var(--ink);
       font-size: var(--body);
       font-weight: 700;
       text-align: center;
@@ -78,21 +78,24 @@
       inline-size: 1em;
       block-size: 1em;
     }
+    :scope > svg {
+      color: var(--secondary);
+    }
     button {
-      color: inherit;
+      color: var(--muted);
       background: transparent;
       border-color: transparent;
       &:active {
-        background: color-mix(in oklab, var(--notice) 18%, transparent);
+        background: color-mix(in oklch, var(--secondary) 18%, transparent);
         filter: none;
         box-shadow: none;
       }
       &:focus-visible {
-        outline-color: var(--notice);
+        outline-color: var(--accent);
       }
       @media (hover: hover) and (pointer: fine) {
         &:hover {
-          background: color-mix(in oklab, var(--notice) 10%, transparent);
+          background: var(--tint);
           border-color: transparent;
           box-shadow: none;
         }

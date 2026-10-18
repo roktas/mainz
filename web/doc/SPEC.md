@@ -128,12 +128,12 @@ fixed removable Blanks, and discard internal Part boundaries.
 | Insert Blank         | Adds one fixed-size Blank before the first selected page or at the end, and selects it.                     |
 | Repeat sequence      | Repeats consecutive occurrences, including Sources and Blanks, in order.                                    |
 
-Output offers movement actions in its selection bar, or in the page actions menu when space is limited. They disappear
-at their respective boundaries. A selection touching both boundaries has neither action. Nonconsecutive selections
-retain duplication and movement but show an explanation instead of repetition controls. Repetition includes the current
-sequence: two copies of A B produce A B A B. One copy without alignment offers no action. Success selects the final
-copy's content pages and resets repetitions to 2 and front alignment off. Failure preserves the configuration.
-Selections do not establish persistent copy groups.
+Output offers movement actions in its selection bar, or in the page actions menu when space is limited. Both directions
+retain their positions while a selection exists. Each action is disabled at its boundary. A selection touching both
+boundaries has both actions disabled. Nonconsecutive selections retain duplication and movement but show an explanation
+instead of repetition controls. Repetition includes the current sequence: two copies of A B produce A B A B. One copy
+without alignment offers no action. Success selects the final copy's content pages and resets repetitions to 2 and front
+alignment off. Failure preserves the configuration. Selections do not establish persistent copy groups.
 
 ### Duplex alignment and Blanks
 
@@ -294,9 +294,11 @@ Hover opens them, click pins them, and outside click or Escape dismisses them.
 
 Related parameters combine only within their authored group and only with the same exact target set. Binding properties
 identify their roles. A complete set of several related parameters forms a Quartet at its first parameter's position. A
-lone parameter retains its individual control. A Quartet uses the display parameter's title and has Fill, Stroke, Width,
-and Visibility. Fill and Stroke each combine color and opacity in a Paint duo. Width belongs to Stroke. Visibility
-controls the target set. The arrangement adds no processor schema or manifest field.
+lone parameter retains its individual control. A Quartet has Fill, Stroke, Width, and Visibility. Its title and
+description come from the display parameter when present, otherwise from its first authored parameter. Fill and Stroke
+each combine color and opacity in a Paint duo. Width belongs to Stroke. An available Visibility control affects the
+target set. Without a display parameter, Visibility is unavailable and original display states remain unchanged. The
+arrangement adds no processor schema or manifest field.
 
 Each setting opens its editor. A Paint duo opens color and opacity together, retaining independent values and resets.
 Outside click or Escape closes an editor. Escape returns focus to its trigger. Expanded editors retain descriptions,
@@ -401,11 +403,14 @@ the repository link. Escape, close, or outside click dismisses Settings and rest
 locally with system fallback.
 
 The tour explains actual controls without changing document choices or adding pages. Its core steps cover Input, Input
-Grid, Input Page, Output Grid, Output Page, and Download. Applicable Style and profile controls add at most two steps.
-Without Input, only the three Output steps remain. Steps temporarily reveal their pane and tab. Closing restores
-previous views and returns focus to a visible header control. Using a workspace control ends the tour and retains that
-action's pane and tab. Workspace or style availability changes dismiss the tour. Back, Next, Finish, End tour, Escape,
-and outside dismissal remain available.
+Grid, Grid density, Input Page, Output Grid, Output selection actions, Output Page, and Download. Grid density points to
+Input's Normal and Compact controls when Input exists, otherwise to Output's controls. The Output selection step
+explains earlier/later moves, duplication, and removal. Without a selection, that step shows the real actions disabled
+and keeps the selection empty. Applicable Style and profile controls add at most two steps. Without Input, the five
+Output steps remain. Steps temporarily reveal their pane and tab. Each new step starts at the beginning of its
+explanation. Closing restores previous views and returns focus to a visible header control. Using a workspace control
+ends the tour and retains that action's pane and tab. Workspace or style availability changes dismiss the tour. Back,
+Next, Finish, End tour, Escape, and outside dismissal remain available.
 
 After welcome and tour dismissal, a visible Input thumbnail can introduce addition once per workspace with empty Output.
 The visual copy leaves Output and Selection unchanged. Its Notice says “Select pages · Use + to add to Output.” Adding a

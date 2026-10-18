@@ -86,13 +86,15 @@
   {@const items = groupObjects(ids)}
   {#each items as object (object.parameters[0])}
     {#if object.quartet}
-      {@const label = entry(object.quartet.visibility).parameter.schema.title ?? object.quartet.visibility}
+      {@const representative = object.quartet.visibility ?? object.parameters[0]}
+      {@const schema = entry(representative).parameter.schema}
+      {@const label = schema.title ?? representative}
       <div class="style-object" role="group" aria-label={label}>
         <h4>
           <span>{label}</span>
-          {#if entry(object.quartet.visibility).parameter.schema.description}
+          {#if schema.description}
             <span class="control-description">
-              {entry(object.quartet.visibility).parameter.schema.description}
+              {schema.description}
             </span>
           {/if}
         </h4>

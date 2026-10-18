@@ -1119,7 +1119,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
       await page.waitForFunction(
         () => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === "input",
       )
-      for (const step of ["input-grid", "input-page", "style", "style-profile"]) {
+      for (const step of ["input-grid", "input-density", "input-page", "style", "style-profile"]) {
         await tour.getByRole("button", { name: "Next", exact: true }).click()
         await page.waitForFunction(
           (key) => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === key,
@@ -1127,12 +1127,23 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
         )
       }
       const target = page.locator('[data-tour-target="style-profile"]')
-      assert.match(await tour.locator(".tour-progress").textContent(), /\/ 8/)
+      assert.match(await tour.locator(".tour-progress").textContent(), /\/ 10/)
       assert.equal(await target.isVisible(), true)
       assert.equal(await target.getAttribute("data-tour-active"), "true")
       assert.equal(await input.getByRole("tab", { name: "Style", exact: true }).getAttribute("aria-selected"), "true")
       assert.equal(await chooser.inputValue(), "generic")
       await tour.getByRole("button", { name: "Next", exact: true }).click()
+      await page.waitForFunction(
+        () => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === "output-grid",
+      )
+      await tour.getByRole("button", { name: "Next", exact: true }).click()
+      await page.waitForFunction(
+        () => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === "output-selection",
+      )
+      for (const name of ["Remove selected Output pages", "Duplicate selected Output pages"])
+        assert.equal(await output.getByRole("button", { name, exact: true }).isEnabled(), true)
+      assert.equal(await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "1-2")
+      await tour.getByRole("button", { name: "Back", exact: true }).click()
       await page.waitForFunction(
         () => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === "output-grid",
       )
@@ -1182,10 +1193,15 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     await checkGeometry(pattern)
     const watermark = input.getByRole("group", { name: "Stamp", exact: true })
     await checkGeometry(watermark)
-    for (const label of ["Stroke Paint duo", "Width"])
+    for (const label of ["Stroke Paint duo", "Width", "Visibility"])
       assert.equal(await watermark.getByRole("note", { name: `${label}: not applicable`, exact: true }).count(), 1)
+    assert.equal(await watermark.getByRole("checkbox").count(), 0)
+    assert.match(
+      await watermark.getByRole("note", { name: "Visibility: not applicable", exact: true }).getAttribute("title"),
+      /original visibility/,
+    )
     await watermark.getByLabel("Edit Fill", { exact: true }).click()
-    await watermark.getByRole("textbox", { name: "Stamp Fill Color", exact: true }).fill("#336699")
+    await watermark.getByRole("textbox", { name: "Stamp", exact: true }).fill("#336699")
     await watermark.getByRole("spinbutton", { name: "Stamp Fill Opacity (ratio)", exact: true }).fill("0.6")
     await page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
     assert.equal(await chooser.inputValue(), "generic")
@@ -1660,7 +1676,7 @@ test(
       await page.getByRole("button", { name: "Start Tour", exact: true }).click()
       const blankTour = page.getByRole("dialog", { name: "Product tour", exact: true })
       await blankTour.waitFor()
-      for (const key of ["output-grid", "output-page", "download"]) {
+      for (const key of ["output-density", "output-grid", "output-selection", "output-page", "download"]) {
         await page.waitForFunction(
           (value) => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === value,
           key,
@@ -1668,7 +1684,7 @@ test(
         assert.equal(await page.locator(`[data-tour-target="${key}"]`).isVisible(), true)
         if (key !== "download") await blankTour.getByRole("button", { name: "Next", exact: true }).click()
       }
-      assert.match(await blankTour.locator(".tour-progress").textContent(), /\/ 3/)
+      assert.match(await blankTour.locator(".tour-progress").textContent(), /\/ 5/)
       await blankTour.getByRole("button", { name: "Finish", exact: true }).click()
       assert.equal(await blankOutput.locator(".composition-totals strong").textContent(), "1 PDF page")
       assert.equal(

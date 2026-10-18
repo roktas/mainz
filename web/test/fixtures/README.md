@@ -3,16 +3,16 @@
 [demo.pdf](demo.pdf) contains the cover and six practice Pages from Megic's Ital Winters 7.9 mm A4 Book. PDF Composer's
 `?demo` mode opens it in development, production, and offline after application installation.
 
-The sample has eight Style objects and 35 parameters for patterns, guide lines, and the SAMPLE watermark. Pattern fills
+The sample has eight Style objects and 34 parameters for patterns, guide lines, and the SAMPLE watermark. Pattern fills
 start at `#999999` with 40% opacity and remain editable. Marks and Frame remain fixed. Embedded Generic and Inkjet
 profiles provide named style choices. Opening the sample preserves its saved appearance. Generic restores the sample's
 gray pattern fills. Inkjet uses 0.04 mm thin guides and soft blue (`#6B7F99`) Pattern and Partial Pattern fills at 40%
 opacity. The Style groups appear in this order: Patterns, Guides, Watermark.
 
 The Stamp Style object controls the small, distressed red SAMPLE stamp at the center of all seven pages, including the
-cover. Its fill color and opacity remain editable. The visibility control hides only the fill. Its frame and letter
-outlines stay fixed and visible. Megic maintains the vector source and declaration in `test/integration/watermark.svg`
-and `test/integration/watermark.json`.
+cover. Its fill color and opacity remain editable. Visibility is unavailable. Its frame and letter outlines stay fixed
+and visible outside the editable targets. Megic maintains the vector source and declaration in
+`test/integration/watermark.svg` and `test/integration/watermark.json`.
 
 ## Rebuild
 
@@ -25,10 +25,11 @@ cp .local/sample/demo.pdf ../mainz/web/test/fixtures/demo.pdf
 ```
 
 The script checks the contract, saved overrides, reset, and protected content with independent HexaPDF inspection. It
-also compares the fixed watermark outline with an independent SVG export after hiding its fill. Poppler requires exact
-original/reset raster equality at 150/300 DPI. The separate Cairo Inkjet reference permits a maximum 24/255 difference
-in 0.001% of raster channels. That bound permits subpixel differences from re-export while retaining exact
-protected-content comparisons. Vite copies this maintained fixture into the application assets on each start or build.
+also compares the fixed watermark outline with an independent SVG export after setting fill opacity to zero. Poppler
+requires exact original/reset raster equality at 150/300 DPI. The separate Cairo Inkjet reference permits a maximum
+24/255 difference in 0.001% of raster channels. That bound permits subpixel differences from re-export while retaining
+exact protected-content comparisons. Vite copies this maintained fixture into the application assets on each start or
+build.
 
 ## Grid fixture
 

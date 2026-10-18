@@ -61,7 +61,16 @@ export async function checkWorkspace(page, prepared, ordinary) {
       .getByRole("button", { name: "Start Tour", exact: true })
       .click()
   }
-  const workspaceSteps = ["input-grid", "input-page", "style", "output-grid", "output-page", "download"]
+  const workspaceSteps = [
+    "input-grid",
+    "input-density",
+    "input-page",
+    "style",
+    "output-grid",
+    "output-selection",
+    "output-page",
+    "download",
+  ]
   await page.getByRole("heading", { name: "Select pages and style prepared PDFs.", exact: true }).waitFor()
   check(!(await welcome.isVisible()), "Onboarding waits for a successfully opened PDF")
   check(
@@ -100,6 +109,14 @@ export async function checkWorkspace(page, prepared, ordinary) {
       )
     }, key)
     check(
+      await tour.getByRole("heading", { level: 2 }).evaluate((heading) => {
+        const title = heading.getBoundingClientRect()
+        const card = heading.closest(".help-tour").getBoundingClientRect()
+        return title.top >= card.top && title.bottom <= card.bottom
+      }),
+      `Tour ${key} starts with its title visible`,
+    )
+    check(
       await tour.evaluate((guide) => {
         const backdrop = getComputedStyle(guide, "::backdrop")
         return backdrop.filter.startsWith("blur(") && backdrop.boxShadow !== "none" && backdrop.pointerEvents === "none"
@@ -118,6 +135,19 @@ export async function checkWorkspace(page, prepared, ordinary) {
         await tour.evaluate((guide) => guide.getAnimations({ subtree: true }).length === 0),
         `Tour ${key} honors reduced motion`,
       )
+    if (key.endsWith("-density")) {
+      check(await target.getByRole("button", { name: /^Normal / }).isVisible(), "Tour reveals Normal density")
+      check(await target.getByRole("button", { name: /^Compact / }).isVisible(), "Tour reveals Compact density")
+    }
+    if (key === "output-selection") {
+      const unselected =
+        (await target.getByRole("textbox", { name: "Page selection", exact: true }).inputValue()) === ""
+      for (const name of ["Remove selected Output pages", "Duplicate selected Output pages"])
+        check(
+          (await target.getByRole("button", { name, exact: true }).isDisabled()) === unselected,
+          `Tour shows ${name}, disabled without a selection`,
+        )
+    }
   }
   const open = async (name, buffer) => {
     const count = await page.locator(".input-list button[data-source]").count()
@@ -200,13 +230,21 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await tour.getByRole("button", { name: "Back", exact: true }).click()
   await step("input")
-  for (const key of ["input-grid", "input-page", "output-grid", "output-page", "download"]) {
+  for (const key of [
+    "input-grid",
+    "input-density",
+    "input-page",
+    "output-grid",
+    "output-selection",
+    "output-page",
+    "download",
+  ]) {
     await tour.getByRole("button", { name: "Next", exact: true }).click()
     await step(key)
   }
   check(
-    (await tour.locator(".tour-progress").textContent()).includes("/ 6"),
-    "Empty Output shows both views in six steps without adding sample pages",
+    (await tour.locator(".tour-progress").textContent()).includes("/ 8"),
+    "Empty Output shows density and selection actions without adding sample pages",
   )
   await page.keyboard.press("Escape")
   await tour.waitFor({ state: "hidden" })
@@ -266,8 +304,8 @@ export async function checkWorkspace(page, prepared, ordinary) {
       check((await outputPage().getAttribute("aria-selected")) === "true", "Tour opens Output Page")
   }
   check(
-    (await tour.locator(".tour-progress").textContent()).includes("/ 7"),
-    "Style adds one step to the six-step tour",
+    (await tour.locator(".tour-progress").textContent()).includes("/ 9"),
+    "Style adds one step to the eight-step tour",
   )
   await tour.getByRole("button", { name: "Finish", exact: true }).click()
   check(
@@ -1309,11 +1347,19 @@ export async function checkWorkspace(page, prepared, ordinary) {
   check(!(await welcome.isVisible()), "Another PDF does not repeat onboarding")
   await startTour()
   await step("input")
-  for (const key of ["input-grid", "input-page", "output-grid", "output-page", "download"]) {
+  for (const key of [
+    "input-grid",
+    "input-density",
+    "input-page",
+    "output-grid",
+    "output-selection",
+    "output-page",
+    "download",
+  ]) {
     await tour.getByRole("button", { name: "Next", exact: true }).click()
     await step(key)
   }
-  check((await tour.locator(".tour-progress").textContent()).includes("/ 6"), "Ordinary PDFs use the six-step tour")
+  check((await tour.locator(".tour-progress").textContent()).includes("/ 8"), "Ordinary PDFs use the eight-step tour")
   await page.keyboard.press("Escape")
   await entry.fill("1,1")
   await input.getByRole("button", { name: "Add to Output", exact: true }).click()

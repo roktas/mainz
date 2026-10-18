@@ -1104,8 +1104,8 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
       await selected.fill(text)
       const expected = text
         ? [
-            ...(earlier ? ["Move selected pages earlier"] : []),
-            ...(later ? ["Move selected pages later"] : []),
+            "Move selected pages earlier",
+            "Move selected pages later",
             "Remove selected Output pages",
             "Duplicate selected Output pages",
           ]
@@ -1117,14 +1117,38 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
         expected,
         text,
       )
+      if (text) {
+        assert.equal(
+          await group.getByRole("button", { name: "Move selected pages earlier", exact: true }).isEnabled(),
+          earlier,
+          text,
+        )
+        assert.equal(
+          await group.getByRole("button", { name: "Move selected pages later", exact: true }).isEnabled(),
+          later,
+          text,
+        )
+      }
       await output.getByLabel("Output page actions", { exact: true }).click()
       assert.deepEqual(
         await output
           .getByRole("button", { name: /^Move selected pages/ })
           .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label"))),
-        [...(earlier ? ["Move selected pages earlier"] : []), ...(later ? ["Move selected pages later"] : [])],
+        text ? ["Move selected pages earlier", "Move selected pages later"] : [],
         text,
       )
+      if (text) {
+        assert.equal(
+          await output.getByRole("button", { name: "Move selected pages earlier", exact: true }).isEnabled(),
+          earlier,
+          text,
+        )
+        assert.equal(
+          await output.getByRole("button", { name: "Move selected pages later", exact: true }).isEnabled(),
+          later,
+          text,
+        )
+      }
       await page.keyboard.press("Escape")
       assert.equal(await output.locator(".occurrence-actions button").count(), text ? 0 : 14, text)
       assert.equal(
@@ -1244,7 +1268,10 @@ test("Output separates page controls from group actions for keyboard and mouse",
         3,
         "Addition highlights the new group",
       )
-      assert.equal(await output.getByRole("button", { name: "Move selected pages later", exact: true }).count(), 0)
+      assert.equal(
+        await output.getByRole("button", { name: "Move selected pages later", exact: true }).isDisabled(),
+        true,
+      )
       assert.equal(
         await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).isEnabled(),
         true,
@@ -1342,7 +1369,12 @@ test("Output separates page controls from group actions for keyboard and mouse",
         await group
           .getByRole("button")
           .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label"))),
-        ["Move selected pages later", "Remove selected Output pages", "Duplicate selected Output pages"],
+        [
+          "Move selected pages earlier",
+          "Move selected pages later",
+          "Remove selected Output pages",
+          "Duplicate selected Output pages",
+        ],
       )
       assert.match(await output.locator(".sequence-help").innerText(), /1 page selected/)
       await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
@@ -2221,6 +2253,107 @@ test("Page and Grid keyboard actions respect key priority and the visible page o
     await cards.first().focus()
     await page.keyboard.press("ArrowDown")
     assert.equal(await cards.nth(2).evaluate((element) => element === document.activeElement), true)
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
+test("Output movement keeps direction buttons fixed at selection boundaries", { timeout: 120000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    for (const colorScheme of ["light", "dark"]) {
+      const page = await browser.newPage({ colorScheme, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      const output = page.locator(".composition-output")
+      const selected = output.getByRole("textbox", { name: "Page selection", exact: true })
+      const earlier = output.getByRole("button", { name: "Move selected pages earlier", exact: true })
+      const later = output.getByRole("button", { name: "Move selected pages later", exact: true })
+      await output.locator(".composition-card").last().waitFor()
+      async function revealMoves() {
+        if (!(await output.locator(".inline-moves").isVisible()) && !(await output.locator(".menu-moves").isVisible()))
+          await output.getByLabel("Output page actions", { exact: true }).click()
+      }
+      for (const [width, height, text] of [
+        [320, 844, "100%"],
+        [390, 844, "100%"],
+        [768, 1024, "100%"],
+        [1920, 1080, "100%"],
+        [390, 844, "200%"],
+        [1920, 1080, "200%"],
+      ]) {
+        await page.setViewportSize({ width, height })
+        await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+        const views = page.locator(".mobile-workspace-tabs")
+        if (await views.isVisible()) await views.getByRole("button", { name: "Output", exact: true }).click()
+        await tab(output, "Grid")
+        for (const density of ["Normal", "Compact"]) {
+          await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+          for (const [start, direction] of [
+            [6, -1],
+            [1, 1],
+          ]) {
+            await selected.fill(String(start))
+            await revealMoves()
+            assert.equal(await earlier.isEnabled(), start !== 1)
+            assert.equal(await later.isEnabled(), start !== 6)
+            const bounds = [await earlier.boundingBox(), await later.boundingBox()]
+            const action = direction < 0 ? earlier : later
+            const point = bounds[direction < 0 ? 0 : 1]
+            for (let step = 1; step <= 2; step++) {
+              await revealMoves()
+              assert.deepEqual(
+                [await earlier.boundingBox(), await later.boundingBox()],
+                bounds,
+                `${colorScheme}, ${width}, ${text}, ${density}: direction buttons retain their slots`,
+              )
+              const inline = await output.locator(".inline-moves").isVisible()
+              const centers = []
+              for (const button of [earlier, later]) {
+                const geometry = await button.evaluate((element) => {
+                  const control = element.getBoundingClientRect()
+                  const icon = element.querySelector("svg path").getBoundingClientRect()
+                  return {
+                    x: icon.x + icon.width / 2,
+                    dx: icon.x + icon.width / 2 - control.x - control.width / 2,
+                    dy: icon.y + icon.height / 2 - control.y - control.height / 2,
+                  }
+                })
+                assert.ok(Math.abs(geometry.dy) < 1, "Move icons stay on their button's vertical center")
+                if (inline)
+                  assert.ok(Math.abs(geometry.dx) < 1, "Inline move icons stay on their button's horizontal center")
+                centers.push(geometry.x)
+              }
+              if (!inline) assert.ok(Math.abs(centers[0] - centers[1]) < 1, "Menu move icons share one column")
+              assert.equal(await action.isEnabled(), true)
+              await page.mouse.click(point.x + point.width / 2, point.y + point.height / 2)
+              assert.equal(
+                await selected.inputValue(),
+                String(start + direction * step),
+                "Repeated clicks on one position keep the same direction",
+              )
+            }
+          }
+          await selected.fill("1-6")
+          await revealMoves()
+          assert.equal(await earlier.isDisabled(), true)
+          assert.equal(await later.isDisabled(), true)
+          await page.keyboard.press("Escape")
+          await selected.fill("6")
+          await revealMoves()
+          const blocked = await later.boundingBox()
+          await page.mouse.click(blocked.x + blocked.width / 2, blocked.y + blocked.height / 2)
+          assert.equal(await selected.inputValue(), "6", "A disabled direction leaves the selection unchanged")
+          await page.keyboard.press("Escape")
+          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+        }
+      }
+      await page.close()
+    }
   } finally {
     await browser?.close()
     await server.close()

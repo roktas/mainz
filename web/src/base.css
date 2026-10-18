@@ -9,7 +9,6 @@
     --ink: light-dark(oklch(21.7787% 0 none), oklch(92.1906% 0 none));
     --muted: light-dark(oklch(46.4002% 0 none), oklch(71.5474% 0 none));
     --info: var(--muted);
-    --notice: light-dark(oklch(50% 0.12 65), oklch(80% 0.15 75));
     --border: light-dark(oklch(92.1906% 0 none), oklch(32.1093% 0 none));
     --page-surround: color-mix(in oklch, var(--border) 90%, var(--muted));
     --edge: light-dark(oklch(63.3429% 0 none), oklch(65.0041% 0 none));
