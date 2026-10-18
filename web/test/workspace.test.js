@@ -648,12 +648,16 @@ test("Style and Download cancellation release preview workers and retain choices
       }
       await task.destroy()
     })
+    const initialWorkers = await page.evaluate(() => window.workers.length)
     await input.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("inkjet")
-    await page.waitForFunction(() => window.pdfContinuations.length > 0)
-    await input.getByRole("button", { name: "Cancel style processing", exact: true }).click()
-    await page.waitForFunction(
-      () => window.workers.filter((worker) => worker.url.includes("pdf.worker")).at(-1).terminated,
+    const cancelledStyle = await page.waitForFunction(
+      (count) =>
+        window.pdfContinuations.length > 0 &&
+        window.workers.slice(count).find((worker) => worker.url.includes("pdf.worker")),
+      initialWorkers,
     )
+    await input.getByRole("button", { name: "Cancel style processing", exact: true }).click()
+    await page.waitForFunction((worker) => worker.terminated, cancelledStyle)
     assert.equal(await input.getByRole("combobox", { name: "Style profile", exact: true }).inputValue(), "inkjet")
     assert.equal(await output.locator(".composition-totals strong").textContent(), "2 PDF pages")
     assert.equal(await page.getByRole("button", { name: "Retry Input styles", exact: true }).count(), 1)
@@ -665,25 +669,38 @@ test("Style and Download cancellation release preview workers and retain choices
     await output.getByRole("button", { name: "Download", exact: true }).waitFor()
     assert.equal(await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).inputValue(), "0.04")
     assert.equal(await page.locator(".error-banner").count(), 0)
-    await page.evaluate(() => (window.holdPDFRendering = true))
+    const previewWorkers = await page.evaluate(() => {
+      window.holdPDFRendering = true
+      window.pdfContinuations = []
+      return window.workers.length
+    })
     await input.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("generic")
-    await page.waitForFunction(() => window.pdfContinuations.length > 0)
-    await input.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("inkjet")
-    await page.waitForFunction(
-      () => window.workers.filter((worker) => worker.url.includes("pdf.worker")).at(-1).terminated,
+    const supersededStyle = await page.waitForFunction(
+      (count) =>
+        window.pdfContinuations.length > 0 &&
+        window.workers.slice(count).find((worker) => worker.url.includes("pdf.worker")),
+      previewWorkers,
     )
+    await input.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("inkjet")
+    await page.waitForFunction((worker) => worker.terminated, supersededStyle)
     assert.equal(await output.getByRole("button", { name: "Download", exact: true }).isEnabled(), true)
     assert.equal(await page.locator(".error-banner").count(), 0)
     await page.evaluate(() => (window.pdfContinuations = []))
     const downloads = []
     page.on("download", (download) => downloads.push(download))
-    await page.evaluate(() => (window.holdPDFRendering = true))
+    const downloadWorkers = await page.evaluate(() => {
+      window.holdPDFRendering = true
+      return window.workers.length
+    })
     await output.getByRole("button", { name: "Download", exact: true }).click()
-    await page.waitForFunction(() => window.pdfContinuations.length > 0)
-    await page.getByRole("dialog", { name: "Download", exact: true }).press("Escape")
-    await page.waitForFunction(
-      () => window.workers.filter((worker) => worker.url.includes("pdf.worker")).at(-1).terminated,
+    const cancelledDownload = await page.waitForFunction(
+      (count) =>
+        window.pdfContinuations.length > 0 &&
+        window.workers.slice(count).find((worker) => worker.url.includes("pdf.worker")),
+      downloadWorkers,
     )
+    await page.getByRole("dialog", { name: "Download", exact: true }).press("Escape")
+    await page.waitForFunction((worker) => worker.terminated, cancelledDownload)
     assert.equal(await page.getByRole("dialog", { name: "Download", exact: true }).isVisible(), false)
     assert.equal(downloads.length, 0)
     assert.equal(await output.locator(".composition-totals strong").textContent(), "2 PDF pages")
