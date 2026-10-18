@@ -22,6 +22,7 @@
   import Grid from "./Grid.svelte"
   import PageView, { zoomLevels } from "./Page.svelte"
   import type { Inspection, Region } from "./Page.svelte"
+  import type { Magnification } from "./Lens.svelte"
   import Counter from "./Counter.svelte"
   import Icon from "./Icon.svelte"
   import type { TourStep } from "./Help.svelte"
@@ -67,7 +68,7 @@
     outputProcessing?: boolean
     downloadError?: string
     opening?: boolean
-    magnification?: 8 | 16 | 32
+    magnification?: Magnification
     tour?: TourStep
   } = $props()
   const key = $props.id()
@@ -626,6 +627,7 @@
     if (event.detail) (event.currentTarget as HTMLElement).focus({ preventScroll: true })
   }
   function cancelMotion() {
+    removing = new Set()
     cancelAddition?.()
     cancelAddition = undefined
     cancelRemoval?.()
@@ -638,12 +640,12 @@
       for (const animation of card.getAnimations()) animation.finish()
   }
   function animateEdit(expanded: Expanded[], ids: Set<string>, origin?: HTMLElement | null) {
+    cancelMotion()
     const previous = new Set(output.pages.map((page) => page.id))
     const added = expanded.filter((page) => !previous.has(page.id))
     removing = new Set(output.pages.filter((page) => !ids.has(page.id)).map((page) => page.id))
     const reordering =
       !added.length && !removing.size && expanded.some((page, index) => page.id !== output.pages[index]?.id)
-    cancelMotion()
     const panel = document.getElementById(`${key}-output-panel`)
     if (added.length && !transfer.value) {
       const sheet =
@@ -2075,6 +2077,10 @@
                           event.currentTarget.setAttribute("aria-hidden", "true")
                           event.currentTarget.classList.add("removing")
                         }
+                      }}
+                      onoutroend={(event) => {
+                        const grid = event.currentTarget.parentElement
+                        if (grid && removing.has(page.id) && !cancelMove) cancelMove = animateOrder(grid, 800)
                       }}
                       data-face={index % 2 === 0 ? "front" : "back"}
                       style:--digits={String(index + 1).length}

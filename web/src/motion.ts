@@ -76,6 +76,7 @@ export function animateAddition(
   image.className = "addition-preview"
   image.dataset.copies = String(Math.min(quantity, 3))
   let animation: Animation | undefined
+  let glow: Animation | undefined
   let frame = 0
   let disposed = false
   const events = new AbortController()
@@ -85,6 +86,7 @@ export function animateAddition(
     events.abort()
     cancelAnimationFrame(frame)
     animation?.cancel()
+    glow?.cancel()
     image.remove()
     image.width = image.height = 0
     reveal()
@@ -127,6 +129,19 @@ export function animateAddition(
         easing,
         fill: "forwards",
       })
+      if (target.matches(".mobile-workspace-tabs > button"))
+        glow = target.animate(
+          [
+            {},
+            {
+              backgroundColor: "var(--tint)",
+              borderColor: "var(--accent)",
+              boxShadow: "0 0 18px color-mix(in oklch, var(--accent) 45%, transparent)",
+            },
+            {},
+          ],
+          { duration: editDuration, easing },
+        )
       animation.addEventListener("finish", stop, { once: true, signal: events.signal })
       animation.addEventListener("cancel", stop, { once: true, signal: events.signal })
       window.addEventListener("resize", stop, { once: true, signal: events.signal })
@@ -197,14 +212,15 @@ export function animateMove(sheet: HTMLElement, direction: number) {
   return stop
 }
 
-export function animateOrder(grid: HTMLElement) {
+export function animateOrder(grid: HTMLElement, duration = editDuration) {
   const motion = matchMedia("(prefers-reduced-motion: no-preference)")
   if (!motion.matches) return
+  const start = grid.getBoundingClientRect()
   const positions = new Map(
-    [...grid.querySelectorAll<HTMLElement>(":scope > .composition-card")].map((card) => [
-      card.id,
-      card.getBoundingClientRect(),
-    ]),
+    [...grid.querySelectorAll<HTMLElement>(":scope > .composition-card")].map((card) => {
+      const bounds = card.getBoundingClientRect()
+      return [card.id, { left: bounds.left - start.left, top: bounds.top - start.top }]
+    }),
   )
   const easing = getComputedStyle(grid).getPropertyValue("--ease-in-out").trim()
   const animations: Animation[] = []
@@ -223,19 +239,22 @@ export function animateOrder(grid: HTMLElement) {
   void tick().then(() => {
     if (disposed) return
     frame = requestAnimationFrame(() => {
+      const end = grid.getBoundingClientRect()
       for (const card of grid.querySelectorAll<HTMLElement>(":scope > .composition-card")) {
         const from = positions.get(card.id),
           to = card.getBoundingClientRect()
-        if (!from || (from.left === to.left && from.top === to.top)) continue
+        if (!from) continue
+        const x = from.left - (to.left - end.left),
+          y = from.top - (to.top - end.top)
+        if (!x && !y) continue
         animations.push(
-          card.animate([{ translate: `${from.left - to.left}px ${from.top - to.top}px` }, { translate: "0 0" }], {
-            duration: editDuration,
+          card.animate([{ translate: `${x}px ${y}px` }, { translate: "0 0" }], {
+            duration,
             easing,
           }),
         )
       }
       void Promise.all(animations.map((animation) => animation.finished)).then(stop, stop)
-      window.addEventListener("scroll", stop, { once: true, capture: true, signal: events.signal })
     })
   })
   return stop

@@ -358,10 +358,13 @@ the action.
 
 The lens uses opened Input appearance and completed Output styles, or opened appearance during Compare. It opens after
 the mouse settles for 180 ms, follows movement immediately once open, and closes on leaving the image. All lenses share
-Settings' 8×, 16×, or 32× magnification, initially 16×. The pane's thumbnail defines reference magnification. Page and
-zoom compensate for their size difference to retain the same crop scale. The lens does not change layout or intercept
-mouse input. On touch screens, holding an image opens the lens. Moving the held finger changes the crop. Release,
+Settings' 2×–128× magnification, initially 16×. The pane's thumbnail defines reference magnification. Page and zoom
+compensate for their size difference to retain the same crop scale. The lens does not change layout or intercept mouse
+input. On touch screens, holding an image opens the lens. Moving the held finger changes the crop. Release,
 cancellation, a second finger, or scrolling dismisses it. A hold does not select, add, duplicate, or move pages.
+
+Settings shows the current lens magnification beside − and + buttons. Each step halves or doubles the magnification. The
+buttons disable at 2× and 128× respectively.
 
 ## Download and recovery
 

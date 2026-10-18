@@ -270,6 +270,24 @@
 
 @layer views {
   @scope (.composer) {
+    @container composer (width > 55em) {
+      @media (2560px <= width < 2880px) {
+        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+          .composition-grid {
+            row-gap: 12px;
+          }
+
+          .composition-card {
+            grid-template-rows: calc(34px - var(--page-stroke)) 168px calc(34px - var(--page-stroke));
+
+            & .thumbnail {
+              padding-block: 12px;
+            }
+          }
+        }
+      }
+    }
+
     :is(.selection-panel, .composition-output)[data-density="compact"] {
       .composition-card {
         --fold: 15px;

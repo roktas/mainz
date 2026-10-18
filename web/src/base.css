@@ -166,10 +166,12 @@
     flex: none;
   }
   select {
+    appearance: none;
     min-block-size: 44px;
     border: 1px solid var(--edge);
     border-radius: var(--radius);
-    padding-inline: var(--gap);
+    padding-block: 10px;
+    padding-inline: var(--gap) calc(2 * var(--gap) + var(--icon-size));
     font-size: var(--body);
   }
   :focus-visible {

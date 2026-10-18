@@ -179,19 +179,22 @@
         {/each}
       </div>
     {:else if schema.enum}
-      <select
-        id={`${key}-input`}
-        value={text}
-        aria-describedby={describedBy}
-        aria-invalid={!!error}
-        onchange={(event) => change(id, event.currentTarget.value)}
-      >
-        {#if text === ""}<option value="" disabled>Choose a value · {entry.baseline.kind} baseline</option>{/if}
-        {#each schema.enum as option (option)}<option
-            value={String(option)}
-            disabled={!!feedback(entry, String(option))}>{option}</option
-          >{/each}
-      </select>
+      <div class="select">
+        <select
+          id={`${key}-input`}
+          value={text}
+          aria-describedby={describedBy}
+          aria-invalid={!!error}
+          onchange={(event) => change(id, event.currentTarget.value)}
+        >
+          {#if text === ""}<option value="" disabled>Choose a value · {entry.baseline.kind} baseline</option>{/if}
+          {#each schema.enum as option (option)}<option
+              value={String(option)}
+              disabled={!!feedback(entry, String(option))}>{option}</option
+            >{/each}
+        </select>
+        <Icon name="next" />
+      </div>
     {:else if schema.type === "number"}
       {#if opacity}
         <input

@@ -1,4 +1,9 @@
-<!-- Magnifies bounded PDF crops under a settled mouse or a held touch. -->
+<!-- Owns lens magnification levels and bounded PDF crops for mouse and touch. -->
+
+<script module lang="ts">
+  export const magnificationLevels = [2, 4, 8, 16, 32, 64, 128] as const
+  export type Magnification = (typeof magnificationLevels)[number]
+</script>
 
 <script lang="ts">
   import { loadRenderer } from "./pdf.ts"
@@ -15,7 +20,7 @@
     page: number
     canvas?: HTMLCanvasElement
     rendering: boolean
-    magnification?: 8 | 16 | 32
+    magnification?: Magnification
     ratio?: number
   } = $props()
   let point = $state<{ x: number; y: number; left: number; top: number }>()

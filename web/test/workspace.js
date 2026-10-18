@@ -673,10 +673,10 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const repositoryBounds = await repository.boundingBox()
   check(repositoryBounds.width >= 44 && repositoryBounds.height >= 44, "The repository icon has a full touch target")
   check(
-    await settings.getByRole("radio", { name: "16×", exact: true }).isChecked(),
+    (await settings.getByLabel("Lens magnification", { exact: true }).textContent()) === "16×",
     "Settings starts at 16× lens magnification",
   )
-  await settings.getByRole("radio", { name: "32×", exact: true }).check()
+  await settings.getByRole("button", { name: "Increase lens magnification", exact: true }).click()
   await page.keyboard.press("Tab")
   check(
     await repository.evaluate(
@@ -710,7 +710,8 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await page.mouse.move(0, 0)
   await page.waitForTimeout(160)
   await settingsButton.click()
-  await settings.getByRole("radio", { name: "8×", exact: true }).check()
+  for (let index = 0; index < 2; index++)
+    await settings.getByRole("button", { name: "Decrease lens magnification", exact: true }).click()
   await settings.getByRole("button", { name: "Close Settings", exact: true }).click()
   check(
     !(await settings.isVisible()) && (await settingsButton.evaluate((button) => button === document.activeElement)),

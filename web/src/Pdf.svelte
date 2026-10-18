@@ -27,6 +27,7 @@
   import { cachedRaster, cacheRaster, loadRenderer } from "./pdf.ts"
   import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist"
   import Lens from "./Lens.svelte"
+  import type { Magnification } from "./Lens.svelte"
   let {
     pdf,
     page,
@@ -45,7 +46,7 @@
     compact?: boolean
     zoom?: number
     thumbnailWidth?: number
-    magnification?: 8 | 16 | 32
+    magnification?: Magnification
     error: (message: string) => void
   } = $props()
   let canvas = $state<HTMLCanvasElement>()

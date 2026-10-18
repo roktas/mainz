@@ -136,16 +136,19 @@
             data-tour-target={set === profiles[0] ? "style-profile" : undefined}
             data-tour-active={tour === "style-profile" && set === profiles[0]}
           >
-            <select
-              aria-label={set.name}
-              value={selected?.id ?? ""}
-              title={`${set.name}. Applies to Input pages: ${pages}.`}
-              aria-describedby={`profile-note-${source.id}-${set.id}`}
-              onchange={(event) => profile(set.id, event.currentTarget.value)}
-            >
-              {#if !selected}<option value="" disabled>Custom</option>{/if}
-              {#each set.profiles as choice (choice.id)}<option value={choice.id}>{choice.name}</option>{/each}
-            </select>
+            <div class="select">
+              <select
+                aria-label={set.name}
+                value={selected?.id ?? ""}
+                title={`${set.name}. Applies to Input pages: ${pages}.`}
+                aria-describedby={`profile-note-${source.id}-${set.id}`}
+                onchange={(event) => profile(set.id, event.currentTarget.value)}
+              >
+                {#if !selected}<option value="" disabled>Custom</option>{/if}
+                {#each set.profiles as choice (choice.id)}<option value={choice.id}>{choice.name}</option>{/each}
+              </select>
+              <Icon name="next" />
+            </div>
             <p id={`profile-note-${source.id}-${set.id}`} class="control-description">
               {description}
             </p>

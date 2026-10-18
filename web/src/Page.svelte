@@ -9,6 +9,7 @@
   import type { Snippet } from "svelte"
   import type { PDFDocumentProxy } from "pdfjs-dist"
   import type { Size } from "./model.ts"
+  import type { Magnification } from "./Lens.svelte"
   import Icon from "./Icon.svelte"
   import Pdf from "./Pdf.svelte"
   export type Inspection = {
@@ -50,7 +51,7 @@
     comparing?: boolean
     zoom?: number
     error: (message: string) => void
-    magnification?: 8 | 16 | 32
+    magnification?: Magnification
     heading?: Snippet
     headingHeight?: number
     actions?: Snippet

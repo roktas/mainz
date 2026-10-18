@@ -14,9 +14,14 @@
 ### Changed
 
 - The web application is named PDF Composer.
+- Settings uses −/+ controls for lens magnification from 2× to 128×, with the current factor displayed beside them.
+- Remaining Grid cards slide into place after removal, and the single-pane Output button glows during page arrival.
 
 ### Fixed
 
+- Normal grids fit three rows at Full HD and four at QHD, with pagination captions below the slider.
+- Style selectors retain their touch height on iPad and keep their arrows inset from the field edge.
+- Opening Settings by touch keeps the close button free of an initial focus contour.
 - Grid navigation and Shift selection keep the correct page positions while new copies await arrival and after resizing.
 - Dragging during page removal uses the remaining Output pages for insertion.
 - Phone Compact grids fit four columns and four rows without shrinking portrait thumbnails.

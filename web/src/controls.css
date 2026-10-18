@@ -2,7 +2,7 @@
 
 @layer components {
   @scope (#app) {
-    :is(summary, .brand, .magnification-options label, .quartet-switch, .picker):active:not(:has(input:disabled)) {
+    :is(summary, .brand, .quartet-switch, .picker):active:not(:has(input:disabled)) {
       filter: brightness(1.5);
     }
     .icon-button {
@@ -129,6 +129,23 @@
       block-size: 2.25rem;
       color: var(--secondary);
     }
+    .select {
+      position: relative;
+      display: block grid;
+      min-inline-size: 0;
+      & > select {
+        inline-size: 100%;
+        min-inline-size: 0;
+      }
+      & > svg {
+        position: absolute;
+        inset-inline-end: var(--gap);
+        inset-block-start: 50%;
+        translate: 0 -50%;
+        rotate: 90deg;
+        pointer-events: none;
+      }
+    }
     .entry {
       display: flex;
       align-items: center;
@@ -136,8 +153,11 @@
       border: 1px solid var(--edge);
       border-radius: var(--radius);
       background: var(--surface);
+      & > .select {
+        flex: 1;
+      }
       & > input:not([type="range"]),
-      & > select {
+      & > .select > select {
         flex: 1;
         min-inline-size: 0;
         inline-size: 0;
@@ -147,6 +167,10 @@
         color: var(--ink);
         background: transparent;
         font-size: var(--body);
+      }
+      & > .select > select {
+        inline-size: 100%;
+        padding-inline-end: calc(2 * var(--gap) + var(--icon-size));
       }
       & .step,
       & .reset {

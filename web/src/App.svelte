@@ -8,6 +8,7 @@
   import { appearance, downloadName, expand, job, maxPages, positionAfterEdit, sizeOf, uid } from "./model.ts"
   import type { Input, Part, Source } from "./model.ts"
   import type { Inspection } from "./Page.svelte"
+  import type { Magnification } from "./Lens.svelte"
   import {
     applicable,
     applyProfile,
@@ -40,7 +41,7 @@
   let sequences = $state.raw<Record<string, Sequence>>({})
   let activeId = $state("")
   let logoReplay = $state(0)
-  let magnification = $state<8 | 16 | 32>(16)
+  let magnification = $state<Magnification>(16)
   let message = $state("")
   let notice = $state("")
   let noticeDismissed = $state(false)

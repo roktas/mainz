@@ -2,12 +2,16 @@
 
 <script lang="ts">
   import Icon from "./Icon.svelte"
+  import { magnificationLevels } from "./Lens.svelte"
+  import type { Magnification } from "./Lens.svelte"
   let {
     magnification = $bindable(16),
   }: {
-    magnification?: 8 | 16 | 32
+    magnification?: Magnification
   } = $props()
+  const index = $derived(magnificationLevels.indexOf(magnification))
   let settingsDialog: HTMLDialogElement
+  let pointer = false
 </script>
 
 <button
@@ -15,7 +19,13 @@
   aria-label="Settings"
   title="Settings"
   aria-haspopup="dialog"
-  onclick={() => settingsDialog.showModal()}><Icon name="settings" /></button
+  onpointerdown={() => (pointer = true)}
+  onkeydown={() => (pointer = false)}
+  onclick={() => {
+    settingsDialog.showModal()
+    if (pointer) settingsDialog.focus({ preventScroll: true })
+    pointer = false
+  }}><Icon name="settings" /></button
 >
 
 <dialog bind:this={settingsDialog} class="settings-drawer" aria-labelledby="settings-title" closedby="any">
@@ -25,11 +35,23 @@
       ><Icon name="close" /></button
     >
   </div>
-  <fieldset class="magnification-options">
+  <fieldset class="magnification">
     <legend>Lens magnification</legend>
-    {#each [8, 16, 32] as level (level)}
-      <label><input type="radio" name="magnification" value={level} bind:group={magnification} />{level}×</label>
-    {/each}
+    <output aria-label="Lens magnification">{magnification}×</output>
+    <button
+      class="icon-button"
+      aria-label="Decrease lens magnification"
+      title="Halve lens magnification"
+      disabled={index === 0}
+      onclick={() => (magnification = magnificationLevels[index - 1]!)}>−</button
+    >
+    <button
+      class="icon-button"
+      aria-label="Increase lens magnification"
+      title="Double lens magnification"
+      disabled={index === magnificationLevels.length - 1}
+      onclick={() => (magnification = magnificationLevels[index + 1]!)}>+</button
+    >
   </fieldset>
   <section class="about" aria-labelledby="about-title">
     <div class="dialog-heading">

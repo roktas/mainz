@@ -187,6 +187,19 @@
           pointer-events: none;
         }
       }
+
+      @media (1920px <= width < 2240px) or (2560px <= width < 2880px) {
+        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+          .grid-view {
+            --grid-pager-height: 44px;
+          }
+
+          .page-batches > .batch-caption {
+            inset-block-start: 100%;
+            inset-block-end: auto;
+          }
+        }
+      }
     }
 
     :is(.selection-panel, .composition-output)[data-density="compact"] {

@@ -95,8 +95,12 @@ processing replaces it in the same reserved area without changing heading dimens
 
 The header places the Home logo at the start and Help, Settings, and theme controls at the end. It states that
 processing stays on the device. Coarse-pointer devices omit the Help button. Settings opens a right drawer. Lens
-controls use native radios. Application information sits at the bottom behind a thin separator. Version and Build ID
-values align to the end and wrap with enlarged text. The repository link uses an accessible icon target.
+controls show the magnification beside − and + buttons, aligned like the Page zoom controls. Application information
+sits at the bottom behind a thin separator. Version and Build ID values align to the end and wrap with enlarged text.
+The repository link uses an accessible icon target.
+
+Pointer opening places initial focus on the Settings drawer. Keyboard opening focuses its Close button. Keyboard
+navigation keeps a visible focus indicator on each control.
 
 Tabs use square corners and an accent underline. Unselected tabs gain color on hover. Keyboard focus uses a soft tint
 and one border, without glow. Grid, Page, and Style use their existing outlined icons. Disabled Style retains its
@@ -119,33 +123,41 @@ content row, so headings retain their positions, pagination stays at the bottom,
 edge.
 
 The portrait [Grid fixture](../test/fixtures/README.md#grid-fixture) has these desktop references at 100% browser zoom
-and normal text size:
+and normal text size. Each matrix gives columns × rows = pages and applies to both Input and Output.
 
-| Viewport             | Workspace width | Compact columns × rows | Compact pages |
-| -------------------- | --------------- | ---------------------- | ------------- |
-| Full HD, 1920 × 1080 | 1232 px         | 6 × 6                  | 36            |
-| QHD, 2560 × 1440     | 1472 px         | 8 × 7                  | 56            |
-| UHD, 3840 × 2160     | 2208 px         | 12 × 7                 | 84            |
+| Viewport             | Workspace width | Normal     | Compact     |
+| -------------------- | --------------- | ---------- | ----------- |
+| Full HD, 1920 × 1080 | 1232 px         | 3 × 3 = 9  | 6 × 6 = 36  |
+| QHD, 2560 × 1440     | 1472 px         | 4 × 4 = 16 | 8 × 7 = 56  |
+| UHD, 3840 × 2160     | 2208 px         | 6 × 5 = 30 | 12 × 7 = 84 |
 
-Normal holds six pages at Full HD and twelve at QHD. Compact has at most seven rows. These references protect layout
-capacity. Runtime measurements adapt capacity to the CSS frame budget and page geometry. At Full HD, the Compact frame
-is approximately 889 px high and fits a 508 × 718 px page with 25 px side margins. At QHD, the frame is approximately
-1056 px high and fits a 608 × 860 px page with 36 px side margins. Browser zoom out can grow Fit in CSS pixels to retain
-the page's screen size. Controls and Grid cards continue following browser zoom.
+UHD values have browser-test evidence. Physical-monitor review is deferred.
 
-Touch emulation uses these column references at normal text size:
+Compact has at most seven rows. Runtime measurements adapt capacity to the CSS frame budget and page geometry. At Full
+HD, the Compact frame is approximately 889 px high and fits a 508 × 718 px page with 25 px side margins. At QHD, the
+frame is approximately 1056 px high and fits a 608 × 860 px page with 36 px side margins. Browser zoom out can grow Fit
+in CSS pixels to retain the page's screen size. Controls and Grid cards continue following browser zoom.
 
-| CSS viewport | Normal columns | Compact columns |
-| ------------ | -------------- | --------------- |
-| 375 × 667    | 2              | 4               |
-| 393 × 852    | 2              | 4               |
-| 440 × 956    | 2              | 4               |
-| 744 × 1133   | 4              | 7               |
-| 768 × 1024   | 4              | 7               |
-| 810 × 1080   | 4              | 8               |
-| 1024 × 768   | 3              | 5               |
-| 1080 × 810   | 3              | 5               |
-| 1133 × 744   | 3              | 5               |
+Touch references use the same fixture, 100% browser zoom, and normal text size. Each entry gives columns × rows (visible
+pages). The last row can be partial. Compact values apply to both panes.
+
+| Device       | CSS viewport | Normal Input | Normal Output | Compact    |
+| ------------ | ------------ | ------------ | ------------- | ---------- |
+| Narrow phone | 320 × 568    | 1 × 8 (8)    | 1 × 12 (12)   | 2 × 3 (6)  |
+| iPhone       | 375 × 667    | 2 × 4 (8)    | 2 × 6 (12)    | 4 × 4 (16) |
+| iPhone       | 667 × 375    | 3 × 3 (8)    | 3 × 4 (12)    | 6 × 6 (36) |
+| iPhone       | 390 × 844    | 2 × 4 (8)    | 2 × 6 (12)    | 4 × 4 (16) |
+| iPhone       | 844 × 390    | 4 × 2 (8)    | 4 × 3 (12)    | 8 × 7 (56) |
+| iPhone       | 393 × 852    | 2 × 4 (8)    | 2 × 6 (12)    | 4 × 4 (16) |
+| iPhone       | 852 × 393    | 4 × 2 (8)    | 4 × 3 (12)    | 8 × 7 (56) |
+| iPhone       | 440 × 956    | 2 × 4 (8)    | 2 × 6 (12)    | 4 × 4 (16) |
+| iPhone       | 956 × 440    | 2 × 2 (4)    | 2 × 2 (4)     | 4 × 4 (16) |
+| iPad mini 6  | 744 × 1133   | 4 × 2 (8)    | 4 × 3 (12)    | 7 × 7 (49) |
+| iPad mini 6  | 1133 × 744   | 3 × 2 (6)    | 3 × 2 (6)     | 5 × 5 (25) |
+| iPad         | 768 × 1024   | 4 × 2 (8)    | 4 × 3 (12)    | 7 × 7 (49) |
+| iPad         | 1024 × 768   | 3 × 2 (6)    | 3 × 2 (6)     | 5 × 4 (20) |
+| iPad gen 8   | 810 × 1080   | 4 × 2 (8)    | 4 × 3 (12)    | 8 × 7 (56) |
+| iPad gen 8   | 1080 × 810   | 3 × 2 (6)    | 3 × 2 (6)     | 5 × 5 (25) |
 
 Mobile has a persistent one-tap Input/Output switch and preserves pane state. Headings retain the chooser or totals
 beside Open PDF/Download. Enlarged text can stack these groups. Labels stay complete. Long filenames truncate, with
@@ -175,6 +187,9 @@ Matching Input and Output cards have equal dimensions at the same density, inclu
 numbers at the start, grips in the center, and face information at the upper-right corner. Back uses a curved folded
 corner. Front retains its normal corner. The fold continues the current contour without leaving a rectangular border
 behind it. Accessible labels and hover help identify both faces. Page corners do not intercept tool interactions.
+
+In two-pane layouts from 2560 to below 2880 CSS px, Normal uses 236 px cards and 12 px row gaps. Portrait thumbnails fit
+144 px height with equal 12 px upper and lower margins. Heading and footer controls retain their ordinary size.
 
 Column sizing follows one policy shared by both panes and Page's thumbnail reference. Density, pointer targets, and
 available pane width select the minimum card width and column gap. CSS fills complete columns from these values.
@@ -209,18 +224,22 @@ The Input grip aligns with centered addition. Output has no grip. Compare and Sh
 controls. Larger screens show the percentage, minus, plus, and Fit as four evenly spaced items. Phone-size screens show
 three: minus, plus, and one Fit button. At Fit, that button shows the existing icon; at other zoom levels, it shows the
 percentage. Activating it always restores Fit. The zoom value remains available to screen readers in both layouts. Equal
-control cells keep visible item centers evenly spaced. Tools wrap to another heading row before shrinking their targets
-or covering the grip.
+control cells keep visible item centers evenly spaced. Zoom items stay on one row. The whole tools group can move to
+another heading row before its targets shrink or cover the grip.
 
 Counters keep their dimensions during inline page entry. Current values use stronger text and totals muted text. Spaces
 separate each slash from both numbers. Grid's caption uses `4 / 27 · 28–36 / 240`, with accessible names describing both
 ranges. Its native slider has one stop per batch, gray group markers, and previous/next buttons. Wide layouts align Grid
-and Page navigation. Single-pane layouts use one pagination layout for Normal and Compact: the caption sits directly
-above the slider row, with previous/next buttons at the row's outer edges. The visible arrow centers align with the
-pane's content edges, as do its heading and page fields. The row can extend into available side margins while all
-targets stay inside the viewport. Phone pagination ends immediately above the status bar without an extra spacer. Its
-arrows use separate 40 × 44 px targets; the slider retains a 44 px height. At narrow widths, Page totals can sit below
-the current number. The page-entry field does not cover the grip.
+and Page navigation. Two-pane Normal layouts use the bottom gutter for captions at 1920 ≤ width < 2240 CSS px and 2560 ≤
+width < 2880 CSS px. The frame reserves only the slider row. Full HD fits three Normal rows, and QHD fits four. Other
+desktop widths and Compact keep the caption above the slider.
+
+Single-pane layouts use one pagination layout for Normal and Compact: the caption sits directly above the slider row,
+with previous/next buttons at the row's outer edges. The visible arrow centers align with the pane's content edges, as
+do its heading and page fields. The row can extend into available side margins while all targets stay inside the
+viewport. Phone pagination ends immediately above the status bar without an extra spacer. Its arrows use separate 40 ×
+44 px targets; the slider retains a 44 px height. At narrow widths, Page totals can sit below the current number. The
+page-entry field does not cover the grip.
 
 The lens overlays the image without receiving input. Its magnifier cursor remains visible over light and dark page
 content. Inherited image tooltips stay out of the lens. Page details use a click interaction, leaving image hover
@@ -239,7 +258,8 @@ states remain distinguishable.
 
 Profile selects appear above groups with the page field's height, borders, and corners. Their selected descriptions sit
 directly below. The first select aligns with Output's page field. A neutral divider separates profiles from individual
-controls.
+controls. Style selects retain native selection behavior, use the shared inset chevron, and keep their full touch height
+on touch browsers.
 
 A Quartet presents Fill, Stroke, Width, and Visibility in equal components. Fill and Stroke summaries combine
 independent color and opacity rows. Color swatches show full color independently of opacity. A separate level marker
@@ -333,6 +353,9 @@ Page. Single-pane layouts use the Output button when no new image is displayed. 
 source image and target on both axes. Grid arrivals match the target image size across pane densities. A Blank uses a
 blank preview.
 
+When the preview targets the Output workspace button, that button gains a soft accent glow over the same 1200 ms. The
+glow rises and fades during the flight. Arrival or cancellation clears it without changing the button's geometry.
+
 The preview uses a rendered page when available. It does not delay the edit or change selection, scrolling, or the
 active view. New Output cards reserve their space but stay hidden and inert until arrival. Keyboard duplication keeps
 focus in Grid, then focuses the copy on arrival unless the user navigates elsewhere. If Page displays a new occurrence,
@@ -340,7 +363,8 @@ it also waits for arrival. Cancellation reveals the completed edit. Repeated add
 
 Removal shrinks and fades each visible outgoing card over 1200 ms. Cards keep their places until the exit completes and
 cannot receive input. Page retains a snapshot of the removed image during the exit, then shows its replacement. Removing
-an Input uses the same exit for its visible page images. Document edits and totals update immediately.
+an Input uses the same exit for its visible page images. Document edits and totals update immediately. After a Grid exit
+completes, the remaining cards slide into their new positions over 800 ms.
 
 A new edit or transfer finishes earlier Grid removals before choosing its page targets.
 
@@ -374,9 +398,17 @@ Alignment is an acceptance gate for every layout change. Exercise every affected
 [capacity references](#workspace), including both ends when a range changes. Check Input and Output in Normal and
 Compact, both themes, normal and 200% text, selected and unselected cards, and one- through five-digit numbers. Measure
 visible icon bounds against their declared references on both axes. Center offsets must stay below 1 CSS px; targets
-must remain separate and usable. Compare Grid with Page's thumbnail reference and preserve the required column counts.
-Screenshots confirm the surrounding visual groups. Passing column counts, target sizes, or overflow checks alone does
-not pass this gate.
+must remain separate and usable. Compare Grid with Page's thumbnail reference. At each desktop reference, assert the
+rendered Normal and Compact column × row matrices against the table. Apply the touch references in both orientations,
+including Input/Output page counts and partial rows. Screenshots confirm the surrounding visual groups. Passing column
+counts, target sizes, or overflow checks alone does not pass this gate.
+
+Page zoom items share one centerline, with less than 1 CSS px of vertical deviation. Control targets stay inside their
+heading and do not overlap. Check these rules at Fit and other zoom levels, with both themes and normal/200% text.
+Landscape phone checks cover 667 × 375, 844 × 390, and 956 × 440 CSS px. The browser tests retain a screenshot under
+`.local/tmp/web/layout/` when a matrix or Page-control assertion fails.
+
+CI uploads layout failure screenshots as the `layout` artifact and retains them for seven days.
 
 ## UI glossary
 
@@ -645,7 +677,7 @@ Slider track, thumb, and tick marks use standard slider terminology.
 | Color picker                    | Renk seçici                    | The native color interface that opens from a color swatch.                                      |
 | Hex color field                 | Hex renk alanı                 | The text field for a color value such as `#CC0000`.                                             |
 | Select / Dropdown list          | Seçim listesi / Açılır liste   | A control for selection from profiles or allowed parameter values.                              |
-| Radio group                     | Radyo düğmesi grubu            | A group with one choice, such as Show/Hide or 8×/16×/32×.                                       |
+| Radio group                     | Radyo düğmesi grubu            | A group with one choice, such as Show/Hide.                                                     |
 | Checkbox                        | Onay kutusu                    | The control for an independent choice, such as front alignment.                                 |
 | Slider                          | Kaydırıcı                      | The control that selects a value within a range, such as opacity or a thumbnail group.          |
 | Slider track                    | Kaydırıcı yolu                 | The horizontal path along which the slider thumb moves.                                         |
@@ -689,7 +721,7 @@ form. A popover describes content that appears above other content. See the
 | Keycap                            | Tuş gösterimi                           | A bordered key representation, such as Ctrl, Enter, or an arrow.                         |
 | Welcome dialog                    | Karşılama iletişim kutusu               | The initial three-step explanation with Take a tour and Skip.                            |
 | Settings button / Settings drawer | Ayarlar düğmesi / Ayarlar yan paneli    | The gear button and the panel that opens from the right.                                 |
-| Lens magnification control        | Büyüteç büyütme oranı denetimi          | The 8×/16×/32× radio choices in Settings.                                                |
+| Lens magnification control        | Büyüteç büyütme oranı denetimi          | The −/+ buttons and adjacent magnification value in Settings.                            |
 | About section                     | Uygulama bilgileri bölümü               | The product name, GitHub link, Version, and Build ID in Settings.                        |
 | Download dialog                   | İndirme iletişim kutusu                 | The download preparation, error, Cancel, and Retry interface.                            |
 | Confirmation dialog               | Onay iletişim kutusu                    | A native confirmation, such as the warning before a return to Home with unsaved choices. |
