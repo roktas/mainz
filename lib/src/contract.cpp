@@ -552,7 +552,7 @@ void manifest(JSON root, std::size_t page_count)
     }
     require(owned.size() == regions.size(), "Region has no target.");
     std::set<std::pair<std::string, std::string>> bound;
-    std::set<std::string> display;
+    std::set<std::string> used_targets;
     for (const auto& [id, parameter] : parameters) {
         try {
             unicode(id, true);
@@ -586,15 +586,14 @@ void manifest(JSON root, std::size_t page_count)
                 require(target_eligible, "Binding target has no eligible records.");
                 eligible = true;
                 require(bound.emplace(target, property).second, "Conflicting property bindings.");
-                if (property == "display")
-                    display.insert(target);
+                used_targets.insert(target);
             }
             require(eligible, "Empty binding.");
         } catch (const Error& error) {
             throw Error(error.code(), error.what(), "manifest", "/parameters/" + pointer(id));
         }
     }
-    require(display.size() == targets.size(), "Every target requires a display binding.");
+    require(used_targets.size() == targets.size(), "Every target requires a parameter binding.");
     if (present.contains("profileSets"))
         profile_sets(root.getDictItem("profileSets"), parameters);
     if (present.contains("groups")) {

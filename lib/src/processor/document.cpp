@@ -346,30 +346,6 @@ JSON Engine::retained(const std::map<std::size_t, std::size_t>& indexes)
             page_ids.insert(id);
         }
     }
-    auto kept_regions = JSON::makeDictionary();
-    for (const auto& [id, region] : object(manifest.getDictItem("regions"))) {
-        if (!page_ids.contains(text(region.getDictItem("page"))))
-            continue;
-        kept_regions.addDictionaryMember(id, region);
-        region_ids.insert(id);
-        for (const auto& record : locators(manifest, region))
-            baseline_ids.insert(baseline_ref(region, record));
-    }
-    auto kept_baselines = JSON::makeDictionary();
-    for (const auto& [id, baseline] : object(manifest.getDictItem("baselines")))
-        if (baseline_ids.contains(id))
-            kept_baselines.addDictionaryMember(id, baseline);
-    auto kept_targets = JSON::makeDictionary();
-    for (const auto& [id, regions] : object(manifest.getDictItem("targets"))) {
-        auto kept = JSON::makeArray();
-        for (const auto& region : array(regions))
-            if (region_ids.contains(text(region)))
-                kept.addArrayElement(region);
-        if (!array(kept).empty()) {
-            kept_targets.addDictionaryMember(id, kept);
-            target_ids.insert(id);
-        }
-    }
     auto kept_parameters = JSON::makeDictionary();
     for (auto [id, parameter] : parameters) {
         std::set<std::string> eligible;
@@ -379,8 +355,10 @@ JSON Engine::retained(const std::map<std::size_t, std::size_t>& indexes)
         auto binding = parameter.getDictItem("binding");
         auto targets = JSON::makeArray();
         for (const auto& target : array(binding.getDictItem("targets")))
-            if (target_ids.contains(text(target)) && eligible.contains(text(target)))
+            if (eligible.contains(text(target))) {
                 targets.addArrayElement(target);
+                target_ids.insert(text(target));
+            }
         if (array(targets).empty())
             continue;
         binding.addDictionaryMember("targets", targets);
@@ -388,6 +366,30 @@ JSON Engine::retained(const std::map<std::size_t, std::size_t>& indexes)
         kept_parameters.addDictionaryMember(id, parameter);
         parameter_ids.insert(id);
     }
+    auto kept_targets = JSON::makeDictionary();
+    for (const auto& [id, regions] : object(manifest.getDictItem("targets"))) {
+        if (!target_ids.contains(id))
+            continue;
+        auto kept = JSON::makeArray();
+        for (const auto& region : array(regions))
+            if (page_ids.contains(text(member(manifest.getDictItem("regions"), text(region)).getDictItem("page")))) {
+                kept.addArrayElement(region);
+                region_ids.insert(text(region));
+            }
+        kept_targets.addDictionaryMember(id, kept);
+    }
+    auto kept_regions = JSON::makeDictionary();
+    for (const auto& [id, region] : object(manifest.getDictItem("regions"))) {
+        if (!region_ids.contains(id))
+            continue;
+        kept_regions.addDictionaryMember(id, region);
+        for (const auto& record : locators(manifest, region))
+            baseline_ids.insert(baseline_ref(region, record));
+    }
+    auto kept_baselines = JSON::makeDictionary();
+    for (const auto& [id, baseline] : object(manifest.getDictItem("baselines")))
+        if (baseline_ids.contains(id))
+            kept_baselines.addDictionaryMember(id, baseline);
     next.addDictionaryMember("pages", kept_pages);
     next.addDictionaryMember("regions", kept_regions);
     next.addDictionaryMember("baselines", kept_baselines);

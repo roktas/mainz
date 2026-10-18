@@ -20,8 +20,17 @@ module Mainz
         assert_equal(contents(file("extracted-#{name}.pdf")), contents(file("wasm-extracted-#{name}.pdf")))
       end
 
-      %w[ordinary-reverse composed composed-reset shared-edited].each do |name|
+      %w[ordinary-reverse composed composed-reset shared-edited fixed-visibility-edited].each do |name|
         assert_equal(contents(file("#{name}.pdf")), contents(file("wasm-#{name}.pdf")), name)
+      end
+
+      %w[fill-only fill-mixed].each do |name|
+        %w[extracted composed].each do |operation|
+          [0, 1].each do |index|
+            path = "#{name}-#{operation}-#{index}.pdf"
+            assert_equal(contents(file(path)), contents(file("wasm-#{path}")), path)
+          end
+        end
       end
 
       command("qpdf", "--check", file("wasm-composed.pdf"))

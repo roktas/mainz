@@ -58,7 +58,7 @@ namespace {
             }
         }
         std::set<std::pair<std::string, std::string>> bound;
-        std::set<std::string> displays;
+        std::set<std::string> used_targets;
         for (const auto& [id, parameter] : parameters) {
             identifier(id);
             auto fields_present = fields(parameter, {"schema", "binding"}, {"value"});
@@ -78,11 +78,10 @@ namespace {
                 auto target_id = text(target);
                 require(targets.contains(target_id) && bound.emplace(target_id, property).second,
                     "Unknown, duplicate, or conflicting binding target.");
-                if (property == "display")
-                    displays.insert(target_id);
+                used_targets.insert(target_id);
             }
         }
-        require(displays.size() == targets.size(), "Every target requires a display binding.");
+        require(used_targets.size() == targets.size(), "Every target requires a parameter binding.");
         if (present.contains("profileSets"))
             profile_sets(root.getDictItem("profileSets"), parameters);
         auto groups = present.contains("groups") ? root.getDictItem("groups") : JSON::makeArray();

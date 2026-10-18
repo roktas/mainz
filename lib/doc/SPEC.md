@@ -49,9 +49,10 @@ Stroke and fill alpha are independent. Zero opacity does not change `display`. E
 derived from their hex values. This encoding promises neither matching screen/printer colors nor an sRGB color-managed
 workflow.
 
-Every target has exactly one controlling display parameter. One parameter can control several targets. `none` hides
-stroke and fill on screen and in print while retaining geometry, bindings, baselines, and selected values. `inline`
-restores paint with those values. Showing it again works from the saved PDF alone.
+Display is optional, like the other properties. A target has at most one controlling display parameter. Without one,
+styling retains each record's original display state. One parameter can control several targets. `none` hides stroke and
+fill on screen and in print while retaining geometry, bindings, baselines, and selected values. `inline` restores paint
+with those values. Showing it again works from the saved PDF alone.
 
 ### 1.3 Protected content
 
@@ -188,7 +189,7 @@ property limits. Protected PDF numbers never pass through that representation.
 
 A parameter requires `schema` and `binding`, with optional `value`. A binding has exactly `targets` and `property`. Its
 nonempty target array references existing targets. Its property belongs to Section 1.2. Page indexes name actual PDF
-pages. Every region belongs to one target. Every target has its required display binding. Every baseline has at least
+pages. Every region belongs to one target. Every target has at least one parameter binding. Every baseline has at least
 one record reference. Optional fields follow their full rules whenever present.
 
 Bindings contain resolved PDF regions, never source selectors or CSS. Producer identity, publication revision, and page
@@ -558,9 +559,10 @@ document actions execute.
 
 Extraction remaps page indexes and prunes discarded regions, record sets, baselines, targets, and presentation
 references. Bindings retain only targets with eligible records for their property. Unbound parameters and empty groups
-disappear. Retained identities, definitions, baselines, and overrides stay unchanged. Results are validated and
-reopened. Without editable regions, the manifest and its Associated File reference disappear, producing an ordinary PDF.
-Restoring excluded pages requires the full Input, not the extraction result.
+disappear. Targets without surviving bindings leave the contract without changing their paint. Retained identities,
+definitions, baselines, and overrides stay unchanged. Results are validated and reopened. Without editable regions, the
+manifest and its Associated File reference disappear, producing an ordinary PDF. Restoring excluded pages requires the
+full Input, not the extraction result.
 
 Read, description, extraction, and composition accept ordinary PDFs under the same limits and encryption/signature
 restrictions. An invalid manifest is always an error. Apply and reset require a prepared PDF and report
@@ -790,8 +792,9 @@ triggering inferred reconstruction. Ordinary page operations remain available un
 
 The native producer accepts SVG and separate JSON declarations. Declarations require `targets` and `parameters`, with
 optional `groups` and `profileSets`. Each target has selectors and can declare `fill: true` for eligible closed paths or
-`display: "none"` for authored hidden state. Targets are disjoint, preserve paint order, and have a display parameter.
-Profiles follow Section 4.5 and do not apply automatically during export.
+`display: "none"` for authored hidden state. Targets are disjoint, preserve paint order, and have at least one parameter
+binding. A target's display field records its original state without requiring an editable display parameter. Profiles
+follow Section 4.5 and do not apply automatically during export.
 
 Declaration selectors support only `#id` and `#id > use.class`. Selector IDs/classes use `[A-Za-z_][A-Za-z0-9_-]*`. They
 select whole `g` elements or `use` placements, not content inside `defs` or `symbol`. Selected use placements need

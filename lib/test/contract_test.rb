@@ -72,6 +72,45 @@ module Mainz
       command(@cli, "verify", file("opaque-id.pdf"))
     end
 
+    def test_optional_display_preserves_original_visibility
+      source = file("fixed-visibility.pdf")
+      original = fixture(
+        source,
+        -> (manifest) {
+          manifest["parameters"].reject! { |_, parameter| parameter["binding"]["property"] == "display" }
+        }
+      )
+      command(@cli, "verify", source)
+      parameters = describe(source).fetch("parameters")
+      assert_equal(original.fetch("parameters").keys.sort, parameters.keys.sort)
+      changes = {"width" => 0.2, "guide-fill" => 0.4, "fill-color" => "#00FF00"}
+      edited = operation(source, "fixed-visibility-edited.pdf", changes)
+      manifest, records = snapshot(edited)
+      assert_equal(original.fetch("baselines"), manifest.fetch("baselines"))
+      hidden = records.find { |baseline, _, _| baseline == "hidden" }[2]
+      assert_equal(0, hidden.fetch("/CA"))
+      assert_equal(0, hidden.fetch("/ca"))
+      changes.each do |id, value|
+        assert_equal(value, describe(edited).fetch("parameters").fetch(id).fetch("parameter").fetch("value"))
+      end
+
+      restored = operation(edited, "fixed-visibility-reset.pdf", reset: true)
+      extracted = extract(source, "fixed-visibility-extracted.pdf", [0])
+      write("inputs.json", {"input" => source.to_s})
+      composed, = compose(job, "fixed-visibility-composed.pdf")
+      [edited, restored, extracted, composed].each do |path|
+        command(@cli, "verify", path)
+        summary = describe(path)
+        refute(
+          summary.fetch("parameters").values.any? { |entry| entry["parameter"]["binding"]["property"] == "display" }
+        )
+        retained = JSON.parse(command("qpdf", "--show-attachment=mainz.json", path).stdout)
+        assert_includes(retained.fetch("baselines").values.map { |baseline| baseline.fetch("display") }, "none")
+      end
+
+      write("fixed-visibility-description.json", describe(source))
+    end
+
     def test_shared_baselines_keep_occurrence_specific_widths
       source = file("shared-baseline.pdf")
       fixture(
@@ -288,6 +327,7 @@ module Mainz
         -> (m) { m["parameters"]["width"]["schema"].merge!("minimum" => 2, "exclusiveMaximum" => 2) },
         -> (m) { m["parameters"]["width"]["schema"]["enum"] = [1, 1.0] },
         -> (m) { m["parameters"]["display"]["schema"]["enum"] = ["inline"] },
+        -> (m) { m["parameters"].reject! { |_, parameter| parameter["binding"]["targets"] == ["filled"] } },
         -> (m) { m["parameters"]["opacity"]["schema"]["default"] = 0.25 },
         -> (m) { m["regions"]["rows"]["records"].reverse! },
         -> (m) { m["regions"]["rows"]["records"][1]["path"][1]["occurrence"] = 0 },
@@ -679,6 +719,47 @@ module Mainz
       assert_equal({"notes" => {"index" => 0, "label" => "Practice-7"}}, describe(notes)["pages"])
       assert_equal(page_snapshot(source, 1), page_snapshot(notes, 0))
       command(@cli, "verify", operation(notes, "extracted-notes-reset.pdf", reset: true))
+    end
+
+    def test_page_selection_prunes_targets_without_eligible_bindings
+      [false, true].each do |keep_fill|
+        name = keep_fill ? "fill-mixed" : "fill-only"
+        source = file("#{name}.pdf")
+        fixture(
+          source,
+          -> (manifest) {
+            across_pages(manifest)
+            manifest["parameters"].select! { |id, _| id == "guide-fill" || (keep_fill && id == "fill-color") }
+            manifest["groups"] = []
+            unless keep_fill
+              %w[targets regions baselines].each { |key| manifest[key].delete("filled") }
+            end
+          },
+          authored_baseline: true,
+          pdf_objects: method(:across_page_objects)
+        )
+        command(@cli, "verify", source)
+        write("inputs.json", {"input" => source.to_s})
+        [0, 1].each do |index|
+          extracted = extract(source, "#{name}-extracted-#{index}.pdf", [index])
+          composed, = compose(
+            {
+              "version" => 1,
+              "sources" => {"original" => {"input" => "input", "overrides" => {}}},
+              "parts" => [{"pages" => [{"source" => "original", "page" => index}]}]
+            },
+            "#{name}-composed-#{index}.pdf"
+          )
+          properties = keep_fill ? ["fill-color"] : []
+          properties = ["fill-opacity"] if index == 1
+          [extracted, composed].each do |path|
+            command("qpdf", "--check", path)
+            actual = describe(path).fetch("parameters").values.map { it["parameter"]["binding"]["property"] }
+            assert_equal(properties, actual)
+            assert_equal(page_snapshot(source, index), page_snapshot(path, 0))
+          end
+        end
+      end
     end
 
     def test_invalid_page_selections_preserve_existing_output

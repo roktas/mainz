@@ -79,6 +79,53 @@ module Mainz
       end
     end
 
+    def test_optional_display_preserves_source_visibility
+      %w[inline none].each do |display|
+        source = @directory.join("fixed-#{display}.svg")
+        source.write(svg(display == "none" ? SHAPE.sub("fill:none", "display:none;fill:none") : SHAPE))
+        data = declaration({"guides" => "#Guides"})
+        data["parameters"].delete("guides.display")
+        data["targets"]["guides"]["display"] = "none" if display == "none"
+        native = pdf("produce", "fixed-#{display}.pdf", source, "--declaration", write("fixed.json", data))
+        description = JSON.parse(command(@cli, "describe", native).stdout)
+        assert_equal(data.fetch("parameters").keys.sort, description.fetch("parameters").keys.sort)
+        reference = @directory.join("fixed-#{display}-reference.pdf")
+        command("rsvg-convert", "--format=pdf", "--output", reference, source)
+        appearance(reference, native, "fixed-#{display}")
+        edited = pdf(
+          "apply",
+          "fixed-#{display}-edited.pdf",
+          native,
+          "--request",
+          write("fixed-changes.json", {"guides.stroke-color" => "#336699", "guides.fill-opacity" => 0.4})
+        )
+        appearance(reference, edited, "fixed-hidden-edited") if display == "none"
+        restored = pdf("reset", "fixed-#{display}-reset.pdf", edited)
+        appearance(reference, restored, "fixed-#{display}-reset")
+        assert_equal(Preservation.read(native), Preservation.read(edited))
+        assert_equal(Preservation.read(native), Preservation.read(restored))
+      end
+    end
+
+    def test_targets_require_parameter_bindings
+      source = @directory.join("unbound.svg")
+      source.write(svg(SHAPE))
+      data = declaration({"guides" => "#Guides", "unused" => "#Unused"})
+      data["parameters"].reject! { |_, parameter| parameter["binding"]["targets"] == ["unused"] }
+      failure = command(
+        @cli,
+        "produce",
+        source,
+        "--declaration",
+        write("unbound.json", data),
+        "--output",
+        @directory.join("unbound.pdf"),
+        ok: false
+      )
+      assert_equal("invalid-contract", JSON.parse(failure.stderr)["code"])
+      assert_includes(JSON.parse(failure.stderr)["message"], "Every target requires a parameter binding.")
+    end
+
     def test_physical_units_match_css_pixel_dimensions
       physical = @directory.join("physical.svg")
       physical.write(svg(SHAPE, width: "2in", height: "1.5in"))
