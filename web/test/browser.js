@@ -1,5 +1,6 @@
-// Shares browser fixtures, navigation helpers, and failure screenshots.
+// Shares browser fixtures, navigation, geometry assertions, and failure screenshots.
 
+import assert from "node:assert/strict"
 import { mkdir } from "node:fs/promises"
 import { join, resolve as resolvePath } from "node:path"
 import { createServer as createViteServer } from "vite"
@@ -48,6 +49,22 @@ export async function captureLayout(page, name) {
   const path = join(directory, "failure.png")
   await page.screenshot({ path, fullPage: true })
   return path
+}
+
+export function trackWorkers() {
+  window.workers = []
+  const Original = Worker
+  window.Worker = class extends Original {
+    constructor(url, options) {
+      super(url, options)
+      this.record = { url: String(url), terminated: false }
+      window.workers.push(this.record)
+    }
+    terminate() {
+      this.record.terminated = true
+      super.terminate()
+    }
+  }
 }
 
 export function fixture(
@@ -196,4 +213,63 @@ export function fixture(
     .map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`)
     .join("")}trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
   return Buffer.from(pdf)
+}
+
+export async function checkGrips(pane, label) {
+  const page = pane.page()
+  const button = pane.locator(".composition-card").first().locator(".page-image")
+  for (let state = 0; state < 2; state++) {
+    await button.click()
+    for (const colorScheme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme })
+      const offsets = await pane.locator(".composition-card").evaluateAll((cards) =>
+        cards.map((card) => {
+          const bounds = card.getBoundingClientRect()
+          const header = card.querySelector(".page-label").getBoundingClientRect()
+          const grip = card.querySelector(".page-grip svg").getBoundingClientRect()
+          return [
+            grip.left + grip.width / 2 - bounds.left - bounds.width / 2,
+            grip.top + grip.height / 2 - header.top - header.height / 2,
+          ]
+        }),
+      )
+      assert.ok(
+        offsets.every((axes) => axes.every((offset) => Math.abs(offset) < 1)),
+        `${label}, ${colorScheme}`,
+      )
+    }
+  }
+}
+
+export async function checkGeometry(group) {
+  assert.deepEqual(await group.locator(".quartet-fields .quartet-caption > span").allTextContents(), [
+    "Fill",
+    "Stroke",
+    "Width",
+    "Visibility",
+  ])
+  const sizes = await group.locator(".quartet-fields .quartet-component").evaluateAll((elements) =>
+    elements.map((element) => {
+      const box = element.getBoundingClientRect()
+      return { width: box.width, height: box.height }
+    }),
+  )
+  assert.ok(sizes.length >= 4)
+  for (const size of sizes) {
+    assert.ok(Math.abs(size.width - sizes[0].width) < 1, "Object components must have equal widths")
+    assert.ok(Math.abs(size.height - sizes[0].height) < 1, "Object components must have equal heights")
+    assert.ok(size.height >= 44)
+  }
+}
+
+export async function checkStatus(page) {
+  for (const bottom of [false, true]) {
+    await page.evaluate((end) => window.scrollTo(0, end ? document.documentElement.scrollHeight : 0), bottom)
+    const box = await page.locator(".footnote").boundingBox()
+    assert.ok(box.y >= 0 && box.y + box.height <= page.viewportSize().height + 1)
+    assert.ok(Math.abs(box.y + box.height - page.viewportSize().height) < 1)
+  }
+  const footer = await page.locator(".footnote").boundingBox()
+  const workspace = await page.locator(".composer").boundingBox()
+  assert.ok(workspace.y + workspace.height <= footer.y, "Status must not cover the last workspace controls")
 }
