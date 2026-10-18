@@ -8,6 +8,9 @@
   }
   @scope (#app) {
     .composer {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
       container: composer / inline-size;
       overflow-anchor: none;
       @media (prefers-reduced-motion: no-preference) {
@@ -27,6 +30,7 @@
     }
     .composition-panels {
       display: grid;
+      flex: 1;
       gap: var(--gutter);
     }
     .selection-panel,

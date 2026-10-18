@@ -17,6 +17,13 @@
 
 ### Fixed
 
+- Grid navigation and Shift selection keep the correct page positions while new copies await arrival and after resizing.
+- Dragging during page removal uses the remaining Output pages for insertion.
+- Phone Compact grids fit four columns and four rows without shrinking portrait thumbnails.
+- Mobile Grid pagination shares one layout in both densities, with the caption next to the slider row. Phone pagination
+  sits immediately above the status bar.
+- Tall two-pane layouts fill the space above the status bar, keeping pagination and the pane divider at the bottom.
+- Double-tapping Page images copies the current page on touch browsers without native double-click events.
 - Grid grips stay centered across card widths, selection states, and page-number lengths.
 - Touch grids fit more columns with smaller image margins and retain columns when viewport height changes. Page uses the
   same thumbnail width.

@@ -280,33 +280,51 @@
   }
   function interact(element: HTMLElement) {
     const viewport = element.querySelector<HTMLDivElement>(".page-scroll")!
+    let touch = false
+    let tap: { image: Element; sheet?: Inspection; index: number; time: number } | undefined
+    function pointer(event: PointerEvent) {
+      touch = event.pointerType === "touch" || event.pointerType === "pen"
+      if (!touch) tap = undefined
+    }
+    function pageClick(event: MouseEvent) {
+      const modified = event.ctrlKey || event.metaKey
+      if ((event.type === "click" && !modified && !touch) || (event.type === "dblclick" && (modified || touch))) return
+      // Panning captures pointer clicks on the viewport rather than the page.
+      const image = viewport.ownerDocument
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest("canvas, .blank-sheet")
+      if (!image || !viewport.contains(image)) {
+        tap = undefined
+        return
+      }
+      if (touch && !modified) {
+        const now = performance.now()
+        const twice = tap?.image === image && tap.sheet === sheet && tap.index === index && now - tap.time < 350
+        tap = twice ? undefined : { image, sheet, index, time: now }
+        if (!twice) return
+      }
+      if (modified) grid(event)
+      else {
+        viewport.focus({ preventScroll: true })
+        if (add?.() && matchMedia("(prefers-reduced-motion: no-preference)").matches) {
+          copyFlash?.cancel()
+          copyFlash = image.animate(
+            [
+              { filter: "brightness(1.12)", boxShadow: "0 0 20px var(--accent)" },
+              { filter: "none", boxShadow: getComputedStyle(image).boxShadow },
+            ],
+            { duration: 700, easing: "ease-out" },
+          )
+        }
+      }
+    }
+    viewport.addEventListener("pointerdown", pointer)
     viewport.addEventListener("click", pageClick)
     viewport.addEventListener("dblclick", pageClick)
     return () => {
+      viewport.removeEventListener("pointerdown", pointer)
       viewport.removeEventListener("click", pageClick)
       viewport.removeEventListener("dblclick", pageClick)
-    }
-  }
-  function pageClick(event: MouseEvent) {
-    const modified = event.ctrlKey || event.metaKey
-    if ((event.type === "click" && !modified) || (event.type === "dblclick" && modified)) return
-    const viewport = event.currentTarget as HTMLDivElement
-    // Panning captures pointer clicks on the viewport rather than the page.
-    const image = viewport.ownerDocument.elementFromPoint(event.clientX, event.clientY)?.closest("canvas, .blank-sheet")
-    if (!image || !viewport.contains(image)) return
-    if (modified) grid(event)
-    else {
-      viewport.focus({ preventScroll: true })
-      if (add?.() && matchMedia("(prefers-reduced-motion: no-preference)").matches) {
-        copyFlash?.cancel()
-        copyFlash = image.animate(
-          [
-            { filter: "brightness(1.12)", boxShadow: "0 0 20px var(--accent)" },
-            { filter: "none", boxShadow: getComputedStyle(image).boxShadow },
-          ],
-          { duration: 700, easing: "ease-out" },
-        )
-      }
     }
   }
 </script>

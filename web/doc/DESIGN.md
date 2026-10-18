@@ -43,8 +43,8 @@ at normal text size.
 
 The spacing scale uses a 28 px workspace gutter and fluid control gaps of 12–16 px at normal text size. Narrow layouts
 reduce gutters before reducing usable control space. Standard controls use 4 px corners. The landing frame uses softer
-12 px corners. Primary buttons are at least 104 × 46 px. Interactive targets are at least 44 px. Compact headers use the
-target sizes in [Grid and Page](#grid-and-page).
+12 px corners. Primary buttons are at least 104 × 46 px. Interactive targets are at least 44 px. Compact headers and
+single-pane Grid pagination use the target sizes in [Grid and Page](#grid-and-page).
 
 The shared `--icon-size` token sets ordinary icons to 1.125 rem. Control-specific icon sizes use their own visual role.
 
@@ -113,6 +113,11 @@ page and heading. A separate fit reference preserves Grid capacity while Page us
 zoom does not enlarge this outer frame. This separation keeps Page images large without losing a Grid row. Shorter pages
 center within the shared image area.
 
+When the viewport is taller than the fitted workspace, two-pane Grid and Page frames fill the extra space above the
+status bar, with the standard bottom gutter. The fitted frame sets the minimum height. Extra height belongs to the
+content row, so headings retain their positions, pagination stays at the bottom, and the pane divider reaches the same
+edge.
+
 The portrait [Grid fixture](../test/fixtures/README.md#grid-fixture) has these desktop references at 100% browser zoom
 and normal text size:
 
@@ -123,15 +128,17 @@ and normal text size:
 | UHD, 3840 × 2160     | 2208 px         | 12 × 7                 | 84            |
 
 Normal holds six pages at Full HD and twelve at QHD. Compact has at most seven rows. These references protect layout
-capacity. Runtime measurements adapt to available space and page geometry without resolution-specific row branches. At
-Full HD, the Compact frame is approximately 889 px high and fits a 508 × 718 px page with 25 px side margins. At QHD,
-the frame is approximately 1056 px high and fits a 608 × 860 px page with 36 px side margins. Browser zoom out can grow
-Fit in CSS pixels to retain the page's screen size. Controls and Grid cards continue following browser zoom.
+capacity. Runtime measurements adapt capacity to the CSS frame budget and page geometry. At Full HD, the Compact frame
+is approximately 889 px high and fits a 508 × 718 px page with 25 px side margins. At QHD, the frame is approximately
+1056 px high and fits a 608 × 860 px page with 36 px side margins. Browser zoom out can grow Fit in CSS pixels to retain
+the page's screen size. Controls and Grid cards continue following browser zoom.
 
 Touch emulation uses these column references at normal text size:
 
 | CSS viewport | Normal columns | Compact columns |
 | ------------ | -------------- | --------------- |
+| 375 × 667    | 2              | 4               |
+| 393 × 852    | 2              | 4               |
 | 440 × 956    | 2              | 4               |
 | 744 × 1133   | 4              | 7               |
 | 768 × 1024   | 4              | 7               |
@@ -144,7 +151,8 @@ Mobile has a persistent one-tap Input/Output switch and preserves pane state. He
 beside Open PDF/Download. Enlarged text can stack these groups. Labels stay complete. Long filenames truncate, with
 their full text available through hover and the chooser. Remove Input remains available in the chooser at every width.
 Tabs and shared page fields remain usable in Page. Narrow Normal layouts use batches of eight Input or twelve Output
-thumbnails. Narrow Compact fills complete rows within the visible pane's fitted bound.
+thumbnails. Narrow Compact fills complete rows within the visible pane's fitted bound. Phone layouts at 375–440 px
+reserve four Compact rows at normal text size.
 
 ## Page fields
 
@@ -206,9 +214,13 @@ or covering the grip.
 
 Counters keep their dimensions during inline page entry. Current values use stronger text and totals muted text. Spaces
 separate each slash from both numbers. Grid's caption uses `4 / 27 · 28–36 / 240`, with accessible names describing both
-ranges. Its native slider has one stop per batch, gray group markers, and previous/next buttons. Its navigation aligns
-with Page navigation. At narrow widths, Page totals can sit below the current number. The page-entry field does not
-cover the grip.
+ranges. Its native slider has one stop per batch, gray group markers, and previous/next buttons. Wide layouts align Grid
+and Page navigation. Single-pane layouts use one pagination layout for Normal and Compact: the caption sits directly
+above the slider row, with previous/next buttons at the row's outer edges. The visible arrow centers align with the
+pane's content edges, as do its heading and page fields. The row can extend into available side margins while all
+targets stay inside the viewport. Phone pagination ends immediately above the status bar without an extra spacer. Its
+arrows use separate 40 × 44 px targets; the slider retains a 44 px height. At narrow widths, Page totals can sit below
+the current number. The page-entry field does not cover the grip.
 
 The lens overlays the image without receiving input. Its magnifier cursor remains visible over light and dark page
 content. Inherited image tooltips stay out of the lens. Page details use a click interaction, leaving image hover
@@ -329,6 +341,8 @@ it also waits for arrival. Cancellation reveals the completed edit. Repeated add
 Removal shrinks and fades each visible outgoing card over 1200 ms. Cards keep their places until the exit completes and
 cannot receive input. Page retains a snapshot of the removed image during the exit, then shows its replacement. Removing
 an Input uses the same exit for its visible page images. Document edits and totals update immediately.
+
+A new edit or transfer finishes earlier Grid removals before choosing its page targets.
 
 Moves slide existing cards and their neighbors to their new positions over 1200 ms. A position change in Page gives the
 image a short movement in that direction. The inspected occurrence, Selection, and focus follow their existing rules.

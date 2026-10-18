@@ -55,6 +55,11 @@
     function resize() {
       // Outgoing cards retain the Grid while Svelte pauses its effects for the fade.
       if (disposed || !grid.querySelector(".composition-card:not([inert])")) return
+      if (navigation) {
+        const bounds = grid.getBoundingClientRect()
+        const outset = Math.max(0, Math.min(20, bounds.left, document.documentElement.clientWidth - bounds.right))
+        element.style.setProperty("--pager-outset", `${outset}px`)
+      }
       const previous = batch
       const anchor = position >= start && position < start + batch ? position : offset
       if (!element.clientWidth) {
@@ -132,26 +137,21 @@
           element.focus({ preventScroll: true })
         } else {
           delete element.dataset.cursorBoundary
-          element.querySelector<HTMLButtonElement>(`.page-image[data-page="${position}"]`)?.focus()
+          const image = element.querySelector<HTMLButtonElement>(`.page-image[data-page="${position}"]`)
+          if (image?.closest("[inert]")) element.focus({ preventScroll: true })
+          else image?.focus()
         }
       }
       advancing = false
-    }
-    function images() {
-      return [...element.querySelectorAll<HTMLButtonElement>("button.page-image")].filter(
-        (button) => !button.closest("[inert]"),
-      )
     }
     async function click(event: MouseEvent) {
       if (event.ctrlKey || event.metaKey || !(event.target instanceof Element)) return
       const control = event.target.closest<HTMLButtonElement>("button.page-image, button.page-grip")
       const image = control?.closest(".composition-card")?.querySelector<HTMLButtonElement>(".page-image")
-      if (!image || !element.contains(image)) return
-      const index = images().indexOf(image)
-      if (index < 0) return
+      if (!image || !element.contains(image) || image.closest("[inert]")) return
       boundary = 0
       delete element.dataset.cursorBoundary
-      const clicked = start + index
+      const clicked = Number(image.dataset.page)
       await tick()
       if (event.detail) pointerSelection = selected(clicked) ? clicked : undefined
       else {
@@ -218,10 +218,11 @@
         return
       }
       if (!["shift", "arrowleft", "arrowright", "arrowup", "arrowdown", "home", "end", "n", "p"].includes(key)) return
-      const buttons = images()
-      const index = buttons.indexOf(event.target as HTMLButtonElement)
-      let cursor =
-        event.target === element ? (boundary ? (boundary < 0 ? 0 : count) : position) : index < 0 ? -1 : start + index
+      const index =
+        event.target instanceof HTMLButtonElement && event.target.matches(".page-image")
+          ? Number(event.target.dataset.page)
+          : -1
+      let cursor = event.target === element ? (boundary ? (boundary < 0 ? 0 : count) : position) : index
       if (cursor < 0) return
       if (key === "shift") {
         if (pointerSelection === cursor) {
@@ -238,19 +239,16 @@
         void advance(key === "home" ? 0 : count - 1)
         return
       }
-      const rowColumns = buttons.filter(
-        (button) =>
-          button.closest<HTMLElement>(".composition-card")!.offsetTop ===
-          buttons[0].closest<HTMLElement>(".composition-card")!.offsetTop,
-      ).length
+      // A key can arrive before the resize observer updates batch capacity.
+      const stride = getComputedStyle(element).gridTemplateColumns.split(" ").length
       const step =
         key === "arrowleft" || key === "p"
           ? -1
           : key === "arrowright" || key === "n"
             ? 1
             : key === "arrowup"
-              ? -rowColumns
-              : rowColumns
+              ? -stride
+              : stride
       event.preventDefault()
       keyboard = true
       if (extending) {

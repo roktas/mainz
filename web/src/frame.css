@@ -47,6 +47,18 @@
 
       @media (any-pointer: coarse) {
         @container composer (width <= 55em) {
+          @container catalog (326px <= width < 382px) {
+            &[data-density="compact"] {
+              :is(.composition-grid, .page-reference) {
+                --grid-width: max(74px, calc(4.5 * var(--body)));
+              }
+
+              .grid-view {
+                --frame-height-limit: calc(4 * var(--grid-height) + 3 * var(--grid-gap) + var(--grid-pager-height));
+              }
+            }
+          }
+
           @container catalog (382px <= width < 414px) or (676px <= width < 838px) {
             &[data-density="compact"] :is(.composition-grid, .page-reference) {
               --grid-width: max(88px, calc(5 * var(--body)));
@@ -121,7 +133,7 @@
         min-block-size: 0;
       }
       .composition-panels {
-        grid-template-rows: repeat(4, auto);
+        grid-template-rows: auto auto auto minmax(min-content, 1fr);
 
         & :is(.selection-panel, .composition-output) {
           grid-row: 1 / span 4;
@@ -137,13 +149,28 @@
           grid-template-rows: none;
           align-self: start;
           container: catalog / inline-size;
+
+          &:has(.grid-view, .page-view) {
+            display: grid;
+            grid-template-rows: minmax(0, 1fr);
+            align-self: stretch;
+          }
         }
 
         & .inspection-target {
           display: block flow;
           grid-row: auto;
           grid-template-rows: none;
+
+          &:has(.page-view) {
+            display: grid;
+            grid-template-rows: minmax(0, 1fr);
+          }
         }
+      }
+      .grid-view,
+      .page-view {
+        min-block-size: 100%;
       }
     }
     :is(.selection-panel, .composition-output)[data-density="compact"] {

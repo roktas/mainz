@@ -240,6 +240,9 @@ first/last page without changing selection. Shift+right from the start toggles t
 toggles the last. Outward Shift+arrows have no action. Editing shortcuts remain available at boundaries. Pointer
 movement and presses hide the cursor without clearing selection.
 
+Addition feedback preserves page indexes for navigation and Selection. Grid keeps focus while its cursor visits a hidden
+new Output page.
+
 ### Page
 
 | Key                    | Action                                                       |

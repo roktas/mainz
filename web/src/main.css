@@ -118,6 +118,8 @@
       padding-block-start: var(--gutter);
       padding-block-end: var(--gutter);
       &:has(.composer) {
+        display: flex;
+        flex-direction: column;
         padding-inline-start: max(min(var(--gutter), max(0px, (100% - 266px) / 2)), env(safe-area-inset-left, 0px));
         padding-inline-end: max(min(var(--gutter), max(0px, (100% - 266px) / 2)), env(safe-area-inset-right, 0px));
       }
@@ -417,6 +419,13 @@
 @layer layouts {
   @scope (#app) {
     @media (width <= 30em) {
+      main:has(
+        .composer[data-view="input"] .selection-panel .page-batches,
+        .composer[data-view="output"] .composition-output .page-batches
+      ) {
+        padding-block-end: 0;
+      }
+
       .header-inner {
         gap: 0.25rem;
       }

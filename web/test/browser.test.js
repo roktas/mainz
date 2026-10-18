@@ -200,6 +200,59 @@ function fixture(
   return Buffer.from(pdf)
 }
 
+async function checkPagination(pane) {
+  const bounds = await pane.evaluate((element) => {
+    const rect = (selector) => {
+      const { left, right, top, bottom } = element.querySelector(selector).getBoundingClientRect()
+      return { left, right, top, bottom }
+    }
+    return {
+      grid: rect(".composition-grid"),
+      pager: rect(".page-batches"),
+      slider: rect('.page-batches input[type="range"]'),
+      previous: rect(".page-batches > button:first-child"),
+      next: rect(".page-batches > button:last-of-type"),
+      previousIcon: rect(".page-batches > button:first-child svg"),
+      nextIcon: rect(".page-batches > button:last-of-type svg"),
+      caption: rect(".batch-caption"),
+      viewport: document.documentElement.clientWidth,
+    }
+  })
+  assert.ok(
+    Math.abs((bounds.previousIcon.left + bounds.previousIcon.right) / 2 - bounds.grid.left) < 1,
+    "Previous aligns with the content's left edge",
+  )
+  assert.ok(
+    Math.abs((bounds.nextIcon.left + bounds.nextIcon.right) / 2 - bounds.grid.right) < 1,
+    "Next aligns with the content's right edge",
+  )
+  for (const button of [bounds.previous, bounds.next]) {
+    assert.ok(Math.abs(button.top - bounds.slider.top) < 1, "Arrows share the slider's row")
+    assert.ok(button.right - button.left >= 40 && button.bottom - button.top >= 44, "Arrow targets stay usable")
+    assert.ok(button.left >= 0 && button.right <= bounds.viewport, "Arrow targets stay inside the viewport")
+  }
+  for (const icon of [bounds.previousIcon, bounds.nextIcon])
+    assert.ok(
+      Math.abs((icon.top + icon.bottom - bounds.slider.top - bounds.slider.bottom) / 2) < 1,
+      "Arrows stay on the slider's centerline",
+    )
+  assert.ok(
+    bounds.previous.right <= bounds.slider.left && bounds.slider.right <= bounds.next.left,
+    "Targets stay separate",
+  )
+  assert.ok(Math.abs(bounds.slider.bottom - bounds.pager.bottom) < 1, "The slider sits at the frame's foot")
+  assert.ok(Math.abs(bounds.caption.bottom - bounds.slider.top) < 1, "The caption stays next to the slider")
+  if (pane.page().viewportSize().width <= 480) {
+    await pane.page().evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
+    const gap = await pane.evaluate(
+      (element) =>
+        document.querySelector(".footnote").getBoundingClientRect().top -
+        element.querySelector(".page-batches").getBoundingClientRect().bottom,
+    )
+    assert.ok(Math.abs(gap) < 1, "Grid pagination meets the status bar without a spacer")
+  }
+}
+
 async function checkGrips(pane, label) {
   const page = pane.page()
   const button = pane.locator(".composition-card").first().locator(".page-image")
@@ -1795,16 +1848,25 @@ test("Page bounds the shared frame by fitted geometry and Grid fills complete ro
             side: sheet.left - scroll.left,
             heading: view.querySelector(".inspection-heading").getBoundingClientRect().height,
             actionOffset: actions.x + actions.width / 2 - frame.x - frame.width / 2,
+            fillsViewport: document.documentElement.scrollHeight <= innerHeight,
+            footerGap:
+              document.querySelector(".footnote").getBoundingClientRect().top -
+              parseFloat(getComputedStyle(document.querySelector("main")).paddingBottom) -
+              frame.bottom,
           }
         })
         assert.equal(geometry.rows, rows)
         assert.equal(geometry.heading, 45, "Output Page keeps its controls on one heading row")
         assert.ok(Math.abs(geometry.actionOffset) < 1, "Page actions stay centered")
         assert.equal(geometry.frames[0], geometry.frames[1], "Grid and Page keep one shared frame")
-        assert.ok(
-          geometry.margins.every((margin) => margin <= Math.max(48, geometry.side * 1.5) + 1),
-          "Vertical margins balance the enlarged page within the Grid frame",
-        )
+        assert.ok(Math.abs(geometry.margins[0] - geometry.margins[1]) < 1, "Page stays vertically centered")
+        if (geometry.fillsViewport)
+          assert.ok(Math.abs(geometry.footerGap) < 1, "Spare viewport height fills the frame above the status bar")
+        else
+          assert.ok(
+            geometry.margins.every((margin) => margin <= Math.max(48, geometry.side * 1.5) + 1),
+            "Fitted margins stay balanced when the workspace exceeds the viewport height",
+          )
         assert.ok(Math.abs(geometry.image[1] - fittedHeight) < 1, "The frame cap preserves the width-fitted PDF size")
         if (width === 2560)
           assert.ok(Math.abs(geometry.frames[0] - 1056) < 1, "QHD reserves room for the enlarged Page")
@@ -1828,7 +1890,7 @@ test("Page bounds the shared frame by fitted geometry and Grid fills complete ro
       return sheet && sheet.clientWidth > sheet.clientHeight
     })
     const landscape = await output.locator(".page-view").boundingBox()
-    assert.ok(landscape.height < 650, "A landscape Page sets its own smaller height cap")
+    assert.ok(landscape.height < fittedFrame.height, "A landscape Page needs less height than a portrait Page")
     await tab(input, "Page")
     await input.locator(".pdf-viewport[aria-busy=false]").waitFor()
     const heights = await page
@@ -1895,7 +1957,7 @@ test("Page bounds the shared frame by fitted geometry and Grid fills complete ro
   }
 })
 
-test("Grid scales desktop capacity, balances Page, and retains compact actions", { timeout: 120000 }, async () => {
+test("Grid scales desktop capacity, balances Page, and retains compact actions", { timeout: 180000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser
   try {
@@ -2247,7 +2309,11 @@ test("Grid scales desktop capacity, balances Page, and retains compact actions",
       hasTouch: true,
       reducedMotion: "reduce",
     })
-    await touch.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await touch.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await touch.route("**/grid.pdf", (route) =>
+      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
+    )
+    await touch.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
     const touchInput = touch.locator(".selection-panel")
     await touchInput.getByRole("button", { name: "Compact Input grid", exact: true }).click()
     const touchTargets = await touchInput
@@ -2264,6 +2330,57 @@ test("Grid scales desktop capacity, balances Page, and retains compact actions",
       touchTargets.every(([width, height]) => width >= 24 && height === 44),
       "Touch retains separate heading targets of at least 24 by 44 px",
     )
+    async function checkFrameBottom() {
+      await touch.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }))
+      const geometry = await touch.evaluate(() => ({
+        bottom:
+          document.querySelector(".footnote").getBoundingClientRect().top -
+          parseFloat(getComputedStyle(document.querySelector("main")).paddingBottom),
+        panes: [...document.querySelectorAll(".selection-panel, .composition-output")]
+          .filter((element) => element.clientWidth)
+          .map((element) => ({
+            bottom: element.getBoundingClientRect().bottom,
+            frame: element.querySelector(".grid-view, .page-view").getBoundingClientRect().bottom,
+          })),
+        overflow: document.documentElement.scrollWidth > innerWidth,
+      }))
+      assert.equal(geometry.overflow, false)
+      if (geometry.panes.length === 2) {
+        for (const pane of geometry.panes) {
+          assert.ok(
+            Math.abs(pane.frame - geometry.bottom) < 1,
+            `Frames fill the space above the status bar: ${JSON.stringify(geometry)}`,
+          )
+          assert.ok(Math.abs(pane.bottom - pane.frame) < 1, "The pane divider reaches the frame's bottom")
+        }
+      }
+    }
+    for (const [width, height] of [
+      [960, 1440],
+      [1032, 1376],
+    ]) {
+      await touch.setViewportSize({ width, height })
+      for (const size of ["100%", "200%"]) {
+        await touch.evaluate((value) => (document.documentElement.style.fontSize = value), size)
+        for (const density of ["Normal", "Compact"]) {
+          for (const name of ["Input", "Output"]) {
+            const views = touch.locator(".mobile-workspace-tabs")
+            if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
+            const pane = touch.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+            await tab(pane, "Grid")
+            await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+            await checkFrameBottom()
+          }
+          for (const name of ["Input", "Output"]) {
+            const views = touch.locator(".mobile-workspace-tabs")
+            if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
+            const pane = touch.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+            await tab(pane, "Page")
+            await checkFrameBottom()
+          }
+        }
+      }
+    }
     await touch.close()
     assert.deepEqual(errors, [])
   } finally {
@@ -2563,11 +2680,13 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
       await fitted(image(input))
       const surround = await input.locator(".page-scroll").boundingBox()
       const sheet = await image(input).boundingBox()
-      assert.ok((sheet.y - surround.y) * factor < 90, "Seven Compact rows retain a balanced upper Page surround")
-      assert.ok(
-        (surround.y + surround.height - sheet.y - sheet.height) * factor < 90,
-        "Seven Compact rows retain a balanced lower Page surround",
-      )
+      const margins = [sheet.y - surround.y, surround.y + surround.height - sheet.y - sheet.height]
+      assert.ok(Math.abs(margins[0] - margins[1]) < 1, "Page stays centered at every browser zoom")
+      if (await page.evaluate(() => document.documentElement.scrollHeight > innerHeight))
+        assert.ok(
+          margins.every((margin) => margin * factor < 90),
+          "Seven Compact rows retain balanced fitted margins when the workspace exceeds the viewport height",
+        )
       const transfer = await page.evaluateHandle(() => new DataTransfer())
       await input.locator(".inspection-heading .page-grip").dispatchEvent("dragstart", { dataTransfer: transfer })
       const first = output.locator(".composition-card").first(),
@@ -2820,6 +2939,11 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
       page.on("pageerror", (error) => errors.push(error.message))
       await page.emulateMedia({ colorScheme })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      // Some touch engines send two clicks without a native double-click event.
+      if (width === 390)
+        await page.addInitScript(() =>
+          document.addEventListener("dblclick", (event) => event.stopImmediatePropagation(), true),
+        )
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
       await page.locator(".composition-totals strong").waitFor({ state: "attached" })
       await page.evaluate((size) => (document.documentElement.style.fontSize = size), textSize)
@@ -2921,6 +3045,11 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
         assert.equal(await field.inputValue(), "2-4,6")
         assert.equal(await total(), before, "Holding a Page image does not add or duplicate it")
         if (name === "Output") {
+          await sheet.tap()
+          await pane.getByRole("button", { name: "Next Output page", exact: true }).tap()
+          await sheet.tap()
+          assert.equal(await total(), before, "Taps on different inspected pages do not combine into a copy")
+          await pane.getByRole("button", { name: "Previous Output page", exact: true }).tap()
           for (const expected of ["7 PDF pages", "8 PDF pages"]) {
             await sheet.tap()
             await sheet.tap()
@@ -2945,7 +3074,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
 
 test(
   "Grid layouts preserve column capacity, centered grips, usable targets, and Page thumbnail references",
-  { timeout: 180000 },
+  { timeout: 240000 },
   async () => {
     const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
     let browser
@@ -2964,7 +3093,11 @@ test(
         const cases = hasTouch
           ? [
               [320, 568, 1, 2],
-              [390, 844, 2, 3],
+              [358, 667, 2, 4],
+              [375, 667, 2, 4],
+              [390, 844, 2, 4],
+              [393, 852, 2, 4],
+              [413, 852, 2, 4],
               [440, 956, 2, 4],
               [640, 960, 3, 5],
               [744, 1133, 4, 7],
@@ -2975,6 +3108,8 @@ test(
               [810, 600, 4, 8],
               [820, 1180, 4, 8],
               [834, 1194, 4, 8],
+              [920, 900, 5, 8],
+              [940, 900, 2, 4],
               [1024, 768, 3, 5],
               [1080, 810, 3, 5],
               [1133, 744, 3, 5],
@@ -3022,6 +3157,7 @@ test(
               assert.ok(geometry.margin < normalMargin, "Normal adds a column without shrinking its image")
             }
             await checkGrips(pane, `${name} Normal, ${width}×${height}: grips stay centered in both selection states`)
+            if (await views.isVisible()) await checkPagination(pane)
             await pane.getByRole("button", { name: `Compact ${name} grid`, exact: true }).click()
             assert.equal(
               await pane
@@ -3030,7 +3166,9 @@ test(
               columns,
               `${name}, ${width}×${height}, ${hasTouch ? "touch" : "mouse"}`,
             )
-            const margin = hasTouch ? { 440: 19, 744: 17, 768: 19, 810: 16, 1024: 16 }[width] : undefined
+            const margin = hasTouch
+              ? { 375: 11, 390: 13, 393: 13, 440: 19, 744: 17, 768: 19, 810: 16, 1024: 16 }[width]
+              : undefined
             if (margin !== undefined) {
               await pane.locator('.thumbnail[aria-busy="false"] canvas').first().waitFor()
               const geometry = await pane
@@ -3061,6 +3199,12 @@ test(
                   name === "Input" ? ".selection-panel .composition-grid" : ".composition-output .composition-grid",
                 )
             }
+            if (await views.isVisible()) await checkPagination(pane)
+            if (hasTouch && width >= 358 && width <= 440)
+              await page.waitForFunction(
+                (selector) => document.querySelector(selector).children.length === 16,
+                name === "Input" ? ".selection-panel .composition-grid" : ".composition-output .composition-grid",
+              )
             await checkGrips(pane, `${name} Compact, ${width}×${height}: grips stay centered in both selection states`)
             const card = await pane.locator(".composition-card").first().boundingBox()
             await tab(pane, "Page")
@@ -3096,6 +3240,7 @@ test(
             for (const density of ["Normal", "Compact"]) {
               await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
               await checkGrips(pane, `${name} ${density}, ${width}×${height}, 200% text`)
+              if (await views.isVisible()) await checkPagination(pane)
               assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
             }
           }
@@ -4291,6 +4436,79 @@ test(
     }
   },
 )
+
+test("Grid navigation retains physical page positions during additions", { timeout: 60000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    for (const [width, height, density, colorScheme] of [
+      [1440, 1100, "Normal", "light"],
+      [1440, 1100, "Compact", "dark"],
+      [390, 844, "Normal", "dark"],
+      [390, 844, "Compact", "light"],
+    ]) {
+      const page = await browser.newPage({ viewport: { width, height }, colorScheme, reducedMotion: "no-preference" })
+      page.setDefaultTimeout(10000)
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.locator(".composition-totals strong").waitFor({ state: "attached" })
+      const output = page.locator(".composition-output")
+      const workspace = page.locator(".mobile-workspace-tabs > button:last-child")
+      if (await workspace.isVisible()) await workspace.click()
+      await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+      await output.locator(".thumbnail[aria-busy=false]").first().waitFor()
+      await page.evaluate(() => {
+        new MutationObserver(() => {
+          document.querySelectorAll(".addition-preview").forEach((element) => {
+            element.getAnimations().forEach((animation) => {
+              animation.pause()
+              animation.currentTime = 0
+            })
+          })
+        }).observe(document.body, { childList: true })
+      })
+      const selection = output.getByLabel("Page selection", { exact: true })
+      const grid = output.locator(".composition-grid")
+      await selection.fill("1")
+      await grid.press("Enter")
+      await page.locator(".addition-preview").waitFor()
+      await grid.press("Home")
+      await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Select Output page 1")
+      await page.keyboard.press("ArrowRight")
+      assert.equal(
+        await grid.evaluate((element) => element === document.activeElement),
+        true,
+        `${width} ${density}: Grid retains focus while its cursor visits a hidden new page`,
+      )
+      for (const [key, number] of [
+        ["ArrowRight", 3],
+        ["ArrowRight", 4],
+        ["ArrowLeft", 3],
+      ]) {
+        await page.keyboard.press(key)
+        await page.waitForFunction(
+          (label) => document.activeElement?.getAttribute("aria-label") === label,
+          `Select Output page ${number}`,
+        )
+      }
+      await output.getByRole("button", { name: "Select Output page 3", exact: true }).click()
+      await page.keyboard.press("Shift+ArrowRight")
+      assert.equal(await selection.inputValue(), "2-4", `${width} ${density}: Shift follows the clicked physical page`)
+      await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Select Output page 5")
+      if (await page.locator(".addition-preview").count())
+        await page.locator(".addition-preview").evaluate((element) => {
+          element.getAnimations().forEach((animation) => animation.finish())
+        })
+      assert.equal(await selection.inputValue(), "2-4")
+      await page.close()
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
 
 test("Input additions move previews to Output without delaying edits or taking focus", { timeout: 90000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
@@ -5644,6 +5862,36 @@ test("Dragging opens stable page slots, previews density, and commits only on dr
           copied[3],
           copied[7],
         ])
+        await cards.first().evaluate((card) => {
+          card.addEventListener(
+            "outrostart",
+            () => queueMicrotask(() => card.getAnimations().forEach((animation) => animation.pause())),
+            { once: true },
+          )
+        })
+        await output.getByLabel("Page selection", { exact: true }).fill("1")
+        await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
+        const remaining = output.locator(".composition-card:not([inert])")
+        await page.waitForFunction(
+          () => document.querySelectorAll(".composition-output .composition-card:not([inert])").length === 7,
+        )
+        const survivors = await remaining.evaluateAll((items) => items.map((item) => item.id))
+        await source.dispatchEvent("dragstart", { dataTransfer: transfer })
+        const liveTarget = remaining.nth(2),
+          liveBounds = await liveTarget.boundingBox()
+        await liveTarget.dispatchEvent("dragover", {
+          dataTransfer: transfer,
+          clientX: liveBounds.x + liveBounds.width / 4,
+          clientY: liveBounds.y + liveBounds.height / 2,
+        })
+        await grid.dispatchEvent("drop", { dataTransfer: transfer })
+        const inserted = await remaining.evaluateAll((items) => items.map((item) => item.id))
+        assert.deepEqual(inserted.slice(0, 2), survivors.slice(0, 2))
+        assert.deepEqual(
+          inserted.slice(3),
+          survivors.slice(2),
+          "A fading removed page cannot move the insertion target",
+        )
         await output.getByLabel("Page selection", { exact: true }).fill("1-8")
         await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
         await page.waitForFunction(() => !document.querySelector(".composition-output .composition-card"))

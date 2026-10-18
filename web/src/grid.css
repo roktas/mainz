@@ -26,14 +26,10 @@
 
     .page-batches {
       display: block grid;
-      grid-template-columns: 44px minmax(0, 1fr) 44px;
-      grid-template-rows: 44px minmax(0, 1fr);
       align-items: center;
       justify-items: center;
       gap: 0;
       block-size: var(--grid-pager-height);
-      margin-block: var(--gap);
-      padding-block-start: calc(var(--gap) / 2 + 8px);
       border-block-start: 0;
       font-variant-numeric: tabular-nums;
 
@@ -207,16 +203,55 @@
           block-size: min(var(--grid-view-height), var(--frame-height-limit));
           min-inline-size: 0;
         }
-
-        .page-batches {
-          margin: 0;
-        }
       }
     }
 
     @container catalog (width <= 28rem) {
       .grid-view {
         --grid-pager-height: calc(44px + 4.5 * var(--small) + var(--gap) + 8px);
+      }
+    }
+
+    @container composer (width <= 55em) {
+      .grid-view {
+        --grid-pager-height: calc(44px + 3 * var(--small));
+      }
+
+      .page-batches {
+        grid-template-columns: 40px minmax(0, 1fr) 40px;
+        grid-template-rows: minmax(0, 1fr) 44px;
+        inline-size: calc(100% + 2 * var(--pager-outset, 0px));
+        padding-block-start: 0;
+        margin-block: 0;
+        margin-inline: calc(-1 * var(--pager-outset, 0px));
+
+        & > button,
+        & > .batch-slider {
+          grid-row: 2;
+        }
+
+        & > button {
+          inline-size: 40px;
+          min-inline-size: 40px;
+        }
+
+        & > .batch-caption {
+          grid-row: 1;
+          align-self: end;
+        }
+
+        & > button svg {
+          inline-size: 20px;
+          block-size: 20px;
+        }
+
+        & > button:first-child {
+          padding-inline: 0 max(0px, calc(40px - 2 * max(10px, var(--pager-outset, 0px))));
+        }
+
+        & > button:last-of-type {
+          padding-inline: max(0px, calc(40px - 2 * max(10px, var(--pager-outset, 0px)))) 0;
+        }
       }
     }
   }
