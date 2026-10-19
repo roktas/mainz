@@ -870,6 +870,8 @@ export async function checkWorkspace(page, prepared, ordinary) {
   )
   await entry.fill(sequenceBeforeInsertion)
   await page.setViewportSize({ width: 1440, height: 2400 })
+  // Let resize cancellation finish before starting the next transfer.
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
   const dragData = await page.evaluateHandle(() => new DataTransfer())
   const transfer = input.getByRole("button", { name: "Add to Output", exact: true })
   await transfer.dispatchEvent("dragstart", { dataTransfer: dragData })
