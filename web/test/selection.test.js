@@ -4,7 +4,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { chromium } from "playwright"
 import { zoom } from "./workspace.js"
-import { createServer, tab, pagePosition, gridPage, fixture, hasCursor } from "./browser.js"
+import { createServer, tab, pagePosition, gridPage, fixture, hasCursor, captureLayout } from "./browser.js"
 
 test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
@@ -211,6 +211,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
 test("Touch Selection keeps the keyboard closed and image gestures preserve pages", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser
+  let page
   try {
     await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
@@ -218,7 +219,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
       [810, 1080, "light", "100%"],
       [390, 844, "dark", "200%"],
     ]) {
-      const page = await browser.newPage({ viewport: { width, height }, hasTouch: true, isMobile: true })
+      page = await browser.newPage({ viewport: { width, height }, hasTouch: true, isMobile: true })
       page.setDefaultTimeout(10000)
       const errors = []
       page.on("pageerror", (error) => errors.push(error.message))
@@ -278,8 +279,16 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
         await field.fill("2-4,6")
         await pane.getByRole("tab", { name: "Grid", exact: true }).tap()
         const before = await total()
-        const target = cards.first().locator(".page-image canvas")
+        const target = (await gridPage(pane, 1)).locator('.thumbnail[aria-busy="false"] canvas')
+        await page.waitForFunction(
+          (element) =>
+            [...element.querySelectorAll(".composition-card")].every(
+              (card) => !card.inert && !card.getAnimations().length,
+            ),
+          await pane.elementHandle(),
+        )
         await target.scrollIntoViewIfNeeded()
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
         const bounds = await target.boundingBox()
         const point = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
         await send("touchStart", point)
@@ -351,6 +360,10 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
       await session.detach()
       await page.close()
     }
+  } catch (error) {
+    const screenshot = page && (await captureLayout(page, "touch-selection").catch(() => undefined))
+    if (screenshot) error.message += `\nScreenshot: ${screenshot}`
+    throw error
   } finally {
     await browser?.close()
     await server.close()
@@ -544,6 +557,21 @@ test("Dragging opens stable page slots, previews density, and commits only on dr
         await page.waitForFunction(
           () => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"),
         )
+        // Retained canvases can still have their previous fit after a viewport change.
+        await page.waitForFunction(() => {
+          const images = [...document.querySelectorAll(".composer .page-image canvas")]
+          return (
+            images.length &&
+            images.every((canvas) => {
+              const box = canvas.getBoundingClientRect()
+              return (
+                canvas.width > 0 &&
+                Math.abs(box.width - parseFloat(canvas.style.inlineSize)) < 1 &&
+                Math.abs(box.height - parseFloat(canvas.style.blockSize)) < 1
+              )
+            })
+          )
+        })
         const cards = output.locator(".composition-card")
         const ids = () => cards.evaluateAll((items) => items.map((item) => item.id))
         const settle = () =>
