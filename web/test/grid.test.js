@@ -33,7 +33,11 @@ test("Touch Grid matrices match phone and iPad references", { timeout: 120000 },
         [768, 1024, [4, 2, 8], [4, 3, 12], [7, 7, 49]],
         [1024, 768, [3, 2, 6], [3, 2, 6], [5, 4, 20]],
         [810, 1080, [4, 2, 8], [4, 3, 12], [8, 7, 56]],
-        [1080, 810, [3, 2, 6], [3, 2, 6], [5, 5, 25]],
+        [1080, 810, [3, 3, 9], [3, 3, 9], [5, 5, 25]],
+        [1079, 810, [3, 2, 6], [3, 2, 6], [5, 5, 25]],
+        [1080, 809, [3, 2, 6], [3, 2, 6], [5, 5, 25]],
+        [1133, 810, [3, 2, 6], [3, 2, 6], [5, 5, 25]],
+        [1080, 900, [3, 2, 6], [3, 2, 6], [5, 5, 25]],
       ]) {
         await page.setViewportSize({ width, height })
         await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
@@ -76,6 +80,29 @@ test("Touch Grid matrices match phone and iPad references", { timeout: 120000 },
             )
             assert.ok(geometry.fits, `${label}: Cards stay inside the pane`)
             assert.equal(geometry.overflow, false, `${label}: The workspace fits horizontally`)
+            if (width === 1080 && height === 810) {
+              await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
+              const pagination = await pane.evaluate((element) => {
+                const box = (selector) => element.querySelector(selector).getBoundingClientRect()
+                const cards = [...element.querySelectorAll(".composition-card")]
+                const slider = box(".batch-slider"),
+                  caption = box(".batch-caption")
+                return {
+                  below: caption.top >= slider.top + slider.height / 2,
+                  gap: slider.top - Math.max(...cards.map((card) => card.getBoundingClientRect().bottom)),
+                  bottom: Math.max(slider.bottom, caption.bottom),
+                  status: document.querySelector(".footnote").getBoundingClientRect().top,
+                  image: box(".thumbnail canvas").height,
+                }
+              })
+              assert.equal(pagination.below, true, `${label}: Both densities keep the caption below the slider`)
+              assert.ok(pagination.gap >= 8, `${label}: Pagination stays clear of the cards`)
+              assert.ok(pagination.bottom <= pagination.status, `${label}: Pagination stays above the status bar`)
+              if (density === "Normal") {
+                assert.equal(pagination.image, 144, `${label}: Normal retains a larger preview than Compact`)
+                await checkGrips(pane, label)
+              }
+            }
           }
         }
       }
@@ -106,17 +133,22 @@ test(
       )
       for (const colorScheme of ["light", "dark"]) {
         await page.emulateMedia({ colorScheme })
-        for (const [width, height, normal, compact, below] of [
-          [1600, 900, [3, 2], [6, 6], false],
-          [1919, 1080, [3, 2], [6, 6], false],
-          [1920, 1080, [3, 3], [6, 6], true],
-          [2239, 1260, [3, 3], [7, 6], true],
-          [2240, 1260, [3, 3], [7, 6], false],
-          [2559, 1440, [4, 3], [8, 7], false],
-          [2560, 1440, [4, 4], [8, 7], true],
-          [2879, 1620, [4, 4], [9, 7], true],
-          [2880, 1620, [4, 3], [9, 7], false],
-          [3840, 2160, [6, 5], [12, 7], false],
+        for (const [width, height, normal, compact] of [
+          [1080, 810, [2, 2], [5, 5]],
+          [1600, 900, [3, 2], [6, 6]],
+          [1919, 1080, [3, 2], [6, 6]],
+          [1920, 982, [3, 3], [6, 6]],
+          [1920, 1080, [3, 3], [6, 6]],
+          [2239, 1260, [3, 3], [7, 6]],
+          [2240, 1260, [3, 3], [7, 6]],
+          [2559, 1440, [4, 3], [8, 7]],
+          [2560, 1280, [4, 3], [8, 6]],
+          [2560, 1310, [4, 3], [8, 6]],
+          [2560, 1440, [4, 3], [8, 7]],
+          [2879, 1620, [4, 3], [9, 7]],
+          [2880, 1620, [4, 3], [9, 7]],
+          [3840, 1964, [6, 5], [12, 7]],
+          [3840, 2160, [6, 5], [12, 7]],
         ]) {
           await page.setViewportSize({ width, height })
           await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
@@ -170,24 +202,27 @@ test(
               assert.deepEqual(geometry.matrix, [columns, rows], `${label}: Rendered cards match the reference matrix`)
               assert.equal(geometry.batch, columns * rows, `${label}: Complete rows keep their capacity`)
               const qhd = width >= 2560 && width < 2880
-              assert.equal(
-                geometry.card.height,
-                density === "Compact" ? 125 : qhd ? 236 : 268,
-                `${label}: Card height follows its desktop range`,
-              )
-              if (density === "Normal") {
-                assert.equal(
-                  geometry.image.height,
-                  qhd ? 144 : 168,
-                  `${label}: Portrait thumbnails retain their fitted size`,
+              if (density === "Normal" && qhd)
+                assert.ok(
+                  geometry.card.height >= 236 && geometry.card.height <= 280,
+                  `${label}: QHD uses its calibrated height range`,
                 )
+              else
+                assert.equal(
+                  geometry.card.height,
+                  density === "Compact" ? 125 : 268,
+                  `${label}: Card height follows its desktop range`,
+                )
+              if (density === "Normal") {
+                if (!qhd)
+                  assert.equal(geometry.image.height, 168, `${label}: Portrait thumbnails retain their fitted size`)
                 if (qhd) {
                   const margins = [
                     geometry.image.top - geometry.thumbnail.top,
                     geometry.thumbnail.bottom - geometry.image.bottom,
                   ]
                   assert.ok(
-                    margins.every((margin) => margin >= 12),
+                    margins.every((margin) => margin >= 16),
                     `${label}: Images retain upper and lower margins`,
                   )
                   assert.ok(Math.abs(margins[0] - margins[1]) < 1, `${label}: Image margins stay equal`)
@@ -203,23 +238,21 @@ test(
               }
               assert.ok(geometry.slider.top - geometry.cardsBottom >= 8, `${label}: Cards leave room for pagination`)
               assert.equal(
-                geometry.caption.top >= geometry.slider.bottom,
-                below && density === "Normal",
-                `${label}: Caption placement stays scoped`,
+                geometry.caption.top >= geometry.slider.top + geometry.slider.height / 2,
+                true,
+                `${label}: Caption stays below the slider`,
               )
-              if (below && density === "Normal") {
-                await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
-                assert.ok(
-                  await pane
-                    .locator(".batch-caption")
-                    .evaluate(
-                      (element) =>
-                        element.getBoundingClientRect().bottom <=
-                        document.querySelector(".footnote").getBoundingClientRect().top,
-                    ),
-                  `${label}: Caption stays above the status bar`,
-                )
-              }
+              await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
+              assert.ok(
+                await pane
+                  .locator(".batch-caption")
+                  .evaluate(
+                    (element) =>
+                      element.getBoundingClientRect().bottom <=
+                      document.querySelector(".footnote").getBoundingClientRect().top,
+                  ),
+                `${label}: Caption stays above the status bar`,
+              )
               if (width === 2560 && colorScheme === "dark") await checkGrips(pane, label)
             }
           }
@@ -255,7 +288,7 @@ test("Grid scales desktop capacity, balances Page, and retains compact actions",
       [2560, 1440],
     ]) {
       await page.setViewportSize({ width, height })
-      const capacity = width === 1920 ? 9 : 16
+      const capacity = width === 1920 ? 9 : 12
       await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
       await page.waitForFunction(
         () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
@@ -267,12 +300,12 @@ test("Grid scales desktop capacity, balances Page, and retains compact actions",
         [...document.querySelectorAll(".thumbnail")].every((element) => element.getAttribute("aria-busy") === "false"),
       )
       assert.equal(await page.locator("main").evaluate((element) => element.clientWidth), width === 1920 ? 1232 : 1472)
-      assert.equal(await input.locator(".batch-marks > span").count(), width === 1920 ? 27 : 15)
+      assert.equal(await input.locator(".batch-marks > span").count(), width === 1920 ? 27 : 20)
       const imageHeight = await input
         .locator(".page-image canvas")
         .first()
         .evaluate((element) => element.clientHeight)
-      assert.equal(imageHeight, width === 1920 ? 168 : 144, "Normal thumbnails retain their fitted image height")
+      assert.equal(imageHeight, width === 1920 ? 168 : 180, "Normal thumbnails retain their fitted image height")
       assert.deepEqual(
         await output
           .locator(".composition-card")
@@ -327,7 +360,7 @@ test("Grid scales desktop capacity, balances Page, and retains compact actions",
           (await input
             .getByRole("button", { name: "Select Input page 240", exact: true })
             .locator("canvas")
-            .evaluate((element) => element.getBoundingClientRect().width)) - (width === 1920 ? 170 : 152),
+            .evaluate((element) => element.getBoundingClientRect().width)) - (width === 1920 ? 170 : 149),
         ) < 1,
         "Landscape images fit the narrower Normal cards",
       )
@@ -415,7 +448,7 @@ test("Grid scales desktop capacity, balances Page, and retains compact actions",
             const cards = [...document.querySelectorAll(".composition-card")]
             return {
               arrows: centers[0].map((center, index) => center - centers[1][index]),
-              captionBelow: caption.top >= track.bottom,
+              captionBelow: caption.top >= track.top + track.height / 2,
               cardGap:
                 Math.min(caption.top, track.top) -
                 Math.max(...cards.map((card) => card.getBoundingClientRect().bottom)),
@@ -427,11 +460,7 @@ test("Grid scales desktop capacity, balances Page, and retains compact actions",
             navigation.arrows.every((delta) => Math.abs(delta) < 1),
             `${label}: Grid and Page arrows align`,
           )
-          assert.equal(
-            navigation.captionBelow,
-            mode === "Normal" && (width === 1920 || width === 2560),
-            `${label}: Caption placement follows the desktop range`,
-          )
+          assert.equal(navigation.captionBelow, true, `${label}: Caption stays below the slider`)
           assert.ok(navigation.cardGap >= 8, `${label}: Pagination leaves room below the cards`)
           assert.equal(navigation.overflow, false, `${label}: The workspace fits horizontally`)
         }

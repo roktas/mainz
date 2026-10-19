@@ -259,7 +259,7 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
       )
       const thumbnail = await output.locator(".page-image canvas").first().boundingBox()
       assert.ok(
-        Math.abs(thumbnail.height - (factor === 1 ? 144 : 168)) < 1,
+        Math.abs(thumbnail.height - (factor === 1 ? 180 : 168)) < 1,
         "Grid thumbnails follow their viewport range at each browser zoom",
       )
       await tab(output, "Page")

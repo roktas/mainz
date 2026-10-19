@@ -11,6 +11,11 @@
 @layer views {
   @scope (.composer) {
     @container composer (width > 55em) {
+      .composition-panels {
+        /* Enlarged captions can exceed the ordinary bottom gutter. */
+        padding-block-end: max(0px, calc(1.5 * var(--small) + 4px - var(--gutter)));
+      }
+
       .grid-view {
         display: block grid;
         grid-template-rows: minmax(0, 1fr) var(--grid-pager-height);
@@ -80,6 +85,7 @@
 
       & > .batch-caption {
         grid-column: 1 / -1;
+        translate: 0 -3px;
         display: block flex;
         flex-wrap: wrap;
         justify-content: center;
@@ -182,22 +188,9 @@
         & > .batch-caption {
           position: absolute;
           inset-inline: 0;
-          inset-block-start: auto;
-          inset-block-end: 40px;
+          inset-block-start: 100%;
+          inset-block-end: auto;
           pointer-events: none;
-        }
-      }
-
-      @media (1920px <= width < 2240px) or (2560px <= width < 2880px) {
-        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
-          .grid-view {
-            --grid-pager-height: 44px;
-          }
-
-          .page-batches > .batch-caption {
-            inset-block-start: 100%;
-            inset-block-end: auto;
-          }
         }
       }
     }
@@ -232,7 +225,7 @@
 
       .page-batches {
         grid-template-columns: 40px minmax(0, 1fr) 40px;
-        grid-template-rows: minmax(0, 1fr) 44px;
+        grid-template-rows: 44px minmax(0, 1fr);
         inline-size: calc(100% + 2 * var(--pager-outset, 0px));
         padding-block-start: 0;
         margin-block: 0;
@@ -240,7 +233,7 @@
 
         & > button,
         & > .batch-slider {
-          grid-row: 2;
+          grid-row: 1;
         }
 
         & > button {
@@ -249,8 +242,8 @@
         }
 
         & > .batch-caption {
-          grid-row: 1;
-          align-self: end;
+          grid-row: 2;
+          align-self: start;
         }
 
         & > button svg {

@@ -22,16 +22,20 @@
 
 ### Fixed
 
+- Landing top spacing stays bounded on wide screens with coarse-pointer input.
+- Grid pagination captions stay below the slider in both densities and pane layouts.
+- Normal iPad8 landscape grids fit nine pages within a viewport-specific calibration.
+- Normal QHD grids use larger page previews, balanced margins, and wider card spacing within the browser viewport.
 - Product tour steps start at the beginning of their explanations after scrolling.
 - Output movement buttons keep their positions and become disabled at selection boundaries.
 - Bulk page additions target a new image in the visible Output Grid batch when both panes are displayed.
-- Normal grids fit three rows at Full HD and four at QHD, with pagination captions below the slider.
+- Normal grids fit three rows at Full HD and QHD, with pagination captions below the slider.
 - Style selectors retain their touch height on iPad and keep their arrows inset from the field edge.
 - Opening Settings by touch keeps the close button free of an initial focus contour.
 - Grid navigation and Shift selection keep the correct page positions while new copies await arrival and after resizing.
 - Dragging during page removal uses the remaining Output pages for insertion.
 - Phone Compact grids fit four columns and four rows without shrinking portrait thumbnails.
-- Mobile Grid pagination shares one layout in both densities, with the caption next to the slider row. Phone pagination
+- Mobile Grid pagination shares one layout in both densities, with the caption below the slider row. Phone pagination
   sits immediately above the status bar.
 - Tall two-pane layouts fill the space above the status bar, keeping pagination and the pane divider at the bottom.
 - Double-tapping Page images copies the current page on touch browsers without native double-click events.

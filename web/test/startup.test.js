@@ -384,6 +384,48 @@ test("Landing compact headings fit phones and tablets and logos follow theme cha
   }
 })
 
+test("Landing top spacing stays bounded on wide coarse-pointer screens", async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({ reducedMotion: "reduce", hasTouch: true })
+    await page.goto(server.resolvedUrls.local[0])
+    await page.evaluate(() => document.fonts.ready)
+    assert.equal(await page.evaluate(() => matchMedia("(any-pointer: coarse)").matches), true)
+    for (const colorScheme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme })
+      for (const [width, height] of [
+        [1194, 834],
+        [1920, 1254],
+        [2264, 1341],
+        [1194, 834],
+      ]) {
+        await page.setViewportSize({ width, height })
+        const layout = await page.evaluate(() => {
+          const area = document.querySelector(".drop-zone").getBoundingClientRect()
+          const header = document.querySelector(".header-inner").getBoundingClientRect()
+          return {
+            top: area.y - header.bottom,
+            left: area.x,
+            right: document.querySelector("#app").getBoundingClientRect().right - area.right,
+            start: area.x - header.x,
+            end: area.right - header.right,
+          }
+        })
+        assert.ok(Math.abs(layout.top - 56) < 1, `${width}px: top spacing stays at the tablet reference`)
+        assert.ok(Math.abs(layout.left - layout.right) < 1, `${width}px: the frame stays centered`)
+        assert.ok(Math.abs(layout.start) < 1 && Math.abs(layout.end) < 1, `${width}px: header and frame edges align`)
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+      }
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
 test("Landing logo replays entry and keeps parallax inside its framed area", async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser

@@ -38,7 +38,9 @@
       padding-inline: var(--card-inset);
       position: relative;
       display: grid;
-      grid-template-rows: calc(34px - var(--page-stroke)) 200px calc(34px - var(--page-stroke));
+      grid-template-rows: calc(34px - var(--page-stroke)) calc(var(--grid-height, 268px) - 68px) calc(
+          34px - var(--page-stroke)
+        );
       border: var(--page-stroke) solid var(--page-border);
       border-radius: var(--radius);
       background: var(--soft);
@@ -161,7 +163,7 @@
           margin-inline: calc(-1 * var(--card-inset));
           min-block-size: 0;
           block-size: 100%;
-          padding-block: 16px;
+          padding-block: var(--thumbnail-padding, 16px);
           padding-inline: calc(3px - var(--page-stroke));
         }
         & .page-label {
@@ -270,24 +272,6 @@
 
 @layer views {
   @scope (.composer) {
-    @container composer (width > 55em) {
-      @media (2560px <= width < 2880px) {
-        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
-          .composition-grid {
-            row-gap: 12px;
-          }
-
-          .composition-card {
-            grid-template-rows: calc(34px - var(--page-stroke)) 168px calc(34px - var(--page-stroke));
-
-            & .thumbnail {
-              padding-block: 12px;
-            }
-          }
-        }
-      }
-    }
-
     :is(.selection-panel, .composition-output)[data-density="compact"] {
       .composition-card {
         --fold: 15px;

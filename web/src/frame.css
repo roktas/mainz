@@ -193,4 +193,71 @@
       }
     }
   }
+
+  /* Calibration rows require both viewport dimensions, pointer type, and pane layout.
+     Unmatched viewports retain the shared formulas above. */
+  @media (hover: hover) and (pointer: fine) and (1920px <= width < 2240px) and (900px <= height < 1440px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-pager-height: 44px;
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (2560px <= width < 2880px) and (1280px <= height < 1800px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-pager-height: 44px;
+
+          &:not([data-density="compact"]) {
+            /* Three rows share the frame after pagination, two gaps, and 10 px of clearance. */
+            --grid-height: clamp(236px, calc((100cqb - 44px - 2 * var(--grid-gap) - 10px) / 3), 280px);
+            --grid-width: 9.5rem;
+            --grid-gap: 20px;
+            --thumbnail-padding: 16px;
+          }
+        }
+      }
+    }
+
+    @scope (.composer:not(:has(.style-status))) {
+      :scope {
+        min-block-size: 0;
+      }
+
+      @container composer (width > 55em) {
+        .composition-panels {
+          min-block-size: 0;
+          grid-template-rows: auto auto auto minmax(0, 1fr);
+        }
+
+        .page-content:has(.grid-view, .page-view) {
+          container-type: size;
+        }
+
+        :scope :is(.grid-view, .page-view) {
+          block-size: 100%;
+          min-block-size: 0;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (1080px <= width < 1133px) and (810px <= height < 900px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-pager-height: 44px;
+
+          &:not([data-density="compact"]) {
+            --grid-height: 234px;
+            --thumbnail-padding: 11px;
+          }
+        }
+      }
+    }
+  }
 }

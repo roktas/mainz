@@ -255,6 +255,9 @@
         }
         & main {
           padding-block-start: var(--margin);
+          @media (width > 40em) {
+            padding-block-start: calc(2 * var(--gutter));
+          }
         }
         & .drop-zone {
           margin-inline: 0;

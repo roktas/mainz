@@ -88,6 +88,9 @@ cannot receive input. Removal can fade outgoing cards. Batch and view switches r
 
 ## Workspace
 
+Coarse-pointer landing layouts above 375 px use equal outer margins through 40 em. Wider layouts use two gutters above
+the frame and center it horizontally.
+
 Desktop Input and Output have equal widths and equal gutters around the center separator. Their headings, tabs, fields,
 hints, and content share row tracks. The filename chooser belongs to Input's heading and includes Remove Input below the
 open-PDF list. Open PDF and Download occupy corresponding positions. Output totals sit beside Download. Relevant
@@ -122,24 +125,46 @@ status bar, with the standard bottom gutter. The fitted frame sets the minimum h
 content row, so headings retain their positions, pagination stays at the bottom, and the pane divider reaches the same
 edge.
 
+The QHD calibration uses the remaining content height for two-pane Grid and Page. Headings, page fields, and the status
+bar keep their space. The browser viewport already excludes desktop and browser bars. Style and single-pane layouts keep
+their content sizing.
+
 The portrait [Grid fixture](../test/fixtures/README.md#grid-fixture) has these desktop references at 100% browser zoom
-and normal text size. Each matrix gives columns × rows = pages and applies to both Input and Output.
+and normal text size. Dimensions describe the browser viewport, not the physical monitor. Each matrix gives columns ×
+rows = pages and applies to both Input and Output.
 
-| Viewport             | Workspace width | Normal     | Compact     |
-| -------------------- | --------------- | ---------- | ----------- |
-| Full HD, 1920 × 1080 | 1232 px         | 3 × 3 = 9  | 6 × 6 = 36  |
-| QHD, 2560 × 1440     | 1472 px         | 4 × 4 = 16 | 8 × 7 = 56  |
-| UHD, 3840 × 2160     | 2208 px         | 6 × 5 = 30 | 12 × 7 = 84 |
+| Viewport                | Workspace width | Normal     | Compact     |
+| ----------------------- | --------------- | ---------- | ----------- |
+| FHD-, 1920 × 982        | 1232 px         | 3 × 3 = 9  | 6 × 6 = 36  |
+| Full HD, 1920 × 1080    | 1232 px         | 3 × 3 = 9  | 6 × 6 = 36  |
+| QHD window, 2560 × 1280 | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48  |
+| QHD-, 2560 × 1310       | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48  |
+| QHD, 2560 × 1440        | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56  |
+| UHD-, 3840 × 1964       | 2208 px         | 6 × 5 = 30 | 12 × 7 = 84 |
+| UHD, 3840 × 2160        | 2208 px         | 6 × 5 = 30 | 12 × 7 = 84 |
 
-UHD values have browser-test evidence. Physical-monitor review is deferred.
+Desktop references ending in `-` keep the nominal width in each orientation. Their estimated height is
+`2 * floor(height * 0.91 / 2)`, where `height` is the nominal monitor height. This gives the largest even integer that
+does not exceed 91% of the nominal height, with about 9% reserved for browser and desktop controls.
+
+The measured QHD- browser viewport matches this estimate. FHD- and UHD- remain provisional. Their matrices have
+browser-test evidence. Physical-monitor measurements for FHD- and UHD- are pending.
+
+When the corresponding physical monitors become available, replace the estimates with measured browser viewport
+dimensions.
 
 Compact has at most seven rows. Runtime measurements adapt capacity to the CSS frame budget and page geometry. At Full
 HD, the Compact frame is approximately 889 px high and fits a 508 × 718 px page with 25 px side margins. At QHD, the
-frame is approximately 1056 px high and fits a 608 × 860 px page with 36 px side margins. Browser zoom out can grow Fit
-in CSS pixels to retain the page's screen size. Controls and Grid cards continue following browser zoom.
+available viewport height determines the frame height. Browser zoom out can grow Fit in CSS pixels to retain the page's
+screen size. Controls and Grid cards continue following browser zoom.
 
-Touch references use the same fixture, 100% browser zoom, and normal text size. Each entry gives columns × rows (visible
-pages). The last row can be partial. Compact values apply to both panes.
+Touch references use the same fixture, nominal CSS dimensions, 100% browser zoom, and normal text size. Each entry gives
+columns × rows (visible pages). The last row can be partial. Compact values apply to both panes.
+
+Manual tablet profiles use nominal dimensions in both orientations. Physical-device measurements in standalone mode are
+pending. Phone profiles ending in `-` keep the nominal width and estimate the available height as
+`2 * floor(height * 0.85 / 2)`. Calculate each orientation from its nominal dimensions. These estimates define test
+viewports; the application does not subtract the estimated browser controls again.
 
 | Device       | CSS viewport | Normal Input | Normal Output | Compact    |
 | ------------ | ------------ | ------------ | ------------- | ---------- |
@@ -157,7 +182,7 @@ pages). The last row can be partial. Compact values apply to both panes.
 | iPad         | 768 × 1024   | 4 × 2 (8)    | 4 × 3 (12)    | 7 × 7 (49) |
 | iPad         | 1024 × 768   | 3 × 2 (6)    | 3 × 2 (6)     | 5 × 4 (20) |
 | iPad gen 8   | 810 × 1080   | 4 × 2 (8)    | 4 × 3 (12)    | 8 × 7 (56) |
-| iPad gen 8   | 1080 × 810   | 3 × 2 (6)    | 3 × 2 (6)     | 5 × 5 (25) |
+| iPad gen 8   | 1080 × 810   | 3 × 3 (9)    | 3 × 3 (9)     | 5 × 5 (25) |
 
 Mobile has a persistent one-tap Input/Output switch and preserves pane state. Headings retain the chooser or totals
 beside Open PDF/Download. Enlarged text can stack these groups. Labels stay complete. Long filenames truncate, with
@@ -188,13 +213,28 @@ numbers at the start, grips in the center, and face information at the upper-rig
 corner. Front retains its normal corner. The fold continues the current contour without leaving a rectangular border
 behind it. Accessible labels and hover help identify both faces. Page corners do not intercept tool interactions.
 
-In two-pane layouts from 2560 to below 2880 CSS px, Normal uses 236 px cards and 12 px row gaps. Portrait thumbnails fit
-144 px height with equal 12 px upper and lower margins. Heading and footer controls retain their ordinary size.
+The QHD calibration targets three Normal rows with card heights from 236 to 280 px. Portrait thumbnails grow with the
+cards and keep equal 16 px upper and lower margins. Cards use a 9.5 rem minimum width and 20 px row and column gaps.
+Heading and footer controls retain their ordinary size and at least 44 px targets. Viewport-specific card dimensions and
+spacing belong in `frame.css`. Card styles consume those shared values.
+
+The calibration table requires matching viewport width, viewport height, pointer type, and a two-pane layout. Upper
+bounds are exclusive. Each entry changes only its own dimensions and reserved pagination height. Unmatched viewports use
+the shared formulas. Both densities use the same pagination placement.
+
+| Reference       | Width, CSS px | Height, CSS px | Pointer | Normal cards and images                          | Pagination reserve |
+| --------------- | ------------- | -------------- | ------- | ------------------------------------------------ | ------------------ |
+| Full HD         | 1920–2240     | 900–1440       | Fine    | Shared dimensions                                | 44 px              |
+| QHD             | 2560–2880     | 1280–1800      | Fine    | 236–280 px cards; 16 px image padding            | 44 px              |
+| iPad8 landscape | 1080–1133     | 810–900        | Coarse  | 234 px cards; 144 px images; 11 px image padding | 44 px              |
+
+Desktop entries also require hover. The iPad8 entry requires landscape orientation, a primary coarse pointer, and no
+hover. Its portrait layout, other tablet ranges, and phone layouts keep their shared dimensions. Physical-device
+measurements can establish new entries without changing existing entries.
 
 Column sizing follows one policy shared by both panes and Page's thumbnail reference. Density, pointer targets, and
-available pane width select the minimum card width and column gap. CSS fills complete columns from these values.
-Viewport height and orientation do not select column widths. Keep the width ranges together so each layout change has
-one place to maintain.
+available pane width select the minimum card width and column gap. CSS fills complete columns from these values. Keep
+the column defaults and calibrated overrides together so each layout change has one place to maintain.
 
 Compact headers use three equal cells. The number occupies the first cell and the grip occupies the center cell. Both
 targets are at least 24 px wide and 44 px tall, without overlap. Page numbers fit their cell through smaller text.
@@ -204,9 +244,10 @@ keep semibold weight. Hover changes their color without changing geometry.
 Available pane width can select narrower Compact cards and smaller horizontal gaps to fit another column. Header targets
 still fit. Card height, thumbnail fit rules, and row spacing stay fixed. Other layouts keep their ordinary capacity.
 
-Touch workspaces with both panes visible use the smallest control gap between Normal columns and can narrow Normal
-cards. This admits a third column without reducing portrait thumbnails. Compact can add a fifth column with a smaller
-horizontal gap where both heading targets still fit. Both densities retain their card heights and vertical spacing.
+Outside the calibration table, touch workspaces with both panes visible use the smallest control gap between Normal
+columns and can narrow Normal cards. This admits a third column without reducing portrait thumbnails. Compact can add a
+fifth column with a smaller horizontal gap where both heading targets still fit. Both densities retain their card
+heights and vertical spacing.
 
 Selection hides individual actions without moving the image or changing card dimensions. Normal footers keep their
 height and separator. Input centers addition. Output places removal left of duplication with one control gap. Page
@@ -230,11 +271,11 @@ another heading row before its targets shrink or cover the grip.
 Counters keep their dimensions during inline page entry. Current values use stronger text and totals muted text. Spaces
 separate each slash from both numbers. Grid's caption uses `4 / 27 · 28–36 / 240`, with accessible names describing both
 ranges. Its native slider has one stop per batch, gray group markers, and previous/next buttons. Wide layouts align Grid
-and Page navigation. Two-pane Normal layouts use the bottom gutter for captions at 1920 ≤ width < 2240 CSS px and 2560 ≤
-width < 2880 CSS px. The frame reserves only the slider row. Full HD fits three Normal rows, and QHD fits four. Other
-desktop widths and Compact keep the caption above the slider.
+and Page navigation. The caption always stays below the slider in both densities and both pane layouts. It stays close
+to the slider and clear of the status bar. Two-pane layouts use the bottom gutter for captions. Calibration entries
+control frame dimensions without changing this shared placement rule.
 
-Single-pane layouts use one pagination layout for Normal and Compact: the caption sits directly above the slider row,
+Single-pane layouts use one pagination layout for Normal and Compact: the caption sits directly below the slider row,
 with previous/next buttons at the row's outer edges. The visible arrow centers align with the pane's content edges, as
 do its heading and page fields. The row can extend into available side margins while all targets stay inside the
 viewport. Phone pagination ends immediately above the status bar without an extra spacer. Its arrows use separate 40 ×

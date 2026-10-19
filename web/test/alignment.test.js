@@ -45,8 +45,8 @@ async function checkPagination(pane) {
     bounds.previous.right <= bounds.slider.left && bounds.slider.right <= bounds.next.left,
     "Targets stay separate",
   )
-  assert.ok(Math.abs(bounds.slider.bottom - bounds.pager.bottom) < 1, "The slider sits at the frame's foot")
-  assert.ok(Math.abs(bounds.caption.bottom - bounds.slider.top) < 1, "The caption stays next to the slider")
+  assert.ok(Math.abs(bounds.slider.top - bounds.pager.top) < 1, "The slider starts the pagination row")
+  assert.ok(Math.abs(bounds.caption.top + 3 - bounds.slider.bottom) < 1, "The caption stays close below the slider")
   if (pane.page().viewportSize().width <= 480) {
     await pane.page().evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
     const gap = await pane.evaluate(
@@ -123,7 +123,7 @@ test(
                 .evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length),
               normal,
             )
-            const normalMargin = hasTouch ? { 1024: 14, 1080: 18 }[width] : undefined
+            const normalMargin = hasTouch ? { 1024: 14, 1080: 27 }[width] : undefined
             if (normalMargin !== undefined) {
               await pane.locator('.thumbnail[aria-busy="false"] canvas').first().waitFor()
               const geometry = await pane
@@ -138,9 +138,13 @@ test(
                     margin: (bounds.width - pageBounds.width) / 2,
                   }
                 })
-              assert.ok(geometry.width > 118 && geometry.width < 120)
-              assert.equal(geometry.height, 168)
-              assert.ok(geometry.margin < normalMargin, "Normal adds a column without shrinking its image")
+              assert.ok(
+                width === 1080
+                  ? geometry.width > 101 && geometry.width < 103
+                  : geometry.width > 118 && geometry.width < 120,
+              )
+              assert.equal(geometry.height, width === 1080 ? 144 : 168)
+              assert.ok(geometry.margin < normalMargin, "Normal keeps its calibrated thumbnail margins")
             }
             await checkGrips(pane, `${name} Normal, ${width}×${height}: grips stay centered in both selection states`)
             if (await views.isVisible()) await checkPagination(pane)
