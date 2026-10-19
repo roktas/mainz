@@ -4,6 +4,7 @@
 
 ### Added
 
+- Dedicated iOS Home Screen and PWA icons with fixed colors and tested raster sizes.
 - Prepared PDFs can expose editable Style properties without a Show/Hide control.
 - Product tour steps explain Normal/Compact Grid density and Output selection actions.
 - Touch controls for grip dragging, lens inspection, and switching from Grid to Page with a double tap.
@@ -15,6 +16,9 @@
 
 ### Changed
 
+- Offline installation verifies up to four assets concurrently and completes pending writes before rolling back a failed
+  installation.
+- Style controls share one Output page-usage count instead of scanning every occurrence for each control.
 - Header Notices use neutral text and the existing blue information accent in both themes.
 - The web application is named PDF Composer.
 - Settings uses −/+ controls for lens magnification from 2× to 128×, with the current factor displayed beside them.
@@ -27,6 +31,13 @@
 
 ### Fixed
 
+- Lens refinement starts without a movement settling delay and releases acquired pages on cancellation or renderer
+  failure.
+- Closed PDFs release their cached preview rasters after their last owner leaves.
+- The theme button exposes its effective dark-theme state and follows system changes until an explicit choice.
+- Narrow two-pane headings align Open PDF and Download, with Output totals beside Download.
+- Window blur, resizing, and workspace closure release native and touch drag previews.
+- Concurrent Vite servers retain the WASM package selected for each configuration.
 - Landing top spacing stays bounded on wide screens with coarse-pointer input.
 - Grid pagination captions stay below the slider in both densities and pane layouts.
 - Enlarged text keeps complete Grid rows above pagination and header Notices visible while scrolling.

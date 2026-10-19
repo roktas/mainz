@@ -6,6 +6,117 @@ import { chromium } from "playwright"
 import { aligned, zoom } from "./workspace.js"
 import { createServer, tab, image, captureLayout, fixture } from "./browser.js"
 
+test("Paired pane headings align actions, metadata, tabs, and selection fields", { timeout: 90000 }, async (t) => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser, page
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    page = await browser.newPage({ reducedMotion: "reduce", hasTouch: true })
+    page.setDefaultTimeout(10000)
+    await page.addInitScript(() => {
+      localStorage.setItem("mainz:onboarding", "19")
+      const Original = Worker
+      window.Worker = class extends Original {
+        postMessage(message, ...rest) {
+          if (window.holdStyles && message.changes) {
+            window.finishStyles = () => super.postMessage(message, ...rest)
+            return
+          }
+          super.postMessage(message, ...rest)
+        }
+      }
+    })
+    await page.goto(server.resolvedUrls.local[0])
+    await page.locator("input[type=file]").first().setInputFiles({
+      name: "Prepared pages with a very long descriptive input filename.pdf",
+      mimeType: "application/pdf",
+      buffer: fixture(),
+    })
+    await page.locator(".input-current").waitFor()
+    const input = page.locator(".selection-panel"),
+      output = page.locator(".composition-output")
+    for (const populated of [false, true]) {
+      if (populated) {
+        await input.getByLabel("Page selection", { exact: true }).fill("1-7")
+        await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+      }
+      for (const text of ["100%", "200%"]) {
+        await page.evaluate((size) => (document.documentElement.style.fontSize = size), text)
+        for (const width of [960, 1024, 1080, 1133, 1150, 1151, 1152, 1153, 1280, 1440, 1920, 2560, 3840]) {
+          await page.setViewportSize({ width, height: 1100 })
+          if (!(await input.isVisible()) || !(await output.isVisible())) continue
+          for (const density of ["Normal", "Compact"]) {
+            await input.getByRole("button", { name: `${density} Input grid`, exact: true }).click()
+            await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+            for (const colorScheme of ["light", "dark"]) {
+              await page.emulateMedia({ colorScheme })
+              t.diagnostic(`${width}px, ${text}, ${density}, ${colorScheme}, populated=${populated}`)
+              const layout = await page.locator(".composition-panels").evaluate((panels) => {
+                const box = (selector) => panels.querySelector(selector).getBoundingClientRect().toJSON()
+                const titles = [".input-label", ".composition-output > .section-heading h2"].map((selector, index) => {
+                  const node = panels.querySelector(selector)
+                  const range = document.createRange()
+                  range.selectNodeContents(index === 0 ? node : node.lastChild)
+                  return range.getBoundingClientRect().toJSON()
+                })
+                return {
+                  inputTitle: titles[0],
+                  outputTitle: titles[1],
+                  open: box(".input-heading .file-picker"),
+                  download: box(".download-action"),
+                  totals: box(".output-state"),
+                  heading: box(".composition-output > .section-heading"),
+                  inputTabs: box(".source-tabs"),
+                  outputTabs: box(".output-tabs"),
+                  inputField: box('.selection-panel input[aria-label="Page selection"]'),
+                  outputField: box('.composition-output input[aria-label="Page selection"]'),
+                  overflow: document.documentElement.scrollWidth > innerWidth,
+                }
+              })
+              assert.ok(Math.abs(layout.open.y - layout.download.y) < 1, JSON.stringify(layout))
+              assert.ok(Math.abs(layout.inputTitle.y - layout.outputTitle.y) < 1, JSON.stringify(layout))
+              assert.ok(Math.abs(layout.open.height - layout.download.height) < 1)
+              assert.ok(Math.abs(layout.inputTabs.y - layout.outputTabs.y) < 1)
+              assert.ok(Math.abs(layout.inputField.y - layout.outputField.y) < 1)
+              assert.ok(layout.totals.right <= layout.download.x && layout.totals.bottom <= layout.heading.bottom + 1)
+              assert.equal(layout.overflow, false)
+            }
+          }
+        }
+      }
+    }
+    await page.setViewportSize({ width: 1080, height: 810 })
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "100%"
+      window.holdStyles = true
+    })
+    const before = await output.locator(".download-action").boundingBox()
+    await tab(input, "Style")
+    await input.getByRole("textbox", { name: "Guide Color", exact: true }).fill("#884488")
+    await page.waitForFunction(() => !!window.finishStyles)
+    await output.locator('.output-status[aria-hidden="false"]').waitFor()
+    assert.deepEqual(
+      await output.locator(".download-action").boundingBox(),
+      before,
+      "Updating keeps the Download area fixed",
+    )
+    const opening = await input.locator(".input-heading .file-picker").boundingBox()
+    assert.ok(Math.abs(opening.y - before.y) < 1, "Open PDF stays aligned during Style processing")
+    await page.evaluate(() => {
+      window.holdStyles = false
+      window.finishStyles()
+    })
+    await page.waitForFunction(() => !document.querySelector('.output-status[aria-hidden="false"]'))
+  } catch (error) {
+    if (page) await captureLayout(page, "pane-headings")
+    throw error
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
 test("Page headings and navigation follow fitted image edges", { timeout: 240000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser, page

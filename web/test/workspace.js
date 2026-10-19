@@ -587,7 +587,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   check(!(await mappedCard.locator(".page-origin-info").isVisible()), "Only one page detail is open at a time")
   await entry.click()
   check(!(await otherCard.locator(".page-origin-info").isVisible()), "Outside click dismisses Input page details")
-  const theme = page.getByRole("button", { name: "Toggle theme", exact: true })
+  const theme = page.getByRole("button", { name: "Dark theme", exact: true })
   const fileFocus = async () => {
     const field = input.locator(".file-picker input")
     await field.focus()

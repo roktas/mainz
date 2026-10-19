@@ -1,7 +1,7 @@
 <!-- Shows the active Source's applicable Style profiles and parameter groups. -->
 
 <script lang="ts">
-  import { available, feedback, groups, matchingProfile, objects, resolve } from "./styles.ts"
+  import { available, feedback, groups, matchingProfile, objects, resolve, usage } from "./styles.ts"
   import { pageRanges } from "./pages.ts"
   import type { Entry } from "./styles.ts"
   import type { Source, Part } from "./model.ts"
@@ -31,6 +31,7 @@
   const definition = $derived(source.input.description)
   const groupObjects = $derived(objects(definition))
   const controls = $derived(available(source, parts))
+  const counts = $derived(usage(source, parts))
   const profiles = $derived(
     (definition.profileSets ?? []).filter(
       (set) => set.profiles.length > 1 && set.parameters.some((id) => controls.includes(id)),
@@ -59,16 +60,7 @@
 
 {#snippet field(id: string, caption?: string, compact = false)}
   {@const pages = definition.parameters[id].pages.map((page) => definition.pages[page].index)}
-  {@const eligible = new Set(pages)}
-  {@const coverage = parts.reduce(
-    (total, part) =>
-      total +
-      part.pages.filter(
-        (page) => "source" in page.content && page.content.source === source.id && eligible.has(page.content.page),
-      ).length *
-        (Number.isSafeInteger(Number(part.copies)) && Number(part.copies) > 0 ? Number(part.copies) : 0),
-    0,
-  )}
+  {@const coverage = pages.reduce((total, page) => total + (counts.get(page) ?? 0), 0)}
   <Control
     {id}
     entry={entry(id)}

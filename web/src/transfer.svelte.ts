@@ -378,7 +378,7 @@ export class Transfer {
     window.addEventListener("touchend", this.#stopTouchClick, { passive: false })
     return () => {
       window.removeEventListener("touchend", this.#stopTouchClick)
-      this.cancelTouch()
+      this.end()
     }
   }
   ghost = (canvas: HTMLCanvasElement) => {

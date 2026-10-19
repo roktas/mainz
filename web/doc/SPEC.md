@@ -182,6 +182,13 @@ native.
 Switching Inputs cancels pending double-click, double-tap, and transfer actions from the previous Input. Output gestures
 stay independent. Keyboard page actions stay inactive during a drag.
 
+| Transfer state          | Event                                                   | Result                                             |
+| ----------------------- | ------------------------------------------------------- | -------------------------------------------------- |
+| Grip pressed            | Movement reaches the drag threshold                     | Start one transfer without changing selection.     |
+| Active                  | Accepted drop                                           | Apply the edit and remove temporary feedback.      |
+| Pressed or active       | Window blur, resize, cancellation, or workspace closure | Cancel the transfer and remove temporary feedback. |
+| Touch pressed or active | A second pointer                                        | Cancel the transfer and preserve Output.           |
+
 ## Keyboard and focus
 
 ### Routing and priority
@@ -366,6 +373,9 @@ compensate for their size difference to retain the same crop scale. The lens doe
 input. On touch screens, holding an image opens the lens. Moving the held finger changes the crop. Release,
 cancellation, a second finger, or scrolling dismisses it. A hold does not select, add, duplicate, or move pages.
 
+An open lens updates its preview immediately and refines the latest position without a settling delay. Only one detail
+render runs at a time. Closing the lens cancels that render and releases its acquired page.
+
 Settings shows the current lens magnification beside − and + buttons. Each step halves or doubles the magnification. The
 buttons disable at 2× and 128× respectively.
 
@@ -468,9 +478,21 @@ until reload. A blocked update restores opening.
 Each worker runs one job at a time. Ordinary Inputs release their validation worker after opening. Cancellation,
 replacement, or Source removal stops obsolete processing and preview work. Later jobs start usable workers. Input bytes
 remain available for retry. Disposal releases document handles, registered Inputs, buffers, render tasks, and object
-URLs. Completed rasters use bounded memory caching, separate from persistent storage and the offline cache. Its budget
-is not a total-memory guarantee. Persistent editable workspaces, printer control, and independent Part or occurrence
-styles are outside this version.
+URLs. Completed rasters use bounded memory caching, separate from persistent storage and the offline cache. Removing the
+last owner of a PDF releases its cached rasters. Input and Style comparison retain their shared PDFs. Its budget is not
+a total-memory guarantee. Persistent editable workspaces, printer control, and independent Part or occurrence styles are
+outside this version.
+
+App owns the document lifetime and rejects replies from obsolete requests: It selects retained documents after view
+updates. The PDF boundary owns their loading-task and raster release.
+
+| Stage             | Retained resources                                        | Cancellation or replacement                                  |
+| ----------------- | --------------------------------------------------------- | ------------------------------------------------------------ |
+| Open and validate | Pending PDF loading task and validation worker            | Destroy the task and worker. Ignore late reads and labels.   |
+| Attach            | Immutable Input PDF and its Source                        | Retain the Input while any Source uses it.                   |
+| Style update      | Source preview task and processor                         | Cancel obsolete work. Keep the last completed preview.       |
+| Download          | Independent processor, validation task, and temporary URL | Release temporary resources. Keep selections and styles.     |
+| Remove or dispose | Documents retained by remaining Sources                   | Release documents and rasters after their last owner leaves. |
 
 ## Acceptance
 

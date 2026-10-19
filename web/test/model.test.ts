@@ -2,7 +2,8 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { copyError, downloadName, expand, job, move, positionAfterEdit, uid } from "../src/model.ts"
 import type { Part } from "../src/model.ts"
-import { pageRanges, parseSequence } from "../src/pages.ts"
+import { pageRanges, parseSequence, toggleSequence } from "../src/pages.ts"
+import * as composition from "../src/composition.ts"
 import {
   applyProfile,
   available,
@@ -14,6 +15,7 @@ import {
   needsRender,
   objects,
   step,
+  usage,
 } from "../src/styles.ts"
 import type { Description, Entry, ProfileSet } from "../src/styles.ts"
 
@@ -134,6 +136,44 @@ test("Page entry retains exact order and repetitions with bounded expansion", ()
   assert.deepEqual(parseSequence("", 7), { pages: [] })
 })
 
+test("Input range toggles retain authored order and repeated pages", () => {
+  const pages = [2, 0, 0]
+  assert.deepEqual(toggleSequence(pages, 1, 3), { pages: [2, 0, 0, 1, 3], first: 1, last: 3, adding: true })
+  assert.deepEqual(toggleSequence([3, 1, 1, 0], 1, 3), { pages: [0], first: 1, last: 3, adding: false })
+  assert.deepEqual(toggleSequence([0], 3, 1).pages, [0, 1, 2, 3])
+  assert.deepEqual(toggleSequence([], 2).pages, [2])
+  assert.deepEqual(pages, [2, 0, 0])
+})
+
+test("Output selections and destinations follow occurrence identity and physical order", () => {
+  const pages = part("sequence", [0, 0, 2]).pages
+  const ids = pages.map((page) => page.id)
+  assert.deepEqual(composition.positions(pages, [ids[2], ids[0], ids[2], "missing"]), [0, 2])
+  const selected = [ids[2], ids[0]]
+  assert.deepEqual(composition.select(pages, selected, ids[1], 2), {
+    selected: [ids[2], ids[0], ids[1]],
+    ids: [ids[1], ids[2]],
+    index: 1,
+    adding: true,
+  })
+  assert.deepEqual(composition.select(pages, selected, ids[0], 2), {
+    selected: [],
+    ids,
+    index: 0,
+    adding: false,
+  })
+  assert.deepEqual(
+    [...composition.destinations(pages, "book")],
+    [
+      [0, [0, 1]],
+      [2, [2]],
+    ],
+  )
+  assert.deepEqual([...composition.destinations(pages, "variant")], [])
+  assert.deepEqual([...composition.destinations(pages)], [])
+  assert.deepEqual(selected, [ids[2], ids[0]])
+})
+
 test("Duplex alignment includes leading and every trailing Blank with preceding dimensions", () => {
   assert.deepEqual(sequence([part("practice", [0, 1, 2], "2")]), [1, 2, 3, 1, 2, 3])
   const aligned = [part("prefix", [1]), part("practice", [0, 1, 2], "2", true)]
@@ -249,6 +289,27 @@ test("Available styles follow only applicable Output pages from the same Source"
     pages: [{ id: "other-page", content: { source: "variant", page: 2 } }],
   }
   assert.deepEqual(available(source, [other]), [])
+})
+
+test("Style coverage counts Source occurrences and copies without duplex padding or Blanks", () => {
+  const parts = [part("repeated", [0, 0, 2], "3", true), part("last", [2], "2")]
+  parts.push({ ...part("other", [0], "4"), pages: [{ id: "foreign", content: { source: "variant", page: 0 } }] })
+  parts.push({ ...part("blank", []), pages: [{ id: "blank", content: { blank: { width: 210, height: 297 } } }] })
+  for (const copies of ["0", "-1", "1.5", "invalid", "9007199254740992"])
+    parts.push(part(`invalid-${copies}`, [1], copies))
+  assert.deepEqual(
+    [...usage({ id: "book" }, parts)],
+    [
+      [0, 6],
+      [2, 5],
+    ],
+  )
+  assert.deepEqual([...usage({ id: "variant" }, parts)], [[0, 4]])
+  assert.deepEqual([...usage({ id: "book" }, parts.toReversed())].toSorted(), [
+    [0, 6],
+    [2, 5],
+  ])
+  assert.deepEqual([...usage({ id: "book" }, [])], [])
 })
 
 test("Preview processing follows changed Output parameters and retains deferred choices", () => {

@@ -1,7 +1,38 @@
-// Applies Output page edits and retains occurrence identities and the dimensions of materialized Blanks.
+// Resolves Output selections and destinations, and edits pages while retaining identities and Blank dimensions.
 
 import { move, sizeOf, uid } from "./model.ts"
 import type { Page, Part, Source } from "./model.ts"
+
+export function positions(pages: Page[], ids: string[]) {
+  const selected = new Set(ids)
+  return pages.flatMap((page, index) => (selected.has(page.id) ? [index] : []))
+}
+
+export function select(pages: Page[], selected: string[], id: string, anchor?: number) {
+  const index = pages.findIndex((page) => page.id === id)
+  const first = Math.min(index, anchor ?? index),
+    last = Math.max(index, anchor ?? index)
+  const ids = pages.slice(first, last + 1).map((page) => page.id)
+  const range = new Set(ids)
+  const adding = !selected.includes(id)
+  return {
+    selected: adding ? [...new Set([...selected, ...ids])] : selected.filter((item) => !range.has(item)),
+    ids,
+    index,
+    adding,
+  }
+}
+
+export function destinations(pages: Page[], source?: string) {
+  const mapping = new Map<number, number[]>()
+  for (const [index, page] of pages.entries())
+    if ("source" in page.content && page.content.source === source) {
+      const indices = mapping.get(page.content.page) ?? []
+      indices.push(index)
+      mapping.set(page.content.page, indices)
+    }
+  return mapping
+}
 
 export function part(pages: Page[], copies = "1", front = false): Part {
   return { id: uid(), pages: pages.map(({ id, content }) => ({ id, content })), copies, front }
@@ -17,15 +48,13 @@ export function insert(parts: Part[], pages: Page[], addition: Part, from?: numb
 }
 
 export function order(pages: Page[], ids: string[], offset: number) {
-  const moving = new Set(ids)
-  const indices = pages.flatMap((page, index) => (moving.has(page.id) ? [index] : []))
+  const indices = positions(pages, ids)
   if (!indices.length || (offset < 0 ? indices[0] === 0 : indices.at(-1) === pages.length - 1)) return
   return { pages: move(pages, indices, offset), count: indices.length }
 }
 
 export function duplicate(pages: Page[], ids: string[]) {
-  const copying = new Set(ids)
-  const indices = pages.flatMap((page, index) => (copying.has(page.id) ? [index] : []))
+  const indices = positions(pages, ids)
   if (!indices.length) return
   const copies = indices.map((index) => ({ id: uid(), content: pages[index].content }))
   const at = indices.at(-1)! + 1

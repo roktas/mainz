@@ -9,7 +9,7 @@
   import { appearance, copyError, expand, positionAfterEdit, sizeOf, uid } from "./model.ts"
   import type { Content, Expanded, Page, Part, Source } from "./model.ts"
   import * as composition from "./composition.ts"
-  import { pageRanges, parseSequence } from "./pages.ts"
+  import { pageRanges, parseSequence, toggleSequence } from "./pages.ts"
   import { blocked, fields } from "./keyboard.ts"
   import type { Sequence } from "./pages.ts"
   import { available } from "./styles.ts"
@@ -225,22 +225,13 @@
     ),
   )
   const selectedIds = $derived(new Set(selected))
-  const positions = $derived(output.pages.flatMap((page, index) => (selectedIds.has(page.id) ? [index] : [])))
+  const positions = $derived(composition.positions(output.pages, selected))
   const chosen = $derived(positions.map((index) => output.pages[index]))
   const insertion = $derived(positions.length ? positions.at(-1)! + 1 : undefined)
   const outputSelectionError = $derived(
     outputText === undefined ? undefined : parseSequence(outputText, output.pages.length).error,
   )
-  const outputPositions = $derived.by(() => {
-    const mapping = new Map<number, number[]>()
-    for (const [index, page] of output.pages.entries())
-      if ("source" in page.content && page.content.source === source?.id) {
-        const destinations = mapping.get(page.content.page) ?? []
-        destinations.push(index)
-        mapping.set(page.content.page, destinations)
-      }
-    return mapping
-  })
+  const outputPositions = $derived(composition.destinations(output.pages, source?.id))
   const adjacent = $derived(positions.every((position, i) => i === 0 || position === positions[i - 1] + 1))
   const repeatError = $derived(copyError(repetitions))
   const inputSelected = $derived(new Set(draft.pages))
@@ -608,13 +599,7 @@
   function toggle(page: number, range: boolean) {
     if (!source) return
     const anchor = sourceAnchor?.source === source.id ? sourceAnchor.page : undefined
-    const first = range && anchor !== undefined ? Math.min(anchor, page) : page
-    const last = range && anchor !== undefined ? Math.max(anchor, page) : page
-    const adding = !inputSelected.has(page)
-    let pages = [...draft.pages]
-    if (adding) {
-      for (let number = first; number <= last; number++) if (!inputSelected.has(number)) pages.push(number)
-    } else pages = pages.filter((number) => number < first || number > last)
+    const { pages, first, last, adding } = toggleSequence(draft.pages, page, range ? anchor : undefined)
     numbers(pageRanges(pages))
     sourceAnchor = { source: source.id, page }
     highlightRange(adding && range && first < last ? { kind: "source", source: source.id, first, last } : undefined)
@@ -850,16 +835,12 @@
   }
   function selectOutput(id: string, range: boolean) {
     outputText = undefined
-    const index = output.pages.findIndex((page) => page.id === id)
+    const next = composition.select(output.pages, selected, id, range ? outputAnchor : undefined)
+    const { index, ids, adding } = next
     if (activeOutputTab === "grid") outputPosition = index
-    const first = range && outputAnchor !== undefined ? Math.min(index, outputAnchor) : index
-    const last = range && outputAnchor !== undefined ? Math.max(index, outputAnchor) : index
-    const ids = output.pages.slice(first, last + 1).map((page) => page.id)
-    const rangeIds = new Set(ids)
-    const adding = !selectedIds.has(id)
-    selected = adding ? [...new Set([...selected, ...ids])] : selected.filter((item) => !rangeIds.has(item))
+    selected = next.selected
     outputAnchor = index
-    highlightRange(adding && range && first < last ? { kind: "output", ids } : undefined)
+    highlightRange(adding && range && ids.length > 1 ? { kind: "output", ids } : undefined)
   }
   function order(offset: number, ids = outputTargets()) {
     const next = composition.order(output.pages, ids, offset)
@@ -1018,7 +999,8 @@
   onpointermove={transfer.moveTouch}
   onpointerup={transfer.finishTouch}
   onpointercancel={transfer.cancelTouch}
-  onblur={transfer.cancelTouch}
+  onblur={() => transfer.end()}
+  onresize={() => transfer.end()}
   onclickcapture={transfer.click}
   ondragend={() => transfer.end()}
   onkeydowncapture={(event) => {

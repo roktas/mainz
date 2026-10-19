@@ -400,7 +400,7 @@ test("Grid images and grips share selection and ordinary page focus", { timeout:
     await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("1-7")
     await input.getByRole("button", { name: "Add to Output", exact: true }).click()
     for (const theme of ["light", "dark"]) {
-      if (theme === "dark") await page.getByRole("button", { name: "Toggle theme", exact: true }).click()
+      if (theme === "dark") await page.getByRole("button", { name: "Dark theme", exact: true }).click()
       for (const reducedMotion of ["reduce", "no-preference"]) {
         await page.emulateMedia({ reducedMotion })
         for (const [pane, clear] of [

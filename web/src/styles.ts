@@ -150,6 +150,18 @@ export function available(source: { id: string; input: { description: Descriptio
   return applicable(source.input.description, usedPages(source, parts))
 }
 
+export function usage(source: { id: string }, parts: Part[]): Map<number, number> {
+  const counts = new Map<number, number>()
+  for (const part of parts) {
+    const copies = Number(part.copies)
+    if (!Number.isSafeInteger(copies) || copies <= 0) continue
+    for (const { content } of part.pages)
+      if ("source" in content && content.source === source.id)
+        counts.set(content.page, (counts.get(content.page) ?? 0) + copies)
+  }
+  return counts
+}
+
 export function draftError(
   source: { id: string; input: { name: string; description: Description }; drafts: Record<string, string> },
   parts: Part[],

@@ -212,7 +212,12 @@
         container: heading / inline-size;
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto auto;
-        gap: var(--gap);
+        gap: 0.5em;
+        & > div:first-child {
+          display: block flex;
+          align-items: center;
+          min-block-size: 44px;
+        }
       }
     }
     @container composer (width > 55em) {
@@ -237,7 +242,7 @@
         }
         & .section-heading {
           grid-row: 1;
-          align-self: start;
+          align-self: stretch;
         }
         & .source-tabs,
         & .output-tabs {
@@ -315,7 +320,7 @@
         border-radius: var(--radius);
         & h2 {
           display: flex;
-          flex-wrap: wrap;
+          flex-wrap: nowrap;
           flex: 1;
           min-inline-size: 0;
           align-items: center;
@@ -328,6 +333,7 @@
         }
       }
       & .input-current {
+        flex: 1;
         min-inline-size: 0;
         overflow: clip;
         text-overflow: ellipsis;
@@ -336,6 +342,7 @@
         color: var(--accent);
       }
       & .input-chevron {
+        flex: none;
         rotate: 90deg;
         display: grid;
         place-items: center;
@@ -396,15 +403,6 @@
         & .input-picker h2 > .workspace-icon {
           display: none;
         }
-        & .input-picker h2 {
-          flex-wrap: nowrap;
-        }
-        & .input-current {
-          flex: 1;
-        }
-        & .input-chevron {
-          flex: none;
-        }
       }
       .composer .composition-output > .section-heading {
         & > div:first-child {
@@ -451,15 +449,17 @@
         .composer .input-heading .file-picker {
           grid-column: 1 / -1;
           justify-self: end;
+          align-self: end;
         }
         .composer .composition-output > .section-heading {
           & .output-state {
-            grid-column: 1 / -1;
+            grid-column: 1 / 3;
             grid-row: 2;
           }
           & .download-action {
             grid-column: 3;
-            grid-row: 1;
+            grid-row: 2;
+            align-self: end;
           }
         }
       }

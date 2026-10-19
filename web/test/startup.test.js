@@ -345,6 +345,14 @@ test("Landing compact headings fit phones and tablets and logos follow theme cha
     await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
     const colors = { light: [128, 0, 128], dark: [229, 195, 156] }
     const checkLogos = async (theme) => {
+      await page.waitForFunction(
+        (pressed) => document.querySelector(".theme")?.getAttribute("aria-pressed") === pressed,
+        String(theme === "dark"),
+      )
+      assert.equal(
+        await page.getByRole("button", { name: "Dark theme", exact: true }).getAttribute("aria-pressed"),
+        String(theme === "dark"),
+      )
       for (const selector of [".brand .logo", ".hero-mark .logo"]) {
         const screenshot = await page.locator(selector).screenshot()
         const color = await page.evaluate(async (data) => {
@@ -371,9 +379,14 @@ test("Landing compact headings fit phones and tablets and logos follow theme cha
       await page.evaluate(() => localStorage.removeItem("mainz:theme"))
       await page.reload()
       await checkLogos(system)
-      await page.getByRole("button", { name: "Toggle theme" }).click()
+      await page.emulateMedia({ colorScheme: system === "light" ? "dark" : "light" })
       await checkLogos(system === "light" ? "dark" : "light")
-      await page.getByRole("button", { name: "Toggle theme" }).click()
+      await page.emulateMedia({ colorScheme: system })
+      await checkLogos(system)
+      await page.getByRole("button", { name: "Dark theme" }).press("Enter")
+      await checkLogos(system === "light" ? "dark" : "light")
+      await page.getByRole("button", { name: "Dark theme" }).click()
+      await page.emulateMedia({ colorScheme: system === "light" ? "dark" : "light" })
       await checkLogos(system)
       await page.reload()
       await checkLogos(system)
@@ -1540,6 +1553,29 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     assert.ok(cachedURLs.length > 100)
     assert.ok(cachedURLs.every((path) => path.startsWith(new URL(url).origin + "/composer/")))
     assert.ok(cachedURLs.includes(new URL("demo.pdf", url).href))
+    for (const name of ["apple-touch-icon.png", "icon-192.png", "icon-512.png"])
+      assert.ok(
+        cachedURLs.includes(new URL(name, url).href),
+        `${name} remains available offline under the application scope`,
+      )
+    assert.deepEqual(
+      await page.evaluate(async () =>
+        Promise.all(
+          ["apple-touch-icon.png", "icon-192.png", "icon-512.png"].map(async (name) => {
+            const response = await fetch(new URL(name, document.baseURI))
+            const image = await createImageBitmap(await response.blob())
+            const result = [response.headers.get("content-type"), image.width, image.height]
+            image.close()
+            return result
+          }),
+        ),
+      ),
+      [
+        ["image/png", 180, 180],
+        ["image/png", 192, 192],
+        ["image/png", 512, 512],
+      ],
+    )
     assert.ok(cachedURLs.every((path) => !/Offline\.pdf|blob:/.test(path)))
     await context.setOffline(false)
     await page.evaluate(async (name) => {

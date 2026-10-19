@@ -105,9 +105,8 @@
     const source = pdf,
       number = page,
       image = canvas,
-      position = point,
       scale = magnification * ratio
-    if (!source || !image || !target || !position || rendering) return
+    if (!source || !image || rendering) return
     const density = Math.min(devicePixelRatio, 2),
       bounds = target.getBoundingClientRect(),
       original = image.getBoundingClientRect()
@@ -116,63 +115,85 @@
     if (target.width !== width) target.width = width
     if (target.height !== height) target.height = height
     const context = target.getContext("2d")!
-    context.fillStyle = "#ffffff"
-    context.fillRect(0, 0, width, height)
     const areaWidth = ((bounds.width / scale) * image.width) / original.width
     const areaHeight = ((bounds.height / scale) * image.height) / original.height
-    context.drawImage(
-      image,
-      position.x * image.width - areaWidth / 2,
-      position.y * image.height - areaHeight / 2,
-      areaWidth,
-      areaHeight,
-      0,
-      0,
-      width,
-      height,
-    )
     const raster = document.createElement("canvas")
     raster.width = width
     raster.height = height
     let disposed = false
+    let position: typeof point
+    let running = false
+    let frame: number | undefined
+    let sheet: Awaited<ReturnType<PDFDocumentProxy["getPage"]>> | undefined
     let task: ReturnType<Awaited<ReturnType<PDFDocumentProxy["getPage"]>>["render"]> | undefined
-    refining = true
-    const timer = setTimeout(() => {
-      void source
-        .getPage(number)
-        .then(async (sheet) => {
-          const { AnnotationMode } = await loadRenderer()
-          if (disposed) return
-          const size = sheet.getViewport({ scale: 1 })
-          const viewport = sheet.getViewport({
-            scale: (original.width / size.width) * scale * density,
-          })
-          task = sheet.render({
-            canvas: raster,
-            viewport,
-            annotationMode: AnnotationMode.DISABLE,
-            transform: [1, 0, 0, 1, width / 2 - position.x * viewport.width, height / 2 - position.y * viewport.height],
-          })
-          try {
-            await task.promise
-            if (!disposed) context.drawImage(raster, 0, 0)
-          } finally {
-            sheet.cleanup()
-          }
+    function releasePage() {
+      sheet?.cleanup()
+      sheet = undefined
+    }
+    async function draw() {
+      frame = undefined
+      const at = position
+      if (!at || disposed) return
+      running = true
+      try {
+        // Keep decoded PDF operators while the lens is open instead of rebuilding each crop.
+        sheet ??= await source!.getPage(number)
+        if (disposed) return
+        const { AnnotationMode } = await loadRenderer()
+        if (disposed) return
+        const size = sheet.getViewport({ scale: 1 })
+        const viewport = sheet.getViewport({
+          scale: (original.width / size.width) * scale * density,
         })
-        .catch(() => {
-          /* Keep the displayed image if the optional detail render fails. */
+        task = sheet.render({
+          canvas: raster,
+          viewport,
+          annotationMode: AnnotationMode.DISABLE,
+          transform: [1, 0, 0, 1, width / 2 - at.x * viewport.width, height / 2 - at.y * viewport.height],
         })
-        .finally(() => {
-          if (!disposed) refining = false
-        })
-    }, 150)
+        await task.promise
+        if (!disposed && at === position) context.drawImage(raster, 0, 0)
+      } catch {
+        releasePage()
+        /* Keep the displayed image if the optional detail render fails. */
+      } finally {
+        task = undefined
+        running = false
+        if (disposed) {
+          releasePage()
+          raster.width = raster.height = 0
+        } else if (at !== position) frame = requestAnimationFrame(() => void draw())
+        else refining = false
+      }
+    }
+    $effect(() => {
+      position = point
+      if (!position) return
+      context.fillStyle = "#ffffff"
+      context.fillRect(0, 0, width, height)
+      context.drawImage(
+        image,
+        position.x * image.width - areaWidth / 2,
+        position.y * image.height - areaHeight / 2,
+        areaWidth,
+        areaHeight,
+        0,
+        0,
+        width,
+        height,
+      )
+      refining = true
+      // Finish active PDF work, then refine the latest position without a settling delay.
+      if (!running && frame === undefined) frame = requestAnimationFrame(() => void draw())
+    })
     return () => {
       disposed = true
-      clearTimeout(timer)
+      cancelAnimationFrame(frame ?? 0)
       task?.cancel()
-      raster.width = 0
-      raster.height = 0
+      if (!running) {
+        releasePage()
+        raster.width = raster.height = 0
+      }
     }
   }
   function inspect(event: PointerEvent) {

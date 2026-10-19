@@ -13,14 +13,21 @@ worker.addEventListener("install", (event) => {
     (async () => {
       try {
         const cache = await caches.open(cacheName)
-        for (let index = 0; index < urls.length; index++) {
-          const response = await fetch(new Request(urls[index], { cache: "reload" }))
-          if (!response.ok) throw new Error("Missing application asset.")
-          const bytes = await response.clone().arrayBuffer()
-          const digest = await crypto.subtle.digest("SHA-256", bytes)
-          const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
-          if (sha256 !== ASSETS[index].sha256) throw new Error("Incompatible application asset.")
-          await cache.put(urls[index], response)
+        for (let index = 0; index < urls.length; index += 4) {
+          const results = await Promise.allSettled(
+            urls.slice(index, index + 4).map(async (url, offset) => {
+              const response = await fetch(new Request(url, { cache: "reload" }))
+              if (!response.ok) throw new Error("Missing application asset.")
+              const bytes = await response.clone().arrayBuffer()
+              const digest = await crypto.subtle.digest("SHA-256", bytes)
+              const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
+              if (sha256 !== ASSETS[index + offset].sha256) throw new Error("Incompatible application asset.")
+              await cache.put(url, response)
+            }),
+          )
+          // Finish all writes before deleting a failed installation's cache.
+          const failure = results.find((result) => result.status === "rejected")
+          if (failure) throw failure.reason
         }
       } catch (error) {
         await caches.delete(cacheName)

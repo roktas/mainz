@@ -1,4 +1,4 @@
-// Parses ordered page sequences for selections and formats physical page ranges.
+// Parses and toggles ordered page selections, and formats physical page ranges.
 
 import { maxPages } from "./model.ts"
 
@@ -7,6 +7,18 @@ export type Sequence = {
   pages: number[]
   repeat: string
   front: boolean
+}
+
+export function toggleSequence(selected: number[], page: number, anchor = page) {
+  const first = Math.min(anchor, page),
+    last = Math.max(anchor, page)
+  const existing = new Set(selected)
+  const adding = !existing.has(page)
+  let pages = [...selected]
+  if (adding) {
+    for (let number = first; number <= last; number++) if (!existing.has(number)) pages.push(number)
+  } else pages = pages.filter((number) => number < first || number > last)
+  return { pages, first, last, adding }
 }
 
 export function parseSequence(text: string, count: number): { pages: number[]; error?: string } {

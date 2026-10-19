@@ -32,8 +32,10 @@ duplicating the implementation or the interaction specification.
 CSS expresses colors in OKLCH. Neutral hues use `none`. Theme variations derive from the same palette. Workspace text
 uses the system sans-serif stack. The landing product name and purpose heading use bundled EB Garamond at weight 500.
 The font, [license](../public/fonts/eb-garamond.txt), and [logo](../public/logo.svg) ship as local application assets.
-Fallback fonts keep text visible during loading. The logo supplies the header, landing image, favicon, and app icon. Its
-upright curves use the accent at full opacity. Horizontal curves remain faint. Each inline instance has unique SVG IDs.
+Fallback fonts keep text visible during loading. The logo supplies the header, landing image, and favicon. Its upright
+curves use the accent at full opacity. Horizontal curves remain faint. Each inline instance has unique SVG IDs. The
+dedicated [app icon](../public/icon.svg) uses the same curves in fixed purple on white, with a square canvas and safe
+margins. Its maintained PNG renditions supply the 180 px iOS touch icon and the 192/512 px manifest icons.
 
 Page-selection hints and Style descriptions use the body text size. Compact numbers and secondary metadata retain
 smaller text. The landing's prepared-PDF link uses a thin dotted underline with clear space between dots and below the
@@ -94,7 +96,9 @@ the frame and center it horizontally.
 Desktop Input and Output have equal widths and equal gutters around the center separator. Their headings, tabs, fields,
 hints, and content share row tracks. The filename chooser belongs to Input's heading and includes Remove Input below the
 open-PDF list. Open PDF and Download occupy corresponding positions. Output totals sit beside Download. Relevant
-processing replaces it in the same reserved area without changing heading dimensions.
+processing replaces it in the same reserved area without changing heading dimensions. Narrow two-pane headings place
+Open PDF and Download on their second row. Output totals share that row beside Download. Both actions align at the
+bottom of the shared heading track, including with long filenames.
 
 The header places the Home logo at the start and Help, Settings, and theme controls at the end. It states that
 processing stays on the device. Coarse-pointer devices omit the Help button. Settings opens a right drawer. Lens

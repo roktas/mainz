@@ -2,9 +2,10 @@
 
 <script lang="ts">
   import { onMount } from "svelte"
+  let dark = $state(false)
   function tint() {
     const theme = document.documentElement.dataset.theme
-    const dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)
+    dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)
     document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')!.content = dark ? "#e5c39c" : "#800080"
   }
   onMount(() => {
@@ -14,8 +15,6 @@
     return () => system.removeEventListener("change", tint)
   })
   function toggle() {
-    const theme = document.documentElement.dataset.theme
-    const dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)
     const next = dark ? "light" : "dark"
     document.documentElement.dataset.theme = next
     tint()
@@ -27,7 +26,14 @@
   }
 </script>
 
-<button type="button" class="theme" aria-label="Toggle theme" title="Toggle dark/light mode" onclick={toggle}>
+<button
+  type="button"
+  class="theme"
+  aria-label="Dark theme"
+  aria-pressed={dark}
+  title="Toggle dark/light mode"
+  onclick={toggle}
+>
   <svg class="light-icon" viewBox="0 0 24 24" aria-hidden="true">
     <circle cx="12" cy="12" r="6" fill="currentColor" />
     <path

@@ -51,10 +51,22 @@ test("Vite verifies Mainz packages and preserves watched asset directories durin
         },
       }),
     )
+    const alternate = `${packagePath}-alternate`
+    cpSync(packagePath, alternate, { recursive: true })
+    writeFileSync(join(alternate, "processor.wasm"), "alternate")
+    writeFileSync(
+      join(alternate, "provenance.json"),
+      JSON.stringify({
+        files: {
+          "processor.mjs": createHash("sha256").update(loader).digest("hex"),
+          "processor.wasm": createHash("sha256").update("alternate").digest("hex"),
+        },
+      }),
+    )
     const project = join(directory, "project")
     mkdirSync(project)
     copyFileSync("../VERSION", join(directory, "VERSION"))
-    for (const name of ["vite.config.ts", "package.json"]) copyFileSync(name, join(project, name))
+    for (const name of ["vite.config.ts", "package.json", "index.html"]) copyFileSync(name, join(project, name))
     cpSync("public", join(project, "public"), { recursive: true })
     mkdirSync(join(project, "test", "fixtures"), { recursive: true })
     copyFileSync("test/fixtures/demo.pdf", join(project, "test", "fixtures", "demo.pdf"))
@@ -67,22 +79,57 @@ test("Vite verifies Mainz packages and preserves watched asset directories durin
         `
       import assert from "node:assert/strict";
       import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+      import { spawn } from "node:child_process";
       import { createServer } from "vite";
       const server = await createServer();
+      const assets = server.config.publicDir;
       await server.close();
-      const identity = statSync("../.local/tmp/web/assets").ino;
-      writeFileSync("../.local/tmp/web/assets/obsolete.txt", "Test residue.");
+      const identity = statSync(assets).ino;
+      writeFileSync(assets + "/obsolete.txt", "Test residue.");
       const next = await createServer();
       await next.close();
-      assert.equal(statSync("../.local/tmp/web/assets").ino, identity);
-      assert.equal(existsSync("../.local/tmp/web/assets/obsolete.txt"), false);
-      assert.ok(existsSync("../.local/tmp/web/assets/logo.svg"));
-      assert.ok(existsSync("../.local/tmp/web/assets/processor.wasm"));
-      assert.ok(existsSync("../.local/tmp/web/assets/demo.pdf"));
-      const manifest = JSON.parse(readFileSync("../.local/tmp/web/assets/manifest.webmanifest", "utf8"));
+      await Promise.all(Array.from({ length: 3 }, () => new Promise((resolve, reject) => {
+        const child = spawn(process.execPath, ["--input-type=module", "-e", 'import { createServer } from "vite"; const server = await createServer(); await server.close();'], { stdio: ["ignore", "ignore", "pipe"] });
+        let errors = "";
+        child.stderr.on("data", (chunk) => errors += chunk);
+        child.on("error", reject);
+        child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(errors)));
+      })));
+      assert.equal(statSync(assets).ino, identity);
+      assert.equal(existsSync(assets + "/obsolete.txt"), false);
+      assert.ok(existsSync(assets + "/logo.svg"));
+      assert.ok(existsSync(assets + "/processor.wasm"));
+      assert.ok(existsSync(assets + "/demo.pdf"));
+      const manifest = JSON.parse(readFileSync(assets + "/manifest.webmanifest", "utf8"));
       assert.equal(manifest.name, "PDF Composer");
       assert.equal(manifest.short_name, "PDF Composer");
       assert.equal(manifest.description, "Select, copy, and arrange PDF pages. Style prepared PDFs on your device.");
+      assert.deepEqual(manifest.icons, [
+        { src: "icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      ]);
+      assert.match(readFileSync("index.html", "utf8"), /rel="apple-touch-icon" sizes="180x180" href="%BASE_URL%apple-touch-icon.png"/);
+      for (const [name, size] of [["apple-touch-icon.png", 180], ["icon-192.png", 192], ["icon-512.png", 512]]) {
+        const png = readFileSync(assets + "/" + name);
+        assert.equal(png.subarray(1, 4).toString(), "PNG");
+        assert.equal(png.readUInt32BE(16), size);
+        assert.equal(png.readUInt32BE(20), size);
+      }
+      const first = await createServer({ server: { host: "127.0.0.1", port: 0 } });
+      let second;
+      try {
+        await first.listen();
+        const url = first.resolvedUrls.local[0] + "processor.wasm";
+        assert.equal(await (await fetch(url)).text(), "test");
+        process.env.MAINZ_WASM_DIR += "-alternate";
+        second = await createServer({ server: { host: "127.0.0.1", port: 0 } });
+        await second.listen();
+        assert.equal(await (await fetch(second.resolvedUrls.local[0] + "processor.wasm")).text(), "alternate");
+        assert.equal(await (await fetch(url)).text(), "test", "A second package cannot replace a running server's WASM");
+      } finally {
+        await second?.close();
+        await first.close();
+      }
     `,
       ],
       {

@@ -42,7 +42,6 @@ try {
 } catch {
   /* Source archives can build without Git metadata. */
 }
-const assets = resolve("../.local/tmp/web/assets")
 const wasm = resolve(process.env.MAINZ_WASM_DIR ?? "../.local/var/package/wasm")
 let outputDirectory = resolve("../.local/var/js/dist")
 
@@ -63,6 +62,10 @@ function prepare() {
   for (const name of ["_mainz_input", "_mainz_clear_inputs", "_mainz_compose", "_mainz_report", "_mainz_report_size"])
     if (!new RegExp(`\\b${name}\\b`).test(loader))
       throw new Error(`Mainz WASM package must support version 1 Jobs: missing ${name}.`)
+  const assets = resolve(
+    "../.local/tmp/web/assets",
+    createHash("sha256").update(wasm).update(JSON.stringify(provenance)).digest("hex").slice(0, 16),
+  )
   const expected = new Set<string>(["manifest.webmanifest"])
   function copy(source: string, destination: string) {
     const target = resolve(assets, destination)
@@ -99,7 +102,10 @@ function prepare() {
       display: "standalone",
       theme_color: "#800080",
       background_color: "#ffffff",
-      icons: [{ src: "logo.svg", sizes: "any", type: "image/svg+xml", purpose: "any" }],
+      icons: [
+        { src: "icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      ],
     }),
   )
   for (const path of (readdirSync(assets, { recursive: true }) as string[]).toSorted((a, b) => b.length - a.length)) {
@@ -108,8 +114,9 @@ function prepare() {
       if (!readdirSync(file).length) rmSync(file, { recursive: true })
     } else if (!expected.has(path)) rmSync(file)
   }
+  return assets
 }
-prepare()
+const assets = prepare()
 
 export default defineConfig({
   base: "./",

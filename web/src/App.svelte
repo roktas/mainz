@@ -4,7 +4,7 @@
   import { onDestroy, onMount, tick } from "svelte"
   import { animateRemoval } from "./motion.ts"
   import { fade } from "svelte/transition"
-  import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist"
+  import type { PDFDocumentLoadingTask } from "pdfjs-dist"
   import { appearance, downloadName, expand, job, maxPages, positionAfterEdit, sizeOf, uid } from "./model.ts"
   import type { Input, Part, Source } from "./model.ts"
   import type { Inspection } from "./Page.svelte"
@@ -21,7 +21,7 @@
     resolve,
   } from "./styles.ts"
   import type { Render, Scalar } from "./styles.ts"
-  import { loadRenderer, openPDF } from "./pdf.ts"
+  import { Documents, openPDF, verifyPDF } from "./pdf.ts"
   import { Processor } from "./processor.ts"
   import Landing from "./Landing.svelte"
   import Settings from "./Settings.svelte"
@@ -79,7 +79,7 @@
     task?: PDFDocumentLoadingTask
   }
   const previews = new Map<string, Preview>()
-  const documents = new Map<PDFDocumentProxy, PDFDocumentLoadingTask>()
+  const documents = new Documents()
   let openingProcessor: Processor | undefined
   let openingTask: PDFDocumentLoadingTask | undefined
   let openingSource = $state.raw<Source>()
@@ -154,13 +154,7 @@
   }
   async function releaseUnused() {
     await tick()
-    const used = new Set(sources.flatMap((source) => [source.pdf, source.input.pdf]))
-    for (const [pdf, loadingTask] of documents) {
-      if (!used.has(pdf)) {
-        documents.delete(pdf)
-        void loadingTask.destroy()
-      }
-    }
+    documents.retain(sources.flatMap((source) => [source.pdf, source.input.pdf]))
   }
   function composition(next: Part[], text = "Output updated. Input selections and styles are retained.") {
     const previous = parts
@@ -181,22 +175,6 @@
   }
   function choose(id: string, sequence: Sequence) {
     sequences = { ...sequences, [id]: sequence }
-  }
-  async function verifyPDF(pdf: PDFDocumentProxy) {
-    const { AnnotationMode } = await loadRenderer()
-    const page = await pdf.getPage(1),
-      size = page.getViewport({ scale: 1 }),
-      viewport = page.getViewport({ scale: Math.min(0.2, 2048 / size.width, 2048 / size.height) })
-    const canvas = document.createElement("canvas")
-    canvas.width = Math.ceil(viewport.width)
-    canvas.height = Math.ceil(viewport.height)
-    try {
-      await page.render({ canvas, viewport, annotationMode: AnnotationMode.DISABLE }).promise
-    } finally {
-      canvas.width = 0
-      canvas.height = 0
-      page.cleanup()
-    }
   }
   async function open(file: Uint8Array | File, name: string) {
     if (loading || updating) return
@@ -280,7 +258,7 @@
         input,
         overrides,
       }
-      documents.set(pdf, loadingTask!)
+      documents.add(pdf, loadingTask!)
       const editable = Object.keys(input.description.parameters).length > 0
       previews.set(source.id, { rendered: { overrides }, processor: editable ? processor : undefined })
       choose(source.id, {
@@ -488,7 +466,7 @@
         void loadingTask.destroy()
         return
       }
-      documents.set(pdf, loadingTask)
+      documents.add(pdf, loadingTask)
       preview.rendered = { overrides, pages }
       preview.request = undefined
       update({ ...latest, pdf, pdfPages: pages, status: "ready", error: undefined })
@@ -691,7 +669,7 @@
       preview.processor?.dispose()
       void preview.task?.destroy()
     }
-    for (const loadingTask of documents.values()) void loadingTask.destroy()
+    documents.dispose()
   })
 </script>
 

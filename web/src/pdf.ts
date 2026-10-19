@@ -1,6 +1,6 @@
-// Opens PDFs through PDF.js and owns the bounded memory cache of preview rasters.
+// Owns PDF.js loading, document disposal, validation, and bounded preview rasters.
 
-import type { PDFDocumentProxy } from "pdfjs-dist"
+import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist"
 
 const assets = new URL(`${import.meta.env.BASE_URL}pdfjs/`, location.href).href
 let renderer: Promise<typeof import("pdfjs-dist")> | undefined
@@ -10,6 +10,40 @@ const rasters = new WeakMap<PDFDocumentProxy, Map<string, Raster>>()
 const recent = new Set<Raster>()
 const rasterLimit = 32 * 1024 * 1024
 let rasterBytes = 0
+
+export class Documents {
+  #tasks = new Map<PDFDocumentProxy, PDFDocumentLoadingTask>()
+
+  add(pdf: PDFDocumentProxy, task: PDFDocumentLoadingTask) {
+    this.#tasks.set(pdf, task)
+  }
+  retain(pdfs: PDFDocumentProxy[]) {
+    const used = new Set(pdfs)
+    for (const [pdf, task] of this.#tasks)
+      if (!used.has(pdf)) {
+        this.#tasks.delete(pdf)
+        releaseRasters(pdf)
+        void task.destroy()
+      }
+  }
+  dispose() {
+    this.retain([])
+  }
+}
+
+function discard(raster: Raster) {
+  recent.delete(raster)
+  raster.pages.delete(raster.key)
+  rasterBytes -= raster.canvas.width * raster.canvas.height * 4
+  raster.canvas.width = raster.canvas.height = 0
+}
+
+export function releaseRasters(pdf: PDFDocumentProxy) {
+  const pages = rasters.get(pdf)
+  if (!pages) return
+  for (const raster of pages.values()) discard(raster)
+  rasters.delete(pdf)
+}
 
 export function cachedRaster(pdf: PDFDocumentProxy, page: number, scale: number) {
   const raster = rasters.get(pdf)?.get(`${page}:${scale}`)
@@ -24,13 +58,7 @@ export function cacheRaster(pdf: PDFDocumentProxy, page: number, scale: number, 
   const key = `${page}:${scale}`
   let pages = rasters.get(pdf)
   if (bytes > rasterLimit || pages?.has(key)) return
-  while (rasterBytes + bytes > rasterLimit) {
-    const oldest = recent.values().next().value!
-    recent.delete(oldest)
-    oldest.pages.delete(oldest.key)
-    rasterBytes -= oldest.canvas.width * oldest.canvas.height * 4
-    oldest.canvas.width = oldest.canvas.height = 0
-  }
+  while (rasterBytes + bytes > rasterLimit) discard(recent.values().next().value!)
   if (!pages) rasters.set(pdf, (pages = new Map()))
   // Component disposal clears its canvas; retain an independent, memory-only copy.
   const canvas = source.ownerDocument.createElement("canvas")
@@ -53,6 +81,22 @@ export function loadRenderer() {
       renderer = undefined
       throw error
     }))
+}
+
+export async function verifyPDF(pdf: PDFDocumentProxy) {
+  const { AnnotationMode } = await loadRenderer()
+  const canvas = document.createElement("canvas")
+  const page = await pdf.getPage(1)
+  try {
+    const size = page.getViewport({ scale: 1 })
+    const viewport = page.getViewport({ scale: Math.min(0.2, 2048 / size.width, 2048 / size.height) })
+    canvas.width = Math.ceil(viewport.width)
+    canvas.height = Math.ceil(viewport.height)
+    await page.render({ canvas, viewport, annotationMode: AnnotationMode.DISABLE }).promise
+  } finally {
+    canvas.width = canvas.height = 0
+    page.cleanup()
+  }
 }
 
 export async function openPDF(bytes: Uint8Array) {
