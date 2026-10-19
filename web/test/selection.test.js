@@ -4,7 +4,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { chromium } from "playwright"
 import { zoom } from "./workspace.js"
-import { createServer, tab, pagePosition, fixture, hasCursor } from "./browser.js"
+import { createServer, tab, pagePosition, gridPage, fixture, hasCursor } from "./browser.js"
 
 test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
@@ -388,6 +388,7 @@ test("Grid images and grips share selection and ordinary page focus", { timeout:
           const reset = pane.getByRole("button", { name: clear, exact: true })
           if (await reset.count()) await reset.click()
           const selection = pane.getByRole("textbox", { name: "Page selection", exact: true })
+          await pane.getByRole("slider").press("Home")
           const cards = pane.locator(".composition-card")
           const frame = await cards.first().boundingBox()
           const colors = () => cards.evaluateAll((items) => items.map((item) => getComputedStyle(item).backgroundColor))
@@ -528,12 +529,18 @@ test("Dragging opens stable page slots, previews density, and commits only on dr
           output = page.locator(".composition-output")
         await input.getByLabel("Page selection", { exact: true }).fill("1-7")
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+        await page.waitForFunction(
+          () => document.querySelector(".composition-output .grid-view")?.dataset.batch === "12",
+        )
         await output.locator(".composition-card").nth(6).waitFor()
         await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
         if (density === "Compact") {
           await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
           await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
         }
+        if (reducedMotion === "reduce")
+          await page.setViewportSize({ width: 1920, height: density === "Compact" ? 1080 : 1440 })
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
         await page.waitForFunction(
           () => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"),
         )
@@ -555,6 +562,11 @@ test("Dragging opens stable page slots, previews density, and commits only on dr
         const source = input.getByRole("button", { name: "Select Input page 1", exact: true })
         const before = await ids()
         const bounds = await cards.evaluateAll((items) => items.map((item) => item.getBoundingClientRect().toJSON()))
+        const reference = await cards.first().evaluate((card) => {
+          const frame = card.getBoundingClientRect(),
+            raster = card.querySelector(".page-image canvas").getBoundingClientRect()
+          return [raster.x - frame.x, raster.y - frame.y, raster.width, raster.height]
+        })
         const target = cards.nth(3)
         const point = { clientX: bounds[3].left + bounds[3].width / 4, clientY: bounds[3].top + bounds[3].height / 2 }
         await source.dispatchEvent("dragstart", { dataTransfer: transfer })
@@ -595,13 +607,24 @@ test("Dragging opens stable page slots, previews density, and commits only on dr
           Math.abs(shifted.x - bounds[4].x) < 1 && Math.abs(shifted.y - bounds[4].y) < 1,
           "The target moves into its neighbor's old slot",
         )
-        const ghost = await hole.locator("canvas").evaluate((canvas) => ({
-          opacity: Number(getComputedStyle(canvas).opacity),
-          color: Array.from(
-            canvas.getContext("2d").getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height * 0.7), 1, 1)
-              .data,
-          ),
-        }))
+        const ghost = await hole.locator("canvas").evaluate((canvas) => {
+          const box = canvas.getBoundingClientRect()
+          const scale = Math.min(box.width / canvas.width, box.height / canvas.height)
+          const width = canvas.width * scale,
+            height = canvas.height * scale
+          return {
+            image: [box.x + (box.width - width) / 2, box.y + (box.height - height) / 2, width, height],
+            opacity: Number(getComputedStyle(canvas).opacity),
+            color: Array.from(
+              canvas.getContext("2d").getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height * 0.7), 1, 1)
+                .data,
+            ),
+          }
+        })
+        assert.ok(
+          ghost.image.every((value, axis) => Math.abs(value - [slot.x, slot.y, 0, 0][axis] - reference[axis]) < 1),
+          `${density}: The destination image matches the card's image bounds (${JSON.stringify({ reference, ghost: ghost.image, slot })})`,
+        )
         assert.ok(ghost.opacity > 0 && ghost.opacity < 0.5, "The destination shows a faint copy of the page")
         assert.deepEqual(ghost.color, [0, 0, 0, 255], "The destination keeps the dragged page's content")
         const grid = output.locator(".output-pages")
@@ -718,6 +741,7 @@ test("Dragging page images and grips preserves selection and page focus", { time
     const selected = output.getByLabel("Page selection", { exact: true })
     await prepared.fill("1-7")
     await prepared.press("Enter")
+    await output.getByRole("slider").press("Home")
     await prepared.fill("1,3,3")
     await selected.fill("1,3")
     for (const pane of [input, output]) {
@@ -900,7 +924,12 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
           for (const [key, text, position] of scenario) {
             await page.keyboard.press(key)
             assert.equal(await selection.inputValue(), text, `${name}: ${key}`)
-            await cursor(position)
+            try {
+              await cursor(position)
+            } catch (error) {
+              error.message += `\n${name}, ${width}px, ${key}: expected page ${position}; focus ${await page.evaluate(() => document.activeElement?.getAttribute("aria-label"))}`
+              throw error
+            }
           }
         }
         const range = panel.getByRole("slider", { name: `${name} thumbnail range`, exact: true })
@@ -925,7 +954,7 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
           ["Shift+ArrowRight", "1-2", 4],
         ])
         await selection.fill("")
-        await panel.getByRole("button", { name: `Select ${name} page 2`, exact: true }).click()
+        await (await gridPage(panel, 2)).click()
         await steps([
           ["Shift+ArrowRight", "2-3", 4],
           ["ArrowRight", "2-3", 5],
@@ -940,7 +969,7 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
           ["Shift+ArrowLeft", "3", 2],
         ])
         await selection.fill(name === "Input" ? "7,7" : "7")
-        await panel.getByRole("button", { name: `Select ${name} page 3`, exact: true }).focus()
+        await (await gridPage(panel, 3)).focus()
         await steps([
           ["Shift+ArrowRight", name === "Input" ? "7, 7, 3" : "3, 7", 4],
           ["Shift+ArrowRight", name === "Input" ? "7, 7, 3-4" : "3-4, 7", 5],
@@ -950,13 +979,14 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
           ["Shift+ArrowRight", name === "Input" ? "7, 7" : "7", 3],
         ])
         await selection.fill("")
+        await firstBatch()
         await cards.last().focus()
         const boundary = Number(await panel.locator(".grid-view").getAttribute("data-batch"))
         await steps([
           ["Shift+ArrowRight", String(boundary), boundary + 1],
           ["Shift+ArrowRight", `${boundary}-${boundary + 1}`, boundary + 2],
           ["Shift+ArrowLeft", String(boundary), boundary + 1],
-          ["Shift+ArrowLeft", "", boundary],
+          ["Shift+ArrowLeft", "", boundary === 1 ? 0 : boundary],
         ])
         await range.press("End")
         await panel.getByRole("button", { name: `Select ${name} page 14`, exact: true }).focus()
@@ -985,7 +1015,7 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
         } else {
           const total = () => output.locator(".composition-totals strong").innerText()
           await selection.fill("1,13-14")
-          await panel.getByRole("button", { name: "Select Output page 2", exact: true }).focus()
+          await (await gridPage(panel, 2)).focus()
           await cards.last().dispatchEvent("keydown", { key: "Delete", repeat: true })
           await page.keyboard.press("Alt+Delete")
           assert.equal(await total(), "14 PDF pages", "Held or modified Delete keeps the composition")
@@ -1734,7 +1764,7 @@ test(
           await prepared.fill("2-3")
           await selected.fill("1-3")
           if (mode === "Grid") {
-            await pane.getByRole("button", { name: `Select ${name} page 6`, exact: true }).focus()
+            await (await gridPage(pane, 6)).focus()
             await page.keyboard.press("ArrowRight")
           } else {
             await zoom(pane, "Zoom in")
@@ -1756,7 +1786,7 @@ test(
               element.scrollLeft = 50
               element.focus({ preventScroll: true })
             })
-          } else await pane.getByRole("button", { name: `Select ${name} page 7`, exact: true }).focus()
+          } else await (await gridPage(pane, 7)).focus()
           await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
           await page.evaluate(
             () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
@@ -2250,9 +2280,16 @@ test("Page and Grid keyboard actions respect key priority and the visible page o
       .getByRole("button", { name: "Input", exact: true })
       .click()
     await tab(input, "Grid")
-    await cards.first().focus()
+    const first = await gridPage(input, 1)
+    const nextRow = await first.evaluate(
+      (element) => getComputedStyle(element.closest(".composition-grid")).gridTemplateColumns.split(" ").length,
+    )
+    await first.focus()
     await page.keyboard.press("ArrowDown")
-    assert.equal(await cards.nth(2).evaluate((element) => element === document.activeElement), true)
+    await page.waitForFunction(
+      (position) => document.activeElement?.getAttribute("data-page") === String(position),
+      nextRow,
+    )
   } finally {
     await browser?.close()
     await server.close()

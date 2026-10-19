@@ -115,33 +115,32 @@ height in Page so desktop content frames remain aligned.
 Routine hints, empty states, and tour steps describe controls and results without assuming a mouse or keyboard. Keep
 input-specific instructions in Help's Keyboard and Mouse sections.
 
-Desktop Grid and Page share a fitted frame. Grid fills complete rows within it. Two visible Pages use the taller fitted
-page and heading. A separate fit reference preserves Grid capacity while Page uses smaller image margins. Application
-zoom does not enlarge this outer frame. This separation keeps Page images large without losing a Grid row. Shorter pages
-center within the shared image area.
+Grid and Page use the remaining viewport height after the header, workspace controls, page fields, and status bar.
+Normal and Compact share that height. Density changes card dimensions and complete row capacity. Both Input and Output
+use the same capacity policy. Pagination stays inside the available screen at ordinary text size.
 
-When the viewport is taller than the fitted workspace, two-pane Grid and Page frames fill the extra space above the
-status bar, with the standard bottom gutter. The fitted frame sets the minimum height. Extra height belongs to the
-content row, so headings retain their positions, pagination stays at the bottom, and the pane divider reaches the same
-edge.
+A frame reserves at least one complete card row and usable pagination. If these minimums cannot fit, the document
+scrolls. It does not shrink controls or show a partial final row. Enlarged text and short landscape screens can require
+this exception. Page also reserves a usable image area below its heading. Style keeps document flow for its editable
+fields. Its companion pane uses the shared fit reference.
 
-The QHD calibration uses the remaining content height for two-pane Grid and Page. Headings, page fields, and the status
-bar keep their space. The browser viewport already excludes desktop and browser bars. Style and single-pane layouts keep
-their content sizing.
+Two-pane Grid and Page frames align at the top and bottom. The pane divider reaches the same edge. Shorter PDF pages
+center within the shared image area. Application zoom changes the PDF inside that frame. The browser viewport already
+excludes browser controls. The application does not estimate or subtract them again.
 
 The portrait [Grid fixture](../test/fixtures/README.md#grid-fixture) has these desktop references at 100% browser zoom
 and normal text size. Dimensions describe the browser viewport, not the physical monitor. Each matrix gives columns ×
 rows = pages and applies to both Input and Output.
 
-| Viewport                | Workspace width | Normal     | Compact     |
-| ----------------------- | --------------- | ---------- | ----------- |
-| FHD-, 1920 × 982        | 1232 px         | 3 × 3 = 9  | 6 × 6 = 36  |
-| Full HD, 1920 × 1080    | 1232 px         | 3 × 3 = 9  | 6 × 6 = 36  |
-| QHD window, 2560 × 1280 | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48  |
-| QHD-, 2560 × 1310       | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48  |
-| QHD, 2560 × 1440        | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56  |
-| UHD-, 3840 × 1964       | 2208 px         | 6 × 5 = 30 | 12 × 7 = 84 |
-| UHD, 3840 × 2160        | 2208 px         | 6 × 5 = 30 | 12 × 7 = 84 |
+| Viewport                | Workspace width | Normal     | Compact       |
+| ----------------------- | --------------- | ---------- | ------------- |
+| FHD-, 1920 × 982        | 1232 px         | 3 × 2 = 6  | 6 × 4 = 24    |
+| Full HD, 1920 × 1080    | 1232 px         | 3 × 2 = 6  | 6 × 4 = 24    |
+| QHD window, 2560 × 1280 | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48    |
+| QHD-, 2560 × 1310       | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48    |
+| QHD, 2560 × 1440        | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
+| UHD-, 3840 × 1964       | 2208 px         | 6 × 6 = 36 | 12 × 11 = 132 |
+| UHD, 3840 × 2160        | 2208 px         | 6 × 6 = 36 | 12 × 12 = 144 |
 
 Desktop references ending in `-` keep the nominal width in each orientation. Their estimated height is
 `2 * floor(height * 0.91 / 2)`, where `height` is the nominal monitor height. This gives the largest even integer that
@@ -153,43 +152,40 @@ browser-test evidence. Physical-monitor measurements for FHD- and UHD- are pendi
 When the corresponding physical monitors become available, replace the estimates with measured browser viewport
 dimensions.
 
-Compact has at most seven rows. Runtime measurements adapt capacity to the CSS frame budget and page geometry. At Full
-HD, the Compact frame is approximately 889 px high and fits a 508 × 718 px page with 25 px side margins. At QHD, the
-available viewport height determines the frame height. Browser zoom out can grow Fit in CSS pixels to retain the page's
-screen size. Controls and Grid cards continue following browser zoom.
+Runtime measurements count complete rows within the CSS frame. Compact has no arbitrary row limit. More space can admit
+more rows without enlarging cards or concealing pagination. Browser zoom changes available CSS dimensions.
 
-Touch references use the same fixture, nominal CSS dimensions, 100% browser zoom, and normal text size. Each entry gives
-columns × rows (visible pages). The last row can be partial. Compact values apply to both panes.
+Touch references use the same fixture, nominal CSS dimensions, 100% browser zoom, and normal text size. Each matrix
+applies to both Input and Output. Short screens retain one complete row and scroll when necessary.
 
 Manual tablet profiles use nominal dimensions in both orientations. Physical-device measurements in standalone mode are
 pending. Phone profiles ending in `-` keep the nominal width and estimate the available height as
 `2 * floor(height * 0.85 / 2)`. Calculate each orientation from its nominal dimensions. These estimates define test
 viewports; the application does not subtract the estimated browser controls again.
 
-| Device       | CSS viewport | Normal Input | Normal Output | Compact    |
-| ------------ | ------------ | ------------ | ------------- | ---------- |
-| Narrow phone | 320 × 568    | 1 × 8 (8)    | 1 × 12 (12)   | 2 × 3 (6)  |
-| iPhone       | 375 × 667    | 2 × 4 (8)    | 2 × 6 (12)    | 4 × 4 (16) |
-| iPhone       | 667 × 375    | 3 × 3 (8)    | 3 × 4 (12)    | 6 × 6 (36) |
-| iPhone       | 390 × 844    | 2 × 4 (8)    | 2 × 6 (12)    | 4 × 4 (16) |
-| iPhone       | 844 × 390    | 4 × 2 (8)    | 4 × 3 (12)    | 8 × 7 (56) |
-| iPhone       | 393 × 852    | 2 × 4 (8)    | 2 × 6 (12)    | 4 × 4 (16) |
-| iPhone       | 852 × 393    | 4 × 2 (8)    | 4 × 3 (12)    | 8 × 7 (56) |
-| iPhone       | 440 × 956    | 2 × 4 (8)    | 2 × 6 (12)    | 4 × 4 (16) |
-| iPhone       | 956 × 440    | 2 × 2 (4)    | 2 × 2 (4)     | 4 × 4 (16) |
-| iPad mini 6  | 744 × 1133   | 4 × 2 (8)    | 4 × 3 (12)    | 7 × 7 (49) |
-| iPad mini 6  | 1133 × 744   | 3 × 2 (6)    | 3 × 2 (6)     | 5 × 5 (25) |
-| iPad         | 768 × 1024   | 4 × 2 (8)    | 4 × 3 (12)    | 7 × 7 (49) |
-| iPad         | 1024 × 768   | 3 × 2 (6)    | 3 × 2 (6)     | 5 × 4 (20) |
-| iPad gen 8   | 810 × 1080   | 4 × 2 (8)    | 4 × 3 (12)    | 8 × 7 (56) |
-| iPad gen 8   | 1080 × 810   | 3 × 3 (9)    | 3 × 3 (9)     | 5 × 5 (25) |
+| Device       | CSS viewport | Normal    | Compact    |
+| ------------ | ------------ | --------- | ---------- |
+| Narrow phone | 320 × 568    | 1 × 1 = 1 | 3 × 1 = 3  |
+| iPhone       | 375 × 667    | 2 × 1 = 2 | 4 × 1 = 4  |
+| iPhone       | 667 × 375    | 3 × 1 = 3 | 7 × 1 = 7  |
+| iPhone       | 390 × 844    | 2 × 1 = 2 | 4 × 2 = 8  |
+| iPhone       | 844 × 390    | 4 × 1 = 4 | 9 × 1 = 9  |
+| iPhone       | 393 × 852    | 2 × 1 = 2 | 4 × 2 = 8  |
+| iPhone       | 852 × 393    | 4 × 1 = 4 | 9 × 1 = 9  |
+| iPhone       | 440 × 956    | 2 × 1 = 2 | 4 × 3 = 12 |
+| iPhone       | 956 × 440    | 2 × 1 = 2 | 5 × 1 = 5  |
+| iPad mini 6  | 744 × 1133   | 4 × 2 = 8 | 8 × 4 = 32 |
+| iPad mini 6  | 1133 × 744   | 3 × 1 = 3 | 6 × 1 = 6  |
+| iPad         | 768 × 1024   | 4 × 1 = 4 | 8 × 3 = 24 |
+| iPad         | 1024 × 768   | 2 × 1 = 2 | 5 × 2 = 10 |
+| iPad gen 8   | 810 × 1080   | 4 × 2 = 8 | 8 × 4 = 32 |
+| iPad gen 8   | 1080 × 810   | 3 × 1 = 3 | 5 × 2 = 10 |
 
 Mobile has a persistent one-tap Input/Output switch and preserves pane state. Headings retain the chooser or totals
 beside Open PDF/Download. Enlarged text can stack these groups. Labels stay complete. Long filenames truncate, with
 their full text available through hover and the chooser. Remove Input remains available in the chooser at every width.
-Tabs and shared page fields remain usable in Page. Narrow Normal layouts use batches of eight Input or twelve Output
-thumbnails. Narrow Compact fills complete rows within the visible pane's fitted bound. Phone layouts at 375–440 px
-reserve four Compact rows at normal text size.
+Tabs and shared page fields remain usable in Page. Both densities fill complete rows within the available pane height.
+Input and Output do not use fixed thumbnail counts.
 
 ## Page fields
 
@@ -208,46 +204,106 @@ images. Input and Output use the same control dimensions. Preserve usable field 
 
 ## Grid and Page
 
+### Card proportions and spacing
+
+These rules apply to shared layouts and viewport calibrations in both densities. Card count does not override them.
+
+Apply these priorities in order: usable controls and complete PDF images; the required visual bounds below; then card
+count optimization within a calibration. If a complete usable row cannot fit, permit document scrolling. Do not reduce
+image legibility or control sizes to avoid that exception. Shared layouts do not need to maximize card count.
+
+Ratios use width:height. The A4 target `1:sqrt(2)` describes the full card, including its header and actions. Controls
+can make the card taller than paper. At ordinary text size, the required portrait-reference bounds are
+`sqrt(2) <= height / width <= 280 / 150`, approximately 1.41–1.87. The upper bound includes the accepted tall QHD card;
+it is not another paper standard. Aim toward A4 when control space permits. Enlarged text can require more height. The
+PDF image always keeps its original proportions, including landscape and square pages.
+
+Use the maintained A4 portrait fixture to check image legibility at ordinary text size. Its rendered page height must be
+at least 140 CSS px in Normal and 80 CSS px in Compact. These floors retain the smallest accepted reference images. They
+prevent both densities from shrinking together while still passing the relative-scale rule. They do not set the height
+of landscape or square PDFs. On short screens, keep a usable row and scroll rather than reduce these reference sizes.
+
+Image margins measure the space between the rendered PDF page and its image area. They exclude header and action rows,
+card borders, and white space inside the PDF. Upper and lower margins match. Side margins match and can exceed the
+vertical margins moderately. For an A4 portrait reference, a side margin around one to two vertical margins is a visual
+review guide, not a universal acceptance ratio. A larger difference needs rendered measurements and a reason, such as
+the PDF's own proportions. Extra card count alone is not a reason. Do not force this multiplier onto all page shapes or
+enlarged text.
+
+The minimum card gap must reach 85% of the image's vertical margin. Remaining width is shared equally between columns
+and at both outside edges. Prefer the same gap between rows. Calibrations can adjust row spacing within the tolerance:
+`min(a, b) / max(a, b) >= 0.85` for horizontal and vertical gaps. For example, 16 and 14 px pass, but 16 and 12 px do
+not. This 15% tolerance is a project design rule, not an external standard. It applies to gap comparisons and the image
+scale rule below, not to every proportion in this section. Rendered bounds permit 1 CSS px for fractional layout.
+Authored geometry still meets each required bound; the pixel allowance is not an extra design tolerance. Measure an A4
+portrait reference at ordinary text size. Extra space from other PDF proportions does not increase the minimum. The
+side-margin guide above does not use this tolerance.
+
+At ordinary text size, compare the same portrait PDF image in both densities within one viewport and pane. The target
+Normal/Compact linear scale ratio is 2. For the measured ratio `r`, require `min(r, 2) / max(r, 2) >= 0.85`,
+approximately 1.70 to 2.35. Use the rendered PDF image, excluding card controls and margins. Card area does not need to
+have a fixed ratio. This rule applies to shared geometry and calibrations. Enlarged text preserves readable content and
+usable controls before this ordinary-size target.
+
+Separate usable targets remain necessary around adjacent cards. Selection does not change these dimensions. Partial
+final rows keep the same card widths, column positions, and gaps as complete rows. Rows start at the top of the card
+area. Remaining height stays below them; it does not spread rows apart or vertically center a sparse batch.
+
+Viewport calibration optimizes the number of complete cards within these constraints. Excess bottom space can justify
+different card or image dimensions, column counts, or spacing. An extra row or column must preserve the portrait
+silhouette, balanced margins, image legibility, and control sizes. If another row does not fit, balanced unused space is
+permitted. Shared layouts prioritize readable images, stable spacing, and reachable pagination on unknown screens. They
+do not need to find the greatest possible card count.
+
 Matching Input and Output cards have equal dimensions at the same density, including sparse rows. Normal cards place
 numbers at the start, grips in the center, and face information at the upper-right corner. Back uses a curved folded
 corner. Front retains its normal corner. The fold continues the current contour without leaving a rectangular border
 behind it. Accessible labels and hover help identify both faces. Page corners do not intercept tool interactions.
 
-The QHD calibration targets three Normal rows with card heights from 236 to 280 px. Portrait thumbnails grow with the
-cards and keep equal 16 px upper and lower margins. Cards use a 9.5 rem minimum width and 20 px row and column gaps.
-Heading and footer controls retain their ordinary size and at least 44 px targets. Viewport-specific card dimensions and
-spacing belong in `frame.css`. Card styles consume those shared values.
+The shared Normal reference uses 148 × 240 px cards; Compact uses 74 × 125 px cards at ordinary text size. The minimum
+gap is 85% of the authored vertical image padding, with a 0.5 rem floor for usable separation. Actual distributed
+spacing drives both row capacity and calibrated card height. Do not calculate one from the minimum gap and the other
+from the distributed gap.
 
-The calibration table requires matching viewport width, viewport height, pointer type, and a two-pane layout. Upper
-bounds are exclusive. Each entry changes only its own dimensions and reserved pagination height. Unmatched viewports use
-the shared formulas. Both densities use the same pagination placement.
+The QHD calibration targets three Normal rows with card heights from 240 to 280 px. Portrait thumbnails grow with the
+cards and keep equal 16 px upper and lower margins. Cards use a 9.375 rem width and a 14 px minimum gap. Heading and
+footer controls retain their ordinary size and at least 44 px targets. Viewport-specific card dimensions and spacing
+belong in `frame.css`. Card styles consume those shared values.
 
-| Reference       | Width, CSS px | Height, CSS px | Pointer | Normal cards and images                          | Pagination reserve |
-| --------------- | ------------- | -------------- | ------- | ------------------------------------------------ | ------------------ |
-| Full HD         | 1920–2240     | 900–1440       | Fine    | Shared dimensions                                | 44 px              |
-| QHD             | 2560–2880     | 1280–1800      | Fine    | 236–280 px cards; 16 px image padding            | 44 px              |
-| iPad8 landscape | 1080–1133     | 810–900        | Coarse  | 234 px cards; 144 px images; 11 px image padding | 44 px              |
+The calibration table requires viewport width, viewport height, primary pointer, orientation where relevant, and pane
+layout. Upper bounds are exclusive. Entries do not overlap. Each entry changes only card dimensions and spacing. The
+shared frame budget and pagination placement stay independent of calibration.
 
-Desktop entries also require hover. The iPad8 entry requires landscape orientation, a primary coarse pointer, and no
-hover. Its portrait layout, other tablet ranges, and phone layouts keep their shared dimensions. Physical-device
-measurements can establish new entries without changing existing entries.
+| Reference       | Width, CSS px | Height, CSS px | Input condition          | Pane layout | Card geometry                                                                                                                                             |
+| --------------- | ------------- | -------------- | ------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FHD Compact     | 1920–2140     | 960–1100       | Fine pointer with hover  | Two panes   | Compact: six fitted columns, 121 px high, 6.4 px vertical image padding; image height stays within 1 px of the shared reference                           |
+| QHD             | 2560–2880     | 1280–1800      | Fine pointer with hover  | Two panes   | Normal: 240–280 px high, 150 px wide, 16 px image padding, 14 px minimum gaps                                                                             |
+| UHD-            | 3840–4160     | 1900–2050      | Fine pointer with hover  | Two panes   | Normal: 156–160 px wide, 237–240 px high, 14.5 px image padding. Both densities: row gap is 90% of the distributed column gap, bounded by the minimum gap |
+| iPad8 portrait  | 810–820       | 1080–1180      | Coarse pointer, no hover | One pane    | Normal: 164 px wide, 16 px image padding and minimum gaps. Compact: 84 px wide, 9 px minimum gaps                                                         |
+| iPad8 landscape | 1080–1133     | 810–900        | Coarse pointer, no hover | Two panes   | Normal: 234 px high, 136 px wide, 11 px image padding, 12 px minimum gaps                                                                                 |
 
-Column sizing follows one policy shared by both panes and Page's thumbnail reference. Density, pointer targets, and
-available pane width select the minimum card width and column gap. CSS fills complete columns from these values. Keep
-the column defaults and calibrated overrides together so each layout change has one place to maintain.
+A mouse with a secondary touch input keeps the desktop calibration. A primary touch pointer uses touch conditions.
+Unmatched screens use the shared dimensions. Device names describe measured references, not hardware detection. New
+measurements can establish another disjoint entry. A new entry must not change defaults to tune one screen. Use
+DevTools' Desktop device type for desktop references. Mobile or touch emulation changes the primary-input match, even
+when its viewport dimensions equal a desktop reference.
+
+CSS fits complete columns at the chosen card width, including minimum outside gaps. It distributes remaining width
+without stretching cards into squares. Input, Output, and Page's thumbnail reference use the same column policy. Shared
+dimensions and calibration entries belong in `frame.css`. Card styles consume these values. Keep an exception in its
+entry rather than in another component stylesheet. Drop previews use the same outside inset and the actual column and
+row strides, including fractional card dimensions.
+
+Page's lens reference and drop previews use the card's fitted image dimensions. They do not define separate density
+sizes. Selection keeps the same image bounds when border emphasis changes.
 
 Compact headers use three equal cells. The number occupies the first cell and the grip occupies the center cell. Both
 targets are at least 24 px wide and 44 px tall, without overlap. Page numbers fit their cell through smaller text.
 Numbers through 10,000 keep at least 2 px of separation without moving the grip or widening the card. Tabular digits
 keep semibold weight. Hover changes their color without changing geometry.
 
-Available pane width can select narrower Compact cards and smaller horizontal gaps to fit another column. Header targets
-still fit. Card height, thumbnail fit rules, and row spacing stay fixed. Other layouts keep their ordinary capacity.
-
-Outside the calibration table, touch workspaces with both panes visible use the smallest control gap between Normal
-columns and can narrow Normal cards. This admits a third column without reducing portrait thumbnails. Compact can add a
-fifth column with a smaller horizontal gap where both heading targets still fit. Both densities retain their card
-heights and vertical spacing.
+Viewport calibrations can choose narrower cards within the visual rules above. Enlarged text keeps control targets and
+complete labels usable. It can reduce capacity and require document scrolling.
 
 Selection hides individual actions without moving the image or changing card dimensions. Normal footers keep their
 height and separator. Input centers addition. Output places removal left of duplication with one control gap. Page
@@ -273,13 +329,13 @@ separate each slash from both numbers. Grid's caption uses `4 / 27 · 28–36 / 
 ranges. Its native slider has one stop per batch, gray group markers, and previous/next buttons. Wide layouts align Grid
 and Page navigation. The caption always stays below the slider in both densities and both pane layouts. It stays close
 to the slider and clear of the status bar. Two-pane layouts use the bottom gutter for captions. Calibration entries
-control frame dimensions without changing this shared placement rule.
+change card dimensions without changing this shared placement rule.
 
 Single-pane layouts use one pagination layout for Normal and Compact: the caption sits directly below the slider row,
 with previous/next buttons at the row's outer edges. The visible arrow centers align with the pane's content edges, as
 do its heading and page fields. The row can extend into available side margins while all targets stay inside the
-viewport. Phone pagination ends immediately above the status bar without an extra spacer. Its arrows use separate 40 ×
-44 px targets; the slider retains a 44 px height. At narrow widths, Page totals can sit below the current number. The
+viewport. Pagination stays clear of the status bar within the shared bottom gutter. Its arrows use separate 40 × 44 px
+targets; the slider retains a 44 px height. At narrow widths, Page totals can sit below the current number. The
 page-entry field does not cover the grip.
 
 The lens overlays the image without receiving input. Its magnifier cursor remains visible over light and dark page
@@ -443,6 +499,16 @@ must remain separate and usable. Compare Grid with Page's thumbnail reference. A
 rendered Normal and Compact column × row matrices against the table. Apply the touch references in both orientations,
 including Input/Output page counts and partial rows. Screenshots confirm the surrounding visual groups. Passing column
 counts, target sizes, or overflow checks alone does not pass this gate.
+
+Check calibration boundaries in both viewport dimensions and in each applicable orientation. Include a fine pointer with
+secondary touch input, a primary touch pointer, and unmatched viewport dimensions. Verify that only the matching entry
+changes card geometry. Both densities must use the available height and keep pagination reachable. Measure portrait card
+proportions, image margins, distributed column gaps, and row gaps against the
+[card rules](#card-proportions-and-spacing). Check partial final batches without changing their column positions or row
+spacing. Compare Normal/Compact image scale for the same portrait page against the 2× target and its 15% tolerance. The
+[Grid tests](../test/grid.test.js) check these bounds, image-size floors, calibration isolation, and stable partial
+batches. The [Page geometry tests](../test/geometry.test.js) check fitted image and control alignment. Keep these checks
+aligned with this document when a reference changes.
 
 Page zoom items share one centerline, with less than 1 CSS px of vertical deviation. Control targets stay inside their
 heading and do not overlap. Check these rules at Fit and other zoom levels, with both themes and normal/200% text.

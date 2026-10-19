@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises"
+import { gridPage } from "./browser.js"
 
 export async function zoom(pane, action) {
   await pane.getByRole("button", { name: action, exact: true }).click()
@@ -1270,6 +1271,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
       await page.keyboard.press("Escape")
       await nav.getByRole("button", { name: "Output", exact: true }).click()
       check(!(await input.isVisible()) && (await output.isVisible()), "One tap switches to Output")
+      await (await gridPage(output, 1)).scrollIntoViewIfNeeded()
       const totalsBox = await output.locator(".output-state").boundingBox()
       const downloadBox = await output.locator(".download-action").boundingBox()
       check(
@@ -1298,11 +1300,14 @@ export async function checkWorkspace(page, prepared, ordinary) {
               ),
           )
         }),
-        "Output actions retain one row and touch targets",
+        `Output actions retain one row and touch targets (${width}px, ${scale}%)`,
       )
-      await first.getByLabel("Details for Output page 1", { exact: true }).click()
+      // Page 1 is Blank; page 2 supplies Source provenance.
+      await gridPage(output, 2)
+      await output.getByLabel("Details for Output page 2", { exact: true }).click()
       check(
-        !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)),
+        (await output.locator(".page-origin-info").filter({ hasText: longFilename }).isVisible()) &&
+          !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)),
         "Output provenance fits the mobile pane",
       )
       await page.keyboard.press("Escape")

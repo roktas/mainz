@@ -1687,7 +1687,6 @@
               {#if activeTab === "page"}
                 {#key source.id}<PageView
                     pane="Input"
-                    compact={inputCompact}
                     {count}
                     sheet={inputInspection}
                     bind:headingHeight={inputHeadingHeight}
@@ -1711,7 +1710,7 @@
                   active={() => shortcutPane() === "Input"}
                   compact={inputCompact}
                   {count}
-                  initialize={inputView.density === undefined ? initializeDensity : undefined}
+                  initialize={!opening && inputView.density === undefined ? initializeDensity : undefined}
                   bind:position={() => inputView.position, (position) => inspectInput({ position })}
                   bind:offset={() => inputView.offset, (offset) => inspectInput({ offset })}
                   bind:keyboard={usingKeyboard}
@@ -1810,15 +1809,7 @@
                           ondragstart={(event) => start(event, { kind: "source", page })}
                           ondragend={() => transfer.end()}
                         >
-                          <Pdf
-                            pdf={source.input.pdf}
-                            {page}
-                            pageNumber={page + 1}
-                            thumbnail
-                            compact={inputCompact}
-                            {magnification}
-                            {error}
-                          />
+                          <Pdf pdf={source.input.pdf} {page} pageNumber={page + 1} thumbnail {magnification} {error} />
                         </button>
                         <div class="input-footer">
                           {#if !draft.pages.length}{@render inputPageActions(page)}{/if}
@@ -2031,7 +2022,6 @@
             >
               <PageView
                 count={output.pages.length}
-                compact={outputCompact}
                 sheet={inspection}
                 bind:headingHeight={outputHeadingHeight}
                 bind:position={outputPosition}
@@ -2140,7 +2130,6 @@
                             {...appearance(origin, page.content.page)}
                             pageNumber={page.content.page + 1}
                             thumbnail
-                            compact={outputCompact}
                             {magnification}
                             {error}
                           />{:else}<div class="thumbnail">

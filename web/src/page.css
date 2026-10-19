@@ -83,6 +83,9 @@
       display: block flex;
       align-items: center;
       flex: none;
+      min-inline-size: 0;
+      max-inline-size: 100%;
+      justify-content: end;
       margin-inline-start: auto;
       & .tool {
         border: 0;
@@ -413,79 +416,39 @@
 }
 @layer views {
   @scope (.composer) {
-    @container composer (width > 55em) {
-      .page-view {
-        display: block grid;
-        grid-template-rows: auto minmax(0, 1fr) 44px;
-        block-size: min(var(--grid-view-height), var(--frame-height-limit));
-        min-block-size: 0;
+    .page-view {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) 44px;
+      block-size: min(var(--grid-view-height), var(--frame-height-limit));
+      min-block-size: 0;
 
-        & > .inspection-heading {
-          grid-row: 1;
-        }
-
-        & > .page-scroll {
-          grid-row: 2;
-        }
-
-        & > .page-navigation {
-          grid-row: 3;
-        }
+      & > .inspection-heading {
+        grid-row: 1;
       }
-      .page-scroll {
-        container-type: size;
-        min-block-size: 0;
-        max-block-size: none;
-        grid-template-rows: minmax(0, 1fr);
+
+      & > .page-scroll {
+        grid-row: 2;
       }
-      .pdf-viewport {
-        --fit-width: min(
-          calc(100cqi - var(--page-inset) - 26px),
-          calc(var(--fit-height) * var(--ratio, 1)),
-          calc((100cqb - 3 * var(--gap)) * var(--ratio, 1))
-        );
-        block-size: 100%;
-        min-block-size: 0;
-        grid-template-rows: minmax(min-content, 1fr);
+
+      & > .page-navigation {
+        grid-row: 3;
       }
     }
-    :is(.selection-panel, .composition-output)[data-density="compact"] {
-      @container composer (width <= 55em) {
-        .page-view {
-          display: block grid;
-          grid-template-rows: auto minmax(0, 1fr) 44px;
-          block-size: min(var(--grid-view-height), var(--frame-height-limit));
-          min-block-size: 0;
-
-          & > .inspection-heading {
-            grid-row: 1;
-          }
-
-          & > .page-scroll {
-            grid-row: 2;
-          }
-
-          & > .page-navigation {
-            grid-row: 3;
-          }
-        }
-        .page-scroll {
-          container-type: size;
-          min-block-size: 0;
-          max-block-size: none;
-          grid-template-rows: minmax(0, 1fr);
-        }
-        .pdf-viewport {
-          --fit-width: min(
-            calc(100cqi - var(--page-inset) - 26px),
-            calc(var(--fit-height) * var(--ratio, 1)),
-            calc((100cqb - 3 * var(--gap)) * var(--ratio, 1))
-          );
-          block-size: 100%;
-          min-block-size: 0;
-          grid-template-rows: minmax(min-content, 1fr);
-        }
-      }
+    .page-scroll {
+      container-type: size;
+      min-block-size: 0;
+      max-block-size: none;
+      grid-template-rows: minmax(0, 1fr);
+    }
+    .pdf-viewport {
+      --fit-width: min(
+        calc(100cqi - var(--page-inset) - 26px),
+        calc(var(--fit-height) * var(--ratio, 1)),
+        calc((100cqb - 3 * var(--gap)) * var(--ratio, 1))
+      );
+      block-size: 100%;
+      min-block-size: 0;
+      grid-template-rows: minmax(min-content, 1fr);
     }
   }
 }

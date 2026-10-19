@@ -1,13 +1,5 @@
 /* Styles thumbnail pagination, density controls, and the Grid viewport. */
 
-@layer components {
-  @scope (.grid-view) {
-    :scope {
-      display: contents;
-    }
-  }
-}
-
 @layer views {
   @scope (.composer) {
     @container composer (width > 55em) {
@@ -15,18 +7,23 @@
         /* Enlarged captions can exceed the ordinary bottom gutter. */
         padding-block-end: max(0px, calc(1.5 * var(--small) + 4px - var(--gutter)));
       }
+    }
 
-      .grid-view {
-        display: block grid;
-        grid-template-rows: minmax(0, 1fr) var(--grid-pager-height);
-        block-size: min(var(--grid-view-height), var(--frame-height-limit));
-        min-inline-size: 0;
-      }
+    .grid-view {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) minmax(var(--grid-pager-height), auto);
+      row-gap: 8px;
+      block-size: max(
+        calc(var(--grid-height) + var(--grid-pager-height) + 8px),
+        min(var(--grid-view-height), var(--frame-height-limit))
+      );
+      min-inline-size: 0;
+    }
 
-      .composition-grid {
-        align-content: start;
-        min-block-size: 0;
-      }
+    .composition-grid {
+      grid-auto-rows: var(--grid-height);
+      align-content: start;
+      min-block-size: 0;
     }
 
     .page-batches {
@@ -195,37 +192,15 @@
       }
     }
 
-    :is(.selection-panel, .composition-output)[data-density="compact"] {
-      .composition-grid {
-        grid-auto-rows: var(--grid-height);
-        align-content: start;
-        min-block-size: 0;
-      }
-
-      @container composer (width <= 55em) {
-        .grid-view {
-          display: block grid;
-          grid-template-rows: minmax(0, 1fr) var(--grid-pager-height);
-          block-size: min(var(--grid-view-height), var(--frame-height-limit));
-          min-inline-size: 0;
-        }
-      }
-    }
-
-    @container catalog (width <= 28rem) {
-      .grid-view {
-        --grid-pager-height: calc(44px + 4.5 * var(--small) + var(--gap) + 8px);
-      }
-    }
-
     @container composer (width <= 55em) {
-      .grid-view {
+      :is(.selection-panel, .composition-output) {
         --grid-pager-height: calc(44px + 3 * var(--small));
       }
 
       .page-batches {
         grid-template-columns: 40px minmax(0, 1fr) 40px;
-        grid-template-rows: 44px minmax(0, 1fr);
+        grid-template-rows: 44px auto;
+        block-size: auto;
         inline-size: calc(100% + 2 * var(--pager-outset, 0px));
         padding-block-start: 0;
         margin-block: 0;

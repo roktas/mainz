@@ -709,7 +709,8 @@ test(
             assert.ok(Math.abs(2 * middle.y - start.y - end.y) < 1, `${width}: reflow y midpoint`)
           }
         }
-        await selection.fill("2-3")
+        // Keep the moving pair inside the smallest Normal batch.
+        await selection.fill("1")
         if (
           !(await output
             .locator(".inline-moves")
@@ -810,7 +811,7 @@ test(
               `${width}: movement follows available pane width`,
             )
           }
-          await selection.fill("1-2")
+          await selection.fill("1")
           const before = await output.locator(".composition-card").evaluateAll((cards) => cards.map((card) => card.id))
           await output.getByLabel("Output page actions", { exact: true }).click()
           await output.getByRole("button", { name: "Move selected pages later", exact: true }).click()
@@ -822,8 +823,8 @@ test(
           )
           const after = await output.locator(".composition-card").evaluateAll((cards) => cards.map((card) => card.id))
           assert.deepEqual(
-            after.slice(0, 3),
-            [before[2], before[0], before[1]],
+            after.slice(0, 2),
+            [before[1], before[0]],
             "Moves retain occurrence identity and print order",
           )
           await output

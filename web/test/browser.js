@@ -30,6 +30,21 @@ export const image = (pane) => pane.locator(".page-scroll canvas")
 
 export const pagePosition = (pane) => pane.locator(".inspection-heading .page-position").innerText()
 
+export async function gridPage(pane, number) {
+  await pane
+    .page()
+    .evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+  const preview = pane.locator(`.composition-card:not([inert]) .page-image[data-page="${number - 1}"]`)
+  if (!(await preview.count())) {
+    const range = pane.getByRole("slider")
+    const batch = Number(await pane.locator(".grid-view").getAttribute("data-batch"))
+    await range.press("Home")
+    for (let index = 0; index < Math.floor((number - 1) / batch); index++) await range.press("ArrowRight")
+  }
+  await preview.waitFor()
+  return preview
+}
+
 export const hasCursor = (element = document.activeElement) => {
   const card = element.closest(".composition-card")
   if (!card) return false

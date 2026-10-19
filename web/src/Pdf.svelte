@@ -33,7 +33,6 @@
     page,
     pageNumber,
     thumbnail = false,
-    compact = false,
     zoom = 100,
     thumbnailWidth = 0,
     magnification = 16,
@@ -43,7 +42,6 @@
     page: number
     pageNumber?: number
     thumbnail?: boolean
-    compact?: boolean
     zoom?: number
     thumbnailWidth?: number
     magnification?: Magnification
@@ -58,7 +56,6 @@
   const renderedPDF = $derived(pdf)
   const renderedPage = $derived(page)
   const renderedThumbnail = $derived(thumbnail)
-  const renderedCompact = $derived(compact)
   const renderedZoom = $derived(zoom)
   const renderedThumbnailWidth = $derived(thumbnailWidth)
 
@@ -66,7 +63,6 @@
     const document = renderedPDF,
       number = renderedPage,
       small = renderedThumbnail,
-      dense = renderedCompact,
       level = renderedZoom,
       reference = renderedThumbnailWidth
     const parent = target.parentElement!
@@ -108,16 +104,12 @@
                   1,
                   region.clientHeight - parseFloat(style.paddingBlockStart) - parseFloat(style.paddingBlockEnd),
                 )
-              : small
-                ? 168
-                : Infinity
+              : Infinity
           return { width: availableWidth, height: availableHeight }
         })
         if (disposed || current !== generation) return
         const fit = (Math.min(width / size.width, height / size.height) * level) / 100
-        const referenceHeight = dense ? 82 : 168
-        lensScale =
-          Math.min((small ? width : reference) / size.width, (small ? height : referenceHeight) / size.height) / fit
+        lensScale = (small ? Math.min(width / size.width, height / size.height) : reference / size.width) / fit
         const scale = Math.min(
           fit * Math.min(devicePixelRatio, 2),
           Math.sqrt((16 * 1024 * 1024) / (size.width * size.height)),

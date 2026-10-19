@@ -47,7 +47,7 @@
       display: grid;
       place-items: center;
       margin: 0;
-      padding-block: 50px;
+      padding-block: calc(var(--card-tools-height) / 2 + var(--thumbnail-padding));
       padding-inline: 3px;
       pointer-events: none;
     }
@@ -60,8 +60,11 @@
     }
     .composition-empty > .drop-placeholder {
       position: relative;
-      inline-size: var(--grid-width, 158px);
-      block-size: var(--grid-height, 268px);
+      inline-size: var(--grid-width);
+      block-size: var(--grid-height);
+    }
+    .output-pages > .drop-placeholder {
+      inset-inline-start: var(--grid-column-gap);
     }
     .input-drop-hint {
       display: none;
@@ -164,7 +167,8 @@
   @scope (.composer) {
     :is(.selection-panel, .composition-output)[data-density="compact"] {
       .drop-placeholder {
-        padding-block: 34.5px 8.5px;
+        padding-block: calc(var(--card-tools-height) - 1px + var(--thumbnail-padding))
+          calc(1px + var(--thumbnail-padding));
         padding-inline: 8.5px;
       }
     }

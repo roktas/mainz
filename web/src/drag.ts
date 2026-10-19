@@ -45,8 +45,8 @@ export function createDragImage(control: HTMLElement, quantity: number, size?: S
       (limit.width - 2 - offset - padding) / bounds.width,
       (limit.height - 2 - offset - padding) / bounds.height,
     )
-    const width = Math.ceil(bounds.width * scale) + 2
-    const height = Math.ceil(bounds.height * scale) + 2
+    const width = Math.round(bounds.width * scale) + 2
+    const height = Math.round(bounds.height * scale) + 2
     const image = document.createElement("canvas")
     image.width = width + offset + padding
     image.height = height + offset + padding

@@ -179,11 +179,11 @@ export class Transfer {
           limit: Number(grid.parentElement!.dataset.batch),
           columns: columns.length,
           width: parseFloat(columns[0]),
-          height: cards[0].offsetHeight,
-          columnGap: parseFloat(style.columnGap),
+          height: parseFloat(style.gridAutoRows),
+          columnGap: parseFloat(style.getPropertyValue("--grid-column-gap")),
           rowGap: parseFloat(style.rowGap),
         }
-        const x = event.clientX - bounds.left
+        const x = Math.max(0, event.clientX - bounds.left - layout.columnGap)
         const column = Math.min(layout.columns - 1, Math.floor(x / (layout.width + layout.columnGap)))
         const row = Math.floor((event.clientY - bounds.top) / (layout.height + layout.rowGap))
         const slot = row * layout.columns + column

@@ -24,7 +24,6 @@
   export type Region = { x: number; y: number }
   let {
     pane = "Output",
-    compact = false,
     count,
     sheet,
     position = $bindable(0),
@@ -44,7 +43,6 @@
     navigationLeave,
   }: {
     pane?: "Input" | "Output"
-    compact?: boolean
     count: number
     sheet?: Inspection
     position?: number
@@ -82,13 +80,16 @@
     copyFlash?.cancel()
   })
   function measureThumbnail(element: HTMLSpanElement) {
-    const dense = compact
+    const ratio = sheet ? sheet.size.width / sheet.size.height : 1
     let frame: number
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
-        // Match the thumbnail's border and horizontal image inset.
-        thumbnailWidth = Math.max(0, element.clientWidth - (dense ? 17 : 6))
+        const bounds = element.getBoundingClientRect()
+        const style = getComputedStyle(element)
+        const width = bounds.width - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
+        const height = bounds.height - parseFloat(style.paddingBlockStart) - parseFloat(style.paddingBlockEnd)
+        thumbnailWidth = Math.max(0, Math.min(width, height * ratio))
       })
     })
     observer.observe(element)
@@ -135,11 +136,11 @@
       }
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
-        if (image?.clientWidth)
-          element.parentElement!.style.setProperty(
-            "--fit-width",
-            `${(image.getBoundingClientRect().width * 100) / level}px`,
-          )
+        if (!image?.clientWidth || !element.firstElementChild) return
+        // CSS fitting stays valid while the canvas still shows its previous zoom size.
+        const style = getComputedStyle(element.firstElementChild)
+        const width = element.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
+        element.parentElement!.style.setProperty("--fit-width", `${width}px`)
       })
     }
     const observer = new ResizeObserver(() => {
@@ -363,7 +364,6 @@
         page={original ? (sheet.originalPage ?? sheet.page) : sheet.page}
         pageNumber={(sheet.originalPage ?? sheet.page) + 1}
         {zoom}
-        {compact}
         {thumbnailWidth}
         {magnification}
         {error}

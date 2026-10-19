@@ -49,11 +49,12 @@ Grid interactions establish the page inspected in Page. Returning to Grid reveal
 follows occurrence identity through movement. Removal chooses the next surviving neighbor, or the previous neighbor at
 the end. Input switching does not move Output inspection.
 
-Both panes offer Normal and Compact density. Output starts in Normal. When a Source's Input Grid first becomes visible,
-it measures Normal batch capacity. Above twice that capacity, it starts in Compact. Otherwise it starts in Normal. Each
-Source retains that choice, including manual changes. Resizing, browser zoom, Page, and Style do not reevaluate it.
-Density changes preserve selections, inspection, and operations. [DESIGN.md](DESIGN.md#workspace) defines capacity
-references.
+Both panes offer Normal and Compact density. Output starts in Normal. After opening completes, a Source's first visible
+Input Grid measures Normal batch capacity. Above twice that capacity, it starts in Compact. Otherwise it starts in
+Normal. Each Source retains that choice, including manual changes. Resizing, browser zoom, Page, and Style do not
+reevaluate it. Density changes preserve selections, inspection, and operations. Both densities use the remaining
+viewport height and show complete rows. Short viewports retain one complete row and usable controls through document
+scrolling. [DESIGN.md](DESIGN.md#workspace) defines capacity references and calibration limits.
 
 When copies exist, Input page numbers open copy counts and Output positions. Output page numbers open the Source
 filename and original page number. Mappings distinguish independent Sources and follow edits. Compact details also

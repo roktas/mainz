@@ -19,29 +19,39 @@
 - The web application is named PDF Composer.
 - Settings uses −/+ controls for lens magnification from 2× to 128×, with the current factor displayed beside them.
 - Remaining Grid cards slide into place after removal, and the single-pane Output button glows during page arrival.
+- Both Grid densities paginate complete rows within the available viewport. Very short screens retain usable cards and
+  controls through document scrolling.
+- Grid columns share available width with equal outside spaces. Row spacing follows column spacing, leaving unused
+  height below the cards.
+- Normal Grid images stay near twice the linear size of Compact images at ordinary text size.
 
 ### Fixed
 
 - Landing top spacing stays bounded on wide screens with coarse-pointer input.
 - Grid pagination captions stay below the slider in both densities and pane layouts.
-- Normal iPad8 landscape grids fit nine pages within a viewport-specific calibration.
-- Normal QHD grids use larger page previews, balanced margins, and wider card spacing within the browser viewport.
+- Enlarged text keeps complete Grid rows above pagination and header Notices visible while scrolling.
+- Viewport calibrations change card dimensions and spacing within explicit width, height, and primary-input bounds.
+  Unmatched screens use shared geometry and the same pagination policy.
 - Product tour steps start at the beginning of their explanations after scrolling.
 - Output movement buttons keep their positions and become disabled at selection boundaries.
 - Bulk page additions target a new image in the visible Output Grid batch when both panes are displayed.
-- Normal grids fit three rows at Full HD and QHD, with pagination captions below the slider.
 - Style selectors retain their touch height on iPad and keep their arrows inset from the field edge.
 - Opening Settings by touch keeps the close button free of an initial focus contour.
 - Grid navigation and Shift selection keep the correct page positions while new copies await arrival and after resizing.
 - Dragging during page removal uses the remaining Output pages for insertion.
-- Phone Compact grids fit four columns and four rows without shrinking portrait thumbnails.
 - Mobile Grid pagination shares one layout in both densities, with the caption below the slider row. Phone pagination
-  sits immediately above the status bar.
+  stays clear of the status bar.
 - Tall two-pane layouts fill the space above the status bar, keeping pagination and the pane divider at the bottom.
 - Double-tapping Page images copies the current page on touch browsers without native double-click events.
 - Grid grips stay centered across card widths, selection states, and page-number lengths.
-- Touch grids fit more columns with smaller image margins and retain columns when viewport height changes. Page uses the
-  same thumbnail width.
+- Grid and Page use the same thumbnail column dimensions on touch and mouse layouts.
+- Page lens magnification uses the thumbnail's fitted width and height in both densities.
+- Page heading and navigation keep their fitted alignment while zoom changes the image size.
+- Animated additions initialize Grid capacity, and drag previews follow the rendered card slots and image insets in both
+  densities.
+- Carried page previews respect their size bounds at fractional card dimensions.
+- Compact selection keeps page images fixed when border emphasis changes.
+- Input chooses its initial density after opening completes, without counting the temporary loading area.
 - Drag feedback on touch screens. Grid drops and selection actions keep the keyboard closed.
 - Repeated Page image activation copies the current page and preserves Selection.
 - Move controls stay in the Output selection bar when space permits, including tablet landscape layouts.

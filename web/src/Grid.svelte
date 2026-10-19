@@ -35,8 +35,7 @@
   } = $props()
   let columns = $state(1)
   let rows = $state(1)
-  let adaptive = $state(false)
-  const batch = $derived(adaptive ? columns * rows : pane === "Input" ? 8 : 12)
+  const batch = $derived(columns * rows)
   const start = $derived(
     Math.min(Math.floor(offset / batch) * batch, Math.max(0, Math.floor((count - 1) / batch) * batch)),
   )
@@ -52,32 +51,40 @@
     const navigation = compact || total > batch ? element.querySelector<HTMLElement>(".page-batches") : null
     let frame: number
     let disposed = false
+    let reference: Element | null = null
     function resize() {
-      // Outgoing cards retain the Grid while Svelte pauses its effects for the fade.
-      if (disposed || !grid.querySelector(".composition-card:not([inert])")) return
+      // Pending additions have final geometry before their arrival makes them interactive.
+      const card = grid.querySelector(
+        ".composition-card:not([inert]), .composition-card[data-adding]:not([aria-hidden=true])",
+      )
+      if (disposed || !card) return
+      if (card !== reference) {
+        if (reference) observer.unobserve(reference)
+        reference = card
+        observer.observe(card)
+      }
       if (navigation) {
         const bounds = grid.getBoundingClientRect()
         const outset = Math.max(0, Math.min(20, bounds.left, document.documentElement.clientWidth - bounds.right))
         element.style.setProperty("--pager-outset", `${outset}px`)
       }
+      if (!element.clientWidth) return
       const previous = batch
       const anchor = position >= start && position < start + batch ? position : offset
-      if (!element.clientWidth) {
-        adaptive = false
-        if (batch !== previous) offset = anchor
-        if (grid.clientWidth) notify?.(batch)
-        return
-      }
       // The viewport budget is fixed in CSS; rendered cards cannot resize it.
       const style = getComputedStyle(grid)
-      const height = parseFloat(style.gridAutoRows) || parseFloat(style.gridTemplateRows)
-      const gap = parseFloat(style.rowGap) || 0
-      const footer = parseFloat(getComputedStyle(element).gridTemplateRows.split(" ").at(-1) ?? "84") || 84
-      if (!height) return
       columns = Math.max(1, style.gridTemplateColumns.split(" ").length)
-      const capacity = Math.max(1, Math.floor((element.clientHeight - footer + gap) / (height + gap)))
-      rows = compact ? Math.min(7, capacity) : capacity
-      adaptive = true
+      const bounds = grid.getBoundingClientRect()
+      // Match the evenly distributed columns; unused vertical space stays below the rows.
+      const gap = (bounds.width - columns * parseFloat(style.gridTemplateColumns)) / (columns + 1)
+      element
+        .closest<HTMLElement>(".selection-panel, .composition-output")!
+        .style.setProperty("--grid-column-gap", `${gap}px`)
+      const measured = getComputedStyle(grid)
+      const height = parseFloat(measured.gridAutoRows)
+      const rowGap = parseFloat(measured.rowGap) || 0
+      if (!height) return
+      rows = Math.max(1, Math.floor((bounds.height + rowGap) / (height + rowGap)))
       if (batch !== previous) offset = anchor
       notify?.(batch)
     }
@@ -88,6 +95,9 @@
     const observer = new ResizeObserver(scheduleResize)
     observer.observe(element)
     if (navigation) observer.observe(navigation)
+    // Card geometry can change without resizing the frame.
+    const mutations = new MutationObserver(scheduleResize)
+    mutations.observe(grid, { childList: true })
     // Viewport queries can change columns without resizing the fitted frame.
     window.addEventListener("resize", scheduleResize)
     untrack(resize)
@@ -96,6 +106,7 @@
       cancelAnimationFrame(frame)
       window.removeEventListener("resize", scheduleResize)
       observer.disconnect()
+      mutations.disconnect()
     }
   }
 
@@ -282,13 +293,7 @@
   }
 </script>
 
-<div
-  class="grid-view"
-  data-columns={adaptive ? columns : undefined}
-  data-rows={adaptive ? rows : undefined}
-  data-batch={batch}
-  {@attach measure}
->
+<div class="grid-view" data-columns={columns} data-rows={rows} data-batch={batch} {@attach measure}>
   <svelte:element
     this={pane === "Input" ? "ul" : "ol"}
     class={["composition-grid", pane === "Input" ? "source-catalog" : "output-pages"]}

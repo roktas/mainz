@@ -5,7 +5,7 @@ import test from "node:test"
 import { readFile } from "node:fs/promises"
 import { chromium } from "playwright"
 import { checkWorkspace } from "./workspace.js"
-import { createServer, tab, fixture, trackWorkers, checkStatus, checkGeometry } from "./browser.js"
+import { createServer, tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
 
 test("Workspace tools wrap without moving the view tabs", async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
@@ -1868,7 +1868,7 @@ test(
       await notice.filter({ hasText: instruction }).waitFor()
       const enlarged = await notice.boundingBox()
       assert(enlarged && enlarged.x >= 0 && enlarged.x + enlarged.width <= 391)
-      assert(enlarged.y >= 0 && enlarged.y + enlarged.height <= 651)
+      assert(enlarged.y >= 0 && enlarged.y + enlarged.height <= 651, JSON.stringify(enlarged))
       await page.getByRole("button", { name: "Dismiss notification", exact: true }).focus()
       await page.keyboard.press("Enter")
       await notice.waitFor({ state: "detached" })
@@ -1879,6 +1879,7 @@ test(
       )
     } catch (error) {
       if (page) context.diagnostic((await page.locator("[role=alert], .footnote").allTextContents()).join("\n"))
+      if (page) context.diagnostic(await captureLayout(page, "workspace"))
       throw error
     } finally {
       await browser?.close()

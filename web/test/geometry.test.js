@@ -62,6 +62,7 @@ test("Page headings and navigation follow fitted image edges", { timeout: 240000
           await page.evaluate(
             () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
           )
+          await aligned(pane)
           const fitted = await image(pane).boundingBox()
           for (const action of [undefined, "Zoom out", "Fit page", "Zoom in", "Fit page"]) {
             if (action) await zoom(pane, action)
@@ -72,6 +73,7 @@ test("Page headings and navigation follow fitted image edges", { timeout: 240000
             await page.evaluate(
               () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
             )
+            await aligned(pane)
             const geometry = await pane.locator(".page-view").evaluate((view) => {
               const box = (query) => view.querySelector(query).getBoundingClientRect()
               const grip = view.querySelector(".inspection-heading .page-grip")?.getBoundingClientRect()
@@ -86,6 +88,8 @@ test("Page headings and navigation follow fitted image edges", { timeout: 240000
                 ends: [fit.getBoundingClientRect().right, box(".page-navigation > button:last-child svg").right],
                 grip: grip && grip.x + grip.width / 2,
                 gripTop: grip?.top,
+                gripRight: grip?.right,
+                gripBottom: grip?.bottom,
                 toolTop: box(".page-tools").top,
                 items: items.length,
                 centers: items.map((rect) => rect.x + rect.width / 2),
@@ -102,11 +106,11 @@ test("Page headings and navigation follow fitted image edges", { timeout: 240000
             const label = `${name}, ${width}×${height}, ${colorScheme}, ${text}, ${key}, ${action ?? "Fit"}`
             assert.ok(
               geometry.starts.every((x) => Math.abs(x - fitted.x) < 1),
-              `${label}: counter and Previous align with the image start`,
+              `${label}: counter and Previous align with the image start (${geometry.starts}, expected ${fitted.x})`,
             )
             assert.ok(
               geometry.ends.every((x) => Math.abs(x - fitted.x - fitted.width) < 1),
-              `${label}: Fit and Next align with the image end`,
+              `${label}: Fit and Next align with the image end (${geometry.ends}, expected ${fitted.x + fitted.width})`,
             )
             if (geometry.grip !== undefined)
               assert.ok(Math.abs(geometry.grip - fitted.x - fitted.width / 2) < 1, `${label}: the grip stays centered`)
@@ -146,8 +150,11 @@ test("Page headings and navigation follow fitted image edges", { timeout: 240000
               compact && geometry.zoom !== "100%" ? geometry.zoom : "icon",
               `${label}: Fit shows an icon or the current zoom`,
             )
-            if (width === 375 && name === "Input" && key === "Home" && !action)
-              assert.equal(geometry.toolTop, geometry.gripTop, `${label}: fitting tools stay on the first row`)
+            if (geometry.grip !== undefined)
+              assert.ok(
+                geometry.targets[0].left >= geometry.gripRight - 1 || geometry.toolTop >= geometry.gripBottom - 1,
+                `${label}: tools wrap before covering the grip`,
+              )
           }
         }
       }
@@ -259,7 +266,7 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
       )
       const thumbnail = await output.locator(".page-image canvas").first().boundingBox()
       assert.ok(
-        Math.abs(thumbnail.height - (factor === 1 ? 180 : 168)) < 1,
+        Math.abs(thumbnail.height - (factor === 1 ? 180 : 144)) < 1,
         "Grid thumbnails follow their viewport range at each browser zoom",
       )
       await tab(output, "Page")
@@ -267,8 +274,12 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
       await fitted(image(output))
       await tab(output, "Grid")
       await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
-      await page.waitForFunction(
-        () => document.querySelector(".composition-output .grid-view")?.getAttribute("data-rows") === "7",
+      await page.waitForFunction(() =>
+        document.querySelector('.composition-output[data-density="compact"] .composition-card'),
+      )
+      assert.ok(
+        await output.locator(".grid-view").evaluate((element) => Number(element.dataset.rows) >= 7),
+        "Compact capacity uses the expanded viewport without a fixed row cap",
       )
       await input.locator(".pdf-viewport[aria-busy=false] canvas").waitFor()
       await fitted(image(input))
@@ -279,7 +290,7 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
       if (await page.evaluate(() => document.documentElement.scrollHeight > innerHeight))
         assert.ok(
           margins.every((margin) => margin * factor < 90),
-          "Seven Compact rows retain balanced fitted margins when the workspace exceeds the viewport height",
+          "Page retains balanced fitted margins when the workspace exceeds the viewport height",
         )
       const transfer = await page.evaluateHandle(() => new DataTransfer())
       await input.locator(".inspection-heading .page-grip").dispatchEvent("dragstart", { dataTransfer: transfer })
@@ -294,7 +305,7 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
       assert.equal(
         await output.locator("[data-preview-hidden]").count(),
         1,
-        "The drag preview stays within seven Compact rows at every browser zoom",
+        "The drag preview stays within the visible Compact batch at every browser zoom",
       )
       await page.keyboard.press("Escape")
       await transfer.dispose()

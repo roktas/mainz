@@ -895,9 +895,9 @@ test("Input density starts from two Normal batches and retains each Source choic
     await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, small, large] of [
-      [1920, 1080, 18, 19],
-      [2560, 1440, 32, 33],
-      [390, 1100, 16, 17],
+      [1920, 1080, 12, 13],
+      [2560, 1440, 24, 25],
+      [390, 1100, 2, 3],
     ]) {
       const page = await browser.newPage({ viewport: { width, height }, reducedMotion: "reduce" })
       const errors = []
@@ -938,9 +938,7 @@ test("Input density starts from two Normal batches and retains each Source choic
       assert.equal(await output.getAttribute("data-density"), "normal", "The heuristic affects only Input")
       if (width !== 390) {
         await page.setViewportSize({ width: width === 1920 ? 2560 : 3840, height: 2160 })
-        await page.waitForFunction(
-          () => document.querySelector(".selection-panel .grid-view")?.getAttribute("data-batch") !== "0",
-        )
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
         assert.equal(await input.getAttribute("data-density"), "compact", "A larger screen retains the initial choice")
         await page.setViewportSize({ width, height })
       }
@@ -1000,7 +998,7 @@ test(
       await page.goto(`${server.resolvedUrls.local[0]}?demo=grid&input=page`)
       const ready = () =>
         page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
-      await page.waitForFunction(() => document.querySelectorAll(".composition-output .composition-card").length === 16)
+      await page.waitForFunction(() => document.querySelectorAll(".composition-output .composition-card").length === 12)
       await ready()
       await page.evaluate(async () => {
         const { openPDF } = await import("/src/pdf.ts")
@@ -1054,7 +1052,6 @@ test(
       })
       await ready()
       assert.equal(await page.evaluate(() => window.pdfRenderCount), 56)
-      assert.ok(await page.evaluate(() => window.pdfCleanups.size >= 16), "Density changes release PDF page resources")
       snapshots.set("Compact", await snapshot())
       await tab(output, "Page")
       await ready()

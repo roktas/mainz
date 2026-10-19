@@ -10,88 +10,45 @@
     .footnote {
       max-inline-size: calc(max(1232px, 57.5vi) - 2 * var(--gutter));
     }
+
+    :scope:not(:has(.style-status)) {
+      block-size: 100dvb;
+      /* Keep sticky Notices within the document when usable content requires scrolling. */
+      min-block-size: min-content;
+      grid-template-rows: auto minmax(min-content, 1fr) auto;
+    }
   }
   @scope (.composer) {
     :scope {
       --grid-view-height: max(956px, calc(100dvb - 400px));
-      --grid-pager-height: 84px;
+      --grid-pager-height: 44px;
       --fit-height: max(860px, 33.59375vi);
       --frame-fit-height: max(760px, 29.6875vi);
       --frame-heading-height: 45px;
-
-      &:has([data-density="compact"]) {
-        --grid-view-height: max(1019px, calc(33.59375vi + 196px));
-      }
     }
-    /* Column policy: density defaults, then touch ranges measured in available pane width. */
+    /* Defaults work without a device match; calibrations below only change card geometry. */
     :is(.selection-panel, .composition-output) {
+      --grid-height: 15rem;
+      --grid-width: 9.25rem;
+      --grid-gap: max(0.5rem, calc(0.85 * var(--thumbnail-padding)));
+      --grid-row-gap: max(var(--grid-gap), calc(var(--grid-column-gap, var(--grid-gap)) * var(--grid-row-factor, 1)));
+      --thumbnail-padding: 0.875rem;
+      --card-tools-height: 4.25rem;
+
       .composition-grid,
       .page-reference {
-        grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--grid-width, 9.625rem)), 1fr));
-        gap: var(--grid-gap, var(--gap));
+        grid-template-columns: repeat(auto-fill, min(100%, var(--grid-width)));
+        gap: var(--grid-gap);
+        row-gap: var(--grid-row-gap);
+        padding-inline: var(--grid-gap);
+        justify-content: space-evenly;
       }
 
       &[data-density="compact"] {
-        --grid-width: max(132px, calc(5 * var(--body)));
-        --grid-height: 125px;
-        --grid-gap: 10px;
-
-        @media (hover: hover) and (pointer: fine) {
-          --grid-width: max(72.5px, calc(5 * var(--body)));
-        }
-
-        @media (any-pointer: coarse) {
-          --grid-width: max(96px, calc(5 * var(--body)));
-        }
-      }
-
-      @media (any-pointer: coarse) {
-        @container composer (width <= 55em) {
-          @container catalog (326px <= width < 382px) {
-            &[data-density="compact"] {
-              :is(.composition-grid, .page-reference) {
-                --grid-width: max(74px, calc(4.5 * var(--body)));
-              }
-
-              .grid-view {
-                --frame-height-limit: calc(4 * var(--grid-height) + 3 * var(--grid-gap) + var(--grid-pager-height));
-              }
-            }
-          }
-
-          @container catalog (382px <= width < 414px) or (676px <= width < 838px) {
-            &[data-density="compact"] :is(.composition-grid, .page-reference) {
-              --grid-width: max(88px, calc(5 * var(--body)));
-            }
-          }
-
-          /* Eight cards fit before the ordinary minimum width admits the eighth column. */
-          @container catalog (760px <= width < 838px) {
-            &[data-density="compact"] :is(.composition-grid, .page-reference) {
-              column-gap: 8px;
-            }
-          }
-        }
-
-        @container composer (width > 55em) {
-          &[data-density="normal"] :is(.composition-grid, .page-reference) {
-            column-gap: 0.75rem;
-
-            @container catalog (456px <= width < 486px) {
-              --grid-width: 9rem;
-            }
-          }
-
-          @container catalog (460px <= width < 520px) {
-            &[data-density="compact"] :is(.composition-grid, .page-reference) {
-              --grid-width: max(88px, calc(5 * var(--body)));
-
-              @container catalog (width < 480px) {
-                column-gap: 5px;
-              }
-            }
-          }
-        }
+        --grid-width: max(74px, calc(5 * var(--body)));
+        --grid-height: 7.8125rem;
+        --thumbnail-padding: 0.46875rem;
+        --card-tools-height: 1.75rem;
       }
     }
     .grid-view,
@@ -173,13 +130,6 @@
         min-block-size: 100%;
       }
     }
-    :is(.selection-panel, .composition-output)[data-density="compact"] {
-      @container composer (width <= 55em) {
-        .page-content:has(.grid-view, .page-view) {
-          min-block-size: 0;
-        }
-      }
-    }
     @container catalog (width <= 28rem) {
       .editing-toolbar > .tabs {
         flex: none;
@@ -194,13 +144,90 @@
     }
   }
 
-  /* Calibration rows require both viewport dimensions, pointer type, and pane layout.
-     Unmatched viewports retain the shared formulas above. */
-  @media (hover: hover) and (pointer: fine) and (1920px <= width < 2240px) and (900px <= height < 1440px) {
+  @scope (.composer:not(:has(.style-status))) {
+    :scope {
+      min-block-size: 0;
+    }
+
+    .composition-panels {
+      min-block-size: 0;
+      grid-template-rows: auto auto auto minmax(0, 1fr);
+    }
+
+    .page-content:has(.grid-view, .page-view) {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+      container-type: size;
+      min-block-size: calc(var(--grid-height) + var(--grid-pager-height) + 8px);
+    }
+
+    .page-content:has(.page-view) {
+      /* Keep a usable image area independent of heading wrapping. */
+      min-block-size: calc(320px + var(--page-heading-height, var(--frame-heading-height)) + 46px);
+    }
+
+    .inspection-target:has(.page-view) {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    :scope :is(.grid-view, .page-view) {
+      block-size: 100%;
+      min-block-size: 0;
+    }
+
+    @container composer (width <= 55em) {
+      .composition-panels {
+        display: flex;
+        flex-direction: column;
+      }
+
+      :scope[data-view="input"] .selection-panel,
+      :scope[data-view="output"] .composition-output {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+      }
+
+      .input-panel,
+      .output-panel {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+      }
+
+      .page-content {
+        flex: 1;
+      }
+    }
+  }
+
+  /* Calibration rows change card geometry, never the available viewport budget. */
+  @media (hover: hover) and (pointer: fine) and (1920px <= width < 2140px) and (960px <= height < 1100px) {
     @scope (.composer) {
       @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output)[data-density="compact"] {
+          --grid-width: max(74px, calc(5 * var(--body)), calc((100cqi - 7 * var(--grid-gap) - 1px) / 6));
+          --grid-height: 7.5625rem;
+          --thumbnail-padding: 0.4rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (810px <= width < 820px) and (1080px <= height < 1180px) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
         :is(.selection-panel, .composition-output) {
-          --grid-pager-height: 44px;
+          --grid-width: 10.25rem;
+          --grid-gap: 16px;
+          --thumbnail-padding: 16px;
+
+          &[data-density="compact"] {
+            --grid-width: max(84px, calc(5 * var(--body)));
+            --grid-gap: 9px;
+            --thumbnail-padding: 0.46875rem;
+          }
         }
       }
     }
@@ -210,37 +237,17 @@
     @scope (.composer) {
       @container composer (width > 55em) {
         :is(.selection-panel, .composition-output) {
-          --grid-pager-height: 44px;
-
           &:not([data-density="compact"]) {
             /* Three rows share the frame after pagination, two gaps, and 10 px of clearance. */
-            --grid-height: clamp(236px, calc((100cqb - 44px - 2 * var(--grid-gap) - 10px) / 3), 280px);
-            --grid-width: 9.5rem;
-            --grid-gap: 20px;
+            --grid-height: clamp(
+              15rem,
+              calc((100cqb - var(--grid-pager-height) - 2 * var(--grid-row-gap) - 10px) / 3),
+              280px
+            );
+            --grid-width: 9.375rem;
+            --grid-gap: 14px;
             --thumbnail-padding: 16px;
           }
-        }
-      }
-    }
-
-    @scope (.composer:not(:has(.style-status))) {
-      :scope {
-        min-block-size: 0;
-      }
-
-      @container composer (width > 55em) {
-        .composition-panels {
-          min-block-size: 0;
-          grid-template-rows: auto auto auto minmax(0, 1fr);
-        }
-
-        .page-content:has(.grid-view, .page-view) {
-          container-type: size;
-        }
-
-        :scope :is(.grid-view, .page-view) {
-          block-size: 100%;
-          min-block-size: 0;
         }
       }
     }
@@ -250,11 +257,31 @@
     @scope (.composer) {
       @container composer (width > 55em) {
         :is(.selection-panel, .composition-output) {
-          --grid-pager-height: 44px;
+          &:not([data-density="compact"]) {
+            --grid-height: 14.625rem;
+            --grid-width: 8.5rem;
+            --grid-gap: 12px;
+            --thumbnail-padding: 11px;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (3840px <= width < 4160px) and (1900px <= height < 2050px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-row-factor: 0.9;
 
           &:not([data-density="compact"]) {
-            --grid-height: 234px;
-            --thumbnail-padding: 11px;
+            --thumbnail-padding: 0.90625rem;
+            --grid-width: clamp(9.75rem, calc((100cqi - 7 * var(--grid-gap) - 1px) / 6), 10rem);
+            --grid-height: clamp(
+              14.8125rem,
+              calc((100cqb - var(--grid-pager-height) - 5 * var(--grid-row-gap) - 10px) / 6),
+              15rem
+            );
           }
         }
       }

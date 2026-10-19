@@ -28,6 +28,15 @@
       inset-inline: -1px;
       visibility: hidden;
       pointer-events: none;
+
+      & > span {
+        block-size: var(--grid-height);
+        padding-block: calc(var(--card-tools-height) / 2 + var(--thumbnail-padding));
+        padding-inline: 3px;
+      }
+    }
+    [data-density="compact"] .page-reference > span {
+      padding-inline: 8.5px;
     }
     .composition-card {
       --card-inset: calc(0.35rem + 1px - var(--page-stroke));
@@ -38,9 +47,9 @@
       padding-inline: var(--card-inset);
       position: relative;
       display: grid;
-      grid-template-rows: calc(34px - var(--page-stroke)) calc(var(--grid-height, 268px) - 68px) calc(
-          34px - var(--page-stroke)
-        );
+      grid-template-rows: calc(var(--card-tools-height) / 2 - var(--page-stroke)) calc(
+          var(--grid-height) - var(--card-tools-height)
+        ) calc(var(--card-tools-height) / 2 - var(--page-stroke));
       border: var(--page-stroke) solid var(--page-border);
       border-radius: var(--radius);
       background: var(--soft);
@@ -139,7 +148,10 @@
       }
     }
     .composition-blank {
-      inline-size: min(100%, 168px * var(--ratio));
+      inline-size: min(
+        100%,
+        (var(--grid-height) - var(--card-tools-height) - 2 * var(--thumbnail-padding)) * var(--ratio)
+      );
       aspect-ratio: var(--ratio);
       display: flex;
       flex-direction: column;
@@ -163,7 +175,7 @@
           margin-inline: calc(-1 * var(--card-inset));
           min-block-size: 0;
           block-size: 100%;
-          padding-block: var(--thumbnail-padding, 16px);
+          padding-block: var(--thumbnail-padding);
           padding-inline: calc(3px - var(--page-stroke));
         }
         & .page-label {
@@ -277,7 +289,7 @@
         --fold: 15px;
         block-size: var(--grid-height);
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: calc(28px - 2 * var(--page-stroke)) minmax(0, 1fr);
+        grid-template-rows: calc(var(--card-tools-height) - 2 * var(--page-stroke)) minmax(0, 1fr);
 
         & > :is(.input-footer, .occurrence-actions) {
           display: none;
@@ -378,20 +390,18 @@
         }
 
         & .thumbnail {
-          padding-block: 7.5px;
+          padding-block: var(--thumbnail-padding);
           padding-inline: calc(8.5px - var(--page-stroke));
         }
 
         & > .page-image {
           min-block-size: 0;
+          /* Keep the image area fixed when the centered header's border inset changes. */
+          margin-block: calc(var(--page-stroke) - 1px) calc(1px - var(--page-stroke));
         }
 
         & .page-face {
           pointer-events: none;
-        }
-
-        & .composition-blank {
-          inline-size: min(100%, calc((var(--grid-height) - 43px) * var(--ratio)));
         }
       }
     }
