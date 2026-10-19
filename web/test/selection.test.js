@@ -225,6 +225,40 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
       page.on("pageerror", (error) => errors.push(error.message))
       await page.emulateMedia({ colorScheme })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.addInitScript(() => {
+        window.gestureEvents = []
+        for (const type of [
+          "touchstart",
+          "touchmove",
+          "touchend",
+          "touchcancel",
+          "pointerdown",
+          "scroll",
+          "resize",
+          "blur",
+          "focus",
+          "visibilitychange",
+        ])
+          addEventListener(
+            type,
+            (event) => {
+              const touch = event.touches?.[0]
+              window.gestureEvents.push({
+                type,
+                time: performance.now(),
+                target: event.target.tagName,
+                label: event.target.getAttribute?.("aria-label"),
+                primary: event.isPrimary,
+                x: touch?.clientX,
+                y: touch?.clientY,
+                scroll: scrollY,
+                busy: event.target.closest?.("[aria-busy]")?.getAttribute("aria-busy"),
+              })
+              if (window.gestureEvents.length > 80) window.gestureEvents.shift()
+            },
+            true,
+          )
+      })
       // Some touch engines send two clicks without a native double-click event.
       if (width === 390)
         await page.addInitScript(() =>
@@ -291,6 +325,20 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
         await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
         const bounds = await target.boundingBox()
         const point = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+        await page.evaluate(
+          (info) => {
+            window.holdInfo = { ...info, scroll: scrollY, scale: visualViewport.scale, top: visualViewport.offsetTop }
+            window.holdTarget = document.elementFromPoint(info.point.x, info.point.y)
+            window.gestureEvents = []
+          },
+          { width, name, point, bounds },
+        )
+        const { result } = await session.send("Runtime.evaluate", { expression: "window.holdTarget" })
+        const { listeners } = await session.send("DOMDebugger.getEventListeners", { objectId: result.objectId })
+        await page.evaluate(
+          (types) => (window.holdInfo.listeners = types),
+          listeners.map((listener) => listener.type),
+        )
         await send("touchStart", point)
         await lens.waitFor()
         const crop = await lens.boundingBox()
@@ -361,6 +409,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
       await page.close()
     }
   } catch (error) {
+    error.message += `\n${JSON.stringify(await page.evaluate(() => ({ hold: window.holdInfo, events: window.gestureEvents, scroll: scrollY, viewport: { width: innerWidth, height: innerHeight, scale: visualViewport.scale, top: visualViewport.offsetTop }, hit: window.holdInfo && document.elementFromPoint(window.holdInfo.point.x, window.holdInfo.point.y)?.outerHTML.slice(0, 200) })))}`
     const screenshot = page && (await captureLayout(page, "touch-selection").catch(() => undefined))
     if (screenshot) error.message += `\nScreenshot: ${screenshot}`
     throw error
