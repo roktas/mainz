@@ -117,9 +117,11 @@
     const context = target.getContext("2d")!
     const areaWidth = ((bounds.width / scale) * image.width) / original.width
     const areaHeight = ((bounds.height / scale) * image.height) / original.height
-    const raster = document.createElement("canvas")
-    raster.width = width
-    raster.height = height
+    let raster = document.createElement("canvas")
+    let detail = document.createElement("canvas")
+    raster.width = detail.width = width
+    raster.height = detail.height = height
+    let crop: { x: number; y: number; width: number; height: number } | undefined
     let disposed = false
     let position: typeof point
     let running = false
@@ -129,6 +131,23 @@
     function releasePage() {
       sheet?.cleanup()
       sheet = undefined
+    }
+    function paint() {
+      if (!position) return
+      context.fillStyle = "#ffffff"
+      context.fillRect(0, 0, width, height)
+      context.drawImage(
+        image!,
+        position.x * image!.width - areaWidth / 2,
+        position.y * image!.height - areaHeight / 2,
+        areaWidth,
+        areaHeight,
+        0,
+        0,
+        width,
+        height,
+      )
+      if (crop) context.drawImage(detail, (crop.x - position.x) * crop.width, (crop.y - position.y) * crop.height)
     }
     async function draw() {
       frame = undefined
@@ -152,7 +171,11 @@
           transform: [1, 0, 0, 1, width / 2 - at.x * viewport.width, height / 2 - at.y * viewport.height],
         })
         await task.promise
-        if (!disposed && at === position) context.drawImage(raster, 0, 0)
+        if (!disposed) {
+          ;[detail, raster] = [raster, detail]
+          crop = { x: at.x, y: at.y, width: viewport.width, height: viewport.height }
+          paint()
+        }
       } catch {
         releasePage()
         /* Keep the displayed image if the optional detail render fails. */
@@ -161,7 +184,7 @@
         running = false
         if (disposed) {
           releasePage()
-          raster.width = raster.height = 0
+          raster.width = raster.height = detail.width = detail.height = 0
         } else if (at !== position) frame = requestAnimationFrame(() => void draw())
         else refining = false
       }
@@ -169,19 +192,7 @@
     $effect(() => {
       position = point
       if (!position) return
-      context.fillStyle = "#ffffff"
-      context.fillRect(0, 0, width, height)
-      context.drawImage(
-        image,
-        position.x * image.width - areaWidth / 2,
-        position.y * image.height - areaHeight / 2,
-        areaWidth,
-        areaHeight,
-        0,
-        0,
-        width,
-        height,
-      )
+      paint()
       refining = true
       // Finish active PDF work, then refine the latest position without a settling delay.
       if (!running && frame === undefined) frame = requestAnimationFrame(() => void draw())
@@ -192,7 +203,7 @@
       task?.cancel()
       if (!running) {
         releasePage()
-        raster.width = raster.height = 0
+        raster.width = raster.height = detail.width = detail.height = 0
       }
     }
   }

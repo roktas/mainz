@@ -34,7 +34,7 @@ async function fixture(page, url, delayed = false) {
     const sheet = {
       cleanup: () => window.lensPDF.cleaned++,
       getViewport: ({ scale }) => ({ width: 200 * scale, height: 200 * scale }),
-      render: ({ canvas: raster }) => {
+      render: ({ canvas: raster, viewport, transform }) => {
         const state = window.lensPDF
         state.started++
         state.peak = Math.max(state.peak, ++state.active)
@@ -43,7 +43,11 @@ async function fixture(page, url, delayed = false) {
           reject = fail
           if (!window.holdLensRender)
             timer = setTimeout(() => {
-              raster.getContext("2d").fillRect(0, 0, raster.width, raster.height)
+              const context = raster.getContext("2d")
+              context.fillStyle = "#0000ff"
+              context.fillRect(0, 0, raster.width, raster.height)
+              context.fillStyle = "#ff0000"
+              context.fillRect(viewport.width * 0.35 + transform[4], 0, viewport.width * 0.01, raster.height)
               resolve()
             }, 60)
         }).finally(() => state.active--)
@@ -138,7 +142,7 @@ test(
       await page.clock.runFor(200)
       await page.locator(".lens").waitFor()
       for (let step = 0; step < 12; step++) {
-        await page.mouse.move(80 + step * 5, 200)
+        await page.mouse.move(80 + step, 200)
         await page.clock.runFor(16)
       }
       const moving = await page.evaluate(() => window.lensPDF)
@@ -147,8 +151,19 @@ test(
       assert.equal(moving.peak, 1, "Only one detail render runs at a time")
       assert.equal(moving.acquired, 1, "Movement retains the acquired PDF.js page and its decoded operators")
       assert.equal(moving.cleaned, 0, "The open lens keeps its page ready for the next crop")
+      const center = () =>
+        page
+          .locator(".lens canvas")
+          .evaluate((canvas) =>
+            Array.from(canvas.getContext("2d").getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data),
+          )
+      assert.deepEqual(await center(), [255, 0, 0, 255], "Completed detail stays aligned while the pointer moves")
+      await page.mouse.move(210, 200)
+      await page.clock.runFor(1)
+      assert.deepEqual(await center(), [0, 0, 0, 255], "Moving outside the completed crop shows the current fallback")
       await page.clock.runFor(200)
       await page.locator('.lens[aria-busy="false"]').waitFor()
+      assert.deepEqual(await center(), [0, 0, 255, 255], "The latest position receives its own detail")
       await page.evaluate(() => window.unmountLens())
       assert.equal(await page.locator(".lens").count(), 0)
       assert.equal(await page.evaluate(() => window.lensPDF.active), 0)

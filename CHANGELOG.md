@@ -31,8 +31,8 @@
 
 ### Fixed
 
-- Lens refinement starts without a movement settling delay and releases acquired pages on cancellation or renderer
-  failure.
+- Lens refinement starts without a movement settling delay, keeps completed detail aligned during movement, and releases
+  acquired pages on cancellation or renderer failure.
 - Closed PDFs release their cached preview rasters after their last owner leaves.
 - The theme button exposes its effective dark-theme state and follows system changes until an explicit choice.
 - Narrow two-pane headings align Open PDF and Download, with Output totals beside Download.

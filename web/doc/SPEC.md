@@ -374,7 +374,8 @@ input. On touch screens, holding an image opens the lens. Moving the held finger
 cancellation, a second finger, or scrolling dismisses it. A hold does not select, add, duplicate, or move pages.
 
 An open lens updates its preview immediately and refines the latest position without a settling delay. Only one detail
-render runs at a time. Closing the lens cancels that render and releases its acquired page.
+render runs at a time. Completed detail stays aligned with the pointer where its crop overlaps the current view. Closing
+the lens cancels that render and releases its acquired page and crop buffers.
 
 Settings shows the current lens magnification beside − and + buttons. Each step halves or doubles the magnification. The
 buttons disable at 2× and 128× respectively.
