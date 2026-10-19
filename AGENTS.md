@@ -36,10 +36,10 @@ local convention. Treat naming difficulty as a warning to reconsider the propose
   mutable state, and indirection can outweigh smaller files. Avoid artificial layers and abstractions.
 - Separate domain data from presentation. Give shared logic one owner. Reuse existing patterns and remove dead or
   redundant code. Group by responsibility, not file extension.
-- Before refactoring, record steps, regression risks, and coverage in root `PLAN.md`. Prefer real E2E/integration tests.
-  Add focused tests only for coverage gaps. Run them against current behavior first.
-- Preserve behavior in coherent steps. Make sure that affected flows pass. Record results in the plan. Keep tests and
-  refactors proportional to the maintenance benefit.
+- Use root `PLAN.md` only when the user explicitly requests it. Do not create or update it automatically.
+- Prefer real E2E/integration tests. Add focused tests only for coverage gaps. Run them against current behavior first.
+- Preserve behavior in coherent steps. Make sure that affected flows pass. Keep tests and refactors proportional to the
+  maintenance benefit.
 
 ## Ownership and layout
 
