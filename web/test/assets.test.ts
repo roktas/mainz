@@ -130,6 +130,7 @@ test("Vite verifies Mainz packages and publishes complete asset revisions", () =
       const originalPackage = process.env.MAINZ_WASM_DIR;
       let second;
       let third;
+      let fourth;
       try {
         await first.listen();
         const url = first.resolvedUrls.local[0] + "processor.wasm";
@@ -143,20 +144,25 @@ test("Vite verifies Mainz packages and publishes complete asset revisions", () =
         writeFileSync("public/revision.txt", "second");
         rmSync("public/retired.txt");
         writeFileSync("public/added.txt", "second only");
-        writeFileSync("node_modules/pdfjs-dist/LICENSE", "Second PDF.js test notice.");
         third = await createServer({ server: { host: "127.0.0.1", port: 0 } });
         await third.listen();
         const previous = first.resolvedUrls.local[0];
         const current = third.resolvedUrls.local[0];
         assert.equal(await (await fetch(current + "revision.txt")).text(), "second");
         assert.equal(await (await fetch(current + "added.txt")).text(), "second only");
-        assert.equal(await (await fetch(current + "pdfjs/LICENSE")).text(), "Second PDF.js test notice.");
+        assert.equal(await (await fetch(current + "pdfjs/LICENSE")).text(), "First PDF.js test notice.");
         assert.equal((await fetch(current + "retired.txt", { headers: { Accept: "text/plain" } })).status, 404);
         assert.equal(await (await fetch(previous + "revision.txt")).text(), "first", "A public revision cannot replace a running server's assets");
         assert.equal(await (await fetch(previous + "retired.txt")).text(), "first only");
         assert.equal(await (await fetch(previous + "pdfjs/LICENSE")).text(), "First PDF.js test notice.");
         assert.equal((await fetch(previous + "added.txt", { headers: { Accept: "text/plain" } })).status, 404);
+        writeFileSync("node_modules/pdfjs-dist/LICENSE", "Second PDF.js test notice.");
+        fourth = await createServer({ server: { host: "127.0.0.1", port: 0 } });
+        await fourth.listen();
+        assert.equal(await (await fetch(fourth.resolvedUrls.local[0] + "pdfjs/LICENSE")).text(), "Second PDF.js test notice.");
+        assert.equal(await (await fetch(current + "pdfjs/LICENSE")).text(), "First PDF.js test notice.", "A PDF.js revision cannot replace a running server's resources");
       } finally {
+        await fourth?.close();
         await third?.close();
         await second?.close();
         await first.close();
