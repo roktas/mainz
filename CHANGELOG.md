@@ -37,7 +37,7 @@
 - The theme button exposes its effective dark-theme state and follows system changes until an explicit choice.
 - Narrow two-pane headings align Open PDF and Download, with Output totals beside Download.
 - Window blur, resizing, and workspace closure release native and touch drag previews.
-- Concurrent Vite servers retain the WASM package selected for each configuration.
+- Concurrent Vite servers retain complete static-asset revisions, including changed public files and PDF.js resources.
 - Landing top spacing stays bounded on wide screens with coarse-pointer input.
 - Grid pagination captions stay below the slider in both densities and pane layouts.
 - Enlarged text keeps complete Grid rows above pagination and header Notices visible while scrolling.

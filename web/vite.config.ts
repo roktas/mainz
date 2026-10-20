@@ -1,18 +1,19 @@
 import { defineConfig, transformWithOxc } from "vite"
 import { svelte } from "@sveltejs/vite-plugin-svelte"
 import {
-  copyFileSync,
   existsSync,
+  mkdtempSync,
   mkdirSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
 } from "node:fs"
 import { createHash } from "node:crypto"
 import { execFileSync } from "node:child_process"
-import { join, resolve } from "node:path"
+import { dirname, join, resolve } from "node:path"
 
 const version = readFileSync(resolve("../VERSION"), "utf8").trim()
 const now = new Date()
@@ -48,71 +49,87 @@ let outputDirectory = resolve("../.local/var/js/dist")
 function prepare() {
   if (!existsSync(`${wasm}/provenance.json`))
     throw new Error(`Mainz WASM package is required at ${wasm}. Build roktas/mainz or set MAINZ_WASM_DIR.`)
-  const provenance = JSON.parse(readFileSync(`${wasm}/provenance.json`, "utf8"))
-  const files = ["processor.mjs", "processor.wasm"]
-  for (const name of files) {
+  const provenanceBytes = readFileSync(`${wasm}/provenance.json`)
+  const provenance = JSON.parse(provenanceBytes.toString("utf8"))
+  const files = new Map<string, Buffer>()
+  for (const name of ["processor.mjs", "processor.wasm"]) {
     const bytes = readFileSync(`${wasm}/${name}`)
     if (createHash("sha256").update(bytes).digest("hex") !== provenance.files?.[name])
       throw new Error(`Mainz package digest mismatch: ${name}`)
+    files.set(name, bytes)
   }
   for (const name of ["mainz.txt", "qpdf.txt", "qpdf-notice.txt", "emscripten.txt", "zlib.txt", "jpeg.txt"])
     if (!existsSync(`${wasm}/notices/${name}`) || !statSync(`${wasm}/notices/${name}`).isFile())
       throw new Error(`Mainz package license notice is required: ${name}`)
-  const loader = readFileSync(`${wasm}/processor.mjs`, "utf8")
+  const loader = files.get("processor.mjs")!.toString("utf8")
   for (const name of ["_mainz_input", "_mainz_clear_inputs", "_mainz_compose", "_mainz_report", "_mainz_report_size"])
     if (!new RegExp(`\\b${name}\\b`).test(loader))
       throw new Error(`Mainz WASM package must support version 1 Jobs: missing ${name}.`)
-  const assets = resolve(
-    "../.local/tmp/web/assets",
-    createHash("sha256").update(wasm).update(JSON.stringify(provenance)).digest("hex").slice(0, 16),
-  )
-  const expected = new Set<string>(["manifest.webmanifest"])
-  function copy(source: string, destination: string) {
-    const target = resolve(assets, destination)
+  const contents = new Map<string, Buffer>()
+  function collect(source: string, destination: string) {
     if (statSync(source).isDirectory()) {
-      mkdirSync(target, { recursive: true })
-      for (const name of readdirSync(source)) copy(join(source, name), join(destination, name))
-    } else {
-      // Avoid unlinking assets that a running Vite server has already indexed.
-      if (!existsSync(target) || !readFileSync(source).equals(readFileSync(target))) copyFileSync(source, target)
-      expected.add(destination)
+      for (const name of readdirSync(source)) collect(join(source, name), join(destination, name))
+    } else contents.set(destination, readFileSync(source))
+  }
+  collect("public", "")
+  collect("test/fixtures/demo.pdf", "demo.pdf")
+  collect("node_modules/pdfjs-dist/build/pdf.worker.mjs", "pdfjs/pdf.worker.mjs")
+  for (const name of ["cmaps", "standard_fonts", "iccs", "wasm"])
+    collect(`node_modules/pdfjs-dist/${name}`, `pdfjs/${name}`)
+  for (const [name, bytes] of files) contents.set(name, bytes)
+  contents.set("provenance.json", provenanceBytes)
+  collect(`${wasm}/notices`, "notices")
+  collect("node_modules/pdfjs-dist/LICENSE", "pdfjs/LICENSE")
+  collect("node_modules/svelte/LICENSE.md", "notices/svelte.txt")
+  contents.set(
+    "manifest.webmanifest",
+    Buffer.from(
+      JSON.stringify({
+        name: "PDF Composer",
+        short_name: "PDF Composer",
+        description: "Select, copy, and arrange PDF pages. Style prepared PDFs on your device.",
+        start_url: "./",
+        scope: "./",
+        display: "standalone",
+        theme_color: "#800080",
+        background_color: "#ffffff",
+        icons: [
+          { src: "icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+        ],
+      }),
+    ),
+  )
+  const hash = createHash("sha256")
+  for (const name of [...contents.keys()].toSorted()) {
+    const bytes = contents.get(name)!
+    hash.update(JSON.stringify([name, bytes.length])).update(bytes)
+  }
+  const assets = resolve("../.local/tmp/web/assets", hash.digest("hex").slice(0, 16))
+  if (!existsSync(assets)) {
+    mkdirSync(dirname(assets), { recursive: true })
+    const staging = mkdtempSync(join(dirname(assets), "stage-"))
+    try {
+      for (const [name, bytes] of contents) {
+        const target = resolve(staging, name)
+        mkdirSync(dirname(target), { recursive: true })
+        writeFileSync(target, bytes)
+      }
+      try {
+        // Publish a complete snapshot; another process may have published the same bytes first.
+        renameSync(staging, assets)
+      } catch (error) {
+        if (!["EEXIST", "ENOTEMPTY"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error
+      }
+    } finally {
+      rmSync(staging, { recursive: true, force: true })
     }
   }
-  mkdirSync(assets, { recursive: true })
-  copy("public", "")
-  copy("test/fixtures/demo.pdf", "demo.pdf")
-  mkdirSync(`${assets}/pdfjs`, { recursive: true })
-  copy("node_modules/pdfjs-dist/build/pdf.worker.mjs", "pdfjs/pdf.worker.mjs")
-  for (const name of ["cmaps", "standard_fonts", "iccs", "wasm"])
-    copy(`node_modules/pdfjs-dist/${name}`, `pdfjs/${name}`)
-  for (const name of files) copy(`${wasm}/${name}`, name)
-  copy(`${wasm}/provenance.json`, "provenance.json")
-  copy(`${wasm}/notices`, "notices")
-  copy("node_modules/pdfjs-dist/LICENSE", "pdfjs/LICENSE")
-  mkdirSync(`${assets}/notices`, { recursive: true })
-  copy("node_modules/svelte/LICENSE.md", "notices/svelte.txt")
-  writeFileSync(
-    `${assets}/manifest.webmanifest`,
-    JSON.stringify({
-      name: "PDF Composer",
-      short_name: "PDF Composer",
-      description: "Select, copy, and arrange PDF pages. Style prepared PDFs on your device.",
-      start_url: "./",
-      scope: "./",
-      display: "standalone",
-      theme_color: "#800080",
-      background_color: "#ffffff",
-      icons: [
-        { src: "icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-        { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-      ],
-    }),
-  )
   for (const path of (readdirSync(assets, { recursive: true }) as string[]).toSorted((a, b) => b.length - a.length)) {
     const file = resolve(assets, path)
     if (statSync(file).isDirectory()) {
       if (!readdirSync(file).length) rmSync(file, { recursive: true })
-    } else if (!expected.has(path)) rmSync(file)
+    } else if (!contents.has(path)) rmSync(file)
   }
   return assets
 }

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
-import { copyFileSync, cpSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { copyFileSync, cpSync, mkdtempSync, mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { spawnSync } from "node:child_process"
 import test from "node:test"
 
-test("Vite verifies Mainz packages and preserves watched asset directories during cleanup", () => {
+test("Vite verifies Mainz packages and publishes complete asset revisions", () => {
   const temporary = resolve("../.local/tmp/web")
   mkdirSync(temporary, { recursive: true })
   const directory = mkdtempSync(join(temporary, "assets-"))
@@ -68,9 +68,17 @@ test("Vite verifies Mainz packages and preserves watched asset directories durin
     copyFileSync("../VERSION", join(directory, "VERSION"))
     for (const name of ["vite.config.ts", "package.json", "index.html"]) copyFileSync(name, join(project, name))
     cpSync("public", join(project, "public"), { recursive: true })
+    writeFileSync(join(project, "public", "revision.txt"), "first")
+    writeFileSync(join(project, "public", "retired.txt"), "first only")
+    writeFileSync(join(project, "public", "processor.wasm"), "Unverified public input.")
+    writeFileSync(join(project, "public", "provenance.json"), "Unverified public metadata.")
     mkdirSync(join(project, "test", "fixtures"), { recursive: true })
     copyFileSync("test/fixtures/demo.pdf", join(project, "test", "fixtures", "demo.pdf"))
-    symlinkSync(resolve("node_modules"), join(project, "node_modules"), "dir")
+    mkdirSync(join(project, "node_modules"))
+    for (const name of readdirSync("node_modules"))
+      if (name !== "pdfjs-dist") symlinkSync(resolve("node_modules", name), join(project, "node_modules", name))
+    cpSync("node_modules/pdfjs-dist", join(project, "node_modules", "pdfjs-dist"), { recursive: true })
+    writeFileSync(join(project, "node_modules", "pdfjs-dist", "LICENSE"), "First PDF.js test notice.")
     const refreshed = spawnSync(
       process.execPath,
       [
@@ -78,7 +86,7 @@ test("Vite verifies Mainz packages and preserves watched asset directories durin
         "-e",
         `
       import assert from "node:assert/strict";
-      import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+      import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
       import { spawn } from "node:child_process";
       import { createServer } from "vite";
       const server = await createServer();
@@ -88,18 +96,21 @@ test("Vite verifies Mainz packages and preserves watched asset directories durin
       writeFileSync(assets + "/obsolete.txt", "Test residue.");
       const next = await createServer();
       await next.close();
+      writeFileSync("public/revision.txt", "parallel");
       await Promise.all(Array.from({ length: 3 }, () => new Promise((resolve, reject) => {
-        const child = spawn(process.execPath, ["--input-type=module", "-e", 'import { createServer } from "vite"; const server = await createServer(); await server.close();'], { stdio: ["ignore", "ignore", "pipe"] });
+        const child = spawn(process.execPath, ["--input-type=module", "-e", 'import assert from "node:assert/strict"; import { readFileSync } from "node:fs"; import { createServer } from "vite"; const server = await createServer(); const assets = server.config.publicDir; await server.close(); assert.equal(JSON.parse(readFileSync(assets + "/manifest.webmanifest")).name, "PDF Composer"); assert.equal(readFileSync(assets + "/processor.wasm", "utf8"), "test"); assert.equal(readFileSync(assets + "/revision.txt", "utf8"), "parallel");'], { stdio: ["ignore", "ignore", "pipe"] });
         let errors = "";
         child.stderr.on("data", (chunk) => errors += chunk);
         child.on("error", reject);
         child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(errors)));
       })));
+      writeFileSync("public/revision.txt", "first");
       assert.equal(statSync(assets).ino, identity);
       assert.equal(existsSync(assets + "/obsolete.txt"), false);
       assert.ok(existsSync(assets + "/logo.svg"));
       assert.ok(existsSync(assets + "/processor.wasm"));
       assert.ok(existsSync(assets + "/demo.pdf"));
+      assert.equal(readFileSync(assets + "/provenance.json", "utf8"), readFileSync(process.env.MAINZ_WASM_DIR + "/provenance.json", "utf8"));
       const manifest = JSON.parse(readFileSync(assets + "/manifest.webmanifest", "utf8"));
       assert.equal(manifest.name, "PDF Composer");
       assert.equal(manifest.short_name, "PDF Composer");
@@ -116,7 +127,9 @@ test("Vite verifies Mainz packages and preserves watched asset directories durin
         assert.equal(png.readUInt32BE(20), size);
       }
       const first = await createServer({ server: { host: "127.0.0.1", port: 0 } });
+      const originalPackage = process.env.MAINZ_WASM_DIR;
       let second;
+      let third;
       try {
         await first.listen();
         const url = first.resolvedUrls.local[0] + "processor.wasm";
@@ -126,7 +139,25 @@ test("Vite verifies Mainz packages and preserves watched asset directories durin
         await second.listen();
         assert.equal(await (await fetch(second.resolvedUrls.local[0] + "processor.wasm")).text(), "alternate");
         assert.equal(await (await fetch(url)).text(), "test", "A second package cannot replace a running server's WASM");
+        process.env.MAINZ_WASM_DIR = originalPackage;
+        writeFileSync("public/revision.txt", "second");
+        rmSync("public/retired.txt");
+        writeFileSync("public/added.txt", "second only");
+        writeFileSync("node_modules/pdfjs-dist/LICENSE", "Second PDF.js test notice.");
+        third = await createServer({ server: { host: "127.0.0.1", port: 0 } });
+        await third.listen();
+        const previous = first.resolvedUrls.local[0];
+        const current = third.resolvedUrls.local[0];
+        assert.equal(await (await fetch(current + "revision.txt")).text(), "second");
+        assert.equal(await (await fetch(current + "added.txt")).text(), "second only");
+        assert.equal(await (await fetch(current + "pdfjs/LICENSE")).text(), "Second PDF.js test notice.");
+        assert.equal((await fetch(current + "retired.txt", { headers: { Accept: "text/plain" } })).status, 404);
+        assert.equal(await (await fetch(previous + "revision.txt")).text(), "first", "A public revision cannot replace a running server's assets");
+        assert.equal(await (await fetch(previous + "retired.txt")).text(), "first only");
+        assert.equal(await (await fetch(previous + "pdfjs/LICENSE")).text(), "First PDF.js test notice.");
+        assert.equal((await fetch(previous + "added.txt", { headers: { Accept: "text/plain" } })).status, 404);
       } finally {
+        await third?.close();
         await second?.close();
         await first.close();
       }

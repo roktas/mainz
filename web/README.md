@@ -42,3 +42,10 @@ npm run dev
 Open the Vite URL and choose or drop PDFs. Add `?demo` to try the bundled seven-page sample. See
 [AGENTS.md](../AGENTS.md#web) for checks, build configuration, and mockups. The
 [fixture guide](test/fixtures/README.md#grid-fixture) describes the local 240-page Grid sample.
+
+Vite prepares complete static-asset snapshots under `.local/tmp/web/assets/`. Each directory depends on all staged file
+names and bytes, including public files, PDF.js resources, the demo, verified WASM files, and license notices.
+Concurrent servers retain their own snapshot when these inputs differ.
+
+Restart the development server after changing these inputs. Use separate checkouts for concurrent application-source
+revisions.
