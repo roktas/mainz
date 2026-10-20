@@ -26,17 +26,17 @@
       "binaryDir": "${sourceDir}/.local/var/cpp/build/wasm",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/.local/var/cpp/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+        "CMAKE_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
         "MAINZ_QPDF_SOURCE": "${sourceDir}/.local/src/qpdf",
         "MAINZ_LINT": "OFF",
         "BUILD_TESTING": "ON",
         "CMAKE_CXX_FLAGS": "-fexceptions",
         "CMAKE_C_FLAGS": "--use-port=zlib --use-port=libjpeg",
         "PKG_CONFIG_EXECUTABLE": "/usr/bin/false",
-        "ZLIB_H_PATH": "${sourceDir}/.local/var/cpp/emsdk/upstream/emscripten/cache/sysroot/include",
-        "ZLIB_LIB_PATH": "${sourceDir}/.local/var/cpp/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/libz.a",
-        "LIBJPEG_H_PATH": "${sourceDir}/.local/var/cpp/emsdk/upstream/emscripten/cache/sysroot/include",
-        "LIBJPEG_LIB_PATH": "${sourceDir}/.local/var/cpp/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/libjpeg.a"
+        "ZLIB_H_PATH": "$env{EMSDK}/upstream/emscripten/cache/sysroot/include",
+        "ZLIB_LIB_PATH": "$env{EMSDK}/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/libz.a",
+        "LIBJPEG_H_PATH": "$env{EMSDK}/upstream/emscripten/cache/sysroot/include",
+        "LIBJPEG_LIB_PATH": "$env{EMSDK}/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/libjpeg.a"
       }
     }
   ],

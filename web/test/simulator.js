@@ -1,6 +1,7 @@
 // Collects native Simulator Safari/PWA geometry for representative screen groups.
 
 import { parseArgs } from "node:util"
+import { homedir } from "node:os"
 import { execFileSync, spawn } from "node:child_process"
 import { mkdir, readFile, writeFile, copyFile } from "node:fs/promises"
 import { openSync, closeSync } from "node:fs"
@@ -29,7 +30,7 @@ if (values.orientation && !["portrait", "landscape"].includes(values.orientation
   throw new Error("Select portrait or landscape, or omit --orientation for both.")
 const directory = resolve(values.out)
 const project = fileURLToPath(new URL("./simulator/Probe.xcodeproj", import.meta.url))
-const derived = resolve("../.local/var/xcode/geometry")
+const derived = join(homedir(), "Library/Developer/Xcode/DerivedData/Mainz")
 await mkdir(directory, { recursive: true })
 const command = (name, args) => execFileSync(name, args, { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 }).trim()
 const simctl = (...args) => command("xcrun", ["simctl", ...args])

@@ -6,12 +6,13 @@ Keep this file within 200 lines.
 
 Use the owner table, outlines, and links to read only relevant sections. Reuse them until the scope or document changes.
 
-| Change                                                        | Owner                           |
-| ------------------------------------------------------------- | ------------------------------- |
-| PDF contract, processor, native/WASM boundary, SVG production | [Library SPEC](lib/doc/SPEC.md) |
-| Commands, request files, diagnostics, output installation     | [CLI SPEC](cli/doc/SPEC.md)     |
-| Workspace behavior and product vocabulary                     | [Web SPEC](web/doc/SPEC.md)     |
-| Visual rules, focus, motion, layout references, UI anatomy    | [Web DESIGN](web/doc/DESIGN.md) |
+| Change                                                           | Owner                                 |
+| ---------------------------------------------------------------- | ------------------------------------- |
+| PDF contract, processor, native/WASM boundary, SVG production    | [Library SPEC](lib/doc/SPEC.md)       |
+| Commands, request files, diagnostics, output installation        | [CLI SPEC](cli/doc/SPEC.md)           |
+| Workspace behavior and product vocabulary                        | [Web SPEC](web/doc/SPEC.md)           |
+| Visual rules, focus, motion, layout references, UI anatomy       | [Web DESIGN](web/doc/DESIGN.md)       |
+| Simulator/SDK setup, viewport acquisition, calibration, evidence | [Web VIEWPORTS](web/doc/VIEWPORTS.md) |
 
 Keep rules, shared tokens, and required layout references in their owning documents. Keep implementation details and
 animation keyframes in source files. Maintain product terms in the [library glossary](lib/doc/SPEC.md#glossary) and
@@ -24,9 +25,8 @@ behavior, contracts, terminology, design rules, or workflows. Leave accurate doc
 
 ## Naming
 
-Before creating or splitting files or directories, inspect sibling names and match their form. Name each file or
-directory for its responsibility. Prefer specific one-word names. Use compounds or `-`/`_` only to follow a justified
-local convention. Treat naming difficulty as a warning to reconsider the proposed boundaries.
+Before creating or splitting paths, inspect siblings and match their naming. Prefer specific one-word responsibility
+names. Use compounds, `-`, or `_` only for local convention. Naming difficulty signals unclear boundaries.
 
 ## Refactoring
 
@@ -60,8 +60,9 @@ The processor imports no producer or application code. Mainz imports neither Sev
 Style DSL and export integration. Megic owns publication policy and parameter semantics. Keep real integration scenarios
 in those repositories.
 
-Keep maintained inputs in Git and generated files under root `.local/`. Components share this tree. Removing
-`.local/var/` can require installation or rebuilding. Removing `.local/tmp/` discards only disposable output.
+Keep maintained inputs in Git and project output under root `.local/`. Clean disposable `.local/tmp/` after work; retain
+measurements in `.local/var/`. Keep large SDKs, runtimes, toolchains, and caches outside Dropbox. Follow
+[tool storage and evidence retention](web/doc/VIEWPORTS.md#tool-storage) before installing or moving them.
 
 ## Build and validation
 
@@ -95,8 +96,8 @@ tasks: `test:contract`, `test:producer`, `test:cli`, `test:inspector`, `test:par
 `test:parity` refreshes contract fixtures first. `MAINZ_CLI` defaults to `.local/var/cpp/build/native/mainz`. For C++
 changes, also run `cmake --build --preset format-check` and `cmake --build --preset lint`.
 
-Sanitizer and WASM builds need the QPDF checkout at `.local/src/qpdf/`, pinned by `Rakefile`. `MAINZ_QPDF_SOURCE`
-selects another location. WASM also needs the activated Emscripten SDK at `.local/var/cpp/emsdk/` and Python.
+Sanitizer/WASM need QPDF pinned by `Rakefile` at `.local/src/qpdf/` (`MAINZ_QPDF_SOURCE` overrides it). WASM needs
+Python and an activated Emscripten SDK outside Dropbox; `EMSDK` supplies its path.
 
 Independent HexaPDF comparison: `direnv exec . bundle exec rake 'preserve[original.pdf,edited.pdf,reset.pdf]'`.
 
@@ -159,11 +160,10 @@ npm run build
 npm run test:browser
 ```
 
-The build checks Svelte/worker types, then writes `.local/var/js/dist/`. Vite cache: `.local/var/js/cache/vite/`.
-Browser suites run sequentially locally and on eight separate CI runners. They start their own servers. If Chromium is
-unavailable, run `npm --prefix web exec -- playwright install chromium`. `PLAYWRIGHT_CHANNEL=chrome` uses installed
-Chrome. Exercise changed flows with keyboard, narrow layouts, enlarged text, both themes, and relevant
-loading/error/cancellation states.
+The build checks Svelte/worker types and writes `.local/var/js/dist/`. Vite uses a home cache for each checkout. Browser
+suites run sequentially locally and on eight CI runners; they start their own servers. See
+[browser setup](web/doc/VIEWPORTS.md#browser-checks). Exercise changed flows with keyboard, narrow layouts, enlarged
+text, both themes, and relevant loading/error/cancellation states.
 
 ### Preview and mockups
 

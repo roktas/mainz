@@ -345,7 +345,7 @@ module Mainz
 
     def wasm
       parent = Mainz.workspace("var/package")
-      sdk = ROOT.join(".local/var/cpp/emsdk/upstream/emscripten")
+      sdk = Pathname(ENV.fetch("EMSDK")).join("upstream/emscripten")
       licenses = {
         "mainz.txt" => ROOT.join("LICENSE"),
         "emscripten.txt" => sdk.join("LICENSE"),
