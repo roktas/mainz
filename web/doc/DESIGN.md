@@ -101,10 +101,11 @@ Open PDF and Download on their second row. Output totals share that row beside D
 bottom of the shared heading track, including with long filenames.
 
 The header places the Home logo at the start and Help, Settings, and theme controls at the end. It states that
-processing stays on the device. Coarse-pointer devices omit the Help button. Settings opens a right drawer. Lens
-controls show the magnification beside − and + buttons, aligned like the Page zoom controls. Application information
-sits at the bottom behind a thin separator. Version and Build ID values align to the end and wrap with enlarged text.
-The repository link uses an accessible icon target.
+processing stays on the device. When no Notice is present, actions can use all space after the logo before wrapping.
+Help remains visible on coarse-pointer devices and on the landing page. Settings opens a right drawer. Lens controls
+show the magnification beside − and + buttons, aligned like the Page zoom controls. Application information sits at the
+bottom behind a thin separator. Version and Build ID values align to the end and wrap with enlarged text. The repository
+link uses an accessible icon target.
 
 Pointer opening places initial focus on the Settings drawer. Keyboard opening focuses its Close button. Keyboard
 navigation keeps a visible focus indicator on each control.
@@ -128,6 +129,9 @@ scrolls. It does not shrink controls or show a partial final row. Enlarged text 
 this exception. Page also reserves a usable image area below its heading. Style keeps document flow for its editable
 fields. Its companion pane uses the shared fit reference.
 
+Below 480 CSS px of viewport height, the workspace status bar scrolls with the document. It must not cover card targets
+when enlarged text or the minimum complete row requires scrolling.
+
 Two-pane Grid and Page frames align at the top and bottom. The pane divider reaches the same edge. Shorter PDF pages
 center within the shared image area. Application zoom changes the PDF inside that frame. The browser viewport already
 excludes browser controls. The application does not estimate or subtract them again.
@@ -138,17 +142,18 @@ rows = pages and applies to both Input and Output.
 
 | Viewport                | Workspace width | Normal     | Compact       |
 | ----------------------- | --------------- | ---------- | ------------- |
-| FHD-, 1920 × 982        | 1232 px         | 3 × 2 = 6  | 6 × 4 = 24    |
+| FHD-, 1920 × 983        | 1232 px         | 3 × 2 = 6  | 6 × 4 = 24    |
 | Full HD, 1920 × 1080    | 1232 px         | 3 × 2 = 6  | 6 × 4 = 24    |
 | QHD window, 2560 × 1280 | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48    |
 | QHD-, 2560 × 1310       | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48    |
 | QHD, 2560 × 1440        | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
-| UHD-, 3840 × 1964       | 2208 px         | 6 × 6 = 36 | 12 × 11 = 132 |
-| UHD, 3840 × 2160        | 2208 px         | 6 × 6 = 36 | 12 × 12 = 144 |
+| UHD-, 3840 × 1966       | 2208 px         | 7 × 6 = 42 | 12 × 11 = 132 |
+| UHD, 3840 × 2160        | 2208 px         | 7 × 7 = 49 | 12 × 13 = 156 |
 
-Desktop references ending in `-` keep the nominal width in each orientation. Their estimated height is
-`2 * floor(height * 0.91 / 2)`, where `height` is the nominal monitor height. This gives the largest even integer that
-does not exceed 91% of the nominal height, with about 9% reserved for browser and desktop controls.
+Desktop references ending in `-` keep the nominal width. Their estimated height is `round(height * 0.91)`, where
+`height` is the logical screen height. These are test inputs with about 9% reserved for browser and desktop controls.
+The viewport inventory also covers distinct Mac notebook and display geometries in fullscreen and at this estimated
+browser height. Panel resolution and logical CSS dimensions remain separate metadata.
 
 The measured QHD- browser viewport matches this estimate. FHD- and UHD- remain provisional. Their matrices have
 browser-test evidence. Physical-monitor measurements for FHD- and UHD- are pending.
@@ -167,23 +172,23 @@ pending. Phone profiles ending in `-` keep the nominal width and estimate the av
 `2 * floor(height * 0.85 / 2)`. Calculate each orientation from its nominal dimensions. These estimates define test
 viewports; the application does not subtract the estimated browser controls again.
 
-| Device       | CSS viewport | Normal    | Compact    |
-| ------------ | ------------ | --------- | ---------- |
-| Narrow phone | 320 × 568    | 1 × 1 = 1 | 3 × 1 = 3  |
-| iPhone       | 375 × 667    | 2 × 1 = 2 | 4 × 1 = 4  |
-| iPhone       | 667 × 375    | 3 × 1 = 3 | 7 × 1 = 7  |
-| iPhone       | 390 × 844    | 2 × 1 = 2 | 4 × 2 = 8  |
-| iPhone       | 844 × 390    | 4 × 1 = 4 | 9 × 1 = 9  |
-| iPhone       | 393 × 852    | 2 × 1 = 2 | 4 × 2 = 8  |
-| iPhone       | 852 × 393    | 4 × 1 = 4 | 9 × 1 = 9  |
-| iPhone       | 440 × 956    | 2 × 1 = 2 | 4 × 3 = 12 |
-| iPhone       | 956 × 440    | 2 × 1 = 2 | 5 × 1 = 5  |
-| iPad mini 6  | 744 × 1133   | 4 × 2 = 8 | 8 × 4 = 32 |
-| iPad mini 6  | 1133 × 744   | 3 × 1 = 3 | 6 × 1 = 6  |
-| iPad         | 768 × 1024   | 4 × 1 = 4 | 8 × 3 = 24 |
-| iPad         | 1024 × 768   | 2 × 1 = 2 | 5 × 2 = 10 |
-| iPad gen 8   | 810 × 1080   | 4 × 2 = 8 | 8 × 4 = 32 |
-| iPad gen 8   | 1080 × 810   | 3 × 1 = 3 | 5 × 2 = 10 |
+| Device       | CSS viewport | Normal     | Compact    |
+| ------------ | ------------ | ---------- | ---------- |
+| Narrow phone | 320 × 568    | 1 × 1 = 1  | 3 × 1 = 3  |
+| iPhone       | 375 × 667    | 2 × 1 = 2  | 4 × 1 = 4  |
+| iPhone       | 667 × 375    | 4 × 1 = 4  | 7 × 1 = 7  |
+| iPhone       | 390 × 844    | 2 × 1 = 2  | 4 × 2 = 8  |
+| iPhone       | 844 × 390    | 5 × 1 = 5  | 9 × 1 = 9  |
+| iPhone       | 393 × 852    | 2 × 1 = 2  | 4 × 2 = 8  |
+| iPhone       | 852 × 393    | 5 × 1 = 5  | 9 × 1 = 9  |
+| iPhone       | 440 × 956    | 2 × 1 = 2  | 4 × 3 = 12 |
+| iPhone       | 956 × 440    | 2 × 1 = 2  | 5 × 1 = 5  |
+| iPad mini 6  | 744 × 1133   | 4 × 2 = 8  | 8 × 4 = 32 |
+| iPad mini 6  | 1133 × 744   | 3 × 1 = 3  | 6 × 1 = 6  |
+| iPad         | 768 × 1024   | 4 × 1 = 4  | 8 × 3 = 24 |
+| iPad         | 1024 × 768   | 2 × 1 = 2  | 5 × 2 = 10 |
+| iPad gen 9   | 810 × 1080   | 5 × 2 = 10 | 9 × 4 = 36 |
+| iPad gen 9   | 1080 × 810   | 3 × 1 = 3  | 5 × 2 = 10 |
 
 Mobile has a persistent one-tap Input/Output switch and preserves pane state. Headings retain the chooser or totals
 beside Open PDF/Download. Enlarged text can stack these groups. Labels stay complete. Long filenames truncate, with
@@ -275,16 +280,27 @@ footer controls retain their ordinary size and at least 44 px targets. Viewport-
 belong in `frame.css`. Card styles consume those shared values.
 
 The calibration table requires viewport width, viewport height, primary pointer, orientation where relevant, and pane
-layout. Upper bounds are exclusive. Entries do not overlap. Each entry changes only card dimensions and spacing. The
-shared frame budget and pagination placement stay independent of calibration.
+layout. Upper bounds are exclusive. Entries do not override another entry at the same density. Each entry changes only
+card dimensions and spacing. The shared frame budget and pagination placement stay independent of calibration.
 
-| Reference       | Width, CSS px | Height, CSS px | Input condition          | Pane layout | Card geometry                                                                                                                                             |
-| --------------- | ------------- | -------------- | ------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FHD Compact     | 1920–2140     | 960–1100       | Fine pointer with hover  | Two panes   | Compact: six fitted columns, 121 px high, 6.4 px vertical image padding; image height stays within 1 px of the shared reference                           |
-| QHD             | 2560–2880     | 1280–1800      | Fine pointer with hover  | Two panes   | Normal: 240–280 px high, 150 px wide, 16 px image padding, 14 px minimum gaps                                                                             |
-| UHD-            | 3840–4160     | 1900–2050      | Fine pointer with hover  | Two panes   | Normal: 156–160 px wide, 237–240 px high, 14.5 px image padding. Both densities: row gap is 90% of the distributed column gap, bounded by the minimum gap |
-| iPad8 portrait  | 810–820       | 1080–1180      | Coarse pointer, no hover | One pane    | Normal: 164 px wide, 16 px image padding and minimum gaps. Compact: 84 px wide, 9 px minimum gaps                                                         |
-| iPad8 landscape | 1080–1133     | 810–900        | Coarse pointer, no hover | Two panes   | Normal: 234 px high, 136 px wide, 11 px image padding, 12 px minimum gaps                                                                                 |
+| Reference                  | Width, CSS px | Height, CSS px | Input condition          | Pane layout | Card geometry                                                                                                                                                                 |
+| -------------------------- | ------------- | -------------- | ------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Desktop Compact            | 1280–2140     | 700–1200       | Fine pointer with hover  | Two panes   | Compact: six fitted columns, 121 px high, 6.4 px image padding; images stay within 1 px of the shared reference.                                                              |
+| Medium desktop             | 2200–2400     | 1100–1350      | Fine pointer with hover  | Two panes   | Normal: 134 × 236 px, 12 px padding. Compact: up to seven fitted columns, 123.625 px high, 7.5 px padding.                                                                    |
+| Large desktop              | 2960–3200     | 1500–1750      | Fine pointer with hover  | Two panes   | Normal: up to five fitted columns, 134–150 × 235 px, 11.5 px padding. Compact: up to nine fitted columns, 124.625 px high, 8 px padding.                                      |
+| QHD                        | 2560–2880     | 1280–1800      | Fine pointer with hover  | Two panes   | Normal: 240–280 px high, 150 px wide, 16 px image padding, 14 px minimum gaps                                                                                                 |
+| UHD-                       | 3840–4160     | 1900–2050      | Fine pointer with hover  | Two panes   | Normal: up to seven fitted columns, 134–140 × 237–240 px, 14.5 px padding. Both densities: row gap is 90% of the distributed column gap, bounded by the minimum gap.          |
+| UHD                        | 3840–4160     | 2050–2250      | Fine pointer with hover  | Two panes   | Normal: up to seven fitted columns, 134–140 × 233 px, 10.5 px padding. Compact: up to twelve fitted columns, 121.625 px high, 6.5 px padding.                                 |
+| Short touch landscape      | 667–1000      | 250–500        | Coarse pointer, no hover | One pane    | Normal: up to five fitted columns, 134–142 × 232 px, 10 px padding. Safe-area insets reduce the available column budget.                                                      |
+| Small touch portrait       | 740–750       | 1047–1090      | Coarse pointer, no hover | One pane    | Normal: 137 × 226 px, 9 px image padding. The 744 × 1047 Simulator Safari sample fits two rows with a 140 px portrait image.                                                  |
+| Medium touch portrait      | 805–835       | 980–1220       | Coarse pointer, no hover | One pane    | Normal: 142 × 231 px, 9.5 px image padding. The 810 × 994 Simulator Safari sample fits five columns with a 144 px portrait image. Compact keeps the shared geometry.          |
+| Small touch portrait, tall | 740–750       | 1100–1160      | Coarse pointer, no hover | One pane    | Compact: 77.7 px wide at ordinary text size. The 744 × 1133 Simulator Safari fullscreen sample fits four rows without reducing the image.                                     |
+| Air-width touch portrait   | 820–830       | 1080–1120      | Coarse pointer, no hover | One pane    | Compact: 77 × 117.625 px, 4.5 px padding. The 820 × 1094 Safari sample gains a fourth row.                                                                                    |
+| Medium touch landscape     | 1080–1133     | 700–900        | Coarse pointer, no hover | Two panes   | Normal: 234 px high, 136 px wide, 11 px image padding, 12 px minimum gaps. Compact: 74.57 × 116.5 px, 4 px padding. The 1080 × 778 web-app sample gains a second Compact row. |
+| Wide touch landscape       | 1180–1220     | 730–900        | Coarse pointer, no hover | Two panes   | Compact: 79 × 119 px, 5 px padding. The 1180 × 734 Safari sample gains a second row with an 80 px portrait image.                                                             |
+| Large touch portrait       | 1000–1050     | 1200–1400      | Coarse pointer, no hover | Two panes   | Normal: 142 × 231 px, 9.5 px padding. The 1024 × 1280 Safari candidate grows from 2 × 2 to 3 × 3 with the same 144 px image.                                                  |
+| Large touch portrait, tall | 1024–1050     | 1300–1400      | Coarse pointer, no hover | Two panes   | Compact: 81 × 119.625 px, 5.5 px padding, targeting a sixth row.                                                                                                              |
+| Large touch landscape      | 1360–1380     | 980–1060       | Coarse pointer, no hover | Two panes   | Normal: 152 × 236 px, 12 px padding. Compact: 83 × 120.625 px, 6 px padding, with a 0.9 row-gap factor.                                                                       |
 
 A mouse with a secondary touch input keeps the desktop calibration. A primary touch pointer uses touch conditions.
 Unmatched screens use the shared dimensions. Device names describe measured references, not hardware detection. New
@@ -402,12 +418,13 @@ target keeps its layout and does not flicker on nested drag events.
 
 ## Onboarding and product tour
 
-Help uses a native modal dialog with Keyboard and Mouse tabs and Start Tour beside them. The tab row wraps on narrow
-screens. Both panels determine its size. Switching topics does not resize the dialog. Each panel scrolls independently,
-while its heading and navigation stay visible. At normal text size, topics fit desktop viewports from 1440 × 900 without
-scrolling. Desktop width is capped at 64rem and touch layouts at 52rem. The dialog leaves at least one control gap at
-viewport edges. Padding uses one gap, with two gaps at the bottom for breathing room. Inactive panels retain measurement
-space without receiving focus.
+Help uses a native modal dialog with contextual topic tabs. App remains available. A workspace adds input-specific
+Keyboard, Mouse, or Touch topics. Start Tour appears beside them only with a workspace. The tab row wraps on narrow
+screens. Available panels determine its size. Switching topics does not resize the dialog. Each panel scrolls
+independently, while its heading and navigation stay visible. At normal text size, topics fit desktop viewports from
+1440 × 900 without scrolling. Desktop width is capped at 64rem and touch layouts at 52rem. The dialog leaves at least
+one control gap at viewport edges. Padding uses one gap, with two gaps at the bottom for breathing room. Inactive panels
+retain measurement space without receiving focus.
 
 Input and Output shortcut sections align their headings and tables. Selection Field has its own Enter row. Workspace
 keys and routing notes sit below. Narrow screens stack panes and notes. Keycaps use consistent neutral surfaces,
@@ -428,6 +445,16 @@ The first-addition hint brightens a visible Input thumbnail, then sends a fading
 copy begins moving before the fixed light fully fades. On mobile it moves toward the Output switch and stays within the
 viewport. The header reserves space for its Notice before animation geometry is measured. Reduced motion retains only
 the instruction. [SPEC.md](SPEC.md#help-and-onboarding) owns hint eligibility, dismissal, and tour state restoration.
+
+App installation guidance uses a separate native dialog and dismissal state. iPhone and iPad browser visits show it once
+before pending onboarding. Desktop users reach it through Help → App without an opening prompt. Continue in browser has
+primary emphasis. The optional native installation action has secondary emphasis. Standalone startup has no installation
+recommendation. The title and visible close icon share a vertical centerline. Narrow layouts and enlarged text retain
+scrolling within the dialog. Installation guidance does not change workspace geometry or Grid capacity.
+
+The landing product name retains a readable minimum independently of the purpose heading. Enlarged text scales the name
+and permits wrapping. The persistent drop hint appears only with fine-pointer and hover capability. Actual file dragging
+still reveals the drop overlay on other inputs. The file chooser remains the primary opening action.
 
 ## Feedback presentation
 
@@ -831,17 +858,18 @@ form. A popover describes content that appears above other content. See the
 
 #### Help, welcome, Settings, and Download
 
-| English term                      | Turkish equivalent                      | UI element                                                                               |
-| --------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Help button / Help dialog         | Yardım düğmesi / Yardım iletişim kutusu | The ? button and the dialog with contextual Keyboard/Mouse instructions.                 |
-| Shortcut list                     | Kısayol listesi                         | The help lists that pair keys with actions.                                              |
-| Keycap                            | Tuş gösterimi                           | A bordered key representation, such as Ctrl, Enter, or an arrow.                         |
-| Welcome dialog                    | Karşılama iletişim kutusu               | The initial three-step explanation with Take a tour and Skip.                            |
-| Settings button / Settings drawer | Ayarlar düğmesi / Ayarlar yan paneli    | The gear button and the panel that opens from the right.                                 |
-| Lens magnification control        | Büyüteç büyütme oranı denetimi          | The −/+ buttons and adjacent magnification value in Settings.                            |
-| About section                     | Uygulama bilgileri bölümü               | The product name, GitHub link, Version, and Build ID in Settings.                        |
-| Download dialog                   | İndirme iletişim kutusu                 | The download preparation, error, Cancel, and Retry interface.                            |
-| Confirmation dialog               | Onay iletişim kutusu                    | A native confirmation, such as the warning before a return to Home with unsaved choices. |
+| English term                      | Turkish equivalent                      | UI element                                                                                |
+| --------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Help button / Help dialog         | Yardım düğmesi / Yardım iletişim kutusu | The ? button and the dialog with App help and input-specific workspace instructions.      |
+| Shortcut list                     | Kısayol listesi                         | The help lists that pair keys with actions.                                               |
+| Keycap                            | Tuş gösterimi                           | A bordered key representation, such as Ctrl, Enter, or an arrow.                          |
+| Welcome dialog                    | Karşılama iletişim kutusu               | The initial three-step explanation with Take a tour and Skip.                             |
+| App installation help             | Uygulama kurulum yardımı                | Optional guidance for a separate app window, independent of the welcome and Product tour. |
+| Settings button / Settings drawer | Ayarlar düğmesi / Ayarlar yan paneli    | The gear button and the panel that opens from the right.                                  |
+| Lens magnification control        | Büyüteç büyütme oranı denetimi          | The −/+ buttons and adjacent magnification value in Settings.                             |
+| About section                     | Uygulama bilgileri bölümü               | The product name, GitHub link, Version, and Build ID in Settings.                         |
+| Download dialog                   | İndirme iletişim kutusu                 | The download preparation, error, Cancel, and Retry interface.                             |
+| Confirmation dialog               | Onay iletişim kutusu                    | A native confirmation, such as the warning before a return to Home with unsaved choices.  |
 
 Settings uses a drawer appearance and modal dialog behavior. The system owns native file pickers, color pickers, and
 confirmation dialogs. Their internal controls vary by browser and operating system.

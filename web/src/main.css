@@ -159,6 +159,12 @@
         grid-row: 1;
         justify-self: end;
       }
+      &:not(:has(.notice)) {
+        grid-template-columns: auto minmax(0, 1fr);
+        & .header-actions {
+          grid-column: 2;
+        }
+      }
       @container (width <= 48em) {
         grid-template-columns: auto minmax(0, 1fr);
         row-gap: 0;

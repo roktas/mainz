@@ -4,6 +4,8 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { chromium } from "playwright"
 import { createServer, fixture, captureLayout, checkGrips, tab, pagePosition } from "./browser.js"
+import { measure } from "./measure.js"
+import inventory from "./viewports.json" with { type: "json" }
 
 function checkDensityRatio(normal, compact, label) {
   const ratio = normal / compact
@@ -19,32 +21,7 @@ async function checkGrid(pane, label) {
     .evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
   await pane.locator('.thumbnail[aria-busy="false"] canvas').first().waitFor()
   await pane.page().evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
-  const geometry = await pane.locator(".grid-view").evaluate((element) => {
-    const rect = (selector) => element.querySelector(selector).getBoundingClientRect().toJSON()
-    const cards = [...element.querySelectorAll(".composition-card")].map((item) => item.getBoundingClientRect())
-    const columns = new Set(cards.map((item) => item.left)).size
-    const card = cards[0],
-      image = rect("canvas"),
-      area = rect(".thumbnail")
-    return {
-      matrix: [columns, new Set(cards.map((item) => item.top)).size, cards.length],
-      frame: element.getBoundingClientRect().toJSON(),
-      card: card.toJSON(),
-      image,
-      edges: [card.left - rect(".composition-grid").left, rect(".composition-grid").right - cards[columns - 1].right],
-      margins: [image.top - area.top, area.bottom - image.bottom, image.left - area.left, area.right - image.right],
-      gaps: [
-        columns > 1 ? cards[1].left - card.right : undefined,
-        cards.length > columns ? cards[columns].top - card.bottom : undefined,
-      ],
-      slider: rect(".batch-slider"),
-      caption: rect(".batch-caption"),
-      cardsBottom: Math.max(...cards.map((item) => item.bottom)),
-      status: document.querySelector(".footnote").getBoundingClientRect().top,
-      scroll: document.documentElement.scrollHeight - innerHeight,
-      horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
-    }
-  })
+  const geometry = await measure(pane)
   const [upper, lower, left, right] = geometry.margins
   assert.equal(geometry.horizontalOverflow, false, `${label}: The workspace fits horizontally`)
   assert.ok(
@@ -57,9 +34,9 @@ async function checkGrid(pane, label) {
   assert.ok(Math.abs(upper - lower) < 1 && Math.abs(left - right) < 1, `${label}: Images stay centered`)
   assert.ok(Math.min(...geometry.margins) >= 2, `${label}: Images keep clear margins`)
   assert.ok(left <= 2 * upper + 1, `${label}: Side margins stay balanced`)
-  const gaps = [geometry.edges[0], ...geometry.gaps.filter((gap) => gap !== undefined)]
+  const gaps = [geometry.edges[0], ...geometry.gaps.filter((gap) => gap !== null)]
   assert.ok(Math.abs(geometry.edges[0] - geometry.edges[1]) < 1, `${label}: Outside column spaces match`)
-  if (geometry.gaps[0] !== undefined)
+  if (geometry.gaps[0] !== null)
     assert.ok(
       geometry.edges.every((edge) => Math.abs(edge - geometry.gaps[0]) < 1),
       `${label}: Columns and outside edges share the available width evenly`,
@@ -94,23 +71,10 @@ test("Touch Grid uses complete rows within the available viewport", { timeout: 1
     )
     for (const colorScheme of ["light", "dark"]) {
       await page.emulateMedia({ colorScheme })
-      for (const [width, height, normal, compact] of [
-        [320, 568, [1, 1, 1], [3, 1, 3]],
-        [375, 667, [2, 1, 2], [4, 1, 4]],
-        [390, 844, [2, 1, 2], [4, 2, 8]],
-        [393, 852, [2, 1, 2], [4, 2, 8]],
-        [440, 956, [2, 1, 2], [4, 3, 12]],
-        [667, 375, [3, 1, 3], [7, 1, 7]],
-        [844, 390, [4, 1, 4], [9, 1, 9]],
-        [852, 393, [4, 1, 4], [9, 1, 9]],
-        [956, 440, [2, 1, 2], [5, 1, 5]],
-        [744, 1133, [4, 2, 8], [8, 4, 32]],
-        [1133, 744, [3, 1, 3], [6, 1, 6]],
-        [768, 1024, [4, 1, 4], [8, 3, 24]],
-        [1024, 768, [2, 1, 2], [5, 2, 10]],
-        [810, 1080, [4, 2, 8], [8, 4, 32]],
-        [1080, 810, [3, 1, 3], [5, 2, 10]],
-      ]) {
+      for (const {
+        viewport: [width, height],
+        matrices: { normal, compact },
+      } of inventory.cases.filter((item) => item.pointer === "coarse")) {
         await page.setViewportSize({ width, height })
         await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
         await page.waitForFunction(
@@ -156,7 +120,7 @@ test("Touch Grid uses complete rows within the available viewport", { timeout: 1
   }
 })
 
-test("Grid matrices match desktop viewports and bounded calibrations", { timeout: 150000 }, async () => {
+test("Grid matrices match desktop viewports and bounded calibrations", { timeout: 600000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser, page
   try {
@@ -169,23 +133,10 @@ test("Grid matrices match desktop viewports and bounded calibrations", { timeout
     )
     for (const colorScheme of ["light", "dark"]) {
       await page.emulateMedia({ colorScheme })
-      for (const [width, height, normal, compact] of [
-        [1080, 810, [2, 1, 2], [5, 2, 10]],
-        [1600, 900, [3, 1, 3], [6, 3, 18]],
-        [1919, 1080, [3, 2, 6], [6, 4, 24]],
-        [1920, 982, [3, 2, 6], [6, 4, 24]],
-        [1920, 1080, [3, 2, 6], [6, 4, 24]],
-        [2239, 1260, [3, 2, 6], [7, 5, 35]],
-        [2240, 1260, [3, 2, 6], [7, 5, 35]],
-        [2559, 1440, [4, 3, 12], [8, 7, 56]],
-        [2560, 1280, [4, 3, 12], [8, 6, 48]],
-        [2560, 1310, [4, 3, 12], [8, 6, 48]],
-        [2560, 1440, [4, 3, 12], [8, 7, 56]],
-        [2879, 1620, [4, 3, 12], [9, 8, 72]],
-        [2880, 1620, [4, 4, 16], [9, 8, 72]],
-        [3840, 1964, [6, 6, 36], [12, 11, 132]],
-        [3840, 2160, [6, 6, 36], [12, 12, 144]],
-      ]) {
+      for (const {
+        viewport: [width, height],
+        matrices: { normal, compact },
+      } of inventory.cases.filter((item) => item.pointer === "fine" && item.matrices)) {
         await page.setViewportSize({ width, height })
         await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
         await page.waitForFunction(
@@ -223,7 +174,7 @@ test("Grid matrices match desktop viewports and bounded calibrations", { timeout
   }
 })
 
-test("Calibrations stay isolated across viewport bounds and input capabilities", { timeout: 180000 }, async () => {
+test("Calibrations stay isolated across viewport bounds and input capabilities", { timeout: 300000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser
   try {
@@ -242,24 +193,42 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
         reducedMotion: "reduce",
       })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      // Complete columns and repeated gaps suffice here; the reference test checks full viewport capacity.
       await page.route("**/grid.pdf", (route) =>
-        route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
+        route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 60) }),
       )
       const cases =
         mode === "mouse"
           ? [
-              [1920, 959, "default"],
-              [1920, 960, "fhd"],
-              [1920, 982, "fhd"],
-              [1920, 1099, "fhd"],
-              [1920, 1100, "default"],
-              [1919, 982, "default"],
+              [1280, 699, "default"],
+              [1280, 700, "desktop-compact"],
+              [1920, 982, "desktop-compact"],
+              [1920, 1199, "desktop-compact"],
+              [1920, 1200, "default"],
+              [1279, 982, "default"],
               [2140, 982, "default"],
+              [2200, 1099, "default"],
+              [2200, 1100, "desktop-medium"],
+              [2240, 1260, "desktop-medium"],
+              [2399, 1349, "desktop-medium"],
+              [2199, 1260, "default"],
+              [2400, 1260, "default"],
+              [2240, 1350, "default"],
+              [2960, 1499, "default"],
+              [2960, 1500, "desktop-large"],
+              [3008, 1692, "desktop-large"],
+              [3199, 1749, "desktop-large"],
+              [2959, 1692, "default"],
+              [3200, 1692, "default"],
+              [3008, 1750, "default"],
               [3840, 1899, "default"],
               [3840, 1900, "uhd"],
               [3840, 1964, "uhd"],
               [3840, 2049, "uhd"],
-              [3840, 2050, "default"],
+              [3840, 2050, "uhd-tall"],
+              [3840, 2160, "uhd-tall"],
+              [4159, 2249, "uhd-tall"],
+              [3840, 2250, "default"],
               [3839, 1964, "default"],
               [4160, 1964, "default"],
               [2560, 1279, "default"],
@@ -270,32 +239,95 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
               [2880, 1310, "default"],
               [1080, 810, "default"],
               [810, 1080, "default"],
-              [1365, 865, "default"],
-              [1537, 1001, "default"],
+              [1024, 1334, "default"],
+              [1366, 1024, "desktop-compact"],
+              [1365, 865, "desktop-compact"],
+              [1537, 1001, "desktop-compact"],
             ]
           : mode === "hybrid"
             ? [
-                [1920, 982, "fhd"],
+                [1920, 982, "desktop-compact"],
                 [3840, 1964, "uhd"],
                 [2560, 1310, "qhd"],
                 [1080, 810, "default"],
                 [810, 1080, "default"],
-                [2222, 1111, "default"],
+                [1024, 1334, "default"],
+                [1366, 1024, "desktop-compact"],
+                [2222, 1111, "desktop-medium"],
               ]
             : [
                 [1920, 982, "default"],
                 [3840, 1964, "default"],
                 [2560, 1310, "default"],
+                [666, 375, "default"],
+                [667, 250, "phone"],
+                [812, 311, "phone"],
+                [896, 414, "phone"],
+                [900, 499, "phone"],
+                [999, 499, "default"],
+                [1000, 414, "default"],
+                [812, 249, "default"],
+                [812, 500, "default"],
                 [1080, 810, "landscape"],
                 [1079, 810, "default"],
-                [1080, 809, "default"],
+                [1080, 700, "landscape"],
+                [1080, 724, "landscape"],
+                [1080, 699, "default"],
                 [1133, 810, "default"],
                 [1080, 900, "default"],
+                [1180, 730, "wide"],
+                [1194, 802, "wide"],
+                [1219, 899, "wide"],
+                [1179, 730, "default"],
+                [1220, 730, "default"],
+                [1180, 729, "default"],
+                [1180, 900, "default"],
+                [1000, 1200, "large"],
+                [1024, 1280, "large"],
+                [1000, 1300, "large"],
+                [1023, 1334, "large"],
+                [1024, 1299, "large"],
+                [1024, 1300, "large-tall"],
+                [1049, 1399, "large-tall"],
+                [999, 1200, "default"],
+                [1050, 1200, "default"],
+                [1050, 1334, "default"],
+                [1024, 1199, "default"],
+                [1024, 1400, "default"],
+                [1360, 980, "large-landscape"],
+                [1366, 1024, "large-landscape"],
+                [1379, 1059, "large-landscape"],
+                [1359, 1024, "default"],
+                [1380, 1024, "default"],
+                [1366, 979, "default"],
+                [1366, 1060, "default"],
                 [810, 1080, "portrait"],
-                [809, 1080, "default"],
-                [820, 1080, "default"],
-                [810, 1079, "default"],
-                [810, 1180, "default"],
+                [805, 980, "portrait"],
+                [804, 980, "default"],
+                [805, 979, "default"],
+                [834, 1219, "portrait"],
+                [835, 1080, "default"],
+                [810, 1220, "default"],
+                [820, 1080, "medium-compact"],
+                [829, 1119, "medium-compact"],
+                [819, 1094, "portrait"],
+                [830, 1094, "portrait"],
+                [820, 1079, "portrait"],
+                [820, 1120, "portrait"],
+                [740, 1047, "small"],
+                [744, 1047, "small"],
+                [749, 1089, "small"],
+                [739, 1047, "default"],
+                [750, 1047, "default"],
+                [744, 1046, "default"],
+                [744, 1090, "default"],
+                [740, 1100, "tall"],
+                [744, 1133, "tall"],
+                [749, 1159, "tall"],
+                [739, 1100, "default"],
+                [750, 1100, "default"],
+                [744, 1099, "default"],
+                [744, 1160, "default"],
                 [527, 917, "default"],
                 [917, 527, "default"],
               ]
@@ -303,7 +335,7 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
         await page.setViewportSize({ width, height })
         await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+          () => document.querySelector(".composition-totals strong")?.textContent === "60 PDF pages",
         )
         if (mode === "hybrid")
           assert.deepEqual(
@@ -323,47 +355,116 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
           if (density === "Normal") {
             normalImage = geometry.image.height
             normalFrame = geometry.scroll <= 1 ? geometry.frame : undefined
-            if (calibration === "uhd") {
-              assert.ok(geometry.card.width >= 156 && geometry.card.width <= 160, `${label}: UHD width stays scoped`)
-              assert.ok(geometry.card.height >= 237 && geometry.card.height <= 240, `${label}: UHD height stays scoped`)
+            if (["uhd", "uhd-tall", "desktop-large", "phone"].includes(calibration)) {
+              const upper = calibration === "desktop-large" ? 150 : calibration === "phone" ? 142 : 140
+              assert.ok(
+                geometry.card.width >= 134 && geometry.card.width <= upper,
+                `${label}: Fitted width stays scoped`,
+              )
+              if (calibration === "uhd")
+                assert.ok(
+                  geometry.card.height >= 237 && geometry.card.height <= 240,
+                  `${label}: UHD height stays scoped`,
+                )
+              else
+                assert.equal(
+                  geometry.card.height,
+                  calibration === "uhd-tall" ? 233 : calibration === "phone" ? 232 : 235,
+                )
             } else {
               assert.equal(
                 geometry.card.width,
-                calibration === "portrait"
-                  ? 164
-                  : calibration === "landscape"
-                    ? 136
-                    : calibration === "qhd"
-                      ? 150
-                      : 148,
+                ["portrait", "large", "large-tall", "medium-compact"].includes(calibration)
+                  ? 142
+                  : calibration === "small"
+                    ? 137
+                    : calibration === "landscape"
+                      ? 136
+                      : calibration === "large-landscape"
+                        ? 152
+                        : calibration === "qhd"
+                          ? 150
+                          : calibration === "desktop-medium"
+                            ? 134
+                            : 148,
                 `${label}: The calibrated width stays scoped`,
               )
             }
             assert.ok(
               Math.abs(
                 geometry.margins[0] -
-                  (["qhd", "portrait"].includes(calibration)
+                  (calibration === "qhd"
                     ? 16
-                    : calibration === "landscape"
-                      ? 11
-                      : calibration === "uhd"
-                        ? 14.5
-                        : 14),
+                    : ["portrait", "large", "large-tall", "medium-compact"].includes(calibration)
+                      ? 9.5
+                      : calibration === "small"
+                        ? 9
+                        : calibration === "landscape"
+                          ? 11
+                          : calibration === "large-landscape"
+                            ? 12
+                            : calibration === "uhd"
+                              ? 14.5
+                              : calibration === "uhd-tall"
+                                ? 10.5
+                                : calibration === "desktop-large"
+                                  ? 11.5
+                                  : calibration === "desktop-medium"
+                                    ? 12
+                                    : calibration === "phone"
+                                      ? 10
+                                      : 14),
               ) < 1,
               `${label}: Image padding stays scoped`,
             )
             if (calibration === "qhd") assert.ok(geometry.card.height >= 240 && geometry.card.height <= 280)
-            else if (calibration !== "uhd") assert.equal(geometry.card.height, calibration === "landscape" ? 234 : 240)
+            else if (!["uhd", "uhd-tall", "desktop-large", "phone"].includes(calibration))
+              assert.equal(
+                geometry.card.height,
+                ["portrait", "large", "large-tall", "medium-compact"].includes(calibration)
+                  ? 231
+                  : calibration === "small"
+                    ? 226
+                    : calibration === "landscape"
+                      ? 234
+                      : calibration === "large-landscape"
+                        ? 236
+                        : calibration === "desktop-medium"
+                          ? 236
+                          : 240,
+              )
           } else {
             checkDensityRatio(normalImage, geometry.image.height, label)
-            if (calibration === "fhd") {
-              assert.ok(geometry.card.width >= 80 && geometry.card.width < 85, `${label}: FHD cards share six columns`)
-              assert.equal(geometry.card.height, 121, `${label}: FHD card height stays scoped`)
-              assert.ok(Math.abs(geometry.image.height - 80.6) < 1, `${label}: FHD keeps the shared thumbnail size`)
+            if (["desktop-compact", "desktop-medium", "desktop-large", "uhd-tall"].includes(calibration)) {
+              const [columns, cardHeight] =
+                calibration === "desktop-compact"
+                  ? [6, 121]
+                  : calibration === "desktop-medium"
+                    ? [7, 123.625]
+                    : calibration === "desktop-large"
+                      ? [9, 124.625]
+                      : [12, 121.625]
+              assert.ok(
+                geometry.matrix[0] <= columns && geometry.card.width >= 74,
+                `${label}: Fitted columns respect the readable width floor`,
+              )
+              assert.equal(geometry.card.height, cardHeight, `${label}: Fitted card height stays scoped`)
+              assert.ok(
+                Math.abs(geometry.image.height - 80.625) < 1,
+                `${label}: Compact keeps the shared thumbnail size`,
+              )
+            } else if (calibration === "landscape" || calibration === "wide") {
+              assert.ok(Math.abs(geometry.card.width - (calibration === "landscape" ? 74.57 : 79)) < 0.02)
+              assert.equal(geometry.card.height, calibration === "landscape" ? 116.5 : 119)
+            } else if (calibration === "medium-compact") {
+              assert.equal(geometry.card.width, 77)
+              assert.equal(geometry.card.height, 117.625)
+            } else if (calibration === "large-tall" || calibration === "large-landscape") {
+              assert.equal(geometry.card.width, calibration === "large-tall" ? 81 : 83)
+              assert.equal(geometry.card.height, calibration === "large-tall" ? 119.625 : 120.625)
             } else {
-              assert.equal(
-                geometry.card.width,
-                calibration === "portrait" ? 84 : 74,
+              assert.ok(
+                Math.abs(geometry.card.width - (calibration === "tall" ? 77.7 : 74)) < 0.02,
                 `${label}: Compact width stays scoped`,
               )
               assert.equal(geometry.card.height, 125, `${label}: Compact height stays scoped`)
@@ -388,7 +489,7 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
         await page.setViewportSize({ width: 2560, height: 1310 })
         await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+          () => document.querySelector(".composition-totals strong")?.textContent === "60 PDF pages",
         )
         await page.locator("main").evaluate((element) => (element.style.inlineSize = "1462px"))
         const pane = page.locator(".selection-panel")

@@ -1,4 +1,4 @@
-<!-- Provides shortcut help, onboarding, the product tour, and the addition hint. -->
+<!-- Provides contextual help and coordinates separate installation, onboarding, tour, and addition guidance. -->
 
 <script module lang="ts">
   export type TourStep =
@@ -19,6 +19,7 @@
   import { tick, untrack } from "svelte"
   import { MediaQuery } from "svelte/reactivity"
   import Icon from "./Icon.svelte"
+  import Install from "./Install.svelte"
   import { blocked, fields } from "./keyboard.ts"
 
   let {
@@ -30,6 +31,7 @@
     onboarding = true,
     change,
     hint,
+    dismissed,
   }: {
     hasInput: boolean
     hasOutput: boolean
@@ -39,13 +41,26 @@
     onboarding?: boolean
     change: (step?: TourStep) => void
     hint: (show: boolean) => void
+    dismissed: () => void
   } = $props()
   const id = $props.id()
   const motion = new MediaQuery("(prefers-reduced-motion: no-preference)")
+  const fine = new MediaQuery("(any-pointer: fine)")
+  const coarse = new MediaQuery("(any-pointer: coarse)")
+  type Topic = "keyboard" | "mouse" | "touch" | "app"
+  const workspace = $derived(hasInput || hasOutput)
+  const topics = $derived<Topic[]>([
+    ...(workspace && fine.current ? (["keyboard", "mouse"] as const) : []),
+    ...(workspace && coarse.current ? (["touch"] as const) : []),
+    "app",
+  ])
+  const labels = { keyboard: "Keyboard", mouse: "Mouse", touch: "Touch", app: "App" }
+  let installationPending = $state(false)
+  const guidance = $derived(onboarding && !installationPending)
   let welcome: HTMLDialogElement
   let help: HTMLDialogElement
   let modes = $state<ReturnType<typeof views>>({ input: "grid", output: "grid" })
-  let topic = $state<"keyboard" | "mouse">("keyboard")
+  let topic = $state<Topic>("app")
   let tour: HTMLDivElement
   let helpButton: HTMLButtonElement
   let flight: HTMLCanvasElement
@@ -182,6 +197,10 @@
       /* Storage can be unavailable. */
     }
   }
+  function closeWelcome() {
+    remember()
+    welcome.close()
+  }
   function stopFlight() {
     animation?.cancel()
     flight.hidePopover()
@@ -197,7 +216,7 @@
   }
   async function suggest() {
     await tick()
-    if (hinted || !onboarding || !hasInput || hasOutput || welcome.open || help.open || tour.matches(":popover-open"))
+    if (hinted || !guidance || !hasInput || hasOutput || welcome.open || help.open || tour.matches(":popover-open"))
       return
     const page = document.querySelector<HTMLCanvasElement>('[data-tour-target="first-page"] .thumbnail canvas')
     if (!page) return
@@ -208,7 +227,7 @@
         !page ||
         !visible ||
         hinted ||
-        !onboarding ||
+        !guidance ||
         hasOutput ||
         welcome.open ||
         help.open ||
@@ -220,7 +239,7 @@
       stopHint()
       hint(true)
       await tick()
-      if (!page.isConnected || hasOutput || !onboarding || help.open || tour.matches(":popover-open")) return
+      if (!page.isConnected || hasOutput || !guidance || help.open || tour.matches(":popover-open")) return
       if (!motion.current) return
       const destination = [
         ...document.querySelectorAll<HTMLElement>(".mobile-workspace-tabs button:last-child, .composition-empty"),
@@ -325,24 +344,29 @@
   async function start() {
     index = 0
     stopHint()
-    welcome.close()
+    closeWelcome()
     help.close()
     await tick()
     tour.showPopover()
   }
   function showHelp() {
     stopHint()
+    if (tour.matches(":popover-open")) close()
     modes = views()
-    topic = "keyboard"
+    topic = topics[0]!
     help.showModal()
-    document.getElementById(`${id}-help-keyboard`)?.focus()
+    document.getElementById(`${id}-help-${topic}`)?.focus()
   }
   function topicKey(event: KeyboardEvent) {
     if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
     event.preventDefault()
     topic =
-      event.key === "Home" ? "keyboard" : event.key === "End" ? "mouse" : topic === "keyboard" ? "mouse" : "keyboard"
+      event.key === "Home"
+        ? topics[0]!
+        : event.key === "End"
+          ? topics.at(-1)!
+          : topics[(topics.indexOf(topic) + (event.key === "ArrowRight" ? 1 : -1) + topics.length) % topics.length]!
     document.getElementById(`${id}-help-${topic}`)?.focus()
   }
   function advance(delta: number) {
@@ -357,8 +381,11 @@
     destination?.focus()
   }
   $effect(() => {
+    if (!topics.includes(topic)) topic = topics[0]!
+  })
+  $effect(() => {
     if (hasOutput) hinted = true
-    if (hasOutput || !onboarding) {
+    if (hasOutput || !guidance) {
       stopHint()
       untrack(() => hint(false))
     }
@@ -379,7 +406,7 @@
     return () => observer.disconnect()
   })
   $effect(() => {
-    if (!onboarding || !hasInput || welcomed) return
+    if (!guidance || !hasInput || welcomed) return
     welcomed = true
     try {
       if (localStorage.getItem("mainz:onboarding") === "19") {
@@ -515,179 +542,219 @@
   </dl>
 {/snippet}
 
-<dialog bind:this={help} class="help-dialog" aria-label="Help" closedby="any">
-  <div class="dialog-heading">
-    <h2>Help</h2>
-    <button class="icon-button" aria-label="Close help" onclick={() => help.close()}><Icon name="close" /></button>
-  </div>
-  <div class="help-navigation">
-    <div class="tabs" role="tablist" aria-label="Help topics">
-      {#each ["keyboard", "mouse"] as const as name (name)}
-        <button
-          id={`${id}-help-${name}`}
-          role="tab"
-          aria-selected={topic === name}
-          aria-controls={`${id}-help-${name}-panel`}
-          tabindex={topic === name ? 0 : -1}
-          onkeydown={topicKey}
-          onclick={() => (topic = name)}>{name === "keyboard" ? "Keyboard" : "Mouse"}</button
-        >
-      {/each}
-    </div>
-    <button class="primary" onclick={start}>Start Tour</button>
-  </div>
-  <div class="help-panels">
-    <div
-      id={`${id}-help-keyboard-panel`}
-      role="tabpanel"
-      aria-labelledby={`${id}-help-keyboard`}
-      aria-hidden={topic !== "keyboard"}
-      inert={topic !== "keyboard"}
-      tabindex="0"
-    >
-      <div class="help-body">
-        <p>
-          V, Ctrl+A, Esc, and starting Grid navigation use the mouse side. PgUp/PgDn also change its Grid group. Page
-          keys use its Page, or the other open Page.
-        </p>
-        <div class="shortcut-views">
-          {#if hasInput}<section aria-label={`Input ${modes.input}`}>
-              <h3>Input {modes.input === "grid" ? "Grid" : modes.input === "page" ? "Page" : "Style"}</h3>
-              <div class="help-body">
-                {#if modes.input === "style"}
-                  <p>
-                    Use <kbd class="named">Tab</kbd> and <kbd class="named">Shift</kbd> + <kbd class="named">Tab</kbd> to
-                    move between Style controls.
-                  </p>
-                {:else}
-                  <h4>View</h4>
-                  {@render shortcutList(modes.input, "Input")}
-                  <h4>Selection Field</h4>
+<Install bind:pending={installationPending} recommend={onboarding} {dismissed}>
+  {#snippet children(content)}
+    <dialog bind:this={help} class="help-dialog" aria-label="Help" closedby="any">
+      <div class="dialog-heading">
+        <h2>Help</h2>
+        <button class="icon-button" aria-label="Close help" onclick={() => help.close()}><Icon name="close" /></button>
+      </div>
+      <div class="help-navigation">
+        <div class="tabs" role="tablist" aria-label="Help topics">
+          {#each topics as name (name)}
+            <button
+              id={`${id}-help-${name}`}
+              role="tab"
+              aria-selected={topic === name}
+              aria-controls={`${id}-help-${name}-panel`}
+              tabindex={topic === name ? 0 : -1}
+              onkeydown={topicKey}
+              onclick={() => (topic = name)}>{labels[name]}</button
+            >
+          {/each}
+        </div>
+        {#if workspace}<button class="primary" onclick={start}>Start Tour</button>{/if}
+      </div>
+      <div class="help-panels">
+        {#if topics.includes("keyboard")}<div
+            id={`${id}-help-keyboard-panel`}
+            role="tabpanel"
+            aria-labelledby={`${id}-help-keyboard`}
+            aria-hidden={topic !== "keyboard"}
+            inert={topic !== "keyboard"}
+            tabindex="0"
+          >
+            <div class="help-body">
+              <p>
+                V, Ctrl+A, Esc, and starting Grid navigation use the mouse side. PgUp/PgDn also change its Grid group.
+                Page keys use its Page, or the other open Page.
+              </p>
+              <div class="shortcut-views">
+                {#if hasInput}<section aria-label={`Input ${modes.input}`}>
+                    <h3>Input {modes.input === "grid" ? "Grid" : modes.input === "page" ? "Page" : "Style"}</h3>
+                    <div class="help-body">
+                      {#if modes.input === "style"}
+                        <p>
+                          Use <kbd class="named">Tab</kbd> and <kbd class="named">Shift</kbd> +
+                          <kbd class="named">Tab</kbd> to move between Style controls.
+                        </p>
+                      {:else}
+                        <h4>View</h4>
+                        {@render shortcutList(modes.input, "Input")}
+                        <h4>Selection Field</h4>
+                        <dl class="shortcut-list">
+                          <div>
+                            <dt><kbd class="named">Enter</kbd></dt>
+                            <dd>Add prepared pages to Output</dd>
+                          </div>
+                        </dl>
+                      {/if}
+                    </div>
+                  </section>{/if}
+                <section aria-label={`Output ${modes.output}`}>
+                  <h3>Output {modes.output === "grid" ? "Grid" : "Page"}</h3>
+                  <div class="help-body">
+                    {#if hasOutput}
+                      <h4>View</h4>
+                      {@render shortcutList(modes.output, "Output")}
+                      <h4>Selection Field</h4>
+                      <dl class="shortcut-list">
+                        <div>
+                          <dt><kbd class="named">Enter</kbd></dt>
+                          <dd>Remove selected Output pages</dd>
+                        </div>
+                      </dl>
+                    {:else}
+                      <p>
+                        Add Input pages to use Output page actions.
+                        {#if modes.output === "page"}Press <kbd>V</kbd> to return to Grid.{/if}
+                      </p>
+                    {/if}
+                  </div>
+                </section>
+              </div>
+              <section aria-label="Workspace shortcuts">
+                <h3>Workspace</h3>
+                <div class="help-body shortcut-views">
                   <dl class="shortcut-list">
                     <div>
-                      <dt><kbd class="named">Enter</kbd></dt>
-                      <dd>Add prepared pages to Output</dd>
+                      <dt><kbd>?</kbd></dt>
+                      <dd>Help</dd>
+                    </div>
+                    <div>
+                      <dt><kbd class="named">Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>A</kbd></dt>
+                      <dd>Select all pages in target pane</dd>
+                    </div>
+                    <div>
+                      <dt><kbd class="named">Esc</kbd></dt>
+                      <dd>Close, cancel, or clear target selection</dd>
+                    </div>
+                    <div>
+                      <dt><kbd class="named">Del</kbd></dt>
+                      <dd>Remove Output selection</dd>
+                    </div>
+                    <div>
+                      <dt><kbd class="named">Ctrl</kbd> + <kbd>←</kbd> / <kbd>→</kbd></dt>
+                      <dd>Move Output selection</dd>
                     </div>
                   </dl>
-                {/if}
-              </div>
-            </section>{/if}
-          <section aria-label={`Output ${modes.output}`}>
-            <h3>Output {modes.output === "grid" ? "Grid" : "Page"}</h3>
-            <div class="help-body">
-              {#if hasOutput}
-                <h4>View</h4>
-                {@render shortcutList(modes.output, "Output")}
-                <h4>Selection Field</h4>
-                <dl class="shortcut-list">
-                  <div>
-                    <dt><kbd class="named">Enter</kbd></dt>
-                    <dd>Remove selected Output pages</dd>
-                  </div>
-                </dl>
-              {:else}
-                <p>
-                  Add Input pages to use Output page actions.
-                  {#if modes.output === "page"}Press <kbd>V</kbd> to return to Grid.{/if}
-                </p>
-              {/if}
+                  <p>Fields and open menus keep their keys. Selection actions use the bar.</p>
+                  {#if modes.input === "grid" || modes.output === "grid"}
+                    <p>
+                      Without a selection, → starts at the first page of the current group. ← starts at the last.
+                      Reversing Shift+←/→ restores the step. Navigation stops at each end.
+                    </p>
+                  {/if}
+                </div>
+              </section>
             </div>
-          </section>
-        </div>
-        <section aria-label="Workspace shortcuts">
-          <h3>Workspace</h3>
-          <div class="help-body shortcut-views">
-            <dl class="shortcut-list">
-              <div>
-                <dt><kbd>?</kbd></dt>
-                <dd>Help</dd>
-              </div>
-              <div>
-                <dt><kbd class="named">Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>A</kbd></dt>
-                <dd>Select all pages in target pane</dd>
-              </div>
-              <div>
-                <dt><kbd class="named">Esc</kbd></dt>
-                <dd>Close, cancel, or clear target selection</dd>
-              </div>
-              <div>
-                <dt><kbd class="named">Del</kbd></dt>
-                <dd>Remove Output selection</dd>
-              </div>
-              <div>
-                <dt><kbd class="named">Ctrl</kbd> + <kbd>←</kbd> / <kbd>→</kbd></dt>
-                <dd>Move Output selection</dd>
-              </div>
-            </dl>
-            <p>Fields and open menus keep their keys. Selection actions use the bar.</p>
-            {#if modes.input === "grid" || modes.output === "grid"}
+          </div>{/if}
+        {#if topics.includes("mouse")}<div
+            id={`${id}-help-mouse-panel`}
+            role="tabpanel"
+            aria-labelledby={`${id}-help-mouse`}
+            aria-hidden={topic !== "mouse"}
+            inert={topic !== "mouse"}
+            tabindex="0"
+          >
+            <div class="help-body">
+              <p>Grid and Input Page grips share Selection with the page fields.</p>
+              <dl class="shortcut-list">
+                <div>
+                  <dt>Click a Page counter</dt>
+                  <dd>Enter a page number</dd>
+                </div>
+                <div>
+                  <dt>Click a Grid image</dt>
+                  <dd>Select or unselect a page and continue with the keyboard</dd>
+                </div>
+                <div>
+                  <dt><kbd class="named">Ctrl</kbd> / <kbd>⌘</kbd> + click</dt>
+                  <dd>Switch the current page between Grid and Page</dd>
+                </div>
+                <div>
+                  <dt>Double-click a Page image</dt>
+                  <dd>
+                    Add one current Input page or duplicate the current Output page. Selection stays unchanged, so the
+                    action can repeat. Double-clicking an Input Grid image adds the preparation, or one current page.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Click a grip</dt>
+                  <dd>Select or unselect a page and continue with the keyboard</dd>
+                </div>
+                <div>
+                  <dt><kbd class="named">Shift</kbd> + click a Grid image or grip</dt>
+                  <dd>Add or remove a selection range</dd>
+                </div>
+                <div>
+                  <dt>Drag a grip or Grid image</dt>
+                  <dd>
+                    Input adds pages to Output. Output Grid moves pages. Starting a drag preserves selection and
+                    keyboard focus.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Drag a Page image</dt>
+                  <dd>Pan the image when zoom is above 100%</dd>
+                </div>
+                <div>
+                  <dt>Mouse wheel</dt>
+                  <dd>Scroll the workspace; above 100% zoom, scroll inside the Page image</dd>
+                </div>
+              </dl>
+            </div>
+          </div>{/if}
+        {#if topics.includes("touch")}<div
+            id={`${id}-help-touch-panel`}
+            role="tabpanel"
+            aria-labelledby={`${id}-help-touch`}
+            aria-hidden={topic !== "touch"}
+            inert={topic !== "touch"}
+            tabindex="0"
+          >
+            <div class="help-body">
+              <p>Tap a page image or grip to select it. The page field shows the same selection.</p>
+              {#if hasInput}<p>Use the selection bar to add Input pages to Output.</p>{/if}
+              {#if hasOutput}<p>Use the selection bar to move, copy, and remove Output pages.</p>{/if}
               <p>
-                Without a selection, → starts at the first page of the current group. ← starts at the last. Reversing
-                Shift+←/→ restores the step. Navigation stops at each end.
+                Double-tap a Grid image to open Page. In Page, double-tap the image to add or duplicate the current
+                page. Normal and Compact change thumbnail size.
               </p>
-            {/if}
+              <p>
+                Drag pages from their grips. In Page, swipe to pan an enlarged image, pinch to zoom, or hold to inspect
+                with the lens.
+              </p>
+            </div>
+          </div>{/if}
+        <div
+          id={`${id}-help-app-panel`}
+          role="tabpanel"
+          aria-labelledby={`${id}-help-app`}
+          aria-hidden={topic !== "app"}
+          inert={topic !== "app"}
+          tabindex="0"
+        >
+          <div class="help-body">
+            <h3>App installation</h3>
+            {@render content(false)}
+            {#if !workspace}<p>Choose a PDF to see help for page selection and editing.</p>{/if}
           </div>
-        </section>
+        </div>
       </div>
-    </div>
-    <div
-      id={`${id}-help-mouse-panel`}
-      role="tabpanel"
-      aria-labelledby={`${id}-help-mouse`}
-      aria-hidden={topic !== "mouse"}
-      inert={topic !== "mouse"}
-      tabindex="0"
-    >
-      <div class="help-body">
-        <p>Grid and Input Page grips share Selection with the page fields.</p>
-        <dl class="shortcut-list">
-          <div>
-            <dt>Click a Page counter</dt>
-            <dd>Enter a page number</dd>
-          </div>
-          <div>
-            <dt>Click a Grid image</dt>
-            <dd>Select or unselect a page and continue with the keyboard</dd>
-          </div>
-          <div>
-            <dt><kbd class="named">Ctrl</kbd> / <kbd>⌘</kbd> + click</dt>
-            <dd>Switch the current page between Grid and Page</dd>
-          </div>
-          <div>
-            <dt>Double-click a Page image</dt>
-            <dd>
-              Add one current Input page or duplicate the current Output page. Selection stays unchanged, so the action
-              can repeat. Double-clicking an Input Grid image adds the preparation, or one current page.
-            </dd>
-          </div>
-          <div>
-            <dt>Click a grip</dt>
-            <dd>Select or unselect a page and continue with the keyboard</dd>
-          </div>
-          <div>
-            <dt><kbd class="named">Shift</kbd> + click a Grid image or grip</dt>
-            <dd>Add or remove a selection range</dd>
-          </div>
-          <div>
-            <dt>Drag a grip or Grid image</dt>
-            <dd>
-              Input adds pages to Output. Output Grid moves pages. Starting a drag preserves selection and keyboard
-              focus.
-            </dd>
-          </div>
-          <div>
-            <dt>Drag a Page image</dt>
-            <dd>Pan the image when zoom is above 100%</dd>
-          </div>
-          <div>
-            <dt>Mouse wheel</dt>
-            <dd>Scroll the workspace; above 100% zoom, scroll inside the Page image</dd>
-          </div>
-        </dl>
-      </div>
-    </div>
-  </div>
-</dialog>
+    </dialog>
+  {/snippet}
+</Install>
 
 <dialog
   bind:this={welcome}
@@ -700,8 +767,7 @@
 >
   <div class="dialog-heading">
     <h2 id={`${id}-welcome-title`}>Welcome to PDF Composer</h2>
-    <button class="icon-button" aria-label="Close welcome" onclick={() => welcome.close()}><Icon name="close" /></button
-    >
+    <button class="icon-button" aria-label="Close welcome" onclick={closeWelcome}><Icon name="close" /></button>
   </div>
   <p>Make a PDF with the pages and styles you need.</p>
   <ol class="welcome-steps">
@@ -719,7 +785,7 @@
   </ol>
   <div class="help-actions">
     <button onclick={start}>Take a tour</button>
-    <button class="primary" onclick={() => welcome.close()}>Skip</button>
+    <button class="primary" onclick={closeWelcome}>Skip</button>
   </div>
 </dialog>
 

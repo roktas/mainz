@@ -150,8 +150,29 @@ export default defineConfig({
     svelte(),
     {
       name: "grid-fixture",
+      transformIndexHtml(html, context) {
+        return context.server &&
+          new URL(context.originalUrl ?? context.path, "http://localhost").searchParams.has("geometry")
+          ? html.replace('manifest.webmanifest"', 'manifest.webmanifest?geometry"')
+          : html
+      },
       configureServer(server) {
         server.middlewares.use((request, response, next) => {
+          if (request.url === `${server.config.base}manifest.webmanifest?geometry`) {
+            const manifest = JSON.parse(readFileSync(join(assets, "manifest.webmanifest"), "utf8"))
+            response.setHeader("Content-Type", "application/manifest+json")
+            response.setHeader("Cache-Control", "no-store")
+            response.end(
+              JSON.stringify({
+                ...manifest,
+                id: "./?geometry",
+                name: "Mainz geometry",
+                short_name: "Mainz geometry",
+                start_url: "./?demo=grid&geometry",
+              }),
+            )
+            return
+          }
           if (request.url?.split("?")[0] !== `${server.config.base}grid.pdf`) return next()
           const file = resolve("../.local/tmp/web/grid/sample.pdf")
           if (!existsSync(file)) {

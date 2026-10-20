@@ -35,7 +35,9 @@
   import type { TourStep } from "./Help.svelte"
   import type { Sequence } from "./pages.ts"
 
-  const demo = new URLSearchParams(location.search).get("demo")
+  const query = new URLSearchParams(location.search)
+  const probe = import.meta.env.DEV && query.has("geometry")
+  const demo = query.get("demo") ?? (probe ? "grid" : null)
   let sources = $state.raw<Source[]>([])
   let parts = $state.raw<Part[]>([])
   let sequences = $state.raw<Record<string, Sequence>>({})
@@ -765,21 +767,22 @@
       </div>{/if}
     <div class="header-actions">
       <span class="header-note" title="Processed on your device. No uploads."><Icon name="lock" />On your device</span
-      >{#if active || parts.length}<Help
-          hasInput={!!active}
-          hasOutput={!!output.pages.length}
-          {styleable}
-          {hasProfiles}
-          views={() => composer.views()}
-          onboarding={(demo === null || demo === "empty") && !loading}
-          change={(step) => {
-            tour = step
-          }}
-          hint={(show) => {
-            if (show) notify(firstAction)
-            else if (notice === firstAction) notify("")
-          }}
-        />{/if}{#if active}<Settings bind:magnification />{/if}<Theme />
+      ><Help
+        hasInput={!!active}
+        hasOutput={!!output.pages.length}
+        {styleable}
+        {hasProfiles}
+        views={() => composer?.views() ?? { input: "grid", output: "grid" }}
+        onboarding={(demo === null || demo === "empty") && !loading}
+        dismissed={() => notify("If you change your mind, open Help → App for installation help.")}
+        change={(step) => {
+          tour = step
+        }}
+        hint={(show) => {
+          if (show) notify(firstAction)
+          else if (notice === firstAction) notify("")
+        }}
+      />{#if active}<Settings bind:magnification />{/if}<Theme />
     </div>
   </div>
 </header>
@@ -868,3 +871,7 @@
       >{/if}
   </div>
 </dialog>
+
+{#if probe && demo === "grid"}
+  {#await import("./Geometry.svelte") then module}<module.default />{/await}
+{/if}

@@ -4,6 +4,10 @@
 
 ### Added
 
+- Optional app installation guidance, with dismissible iPhone/iPad startup help and a permanent Help topic.
+- Help on the landing page and touch screens, with topics for the current input and workspace.
+- Development-only Grid geometry exports and a shared viewport inventory and calibration search.
+
 - Dedicated iOS Home Screen and PWA icons with fixed colors and tested raster sizes.
 - Prepared PDFs can expose editable Style properties without a Show/Hide control.
 - Product tour steps explain Normal/Compact Grid density and Output selection actions.
@@ -15,6 +19,13 @@
 - Page removal fades and shrinks outgoing pages. Moves animate cards into their new positions.
 
 ### Changed
+
+- The landing product name keeps a readable minimum on narrow screens. Touch-only landing pages omit the persistent
+  file-drag instruction.
+- Grid calibrations fit more complete cards in measured iPhone and iPad layouts and in Mac and external-display
+  references, while preserving readable previews, usable controls, and shared Input/Output frame dimensions.
+- Header actions use the available space after the logo when no Notice is present.
+- The workspace status bar scrolls with very short screens so it does not cover enlarged card targets.
 
 - Offline installation verifies up to four assets concurrently and completes pending writes before rolling back a failed
   installation.

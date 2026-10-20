@@ -11,6 +11,7 @@ import { checkGeometry, checkStatus, createServer, trackWorkers, fixture, tab, p
 
 async function checkMobile(browser, url) {
   const sample = await readFile("test/fixtures/demo.pdf")
+  await mkdir("../.local/tmp/web/landing", { recursive: true })
   for (const [width, text, colorScheme] of [
     [320, "100%", "light"],
     [375, "100%", "dark"],
@@ -29,11 +30,21 @@ async function checkMobile(browser, url) {
     })
     try {
       const page = await context.newPage()
-      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.addInitScript(() => {
+        localStorage.setItem("mainz:onboarding", "19")
+        localStorage.setItem("mainz:installation", "seen")
+      })
       await page.goto(url)
       await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
       assert.equal(await page.evaluate(() => innerWidth), width)
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+      assert.equal(await page.locator(".drop-note").isVisible(), false)
+      assert.equal(await page.getByRole("button", { name: "Help", exact: true }).isVisible(), true)
+      assert.ok(
+        (await page.locator(".brand-title").evaluate((element) => parseFloat(getComputedStyle(element).fontSize))) >=
+          (text === "100%" ? 24 : 48),
+      )
+      await page.screenshot({ path: `../.local/tmp/web/landing/${width}-${text}-${colorScheme}.png` })
       const picker = page.locator(".drop-zone .file-picker[aria-hidden=false]")
       const resting = await picker.evaluate((element) => getComputedStyle(element).backgroundColor)
       await picker.hover()
@@ -292,8 +303,11 @@ test("Landing compact headings fit phones and tablets and logos follow theme cha
             assert.ok(Math.abs(layout.inset - 25) < 1, `${width}px: more space precedes the logo`)
           }
         }
+        assert.ok(
+          layout.product >= (text === "100%" ? 24 : 48),
+          `${width}px: the product name retains a readable minimum independently of the purpose heading`,
+        )
         if (width <= 390) {
-          assert.ok(Math.abs(layout.product / layout.heading - 0.75) < 0.01)
           if (text === "100%") assert.ok(layout.heading <= 26, `${width}px: phone headings use smaller type`)
         }
       }
@@ -1079,12 +1093,12 @@ test(
           await output.getByRole("button", { name: `${mode} Output grid`, exact: true }).click()
         else await tab(output, mode)
         await ready()
+        // Density changes retain the previous raster until the next resize paint.
+        await page.waitForFunction(({ canvas, pixels }) => canvas.toDataURL() === pixels, {
+          canvas: await output.locator(".page-image canvas, .pdf-viewport canvas").first().elementHandle(),
+          pixels: snapshots.get(mode === "Grid" ? "Compact" : mode),
+        })
         assert.equal(await page.evaluate(() => window.pdfRenderCount), 0, `${mode}: completed pages need no PDF redraw`)
-        assert.equal(
-          await snapshot(),
-          snapshots.get(mode === "Grid" ? "Compact" : mode),
-          `${mode}: restored pixels match`,
-        )
       }
       const input = page.locator(".selection-panel")
       await page

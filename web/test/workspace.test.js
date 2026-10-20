@@ -178,7 +178,7 @@ test("Workspace tools wrap without moving the view tabs", async () => {
   }
 })
 
-test("Help follows the primary pointer and touch tours retain visible focus", async () => {
+test("Help stays available across pointer types and tours retain visible focus", async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser
   try {
@@ -195,15 +195,15 @@ test("Help follows the primary pointer and touch tours retain visible focus", as
         .click()
       assert.equal(
         await page
-          .getByRole("button", { name: hasTouch ? "Settings" : "Help", exact: true })
+          .getByRole("button", { name: "Help", exact: true })
           .evaluate((button) => button === document.activeElement),
         true,
         "Ending the tour returns focus to a visible header control",
       )
       for (const width of [375, 1024]) {
         await page.setViewportSize({ width, height: 900 })
-        assert.equal(await page.locator(".help-button").isVisible(), !hasTouch, `${width}px: Help follows pointer type`)
-        assert.equal(await page.getByRole("button", { name: "Help", exact: true }).count(), hasTouch ? 0 : 1)
+        assert.equal(await page.locator(".help-button").isVisible(), true, `${width}px: Help remains available`)
+        assert.equal(await page.getByRole("button", { name: "Help", exact: true }).count(), 1)
       }
       await page.close()
     }

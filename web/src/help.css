@@ -4,9 +4,6 @@
   @scope (#app) {
     .help-button {
       color: var(--secondary);
-      @media (pointer: coarse) {
-        display: none;
-      }
     }
     [data-tour-active="true"] {
       scroll-margin-block: var(--gutter);
@@ -46,6 +43,12 @@
       font-size: var(--body);
       overflow: auto;
       overscroll-behavior: contain;
+      &:has(.help-panels > :only-child) {
+        inline-size: min(30rem, calc(100% - 2 * var(--gap)));
+      }
+      & > .dialog-heading {
+        align-items: center;
+      }
       &[open] {
         display: grid;
         grid-template-rows: auto auto minmax(0, 1fr);

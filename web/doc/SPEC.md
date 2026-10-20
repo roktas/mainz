@@ -407,12 +407,26 @@ remember dismissal locally. No document information is stored. `?reset` clears o
 once, and preserves other query values and the fragment. The next successful opening shows the welcome. The installed
 offline application supports the same entrypoint. It adds no visible Settings control.
 
-The Help button is hidden when the primary pointer is coarse. Help opens on Keyboard with shortcuts for the current pane
-views. Mouse explains selection, view switching, addition, drag, and scrolling. Left/right, Home, and End switch topic
-tabs and move focus. Dismissal restores prior focus. Start Tour begins the contextual tour directly. The landing page
-has no Help. Settings appears only with an open Source and offers lens magnification, software version, Build ID, and
-the repository link. Escape, close, or outside click dismisses Settings and restores focus. Theme choice persists
-locally with system fallback.
+Help remains available on the landing page and in the workspace on all platforms. The landing shows App help. An open
+workspace adds Keyboard and Mouse for fine-pointer input, and Touch for coarse-pointer input. Hybrid input can expose
+both sets. Keyboard describes the current pane views. Left/right, Home, and End switch available topics and move focus.
+Dismissal restores prior focus. Start Tour appears only with a workspace. Settings appears with an open Source and
+offers lens magnification, software version, Build ID, and the repository link. Escape, close, or outside click
+dismisses Settings and restores focus. Theme choice persists locally with system fallback.
+
+App installation help is separate from the welcome and Product tour. The first iPhone or iPad browser visit shows a
+dismissible introduction before a pending welcome. Continue in browser and Close permit normal PDF work. Standalone
+launches show no recommendation. Desktop startup stays quiet. Help's App topic always offers installation information.
+Closing the first recommendation shows a Notice that points to Help → App. Dismissal never removes that topic.
+
+Installation dismissal uses `mainz:installation` independently of `mainz:onboarding`. If storage is unavailable,
+dismissal lasts for the current page. Browser and standalone storage can differ. Installation does not replay the tour.
+`?reset` continues to reset only the welcome dismissal. Manual installation help closes active tour guidance first.
+
+Chromium installation requires an available `beforeinstallprompt` event and a user action. An accepted prompt means
+installation was requested. Only `appinstalled` reports completion. iOS help describes Safari's Add to Home Screen
+action. Supported desktop Safari versions show Add to Dock instructions. Unsupported browsers offer no native install
+button. Continuing in the browser remains available after dismissal or failure.
 
 The tour explains actual controls without changing document choices or adding pages. Its core steps cover Input, Input
 Grid, Grid density, Input Page, Output Grid, Output selection actions, Output Page, and Download. Grid density points to
@@ -516,7 +530,7 @@ The [library glossary](../../lib/doc/SPEC.md#glossary) owns PDF and painting ter
 | Error              | Failure message retained until dismissal or resolution.                                                 |
 | Grid               | Thumbnail view of Input or Output.                                                                      |
 | Grid density       | Normal or Compact layout chosen independently for each pane, and retained per Source in Input.          |
-| Help               | Workspace dialog with contextual Keyboard and Mouse instructions and access to the Product tour.        |
+| Help               | Dialog with App help, input-specific workspace instructions, and access to the Product tour.            |
 | Info               | Operation progress, result, or cancellation message.                                                    |
 | Input              | Immutable PDF bytes supplied separately from a Job. Also the UI label for the active Source.            |
 | Job                | Complete processor request for one Output, separate from PDF bytes and editable workspace state.        |

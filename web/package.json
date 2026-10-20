@@ -3,6 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "calibrate": "node test/calibrate.js",
+    "measure": "node test/viewport.js",
+    "measure:simulator": "node test/simulator.js",
+    "test:viewport": "node --test --test-concurrency=1 test/viewport.test.js",
     "dev": "vite --host 127.0.0.1",
     "format": "npm --prefix .. run format --",
     "format:check": "npm --prefix .. run format:check --",

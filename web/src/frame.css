@@ -9,6 +9,9 @@
 
     .footnote {
       max-inline-size: calc(max(1232px, 57.5vi) - 2 * var(--gutter));
+      @media (height < 480px) {
+        position: static;
+      }
     }
 
     :scope:not(:has(.style-status)) {
@@ -203,7 +206,19 @@
   }
 
   /* Calibration rows change card geometry, never the available viewport budget. */
-  @media (hover: hover) and (pointer: fine) and (1920px <= width < 2140px) and (960px <= height < 1100px) {
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (667px <= width < 1000px) and (250px <= height < 500px) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
+        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+          --grid-width: clamp(8.375rem, calc((100cqi - 6 * var(--grid-gap) - 1px) / 5), 8.875rem);
+          --grid-height: 14.5rem;
+          --thumbnail-padding: 0.625rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (1280px <= width < 2140px) and (700px <= height < 1200px) {
     @scope (.composer) {
       @container composer (width > 55em) {
         :is(.selection-panel, .composition-output)[data-density="compact"] {
@@ -215,18 +230,121 @@
     }
   }
 
-  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (810px <= width < 820px) and (1080px <= height < 1180px) {
+  @media (hover: hover) and (pointer: fine) and (2200px <= width < 2400px) and (1100px <= height < 1350px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            --grid-width: 8.375rem;
+            --grid-height: 14.75rem;
+            --thumbnail-padding: 0.75rem;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(74px, calc(5 * var(--body)), calc((100cqi - 8 * var(--grid-gap) - 1px) / 7));
+            --grid-height: 7.7265625rem;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (2960px <= width < 3200px) and (1500px <= height < 1750px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            --grid-width: clamp(8.375rem, calc((100cqi - 6 * var(--grid-gap) - 1px) / 5), 9.375rem);
+            --grid-height: 14.6875rem;
+            --thumbnail-padding: 0.71875rem;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(74px, calc(5 * var(--body)), calc((100cqi - 10 * var(--grid-gap) - 1px) / 9));
+            --grid-height: 7.7890625rem;
+            --thumbnail-padding: 0.5rem;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (3840px <= width < 4160px) and (2050px <= height < 2250px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            --grid-width: clamp(8.375rem, calc((100cqi - 8 * var(--grid-gap) - 1px) / 7), 8.75rem);
+            --grid-height: 14.5625rem;
+            --thumbnail-padding: 0.65625rem;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(74px, calc(5 * var(--body)), calc((100cqi - 13 * var(--grid-gap) - 1px) / 12));
+            --grid-height: 7.6015625rem;
+            --thumbnail-padding: 0.40625rem;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (740px <= width < 750px) and (1047px <= height < 1090px) {
     @scope (.composer) {
       @container composer (width <= 55em) {
-        :is(.selection-panel, .composition-output) {
-          --grid-width: 10.25rem;
-          --grid-gap: 16px;
-          --thumbnail-padding: 16px;
+        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+          --grid-width: 8.5625rem;
+          --grid-height: 14.125rem;
+          --thumbnail-padding: 0.5625rem;
+        }
+      }
+    }
+  }
 
-          &[data-density="compact"] {
-            --grid-width: max(84px, calc(5 * var(--body)));
-            --grid-gap: 9px;
-            --thumbnail-padding: 0.46875rem;
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (805px <= width < 835px) and (980px <= height < 1220px) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
+        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+          --grid-width: 8.875rem;
+          --grid-height: 14.4375rem;
+          --thumbnail-padding: 0.59375rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (740px <= width < 750px) and (1100px <= height < 1160px) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
+        :is(.selection-panel, .composition-output)[data-density="compact"] {
+          --grid-width: max(77.7px, calc(5 * var(--body)));
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (820px <= width < 830px) and (1080px <= height < 1120px) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
+        :is(.selection-panel, .composition-output)[data-density="compact"] {
+          --grid-width: max(77px, calc(5 * var(--body)));
+          --grid-height: 7.3515625rem;
+          --thumbnail-padding: 0.28125rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (1000px <= width < 1050px) and (1200px <= height < 1400px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+          --grid-width: 8.875rem;
+          --grid-height: 14.4375rem;
+          --thumbnail-padding: 0.59375rem;
+        }
+        @media (width >= 1024px) and (height >= 1300px) {
+          :is(.selection-panel, .composition-output)[data-density="compact"] {
+            --grid-width: max(81px, calc(5 * var(--body)));
+            --grid-height: 7.4765625rem;
+            --thumbnail-padding: 0.34375rem;
           }
         }
       }
@@ -253,7 +371,7 @@
     }
   }
 
-  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (1080px <= width < 1133px) and (810px <= height < 900px) {
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (1080px <= width < 1133px) and (700px <= height < 900px) {
     @scope (.composer) {
       @container composer (width > 55em) {
         :is(.selection-panel, .composition-output) {
@@ -262,6 +380,43 @@
             --grid-width: 8.5rem;
             --grid-gap: 12px;
             --thumbnail-padding: 11px;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(74.57px, calc(5 * var(--body)));
+            --grid-height: 7.28125rem;
+            --thumbnail-padding: 0.25rem;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (1180px <= width < 1220px) and (730px <= height < 900px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output)[data-density="compact"] {
+          --grid-width: max(79px, calc(5 * var(--body)));
+          --grid-height: 7.4375rem;
+          --thumbnail-padding: 0.3125rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (1360px <= width < 1380px) and (980px <= height < 1060px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            --grid-width: 9.5rem;
+            --grid-height: 14.75rem;
+            --thumbnail-padding: 0.75rem;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(83px, calc(5 * var(--body)));
+            --grid-height: 7.5390625rem;
+            --thumbnail-padding: 0.375rem;
+            --grid-row-factor: 0.9;
           }
         }
       }
@@ -276,7 +431,7 @@
 
           &:not([data-density="compact"]) {
             --thumbnail-padding: 0.90625rem;
-            --grid-width: clamp(9.75rem, calc((100cqi - 7 * var(--grid-gap) - 1px) / 6), 10rem);
+            --grid-width: clamp(8.375rem, calc((100cqi - 8 * var(--grid-gap) - 1px) / 7), 8.75rem);
             --grid-height: clamp(
               14.8125rem,
               calc((100cqb - var(--grid-pager-height) - 5 * var(--grid-row-gap) - 10px) / 6),

@@ -1,0 +1,1398 @@
+{
+  "schemaVersion": 1,
+  "source": "web/doc/DESIGN.md#workspace",
+  "simulators": {
+    "source": "Installed CoreSimulator supportedDeviceTypes and capabilities.plist",
+    "capturedAt": "2026-10-20",
+    "profileCount": 63,
+    "grouping": "Portrait profile points; browser viewport and safe-area equivalence require native measurement.",
+    "groups": [
+      {
+        "id": "360x780-coarse",
+        "family": "iPhone",
+        "representative": "iPhone 13 mini",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [360, 780]
+          }
+        ],
+        "models": ["iPhone 13 mini", "iPhone 12 mini"]
+      },
+      {
+        "id": "375x667-coarse",
+        "family": "iPhone",
+        "representative": "iPhone SE (3rd generation)",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [375, 667]
+          }
+        ],
+        "models": ["iPhone SE (3rd generation)", "iPhone SE (2nd generation)"]
+      },
+      {
+        "id": "375x812-coarse",
+        "family": "iPhone",
+        "representative": "iPhone 11 Pro",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [375, 812]
+          }
+        ],
+        "models": ["iPhone 11 Pro"]
+      },
+      {
+        "id": "390x844-coarse",
+        "family": "iPhone",
+        "representative": "iPhone 16e",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [390, 844]
+          }
+        ],
+        "models": ["iPhone 17e", "iPhone 16e", "iPhone 14", "iPhone 13 Pro", "iPhone 13", "iPhone 12 Pro", "iPhone 12"]
+      },
+      {
+        "id": "393x852-coarse",
+        "family": "iPhone",
+        "representative": "iPhone 16",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [393, 852]
+          }
+        ],
+        "models": ["iPhone 16", "iPhone 15 Pro", "iPhone 15", "iPhone 14 Pro"]
+      },
+      {
+        "id": "402x874-coarse",
+        "family": "iPhone",
+        "representative": "iPhone 17 Pro",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [402, 874]
+          }
+        ],
+        "models": ["iPhone 18 Pro", "iPhone 17 Pro", "iPhone 17", "iPhone 16 Pro"]
+      },
+      {
+        "id": "414x896-coarse",
+        "family": "iPhone",
+        "representative": "iPhone 11",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [414, 896]
+          }
+        ],
+        "models": ["iPhone 11 Pro Max", "iPhone 11"]
+      },
+      {
+        "id": "420x912-coarse",
+        "family": "iPhone",
+        "representative": "iPhone Air",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [420, 912]
+          }
+        ],
+        "models": ["iPhone Air"]
+      },
+      {
+        "id": "428x926-coarse",
+        "family": "iPhone",
+        "representative": "iPhone 13 Pro Max",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [428, 926]
+          }
+        ],
+        "models": ["iPhone 14 Plus", "iPhone 13 Pro Max", "iPhone 12 Pro Max"]
+      },
+      {
+        "id": "430x932-coarse",
+        "family": "iPhone",
+        "representative": "iPhone 15 Pro Max",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [430, 932]
+          }
+        ],
+        "models": ["iPhone 16 Plus", "iPhone 15 Pro Max", "iPhone 15 Plus", "iPhone 14 Pro Max"]
+      },
+      {
+        "id": "440x956-coarse",
+        "family": "iPhone",
+        "representative": "iPhone 16 Pro Max",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [440, 956]
+          }
+        ],
+        "models": ["iPhone 18 Pro Max", "iPhone 17 Pro Max", "iPhone 16 Pro Max"]
+      },
+      {
+        "id": "466x678-coarse",
+        "family": "iPhone",
+        "representative": "iPhone Duo",
+        "runtime": "27.1",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [466, 678]
+          },
+          {
+            "display": "primary-1",
+            "profilePoints": [669, 951]
+          }
+        ],
+        "models": ["iPhone Duo"]
+      },
+      {
+        "id": "744x1133-coarse",
+        "family": "iPad",
+        "representative": "iPad mini (6th generation)",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [744, 1133]
+          }
+        ],
+        "models": ["iPad mini (A17 Pro)", "iPad mini (6th generation)"]
+      },
+      {
+        "id": "810x1080-coarse",
+        "family": "iPad",
+        "representative": "iPad (9th generation)",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [810, 1080]
+          }
+        ],
+        "models": ["iPad (9th generation)"]
+      },
+      {
+        "id": "820x1180-coarse",
+        "family": "iPad",
+        "representative": "iPad Air 11-inch (M3)",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [820, 1180]
+          }
+        ],
+        "models": [
+          "iPad Air 11-inch (M4)",
+          "iPad (A16)",
+          "iPad Air 11-inch (M3)",
+          "iPad Air 11-inch (M2)",
+          "iPad (10th generation)",
+          "iPad Air (5th generation)",
+          "iPad Air (4th generation)"
+        ]
+      },
+      {
+        "id": "834x1194-coarse",
+        "family": "iPad",
+        "representative": "iPad Pro (11-inch) (4th generation)",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [834, 1194]
+          }
+        ],
+        "models": [
+          "iPad Pro (11-inch) (4th generation) (16GB)",
+          "iPad Pro (11-inch) (4th generation)",
+          "iPad Pro (11-inch) (3rd generation)",
+          "iPad Pro (11-inch) (2nd generation)"
+        ]
+      },
+      {
+        "id": "834x1210-coarse",
+        "family": "iPad",
+        "representative": "iPad Pro 11-inch (M4)",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [834, 1210]
+          }
+        ],
+        "models": [
+          "iPad Pro 11-inch (M5) (16GB)",
+          "iPad Pro 11-inch (M5)",
+          "iPad Pro 11-inch (M4) (16GB)",
+          "iPad Pro 11-inch (M4)"
+        ]
+      },
+      {
+        "id": "1024x1366-coarse",
+        "family": "iPad",
+        "representative": "iPad Air 13-inch (M3)",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [1024, 1366]
+          }
+        ],
+        "models": [
+          "iPad Air 13-inch (M4)",
+          "iPad Air 13-inch (M3)",
+          "iPad Air 13-inch (M2)",
+          "iPad Pro (12.9-inch) (6th generation) (16GB)",
+          "iPad Pro (12.9-inch) (6th generation)",
+          "iPad Pro (12.9-inch) (5th generation)",
+          "iPad Pro (12.9-inch) (4th generation)"
+        ]
+      },
+      {
+        "id": "1032x1376-coarse",
+        "family": "iPad",
+        "representative": "iPad Pro 13-inch (M4)",
+        "runtime": "27.0",
+        "screens": [
+          {
+            "display": "primary",
+            "profilePoints": [1032, 1376]
+          }
+        ],
+        "models": [
+          "iPad Pro 13-inch (M5) (16GB)",
+          "iPad Pro 13-inch (M5)",
+          "iPad Pro 13-inch (M4) (16GB)",
+          "iPad Pro 13-inch (M4)"
+        ]
+      }
+    ]
+  },
+  "desktops": {
+    "capturedAt": "2026-10-20",
+    "grouping": "Logical CSS screen test seeds; reported or inferred scaling, with a rounded 0.91-height browser estimate. These are not native measurements.",
+    "sources": {
+      "models": "https://www.apple.com/mac/compare/",
+      "air": "https://www.apple.com/macbook-air/specs/",
+      "pro": "https://www.apple.com/macbook-pro/specs/",
+      "neo": "https://www.apple.com/macbook-neo/specs/",
+      "imac": "https://www.apple.com/imac/specs/",
+      "studio": "https://www.apple.com/studio-display-xdr/specs/",
+      "xdr": "https://www.apple.com/pro-display-xdr/pdf/Pro_Display_White_Paper_Feb_2020.pdf",
+      "retina": "https://support.apple.com/en-us/111883",
+      "air13Owner": "https://discourse.mcneel.com/t/reacting-zoom-selection-on-external-display-macbook-air-m2-rhino7/151639",
+      "air15Owner": "https://forums.macrumors.com/threads/why-is-15-mba-default-screen-res-1710-x-1107.2446481/",
+      "neoOwner": "https://appleosophy.com/2026/04/30/macbook-neo-review-is-this-truly-the-mac-for-the-rest-of-us/",
+      "macbook12": "https://support.apple.com/en-gb/111986",
+      "pro15": "https://support.apple.com/en-is/111941",
+      "pro16Intel": "https://support.apple.com/en-bh/111932",
+      "imac21": "https://support.apple.com/en-ke/111963",
+      "pro15Earlier": "https://support.apple.com/en-ie/112576",
+      "imac21Earlier": "https://support.apple.com/en-mz/112026"
+    },
+    "groups": [
+      {
+        "id": "1408x881-fine",
+        "screen": [1408, 881],
+        "panel": [2408, 1506],
+        "scale": 2,
+        "evidence": "owner-report",
+        "models": ["MacBook Neo (A18 Pro)"],
+        "sources": ["neo", "neoOwner"],
+        "references": {
+          "fullscreen": "1408x881-fine",
+          "estimatedBrowser": "1408x802-fine"
+        }
+      },
+      {
+        "id": "1440x900-fine",
+        "screen": [1440, 900],
+        "panel": [2560, 1600],
+        "scale": 2,
+        "evidence": "supported-scaled-mode",
+        "models": ["MacBook Air (M1, 2020)", "MacBook Pro 13-inch (M1/M2)"],
+        "sources": ["retina", "models"],
+        "references": {
+          "fullscreen": "1440x900-fine",
+          "estimatedBrowser": "1440x819-fine"
+        }
+      },
+      {
+        "id": "1470x956-fine",
+        "screen": [1470, 956],
+        "panel": [2560, 1664],
+        "scale": 2,
+        "evidence": "owner-report",
+        "models": ["MacBook Air 13-inch (M2/M3/M4/M5)"],
+        "sources": ["air", "air13Owner"],
+        "references": {
+          "fullscreen": "1470x956-fine",
+          "estimatedBrowser": "1470x870-fine"
+        }
+      },
+      {
+        "id": "1710x1107-fine",
+        "screen": [1710, 1107],
+        "panel": [2880, 1864],
+        "scale": 2,
+        "evidence": "owner-report",
+        "models": ["MacBook Air 15-inch (M2/M3/M4/M5)"],
+        "sources": ["air", "air15Owner"],
+        "references": {
+          "fullscreen": "1710x1107-fine",
+          "estimatedBrowser": "1710x1007-fine"
+        }
+      },
+      {
+        "id": "1512x982-fine",
+        "screen": [1512, 982],
+        "panel": [3024, 1964],
+        "scale": 2,
+        "evidence": "inferred-2x-mode",
+        "models": ["MacBook Pro 14-inch (M1/M2/M3/M4/M5 family)"],
+        "sources": ["pro", "models"],
+        "references": {
+          "fullscreen": "1512x982-fine",
+          "estimatedBrowser": "1512x894-fine"
+        }
+      },
+      {
+        "id": "1728x1117-fine",
+        "screen": [1728, 1117],
+        "panel": [3456, 2234],
+        "scale": 2,
+        "evidence": "inferred-2x-mode",
+        "models": ["MacBook Pro 16-inch (M1/M2/M3/M4/M5 family)"],
+        "sources": ["pro", "models"],
+        "references": {
+          "fullscreen": "1728x1117-fine",
+          "estimatedBrowser": "1728x1016-fine"
+        }
+      },
+      {
+        "id": "2240x1260-fine",
+        "screen": [2240, 1260],
+        "panel": [4480, 2520],
+        "scale": 2,
+        "evidence": "inferred-2x-mode",
+        "models": ["iMac 24-inch (M1/M3/M4)"],
+        "sources": ["imac", "models"],
+        "references": {
+          "fullscreen": "2240x1260-fine",
+          "estimatedBrowser": "2240x1147-fine"
+        }
+      },
+      {
+        "id": "2560x1440-fine",
+        "screen": [2560, 1440],
+        "panel": [5120, 2880],
+        "scale": 2,
+        "evidence": "inferred-2x-mode",
+        "models": ["QHD display at 1x", "iMac 27-inch 5K at 2x", "Studio Display at 2x", "Studio Display XDR at 2x"],
+        "sources": ["studio", "models"],
+        "references": {
+          "fullscreen": "2560x1440-fine",
+          "estimatedBrowser": "2560x1310-fine"
+        }
+      },
+      {
+        "id": "3008x1692-fine",
+        "screen": [3008, 1692],
+        "panel": [6016, 3384],
+        "scale": 2,
+        "evidence": "inferred-2x-mode",
+        "models": ["Pro Display XDR at 2x"],
+        "sources": ["xdr"],
+        "references": {
+          "fullscreen": "3008x1692-fine",
+          "estimatedBrowser": "3008x1540-fine"
+        }
+      },
+      {
+        "id": "1920x1080-fine",
+        "screen": [1920, 1080],
+        "panel": null,
+        "scale": null,
+        "evidence": "nominal-css-reference",
+        "models": ["FHD display at 1x", "UHD display at 2x"],
+        "sources": [],
+        "references": {
+          "fullscreen": "1920x1080-fine",
+          "estimatedBrowser": "1920x983-fine"
+        }
+      },
+      {
+        "id": "3840x2160-fine",
+        "screen": [3840, 2160],
+        "panel": [3840, 2160],
+        "scale": 1,
+        "evidence": "nominal-css-reference",
+        "models": ["UHD display at 1x"],
+        "sources": [],
+        "references": {
+          "fullscreen": "3840x2160-fine",
+          "estimatedBrowser": "3840x1966-fine"
+        }
+      },
+      {
+        "id": "1280x800-fine",
+        "screen": [1280, 800],
+        "panel": [2304, 1440],
+        "scale": 2,
+        "evidence": "supported-scaled-mode",
+        "models": ["MacBook 12-inch (2017), supported 1280x800 mode"],
+        "sources": ["macbook12"],
+        "references": {
+          "fullscreen": "1280x800-fine",
+          "estimatedBrowser": "1280x728-fine"
+        }
+      },
+      {
+        "id": "1680x1050-fine",
+        "screen": [1680, 1050],
+        "panel": [2880, 1800],
+        "scale": 2,
+        "evidence": "supported-scaled-mode",
+        "models": ["MacBook Pro 15-inch Retina (2012–2019), supported 1680x1050 mode"],
+        "sources": ["pro15", "pro15Earlier"],
+        "references": {
+          "fullscreen": "1680x1050-fine",
+          "estimatedBrowser": "1680x956-fine"
+        }
+      },
+      {
+        "id": "1792x1120-fine",
+        "screen": [1792, 1120],
+        "panel": [3072, 1920],
+        "scale": 2,
+        "evidence": "supported-scaled-mode",
+        "models": ["MacBook Pro 16-inch Intel (2019), supported 1792x1120 mode"],
+        "sources": ["pro16Intel"],
+        "references": {
+          "fullscreen": "1792x1120-fine",
+          "estimatedBrowser": "1792x1019-fine"
+        }
+      },
+      {
+        "id": "2048x1152-fine",
+        "screen": [2048, 1152],
+        "panel": [4096, 2304],
+        "scale": 2,
+        "evidence": "inferred-2x-mode",
+        "models": ["iMac 21.5-inch Retina 4K (2017/2019), at 2x"],
+        "sources": ["imac21", "imac21Earlier"],
+        "references": {
+          "fullscreen": "2048x1152-fine",
+          "estimatedBrowser": "2048x1048-fine"
+        }
+      }
+    ],
+    "units": {
+      "screen": "css-px",
+      "panel": "physical-px",
+      "scale": "Retina backing device-pixel-ratio; scaled CSS points need not equal panel / scale"
+    }
+  },
+  "cases": [
+    {
+      "id": "320x568-coarse",
+      "viewport": [320, 568],
+      "pointer": "coarse",
+      "orientation": "portrait",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [1, 1, 1],
+        "compact": [3, 1, 3]
+      }
+    },
+    {
+      "id": "375x667-coarse",
+      "viewport": [375, 667],
+      "pointer": "coarse",
+      "orientation": "portrait",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [2, 1, 2],
+        "compact": [4, 1, 4]
+      }
+    },
+    {
+      "id": "390x844-coarse",
+      "viewport": [390, 844],
+      "pointer": "coarse",
+      "orientation": "portrait",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [2, 1, 2],
+        "compact": [4, 2, 8]
+      }
+    },
+    {
+      "id": "393x852-coarse",
+      "viewport": [393, 852],
+      "pointer": "coarse",
+      "orientation": "portrait",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [2, 1, 2],
+        "compact": [4, 2, 8]
+      }
+    },
+    {
+      "id": "440x956-coarse",
+      "viewport": [440, 956],
+      "pointer": "coarse",
+      "orientation": "portrait",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [2, 1, 2],
+        "compact": [4, 3, 12]
+      }
+    },
+    {
+      "id": "667x375-coarse",
+      "viewport": [667, 375],
+      "pointer": "coarse",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [4, 1, 4],
+        "compact": [7, 1, 7]
+      }
+    },
+    {
+      "id": "844x390-coarse",
+      "viewport": [844, 390],
+      "pointer": "coarse",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [5, 1, 5],
+        "compact": [9, 1, 9]
+      }
+    },
+    {
+      "id": "852x393-coarse",
+      "viewport": [852, 393],
+      "pointer": "coarse",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [5, 1, 5],
+        "compact": [9, 1, 9]
+      }
+    },
+    {
+      "id": "956x440-coarse",
+      "viewport": [956, 440],
+      "pointer": "coarse",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [2, 1, 2],
+        "compact": [5, 1, 5]
+      }
+    },
+    {
+      "id": "744x1133-coarse",
+      "viewport": [744, 1133],
+      "pointer": "coarse",
+      "orientation": "portrait",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [4, 2, 8],
+        "compact": [8, 4, 32]
+      }
+    },
+    {
+      "id": "1133x744-coarse",
+      "viewport": [1133, 744],
+      "pointer": "coarse",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [3, 1, 3],
+        "compact": [6, 1, 6]
+      }
+    },
+    {
+      "id": "768x1024-coarse",
+      "viewport": [768, 1024],
+      "pointer": "coarse",
+      "orientation": "portrait",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [4, 1, 4],
+        "compact": [8, 3, 24]
+      }
+    },
+    {
+      "id": "1024x768-coarse",
+      "viewport": [1024, 768],
+      "pointer": "coarse",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [2, 1, 2],
+        "compact": [5, 2, 10]
+      }
+    },
+    {
+      "id": "810x1080-coarse",
+      "viewport": [810, 1080],
+      "pointer": "coarse",
+      "orientation": "portrait",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [5, 2, 10],
+        "compact": [9, 4, 36]
+      }
+    },
+    {
+      "id": "1080x810-coarse",
+      "viewport": [1080, 810],
+      "pointer": "coarse",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [3, 1, 3],
+        "compact": [5, 2, 10]
+      }
+    },
+    {
+      "id": "1080x810-fine",
+      "viewport": [1080, 810],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [2, 1, 2],
+        "compact": [5, 2, 10]
+      }
+    },
+    {
+      "id": "1600x900-fine",
+      "viewport": [1600, 900],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [3, 1, 3],
+        "compact": [6, 3, 18]
+      }
+    },
+    {
+      "id": "1919x1080-fine",
+      "viewport": [1919, 1080],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [3, 2, 6],
+        "compact": [6, 4, 24]
+      }
+    },
+    {
+      "id": "1920x982-fine",
+      "viewport": [1920, 982],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "matrices": {
+        "normal": [3, 2, 6],
+        "compact": [6, 4, 24]
+      }
+    },
+    {
+      "id": "1920x1080-fine",
+      "viewport": [1920, 1080],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [3, 2, 6],
+        "compact": [6, 4, 24]
+      },
+      "desktopReferences": [
+        {
+          "group": "1920x1080-fine",
+          "mode": "fullscreen",
+          "evidence": "nominal-css-reference"
+        }
+      ]
+    },
+    {
+      "id": "2239x1260-fine",
+      "viewport": [2239, 1260],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [4, 3, 12],
+        "compact": [7, 6, 42]
+      }
+    },
+    {
+      "id": "2240x1260-fine",
+      "viewport": [2240, 1260],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [4, 3, 12],
+        "compact": [7, 6, 42]
+      },
+      "desktopReferences": [
+        {
+          "group": "2240x1260-fine",
+          "mode": "fullscreen",
+          "evidence": "inferred-2x-mode"
+        }
+      ]
+    },
+    {
+      "id": "2559x1440-fine",
+      "viewport": [2559, 1440],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [4, 3, 12],
+        "compact": [8, 7, 56]
+      }
+    },
+    {
+      "id": "2560x1280-fine",
+      "viewport": [2560, 1280],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [4, 3, 12],
+        "compact": [8, 6, 48]
+      }
+    },
+    {
+      "id": "2560x1310-fine",
+      "viewport": [2560, 1310],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "measured",
+      "matrices": {
+        "normal": [4, 3, 12],
+        "compact": [8, 6, 48]
+      },
+      "desktopReferences": [
+        {
+          "group": "2560x1440-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ]
+    },
+    {
+      "id": "2560x1440-fine",
+      "viewport": [2560, 1440],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [4, 3, 12],
+        "compact": [8, 7, 56]
+      },
+      "desktopReferences": [
+        {
+          "group": "2560x1440-fine",
+          "mode": "fullscreen",
+          "evidence": "inferred-2x-mode"
+        }
+      ]
+    },
+    {
+      "id": "2879x1620-fine",
+      "viewport": [2879, 1620],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [4, 3, 12],
+        "compact": [9, 8, 72]
+      }
+    },
+    {
+      "id": "2880x1620-fine",
+      "viewport": [2880, 1620],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [4, 4, 16],
+        "compact": [9, 8, 72]
+      }
+    },
+    {
+      "id": "3840x1964-fine",
+      "viewport": [3840, 1964],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "matrices": {
+        "normal": [7, 6, 42],
+        "compact": [12, 11, 132]
+      }
+    },
+    {
+      "id": "3840x2160-fine",
+      "viewport": [3840, 2160],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "nominal",
+      "matrices": {
+        "normal": [7, 7, 49],
+        "compact": [12, 13, 156]
+      },
+      "desktopReferences": [
+        {
+          "group": "3840x2160-fine",
+          "mode": "fullscreen",
+          "evidence": "nominal-css-reference"
+        }
+      ]
+    },
+    {
+      "id": "1408x881-fine",
+      "viewport": [1408, 881],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "owner-report",
+      "desktopReferences": [
+        {
+          "group": "1408x881-fine",
+          "mode": "fullscreen",
+          "evidence": "owner-report"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 1, 3],
+        "compact": [6, 3, 18]
+      }
+    },
+    {
+      "id": "1408x802-fine",
+      "viewport": [1408, 802],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "1408x881-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 1, 3],
+        "compact": [6, 2, 12]
+      }
+    },
+    {
+      "id": "1440x900-fine",
+      "viewport": [1440, 900],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "supported-scaled-mode",
+      "desktopReferences": [
+        {
+          "group": "1440x900-fine",
+          "mode": "fullscreen",
+          "evidence": "supported-scaled-mode"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 1, 3],
+        "compact": [6, 3, 18]
+      }
+    },
+    {
+      "id": "1440x819-fine",
+      "viewport": [1440, 819],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "1440x900-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 1, 3],
+        "compact": [6, 2, 12]
+      }
+    },
+    {
+      "id": "1470x956-fine",
+      "viewport": [1470, 956],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "owner-report",
+      "desktopReferences": [
+        {
+          "group": "1470x956-fine",
+          "mode": "fullscreen",
+          "evidence": "owner-report"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 1, 3],
+        "compact": [6, 3, 18]
+      }
+    },
+    {
+      "id": "1470x870-fine",
+      "viewport": [1470, 870],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "1470x956-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 1, 3],
+        "compact": [6, 3, 18]
+      }
+    },
+    {
+      "id": "1710x1107-fine",
+      "viewport": [1710, 1107],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "owner-report",
+      "desktopReferences": [
+        {
+          "group": "1710x1107-fine",
+          "mode": "fullscreen",
+          "evidence": "owner-report"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 2, 6],
+        "compact": [6, 4, 24]
+      }
+    },
+    {
+      "id": "1710x1007-fine",
+      "viewport": [1710, 1007],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "1710x1107-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 2, 6],
+        "compact": [6, 4, 24]
+      }
+    },
+    {
+      "id": "1512x982-fine",
+      "viewport": [1512, 982],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "inferred-2x-mode",
+      "desktopReferences": [
+        {
+          "group": "1512x982-fine",
+          "mode": "fullscreen",
+          "evidence": "inferred-2x-mode"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 2, 6],
+        "compact": [6, 4, 24]
+      }
+    },
+    {
+      "id": "1512x894-fine",
+      "viewport": [1512, 894],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "1512x982-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 1, 3],
+        "compact": [6, 3, 18]
+      }
+    },
+    {
+      "id": "1728x1117-fine",
+      "viewport": [1728, 1117],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "inferred-2x-mode",
+      "desktopReferences": [
+        {
+          "group": "1728x1117-fine",
+          "mode": "fullscreen",
+          "evidence": "inferred-2x-mode"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 2, 6],
+        "compact": [6, 5, 30]
+      }
+    },
+    {
+      "id": "1728x1016-fine",
+      "viewport": [1728, 1016],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "1728x1117-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 2, 6],
+        "compact": [6, 4, 24]
+      }
+    },
+    {
+      "id": "2240x1147-fine",
+      "viewport": [2240, 1147],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "2240x1260-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [4, 2, 8],
+        "compact": [7, 5, 35]
+      }
+    },
+    {
+      "id": "3008x1692-fine",
+      "viewport": [3008, 1692],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "inferred-2x-mode",
+      "desktopReferences": [
+        {
+          "group": "3008x1692-fine",
+          "mode": "fullscreen",
+          "evidence": "inferred-2x-mode"
+        }
+      ],
+      "matrices": {
+        "normal": [5, 5, 25],
+        "compact": [9, 9, 81]
+      }
+    },
+    {
+      "id": "3008x1540-fine",
+      "viewport": [3008, 1540],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "3008x1692-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [5, 4, 20],
+        "compact": [9, 8, 72]
+      }
+    },
+    {
+      "id": "1920x983-fine",
+      "viewport": [1920, 983],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "1920x1080-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 2, 6],
+        "compact": [6, 4, 24]
+      }
+    },
+    {
+      "id": "3840x1966-fine",
+      "viewport": [3840, 1966],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "3840x2160-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [7, 6, 42],
+        "compact": [12, 11, 132]
+      }
+    },
+    {
+      "id": "1280x800-fine",
+      "viewport": [1280, 800],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "1280x800-fine",
+          "mode": "fullscreen",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 1, 3],
+        "compact": [6, 2, 12]
+      }
+    },
+    {
+      "id": "1280x728-fine",
+      "viewport": [1280, 728],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "1280x800-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 1, 3],
+        "compact": [6, 2, 12]
+      }
+    },
+    {
+      "id": "1680x1050-fine",
+      "viewport": [1680, 1050],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "1680x1050-fine",
+          "mode": "fullscreen",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 2, 6],
+        "compact": [6, 4, 24]
+      }
+    },
+    {
+      "id": "1680x956-fine",
+      "viewport": [1680, 956],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "1680x1050-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 1, 3],
+        "compact": [6, 3, 18]
+      }
+    },
+    {
+      "id": "1792x1120-fine",
+      "viewport": [1792, 1120],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "1792x1120-fine",
+          "mode": "fullscreen",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 2, 6],
+        "compact": [6, 5, 30]
+      }
+    },
+    {
+      "id": "1792x1019-fine",
+      "viewport": [1792, 1019],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "1792x1120-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 2, 6],
+        "compact": [6, 4, 24]
+      }
+    },
+    {
+      "id": "2048x1152-fine",
+      "viewport": [2048, 1152],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "2048x1152-fine",
+          "mode": "fullscreen",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 2, 6],
+        "compact": [6, 5, 30]
+      }
+    },
+    {
+      "id": "2048x1048-fine",
+      "viewport": [2048, 1048],
+      "pointer": "fine",
+      "orientation": "landscape",
+      "referenceEvidence": "estimated",
+      "desktopReferences": [
+        {
+          "group": "2048x1152-fine",
+          "mode": "estimatedBrowser",
+          "evidence": "estimated"
+        }
+      ],
+      "matrices": {
+        "normal": [3, 2, 6],
+        "compact": [6, 4, 24]
+      }
+    }
+  ],
+  "coverage": [
+    {
+      "uiShell": "safari",
+      "presentationMode": "browser-tabbed",
+      "orientation": "portrait",
+      "status": "not-tested"
+    },
+    {
+      "uiShell": "safari",
+      "presentationMode": "browser-tabbed",
+      "orientation": "landscape",
+      "status": "not-tested"
+    },
+    {
+      "uiShell": "chrome-like",
+      "presentationMode": "browser-tabbed",
+      "orientation": "portrait",
+      "status": "not-tested"
+    },
+    {
+      "uiShell": "chrome-like",
+      "presentationMode": "browser-tabbed",
+      "orientation": "landscape",
+      "status": "not-tested"
+    },
+    {
+      "uiShell": "safari",
+      "presentationMode": "browser-fullscreen",
+      "orientation": "portrait",
+      "status": "not-tested"
+    },
+    {
+      "uiShell": "safari",
+      "presentationMode": "browser-fullscreen",
+      "orientation": "landscape",
+      "status": "not-tested"
+    },
+    {
+      "uiShell": "chrome-like",
+      "presentationMode": "browser-fullscreen",
+      "orientation": "portrait",
+      "status": "not-tested"
+    },
+    {
+      "uiShell": "chrome-like",
+      "presentationMode": "browser-fullscreen",
+      "orientation": "landscape",
+      "status": "not-tested"
+    },
+    {
+      "uiShell": "installed-web-app",
+      "presentationMode": "standalone-pwa",
+      "orientation": "portrait",
+      "status": "not-tested"
+    },
+    {
+      "uiShell": "installed-web-app",
+      "presentationMode": "standalone-pwa",
+      "orientation": "landscape",
+      "status": "not-tested"
+    }
+  ]
+}

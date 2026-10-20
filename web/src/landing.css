@@ -35,6 +35,9 @@
         color: var(--muted);
         font-size: var(--body);
         text-align: center;
+        @media not ((any-hover: hover) and (any-pointer: fine)) {
+          display: none;
+        }
         & svg {
           inline-size: 2.25em;
           block-size: 2.25em;
@@ -78,7 +81,7 @@
       & .brand-title {
         color: light-dark(var(--ink), oklch(100% 0 none));
         font-family: "EB Garamond", ui-serif, Georgia, serif;
-        font-size: min(2rem, calc(0.75 * var(--title)));
+        font-size: clamp(1.5rem, calc(0.75 * var(--title)), 2rem);
         font-weight: 500;
         letter-spacing: -0.02em;
         line-height: 1.2;

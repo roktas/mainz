@@ -198,9 +198,9 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
       await page.emulateMedia({ colorScheme })
       for (const [width, height, rows, capacity] of [
         [1920, 1080, 4, 24],
-        [2240, 1260, 5, 35],
+        [2240, 1260, 6, 42],
         [2560, 1440, 7, 56],
-        [3840, 2160, 12, 144],
+        [3840, 2160, 13, 156],
       ]) {
         await page.setViewportSize({ width, height })
         await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
