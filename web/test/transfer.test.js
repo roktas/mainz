@@ -41,8 +41,11 @@ test(
           }
           await page.locator('.composer[data-drag="source"]').waitFor()
           if (interruption === "blur") await page.evaluate(() => window.dispatchEvent(new Event("blur")))
-          else if (interruption === "resize") await page.setViewportSize({ width: 1430, height: 990 })
-          else if (interruption === "pointercancel") await page.locator("body").dispatchEvent("pointercancel", contact)
+          else if (interruption === "resize") {
+            await page.setViewportSize({ width: 1430, height: 990 })
+            await page.locator(".composer[data-drag]").waitFor({ state: "hidden" })
+          } else if (interruption === "pointercancel")
+            await page.locator("body").dispatchEvent("pointercancel", contact)
           else if (interruption === "secondary")
             await page.locator("body").dispatchEvent("pointerdown", { ...contact, pointerId: 8, isPrimary: false })
           else await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
@@ -65,6 +68,10 @@ test(
             await input.getByLabel("Page selection", { exact: true }).fill("")
           }
           await page.setViewportSize({ width: 1440, height: 1000 })
+          // Finish resize cancellation before starting the next independent gesture.
+          await page.evaluate(
+            () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+          )
         }
       }
     } finally {
