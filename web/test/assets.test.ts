@@ -117,7 +117,7 @@ test("Vite verifies Mainz packages and publishes complete asset revisions", () =
       assert.equal(manifest.description, "Select, copy, and arrange PDF pages. Style prepared PDFs on your device.");
       assert.deepEqual(manifest.icons, [
         { src: "icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-        { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+        { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
       ]);
       assert.match(readFileSync("index.html", "utf8"), /rel="apple-touch-icon" sizes="180x180" href="%BASE_URL%apple-touch-icon.png"/);
       for (const [name, size] of [["apple-touch-icon.png", 180], ["icon-192.png", 192], ["icon-512.png", 512]]) {

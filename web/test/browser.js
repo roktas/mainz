@@ -3,7 +3,7 @@
 import assert from "node:assert/strict"
 import { mkdir } from "node:fs/promises"
 import { join, resolve as resolvePath } from "node:path"
-import { createServer as createViteServer } from "vite"
+export { createServer } from "vite"
 
 const parameter = (property, schema) => ({
   binding: { property, targets: ["guides"] },
@@ -54,9 +54,6 @@ export const hasCursor = (element = document.activeElement) => {
     style.borderTopColor === getComputedStyle(document.querySelector(".workspace-icon")).color
   )
 }
-
-export const createServer = (config) =>
-  createViteServer({ cacheDir: resolvePath("../.local/tmp/web/cache"), ...config })
 
 export async function captureLayout(page, name) {
   const directory = resolvePath("../.local/tmp/web/layout", name)

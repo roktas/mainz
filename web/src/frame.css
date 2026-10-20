@@ -169,6 +169,16 @@
       min-block-size: calc(320px + var(--page-heading-height, var(--frame-heading-height)) + 46px);
     }
 
+    @container catalog (width <= 18rem) {
+      .page-content:has(.page-view) {
+        /* A narrow fitted image must leave enough heading width for complete control targets. */
+        min-block-size: calc(
+          max(320px, 100cqi / var(--pane-ratio) + 3 * var(--gap)) +
+            var(--page-heading-height, var(--frame-heading-height)) + 46px
+        );
+      }
+    }
+
     .inspection-target:has(.page-view) {
       display: grid;
       grid-template-rows: minmax(0, 1fr);

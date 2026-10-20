@@ -168,7 +168,7 @@ export class Transfer {
     const hit = element ?? (event.target instanceof Element ? event.target : null)
     const grid = hit?.closest<HTMLOListElement>(".output-pages")
     if (grid) {
-      const cards = grid.querySelectorAll<HTMLElement>(":scope > .composition-card")
+      const cards = grid.querySelectorAll<HTMLElement>(":scope > .composition-card:not(.removing)")
       const bounds = grid.getBoundingClientRect()
       if (cards.length && event.clientX >= bounds.left && event.clientY >= bounds.top) {
         const style = getComputedStyle(grid)

@@ -176,10 +176,14 @@ async function checkMobile(browser, url) {
           const style = getComputedStyle(element)
           const canvas = document.createElement("canvas").getContext("2d")
           canvas.font = style.font
-          return (
-            element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) >=
-            canvas.measureText(element.value).width
-          )
+          const available =
+            element.getBoundingClientRect().width -
+            parseFloat(style.paddingLeft) -
+            parseFloat(style.paddingRight) -
+            parseFloat(style.borderLeftWidth) -
+            parseFloat(style.borderRightWidth)
+          const required = canvas.measureText(element.value).width
+          return available >= required
         }),
         true,
         "The complete color code must fit in the editor",

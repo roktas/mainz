@@ -675,7 +675,10 @@ test(
             const animations = document
               .querySelector(".composition-output .composition-grid")
               .getAnimations({ subtree: true })
-              .filter((animation) => animation.effect.getTiming().duration === 800)
+              .filter(
+                (animation) =>
+                  animation.effect.getTiming().duration === 800 && animation.effect.getTiming().iterations === 1,
+              )
             if (!animations.length) return false
             for (const animation of animations) {
               animation.pause()
@@ -686,7 +689,10 @@ test(
           const reflow = await output.locator(".composition-grid").evaluate((grid) =>
             grid
               .getAnimations({ subtree: true })
-              .filter((animation) => animation.effect.getTiming().duration === 800)
+              .filter(
+                (animation) =>
+                  animation.effect.getTiming().duration === 800 && animation.effect.getTiming().iterations === 1,
+              )
               .map((animation) => {
                 const card = animation.effect.target
                 const middle = card.getBoundingClientRect()

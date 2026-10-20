@@ -7,8 +7,7 @@
 - Optional app installation guidance, with dismissible iPhone/iPad startup help and a permanent Help topic.
 - Help on the landing page and touch screens, with topics for the current input and workspace.
 - Development-only Grid geometry exports and a shared viewport inventory and calibration search.
-
-- Dedicated iOS Home Screen and PWA icons with fixed colors and tested raster sizes.
+- Dedicated iOS Home Screen and PWA icons with fixed colors, tested raster sizes, and Android launcher-mask support.
 - Prepared PDFs can expose editable Style properties without a Show/Hide control.
 - Product tour steps explain Normal/Compact Grid density and Output selection actions.
 - Touch controls for grip dragging, lens inspection, and switching from Grid to Page with a double tap.
@@ -26,7 +25,6 @@
   references, while preserving readable previews, usable controls, and shared Input/Output frame dimensions.
 - Header actions use the available space after the logo when no Notice is present.
 - The workspace status bar scrolls with very short screens so it does not cover enlarged card targets.
-
 - Offline installation verifies up to four assets concurrently and completes pending writes before rolling back a failed
   installation.
 - Style controls share one Output page-usage count instead of scanning every occurrence for each control.
@@ -42,6 +40,10 @@
 
 ### Fixed
 
+- New drags retire fading removed cards before measuring insertion slots.
+- Page previews ignore measurements from panes hidden during PDF loading, preventing invalid raster sizes after view
+  changes.
+- Narrow Page frames retain complete header control targets with enlarged text.
 - Lens refinement starts without a movement settling delay, keeps completed detail aligned during movement, and releases
   acquired pages on cancellation or renderer failure.
 - Closed PDFs release their cached preview rasters after their last owner leaves.

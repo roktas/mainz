@@ -606,9 +606,8 @@ test("Grid scales desktop capacity, balances Page, and retains compact actions",
       await input.getByRole("button", { name: "Normal Input grid", exact: true }).click()
       assert.equal(await input.locator(".composition-card").count(), capacity)
       assert.equal(await output.locator(".composition-card").count(), capacity)
-      await page.waitForFunction(() =>
-        [...document.querySelectorAll(".thumbnail")].every((element) => element.getAttribute("aria-busy") === "false"),
-      )
+      await measure(input)
+      await measure(output)
       assert.equal(await page.locator("main").evaluate((element) => element.clientWidth), width === 1920 ? 1232 : 1472)
       assert.equal(await input.locator(".batch-marks > span").count(), width === 1920 ? 40 : 20)
       const imageHeight = await input

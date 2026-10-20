@@ -35,7 +35,9 @@ The font, [license](../public/fonts/eb-garamond.txt), and [logo](../public/logo.
 Fallback fonts keep text visible during loading. The logo supplies the header, landing image, and favicon. Its upright
 curves use the accent at full opacity. Horizontal curves remain faint. Each inline instance has unique SVG IDs. The
 dedicated [app icon](../public/icon.svg) uses the same curves in fixed purple on white, with a square canvas and safe
-margins. Its maintained PNG renditions supply the 180 px iOS touch icon and the 192/512 px manifest icons.
+margins. Its maintained PNG renditions supply the 180 px iOS touch icon and the 192/512 px manifest icons. The opaque
+512 px icon also supports Android launcher masks. All visible curves stay inside the central safe circle with radius 40%
+of the canvas width.
 
 Page-selection hints and Style descriptions use the body text size. Compact numbers and secondary metadata retain
 smaller text. The landing's prepared-PDF link uses a thin dotted underline with clear space between dots and below the
@@ -126,8 +128,9 @@ use the same capacity policy. Pagination stays inside the available screen at or
 
 A frame reserves at least one complete card row and usable pagination. If these minimums cannot fit, the document
 scrolls. It does not shrink controls or show a partial final row. Enlarged text and short landscape screens can require
-this exception. Page also reserves a usable image area below its heading. Style keeps document flow for its editable
-fields. Its companion pane uses the shared fit reference.
+this exception. Page also reserves a usable image area below its heading. Narrow Page frames retain enough image height
+for complete heading control targets, including with enlarged text. Style keeps document flow for its editable fields.
+Its companion pane uses the shared fit reference.
 
 Below 480 CSS px of viewport height, the workspace status bar scrolls with the document. It must not cover card targets
 when enlarged text or the minimum complete row requires scrolling.

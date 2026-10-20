@@ -722,7 +722,13 @@ test("Dragging opens stable page slots, previews density, and commits only on dr
           () => document.querySelectorAll(".composition-output .composition-card:not([inert])").length === 7,
         )
         const survivors = await remaining.evaluateAll((items) => items.map((item) => item.id))
-        await source.dispatchEvent("dragstart", { dataTransfer: transfer })
+        const retired = await source.evaluate((element, data) => {
+          element.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: data }))
+          return [...document.querySelectorAll(".composition-output .composition-card.removing")].every(
+            (card) => !card.getClientRects().length,
+          )
+        }, transfer)
+        assert.equal(retired, true, "A new drag retires outgoing cards before its first slot measurement")
         const liveTarget = remaining.nth(2),
           liveBounds = await liveTarget.boundingBox()
         await liveTarget.dispatchEvent("dragover", {
@@ -794,7 +800,7 @@ test("Dragging page images and grips preserves selection and page focus", { time
         const bounds = await control.boundingBox()
         const x = bounds.x + bounds.width / 2,
           y = bounds.y + bounds.height / 2
-        if (modified) await page.keyboard.down("Control")
+        if (modified) await page.keyboard.down("ControlOrMeta")
         await page.mouse.move(x, y)
         await page.mouse.down()
         await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label")?.endsWith("page 2"))
@@ -810,7 +816,7 @@ test("Dragging page images and grips preserves selection and page focus", { time
         )
         await page.keyboard.press("Escape")
         await page.mouse.up()
-        if (modified) await page.keyboard.up("Control")
+        if (modified) await page.keyboard.up("ControlOrMeta")
         assert.equal(await prepared.inputValue(), "1,3,3")
         assert.equal(await selected.inputValue(), "1,3")
         assert.equal(await target.evaluate((element) => element === document.activeElement), true)
@@ -1944,9 +1950,9 @@ test("Selection and view shortcuts target the mouse pane and preserve native key
     await selected.fill("3,5")
     await page.mouse.move(1432, 20)
     await prepared.focus()
-    await page.keyboard.press("Control+a")
+    await page.keyboard.press("ControlOrMeta+a")
     assert.deepEqual(await prepared.evaluate((element) => [element.selectionStart, element.selectionEnd]), [0, 3])
-    assert.equal(await selected.inputValue(), "3,5", "Ctrl+A in a field selects text")
+    assert.equal(await selected.inputValue(), "3,5", "The native select-all shortcut selects field text")
     await prepared.press("v")
     assert.equal(await prepared.inputValue(), "v", "Fields retain letter entry")
     await prepared.fill("2,4")
@@ -2375,8 +2381,9 @@ test("Output movement keeps direction buttons fixed at selection boundaries", { 
             await revealMoves()
             assert.equal(await earlier.isEnabled(), start !== 1)
             assert.equal(await later.isEnabled(), start !== 6)
-            const bounds = [await earlier.boundingBox(), await later.boundingBox()]
             const action = direction < 0 ? earlier : later
+            await action.scrollIntoViewIfNeeded()
+            const bounds = [await earlier.boundingBox(), await later.boundingBox()]
             const point = bounds[direction < 0 ? 0 : 1]
             for (let step = 1; step <= 2; step++) {
               await revealMoves()
@@ -2404,7 +2411,20 @@ test("Output movement keeps direction buttons fixed at selection boundaries", { 
               }
               if (!inline) assert.ok(Math.abs(centers[0] - centers[1]) < 1, "Menu move icons share one column")
               assert.equal(await action.isEnabled(), true)
+              const hit = await page.evaluate(
+                ({ x, y }) => document.elementFromPoint(x, y)?.closest("button")?.getAttribute("aria-label"),
+                { x: point.x + point.width / 2, y: point.y + point.height / 2 },
+              )
+              assert.equal(
+                hit,
+                await action.getAttribute("aria-label"),
+                `${colorScheme}, ${width}, ${text}, ${density}, ${start}, step=${step}: the retained coordinate hits its action`,
+              )
               await page.mouse.click(point.x + point.width / 2, point.y + point.height / 2)
+              await page.waitForFunction(({ field, value }) => field.value === value, {
+                field: await selected.elementHandle(),
+                value: String(start + direction * step),
+              })
               assert.equal(
                 await selected.inputValue(),
                 String(start + direction * step),

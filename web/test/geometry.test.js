@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
+import { mkdir } from "node:fs/promises"
 import { chromium } from "playwright"
 import { aligned, zoom } from "./workspace.js"
 import { createServer, tab, image, captureLayout, fixture } from "./browser.js"
@@ -9,6 +10,7 @@ import { createServer, tab, image, captureLayout, fixture } from "./browser.js"
 test("Paired pane headings align actions, metadata, tabs, and selection fields", { timeout: 90000 }, async (t) => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser, page
+  await mkdir("../.local/tmp/web/headers", { recursive: true })
   try {
     await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
@@ -81,6 +83,11 @@ test("Paired pane headings align actions, metadata, tabs, and selection fields",
               assert.ok(Math.abs(layout.inputField.y - layout.outputField.y) < 1)
               assert.ok(layout.totals.right <= layout.download.x && layout.totals.bottom <= layout.heading.bottom + 1)
               assert.equal(layout.overflow, false)
+              if (density === "Normal" && [1080, 1152, 2560].includes(width))
+                await page.screenshot({
+                  path: `../.local/tmp/web/headers/paired-${width}-${text}-${colorScheme}-${populated}.png`,
+                  fullPage: true,
+                })
             }
           }
         }
@@ -329,6 +336,92 @@ test("Page controls retain space and alignment with wide fonts and enlarged mobi
           `${font}, ${width}px, ${text}: the percentage remains inside the page heading`,
         )
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+      }
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
+test("Narrow Page headings keep complete control rows across adjacent phone widths", { timeout: 120000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  const directory = "../.local/tmp/web/headers"
+  await mkdir(directory, { recursive: true })
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    for (const colorScheme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme })
+      for (const text of ["100%", "200%"]) {
+        await page.evaluate((size) => (document.documentElement.style.fontSize = size), text)
+        for (const [width, height] of [
+          [320, 568],
+          [375, 667],
+          [390, 844],
+          [430, 932],
+          [439, 956],
+          [440, 956],
+          [441, 956],
+          [956, 440],
+        ]) {
+          await page.setViewportSize({ width, height })
+          for (const name of ["Input", "Output"]) {
+            const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+            const views = page.locator(".mobile-workspace-tabs")
+            if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
+            await tab(pane, "Page")
+            for (const action of [undefined, "Zoom in", "Fit page"]) {
+              if (action) await zoom(pane, action)
+              await aligned(pane)
+              const layout = await pane.locator(".inspection-heading").evaluate((heading) => {
+                // oxlint-disable-next-line unicorn/consistent-function-scoping -- Playwright serializes this callback.
+                const box = (element) => element.getBoundingClientRect().toJSON()
+                const tools = heading.querySelector(".page-tools")
+                return {
+                  heading: box(heading),
+                  counter: box(heading.querySelector(".page-number-control")),
+                  tools: box(tools),
+                  buttons: [...tools.querySelectorAll("button")].map(box),
+                  leading: box(heading.querySelector(".page-grip") ?? heading.querySelector(".page-number")),
+                }
+              })
+              const label = `${name}, ${width}×${height}, ${text}, ${colorScheme}, ${action ?? "Fit"}`
+              assert.ok(
+                layout.buttons.every(
+                  (button) =>
+                    button.width >= 44 &&
+                    button.height >= 44 &&
+                    Math.abs(button.top - layout.buttons[0].top) < 1 &&
+                    button.left >= layout.heading.left - 1 &&
+                    button.right <= layout.heading.right + 1 &&
+                    button.top >= layout.heading.top - 1 &&
+                    button.bottom <= layout.heading.bottom + 1,
+                ),
+                `${label}: all control targets stay on one complete row inside the heading: ${JSON.stringify(layout)}`,
+              )
+              assert.ok(
+                layout.tools.top >= layout.leading.bottom - 1 || layout.tools.left >= layout.leading.right - 1,
+                `${label}: a wrapped tools group has its own row without covering the counter or grip`,
+              )
+              assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, label)
+            }
+            assert.equal(
+              await page.locator(".error-banner").count(),
+              0,
+              `${name}, ${width}, ${text}: no rendering errors`,
+            )
+            if ([320, 440, 956].includes(width))
+              await page.screenshot({
+                path: `${directory}/${name}-${width}-${text}-${colorScheme}.png`,
+                fullPage: true,
+              })
+          }
+        }
       }
     }
   } finally {

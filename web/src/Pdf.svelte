@@ -90,7 +90,9 @@
         }
         const size = sheet.getViewport({ scale: 1 })
         if (!small) parent.style.setProperty("--ratio", String(size.width / size.height))
-        const { width, height } = await measure(() => {
+        const bounds = await measure(() => {
+          // A pane can become hidden while PDF.js loads; wait for its next visible resize.
+          if (!parent.clientWidth) return
           const style = getComputedStyle(parent)
           const availableWidth = Math.max(
             1,
@@ -107,7 +109,8 @@
               : Infinity
           return { width: availableWidth, height: availableHeight }
         })
-        if (disposed || current !== generation) return
+        if (!bounds || disposed || current !== generation) return
+        const { width, height } = bounds
         const fit = (Math.min(width / size.width, height / size.height) * level) / 100
         lensScale = (small ? Math.min(width / size.width, height / size.height) : reference / size.width) / fit
         const scale = Math.min(

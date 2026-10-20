@@ -127,10 +127,14 @@ test("Workspace tools wrap without moving the view tabs", async () => {
                   const style = getComputedStyle(field)
                   const canvas = document.createElement("canvas").getContext("2d")
                   canvas.font = style.font
-                  return (
-                    field.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) >=
-                    canvas.measureText(innerWidth < 375 ? "2,4" : "2,4-6").width
-                  )
+                  const available =
+                    field.getBoundingClientRect().width -
+                    parseFloat(style.paddingLeft) -
+                    parseFloat(style.paddingRight) -
+                    parseFloat(style.borderLeftWidth) -
+                    parseFloat(style.borderRightWidth)
+                  const required = canvas.measureText(innerWidth < 375 ? "2,4" : "2,4-6").width
+                  return available >= required
                 }),
                 `${label}: the selection field fits a short page sequence`,
               )

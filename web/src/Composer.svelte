@@ -626,9 +626,12 @@
     cancelMove?.()
     cancelMove = undefined
     // Outgoing cards must leave before another edit or transfer uses the Grid's slots.
-    for (const card of document.getElementById(`${key}-output-panel`)?.querySelectorAll(".composition-card.removing") ??
-      [])
+    for (const card of document
+      .getElementById(`${key}-output-panel`)
+      ?.querySelectorAll<HTMLElement>(".composition-card.removing") ?? []) {
       for (const animation of card.getAnimations()) animation.finish()
+      card.style.display = "none"
+    }
   }
   function animateEdit(expanded: Expanded[], ids: Set<string>, origin?: HTMLElement | null) {
     cancelMotion()

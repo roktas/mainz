@@ -3,6 +3,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { readFile } from "node:fs/promises"
+import { measure } from "./measure.js"
 import { chromium } from "playwright"
 import { aligned, zoom } from "./workspace.js"
 import { createServer, fixture, hasCursor, tab, pagePosition, image, pixel } from "./browser.js"
@@ -1351,20 +1352,20 @@ test("Grid and Page switches preserve selections, zoom, and the inspected page",
     const ready = () =>
       page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
     const pageFocused = () => page.evaluate(() => !!document.activeElement?.matches(".page-image, .page-scroll"))
-    const ctrlClick = async (thumbnail) => {
+    const modifiedClick = async (thumbnail) => {
       await thumbnail.scrollIntoViewIfNeeded()
       const box = await thumbnail.boundingBox()
       const focusedBefore = await thumbnail.evaluate((element) => element === document.activeElement)
-      await page.keyboard.down("Control")
+      await page.keyboard.down("ControlOrMeta")
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
       await page.mouse.down()
       assert.equal(
         await thumbnail.evaluate((element) => element === document.activeElement),
         focusedBefore,
-        "Ctrl-press preserves existing focus until the view switches",
+        "Modified press preserves existing focus until the view switches",
       )
       await page.mouse.up()
-      await page.keyboard.up("Control")
+      await page.keyboard.up("ControlOrMeta")
     }
     await prepared.fill("1-17")
     await prepared.press("Enter")
@@ -1372,13 +1373,13 @@ test("Grid and Page switches preserve selections, zoom, and the inspected page",
     await prepared.fill("2,4")
     await input.getByRole("slider", { name: "Input thumbnail range", exact: true }).press("End")
     const inputImage = input.getByRole("button", { name: "Select Input page 16", exact: true })
-    await ctrlClick(inputImage)
+    await modifiedClick(inputImage)
     await ready()
     assert.match(await pagePosition(input), /16\s*\/ 17/)
     assert.equal(await pageFocused(), false, "Mouse view switching leaves page focus to normal navigation")
     await zoom(input, "Zoom in")
     await ready()
-    await image(input).click({ modifiers: ["Control"], position: { x: 100, y: 100 } })
+    await image(input).click({ modifiers: ["ControlOrMeta"], position: { x: 100, y: 100 } })
     assert.equal(await inputImage.isVisible(), true, "Grid returns to the inspected thumbnail batch")
     assert.equal(await pageFocused(), false)
     await inputImage.click({ modifiers: ["Meta"] })
@@ -1411,11 +1412,11 @@ test("Grid and Page switches preserve selections, zoom, and the inspected page",
     await outputGrip.tap()
     assert.equal(await selected.inputValue(), "2, 15")
     const outputImage = output.getByRole("button", { name: "Select Output page 15", exact: true })
-    await ctrlClick(outputImage)
+    await modifiedClick(outputImage)
     await ready()
     assert.match(await pagePosition(output), /15\s*\/ 17/)
     assert.equal(await pageFocused(), false)
-    await image(output).click({ modifiers: ["Control"] })
+    await image(output).click({ modifiers: ["ControlOrMeta"] })
     assert.equal(await outputImage.isVisible(), true)
     assert.equal(await pageFocused(), false)
     await outputImage.focus()
@@ -1523,6 +1524,7 @@ test("Grid selection keeps painted pages in place", { timeout: 60000 }, async ()
               `${name}: footer lines and space remain available`,
             )
           }
+          await measure(pane)
           const before = await painted()
           assert.ok(
             before.every((item) => item.centered),

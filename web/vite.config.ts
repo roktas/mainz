@@ -14,6 +14,7 @@ import {
 import { createHash } from "node:crypto"
 import { execFileSync } from "node:child_process"
 import { dirname, join, resolve } from "node:path"
+import { homedir } from "node:os"
 
 const version = readFileSync(resolve("../VERSION"), "utf8").trim()
 const now = new Date()
@@ -44,6 +45,7 @@ try {
   /* Source archives can build without Git metadata. */
 }
 const wasm = resolve(process.env.MAINZ_WASM_DIR ?? "../.local/var/package/wasm")
+const cache = process.platform === "darwin" ? join(homedir(), "Library/Caches/Mainz") : join(homedir(), ".cache/mainz")
 let outputDirectory = resolve("../.local/var/js/dist")
 
 function prepare() {
@@ -95,7 +97,7 @@ function prepare() {
         background_color: "#ffffff",
         icons: [
           { src: "icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
         ],
       }),
     ),
@@ -138,7 +140,7 @@ const assets = prepare()
 export default defineConfig({
   base: "./",
   build: { outDir: outputDirectory, emptyOutDir: true },
-  cacheDir: "../.local/var/js/cache/vite",
+  cacheDir: join(cache, "vite", createHash("sha256").update(resolve(".")).digest("hex").slice(0, 16)),
   publicDir: assets,
   define: {
     "import.meta.env.VERSION": JSON.stringify(version),
