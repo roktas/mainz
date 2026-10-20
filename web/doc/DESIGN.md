@@ -491,6 +491,12 @@ errors, cancellation, and reduced motion. No layout introduces horizontal overfl
 toolbar, or fixed status row. Touch emulation covers taps and scrolling. Physical-device drag behavior and assistive
 technology require separate evidence.
 
+Physical iOS acceptance includes a fresh Home Screen installation, the icon on light and dark wallpaper, and paired
+heading alignment in Chrome landscape tabbed mode. Record the OS/browser versions, presentation mode, actual CSS
+viewport, revision, and screenshots. Check sustained lens movement with a representative complex PDF, including touch
+holds and crop edges. Keep measured frame, memory, and installation costs separate from automated correctness results.
+These cases remain open until their physical evidence exists.
+
 Animation assertions wait for the rendered effect to start before checking its duration or geometry. Updated document
 totals do not prove that a transition has started. Edit feedback checks also run with CPU throttling and identify the
 viewport and density in their diagnostics. Do not use fixed sleeps or automatic retries to hide timing failures.
