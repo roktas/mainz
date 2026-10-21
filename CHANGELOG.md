@@ -4,93 +4,73 @@
 
 ### Added
 
-- Optional app installation guidance, with dismissible iPhone/iPad startup help and a permanent Help topic.
-- Help on the landing page and touch screens, with topics for the current input and workspace.
-- Development-only Grid geometry exports and a shared viewport inventory and calibration search.
-- Dedicated iOS Home Screen and PWA icons with fixed colors, tested raster sizes, and Android launcher-mask support.
-- Prepared PDFs can expose editable Style properties without a Show/Hide control.
-- Product tour steps explain Normal/Compact Grid density and Output selection actions.
-- Touch controls for grip dragging, lens inspection, and switching from Grid to Page with a double tap.
-- Numeric Selection keyboards on touch screens.
-- Pinch zoom in Page, with the same range as the zoom controls.
-- Brief status emphasis after operations and page emphasis after a double-tap or double-click copy.
-- Page additions, including copies, repeats, and Blanks, move a preview toward Output before the new pages appear.
-- Page removal fades and shrinks outgoing pages. Moves animate cards into their new positions.
+- Optional app installation guidance, dismissible iPhone/iPad startup help, dedicated Home Screen icons, and Android
+  launcher-mask support.
+- Help on the landing page and touch screens, plus Product tour steps for Grid density and Output selection actions.
+- Touch grip dragging, lens inspection, Grid-to-Page double taps, numeric Selection keyboards, and Page pinch zoom.
+- Brief status and page emphasis after operations. Additions carry a preview toward Output; removals fade and shrink;
+  moves and remaining cards animate into place. The single-pane Output button glows during page arrival. Reduced-motion
+  preferences suppress animations.
+- Prepared PDFs can expose Style properties without a Show/Hide control.
 
 ### Changed
 
-- Single-pane touch Page starts with a wider image when Fit is too small. Fit still restores the complete page, and
-  explicit zoom choices persist across view changes.
-- Single-pane touch Page omits grips and aligns its header and footer controls with the frame, with balanced image
-  gutters. Card headers and footers keep one row; excess Page actions use the existing pane menu.
-- The landing product name keeps a readable minimum on narrow screens. Touch-only landing pages omit the persistent
-  file-drag instruction.
-- Grid calibrations fit more complete cards in measured iPhone and iPad layouts and in Mac and external-display
-  references, while preserving readable previews, usable controls, and shared Input/Output frame dimensions.
-- Header actions use the available space after the logo when no Notice is present.
-- The workspace status bar scrolls with very short screens so it does not cover enlarged card targets.
-- Offline installation verifies up to four assets concurrently and completes pending writes before rolling back a failed
-  installation.
-- Style controls share one Output page-usage count instead of scanning every occurrence for each control.
-- Header Notices use neutral text and the existing blue information accent in both themes.
-- The web application is named PDF Composer.
-- Settings uses −/+ controls for lens magnification from 2× to 128×, with the current factor displayed beside them.
-- Remaining Grid cards slide into place after removal, and the single-pane Output button glows during page arrival.
-- Both Grid densities paginate complete rows within the available viewport. Very short screens retain usable cards and
-  controls through document scrolling.
-- Grid columns share available width with equal outside spaces. Row spacing follows column spacing, leaving unused
-  height below the cards.
-- Normal Grid images stay near twice the linear size of Compact images at ordinary text size.
+- The web application is named PDF Composer. Settings adjusts lens magnification from 2× to 128× with −/+ controls.
+- Normal and Compact Grid show complete rows within the available viewport. Input chooses its initial density after
+  opening and retains it per Source. Grid and Page share thumbnail dimensions. At ordinary text size, Normal images stay
+  near twice Compact size.
+- Grid fits more readable cards in measured phone, tablet, Mac, and external-display layouts. Columns distribute space
+  evenly, with matching row gaps and unused height below complete rows. Calibrations affect only matching viewports.
+- Grid pagination displays at most 64 marks while retaining every exact slider position and page-range label.
+- Single-pane touch Page starts with a wider image when Fit is too small. Fit restores the complete page, and manual
+  zoom persists across view changes. Header and footer controls align with the frame; overflow actions use the pane
+  menu.
+- Without a Notice, header actions use the space after the logo. Notices use neutral text and the information accent in
+  both themes.
+- Offline installation verifies four assets concurrently and completes pending writes before rolling back a failed
+  install.
+- Output style scope, coverage, preview decisions, and Download share one Source-usage calculation per composition
+  change.
+- Repeated composition indexes prepared Source regions once instead of scanning the complete manifest for each
+  occurrence.
+- PDF opening reads complete page geometry in groups of 16 and releases each inspected page, including on failure or
+  cancellation.
 
 ### Fixed
 
-- Page addition animations use the targeted image and position for card actions and prepared sequences. Unavailable
-  targets start at the action area.
-- New drags retire fading removed cards before measuring insertion slots.
-- Page previews ignore measurements from panes hidden during PDF loading, preventing invalid raster sizes after view
-  changes.
-- Narrow Page frames retain complete header control targets with enlarged text.
-- Lens refinement starts without a movement settling delay, keeps completed detail aligned during movement, and releases
-  acquired pages on cancellation or renderer failure.
-- Closed PDFs release their cached preview rasters after their last owner leaves.
-- The theme button exposes its effective dark-theme state and follows system changes until an explicit choice.
-- Narrow two-pane headings align Open PDF and Download, with Output totals beside Download.
-- Window blur, resizing, and workspace closure release native and touch drag previews.
-- Concurrent Vite servers retain complete static-asset revisions, including changed public files and PDF.js resources.
-- Landing top spacing stays bounded on wide screens with coarse-pointer input.
-- Grid pagination captions stay below the slider in both densities and pane layouts.
-- Enlarged text keeps complete Grid rows above pagination and header Notices visible while scrolling.
-- Viewport calibrations change card dimensions and spacing within explicit width, height, and primary-input bounds.
-  Unmatched screens use shared geometry and the same pagination policy.
-- Product tour steps start at the beginning of their explanations after scrolling.
-- Output movement buttons keep their positions and become disabled at selection boundaries.
-- Bulk page additions target a new image in the visible Output Grid batch when both panes are displayed.
-- Style selectors retain their touch height on iPad and keep their arrows inset from the field edge.
-- Opening Settings by touch keeps the close button free of an initial focus contour.
-- Grid navigation and Shift selection keep the correct page positions while new copies await arrival and after resizing.
-- Dragging during page removal uses the remaining Output pages for insertion.
-- Mobile Grid pagination shares one layout in both densities, with the caption below the slider row. Phone pagination
-  stays clear of the status bar.
-- Tall two-pane layouts fill the space above the status bar, keeping pagination and the pane divider at the bottom.
-- Double-tapping Page images copies the current page on touch browsers without native double-click events.
-- Grid grips stay centered across card widths, selection states, and page-number lengths.
-- Grid and Page use the same thumbnail column dimensions on touch and mouse layouts.
-- Page lens magnification uses the thumbnail's fitted width and height in both densities.
-- Page heading and navigation keep their fitted alignment while zoom changes the image size.
-- Animated additions initialize Grid capacity, and drag previews follow the rendered card slots and image insets in both
-  densities.
-- Carried page previews respect their size bounds at fractional card dimensions.
-- Compact selection keeps page images fixed when border emphasis changes.
-- Input chooses its initial density after opening completes, without counting the temporary loading area.
-- Drag feedback on touch screens. Grid drops and selection actions keep the keyboard closed.
-- Repeated Page image activation copies the current page and preserves Selection.
-- Move controls stay in the Output selection bar when space permits, including tablet landscape layouts.
-- Build IDs use Istanbul time and retain the full UTC build timestamp in their details.
-- Input changes cancel pending double-clicks, double-taps, and transfers. Output gestures stay independent. Page
-  shortcuts cannot edit the workspace during a drag.
-- Download stays disabled for invalid style drafts that affect Output, including drafts in inactive Inputs.
-- Large Style panels calculate page coverage without repeated linear searches.
-- Ordinary PDFs release their validation worker after opening instead of retaining unused WASM memory.
+- Overlapping PDF preview renders release their own pages and cancel obsolete tasks while retaining the last completed
+  image. Closed PDFs release cached rasters after their last owner leaves. Ordinary PDFs release their validation worker
+  after opening.
+- Page previews ignore hidden-pane measurements. Loading, density changes, and selection keep images within their
+  frames. Lens refinement starts without a settling delay, stays aligned during movement, and releases pages on
+  cancellation or failure. Page lens magnification follows the fitted thumbnail in both densities. Selection keeps image
+  positions fixed.
+- Grid pagination captions stay below the slider in both densities and pane layouts, clear of the status bar. Short
+  screens scroll to preserve complete rows, enlarged targets, and header Notices. Tall panes fill the available height.
+- Grid grips stay centered and clear of page numbers and folded corners. Page headers, navigation, zoom tools, and image
+  gutters retain their alignment and complete targets, including enlarged text. Single-pane touch Page omits grips.
+- Input and Output headings align in narrow two-pane layouts, with totals beside Download. Landing spacing and product
+  text remain readable; touch-only landing pages omit the persistent file-drag instruction.
+- Grid navigation and Shift selection retain correct positions during additions and resizing. Removal and dragging use
+  the remaining Output pages. Move buttons stay in place, disable at selection boundaries, and remain in the selection
+  bar when space permits.
+- Addition animations use the targeted image and position, including prepared sequences and bulk additions. Unavailable
+  targets use the action area. New drags retire fading cards before measuring slots; previews respect image insets and
+  size bounds.
+- Repeated Page activation copies the current page and preserves Selection, including touch browsers without native
+  double-click events. Input changes cancel pending double clicks, double taps, and transfers without disturbing Output
+  gestures.
+- Window blur, resize, and closure release drag previews. Page shortcuts cannot edit during dragging. Touch Grid drops
+  and selection actions keep the keyboard closed.
+- Invalid style drafts affecting Output block Download, including drafts in inactive Inputs. Style controls retain touch
+  targets and inset arrows. Touch-opened Settings keeps its close button free of an initial focus contour.
+- The theme button exposes its effective state and follows system changes until an explicit choice. Product tour steps
+  start at the beginning after scrolling. Build IDs use Istanbul time and retain the full UTC timestamp in their
+  details.
+- Concurrent development servers retain complete static-asset revisions, including changed public files and PDF.js
+  resources.
+- CLI output installation retries temporary-file removal during cleanup if the first removal fails after successful
+  installation.
 
 ## 1.0.0 - 2026-10-17
 

@@ -510,7 +510,10 @@ a total-memory guarantee. Persistent editable workspaces, printer control, and i
 outside this version.
 
 App owns the document lifetime and rejects replies from obsolete requests: It selects retained documents after view
-updates. The PDF boundary owns their loading-task and raster release.
+updates. The PDF boundary owns their loading-task and raster release, initial page geometry, and labels. Opening reads
+complete geometry in bounded batches and releases each acquired page after inspection. Cancellation discards incomplete
+geometry. Each preview render releases its own acquired page, including obsolete generations, and cancels superseded
+render tasks. Cancellation retains the last completed raster.
 
 | Stage             | Retained resources                                        | Cancellation or replacement                                  |
 | ----------------- | --------------------------------------------------------- | ------------------------------------------------------------ |

@@ -9,7 +9,8 @@ For example, you can change guide colors or line widths in a practice sheet with
 spacing.
 
 [Open PDF Composer](https://mainz.roktas.dev/) in a modern browser. Your PDFs stay on your device. The application also
-works offline after installation.
+works offline after the browser successfully installs and caches its application assets. Adding a Home Screen icon is a
+separate action.
 
 ## Components
 

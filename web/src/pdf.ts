@@ -1,6 +1,8 @@
-// Owns PDF.js loading, document disposal, validation, and bounded preview rasters.
+// Owns PDF.js loading, page inspection, document disposal, and bounded preview rasters.
 
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist"
+import { maxPages } from "./model.ts"
+import type { Size } from "./model.ts"
 
 const assets = new URL(`${import.meta.env.BASE_URL}pdfjs/`, location.href).href
 let renderer: Promise<typeof import("pdfjs-dist")> | undefined
@@ -97,6 +99,30 @@ export async function verifyPDF(pdf: PDFDocumentProxy) {
     canvas.width = canvas.height = 0
     page.cleanup()
   }
+}
+
+export async function inspectPDF(pdf: PDFDocumentProxy, cancelled: () => boolean) {
+  if (pdf.numPages > maxPages) throw new Error(`PDF Composer supports up to ${maxPages} pages.`)
+  await verifyPDF(pdf)
+  const sizes: Size[] = []
+  for (let start = 0; start < pdf.numPages; start += 16) {
+    if (cancelled()) return
+    const batch = await Promise.all(
+      Array.from({ length: Math.min(16, pdf.numPages - start) }, async (_, offset) => {
+        const page = await pdf.getPage(start + offset + 1)
+        try {
+          const viewport = page.getViewport({ scale: 1 })
+          return { width: (viewport.width * 25.4) / 72, height: (viewport.height * 25.4) / 72 }
+        } finally {
+          page.cleanup()
+        }
+      }),
+    )
+    if (cancelled()) return
+    sizes.push(...batch)
+  }
+  const labels = (await pdf.getPageLabels()) ?? []
+  if (!cancelled()) return { sizes, labels }
 }
 
 export async function openPDF(bytes: Uint8Array) {

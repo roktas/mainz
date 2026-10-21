@@ -827,6 +827,31 @@ module Mainz
       file("composition-report.json").binwrite(result.stdout)
     end
 
+    def test_composition_indexes_reordered_repeated_regions
+      fixture(@source, method(:across_pages), pdf_objects: method(:across_page_objects))
+      output, result = compose(
+        {
+          "version" => 1,
+          "sources" => {"book" => {"input" => "input", "overrides" => {}}},
+          "parts" => [{"pages" => [1, 0, 1].map { |page| {"source" => "book", "page" => page} }, "copies" => 2}]
+        },
+        "indexed.pdf"
+      )
+      assert_equal([1, 0, 1, 1, 0, 1], JSON.parse(result.stdout)["pages"].map { |page| page["page"] })
+      wire = JSON.parse(command("qpdf", "--show-attachment=mainz.json", output).stdout)
+      assert_equal(%w[p0:guides p1:rows p2:guides p3:guides p4:rows p5:guides], wire["targets"]["s0:pattern"])
+      assert_equal(%w[p1:filled p4:filled], wire["targets"]["s0:filled"])
+      description = describe(output)
+      assert_equal(%w[p0 p1 p2 p3 p4 p5], description["parameters"]["s0:width"]["pages"])
+      assert_equal(%w[p0 p2 p3 p5], description["parameters"]["s0:guide-color"]["pages"])
+      reset = operation(output, "indexed-reset.pdf", reset: true)
+      original = Mainz::Preservation.read(@source)
+      restored = Mainz::Preservation.read(reset)
+      [1, 0, 1, 1, 0, 1].each_with_index do |physical, index|
+        assert_equal(original[physical], restored[index])
+      end
+    end
+
     def test_composition_keeps_page_geometry_and_sizes_padding
       source = file("extraction-pages.pdf")
       fixture(source, method(:across_pages), pdf_objects: method(:across_page_objects))

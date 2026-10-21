@@ -281,14 +281,14 @@ test("Available styles follow only applicable Output pages from the same Source"
       } satisfies Description,
     },
   }
-  assert.deepEqual(available(source, []), [])
-  assert.deepEqual(available(source, [part("ordinary", [1])]), [])
-  assert.deepEqual(available(source, [part("used", [2])]), ["last"])
+  assert.deepEqual(available(source, usage([])), [])
+  assert.deepEqual(available(source, usage([part("ordinary", [1])])), [])
+  assert.deepEqual(available(source, usage([part("used", [2])])), ["last"])
   const other: Part = {
     ...part("other", [2]),
     pages: [{ id: "other-page", content: { source: "variant", page: 2 } }],
   }
-  assert.deepEqual(available(source, [other]), [])
+  assert.deepEqual(available(source, usage([other])), [])
 })
 
 test("Style coverage counts Source occurrences and copies without duplex padding or Blanks", () => {
@@ -298,18 +298,18 @@ test("Style coverage counts Source occurrences and copies without duplex padding
   for (const copies of ["0", "-1", "1.5", "invalid", "9007199254740992"])
     parts.push(part(`invalid-${copies}`, [1], copies))
   assert.deepEqual(
-    [...usage({ id: "book" }, parts)],
+    [...usage(parts).get("book")!],
     [
       [0, 6],
       [2, 5],
     ],
   )
-  assert.deepEqual([...usage({ id: "variant" }, parts)], [[0, 4]])
-  assert.deepEqual([...usage({ id: "book" }, parts.toReversed())].toSorted(), [
+  assert.deepEqual([...usage(parts).get("variant")!], [[0, 4]])
+  assert.deepEqual([...usage(parts.toReversed()).get("book")!].toSorted(), [
     [0, 6],
     [2, 5],
   ])
-  assert.deepEqual([...usage({ id: "book" }, [])], [])
+  assert.equal(usage([]).size, 0)
 })
 
 test("Preview processing follows changed Output parameters and retains deferred choices", () => {
@@ -334,22 +334,22 @@ test("Preview processing follows changed Output parameters and retains deferred 
     },
   }
   const rendered = { overrides: { first: "#111111" } }
-  assert.equal(needsRender(source, [], rendered), false)
-  assert.equal(needsRender(source, [part("ordinary", [1])], rendered), false)
-  assert.equal(needsRender(source, [part("ordinary", [1])], { ...rendered, pages: [0] }), false)
-  assert.equal(needsRender(source, [part("current", [0])], rendered), false)
-  assert.equal(needsRender(source, [part("deferred", [2], "2")], rendered), true)
-  assert.equal(needsRender(source, [part("current", [2])], { overrides: source.overrides }), false)
-  assert.equal(needsRender(source, [part("missing", [2])], { overrides: source.overrides, pages: [0] }), true)
-  assert.equal(needsRender(source, [part("covered", [2])], { overrides: source.overrides, pages: [2] }), false)
+  assert.equal(needsRender(source, usage([]), rendered), false)
+  assert.equal(needsRender(source, usage([part("ordinary", [1])]), rendered), false)
+  assert.equal(needsRender(source, usage([part("ordinary", [1])]), { ...rendered, pages: [0] }), false)
+  assert.equal(needsRender(source, usage([part("current", [0])]), rendered), false)
+  assert.equal(needsRender(source, usage([part("deferred", [2], "2")]), rendered), true)
+  assert.equal(needsRender(source, usage([part("current", [2])]), { overrides: source.overrides }), false)
+  assert.equal(needsRender(source, usage([part("missing", [2])]), { overrides: source.overrides, pages: [0] }), true)
+  assert.equal(needsRender(source, usage([part("covered", [2])]), { overrides: source.overrides, pages: [2] }), false)
   const other: Part = {
     ...part("other", [2]),
     pages: [{ id: "other-page", content: { source: "variant", page: 2 } }],
   }
-  assert.equal(needsRender(source, [other], rendered), false)
+  assert.equal(needsRender(source, usage([other]), rendered), false)
   const reset = { ...source, overrides: {} }
-  assert.equal(needsRender(reset, [part("reset", [0])], rendered), true)
-  assert.equal(needsRender(reset, [part("unassigned", [2])], rendered), false)
+  assert.equal(needsRender(reset, usage([part("reset", [0])]), rendered), true)
+  assert.equal(needsRender(reset, usage([part("unassigned", [2])]), rendered), false)
   assert.deepEqual(source.overrides, { first: "#111111", last: "#222222" })
 })
 
@@ -372,38 +372,44 @@ test("Invalid style drafts block only their Source's eligible Output pages", () 
       } satisfies Description,
     },
   }
-  assert.equal(draftError(source, []), undefined)
-  assert.equal(draftError(source, [part("ordinary", [0])]), undefined)
-  assert.equal(draftError(source, [part("used", [2], "2")]), "Book.pdf: fix Ink before Download.")
-  assert.equal(draftError({ ...source, drafts: {} }, [part("used", [2])]), undefined)
-  assert.equal(draftError({ ...source, id: "other" }, [part("used", [2])]), undefined)
-  assert.equal(draftError({ ...source, drafts: { ink: "#123456" } }, [part("used", [2])]), undefined)
+  assert.equal(draftError(source, usage([])), undefined)
+  assert.equal(draftError(source, usage([part("ordinary", [0])])), undefined)
+  assert.equal(draftError(source, usage([part("used", [2], "2")])), "Book.pdf: fix Ink before Download.")
+  assert.equal(draftError({ ...source, drafts: {} }, usage([part("used", [2])])), undefined)
+  assert.equal(draftError({ ...source, id: "other" }, usage([part("used", [2])])), undefined)
+  assert.equal(draftError({ ...source, drafts: { ink: "#123456" } }, usage([part("used", [2])])), undefined)
 })
 
 test("Small buffers apply only to large Sources with few distinct Output pages", () => {
   const source = { id: "book", input: { description: { pageCount: 32 } as Description } }
-  assert.deepEqual(bufferPages(source, [part("few", [7, 0, 7], "100")]), [0, 7])
-  assert.equal(bufferPages(source, []), undefined)
+  assert.deepEqual(bufferPages(source, usage([part("few", [7, 0, 7], "100")])), [0, 7])
+  assert.equal(bufferPages(source, usage([])), undefined)
   assert.equal(
-    bufferPages({ ...source, input: { description: { pageCount: 31 } as Description } }, [part("few", [0])]),
+    bufferPages({ ...source, input: { description: { pageCount: 31 } as Description } }, usage([part("few", [0])])),
     undefined,
   )
   assert.equal(
-    bufferPages(source, [
-      part(
-        "many",
-        Array.from({ length: 9 }, (_, index) => index),
-      ),
-    ]),
+    bufferPages(
+      source,
+      usage([
+        part(
+          "many",
+          Array.from({ length: 9 }, (_, index) => index),
+        ),
+      ]),
+    ),
     undefined,
   )
   assert.deepEqual(
-    bufferPages(source, [
-      part(
-        "quarter",
-        Array.from({ length: 8 }, (_, index) => index),
-      ),
-    ]),
+    bufferPages(
+      source,
+      usage([
+        part(
+          "quarter",
+          Array.from({ length: 8 }, (_, index) => index),
+        ),
+      ]),
+    ),
     [0, 1, 2, 3, 4, 5, 6, 7],
   )
 })

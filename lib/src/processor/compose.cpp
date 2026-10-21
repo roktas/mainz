@@ -31,6 +31,9 @@ struct JobSource {
     std::string bytes;
     std::unique_ptr<Engine> engine;
     JSON manifest = JSON::makeDictionary();
+    std::set<std::size_t> pages;
+    std::map<std::size_t, std::vector<std::pair<std::string, JSON>>> regions;
+    std::map<std::string, std::string> targets;
     std::string prefix;
     std::string input;
 };
@@ -248,10 +251,20 @@ Composition Engine::compose(JSON job, const std::map<std::string, std::string>& 
             if (page.source == id)
                 selected.emplace(page.page, page.page);
         source.manifest = source.engine->retained(selected);
+        auto authored_pages = object(source.manifest.getDictItem("pages"));
+        for (const auto& [id, physical] : authored_pages) {
+            (void)id;
+            source.pages.insert(static_cast<std::size_t>(number(physical)));
+        }
+        for (const auto& [id, region] : object(source.manifest.getDictItem("regions"))) {
+            auto physical = authored_pages.at(text(region.getDictItem("page")));
+            source.regions[static_cast<std::size_t>(number(physical))].emplace_back(id, region);
+        }
         for (const auto& [baseline, record] : object(source.manifest.getDictItem("baselines")))
             next.getDictItem("baselines").addDictionaryMember(source.prefix + baseline, record);
         for (const auto& [target, regions] : object(source.manifest.getDictItem("targets"))) {
-            (void)regions;
+            for (const auto& region : array(regions))
+                source.targets.emplace(text(region), target);
             next.getDictItem("targets").addDictionaryMember(source.prefix + target, JSON::makeArray());
         }
         for (const auto& [parameter, record] : object(source.manifest.getDictItem("parameters"))) {
@@ -349,16 +362,10 @@ Composition Engine::compose(JSON job, const std::map<std::string, std::string>& 
             report.addDictionaryMember("page", JSON::makeInt(static_cast<long long>(page.page)));
             if (!object(source.manifest).empty()) {
                 auto page_id = "p" + std::to_string(index);
-                std::set<std::string> original_pages;
-                for (const auto& [id, physical] : object(source.manifest.getDictItem("pages")))
-                    if (number(physical) == static_cast<double>(page.page))
-                        original_pages.insert(id);
-                if (!original_pages.empty())
+                if (source.pages.contains(page.page))
                     next.getDictItem("pages").addDictionaryMember(
                         page_id, JSON::makeInt(static_cast<long long>(index)));
-                for (const auto& [id, region] : object(source.manifest.getDictItem("regions"))) {
-                    if (!original_pages.contains(text(region.getDictItem("page"))))
-                        continue;
+                for (const auto& [id, region] : source.regions[page.page]) {
                     auto region_id = page_id + ":";
                     region_id += id;
                     auto locators_copy = JSON::makeArray(), refs = JSON::makeDictionary();
@@ -371,11 +378,8 @@ Composition Engine::compose(JSON job, const std::map<std::string, std::string>& 
                         {"marker", region.getDictItem("marker")}, {"records", locators_copy}, {"baselineRefs", refs}});
                     updated.addDictionaryMember("page", JSON::makeString(page_id));
                     next.getDictItem("regions").addDictionaryMember(region_id, updated);
-                    for (const auto& [target, regions] : object(source.manifest.getDictItem("targets")))
-                        for (const auto& reference : array(regions))
-                            if (text(reference) == id)
-                                member(next.getDictItem("targets"), source.prefix + target)
-                                    .addArrayElement(JSON::makeString(region_id));
+                    member(next.getDictItem("targets"), source.prefix + source.targets.at(id))
+                        .addArrayElement(JSON::makeString(region_id));
                 }
             }
         }
@@ -422,6 +426,9 @@ Composition Engine::compose(JSON job, const std::map<std::string, std::string>& 
     for (auto& [id, source] : sources) {
         (void)id;
         source.manifest = JSON::makeNull();
+        source.regions.clear();
+        source.targets.clear();
+        source.pages.clear();
         source.engine.reset();
     }
     Engine reopened(saved.bytes, &budget, false, syntax.get());

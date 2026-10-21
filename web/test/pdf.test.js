@@ -5,6 +5,235 @@ import test from "node:test"
 import { chromium } from "playwright"
 import { createServer, fixture, tab } from "./browser.js"
 
+test("Overlapping preview generations release their own pages and never paint stale results", async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage()
+    await page.goto(server.resolvedUrls.local[0])
+    const result = await page.evaluate(async () => {
+      const { mount, unmount, tick, Pdf } = await import("/test/fixtures/preview.ts")
+      const { loadRenderer } = await import("/src/pdf.ts")
+      await loadRenderer()
+      const frames = new Map(),
+        requests = [],
+        handles = [],
+        tasks = [],
+        errors = []
+      let resize,
+        next = 0
+      const original = { ResizeObserver, requestAnimationFrame, cancelAnimationFrame }
+      window.ResizeObserver = class {
+        constructor(callback) {
+          resize = callback
+        }
+        observe() {}
+        disconnect() {}
+      }
+      window.requestAnimationFrame = (callback) => {
+        frames.set(++next, callback)
+        return next
+      }
+      window.cancelAnimationFrame = (id) => frames.delete(id)
+      const advance = async () => {
+        const batch = [...frames.values()]
+        frames.clear()
+        for (const callback of batch) callback()
+        await tick()
+      }
+      const target = document.createElement("div")
+      document.body.append(target)
+      const pdf = { getPage: () => new Promise((resolve) => requests.push(resolve)) }
+      let component
+      try {
+        component = mount(Pdf, { target, props: { pdf, page: 0, thumbnail: true, error: (text) => errors.push(text) } })
+        await tick()
+        const viewport = target.querySelector(".thumbnail")
+        const redraw = async () => {
+          viewport.style.inlineSize = `${400 + requests.length * 20}px`
+          resize()
+          await advance()
+        }
+        const acquire = async (index) => {
+          const handle = { cleaned: 0, rendered: 0 }
+          handles[index] = handle
+          requests[index]({
+            getViewport: ({ scale }) => ({ width: 100 * scale, height: 100 * scale }),
+            cleanup: () => handle.cleaned++,
+            render: ({ canvas }) => {
+              handle.rendered++
+              let resolve, reject
+              const task = {
+                promise: new Promise((yes, no) => {
+                  resolve = yes
+                  reject = no
+                }),
+                cancel: () => {
+                  task.cancelled = true
+                  reject(new Error("Cancelled"))
+                },
+                finish: (color) => {
+                  const context = canvas.getContext("2d")
+                  context.fillStyle = color
+                  context.fillRect(0, 0, canvas.width, canvas.height)
+                  resolve()
+                },
+              }
+              tasks.push(task)
+              return task
+            },
+          })
+          await tick()
+        }
+        await redraw()
+        await acquire(0)
+        await redraw()
+        await redraw()
+        await acquire(2)
+        await advance()
+        await acquire(1)
+        tasks[0].finish("#008000")
+        await tick()
+        const canvas = target.querySelector("canvas")
+        const pixels = () => [...canvas.getContext("2d").getImageData(0, 0, 1, 1).data]
+        const first = pixels()
+        await redraw()
+        await acquire(3)
+        await advance()
+        const retained = pixels()
+        await redraw()
+        await acquire(4)
+        await advance()
+        tasks.at(-1).finish("#0000ff")
+        await tick()
+        const last = pixels()
+        await redraw()
+        await unmount(component)
+        component = undefined
+        await acquire(5)
+        return {
+          handles,
+          errors,
+          first,
+          retained,
+          last,
+          cancelled: tasks.filter((task) => task.cancelled).length,
+          removed: !target.querySelector("canvas"),
+        }
+      } finally {
+        if (component) await unmount(component)
+        Object.assign(window, original)
+        target.remove()
+      }
+    })
+    assert.deepEqual(result.handles, [
+      { cleaned: 1, rendered: 0 },
+      { cleaned: 1, rendered: 0 },
+      { cleaned: 1, rendered: 1 },
+      { cleaned: 1, rendered: 1 },
+      { cleaned: 1, rendered: 1 },
+      { cleaned: 1, rendered: 0 },
+    ])
+    assert.deepEqual(result.errors, [])
+    assert.deepEqual(result.first, [0, 128, 0, 255])
+    assert.deepEqual(result.retained, result.first)
+    assert.deepEqual(result.last, [0, 0, 255, 255])
+    assert.equal(result.cancelled, 1)
+    assert.equal(result.removed, true)
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
+test("Input inspection bounds pending metadata and releases pages on completion, cancellation, and failure", async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage()
+    await page.goto(server.resolvedUrls.local[0])
+    const result = await page.evaluate(async () => {
+      const { inspectPDF } = await import("/src/pdf.ts")
+      const results = []
+      for (const mode of ["complete", "cancel", "failure"]) {
+        let pending = 0,
+          peak = 0,
+          acquired = 0,
+          released = 0,
+          labels = 0,
+          failure
+        const pdf = {
+          numPages: 100,
+          getPage: async (number) => {
+            acquired++
+            peak = Math.max(peak, ++pending)
+            await Promise.resolve()
+            pending--
+            return {
+              getViewport: () => {
+                if (mode === "failure" && number === 8) throw new Error("Invalid page geometry")
+                return { width: number * 72, height: 144 }
+              },
+              render: () => ({ promise: Promise.resolve() }),
+              cleanup: () => released++,
+            }
+          },
+          getPageLabels: async () => {
+            labels++
+            return ["Cover"]
+          },
+        }
+        let geometry
+        try {
+          geometry = await inspectPDF(pdf, () => mode === "cancel" && acquired > 1)
+        } catch (error) {
+          failure = error.message
+        }
+        results.push({
+          mode,
+          peak,
+          acquired,
+          released,
+          labels,
+          failure,
+          count: geometry?.sizes.length,
+          first: geometry?.sizes[0],
+          last: geometry?.sizes.at(-1),
+          names: geometry?.labels,
+        })
+      }
+      return results
+    })
+    assert.deepEqual(result[0], {
+      mode: "complete",
+      peak: 16,
+      acquired: 101,
+      released: 101,
+      labels: 1,
+      failure: undefined,
+      count: 100,
+      first: { width: 25.4, height: 50.8 },
+      last: { width: 2540, height: 50.8 },
+      names: ["Cover"],
+    })
+    for (const entry of result.slice(1)) {
+      assert.equal(entry.peak, 16)
+      assert.equal(entry.acquired, 17)
+      assert.equal(entry.released, entry.acquired)
+      assert.equal(entry.labels, 0)
+      assert.equal(entry.count, undefined)
+    }
+    assert.equal(result[2].failure, "Invalid page geometry")
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
 test("Document ownership releases tasks and rasters once, including validation failures", async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser

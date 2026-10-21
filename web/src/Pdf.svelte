@@ -25,7 +25,7 @@
 <script lang="ts">
   import { onDestroy } from "svelte"
   import { cachedRaster, cacheRaster, loadRenderer } from "./pdf.ts"
-  import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist"
+  import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist"
   import Lens from "./Lens.svelte"
   import type { Magnification } from "./Lens.svelte"
   let {
@@ -74,20 +74,18 @@
     let frame: number
     let generation = 0
     let completed: { fit: number; scale: number } | undefined
-    let sheet: PDFPageProxy | undefined
-    let task: ReturnType<Awaited<ReturnType<PDFDocumentProxy["getPage"]>>["render"]> | undefined
+    let active: RenderTask | undefined
     async function draw() {
       if (!parent.clientWidth || (!small && !reference)) return
       const current = ++generation
-      task?.cancel()
+      active?.cancel()
+      let sheet: PDFPageProxy | undefined
+      let task: RenderTask | undefined
       try {
         const { AnnotationMode } = await loadRenderer()
         if (disposed || current !== generation) return
         sheet = await document.getPage(number + 1)
-        if (disposed || current !== generation) {
-          sheet.cleanup()
-          return
-        }
+        if (disposed || current !== generation) return
         const size = sheet.getViewport({ scale: 1 })
         if (!small) parent.style.setProperty("--ratio", String(size.width / size.height))
         const bounds = await measure(() => {
@@ -130,6 +128,7 @@
           raster.width = Math.ceil(viewport.width)
           raster.height = Math.ceil(viewport.height)
           task = sheet.render({ canvas: raster, viewport, annotationMode: AnnotationMode.DISABLE })
+          active = task
           await task.promise
           if (disposed || current !== generation) return
           cacheRaster(document, number, scale, raster)
@@ -145,6 +144,8 @@
         failure = reason instanceof Error ? reason.message : "PDF rendering failed."
         error(`Page ${pageNumber ?? number + 1}: ${failure}`)
       } finally {
+        if (active === task) active = undefined
+        sheet?.cleanup()
         if (!disposed && current === generation) rendering = false
       }
     }
@@ -159,8 +160,7 @@
       disposed = true
       observer.disconnect()
       cancelAnimationFrame(frame)
-      task?.cancel()
-      sheet?.cleanup()
+      active?.cancel()
     }
   }
   onDestroy(() => {

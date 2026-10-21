@@ -1015,6 +1015,81 @@ test("Grid scales desktop capacity, balances Page, and retains compact actions",
   }
 })
 
+test("Grid pagination bounds its marks and retains exact page navigation", { timeout: 60000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    await page
+      .locator("input[type=file]")
+      .first()
+      .setInputFiles({
+        name: "A long input filename for pagination.pdf",
+        mimeType: "application/pdf",
+        buffer: fixture(false),
+      })
+    await page.locator(".composer[aria-busy=false]").waitFor()
+    const input = page.locator(".selection-panel"),
+      output = page.locator(".composition-output")
+    for (const [repeated, copies, total] of [
+      [1, 1, 1],
+      [1, 63, 64],
+      [1, 936, 1000],
+      [9, 1000, 10000],
+    ]) {
+      await input.getByLabel("Page selection", { exact: true }).fill(Array(repeated).fill("1").join(","))
+      await input.getByLabel("Input page actions", { exact: true }).click()
+      await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill(String(copies))
+      await page.keyboard.press("Escape")
+      await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+      for (const density of ["Normal", "Compact"]) {
+        await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+        const batch = Number(await output.locator(".grid-view").getAttribute("data-batch"))
+        const batches = Math.ceil(total / batch)
+        const slider = output.getByRole("slider", { name: "Output thumbnail range", exact: true })
+        if (total === 1 && density === "Normal") continue
+        assert.equal(await output.locator(".batch-marks > span").count(), Math.min(batches, 64))
+        assert.equal(await slider.getAttribute("max"), String(batches - 1))
+        if (batches > 1) {
+          await slider.press("End")
+          assert.equal(await slider.inputValue(), String(batches - 1))
+          assert.equal(
+            await slider.getAttribute("aria-valuetext"),
+            `Grid page ${batches} of ${batches}, pages ${(batches - 1) * batch + 1}–${total} of ${total}`,
+          )
+          await output.getByRole("button", { name: `Select Output page ${total}`, exact: true }).waitFor()
+          await slider.press("Home")
+          assert.equal(await slider.inputValue(), "0")
+        } else assert.equal(await slider.isDisabled(), true)
+      }
+    }
+    for (const width of [320, 390, 768]) {
+      await page.setViewportSize({ width, height: 1100 })
+      for (const colorScheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme })
+        for (const density of ["Normal", "Compact"]) {
+          for (const name of ["Input", "Output"]) {
+            const views = page.locator(".mobile-workspace-tabs")
+            if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
+            const pane = name === "Input" ? input : output
+            await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+            assert.ok((await pane.locator(".batch-marks > span").count()) <= 64)
+            assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+          }
+        }
+      }
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
 test("Compact pagination retains readable four- and five-digit numbers", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser

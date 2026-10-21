@@ -2,7 +2,11 @@
 
 PDF Composer builds one PDF from pages you choose across local PDFs. Extract pages, duplicate or repeat them, remove
 unwanted pages, and arrange the result. Prepared PDFs also expose declared styles, such as colors, line widths, opacity,
-and visibility. Your PDFs stay on your device. The application works offline after installation.
+and visibility. Your PDFs stay on your device.
+
+The application works offline after its service worker successfully installs and caches the application assets. The
+service worker is the browser's background component for offline use. Adding a Home Screen icon is a separate action.
+The application's offline-ready notice confirms that the assets are available.
 
 PDF Composer uses modern browser features. Older systems, including iOS 16, can show a broken layout or fail to open
 PDFs. We do not claim a tested minimum OS or browser version.
@@ -27,7 +31,8 @@ and removes the cursor. The pointer's screen half identifies the target pane. An
 first.
 
 Try [mainz.roktas.dev](https://mainz.roktas.dev/). The [specification and glossary](doc/SPEC.md) define the workspace.
-[DESIGN.md](doc/DESIGN.md) defines its appearance.
+[DESIGN.md](doc/DESIGN.md) defines its appearance. [Open issues](doc/ISSUES.md) records unresolved device reports and
+their evidence.
 
 ## Development
 

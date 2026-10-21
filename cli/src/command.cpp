@@ -86,8 +86,8 @@ public:
         check_interrupt();
         if (link(temporary.c_str(), destination.c_str()) != 0)
             throw std::runtime_error(errno == EEXIST ? "Output already exists." : "Cannot install output.");
-        unlink(temporary.c_str());
-        temporary.clear();
+        if (unlink(temporary.c_str()) == 0)
+            temporary.clear();
     }
 
 private:

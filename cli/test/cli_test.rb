@@ -143,6 +143,51 @@ module Mainz
       end
     end
 
+    def test_output_retries_temporary_cleanup_after_install
+      shim = @directory.join("unlink.c")
+      shim.write(
+        <<~C
+          #define _GNU_SOURCE
+          #include <dlfcn.h>
+          #include <errno.h>
+          #include <string.h>
+          #include <unistd.h>
+
+          int unlink(const char *path)
+          {
+            static int failed;
+            if (!failed && strstr(path, "/.mainz-")) {
+                failed = 1;
+                errno = EACCES;
+                return -1;
+            }
+            int (*original)(const char *) = dlsym(RTLD_NEXT, "unlink");
+            return original(path);
+          }
+        C
+      )
+      library = @directory.join("unlink.so")
+      darwin = RUBY_PLATFORM.include?("darwin")
+      Mainz.run("cc", darwin ? "-dynamiclib" : "-shared", "-fPIC", shim, "-o", library, *(darwin ? [] : ["-ldl"]))
+      environment = darwin ? {"DYLD_INSERT_LIBRARIES" => library.to_s, "DYLD_FORCE_FLAT_NAMESPACE" => "1"} : {
+        "LD_PRELOAD" => library.to_s
+      }
+      output = @directory.join("installed.pdf")
+      stdout, stderr, status = Open3.capture3(
+        environment,
+        @cli,
+        "reset",
+        @prepared.to_s,
+        "--output",
+        output.to_s
+      )
+      assert_equal(0, status.exitstatus, stderr)
+      assert_equal({"ok" => true}, JSON.parse(stdout))
+      assert_empty(stderr)
+      assert_equal(@prepared.binread, output.binread)
+      assert_empty(@directory.glob(".mainz-*"))
+    end
+
     def test_interruptions_preserve_existing_output
       operations.each do |command, _input, options|
         %w[INT TERM].each do |signal|

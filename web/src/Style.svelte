@@ -1,17 +1,18 @@
 <!-- Shows the active Source's applicable Style profiles and parameter groups. -->
 
 <script lang="ts">
-  import { available, feedback, groups, matchingProfile, objects, resolve, usage } from "./styles.ts"
+  import { feedback, groups, matchingProfile, objects, resolve } from "./styles.ts"
   import { pageRanges } from "./pages.ts"
   import type { Entry } from "./styles.ts"
-  import type { Source, Part } from "./model.ts"
+  import type { Source } from "./model.ts"
   import Control from "./Control.svelte"
   import Icon from "./Icon.svelte"
   import Quartet from "./Quartet.svelte"
   import type { TourStep } from "./Help.svelte"
   let {
     source,
-    parts,
+    controls,
+    counts,
     style,
     profile,
     reset,
@@ -20,7 +21,8 @@
     tour,
   }: {
     source: Source
-    parts: Part[]
+    controls: string[]
+    counts: Map<number, number>
     style: (id: string, text: string) => void
     profile: (setId: string, profileId: string) => void
     reset: (id?: string) => void
@@ -30,8 +32,6 @@
   } = $props()
   const definition = $derived(source.input.description)
   const groupObjects = $derived(objects(definition))
-  const controls = $derived(available(source, parts))
-  const counts = $derived(usage(source, parts))
   const profiles = $derived(
     (definition.profileSets ?? []).filter(
       (set) => set.profiles.length > 1 && set.parameters.some((id) => controls.includes(id)),

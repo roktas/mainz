@@ -4,6 +4,7 @@ import type { Part } from "./model.ts"
 
 export type Scalar = number | string
 export type Render = { overrides: Record<string, Scalar>; pages?: number[] }
+export type Usage = Map<string, Map<number, number>>
 export type PaintDuo = { color?: string; opacity?: string }
 export type Quartet = {
   fill: PaintDuo
@@ -146,28 +147,31 @@ export function applicable(description: Description, pages: Iterable<number>): s
     .filter((id) => description.parameters[id].pages.some((page) => scope.has(description.pages[page].index)))
 }
 
-export function available(source: { id: string; input: { description: Description } }, parts: Part[]): string[] {
-  return applicable(source.input.description, usedPages(source, parts))
+export function available(source: { id: string; input: { description: Description } }, counts: Usage): string[] {
+  return applicable(source.input.description, usedPages(source, counts))
 }
 
-export function usage(source: { id: string }, parts: Part[]): Map<number, number> {
-  const counts = new Map<number, number>()
+export function usage(parts: Part[]): Usage {
+  const sources: Usage = new Map()
   for (const part of parts) {
     const copies = Number(part.copies)
     if (!Number.isSafeInteger(copies) || copies <= 0) continue
     for (const { content } of part.pages)
-      if ("source" in content && content.source === source.id)
+      if ("source" in content) {
+        let counts = sources.get(content.source)
+        if (!counts) sources.set(content.source, (counts = new Map()))
         counts.set(content.page, (counts.get(content.page) ?? 0) + copies)
+      }
   }
-  return counts
+  return sources
 }
 
 export function draftError(
   source: { id: string; input: { name: string; description: Description }; drafts: Record<string, string> },
-  parts: Part[],
+  counts: Usage,
 ): string | undefined {
   if (!Object.keys(source.drafts).length) return
-  const scope = new Set(available(source, parts))
+  const scope = new Set(available(source, counts))
   for (const [id, text] of Object.entries(source.drafts)) {
     if (!scope.has(id)) continue
     const entry = source.input.description.parameters[id]
@@ -175,19 +179,15 @@ export function draftError(
   }
 }
 
-function usedPages(source: { id: string }, parts: Part[]): number[] {
-  return parts.flatMap((part) =>
-    part.pages.flatMap((page) =>
-      "source" in page.content && page.content.source === source.id ? [page.content.page] : [],
-    ),
-  )
+function usedPages(source: { id: string }, counts: Usage): number[] {
+  return [...(counts.get(source.id)?.keys() ?? [])]
 }
 
 export function bufferPages(
   source: { id: string; input: { description: Description } },
-  parts: Part[],
+  counts: Usage,
 ): number[] | undefined {
-  const pages = [...new Set(usedPages(source, parts))].toSorted((a, b) => a - b)
+  const pages = usedPages(source, counts).toSorted((a, b) => a - b)
   const count = source.input.description.pageCount
   if (!pages.length || count < 32 || pages.length * 4 > count) return
   return pages
@@ -195,10 +195,10 @@ export function bufferPages(
 
 export function needsRender(
   source: { id: string; overrides: Record<string, Scalar>; input: { description: Description } },
-  parts: Part[],
+  counts: Usage,
   rendered: Render,
 ): boolean {
-  const used = usedPages(source, parts)
+  const used = usedPages(source, counts)
   const eligible = applicable(source.input.description, used)
   return (
     eligible.length > 0 &&

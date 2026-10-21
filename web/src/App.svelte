@@ -5,7 +5,7 @@
   import { animateRemoval } from "./motion.ts"
   import { fade } from "svelte/transition"
   import type { PDFDocumentLoadingTask } from "pdfjs-dist"
-  import { appearance, downloadName, expand, job, maxPages, positionAfterEdit, sizeOf, uid } from "./model.ts"
+  import { appearance, downloadName, expand, job, positionAfterEdit, sizeOf, uid } from "./model.ts"
   import type { Input, Part, Source } from "./model.ts"
   import type { Inspection } from "./Page.svelte"
   import type { Magnification } from "./Lens.svelte"
@@ -19,9 +19,10 @@
     feedback,
     needsRender,
     resolve,
+    usage,
   } from "./styles.ts"
   import type { Render, Scalar } from "./styles.ts"
-  import { Documents, openPDF, verifyPDF } from "./pdf.ts"
+  import { Documents, inspectPDF, openPDF, verifyPDF } from "./pdf.ts"
   import { Processor } from "./processor.ts"
   import Landing from "./Landing.svelte"
   import Settings from "./Settings.svelte"
@@ -88,6 +89,7 @@
   let openRevision = 0
   let disposed = false
   const active = $derived(sources.find((source) => source.id === activeId) ?? openingSource)
+  const counts = $derived(usage(parts))
   const output = $derived.by(() => {
     try {
       return { pages: expand(parts, sources), error: "" }
@@ -95,12 +97,8 @@
       return { pages: [], error: reason instanceof Error ? reason.message : "Invalid Output." }
     }
   })
-  const outputSources = $derived(
-    sources.filter((source) =>
-      parts.some((part) => part.pages.some((page) => "source" in page.content && page.content.source === source.id)),
-    ),
-  )
-  const controls = $derived(active ? available(active, parts) : [])
+  const outputSources = $derived(sources.filter((source) => counts.has(source.id)))
+  const controls = $derived(active ? available(active, counts) : [])
   const styleable = $derived(controls.length > 0)
   const hasProfiles = $derived(
     (active?.input.description.profileSets ?? []).some(
@@ -108,7 +106,7 @@
     ),
   )
   const outputProcessing = $derived(outputSources.some((source) => source.status === "pending"))
-  const downloadError = $derived(outputSources.map((source) => draftError(source, parts)).find(Boolean))
+  const downloadError = $derived(outputSources.map((source) => draftError(source, counts)).find(Boolean))
   const inspection: Inspection | undefined = $derived.by(() => {
     const page = output.pages[Math.min(outputPosition, Math.max(0, output.pages.length - 1))]
     if (!page) return
@@ -159,16 +157,17 @@
     documents.retain(sources.flatMap((source) => [source.pdf, source.input.pdf]))
   }
   function composition(next: Part[], text = "Output updated. Input selections and styles are retained.") {
-    const previous = parts
+    const previous = counts
     outputPosition = positionAfterEdit(output.pages, expand(next, sources), outputPosition)
     parts = next
+    const nextCounts = counts
     outputChanged = true
     failure = ""
     for (const source of sources) {
       const preview = previews.get(source.id)!
       if (
         source.status === "pending" ||
-        (needsRender(source, next, preview.rendered) && !needsRender(source, previous, preview.rendered))
+        (needsRender(source, nextCounts, preview.rendered) && !needsRender(source, previous, preview.rendered))
       )
         schedule(source.id)
     }
@@ -209,22 +208,9 @@
           }
           openingTask = loadingTask
           const pdf = await loadingTask.promise
-          if (pdf.numPages > maxPages) throw new Error(`PDF Composer supports up to ${maxPages} pages.`)
-          await verifyPDF(pdf)
-          const sizes = []
-          for (let start = 0; start < pdf.numPages; start += 64) {
-            if (abandoned || disposed || revision !== openRevision) return
-            const batch = await Promise.all(
-              Array.from({ length: Math.min(64, pdf.numPages - start) }, async (_, offset) => {
-                const page = await pdf.getPage(start + offset + 1),
-                  viewport = page.getViewport({ scale: 1 })
-                return { width: (viewport.width * 25.4) / 72, height: (viewport.height * 25.4) / 72 }
-              }),
-            )
-            sizes.push(...batch)
-          }
-          const labels = (await pdf.getPageLabels()) ?? []
-          if (abandoned || disposed || revision !== openRevision) return
+          const geometry = await inspectPDF(pdf, () => abandoned || disposed || revision !== openRevision)
+          if (!geometry) return
+          const { sizes, labels } = geometry
           const input: Input = {
             id: uid(),
             name,
@@ -417,9 +403,9 @@
     const source = sources.find((item) => item.id === id)
     if (!source) return
     const preview = previews.get(id)!
-    const needed = needsRender(source, parts, preview.rendered)
+    const needed = needsRender(source, counts, preview.rendered)
     const requested = preview.request
-    if (needed && requested && !needsRender(source, parts, requested)) {
+    if (needed && requested && !needsRender(source, counts, requested)) {
       if (text) info(text, source)
       return
     }
@@ -430,7 +416,7 @@
       if (text) info(text, source)
       return
     }
-    preview.request = { overrides: { ...source.overrides }, pages: bufferPages(source, parts) }
+    preview.request = { overrides: { ...source.overrides }, pages: bufferPages(source, counts) }
     update({ ...source, status: "pending", error: undefined, revision })
     const statusRevision = info("Updating styles…", source)
     preview.timer = setTimeout(() => {
@@ -444,7 +430,7 @@
     const preview = previews.get(id)!
     const processor = (preview.processor ??= new Processor())
     const overrides: Record<string, Scalar> = { ...source.overrides }
-    const pages = bufferPages(source, parts)
+    const pages = bufferPages(source, counts)
     const ids = pages ? applicable(source.input.description, pages) : Object.keys(source.input.description.parameters)
     preview.request = { overrides, pages }
     let loadingTask: PDFDocumentLoadingTask | undefined
@@ -678,7 +664,8 @@
 {#snippet sourceStyling(toolbarOnly = false)}
   {#if active}{#key active.id}<Style
         source={active}
-        {parts}
+        {controls}
+        counts={counts.get(active.id) ?? new Map()}
         {toolbarOnly}
         {tour}
         style={changeStyle}
@@ -808,6 +795,7 @@
   {#if active || parts.length}<Composer
       bind:this={composer}
       source={active}
+      {styleable}
       opening={!!openingSource}
       {sources}
       {parts}

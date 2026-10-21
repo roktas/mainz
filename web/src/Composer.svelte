@@ -12,7 +12,6 @@
   import { pageRanges, parseSequence, toggleSequence } from "./pages.ts"
   import { blocked, fields } from "./keyboard.ts"
   import type { Sequence } from "./pages.ts"
-  import { available } from "./styles.ts"
   import Pdf from "./Pdf.svelte"
   import { retainFocus } from "./drag.ts"
   import { Transfer } from "./transfer.svelte.ts"
@@ -28,6 +27,7 @@
   import type { TourStep } from "./Help.svelte"
   let {
     source,
+    styleable,
     sources,
     parts,
     output,
@@ -50,6 +50,7 @@
     tour,
   }: {
     source?: Source
+    styleable: boolean
     sources: Source[]
     parts: Part[]
     output: { pages: Expanded[]; error: string }
@@ -159,7 +160,6 @@
   let cancelMove: (() => void) | undefined
   let removingPage = $state(false)
   const count = $derived(source?.input.pdf.numPages ?? 0)
-  const styleable = $derived(!!source && available(source, parts).length > 0)
   const hasStyles = $derived(!!source && Object.keys(source.input.description.parameters).length > 0)
   const activeTab = $derived(
     tour?.startsWith("style") && styleable

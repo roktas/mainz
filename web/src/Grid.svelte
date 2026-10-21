@@ -41,7 +41,11 @@
   )
   const batches = $derived(Math.max(1, Math.ceil(count / batch)))
   const current = $derived(Math.floor(start / batch))
-  const marks = $derived(Array.from({ length: batches }, (_, mark) => mark))
+  const marks = $derived(
+    Array.from({ length: Math.min(batches, 64) }, (_, mark) =>
+      batches <= 64 ? mark : Math.round((mark * (batches - 1)) / 63),
+    ),
+  )
 
   function measure(element: HTMLDivElement) {
     const notify = initialize

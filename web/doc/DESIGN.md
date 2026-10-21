@@ -386,10 +386,11 @@ The counter and tools share one row; the complete tools group never moves to a s
 
 Counters keep their dimensions during inline page entry. Current values use stronger text and totals muted text. Spaces
 separate each slash from both numbers. Grid's caption uses `4 / 27 · 28–36 / 240`, with accessible names describing both
-ranges. Its native slider has one stop per batch, gray group markers, and previous/next buttons. Wide layouts align Grid
-and Page navigation. The caption always stays below the slider in both densities and both pane layouts. It stays close
-to the slider and clear of the status bar. Two-pane layouts use the bottom gutter for captions. Calibration entries
-change card dimensions without changing this shared placement rule.
+ranges. Its native slider has one stop per batch, gray group markers, and previous/next buttons. At most 64 markers
+sample the full range, including its endpoints. The slider and caption retain exact batch and page positions. Wide
+layouts align Grid and Page navigation. The caption always stays below the slider in both densities and both pane
+layouts. It stays close to the slider and clear of the status bar. Two-pane layouts use the bottom gutter for captions.
+Calibration entries change card dimensions without changing this shared placement rule.
 
 Single-pane layouts use one pagination layout for Normal and Compact: the caption sits directly below the slider row,
 with previous/next buttons at the row's outer edges. The visible arrow centers align with the pane's content edges, as
