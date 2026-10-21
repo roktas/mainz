@@ -633,6 +633,18 @@
       card.style.display = "none"
     }
   }
+  function additionOrigin(id?: string) {
+    const panel = document.getElementById(`${key}-output-panel`)
+    const image =
+      activeOutputTab === "page"
+        ? id === inspected?.id
+          ? panel?.querySelector<HTMLElement>(".page-scroll canvas, .blank-sheet")
+          : undefined
+        : document
+            .getElementById(`${key}-${id}`)
+            ?.querySelector<HTMLElement>(".page-image :is(canvas, .composition-blank)")
+    return image ?? panel?.querySelector<HTMLElement>(".sequence-entry")
+  }
   function animateEdit(expanded: Expanded[], ids: Set<string>, origin?: HTMLElement | null) {
     cancelMotion()
     const previous = new Set(output.pages.map((page) => page.id))
@@ -642,15 +654,7 @@
       !added.length && !removing.size && expanded.some((page, index) => page.id !== output.pages[index]?.id)
     const panel = document.getElementById(`${key}-output-panel`)
     if (added.length && !transfer.value) {
-      const sheet =
-        origin ??
-        panel?.querySelector<HTMLElement>(
-          activeOutputTab === "page"
-            ? ".page-scroll canvas, .blank-sheet"
-            : ".composition-card.selected .page-image :is(canvas, .composition-blank)",
-        ) ??
-        panel?.querySelector<HTMLElement>(".page-image :is(canvas, .composition-blank)") ??
-        panel?.querySelector<HTMLElement>(".sequence-entry")
+      const sheet = origin ?? additionOrigin("blank" in added[0].content ? undefined : chosen[0]?.id)
       if (sheet) {
         cancelAddition = animateAddition(
           sheet,
@@ -783,8 +787,8 @@
       return false
     }
   }
-  function replace(pages: Page[], text: string, select?: (pages: Expanded[]) => string[]) {
-    return commit(composition.materialize(pages), text, select)
+  function replace(pages: Page[], text: string, select?: (pages: Expanded[]) => string[], origin?: HTMLElement | null) {
+    return commit(composition.materialize(pages), text, select, origin)
   }
   function inputTargets(page: number) {
     return draft.pages.length ? undefined : [page]
@@ -810,13 +814,13 @@
     const label = `${quantity} ${quantity === 1 ? "page" : "pages"}`
     const updated = composition.insert(parts, output.pages, next, at)
     const panel = document.getElementById(`${key}-source-panel`)
+    const first = (pages ?? parsed.pages)[0]
     const sheet =
-      panel?.querySelector<HTMLElement>(
-        activeTab === "page" ? ".page-scroll canvas" : `.page-image[data-page="${(pages ?? parsed.pages)[0]}"] canvas`,
-      ) ??
-      (pages === undefined
-        ? panel?.querySelector<HTMLElement>(".composition-card.selected .page-image canvas")
-        : undefined) ??
+      (activeTab === "page"
+        ? first === inputPosition
+          ? panel?.querySelector<HTMLElement>(".page-scroll canvas")
+          : undefined
+        : panel?.querySelector<HTMLElement>(`.page-image[data-page="${first}"] canvas`)) ??
       panel?.querySelector<HTMLElement>(".sequence-entry")
     const completed = commit(
       updated,
@@ -865,6 +869,7 @@
       next.pages,
       `Copied ${next.ids.length} ${next.ids.length === 1 ? "page" : "pages"} after Output page ${next.at}.`,
       selection === "new" ? () => next.ids : undefined,
+      additionOrigin(ids[0]),
     )
   }
   function copyCurrent(pane: "Input" | "Output") {

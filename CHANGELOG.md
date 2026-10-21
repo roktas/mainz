@@ -40,6 +40,8 @@
 
 ### Fixed
 
+- Page addition animations use the targeted image and position for card actions and prepared sequences. Unavailable
+  targets start at the action area.
 - New drags retire fading removed cards before measuring insertion slots.
 - Page previews ignore measurements from panes hidden during PDF loading, preventing invalid raster sizes after view
   changes.

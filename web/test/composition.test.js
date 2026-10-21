@@ -534,6 +534,154 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
   }
 })
 
+test("Addition previews use their target image or the action area", { timeout: 90000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    for (const [width, height, touch] of [
+      [1440, 1100, false],
+      [390, 844, true],
+    ]) {
+      const page = await browser.newPage({
+        viewport: { width, height },
+        hasTouch: touch,
+        isMobile: touch,
+        reducedMotion: "no-preference",
+      })
+      await page.addInitScript(() => {
+        localStorage.setItem("mainz:onboarding", "19")
+        document.addEventListener("DOMContentLoaded", () =>
+          new MutationObserver(() => {
+            document.querySelectorAll(".addition-preview").forEach((element) =>
+              element.getAnimations().forEach((animation) => {
+                animation.pause()
+                animation.currentTime = 0
+              }),
+            )
+          }).observe(document.body, { childList: true }),
+        )
+      })
+      for (const density of ["Normal", "Compact"]) {
+        for (const action of ["card", "selection", "keyboard"]) {
+          await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+          await page.waitForFunction(
+            () => document.querySelector(".composition-totals strong")?.textContent === "6 PDF pages",
+          )
+          const output = page.locator(".composition-output")
+          const workspace = page.locator(".mobile-workspace-tabs > button:last-child")
+          if (await workspace.isVisible()) await workspace.click()
+          await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+          const source = output.locator('.page-image[data-page="1"] canvas')
+          await page.waitForFunction(() =>
+            [...document.querySelectorAll(".composition-output .thumbnail")].every(
+              (element) => element.getAttribute("aria-busy") === "false",
+            ),
+          )
+          if (action === "card" && density === "Compact")
+            await output.getByRole("button", { name: "Details for Output page 2", exact: true }).click()
+          if (action !== "card") await output.getByLabel("Page selection", { exact: true }).fill("2")
+          const control =
+            action === "card"
+              ? output.getByRole("button", { name: "Duplicate Output page 2", exact: true })
+              : action === "selection"
+                ? output.getByRole("button", { name: "Duplicate selected Output pages", exact: true })
+                : output.locator(".composition-grid")
+          await control.scrollIntoViewIfNeeded()
+          const start = await source.evaluate((element) => {
+            const box = element.getBoundingClientRect()
+            return [
+              (Math.max(0, box.left) + Math.min(innerWidth, box.right)) / 2,
+              (Math.max(0, box.top) + Math.min(innerHeight, box.bottom)) / 2,
+            ]
+          })
+          const snapshot = await source.evaluateHandle((element) => {
+            const copy = document.createElement("canvas")
+            copy.width = element.width
+            copy.height = element.height
+            copy.getContext("2d").drawImage(element, 0, 0)
+            return copy
+          })
+          if (action === "keyboard") await control.press("Enter")
+          else await control.click()
+          const flight = page.locator(".addition-preview")
+          await flight.waitFor()
+          const result = await page.evaluate(
+            ({ preview, sheet }) => {
+              const box = preview.getBoundingClientRect()
+              const expected = document.createElement("canvas")
+              expected.width = preview.width
+              expected.height = preview.height
+              expected.getContext("2d").drawImage(sheet, 0, 0, expected.width, expected.height)
+              const actual = preview.getContext("2d").getImageData(0, 0, preview.width, preview.height).data
+              const pixels = expected.getContext("2d").getImageData(0, 0, expected.width, expected.height).data
+              return {
+                center: [box.left + box.width / 2, box.top + box.height / 2],
+                sameImage: actual.every((value, index) => value === pixels[index]),
+              }
+            },
+            { preview: await flight.elementHandle(), sheet: snapshot },
+          )
+          const label = `${width}, ${density}, ${action}`
+          assert.ok(
+            result.center.every((value, index) => Math.abs(value - start[index]) < 1),
+            `${label}: animation starts at the targeted image ${JSON.stringify({ start, result })}`,
+          )
+          assert.equal(result.sameImage, true, `${label}: animation uses the targeted page's pixels`)
+          await flight.evaluate((element) => element.getAnimations().forEach((animation) => animation.finish()))
+          await snapshot.dispose()
+        }
+      }
+      for (const action of ["input", "copy", "repeat"]) {
+        await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+        await page.waitForFunction(
+          () => document.querySelector(".composition-totals strong")?.textContent === "6 PDF pages",
+        )
+        const pane = page.locator(action === "input" ? ".selection-panel" : ".composition-output")
+        const workspace = page.locator(`.mobile-workspace-tabs > button:${action === "input" ? "first" : "last"}-child`)
+        if (await workspace.isVisible()) await workspace.click()
+        await tab(pane, "Page")
+        await pane.locator('.pdf-viewport[aria-busy="false"]').waitFor()
+        await pane.getByLabel("Page selection", { exact: true }).fill("2")
+        if (action === "repeat") {
+          await pane.getByLabel("Output page actions", { exact: true }).click()
+          await pane.getByRole("textbox", { name: "Repeat selected sequence", exact: true }).fill("2")
+        }
+        const control = pane.getByRole("button", {
+          name:
+            action === "input"
+              ? "Add to Output"
+              : action === "copy"
+                ? "Duplicate selected Output pages"
+                : "Repeat selected pages",
+          exact: true,
+        })
+        await control.scrollIntoViewIfNeeded()
+        const bar = await pane.locator(".sequence-entry").boundingBox()
+        await control.click()
+        const flight = page.locator(".addition-preview")
+        await flight.waitFor()
+        const bounds = await flight.boundingBox()
+        assert.ok(
+          Math.abs(bounds.x + bounds.width / 2 - bar.x - bar.width / 2) < 1,
+          `${width}, ${action}: an unavailable target uses the action area`,
+        )
+        assert.equal(
+          await flight.evaluate((canvas) => canvas.getContext("2d").getImageData(0, 0, 1, 1).data[3]),
+          0,
+          "The preview does not copy another inspected page",
+        )
+        await flight.evaluate((element) => element.getAnimations().forEach((animation) => animation.finish()))
+      }
+      await page.close()
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
 test(
   "Output additions, removals, and moves animate across page actions and shortcuts",
   { timeout: 120000 },

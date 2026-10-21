@@ -484,6 +484,12 @@ or Output is in Page. Single-pane layouts use the Output button when no new imag
 the visible source image and target on both axes. Grid arrivals match the target image size across pane densities. A
 Blank uses a blank preview.
 
+Additions use the targeted page's rendered image and start at that image. Output copying uses the same occurrence
+identity for buttons, menus, and keyboard shortcuts. A group uses its first target in print order. If that image is
+unavailable, use the action area as the origin; do not substitute another page's image. This also applies when Page
+shows a different page from the prepared Input sequence or Output selection. Removal and movement retain each affected
+occurrence's own image and position.
+
 When the preview targets the Output workspace button, that button gains a soft accent glow over the same 1200 ms. The
 glow rises and fades during the flight. Arrival or cancellation clears it without changing the button's geometry.
 
