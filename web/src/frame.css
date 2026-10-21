@@ -14,7 +14,7 @@
       }
     }
 
-    :scope:not(:has(.style-status)) {
+    :scope {
       block-size: 100dvb;
       /* Keep sticky Notices within the document when usable content requires scrolling. */
       min-block-size: min-content;
@@ -147,7 +147,7 @@
     }
   }
 
-  @scope (.composer:not(:has(.style-status))) {
+  @scope (.composer) {
     :scope {
       min-block-size: 0;
     }
@@ -176,6 +176,44 @@
     :scope :is(.grid-view, .page-view) {
       block-size: 100%;
       min-block-size: 0;
+    }
+
+    @container composer (width > 55em) {
+      .input-panel:has(.workspace-content) {
+        display: block flow;
+        /* The form's intrinsic height must not enlarge the shared frame budget. */
+        container-type: size;
+        min-block-size: 0;
+
+        .page-content,
+        .workspace-content,
+        .source-layout,
+        .source-tools {
+          block-size: 100%;
+          min-block-size: 0;
+        }
+
+        .source-tools {
+          display: block flex;
+          flex-direction: column;
+        }
+
+        .style-profile {
+          flex: none;
+        }
+
+        .control-list {
+          flex: 1;
+          align-content: start;
+          min-block-size: 0;
+          overflow: auto;
+          overscroll-behavior: contain;
+          scrollbar-width: thin;
+          scrollbar-gutter: stable;
+          padding-inline-end: var(--gap);
+          margin-inline-end: calc(-1 * var(--gap));
+        }
+      }
     }
 
     @container composer (width <= 55em) {
@@ -217,13 +255,30 @@
     }
   }
 
-  @media (hover: hover) and (pointer: fine) and (1280px <= width < 2140px) and (700px <= height < 1200px) {
+  @media (hover: hover) and (pointer: fine) and (1280px <= width < 2140px) and (700px <= height < 1200px) and (not ((1800px <= width < 2000px) and (950px <= height < 1000px))) {
     @scope (.composer) {
       @container composer (width > 55em) {
         :is(.selection-panel, .composition-output)[data-density="compact"] {
           --grid-width: max(74px, calc(5 * var(--body)), calc((100cqi - 7 * var(--grid-gap) - 1px) / 6));
           --grid-height: 7.5625rem;
           --thumbnail-padding: 0.4rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (1800px <= width < 2000px) and (950px <= height < 1000px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            --grid-height: 14rem;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(78px, calc(5 * var(--body)));
+            --grid-height: 6.90625rem;
+            --thumbnail-padding: 0.4rem;
+          }
         }
       }
     }
@@ -350,7 +405,7 @@
     }
   }
 
-  @media (hover: hover) and (pointer: fine) and (2560px <= width < 2880px) and (1280px <= height < 1800px) {
+  @media (hover: hover) and (pointer: fine) and (2560px <= width < 2880px) and (1280px <= height < 1800px) and (not (1315px <= height < 1420px)) {
     @scope (.composer) {
       @container composer (width > 55em) {
         :is(.selection-panel, .composition-output) {
@@ -364,6 +419,29 @@
             --grid-width: 9.375rem;
             --grid-gap: 14px;
             --thumbnail-padding: 16px;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (2560px <= width < 2880px) and (1315px <= height < 1420px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            --grid-height: clamp(
+              15rem,
+              calc((100cqb - var(--grid-pager-height) - 2 * var(--grid-row-gap) - 10px) / 3),
+              16.25rem
+            );
+            --grid-width: 9.375rem;
+            --grid-gap: 14px;
+            --thumbnail-padding: 16px;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(75px, calc(5 * var(--body)));
+            --grid-height: 7.03125rem;
           }
         }
       }
@@ -432,10 +510,13 @@
             --thumbnail-padding: 0.90625rem;
             --grid-width: clamp(8.375rem, calc((100cqi - 8 * var(--grid-gap) - 1px) / 7), 8.75rem);
             --grid-height: clamp(
-              14.8125rem,
+              14.3125rem,
               calc((100cqb - var(--grid-pager-height) - 5 * var(--grid-row-gap) - 10px) / 6),
               15rem
             );
+          }
+          &[data-density="compact"] {
+            --grid-height: 7.5rem;
           }
         }
       }

@@ -278,18 +278,6 @@
           grid-template-rows: subgrid;
         }
       }
-      .composer .composition-panels:has(.style-status) {
-        grid-template-rows: repeat(3, auto);
-        & .selection-panel,
-        & .composition-output {
-          grid-row: 1 / span 3;
-        }
-        & .input-panel,
-        & .output-panel {
-          display: block;
-          grid-row: 3;
-        }
-      }
       .composer .selection-panel {
         padding-inline-end: var(--gutter);
       }

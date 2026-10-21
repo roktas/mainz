@@ -89,10 +89,10 @@ including a separate viewport group. Native, sanitizer, and WASM checks run for 
 **Check and publish Mainz → Run workflow** and select `standard` or `full` for a manual check. Manual checks never
 upload a Pages artifact, deploy, or cancel a push run. Only a successful push to `main` deploys the web application.
 
-`PLAYWRIGHT_CHANNEL=chrome` selects installed Chrome. Kant uses `chrome-beta`; record the actual browser version with
-its results. On macOS, use Playwright's `ControlOrMeta` for native selection and modified pointer actions. Keep explicit
-Control shortcuts where they test the application's documented keyboard contract. Wait for stable rendered geometry
-before comparing dimensions. Use floating DOM bounds rather than rounded `clientWidth` for subpixel assertions.
+`PLAYWRIGHT_CHANNEL=chrome` selects installed Chrome; `chrome-beta` selects the Beta channel. Record the actual browser
+version with its results. On macOS, use Playwright's `ControlOrMeta` for native selection and modified pointer actions.
+Keep explicit Control shortcuts where they test the application's documented keyboard contract. Wait for stable rendered
+geometry before comparing dimensions. Use floating DOM bounds rather than rounded `clientWidth` for subpixel assertions.
 
 For remote runs, use complete, hash-verified source and WASM package snapshots outside Dropbox. Set `MAINZ_WASM_DIR` to
 the package snapshot. Rebuilding a shared package can synchronize its temporary deletion before its replacement arrives.
@@ -227,27 +227,33 @@ screen size. The inventory retains model scope and source attribution for each l
 are not CSS pixels. Reported scaled modes and inferred 2× modes remain explicitly attributed in the inventory.
 
 Where native acquisition is unavailable, the agreed fallback uses the full logical screen and a browser estimate at the
-same width with `round(0.91 * screenHeight)`. These are synthetic tuning references. They do not measure actual browser
-bars or native macOS fullscreen. The 15 distinct groups produce 30 fullscreen/estimated-browser viewports, including
-FHD, QHD, and UHD:
+same width with `screenHeight - 120 CSS px`. The fixed allowance approximates browser and desktop controls at ordinary
+scale. These synthetic references do not measure actual browser bars or native macOS fullscreen. The 15 distinct groups
+produce 30 fullscreen/estimated-browser viewports, including FHD, QHD, and UHD:
 
-| Logical screen | Representative and scope                                                         | 0.91-height seed |
+| Logical screen | Representative and scope                                                         | 120 px allowance |
 | -------------- | -------------------------------------------------------------------------------- | ---------------- |
-| 1408 × 881     | MacBook Neo, A18 Pro; reported scaled mode                                       | 1408 × 802       |
-| 1440 × 900     | MacBook Air M1 and 13-inch Retina MacBook Pro; supported scaled reference        | 1440 × 819       |
-| 1470 × 956     | 13-inch MacBook Air M2–M5; reported scaled mode                                  | 1470 × 870       |
-| 1710 × 1107    | 15-inch MacBook Air M2–M5; reported scaled mode                                  | 1710 × 1007      |
-| 1512 × 982     | 14-inch MacBook Pro M1–M5 family, at 2× Retina                                   | 1512 × 894       |
-| 1728 × 1117    | 16-inch MacBook Pro M1–M5 family, at 2× Retina                                   | 1728 × 1016      |
-| 2240 × 1260    | 24-inch iMac M1/M3/M4, at 2× Retina                                              | 2240 × 1147      |
-| 2560 × 1440    | QHD display; 27-inch 5K iMac, Studio Display, or Studio Display XDR at 2× Retina | 2560 × 1310      |
-| 3008 × 1692    | Pro Display XDR, at 2× Retina                                                    | 3008 × 1540      |
-| 1920 × 1080    | FHD display; UHD display at an explicit 2× Retina mode                           | 1920 × 983       |
-| 3840 × 2160    | UHD display at an explicit 1× mode                                               | 3840 × 1966      |
-| 1280 × 800     | 12-inch MacBook (2017), supported scaled reference                               | 1280 × 728       |
-| 1680 × 1050    | 15-inch Retina MacBook Pro (2012–2019), supported scaled reference               | 1680 × 956       |
-| 1792 × 1120    | 16-inch Intel MacBook Pro (2019), supported scaled reference                     | 1792 × 1019      |
-| 2048 × 1152    | 21.5-inch Retina 4K iMac (2017/2019), at 2× Retina                               | 2048 × 1048      |
+| 1408 × 881     | MacBook Neo, A18 Pro; reported scaled mode                                       | 1408 × 761       |
+| 1440 × 900     | MacBook Air M1 and 13-inch Retina MacBook Pro; supported scaled reference        | 1440 × 780       |
+| 1470 × 956     | 13-inch MacBook Air M2–M5; reported scaled mode                                  | 1470 × 836       |
+| 1710 × 1107    | 15-inch MacBook Air M2–M5; reported scaled mode                                  | 1710 × 987       |
+| 1512 × 982     | 14-inch MacBook Pro M1–M5 family, at 2× Retina                                   | 1512 × 862       |
+| 1728 × 1117    | 16-inch MacBook Pro M1–M5 family, at 2× Retina                                   | 1728 × 997       |
+| 2240 × 1260    | 24-inch iMac M1/M3/M4, at 2× Retina                                              | 2240 × 1140      |
+| 2560 × 1440    | QHD display; 27-inch 5K iMac, Studio Display, or Studio Display XDR at 2× Retina | 2560 × 1320      |
+| 3008 × 1692    | Pro Display XDR, at 2× Retina                                                    | 3008 × 1572      |
+| 1920 × 1080    | FHD display; UHD display at an explicit 2× Retina mode                           | 1920 × 960       |
+| 3840 × 2160    | UHD display at an explicit 1× mode                                               | 3840 × 2040      |
+| 1280 × 800     | 12-inch MacBook (2017), supported scaled reference                               | 1280 × 680       |
+| 1680 × 1050    | 15-inch Retina MacBook Pro (2012–2019), supported scaled reference               | 1680 × 930       |
+| 1792 × 1120    | 16-inch Intel MacBook Pro (2019), supported scaled reference                     | 1792 × 1000      |
+| 2048 × 1152    | 21.5-inch Retina 4K iMac (2017/2019), at 2× Retina                               | 2048 × 1032      |
+
+Measured viewports remain separate from these estimates. Browser controls, desktop configuration, zoom, and text size
+can change the available CSS dimensions. Equal screen resolutions do not imply equal content viewports. Use the actual
+content viewport for calibration. Keep platform versions, window bounds, screenshots, and source hashes with each
+measurement. Store host names and personal setup details in local evidence under `.local/var/viewport/`, outside tracked
+documentation. Public references describe platform conditions, viewport dimensions, and layout rules.
 
 ### Evidence limits
 

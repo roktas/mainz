@@ -25,7 +25,7 @@ function fit(baseline: Geometry, density: "normal" | "compact", axis: "row" | "c
   const border = grid.card.width - grid.thumbnail.width
   const minimumWidth = density === "compact" ? 74 : 134
   let best: { capacity: number; css: string } | undefined
-  for (const image of [grid.image.height, density === "compact" ? 80 : 140])
+  for (const image of [grid.image.height, density === "compact" ? 69.5 : 128])
     for (let padding = Math.floor(2 * grid.margins[0]) / 2; padding >= 2; padding -= 0.5) {
       const paper = (image * grid.image.width) / grid.image.height
       // Fit the column budget within the balanced-margin range before checking its distributed row gap.
@@ -98,7 +98,7 @@ export async function search(read: () => Promise<Geometry>, apply: (css: string)
       const grids = [sample.layout.input.normal, sample.layout.input.compact]
       const metrics = {
         silhouette: grids.reduce((sum, grid) => sum + Math.abs(grid.card.height / grid.card.width - Math.SQRT2), 0),
-        image: -grids.reduce((sum, grid, index) => sum + grid.image.height / (index ? 80 : 140), 0),
+        image: -grids.reduce((sum, grid, index) => sum + grid.image.height / (index ? 69.5 : 128), 0),
         spacing: grids.reduce((sum, grid) => {
           const gaps = [grid.edges[0], ...grid.gaps.filter((gap): gap is number => gap !== null)]
           return sum + (Math.max(...gaps) - Math.min(...gaps)) / Math.max(...gaps)

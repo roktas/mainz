@@ -60,6 +60,10 @@ reevaluate it. Density changes preserve selections, inspection, and operations. 
 viewport height and show complete rows. Short viewports retain one complete row and usable controls through document
 scrolling. [DESIGN.md](DESIGN.md#workspace) defines capacity references and calibration limits.
 
+In two-pane layout, Style groups scroll below the profile selectors while the workspace headings, tabs, profiles, and
+Output controls remain visible. Switching Input to Style preserves Output's Grid capacity and Page frame. Single-pane
+Style uses document scrolling.
+
 When copies exist, Input page numbers open copy counts and Output positions. Output page numbers open the Source
 filename and original page number. Mappings distinguish independent Sources and follow edits. Compact details also
 provide a larger preview and individual actions. Outside click or Escape closes details. PDF labels supplement physical

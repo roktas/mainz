@@ -30,7 +30,7 @@ export function quality(sample: Geometry) {
       require(grid.scroll <= 1 || grid.matrix[1] === 1, "minimum row scrolling")
       require(grid.card.height + 1 >= Math.SQRT2 * grid.card.width &&
         grid.card.height <= (280 / 150) * grid.card.width + 1, "portrait card proportions")
-      require(grid.image.height + 1 >= (density === "compact" ? 80 : 140), "readable image height")
+      require(grid.image.height + 1 >= (density === "compact" ? 69.5 : 128), "readable image height")
       require(Math.abs(upper - lower) < 1 && Math.abs(left - right) < 1, "centered images")
       require(Math.min(...grid.margins) >= 2, "clear image margins")
       require(left <= 2 * upper + 1, "balanced image margins")

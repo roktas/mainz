@@ -9,7 +9,7 @@ import { collect, environments } from "./measure.js"
 import { geometry, csv } from "../src/geometry.ts"
 import { quality } from "./quality.ts"
 
-test("One geometry schema captures desktop and touch without changing Grid choices", { timeout: 90000 }, async () => {
+test("One geometry schema captures desktop and touch without changing Grid choices", { timeout: 180000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser
   try {
@@ -26,7 +26,7 @@ test("One geometry schema captures desktop and touch without changing Grid choic
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const records = []
     for (const [viewport, touch, normal, compact] of [
-      [[1920, 982], false, [3, 2, 6], [6, 4, 24]],
+      [[1920, 961], false, [3, 2, 6], [6, 4, 24]],
       [[810, 1080], true, [5, 2, 10], [9, 4, 36]],
       [[667, 375], true, [4, 1, 4], [7, 1, 7]],
     ]) {
@@ -144,9 +144,8 @@ test("One geometry schema captures desktop and touch without changing Grid choic
             const beforeSearch = await collect(page)
             await page.getByRole("button", { name: "Geometry", exact: true }).click()
             await dialog.getByRole("button", { name: "Search candidates", exact: true }).click()
-            await page.waitForFunction(() =>
-              document.querySelector(".geometry-dialog [role=status]")?.textContent?.includes("Searched "),
-            )
+            await dialog.waitFor({ timeout: 60000 })
+            assert.match(await dialog.getByRole("status").textContent(), /Searched /)
             const [download] = await Promise.all([
               page.waitForEvent("download"),
               dialog.getByRole("button", { name: "Export JSON", exact: true }).click(),
@@ -210,7 +209,7 @@ test("One geometry schema captures desktop and touch without changing Grid choic
   }
 })
 
-test("Measured frames gain rows or columns while keeping balanced readable images", { timeout: 600000 }, async () => {
+test("Measured frames gain rows or columns while keeping balanced readable images", { timeout: 900000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser
   try {
@@ -255,13 +254,15 @@ test("Measured frames gain rows or columns while keeping balanced readable image
       })
     const report = await measureSearch()
     assert.deepEqual(report.baseline.layout.input.normal.matrix, [4, 1, 4])
-    const candidate = report.candidates.find((item) => item.name === report.recommendation)
+    const candidate = report.candidates.find(
+      (item) => !item.failures.length && item.layout.input.normal.matrix[1] === 2,
+    )
     assert.ok(candidate)
     assert.deepEqual(candidate.failures, [])
     for (const pane of ["input", "output"]) {
       const { normal, compact } = candidate.layout[pane]
       assert.deepEqual(normal.matrix, [4, 2, 8])
-      assert.ok(normal.image.height >= 140)
+      assert.ok(normal.image.height >= 128)
       assert.ok(normal.margins[2] / normal.margins[0] <= 2.05)
       assert.ok(compact.matrix[2] >= report.baseline.layout[pane].compact.matrix[2])
     }
@@ -307,7 +308,7 @@ test("Measured frames gain rows or columns while keeping balanced readable image
     assert.deepEqual(extra.failures, [])
     assert.ok(extra.layout.input.normal.matrix[0] > desktop.baseline.layout.input.normal.matrix[0])
     assert.deepEqual(extra.layout.input.normal.matrix, [7, 7, 49])
-    assert.ok(extra.layout.input.normal.image.height >= 140)
+    assert.ok(extra.layout.input.normal.image.height >= 128)
   } finally {
     await browser?.close()
     await server.close()

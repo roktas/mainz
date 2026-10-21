@@ -130,8 +130,11 @@ use the same capacity policy. Pagination stays inside the available screen at or
 A frame reserves at least one complete card row and usable pagination. If these minimums cannot fit, the document
 scrolls. It does not shrink controls or show a partial final row. Enlarged text and short landscape screens can require
 this exception. Page also reserves a usable image area below its heading. Its header and footer each retain one complete
-control row, including with enlarged text. Do not increase image height to make a narrow header fit. Style keeps
-document flow for its editable fields. Its companion pane uses the shared fit reference.
+control row, including with enlarged text. Do not increase image height to make a narrow header fit. In two-pane layout,
+Style groups scroll below the profile selector and its separator. The selector retains the full pane width. The thin
+scrollbar uses the pane gutter, with at least 8 CSS px between the fields and its track. Input headings, tabs, and
+profile selectors stay visible. Output keeps the same remaining viewport height, Grid capacity, and Page frame when
+Input switches to Style. In single-pane layout, Style fields use document scrolling.
 
 Below 480 CSS px of viewport height, the workspace status bar scrolls with the document. It must not cover card targets
 when enlarged text or the minimum complete row requires scrolling.
@@ -144,26 +147,29 @@ The portrait [Grid fixture](../test/fixtures/README.md#grid-fixture) has these d
 and normal text size. Dimensions describe the browser viewport, not the physical monitor. Each matrix gives columns ×
 rows = pages and applies to both Input and Output.
 
-| Viewport                | Workspace width | Normal     | Compact       |
-| ----------------------- | --------------- | ---------- | ------------- |
-| FHD-, 1920 × 983        | 1232 px         | 3 × 2 = 6  | 6 × 4 = 24    |
-| Full HD, 1920 × 1080    | 1232 px         | 3 × 2 = 6  | 6 × 4 = 24    |
-| QHD window, 2560 × 1280 | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48    |
-| QHD-, 2560 × 1310       | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48    |
-| QHD, 2560 × 1440        | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
-| UHD-, 3840 × 1966       | 2208 px         | 7 × 6 = 42 | 12 × 11 = 132 |
-| UHD, 3840 × 2160        | 2208 px         | 7 × 7 = 49 | 12 × 13 = 156 |
+| Viewport                  | Workspace width | Normal     | Compact       |
+| ------------------------- | --------------- | ---------- | ------------- |
+| FHD-, 1920 × 960          | 1232 px         | 3 × 2 = 6  | 6 × 4 = 24    |
+| FHD observed, 1920 × 961  | 1232 px         | 3 × 2 = 6  | 6 × 4 = 24    |
+| Full HD, 1920 × 1080      | 1232 px         | 3 × 2 = 6  | 6 × 4 = 24    |
+| QHD window, 2560 × 1280   | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48    |
+| QHD-, 2560 × 1320         | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
+| QHD observed, 2560 × 1310 | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48    |
+| QHD observed, 2560 × 1318 | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
+| QHD observed, 2560 × 1323 | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
+| QHD, 2560 × 1440          | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
+| UHD-, 3840 × 2040         | 2208 px         | 7 × 6 = 42 | 12 × 12 = 144 |
+| UHD, 3840 × 2160          | 2208 px         | 7 × 7 = 49 | 12 × 13 = 156 |
 
-Desktop references ending in `-` keep the nominal width. Their estimated height is `round(height * 0.91)`, where
-`height` is the logical screen height. These are test inputs with about 9% reserved for browser and desktop controls.
-The viewport inventory also covers distinct Mac notebook and display geometries in fullscreen and at this estimated
+Desktop references ending in `-` keep the nominal width. Their estimated height is `screenHeight - 120 CSS px`. The
+fixed allowance approximates browser and desktop controls at ordinary scale. These estimates are synthetic test inputs.
+The viewport inventory also covers distinct Mac notebook and display geometries in fullscreen and at the estimated
 browser height. Panel resolution and logical CSS dimensions remain separate metadata.
 
-The measured QHD- browser viewport matches this estimate. FHD- and UHD- remain provisional. Their matrices have
-browser-test evidence. Physical-monitor measurements for FHD- and UHD- are pending.
-
-When the corresponding physical monitors become available, replace the estimates with measured browser viewport
-dimensions.
+The measured FHD reference is 1920 × 961 at DPR 1. Native QHD references include 2560 × 1310, 2560 × 1318, and 2560
+× 1323. Measured viewports remain separate references. The 120 CSS px allowance is a test assumption, not a measurement
+of browser controls on every screen. UHD measurements remain pending. Replace estimates with measured references when
+available, and retain the corresponding evidence.
 
 Runtime measurements count complete rows within the CSS frame. Compact has no arbitrary row limit. More space can admit
 more rows without enlarging cards or concealing pagination. Browser zoom changes available CSS dimensions.
@@ -232,9 +238,10 @@ it is not another paper standard. Aim toward A4 when control space permits. Enla
 PDF image always keeps its original proportions, including landscape and square pages.
 
 Use the maintained A4 portrait fixture to check image legibility at ordinary text size. Its rendered page height must be
-at least 140 CSS px in Normal and 80 CSS px in Compact. These floors retain the smallest accepted reference images. They
-prevent both densities from shrinking together while still passing the relative-scale rule. They do not set the height
-of landscape or square PDFs. On short screens, keep a usable row and scroll rather than reduce these reference sizes.
+at least 128 CSS px in Normal and 69.5 CSS px in Compact. These floors retain the smallest accepted calibration images.
+They prevent both densities from shrinking together while still passing the relative-scale rule. They do not set the
+height of landscape or square PDFs. On short screens, keep a usable row and scroll rather than reduce these reference
+sizes.
 
 Image margins measure the space between the rendered PDF page and its image area. They exclude header and action rows,
 card borders, and white space inside the PDF. Upper and lower margins match. Side margins match and can exceed the
@@ -278,10 +285,11 @@ gap is 85% of the authored vertical image padding, with a 0.5 rem floor for usab
 spacing drives both row capacity and calibrated card height. Do not calculate one from the minimum gap and the other
 from the distributed gap.
 
-The QHD calibration targets three Normal rows with card heights from 240 to 280 px. Portrait thumbnails grow with the
-cards and keep equal 16 px upper and lower margins. Cards use a 9.375 rem width and a 14 px minimum gap. Heading and
-footer controls retain their ordinary size and at least 44 px targets. Viewport-specific card dimensions and spacing
-belong in `frame.css`. Card styles consume those shared values.
+The QHD calibration targets three Normal rows with card heights from 240 to 280 px. Browser-height references cap Normal
+cards at 260 px and use 75 × 112.5 px Compact cards. Portrait thumbnails grow with the cards and keep equal 16 px upper
+and lower margins. Cards use a 9.375 rem width and a 14 px minimum gap. Heading and footer controls retain their
+ordinary size and at least 44 px targets. Viewport-specific card dimensions and spacing belong in `frame.css`. Card
+styles consume those shared values.
 
 The calibration table requires viewport width, viewport height, primary pointer, orientation where relevant, and pane
 layout. Upper bounds are exclusive. Entries do not override another entry at the same density. Each entry changes only
@@ -290,10 +298,12 @@ card dimensions and spacing. The shared frame budget and pagination placement st
 | Reference                  | Width, CSS px | Height, CSS px | Input condition          | Pane layout | Card geometry                                                                                                                                                                 |
 | -------------------------- | ------------- | -------------- | ------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Desktop Compact            | 1280–2140     | 700–1200       | Fine pointer with hover  | Two panes   | Compact: six fitted columns, 121 px high, 6.4 px image padding; images stay within 1 px of the shared reference.                                                              |
+| FHD-                       | 1800–2000     | 950–1000       | Fine pointer with hover  | Two panes   | Normal: 148 × 224 px. Compact: 78 × 110.5 px. Image padding remains 14 px and 6.4 px. This entry replaces Desktop Compact within these bounds.                                |
 | Medium desktop             | 2200–2400     | 1100–1350      | Fine pointer with hover  | Two panes   | Normal: 134 × 236 px, 12 px padding. Compact: up to seven fitted columns, 123.625 px high, 7.5 px padding.                                                                    |
 | Large desktop              | 2960–3200     | 1500–1750      | Fine pointer with hover  | Two panes   | Normal: up to five fitted columns, 134–150 × 235 px, 11.5 px padding. Compact: up to nine fitted columns, 124.625 px high, 8 px padding.                                      |
 | QHD                        | 2560–2880     | 1280–1800      | Fine pointer with hover  | Two panes   | Normal: 240–280 px high, 150 px wide, 16 px image padding, 14 px minimum gaps                                                                                                 |
-| UHD-                       | 3840–4160     | 1900–2050      | Fine pointer with hover  | Two panes   | Normal: up to seven fitted columns, 134–140 × 237–240 px, 14.5 px padding. Both densities: row gap is 90% of the distributed column gap, bounded by the minimum gap.          |
+| QHD browser                | 2560–2880     | 1315–1420      | Fine pointer with hover  | Two panes   | Normal: 150 × 240–260 px, 16 px padding, 14 px minimum gaps. Compact: 75 × 112.5 px, 7.5 px padding. This entry replaces QHD within these bounds.                             |
+| UHD-                       | 3840–4160     | 1900–2050      | Fine pointer with hover  | Two panes   | Normal: up to seven fitted columns, 134–140 × 229–240 px, 14.5 px padding. Compact: 74 × 120 px, 7.5 px padding. Both densities retain a 0.9 row-gap factor.                  |
 | UHD                        | 3840–4160     | 2050–2250      | Fine pointer with hover  | Two panes   | Normal: up to seven fitted columns, 134–140 × 233 px, 10.5 px padding. Compact: up to twelve fitted columns, 121.625 px high, 6.5 px padding.                                 |
 | Short touch landscape      | 667–1000      | 250–500        | Coarse pointer, no hover | One pane    | Normal: up to five fitted columns, 134–142 × 232 px, 10 px padding. Safe-area insets reduce the available column budget.                                                      |
 | Small touch portrait       | 740–750       | 1047–1090      | Coarse pointer, no hover | One pane    | Normal: 137 × 226 px, 9 px image padding. The 744 × 1047 Simulator Safari sample fits two rows with a 140 px portrait image.                                                  |

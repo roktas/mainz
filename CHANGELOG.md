@@ -40,6 +40,11 @@
 
 ### Fixed
 
+- Two-pane Style scrolls its fields within Input while keeping Output controls, Grid capacity, and Page frames in place.
+- FHD Grid fits two Normal rows and four Compact rows in the measured 1920 × 961 browser viewport. Desktop estimates
+  reserve 120 CSS px for browser and desktop controls, with separate references for measured content viewports.
+- QHD browser windows fit seven Compact rows on the measured GNOME and macOS viewports, with three Normal rows and
+  unchanged image padding and control sizes.
 - Opening several PDFs continues after an invalid file. A short alert summarizes failures, with complete diagnostics in
   a keyboard-accessible list. Cancel stops the remaining files.
 - Overlapping PDF preview renders release their own pages and cancel obsolete tasks while retaining the last completed

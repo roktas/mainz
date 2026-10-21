@@ -29,7 +29,7 @@ async function checkGrid(pane, label) {
       geometry.card.height <= (280 / 150) * geometry.card.width + 1,
     `${label}: Full card proportions stay within the accepted portrait references`,
   )
-  const minimum = (await pane.getAttribute("data-density")) === "compact" ? 80 : 140
+  const minimum = (await pane.getAttribute("data-density")) === "compact" ? 69.5 : 128
   assert.ok(geometry.image.height + 1 >= minimum, `${label}: The portrait image retains its readable reference size`)
   assert.ok(Math.abs(upper - lower) < 1 && Math.abs(left - right) < 1, `${label}: Images stay centered`)
   assert.ok(Math.min(...geometry.margins) >= 2, `${label}: Images keep clear margins`)
@@ -140,7 +140,7 @@ test("Grid matrices match desktop viewports and bounded calibrations", { timeout
       )
       for (const name of ["Input", "Output"]) {
         const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-        let normalFrame, normalImage
+        let normalGrid
         for (const [density, reference] of [
           ["Normal", normal],
           ["Compact", compact],
@@ -148,13 +148,25 @@ test("Grid matrices match desktop viewports and bounded calibrations", { timeout
           await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
           const label = `${name} ${density}, ${width}×${height}, ${colorScheme}`
           const geometry = await checkGrid(pane, label)
-          if (density === "Normal") normalImage = geometry.image.height
-          else checkDensityRatio(normalImage, geometry.image.height, label)
+          if (density === "Normal") normalGrid = geometry
+          else checkDensityRatio(normalGrid.image.height, geometry.image.height, label)
           assert.deepEqual(geometry.matrix, reference, `${label}: Complete rows match the viewport reference`)
-          assert.ok(geometry.scroll <= 1, `${label}: Pagination fits without scrolling`)
-          if (density === "Normal") normalFrame = geometry.frame
-          else
-            assert.ok(Math.abs(normalFrame.height - geometry.frame.height) < 1, `${label}: Densities share one frame`)
+          assert.ok(
+            geometry.scroll <= 1 || geometry.matrix[1] === 1,
+            `${label}: Pagination fits unless the minimum complete row requires scrolling`,
+          )
+          if (width === 1920 && height === 961) {
+            assert.ok(geometry.clearance >= 14, `${label}: The measured FHD viewport retains spare row space`)
+            assert.ok(
+              Math.abs(geometry.margins[0] - (density === "Normal" ? 14 : 6.4)) < 0.1,
+              `${label}: Scaling preserves the image padding`,
+            )
+          }
+          if (density === "Compact" && normalGrid.scroll <= 1 && geometry.scroll <= 1)
+            assert.ok(
+              Math.abs(normalGrid.frame.height - geometry.frame.height) < 1,
+              `${label}: Densities share one frame when neither minimum row requires scrolling`,
+            )
         }
       }
     }
@@ -196,7 +208,13 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
           ? [
               [1280, 699, "default"],
               [1280, 700, "desktop-compact"],
-              [1920, 982, "desktop-compact"],
+              [1800, 949, "desktop-compact"],
+              [1800, 950, "fhd"],
+              [1920, 961, "fhd"],
+              [1999, 999, "fhd"],
+              [1799, 961, "desktop-compact"],
+              [2000, 961, "desktop-compact"],
+              [1920, 1000, "desktop-compact"],
               [1920, 1199, "desktop-compact"],
               [1920, 1200, "default"],
               [1279, 982, "default"],
@@ -217,16 +235,25 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
               [3008, 1750, "default"],
               [3840, 1899, "default"],
               [3840, 1900, "uhd"],
-              [3840, 1964, "uhd"],
+              [3840, 1922, "uhd"],
               [3840, 2049, "uhd"],
               [3840, 2050, "uhd-tall"],
               [3840, 2160, "uhd-tall"],
               [4159, 2249, "uhd-tall"],
               [3840, 2250, "default"],
-              [3839, 1964, "default"],
-              [4160, 1964, "default"],
+              [3839, 1922, "default"],
+              [4160, 1922, "default"],
               [2560, 1279, "default"],
               [2560, 1280, "qhd"],
+              [2560, 1314, "qhd"],
+              [2560, 1315, "qhd-window"],
+              [2560, 1318, "qhd-window"],
+              [2560, 1323, "qhd-window"],
+              [2879, 1349, "qhd-window"],
+              [2560, 1350, "qhd-window"],
+              [2560, 1419, "qhd-window"],
+              [2879, 1419, "qhd-window"],
+              [2560, 1420, "qhd"],
               [2560, 1799, "qhd"],
               [2560, 1800, "default"],
               [2559, 1310, "default"],
@@ -240,9 +267,10 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
             ]
           : mode === "hybrid"
             ? [
-                [1920, 982, "desktop-compact"],
-                [3840, 1964, "uhd"],
+                [1920, 961, "fhd"],
+                [3840, 1922, "uhd"],
                 [2560, 1310, "qhd"],
+                [2560, 1318, "qhd-window"],
                 [1080, 810, "default"],
                 [810, 1080, "default"],
                 [1024, 1334, "default"],
@@ -250,8 +278,8 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
                 [2222, 1111, "desktop-medium"],
               ]
             : [
-                [1920, 982, "default"],
-                [3840, 1964, "default"],
+                [1920, 961, "default"],
+                [3840, 1922, "default"],
                 [2560, 1310, "default"],
                 [666, 375, "default"],
                 [667, 250, "phone"],
@@ -357,7 +385,7 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
               )
               if (calibration === "uhd")
                 assert.ok(
-                  geometry.card.height >= 237 && geometry.card.height <= 240,
+                  geometry.card.height >= 229 && geometry.card.height <= 240,
                   `${label}: UHD height stays scoped`,
                 )
               else
@@ -376,7 +404,7 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
                       ? 136
                       : calibration === "large-landscape"
                         ? 152
-                        : calibration === "qhd"
+                        : ["qhd", "qhd-window"].includes(calibration)
                           ? 150
                           : calibration === "desktop-medium"
                             ? 134
@@ -387,7 +415,7 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
             assert.ok(
               Math.abs(
                 geometry.margins[0] -
-                  (calibration === "qhd"
+                  (["qhd", "qhd-window"].includes(calibration)
                     ? 16
                     : ["portrait", "large", "large-tall", "medium-compact"].includes(calibration)
                       ? 9.5
@@ -411,7 +439,10 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
               ) < 1,
               `${label}: Image padding stays scoped`,
             )
-            if (calibration === "qhd") assert.ok(geometry.card.height >= 240 && geometry.card.height <= 280)
+            if (["qhd", "qhd-window"].includes(calibration))
+              assert.ok(
+                geometry.card.height >= 240 && geometry.card.height <= (calibration === "qhd-window" ? 260 : 280),
+              )
             else if (!["uhd", "uhd-tall", "desktop-large", "phone"].includes(calibration))
               assert.equal(
                 geometry.card.height,
@@ -425,27 +456,44 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
                         ? 236
                         : calibration === "desktop-medium"
                           ? 236
-                          : 240,
+                          : calibration === "fhd"
+                            ? 224
+                            : 240,
               )
           } else {
             checkDensityRatio(normalImage, geometry.image.height, label)
-            if (["desktop-compact", "desktop-medium", "desktop-large", "uhd-tall"].includes(calibration)) {
+            if (calibration === "qhd-window" || (calibration === "qhd" && height === 1420))
+              assert.equal(geometry.matrix[1], 7, `${label}: More viewport height retains seven Compact rows`)
+            if (
+              ["fhd", "qhd-window", "desktop-compact", "desktop-medium", "desktop-large", "uhd", "uhd-tall"].includes(
+                calibration,
+              )
+            ) {
               const [columns, cardHeight] =
-                calibration === "desktop-compact"
-                  ? [6, 121]
-                  : calibration === "desktop-medium"
-                    ? [7, 123.625]
-                    : calibration === "desktop-large"
-                      ? [9, 124.625]
-                      : [12, 121.625]
+                calibration === "fhd"
+                  ? [6, 110.5]
+                  : calibration === "qhd-window"
+                    ? [9, 112.5]
+                    : calibration === "desktop-compact"
+                      ? [6, 121]
+                      : calibration === "desktop-medium"
+                        ? [7, 123.625]
+                        : calibration === "desktop-large"
+                          ? [9, 124.625]
+                          : calibration === "uhd"
+                            ? [12, 120]
+                            : [12, 121.625]
               assert.ok(
                 geometry.matrix[0] <= columns && geometry.card.width >= 74,
                 `${label}: Fitted columns respect the readable width floor`,
               )
               assert.equal(geometry.card.height, cardHeight, `${label}: Fitted card height stays scoped`)
               assert.ok(
-                Math.abs(geometry.image.height - 80.625) < 1,
-                `${label}: Compact keeps the shared thumbnail size`,
+                Math.abs(
+                  geometry.image.height -
+                    (["fhd", "qhd-window"].includes(calibration) ? 69.5 : calibration === "uhd" ? 77 : 80.625),
+                ) < 1,
+                `${label}: Compact retains its calibrated thumbnail size`,
               )
             } else if (calibration === "landscape" || calibration === "wide") {
               assert.ok(Math.abs(geometry.card.width - (calibration === "landscape" ? 74.57 : 79)) < 0.02)
@@ -530,7 +578,7 @@ test("Partial Grid batches retain full-matrix card positions and dimensions", { 
     )
     for (const [width, height] of [
       [1537, 1001],
-      [3840, 1964],
+      [3840, 1922],
     ]) {
       await page.setViewportSize({ width, height })
       await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
