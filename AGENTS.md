@@ -151,18 +151,18 @@ changes or removal of `.local/var/js/`, run `direnv exec . bundle exec rake setu
 Vite work. Its default package is `.local/var/package/wasm/`. `MAINZ_WASM_DIR` selects another package.
 
 ```sh
-npm run format
-npm run test:fast
+npm run test:minimal
+npm run test:standard
 npm run test:full
 ```
 
-Use `test:fast` during development and `test:full` before ship. Both include formatting, lint, types, and unit tests.
-The full mode also builds production assets and runs all application browser checks. Run affected native tasks
-separately. The build writes `.local/var/js/dist/`. Vite uses a home cache for each checkout. Browser suites run
-sequentially per host. CI uses the fast browser checks for pull requests and eight full groups before publishing.
-Calibration tools have a separate check. See [browser setup](web/doc/VIEWPORTS.md#browser-checks) for groups and tool
-triggers. Exercise changed flows with keyboard, narrow layouts, enlarged text, both themes, and relevant
-loading/error/cancellation states.
+Use `test:minimal` in development, `test:standard` before pushes, and `test:full` before releases. All modes run format,
+lint, type, and unit checks. Standard and full also build production assets. Full includes all browser matrices and
+calibration tools. Run affected native tasks separately. The build writes `.local/var/js/dist/`. Vite uses a home cache
+per checkout. Browser suites run sequentially per host. CI runs standard for main pushes and pull requests, and full for
+version tags. Manual runs select either mode and never deploy. See [browser setup](web/doc/VIEWPORTS.md#browser-checks)
+for coverage and commands. Exercise changed flows with keyboard, narrow layouts, enlarged text, both themes, and
+relevant loading/error/cancellation states.
 
 ### Preview and mockups
 

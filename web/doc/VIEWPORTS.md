@@ -52,29 +52,37 @@ per host at a time. Tests start their own servers. Install a missing browser wit
 npm --prefix web exec -- playwright install chromium
 ```
 
-Run `npm run test:fast` during development. It checks formatting, lint, types, unit tests, and ten browser scenarios.
+Run `npm run test:minimal` during development. It checks formatting, lint, types, unit tests, and ten browser scenarios.
 Those scenarios cover PDF opening, render ownership, metadata cleanup, Style, Download, cancellation, keyboard, touch,
 pinch zoom, and large Output pagination. Run focused checks for other affected behavior.
 
-Before ship, run `npm run test:full`. It checks the same static rules and unit tests, builds production assets, and runs
-all application browser scenarios. Native, WASM, sanitizer, and package tasks remain subject to
+Before an ordinary push, run `npm run test:standard`. It adds a production build and the functional browser regressions.
+Standard covers opening, editing, Style, Download, cancellation, PDF ownership, selection, keyboard, touch, offline use,
+updates, and large Output pagination. Animation checks use a desktop and phone without CPU throttling. Standard omits
+the alignment and Page geometry matrices, Grid capacity/calibration matrices, and calibration tools.
+
+Before a release, run `npm run test:full`. It includes every application browser scenario, complete animation matrices
+with CPU throttling, and both viewport measurement and candidate-search scenarios. All modes include the same static
+rules and unit tests. Native, WASM, sanitizer, and package tasks remain subject to
 [AGENTS](../../AGENTS.md#build-and-validation).
 
-`npm run test:browser` runs the complete application browser suite. Add a group name to run one CI group, for example
-`npm run test:browser -- grid`. Append Node test flags after the group, for example
-`npm run test:browser -- grid --test-name-pattern='pagination'`. The runner checks that every application browser file
-belongs to exactly one group. Add new files to `test/run.js`. Tests keep separate servers, browser contexts, and
+`npm run test:browser` defaults to standard mode. Add a mode and group to run focused checks, for example
+`npm run test:browser -- full grid`. Append Node test flags after the group, for example
+`npm run test:browser -- standard grid --test-name-pattern='pagination'`. The runner checks that every browser file
+belongs to exactly one group. Add new files to `test/run.ts`. Tests keep separate servers, browser contexts, and
 storage.
 
 Grid tests own the full viewport matrices and calibration boundaries. Alignment tests cover each distinct card
 calibration, both themes, both panes and densities, normal/200% text, selected states, and long page numbers. They do
 not repeat every nearby calibration boundary. Page geometry tests own fitted image and control alignment.
 
-`npm run test:viewport` checks the measurement and candidate-search tools. It is separate from the application suite.
-Run it after changes to those tools, shared geometry, Grid, or frame styles. CI adds a separate viewport job for these
-paths, browser fixtures, runner or dependency changes, and manual workflow runs. Pull requests run the fast application
-browser checks. Publishing and manual runs use eight application groups, with the expensive Grid and viewport jobs
-separate. Keep the native calibration evidence required below.
+`npm run test:viewport` runs only the full measurement and candidate-search checks. Run affected full groups after
+changes to layout, shared geometry, or calibration tools. Keep the native calibration evidence required below.
+
+CI runs standard in six browser groups for main pushes and pull requests. A `v*` version tag runs full in nine groups,
+including a separate viewport group. Native, sanitizer, and WASM checks run for both modes. In GitHub Actions, open
+**Check and publish Mainz → Run workflow** and select `standard` or `full` for a manual check. Manual checks never
+upload a Pages artifact, deploy, or cancel a push run. Only a successful push to `main` deploys the web application.
 
 `PLAYWRIGHT_CHANNEL=chrome` selects installed Chrome. Kant uses `chrome-beta`; record the actual browser version with
 its results. On macOS, use Playwright's `ControlOrMeta` for native selection and modified pointer actions. Keep explicit
@@ -103,8 +111,9 @@ Choose checks from the affected behavior rather than repeating the full device i
 
 The Page regression in `geometry.test.js` checks one-row controls, frame-edge alignment, image gutters, initial zoom,
 Fit, and retained manual zoom. It includes narrow widths, adjacent layout boundaries, enlarged text, and both themes.
-The composition suite checks addition, removal, and movement, including reduced motion. These browser checks are the
-routine CI gate. They do not establish native Safari behavior.
+The composition suite checks addition, removal, and movement, including reduced motion. Full mode includes all these
+checks. Standard mode retains the composition checks with the smaller animation matrix described above. Browser checks
+do not establish native Safari behavior.
 
 For Page sizing, sample SE generation 3, iPhone 16, iPhone 16 Pro Max, and iPad mini generation 6. These cover short,
 regular, large, and tablet viewports. Safari in both orientations and portrait Home Screen mode give 12 native states.

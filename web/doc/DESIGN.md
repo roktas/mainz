@@ -572,8 +572,9 @@ holds and crop edges. Keep measured frame, memory, and installation costs separa
 These cases remain open until their physical evidence exists.
 
 Animation assertions wait for the rendered effect to start before checking its duration or geometry. Updated document
-totals do not prove that a transition has started. Edit feedback checks also run with CPU throttling and identify the
-viewport and density in their diagnostics. Do not use fixed sleeps or automatic retries to hide timing failures.
+totals do not prove that a transition has started. Full mode runs edit feedback checks with CPU throttling and
+identifies the viewport and density in its diagnostics. Do not use fixed sleeps or automatic retries to hide timing
+failures.
 
 Alignment is an acceptance gate for every layout change. Exercise every affected width range from the
 [capacity references](#workspace), including both ends when a range changes. Check Input and Output in Normal and
@@ -606,7 +607,7 @@ no visible or keyboard target in the single-pane touch layout. Measure symmetric
 centers with both narrow and wide fitted images. For an overflowing image, measure its initial top gap and scroll to its
 bottom gap and navigation. Check narrow fine-pointer and two-pane touch layouts separately to enforce the scope.
 
-CI uploads layout failure screenshots as `layout-<shard>` artifacts and retains them for seven days.
+CI uploads layout failure screenshots as `layout-<group>` artifacts and retains them for seven days.
 
 ## UI glossary
 

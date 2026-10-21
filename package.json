@@ -14,8 +14,9 @@
     "format:check": "web/node_modules/.bin/oxfmt --check .",
     "lint": "web/node_modules/.bin/oxlint web",
     "test": "npm --prefix web test --",
-    "test:fast": "npm run format:check && npm run lint && npm run check && npm test && npm run test:browser -- fast",
-    "test:full": "npm run format:check && npm run lint && npm test && npm run build && npm run test:browser",
+    "test:minimal": "npm run format:check && npm run lint && npm run check && npm test && npm run test:browser -- minimal",
+    "test:standard": "npm run format:check && npm run lint && npm test && npm run build && npm run test:browser -- standard",
+    "test:full": "npm run format:check && npm run lint && npm test && npm run build && npm run test:browser -- full",
     "test:browser": "npm --prefix web run test:browser --"
   },
   "engines": {

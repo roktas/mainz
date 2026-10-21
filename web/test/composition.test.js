@@ -7,6 +7,8 @@ import { chromium } from "playwright"
 import { zoom } from "./workspace.js"
 import { createServer, tab, fixture, image, pagePosition } from "./browser.js"
 
+const standard = process.env.MAINZ_TEST_MODE === "standard"
+
 test("Output Page removes the current occurrence, including Blank and the final page", async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser
@@ -276,7 +278,7 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
       [744, 1133, true, "dark"],
       [440, 956, true, "light"],
       [320, 568, true, "dark"],
-    ]) {
+    ].filter(([viewportWidth]) => !standard || [1440, 320].includes(viewportWidth))) {
       const page = await browser.newPage({
         viewport: { width, height },
         hasTouch,
@@ -284,7 +286,7 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
         colorScheme,
         reducedMotion: "no-preference",
       })
-      const cpu = width === 810 ? 4 : 1
+      const cpu = !standard && width === 810 ? 4 : 1
       await (await page.context().newCDPSession(page)).send("Emulation.setCPUThrottlingRate", { rate: cpu })
       t.diagnostic(`${width} × ${height}, ${colorScheme}, ${cpu}× CPU slowdown`)
       page.setDefaultTimeout(10000)
@@ -597,13 +599,23 @@ test("Addition previews use their target image or the action area", { timeout: 9
               (Math.max(0, box.top) + Math.min(innerHeight, box.bottom)) / 2,
             ]
           })
-          const snapshot = await source.evaluateHandle((element) => {
-            const copy = document.createElement("canvas")
-            copy.width = element.width
-            copy.height = element.height
-            copy.getContext("2d").drawImage(element, 0, 0)
-            return copy
-          })
+          const snapshot = await source.evaluateHandle(
+            (element, event) => {
+              const copy = document.createElement("canvas")
+              // Capture before the action handler, after any selection-triggered redraw.
+              document.addEventListener(
+                event,
+                () => {
+                  copy.width = element.width
+                  copy.height = element.height
+                  copy.getContext("2d").drawImage(element, 0, 0)
+                },
+                { capture: true, once: true },
+              )
+              return copy
+            },
+            action === "keyboard" ? "keydown" : "click",
+          )
           if (action === "keyboard") await control.press("Enter")
           else await control.click()
           const flight = page.locator(".addition-preview")
@@ -697,7 +709,7 @@ test(
         [1024, 768, true, "dark", 1],
         [810, 1080, true, "dark", 1],
         [390, 844, true, "light", 4],
-      ]) {
+      ].filter(([viewportWidth]) => !standard || [1440, 390].includes(viewportWidth))) {
         const page = await browser.newPage({
           viewport: { width, height },
           hasTouch,
@@ -705,8 +717,9 @@ test(
           colorScheme,
           reducedMotion: "no-preference",
         })
-        await (await page.context().newCDPSession(page)).send("Emulation.setCPUThrottlingRate", { rate: cpu })
-        t.diagnostic(`${width} × ${height}, ${colorScheme}, ${cpu}× CPU slowdown`)
+        const rate = standard ? 1 : cpu
+        await (await page.context().newCDPSession(page)).send("Emulation.setCPUThrottlingRate", { rate })
+        t.diagnostic(`${width} × ${height}, ${colorScheme}, ${rate}× CPU slowdown`)
         page.setDefaultTimeout(10000)
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
         await page.goto(`${server.resolvedUrls.local[0]}?demo`)
