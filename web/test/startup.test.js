@@ -775,7 +775,10 @@ test("Large failure batches announce a summary and retain every file error", { t
           icon.y + icon.height / 2 - button.y - button.height / 2,
         ]
       })
-      assert.ok(alignment.every((offset) => Math.abs(offset) < 1), `${width}px: ${alignment}`)
+      assert.ok(
+        alignment.every((offset) => Math.abs(offset) < 1),
+        `${width}px: ${alignment}`,
+      )
       await disclosure.focus()
       await page.keyboard.press("Enter")
       await errors.waitFor()
@@ -856,7 +859,9 @@ test("The first PDF previews before validation and commits only after success", 
     await page.emulateMedia({ colorScheme: "light" })
     await open("Invalid.pdf", Buffer.from(bytes.toString().replace('"version":1', '"version":2')))
     release()
-    await page.getByRole("alert").filter({ hasText: "style format" }).waitFor()
+    await page.getByRole("alert").waitFor()
+    await page.getByText("Review file errors", { exact: true }).click()
+    assert.match(await page.getByRole("list", { name: "File errors", exact: true }).innerText(), /style format/)
     await page.locator(".drop-zone").waitFor()
     assert.equal(await page.locator(".composer").count(), 0)
     await open("Ready.pdf", bytes)

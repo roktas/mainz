@@ -144,7 +144,7 @@
     notice = text
     if (text) noticeTimer = setTimeout(() => (notice = ""), 10000)
   }
-  function error(text: string) {
+  function error(text: string | string[]) {
     failure = text
     info("")
     notify("")
@@ -177,7 +177,7 @@
   function choose(id: string, sequence: Sequence) {
     sequences = { ...sequences, [id]: sequence }
   }
-  async function open(file: Uint8Array | File, name: string, report = error) {
+  async function open(file: Uint8Array | File, name: string, report: (text: string) => void = error) {
     if (loading || updating) return
     if ((file instanceof File ? file.size : file.length) > 128 * 1024 * 1024) {
       report("Choose a PDF smaller than 128 MiB.")
@@ -302,7 +302,7 @@
       }
       if (disposed || updating || openRevision !== revision) return
     }
-    if (!disposed && failed.length) failure = failed
+    if (!disposed && failed.length) error(failed)
   }
   function cancelOpen() {
     openRevision++
