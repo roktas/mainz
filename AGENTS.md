@@ -152,17 +152,17 @@ Vite work. Its default package is `.local/var/package/wasm/`. `MAINZ_WASM_DIR` s
 
 ```sh
 npm run format
-npm run format:check
-npm run lint
-npm test
-npm run build
-npm run test:browser
+npm run test:fast
+npm run test:full
 ```
 
-The build checks Svelte/worker types and writes `.local/var/js/dist/`. Vite uses a home cache for each checkout. Browser
-suites run sequentially locally and on eight CI runners; they start their own servers. See
-[browser setup](web/doc/VIEWPORTS.md#browser-checks). Exercise changed flows with keyboard, narrow layouts, enlarged
-text, both themes, and relevant loading/error/cancellation states.
+Use `test:fast` during development and `test:full` before ship. Both include formatting, lint, types, and unit tests.
+The full mode also builds production assets and runs all application browser checks. Run affected native tasks
+separately. The build writes `.local/var/js/dist/`. Vite uses a home cache for each checkout. Browser suites run
+sequentially per host. CI uses the fast browser checks for pull requests and eight full groups before publishing.
+Calibration tools have a separate check. See [browser setup](web/doc/VIEWPORTS.md#browser-checks) for groups and tool
+triggers. Exercise changed flows with keyboard, narrow layouts, enlarged text, both themes, and relevant
+loading/error/cancellation states.
 
 ### Preview and mockups
 

@@ -1,9 +1,9 @@
-// Checks Grid density, pagination, and viewport capacity.
+// Checks Grid density, pagination, and viewport capacity; alignment.test.js owns theme and selection combinations.
 
 import assert from "node:assert/strict"
 import test from "node:test"
 import { chromium } from "playwright"
-import { createServer, fixture, captureLayout, checkGrips, tab, pagePosition } from "./browser.js"
+import { createServer, fixture, captureLayout, tab, pagePosition } from "./browser.js"
 import { measure } from "./measure.js"
 import inventory from "./viewports.json" with { type: "json" }
 
@@ -69,43 +69,39 @@ test("Touch Grid uses complete rows within the available viewport", { timeout: 1
     await page.route("**/grid.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
     )
-    for (const colorScheme of ["light", "dark"]) {
-      await page.emulateMedia({ colorScheme })
-      for (const {
-        viewport: [width, height],
-        matrices: { normal, compact },
-      } of inventory.cases.filter((item) => item.pointer === "coarse")) {
-        await page.setViewportSize({ width, height })
-        await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-        await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-        )
-        for (const name of ["Input", "Output"]) {
-          const views = page.locator(".mobile-workspace-tabs")
-          if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
-          const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-          let normalFrame, normalImage
-          for (const [density, reference] of [
-            ["Normal", normal],
-            ["Compact", compact],
-          ]) {
-            await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
-            const label = `${name} ${density}, ${width}×${height}, ${colorScheme}`
-            const geometry = await checkGrid(pane, label)
-            if (density === "Normal") normalImage = geometry.image.height
-            else checkDensityRatio(normalImage, geometry.image.height, label)
-            assert.deepEqual(geometry.matrix, reference, `${label}: Complete rows match the viewport reference`)
-            if (geometry.scroll > 1)
-              assert.equal(geometry.matrix[1], 1, `${label}: Short viewports scroll only for the minimum complete row`)
-            if (width === 810 && height === 1080) {
-              assert.ok(geometry.scroll <= 1, `${label}: iPad portrait pagination needs no scrolling`)
-              if (density === "Normal") normalFrame = geometry.frame
-              else
-                assert.ok(
-                  Math.abs(normalFrame.height - geometry.frame.height) < 1,
-                  `${label}: Densities share one frame`,
-                )
-            }
+    const colorScheme = "light"
+    await page.emulateMedia({ colorScheme })
+    for (const {
+      viewport: [width, height],
+      matrices: { normal, compact },
+    } of inventory.cases.filter((item) => item.pointer === "coarse")) {
+      await page.setViewportSize({ width, height })
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+      await page.waitForFunction(
+        () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+      )
+      for (const name of ["Input", "Output"]) {
+        const views = page.locator(".mobile-workspace-tabs")
+        if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
+        const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+        let normalFrame, normalImage
+        for (const [density, reference] of [
+          ["Normal", normal],
+          ["Compact", compact],
+        ]) {
+          await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+          const label = `${name} ${density}, ${width}×${height}, ${colorScheme}`
+          const geometry = await checkGrid(pane, label)
+          if (density === "Normal") normalImage = geometry.image.height
+          else checkDensityRatio(normalImage, geometry.image.height, label)
+          assert.deepEqual(geometry.matrix, reference, `${label}: Complete rows match the viewport reference`)
+          if (geometry.scroll > 1)
+            assert.equal(geometry.matrix[1], 1, `${label}: Short viewports scroll only for the minimum complete row`)
+          if (width === 810 && height === 1080) {
+            assert.ok(geometry.scroll <= 1, `${label}: iPad portrait pagination needs no scrolling`)
+            if (density === "Normal") normalFrame = geometry.frame
+            else
+              assert.ok(Math.abs(normalFrame.height - geometry.frame.height) < 1, `${label}: Densities share one frame`)
           }
         }
       }
@@ -131,36 +127,34 @@ test("Grid matrices match desktop viewports and bounded calibrations", { timeout
     await page.route("**/grid.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
     )
-    for (const colorScheme of ["light", "dark"]) {
-      await page.emulateMedia({ colorScheme })
-      for (const {
-        viewport: [width, height],
-        matrices: { normal, compact },
-      } of inventory.cases.filter((item) => item.pointer === "fine" && item.matrices)) {
-        await page.setViewportSize({ width, height })
-        await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-        await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-        )
-        for (const name of ["Input", "Output"]) {
-          const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-          let normalFrame, normalImage
-          for (const [density, reference] of [
-            ["Normal", normal],
-            ["Compact", compact],
-          ]) {
-            await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
-            const label = `${name} ${density}, ${width}×${height}, ${colorScheme}`
-            const geometry = await checkGrid(pane, label)
-            if (density === "Normal") normalImage = geometry.image.height
-            else checkDensityRatio(normalImage, geometry.image.height, label)
-            assert.deepEqual(geometry.matrix, reference, `${label}: Complete rows match the viewport reference`)
-            assert.ok(geometry.scroll <= 1, `${label}: Pagination fits without scrolling`)
-            if (density === "Normal") normalFrame = geometry.frame
-            else
-              assert.ok(Math.abs(normalFrame.height - geometry.frame.height) < 1, `${label}: Densities share one frame`)
-            if (width === 2560 && colorScheme === "dark") await checkGrips(pane, label)
-          }
+    const colorScheme = "light"
+    await page.emulateMedia({ colorScheme })
+    for (const {
+      viewport: [width, height],
+      matrices: { normal, compact },
+    } of inventory.cases.filter((item) => item.pointer === "fine" && item.matrices)) {
+      await page.setViewportSize({ width, height })
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+      await page.waitForFunction(
+        () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+      )
+      for (const name of ["Input", "Output"]) {
+        const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+        let normalFrame, normalImage
+        for (const [density, reference] of [
+          ["Normal", normal],
+          ["Compact", compact],
+        ]) {
+          await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+          const label = `${name} ${density}, ${width}×${height}, ${colorScheme}`
+          const geometry = await checkGrid(pane, label)
+          if (density === "Normal") normalImage = geometry.image.height
+          else checkDensityRatio(normalImage, geometry.image.height, label)
+          assert.deepEqual(geometry.matrix, reference, `${label}: Complete rows match the viewport reference`)
+          assert.ok(geometry.scroll <= 1, `${label}: Pagination fits without scrolling`)
+          if (density === "Normal") normalFrame = geometry.frame
+          else
+            assert.ok(Math.abs(normalFrame.height - geometry.frame.height) < 1, `${label}: Densities share one frame`)
         }
       }
     }

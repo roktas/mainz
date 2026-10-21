@@ -52,6 +52,30 @@ per host at a time. Tests start their own servers. Install a missing browser wit
 npm --prefix web exec -- playwright install chromium
 ```
 
+Run `npm run test:fast` during development. It checks formatting, lint, types, unit tests, and ten browser scenarios.
+Those scenarios cover PDF opening, render ownership, metadata cleanup, Style, Download, cancellation, keyboard, touch,
+pinch zoom, and large Output pagination. Run focused checks for other affected behavior.
+
+Before ship, run `npm run test:full`. It checks the same static rules and unit tests, builds production assets, and runs
+all application browser scenarios. Native, WASM, sanitizer, and package tasks remain subject to
+[AGENTS](../../AGENTS.md#build-and-validation).
+
+`npm run test:browser` runs the complete application browser suite. Add a group name to run one CI group, for example
+`npm run test:browser -- grid`. Append Node test flags after the group, for example
+`npm run test:browser -- grid --test-name-pattern='pagination'`. The runner checks that every application browser file
+belongs to exactly one group. Add new files to `test/run.js`. Tests keep separate servers, browser contexts, and
+storage.
+
+Grid tests own the full viewport matrices and calibration boundaries. Alignment tests cover each distinct card
+calibration, both themes, both panes and densities, normal/200% text, selected states, and long page numbers. They do
+not repeat every nearby calibration boundary. Page geometry tests own fitted image and control alignment.
+
+`npm run test:viewport` checks the measurement and candidate-search tools. It is separate from the application suite.
+Run it after changes to those tools, shared geometry, Grid, or frame styles. CI adds a separate viewport job for these
+paths, browser fixtures, runner or dependency changes, and manual workflow runs. Pull requests run the fast application
+browser checks. Publishing and manual runs use eight application groups, with the expensive Grid and viewport jobs
+separate. Keep the native calibration evidence required below.
+
 `PLAYWRIGHT_CHANNEL=chrome` selects installed Chrome. Kant uses `chrome-beta`; record the actual browser version with
 its results. On macOS, use Playwright's `ControlOrMeta` for native selection and modified pointer actions. Keep explicit
 Control shortcuts where they test the application's documented keyboard contract. Wait for stable rendered geometry

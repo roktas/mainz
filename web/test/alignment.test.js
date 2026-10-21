@@ -1,4 +1,4 @@
-// Checks Grid capacity, centered grips, and Page thumbnail alignment.
+// Checks centered grips and Page thumbnail alignment once per distinct card calibration.
 
 import assert from "node:assert/strict"
 import test from "node:test"
@@ -70,44 +70,31 @@ for (const hasTouch of [false, true])
         browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
         const page = await browser.newPage({ hasTouch, isMobile: hasTouch, reducedMotion: "reduce" })
         page.setDefaultTimeout(45000)
+        // Capacity and calibration boundaries belong to grid.test.js; alignment needs only a few complete columns.
         await page.route("**/grid.pdf", (route) =>
-          route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 60) }),
+          route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 32) }),
         )
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
         await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "60 PDF pages",
+          () => document.querySelector(".composition-totals strong")?.textContent === "32 PDF pages",
         )
         for (const [width, height] of hasTouch
           ? [
               [320, 568],
-              [375, 667],
               [390, 844],
               [667, 250],
-              [812, 311],
-              [935, 499],
-              [740, 1047],
               [744, 1047],
-              [749, 1089],
               [744, 1133],
-              [740, 1100],
-              [749, 1159],
               [768, 1024],
               [810, 1080],
-              [805, 980],
-              [834, 1219],
               [820, 1080],
-              [829, 1119],
               [1024, 768],
               [1080, 810],
-              [1080, 700],
               [1180, 730],
-              [1219, 899],
               [1000, 1200],
               [1024, 1300],
-              [1049, 1399],
               [1360, 980],
-              [1379, 1059],
               [1133, 744],
             ]
           : [
@@ -116,16 +103,10 @@ for (const hasTouch of [false, true])
               [1440, 1100],
               [1920, 982],
               [2560, 1310],
-              [1280, 700],
-              [2139, 1199],
               [2200, 1100],
-              [2399, 1349],
               [2960, 1500],
-              [3199, 1749],
               [3840, 1900],
-              [4159, 2049],
               [3840, 2050],
-              [4159, 2249],
             ]) {
           t.diagnostic(`${hasTouch ? "Touch" : "Mouse"} ${width}×${height}`)
           await page.setViewportSize({ width, height })
@@ -254,35 +235,23 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
       for (const [width, height] of hasTouch
         ? [
             [667, 250],
-            [935, 499],
             [740, 1047],
-            [749, 1089],
             [740, 1100],
-            [749, 1159],
             [805, 980],
-            [834, 1219],
             [820, 1080],
-            [829, 1119],
             [1080, 700],
             [1180, 730],
-            [1219, 899],
             [1000, 1200],
             [1024, 1300],
-            [1049, 1399],
             [1360, 980],
-            [1379, 1059],
           ]
         : [
             [1280, 700],
-            [2139, 1199],
             [2200, 1100],
-            [2399, 1349],
             [2960, 1500],
-            [3199, 1749],
+            [2560, 1310],
             [3840, 1900],
-            [4159, 2049],
             [3840, 2050],
-            [4159, 2249],
           ]) {
         await page.setViewportSize({ width, height })
         for (const text of ["100%", "200%"]) {
