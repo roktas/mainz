@@ -165,7 +165,8 @@ complete. Keep installed runtimes for future runs.
 Install official Android command-line tools, platform tools, the emulator, and a compatible system image in the home
 SDK. Discover available packages with `sdkmanager --list`; accept required SDK licenses. Use `avdmanager` to create a
 dedicated test AVD and keep its image in `~/.android/avd/`. Record API level, image revision, launcher, Chrome version,
-screen geometry, and emulator acceleration. A Google Play image includes a browser, but its bundled version can be old.
+screen geometry, CPU acceleration, and graphics backend. Retain boot logs and failed acquisitions when the guest or
+browser stalls. A Google Play image includes a browser, but its bundled version can be old.
 
 After boot readiness, expose the production preview to the emulator:
 
@@ -182,6 +183,28 @@ successful installation. Review the icon in light and dark contexts and with rep
 manifest's 512 px icon uses `any maskable`; the browser regression checks that important artwork fits the central safe
 circle with radius 40% of the image width. See the [maskable icon guidance](https://web.dev/articles/maskable-icon).
 Keep iOS touch icons and the in-page logo separate. Android installation evidence does not establish iOS behavior.
+
+For Grid acquisition, use four primary environments per configured display: Chrome with expanded controls and an
+installed app in `standalone` display mode, each in portrait and landscape. Export Input and Output in Normal and
+Compact for each environment. Keep text size, zoom, theme, and navigation configuration fixed. Standalone mode can
+retain Android status and navigation bars; it does not mean the Fullscreen API or an immersive window.
+
+Use native rotation and `adb` framebuffer screenshots. Attach to the guest Chrome through its remote debugging socket
+for the existing geometry probe. Select the requested display mode and verify active animation frames: a background
+Chrome target can report itself as visible while its frames are suspended. Check the exported mode, orientation, DPR,
+visual scale, viewport units, and native browser controls before accepting a capture. Keep all four views at the same
+viewport. For the expanded-control reference, the content height must match the small viewport height (`svh`).
+
+Set panel dimensions and density in a dedicated AVD configuration before boot. Verify the resulting native PNG
+dimensions. A runtime logical-size override alone does not establish a matching physical framebuffer. Record the base
+hardware profile, cutout, system image, and density. A custom Samsung or Xiaomi panel on a Google image measures that
+emulator scenario; it does not establish manufacturer software behavior or factory CSS geometry.
+
+Record whether installation produced a WebAPK or a Chrome-managed launcher shortcut. Accept a standalone measurement
+only after launching the installed icon, confirming standalone display mode and checking that Chrome controls are
+absent. Retain installation failures separately. A shortcut capture does not establish WebAPK coverage. Keep collapsed
+controls, alternate navigation/taskbar settings, split-screen, Fullscreen API, and synthetic replay separate from the
+four primary environments. Candidate search and application fine tuning follow delivery of the baseline.
 
 ## Coverage
 
@@ -219,6 +242,17 @@ snapshot of available simulator profiles, not a claim that each profile was inde
 | 834 × 1210              | Pro 11-inch M4            | Pro 11-inch M4–M5                                                    |
 | 1024 × 1366             | Air 13-inch M3            | Air 13-inch M2–M4; Pro 12.9-inch, generations 4–6                    |
 | 1032 × 1376             | Pro 13-inch M4            | Pro 13-inch M4–M5                                                    |
+
+### Android references
+
+The inventory's `android` section records configured emulator displays separately from the nominal regression cases and
+iOS simulator groups. Each scenario retains its panel pixels, configured density, target model references, and measured
+content viewports. Each environment retains all four Grid frame sizes, card-area sizes, and reference matrices. Input
+and Output can have different frame budgets even at the same viewport.
+
+Target model names do not establish tested manufacturer devices. Custom density values are test seeds; equal panels do
+not establish equal DPR, system bars, cutouts, or usable CSS bounds. Verify factory display settings and browser
+behavior on the relevant OEM device before assigning those measurements to its model family.
 
 ### Desktop references
 
@@ -369,15 +403,16 @@ The completed analysis is retained under root `.local/var/viewport/`. It is gene
 must survive temporary-output cleanup. Keep that directory in a backed-up workspace. The interactive `index.html` links
 the raw artifacts; `report.md` and `summary.md` explain results and limitations.
 
-| Artifact                                     | Purpose                                                                                                   |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `scope.json`, `catalog.json`, `changes.json` | Coverage, geometry groups, accepted changes                                                               |
-| `native/`                                    | Native JSON/CSV, named screenshots, candidate searches, acquisition logs                                  |
-| `desktop/`                                   | Thirty desktop viewports, before/applied records, candidate searches and screenshots                      |
-| `source/`                                    | Source snapshots, manifests, hashes, and the original planning record                                     |
-| `checks/`                                    | Validation logs and acceptance records                                                                    |
-| `followup/`                                  | Later fixes, screenshots, source provenance, and validation results                                       |
-| `page/`                                      | Page sizing and animation follow-up: before/after geometry, native samples, source hashes, and test logs. |
+| Artifact                                     | Purpose                                                                                                       |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `scope.json`, `catalog.json`, `changes.json` | Coverage, geometry groups, accepted changes                                                                   |
+| `native/`                                    | Native JSON/CSV, named screenshots, candidate searches, acquisition logs                                      |
+| `desktop/`                                   | Thirty desktop viewports, before/applied records, candidate searches and screenshots                          |
+| `source/`                                    | Source snapshots, manifests, hashes, and the original planning record                                         |
+| `checks/`                                    | Validation logs and acceptance records                                                                        |
+| `followup/`                                  | Later fixes, screenshots, source provenance, and validation results                                           |
+| `page/`                                      | Page sizing and animation follow-up: before/after geometry, native samples, source hashes, and test logs.     |
+| `android/2026-10-22/`                        | Android Grid baseline: native captures, display scenarios, summary CSV, report, source snapshots, and checks. |
 
 The completed search evaluated 2,238 candidates across 82 distinct native environments and 833 candidates across 30
 desktop references: 3,071 paired-density candidates. Successful native test bodies alone took 2.63 hours, excluding
@@ -389,6 +424,13 @@ portrait modes. Six Duo primary modes remain unavailable. Optional fullscreen ob
 separate status in the report. The final reference run contains 110 records and 440 pane/density views across both
 themes. Nine touch and six desktop CSS bands were accepted; DESIGN owns their current dimensions. Native captures and
 logical desktop estimates retain distinct provenance.
+
+The Android baseline in `android/2026-10-22/` contains 44 native environments and 176 pane/density views across eleven
+configured displays. Android 17 and Chrome 149.0.7827.5 were used with expanded Chrome controls or a launcher-installed
+standalone shortcut, in both orientations. All accepted samples pass the existing Grid quality rules. The report,
+`summary.csv`, raw JSON/CSV, screenshots, source snapshots, hashes, and checks are retained together. This baseline
+includes no candidate search or CSS changes. Factory OEM geometry and WebAPK installation remain unverified. The older
+Android 16 image's Chrome 133 could not open the fixture; that failed preflight contributes no measured coverage.
 
 Before cleanup, retain successful and failed logs, source revision/hashes, fixture digests, capture metadata, accepted
 and rejected candidates, and representative native screenshots. Verify report links and hashes. Remove disposable build

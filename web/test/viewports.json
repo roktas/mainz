@@ -291,6 +291,1819 @@
       }
     ]
   },
+  "android": {
+    "source": "Native guest Chrome DOM exports and adb framebuffer screenshots from configured Google Android Virtual Devices",
+    "capturedAt": "2026-10-22",
+    "evidenceClass": "android-emulator-ui",
+    "evidenceRoot": ".local/var/viewport/android/2026-10-22",
+    "sourceRevision": "20cfa36db93017f73536f440d83443ca0d010c05",
+    "collectorSha256": "f7bd3ae5a67ae941f212fa97c5faf1d03aabbd681481421aeaf50ecb5ef8e0a7",
+    "fixtureSha256": "d71364664e717b54eb5561e2153bf7ed8eeb0236c3199dd0744034672fcd2686",
+    "environmentCount": 44,
+    "gridViewCount": 176,
+    "qualityFailureCount": 0,
+    "scope": "Target model names identify panel targets. Custom densities are test seeds, not verified manufacturer defaults. These scenarios do not establish OEM device equivalence or manufacturer browser coverage.",
+    "units": {
+      "panel": "physical-px",
+      "viewport": "css-px",
+      "frame": "css-px; includes pagination",
+      "cardArea": "css-px; excludes pagination",
+      "matrix": "columns, complete rows, capacity"
+    },
+    "software": {
+      "android": "17",
+      "api": 37,
+      "image": "system-images;android-37.2;google_apis_playstore_ps16k;x86_64",
+      "imageRevision": 6,
+      "extensionLevel": 24,
+      "chrome": "149.0.7827.5",
+      "emulator": "37.2.12",
+      "cpuAcceleration": "KVM",
+      "graphicsBackends": ["software", "swiftshader"]
+    },
+    "conditions": {
+      "theme": "light",
+      "fontScale": 1,
+      "navigationMode": 2,
+      "visualScale": 1,
+      "pointer": "coarse",
+      "hover": "none",
+      "browserControls": "expanded in browser-tabbed; absent in standalone-pwa"
+    },
+    "installation": {
+      "type": "Chrome-managed launcher shortcut",
+      "displayMode": "standalone",
+      "nativeActivity": "org.chromium.chrome.browser.webapps.WebappActivity",
+      "webApkVerified": false
+    },
+    "unmeasured": [
+      "Manufacturer factory display density and OEM shells",
+      "Physical devices and Samsung Internet",
+      "WebAPK installation",
+      "Foldable displays and split-screen",
+      "Alternate navigation, taskbar settings and collapsed browser controls",
+      "Fullscreen API",
+      "Dark theme, 200% text, Page/Style and interaction review",
+      "Older-image tablet comparison and synthetic replay",
+      "Candidate search and production calibration"
+    ],
+    "groups": [
+      {
+        "id": "pixel9a",
+        "family": "phone",
+        "baseProfile": "pixel_9a",
+        "panel": [1080, 2424],
+        "dpi": 420,
+        "densitySource": "Android SDK pixel_9a profile",
+        "targetModels": ["Google Pixel 9a"],
+        "environments": [
+          {
+            "mode": "browser-tabbed",
+            "orientation": "portrait",
+            "viewport": [411, 813],
+            "dpr": 2.625,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 24,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [379.071, 362.119],
+                "cardArea": [379.071, 293.619],
+                "matrix": [2, 1, 2]
+              },
+              "input-compact": {
+                "frame": [379.071, 362.119],
+                "cardArea": [379.071, 293.619],
+                "matrix": [4, 2, 8]
+              },
+              "output-normal": {
+                "frame": [379.071, 362.119],
+                "cardArea": [379.071, 293.619],
+                "matrix": [2, 1, 2]
+              },
+              "output-compact": {
+                "frame": [379.071, 362.119],
+                "cardArea": [379.071, 293.619],
+                "matrix": [4, 2, 8]
+              }
+            },
+            "evidence": "native/android17-pixel9a/android17-pixel9a-browser-tabbed-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "browser-tabbed",
+            "orientation": "landscape",
+            "viewport": [869, 303],
+            "dpr": 2.625,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 24,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [822.321, 300.619],
+                "cardArea": [822.321, 231.994],
+                "matrix": [5, 1, 5]
+              },
+              "input-compact": {
+                "frame": [822.321, 193.619],
+                "cardArea": [822.321, 124.994],
+                "matrix": [9, 1, 9]
+              },
+              "output-normal": {
+                "frame": [822.321, 300.619],
+                "cardArea": [822.321, 231.994],
+                "matrix": [5, 1, 5]
+              },
+              "output-compact": {
+                "frame": [822.321, 193.619],
+                "cardArea": [822.321, 124.994],
+                "matrix": [9, 1, 9]
+              }
+            },
+            "evidence": "native/android17-pixel9a/android17-pixel9a-browser-tabbed-landscape.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "portrait",
+            "viewport": [411, 845],
+            "dpr": 2.625,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [379.071, 418.119],
+                "cardArea": [379.071, 349.619],
+                "matrix": [2, 1, 2]
+              },
+              "input-compact": {
+                "frame": [379.071, 418.119],
+                "cardArea": [379.071, 349.619],
+                "matrix": [4, 2, 8]
+              },
+              "output-normal": {
+                "frame": [379.071, 418.119],
+                "cardArea": [379.071, 349.619],
+                "matrix": [2, 1, 2]
+              },
+              "output-compact": {
+                "frame": [379.071, 418.119],
+                "cardArea": [379.071, 349.619],
+                "matrix": [4, 2, 8]
+              }
+            },
+            "evidence": "native/android17-pixel9a/android17-pixel9a-standalone-pwa-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "landscape",
+            "viewport": [869, 335],
+            "dpr": 2.625,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [822.321, 300.619],
+                "cardArea": [822.321, 231.994],
+                "matrix": [5, 1, 5]
+              },
+              "input-compact": {
+                "frame": [822.321, 193.619],
+                "cardArea": [822.321, 124.994],
+                "matrix": [9, 1, 9]
+              },
+              "output-normal": {
+                "frame": [822.321, 300.619],
+                "cardArea": [822.321, 231.994],
+                "matrix": [5, 1, 5]
+              },
+              "output-compact": {
+                "frame": [822.321, 193.619],
+                "cardArea": [822.321, 124.994],
+                "matrix": [9, 1, 9]
+              }
+            },
+            "evidence": "native/android17-pixel9a/android17-pixel9a-standalone-pwa-landscape.json",
+            "graphicsBackend": "software"
+          }
+        ]
+      },
+      {
+        "id": "a55",
+        "family": "phone",
+        "baseProfile": "pixel_9a",
+        "panel": [1080, 2340],
+        "dpi": 480,
+        "densitySource": "Test seed; manufacturer display density is unknown",
+        "targetModels": [
+          "Samsung Galaxy A55 5G",
+          "Samsung Galaxy A16 4G",
+          "Samsung Galaxy A16 5G",
+          "Samsung Galaxy A56 5G"
+        ],
+        "environments": [
+          {
+            "mode": "browser-tabbed",
+            "orientation": "portrait",
+            "viewport": [360, 672],
+            "dpr": 3,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 24,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [328, 308.5],
+                "cardArea": [328, 240],
+                "matrix": [1, 1, 1]
+              },
+              "input-compact": {
+                "frame": [328, 220.25],
+                "cardArea": [328, 151.75],
+                "matrix": [3, 1, 3]
+              },
+              "output-normal": {
+                "frame": [328, 308.5],
+                "cardArea": [328, 240],
+                "matrix": [1, 1, 1]
+              },
+              "output-compact": {
+                "frame": [328, 220.25],
+                "cardArea": [328, 151.75],
+                "matrix": [3, 1, 3]
+              }
+            },
+            "evidence": "native/android17-a55/android17-a55-browser-tabbed-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "browser-tabbed",
+            "orientation": "landscape",
+            "viewport": [732, 252],
+            "dpr": 3,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 24,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [690.031, 300.5],
+                "cardArea": [690.031, 232],
+                "matrix": [4, 1, 4]
+              },
+              "input-compact": {
+                "frame": [690.031, 193.5],
+                "cardArea": [690.031, 125],
+                "matrix": [8, 1, 8]
+              },
+              "output-normal": {
+                "frame": [690.031, 300.5],
+                "cardArea": [690.031, 232],
+                "matrix": [4, 1, 4]
+              },
+              "output-compact": {
+                "frame": [690.031, 193.5],
+                "cardArea": [690.031, 125],
+                "matrix": [8, 1, 8]
+              }
+            },
+            "evidence": "native/android17-a55/android17-a55-browser-tabbed-landscape.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "portrait",
+            "viewport": [360, 704],
+            "dpr": 3,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [328, 308.5],
+                "cardArea": [328, 240],
+                "matrix": [1, 1, 1]
+              },
+              "input-compact": {
+                "frame": [328, 276.25],
+                "cardArea": [328, 207.75],
+                "matrix": [3, 1, 3]
+              },
+              "output-normal": {
+                "frame": [328, 308.5],
+                "cardArea": [328, 240],
+                "matrix": [1, 1, 1]
+              },
+              "output-compact": {
+                "frame": [328, 276.25],
+                "cardArea": [328, 207.75],
+                "matrix": [3, 1, 3]
+              }
+            },
+            "evidence": "native/android17-a55/android17-a55-standalone-pwa-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "landscape",
+            "viewport": [732, 284],
+            "dpr": 3,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [690.031, 300.5],
+                "cardArea": [690.031, 232],
+                "matrix": [4, 1, 4]
+              },
+              "input-compact": {
+                "frame": [690.031, 193.5],
+                "cardArea": [690.031, 125],
+                "matrix": [8, 1, 8]
+              },
+              "output-normal": {
+                "frame": [690.031, 300.5],
+                "cardArea": [690.031, 232],
+                "matrix": [4, 1, 4]
+              },
+              "output-compact": {
+                "frame": [690.031, 193.5],
+                "cardArea": [690.031, 125],
+                "matrix": [8, 1, 8]
+              }
+            },
+            "evidence": "native/android17-a55/android17-a55-standalone-pwa-landscape.json",
+            "graphicsBackend": "software"
+          }
+        ]
+      },
+      {
+        "id": "a06",
+        "family": "phone",
+        "baseProfile": "pixel_9a",
+        "panel": [720, 1600],
+        "dpi": 320,
+        "densitySource": "Test seed; manufacturer display density is unknown",
+        "targetModels": ["Samsung Galaxy A06 4G", "Xiaomi Redmi 13C 4G"],
+        "environments": [
+          {
+            "mode": "browser-tabbed",
+            "orientation": "portrait",
+            "viewport": [360, 673],
+            "dpr": 2,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 24,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [328, 308.5],
+                "cardArea": [328, 240],
+                "matrix": [1, 1, 1]
+              },
+              "input-compact": {
+                "frame": [328, 221.25],
+                "cardArea": [328, 152.75],
+                "matrix": [3, 1, 3]
+              },
+              "output-normal": {
+                "frame": [328, 308.5],
+                "cardArea": [328, 240],
+                "matrix": [1, 1, 1]
+              },
+              "output-compact": {
+                "frame": [328, 221.25],
+                "cardArea": [328, 152.75],
+                "matrix": [3, 1, 3]
+              }
+            },
+            "evidence": "native/android17-a06/android17-a06-browser-tabbed-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "browser-tabbed",
+            "orientation": "landscape",
+            "viewport": [729, 252],
+            "dpr": 2,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 24,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [686.484, 300.5],
+                "cardArea": [686.484, 232],
+                "matrix": [4, 1, 4]
+              },
+              "input-compact": {
+                "frame": [686.484, 193.5],
+                "cardArea": [686.484, 125],
+                "matrix": [8, 1, 8]
+              },
+              "output-normal": {
+                "frame": [686.484, 300.5],
+                "cardArea": [686.484, 232],
+                "matrix": [4, 1, 4]
+              },
+              "output-compact": {
+                "frame": [686.484, 193.5],
+                "cardArea": [686.484, 125],
+                "matrix": [8, 1, 8]
+              }
+            },
+            "evidence": "native/android17-a06/android17-a06-browser-tabbed-landscape.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "portrait",
+            "viewport": [360, 705],
+            "dpr": 2,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [328, 308.5],
+                "cardArea": [328, 240],
+                "matrix": [1, 1, 1]
+              },
+              "input-compact": {
+                "frame": [328, 277.25],
+                "cardArea": [328, 208.75],
+                "matrix": [3, 1, 3]
+              },
+              "output-normal": {
+                "frame": [328, 308.5],
+                "cardArea": [328, 240],
+                "matrix": [1, 1, 1]
+              },
+              "output-compact": {
+                "frame": [328, 277.25],
+                "cardArea": [328, 208.75],
+                "matrix": [3, 1, 3]
+              }
+            },
+            "evidence": "native/android17-a06/android17-a06-standalone-pwa-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "landscape",
+            "viewport": [729, 284],
+            "dpr": 2,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [686.484, 300.5],
+                "cardArea": [686.484, 232],
+                "matrix": [4, 1, 4]
+              },
+              "input-compact": {
+                "frame": [686.484, 193.5],
+                "cardArea": [686.484, 125],
+                "matrix": [8, 1, 8]
+              },
+              "output-normal": {
+                "frame": [686.484, 300.5],
+                "cardArea": [686.484, 232],
+                "matrix": [4, 1, 4]
+              },
+              "output-compact": {
+                "frame": [686.484, 193.5],
+                "cardArea": [686.484, 125],
+                "matrix": [8, 1, 8]
+              }
+            },
+            "evidence": "native/android17-a06/android17-a06-standalone-pwa-landscape.json",
+            "graphicsBackend": "software"
+          }
+        ]
+      },
+      {
+        "id": "note13",
+        "family": "phone",
+        "baseProfile": "pixel_9a",
+        "panel": [1080, 2400],
+        "dpi": 440,
+        "densitySource": "Test seed; manufacturer display density is unknown",
+        "targetModels": ["Xiaomi Redmi Note 13 4G"],
+        "environments": [
+          {
+            "mode": "browser-tabbed",
+            "orientation": "portrait",
+            "viewport": [392, 764],
+            "dpr": 2.75,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 24,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [360.727, 313.795],
+                "cardArea": [360.727, 245.295],
+                "matrix": [2, 1, 2]
+              },
+              "input-compact": {
+                "frame": [360.727, 313.795],
+                "cardArea": [360.727, 245.295],
+                "matrix": [4, 1, 4]
+              },
+              "output-normal": {
+                "frame": [360.727, 313.795],
+                "cardArea": [360.727, 245.295],
+                "matrix": [2, 1, 2]
+              },
+              "output-compact": {
+                "frame": [360.727, 313.795],
+                "cardArea": [360.727, 245.295],
+                "matrix": [4, 1, 4]
+              }
+            },
+            "evidence": "native/android17-note13/android17-note13-browser-tabbed-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "browser-tabbed",
+            "orientation": "landscape",
+            "viewport": [821, 284],
+            "dpr": 2.75,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 24,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [775.625, 300.574],
+                "cardArea": [775.625, 232],
+                "matrix": [5, 1, 5]
+              },
+              "input-compact": {
+                "frame": [775.625, 193.574],
+                "cardArea": [775.625, 125],
+                "matrix": [9, 1, 9]
+              },
+              "output-normal": {
+                "frame": [775.625, 300.574],
+                "cardArea": [775.625, 232],
+                "matrix": [5, 1, 5]
+              },
+              "output-compact": {
+                "frame": [775.625, 193.574],
+                "cardArea": [775.625, 125],
+                "matrix": [9, 1, 9]
+              }
+            },
+            "evidence": "native/android17-note13/android17-note13-browser-tabbed-landscape.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "portrait",
+            "viewport": [392, 796],
+            "dpr": 2.75,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [360.727, 369.795],
+                "cardArea": [360.727, 301.295],
+                "matrix": [2, 1, 2]
+              },
+              "input-compact": {
+                "frame": [360.727, 369.795],
+                "cardArea": [360.727, 301.295],
+                "matrix": [4, 2, 8]
+              },
+              "output-normal": {
+                "frame": [360.727, 369.795],
+                "cardArea": [360.727, 301.295],
+                "matrix": [2, 1, 2]
+              },
+              "output-compact": {
+                "frame": [360.727, 369.795],
+                "cardArea": [360.727, 301.295],
+                "matrix": [4, 2, 8]
+              }
+            },
+            "evidence": "native/android17-note13/android17-note13-standalone-pwa-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "landscape",
+            "viewport": [821, 316],
+            "dpr": 2.75,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [775.625, 300.574],
+                "cardArea": [775.625, 232],
+                "matrix": [5, 1, 5]
+              },
+              "input-compact": {
+                "frame": [775.625, 193.574],
+                "cardArea": [775.625, 125],
+                "matrix": [9, 1, 9]
+              },
+              "output-normal": {
+                "frame": [775.625, 300.574],
+                "cardArea": [775.625, 232],
+                "matrix": [5, 1, 5]
+              },
+              "output-compact": {
+                "frame": [775.625, 193.574],
+                "cardArea": [775.625, 125],
+                "matrix": [9, 1, 9]
+              }
+            },
+            "evidence": "native/android17-note13/android17-note13-standalone-pwa-landscape.json",
+            "graphicsBackend": "software"
+          }
+        ]
+      },
+      {
+        "id": "note13pro",
+        "family": "phone",
+        "baseProfile": "pixel_9a",
+        "panel": [1220, 2712],
+        "dpi": 496,
+        "densitySource": "Test seed; manufacturer display density is unknown",
+        "targetModels": ["Xiaomi Redmi Note 13 Pro 5G"],
+        "environments": [
+          {
+            "mode": "browser-tabbed",
+            "orientation": "portrait",
+            "viewport": [393, 766],
+            "dpr": 3.1000001430511475,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 24,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [361.552, 315.176],
+                "cardArea": [361.552, 246.678],
+                "matrix": [2, 1, 2]
+              },
+              "input-compact": {
+                "frame": [361.552, 315.176],
+                "cardArea": [361.552, 246.678],
+                "matrix": [4, 1, 4]
+              },
+              "output-normal": {
+                "frame": [361.552, 315.176],
+                "cardArea": [361.552, 246.678],
+                "matrix": [2, 1, 2]
+              },
+              "output-compact": {
+                "frame": [361.552, 315.176],
+                "cardArea": [361.552, 246.678],
+                "matrix": [4, 1, 4]
+              }
+            },
+            "evidence": "native/android17-note13pro/android17-note13pro-browser-tabbed-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "browser-tabbed",
+            "orientation": "landscape",
+            "viewport": [829, 285],
+            "dpr": 3.1000001430511475,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 24,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [783.306, 300.585],
+                "cardArea": [783.306, 232.001],
+                "matrix": [5, 1, 5]
+              },
+              "input-compact": {
+                "frame": [783.306, 193.584],
+                "cardArea": [783.306, 125],
+                "matrix": [9, 1, 9]
+              },
+              "output-normal": {
+                "frame": [783.306, 300.585],
+                "cardArea": [783.306, 232.001],
+                "matrix": [5, 1, 5]
+              },
+              "output-compact": {
+                "frame": [783.306, 193.584],
+                "cardArea": [783.306, 125],
+                "matrix": [9, 1, 9]
+              }
+            },
+            "evidence": "native/android17-note13pro/android17-note13pro-browser-tabbed-landscape.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "portrait",
+            "viewport": [393, 799],
+            "dpr": 3.1000001430511475,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [361.552, 371.436],
+                "cardArea": [361.552, 302.939],
+                "matrix": [2, 1, 2]
+              },
+              "input-compact": {
+                "frame": [361.552, 371.436],
+                "cardArea": [361.552, 302.939],
+                "matrix": [4, 2, 8]
+              },
+              "output-normal": {
+                "frame": [361.552, 371.436],
+                "cardArea": [361.552, 302.939],
+                "matrix": [2, 1, 2]
+              },
+              "output-compact": {
+                "frame": [361.552, 371.436],
+                "cardArea": [361.552, 302.939],
+                "matrix": [4, 2, 8]
+              }
+            },
+            "evidence": "native/android17-note13pro/android17-note13pro-standalone-pwa-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "landscape",
+            "viewport": [829, 317],
+            "dpr": 3.1000001430511475,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [783.306, 300.585],
+                "cardArea": [783.306, 232.001],
+                "matrix": [5, 1, 5]
+              },
+              "input-compact": {
+                "frame": [783.306, 193.584],
+                "cardArea": [783.306, 125],
+                "matrix": [9, 1, 9]
+              },
+              "output-normal": {
+                "frame": [783.306, 300.585],
+                "cardArea": [783.306, 232.001],
+                "matrix": [5, 1, 5]
+              },
+              "output-compact": {
+                "frame": [783.306, 193.584],
+                "cardArea": [783.306, 125],
+                "matrix": [9, 1, 9]
+              }
+            },
+            "evidence": "native/android17-note13pro/android17-note13pro-standalone-pwa-landscape.json",
+            "graphicsBackend": "software"
+          }
+        ]
+      },
+      {
+        "id": "ultra",
+        "family": "phone",
+        "baseProfile": "pixel_9a",
+        "panel": [1440, 3120],
+        "dpi": 560,
+        "densitySource": "Test seed; manufacturer display density is unknown",
+        "targetModels": ["Samsung Galaxy S26 Ultra", "Samsung Galaxy S25 Ultra"],
+        "environments": [
+          {
+            "mode": "browser-tabbed",
+            "orientation": "portrait",
+            "viewport": [411, 783],
+            "dpr": 3.5,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 24,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [379.071, 331.929],
+                "cardArea": [379.071, 263.429],
+                "matrix": [2, 1, 2]
+              },
+              "input-compact": {
+                "frame": [379.071, 331.929],
+                "cardArea": [379.071, 263.429],
+                "matrix": [4, 1, 4]
+              },
+              "output-normal": {
+                "frame": [379.071, 331.929],
+                "cardArea": [379.071, 263.429],
+                "matrix": [2, 1, 2]
+              },
+              "output-compact": {
+                "frame": [379.071, 331.929],
+                "cardArea": [379.071, 263.429],
+                "matrix": [4, 1, 4]
+              }
+            },
+            "evidence": "native/android17-ultra/android17-ultra-browser-tabbed-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "browser-tabbed",
+            "orientation": "landscape",
+            "viewport": [851, 303],
+            "dpr": 3.5,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 24,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [804.438, 300.603],
+                "cardArea": [804.438, 231.996],
+                "matrix": [5, 1, 5]
+              },
+              "input-compact": {
+                "frame": [804.438, 193.603],
+                "cardArea": [804.438, 124.996],
+                "matrix": [9, 1, 9]
+              },
+              "output-normal": {
+                "frame": [804.438, 300.603],
+                "cardArea": [804.438, 231.996],
+                "matrix": [5, 1, 5]
+              },
+              "output-compact": {
+                "frame": [804.438, 193.603],
+                "cardArea": [804.438, 124.996],
+                "matrix": [9, 1, 9]
+              }
+            },
+            "evidence": "native/android17-ultra/android17-ultra-browser-tabbed-landscape.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "portrait",
+            "viewport": [411, 815],
+            "dpr": 3.5,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [379.071, 387.929],
+                "cardArea": [379.071, 319.429],
+                "matrix": [2, 1, 2]
+              },
+              "input-compact": {
+                "frame": [379.071, 387.929],
+                "cardArea": [379.071, 319.429],
+                "matrix": [4, 2, 8]
+              },
+              "output-normal": {
+                "frame": [379.071, 387.929],
+                "cardArea": [379.071, 319.429],
+                "matrix": [2, 1, 2]
+              },
+              "output-compact": {
+                "frame": [379.071, 387.929],
+                "cardArea": [379.071, 319.429],
+                "matrix": [4, 2, 8]
+              }
+            },
+            "evidence": "native/android17-ultra/android17-ultra-standalone-pwa-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "landscape",
+            "viewport": [851, 335],
+            "dpr": 3.5,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [804.438, 300.603],
+                "cardArea": [804.438, 231.996],
+                "matrix": [5, 1, 5]
+              },
+              "input-compact": {
+                "frame": [804.438, 193.603],
+                "cardArea": [804.438, 124.996],
+                "matrix": [9, 1, 9]
+              },
+              "output-normal": {
+                "frame": [804.438, 300.603],
+                "cardArea": [804.438, 231.996],
+                "matrix": [5, 1, 5]
+              },
+              "output-compact": {
+                "frame": [804.438, 193.603],
+                "cardArea": [804.438, 124.996],
+                "matrix": [9, 1, 9]
+              }
+            },
+            "evidence": "native/android17-ultra/android17-ultra-standalone-pwa-landscape.json",
+            "graphicsBackend": "software"
+          }
+        ]
+      },
+      {
+        "id": "a9",
+        "family": "tablet",
+        "baseProfile": "pixel_tablet",
+        "panel": [800, 1340],
+        "dpi": 213,
+        "densitySource": "Test seed; manufacturer display density is unknown",
+        "targetModels": ["Samsung Galaxy Tab A9"],
+        "environments": [
+          {
+            "mode": "browser-tabbed",
+            "orientation": "portrait",
+            "viewport": [601, 886],
+            "dpr": 1.3312500715255737,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 33,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [562.512, 406.056],
+                "cardArea": [562.512, 337.57],
+                "matrix": [3, 1, 3]
+              },
+              "input-compact": {
+                "frame": [562.512, 406.056],
+                "cardArea": [562.512, 337.57],
+                "matrix": [6, 2, 12]
+              },
+              "output-normal": {
+                "frame": [562.512, 406.056],
+                "cardArea": [562.512, 337.57],
+                "matrix": [3, 1, 3]
+              },
+              "output-compact": {
+                "frame": [562.512, 406.056],
+                "cardArea": [562.512, 337.57],
+                "matrix": [6, 2, 12]
+              }
+            },
+            "evidence": "native/android17-a9/android17-a9-browser-tabbed-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "browser-tabbed",
+            "orientation": "landscape",
+            "viewport": [1006, 481],
+            "dpr": 1.3312500715255737,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 33,
+              "left": 0
+            },
+            "paneMode": "two-pane",
+            "views": {
+              "input-normal": {
+                "frame": [451.878, 291.995],
+                "cardArea": [451.878, 240.012],
+                "matrix": [2, 1, 2]
+              },
+              "input-compact": {
+                "frame": [451.878, 291.995],
+                "cardArea": [451.878, 240.012],
+                "matrix": [5, 1, 5]
+              },
+              "output-normal": {
+                "frame": [451.878, 291.995],
+                "cardArea": [451.878, 240.012],
+                "matrix": [2, 1, 2]
+              },
+              "output-compact": {
+                "frame": [451.878, 176.995],
+                "cardArea": [451.878, 125.012],
+                "matrix": [5, 1, 5]
+              }
+            },
+            "evidence": "native/android17-a9/android17-a9-browser-tabbed-landscape.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "portrait",
+            "viewport": [601, 950],
+            "dpr": 1.3312500715255737,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [562.512, 502.911],
+                "cardArea": [562.512, 434.425],
+                "matrix": [3, 1, 3]
+              },
+              "input-compact": {
+                "frame": [562.512, 502.911],
+                "cardArea": [562.512, 434.425],
+                "matrix": [6, 3, 18]
+              },
+              "output-normal": {
+                "frame": [562.512, 502.911],
+                "cardArea": [562.512, 434.425],
+                "matrix": [3, 1, 3]
+              },
+              "output-compact": {
+                "frame": [562.512, 502.911],
+                "cardArea": [562.512, 434.425],
+                "matrix": [6, 3, 18]
+              }
+            },
+            "evidence": "native/android17-a9/android17-a9-standalone-pwa-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "landscape",
+            "viewport": [1006, 544],
+            "dpr": 1.3312500715255737,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "two-pane",
+            "views": {
+              "input-normal": {
+                "frame": [451.878, 291.995],
+                "cardArea": [451.878, 240.012],
+                "matrix": [2, 1, 2]
+              },
+              "input-compact": {
+                "frame": [451.878, 176.995],
+                "cardArea": [451.878, 125.012],
+                "matrix": [5, 1, 5]
+              },
+              "output-normal": {
+                "frame": [451.878, 291.995],
+                "cardArea": [451.878, 240.012],
+                "matrix": [2, 1, 2]
+              },
+              "output-compact": {
+                "frame": [451.878, 176.995],
+                "cardArea": [451.878, 125.012],
+                "matrix": [5, 1, 5]
+              }
+            },
+            "evidence": "native/android17-a9/android17-a9-standalone-pwa-landscape.json",
+            "graphicsBackend": "software"
+          }
+        ]
+      },
+      {
+        "id": "padse",
+        "family": "tablet",
+        "baseProfile": "pixel_tablet",
+        "panel": [1200, 1920],
+        "dpi": 256,
+        "densitySource": "Test seed; manufacturer display density is unknown",
+        "targetModels": ["Xiaomi Redmi Pad SE 11-inch"],
+        "environments": [
+          {
+            "mode": "browser-tabbed",
+            "orientation": "portrait",
+            "viewport": [750, 1080],
+            "dpr": 1.600000023841858,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 32,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [706.816, 590.4],
+                "cardArea": [706.816, 521.895],
+                "matrix": [4, 2, 8]
+              },
+              "input-compact": {
+                "frame": [706.816, 590.4],
+                "cardArea": [706.816, 521.895],
+                "matrix": [8, 3, 24]
+              },
+              "output-normal": {
+                "frame": [706.816, 590.4],
+                "cardArea": [706.816, 521.895],
+                "matrix": [4, 2, 8]
+              },
+              "output-compact": {
+                "frame": [706.816, 590.4],
+                "cardArea": [706.816, 521.895],
+                "matrix": [8, 3, 24]
+              }
+            },
+            "evidence": "native/android17-padse/android17-padse-browser-tabbed-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "browser-tabbed",
+            "orientation": "landscape",
+            "viewport": [1200, 630],
+            "dpr": 1.600000023841858,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 32,
+              "left": 0
+            },
+            "paneMode": "two-pane",
+            "views": {
+              "input-normal": {
+                "frame": [544.004, 291.992],
+                "cardArea": [544.004, 240],
+                "matrix": [3, 1, 3]
+              },
+              "input-compact": {
+                "frame": [544.004, 291.992],
+                "cardArea": [544.004, 240],
+                "matrix": [6, 1, 6]
+              },
+              "output-normal": {
+                "frame": [544.004, 291.992],
+                "cardArea": [544.004, 240],
+                "matrix": [3, 1, 3]
+              },
+              "output-compact": {
+                "frame": [544.004, 191.436],
+                "cardArea": [544.004, 139.443],
+                "matrix": [6, 1, 6]
+              }
+            },
+            "evidence": "native/android17-padse/android17-padse-browser-tabbed-landscape.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "portrait",
+            "viewport": [750, 1144],
+            "dpr": 1.600000023841858,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [706.816, 686.777],
+                "cardArea": [706.816, 618.271],
+                "matrix": [4, 2, 8]
+              },
+              "input-compact": {
+                "frame": [706.816, 686.777],
+                "cardArea": [706.816, 618.271],
+                "matrix": [8, 4, 32]
+              },
+              "output-normal": {
+                "frame": [706.816, 686.777],
+                "cardArea": [706.816, 618.271],
+                "matrix": [4, 2, 8]
+              },
+              "output-compact": {
+                "frame": [706.816, 686.777],
+                "cardArea": [706.816, 618.271],
+                "matrix": [8, 4, 32]
+              }
+            },
+            "evidence": "native/android17-padse/android17-padse-standalone-pwa-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "landscape",
+            "viewport": [1200, 694],
+            "dpr": 1.600000023841858,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "two-pane",
+            "views": {
+              "input-normal": {
+                "frame": [544.004, 291.992],
+                "cardArea": [544.004, 240],
+                "matrix": [3, 1, 3]
+              },
+              "input-compact": {
+                "frame": [544.004, 287.813],
+                "cardArea": [544.004, 235.82],
+                "matrix": [6, 1, 6]
+              },
+              "output-normal": {
+                "frame": [544.004, 291.992],
+                "cardArea": [544.004, 240],
+                "matrix": [3, 1, 3]
+              },
+              "output-compact": {
+                "frame": [544.004, 287.813],
+                "cardArea": [544.004, 235.82],
+                "matrix": [6, 1, 6]
+              }
+            },
+            "evidence": "native/android17-padse/android17-padse-standalone-pwa-landscape.json",
+            "graphicsBackend": "software"
+          }
+        ]
+      },
+      {
+        "id": "a9plus",
+        "family": "tablet",
+        "baseProfile": "pixel_tablet",
+        "panel": [1200, 1920],
+        "dpi": 240,
+        "densitySource": "Test seed; manufacturer display density is unknown",
+        "targetModels": ["Samsung Galaxy Tab A9+"],
+        "environments": [
+          {
+            "mode": "browser-tabbed",
+            "orientation": "portrait",
+            "viewport": [800, 1160],
+            "dpr": 1.5,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 32,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [755.208, 666.656],
+                "cardArea": [755.208, 598.094],
+                "matrix": [4, 2, 8]
+              },
+              "input-compact": {
+                "frame": [755.208, 666.656],
+                "cardArea": [755.208, 598.094],
+                "matrix": [9, 4, 36]
+              },
+              "output-normal": {
+                "frame": [755.208, 666.656],
+                "cardArea": [755.208, 598.094],
+                "matrix": [4, 2, 8]
+              },
+              "output-compact": {
+                "frame": [755.208, 666.656],
+                "cardArea": [755.208, 598.094],
+                "matrix": [9, 4, 36]
+              }
+            },
+            "evidence": "native/android17-a9plus/android17-a9plus-browser-tabbed-portrait.json",
+            "graphicsBackend": "software"
+          },
+          {
+            "mode": "browser-tabbed",
+            "orientation": "landscape",
+            "viewport": [1280, 680],
+            "dpr": 1.5,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 32,
+              "left": 0
+            },
+            "paneMode": "two-pane",
+            "views": {
+              "input-normal": {
+                "frame": [560, 292],
+                "cardArea": [560, 240],
+                "matrix": [3, 1, 3]
+              },
+              "input-compact": {
+                "frame": [560, 292],
+                "cardArea": [560, 240],
+                "matrix": [6, 1, 6]
+              },
+              "output-normal": {
+                "frame": [560, 292],
+                "cardArea": [560, 240],
+                "matrix": [3, 1, 3]
+              },
+              "output-compact": {
+                "frame": [560, 238.979],
+                "cardArea": [560, 186.979],
+                "matrix": [6, 1, 6]
+              }
+            },
+            "evidence": "native/android17-a9plus/android17-a9plus-browser-tabbed-landscape.json",
+            "graphicsBackend": "swiftshader"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "portrait",
+            "viewport": [800, 1224],
+            "dpr": 1.5,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [755.208, 762.656],
+                "cardArea": [755.208, 694.094],
+                "matrix": [4, 2, 8]
+              },
+              "input-compact": {
+                "frame": [755.208, 762.656],
+                "cardArea": [755.208, 694.094],
+                "matrix": [9, 5, 45]
+              },
+              "output-normal": {
+                "frame": [755.208, 762.656],
+                "cardArea": [755.208, 694.094],
+                "matrix": [4, 2, 8]
+              },
+              "output-compact": {
+                "frame": [755.208, 762.656],
+                "cardArea": [755.208, 694.094],
+                "matrix": [9, 5, 45]
+              }
+            },
+            "evidence": "native/android17-a9plus/android17-a9plus-standalone-pwa-portrait.json",
+            "graphicsBackend": "swiftshader"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "landscape",
+            "viewport": [1280, 744],
+            "dpr": 1.5,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "two-pane",
+            "views": {
+              "input-normal": {
+                "frame": [560, 334.979],
+                "cardArea": [560, 282.979],
+                "matrix": [3, 1, 3]
+              },
+              "input-compact": {
+                "frame": [560, 334.979],
+                "cardArea": [560, 282.979],
+                "matrix": [6, 2, 12]
+              },
+              "output-normal": {
+                "frame": [560, 334.979],
+                "cardArea": [560, 282.979],
+                "matrix": [3, 1, 3]
+              },
+              "output-compact": {
+                "frame": [560, 334.979],
+                "cardArea": [560, 282.979],
+                "matrix": [6, 2, 12]
+              }
+            },
+            "evidence": "native/android17-a9plus/android17-a9plus-standalone-pwa-landscape.json",
+            "graphicsBackend": "swiftshader"
+          }
+        ]
+      },
+      {
+        "id": "pad6",
+        "family": "tablet",
+        "baseProfile": "pixel_tablet",
+        "panel": [1800, 2880],
+        "dpi": 388,
+        "densitySource": "Test seed; manufacturer display density is unknown",
+        "targetModels": ["Xiaomi Pad 6"],
+        "environments": [
+          {
+            "mode": "browser-tabbed",
+            "orientation": "portrait",
+            "viewport": [742, 1067],
+            "dpr": 2.424999952316284,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 33,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [699.317, 576.972],
+                "cardArea": [699.317, 508.473],
+                "matrix": [4, 2, 8]
+              },
+              "input-compact": {
+                "frame": [699.317, 576.972],
+                "cardArea": [699.317, 508.473],
+                "matrix": [8, 3, 24]
+              },
+              "output-normal": {
+                "frame": [699.317, 576.972],
+                "cardArea": [699.317, 508.473],
+                "matrix": [4, 2, 8]
+              },
+              "output-compact": {
+                "frame": [699.317, 576.972],
+                "cardArea": [699.317, 508.473],
+                "matrix": [8, 3, 24]
+              }
+            },
+            "evidence": "native/android17-pad6/android17-pad6-browser-tabbed-portrait.json",
+            "graphicsBackend": "swiftshader"
+          },
+          {
+            "mode": "browser-tabbed",
+            "orientation": "landscape",
+            "viewport": [1187, 622],
+            "dpr": 2.424999952316284,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 33,
+              "left": 0
+            },
+            "paneMode": "two-pane",
+            "views": {
+              "input-normal": {
+                "frame": [537.822, 291.997],
+                "cardArea": [537.822, 240.006],
+                "matrix": [3, 1, 3]
+              },
+              "input-compact": {
+                "frame": [537.822, 291.997],
+                "cardArea": [537.822, 240.006],
+                "matrix": [6, 1, 6]
+              },
+              "output-normal": {
+                "frame": [537.822, 291.997],
+                "cardArea": [537.822, 240.006],
+                "matrix": [3, 1, 3]
+              },
+              "output-compact": {
+                "frame": [537.822, 182.423],
+                "cardArea": [537.822, 130.432],
+                "matrix": [6, 1, 6]
+              }
+            },
+            "evidence": "native/android17-pad6/android17-pad6-browser-tabbed-landscape.json",
+            "graphicsBackend": "swiftshader"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "portrait",
+            "viewport": [742, 1131],
+            "dpr": 2.424999952316284,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [699.317, 673.892],
+                "cardArea": [699.317, 605.393],
+                "matrix": [4, 2, 8]
+              },
+              "input-compact": {
+                "frame": [699.317, 673.892],
+                "cardArea": [699.317, 605.393],
+                "matrix": [8, 4, 32]
+              },
+              "output-normal": {
+                "frame": [699.317, 673.892],
+                "cardArea": [699.317, 605.393],
+                "matrix": [4, 2, 8]
+              },
+              "output-compact": {
+                "frame": [699.317, 673.892],
+                "cardArea": [699.317, 605.393],
+                "matrix": [8, 4, 32]
+              }
+            },
+            "evidence": "native/android17-pad6/android17-pad6-standalone-pwa-portrait.json",
+            "graphicsBackend": "swiftshader"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "landscape",
+            "viewport": [1187, 686],
+            "dpr": 2.424999952316284,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "two-pane",
+            "views": {
+              "input-normal": {
+                "frame": [537.822, 291.997],
+                "cardArea": [537.822, 240.006],
+                "matrix": [3, 1, 3]
+              },
+              "input-compact": {
+                "frame": [537.822, 279.336],
+                "cardArea": [537.822, 227.345],
+                "matrix": [6, 1, 6]
+              },
+              "output-normal": {
+                "frame": [537.822, 291.997],
+                "cardArea": [537.822, 240.006],
+                "matrix": [3, 1, 3]
+              },
+              "output-compact": {
+                "frame": [537.822, 279.336],
+                "cardArea": [537.822, 227.345],
+                "matrix": [6, 1, 6]
+              }
+            },
+            "evidence": "native/android17-pad6/android17-pad6-standalone-pwa-landscape.json",
+            "graphicsBackend": "swiftshader"
+          }
+        ]
+      },
+      {
+        "id": "s10plus",
+        "family": "tablet",
+        "baseProfile": "pixel_tablet",
+        "panel": [1752, 2800],
+        "dpi": 320,
+        "densitySource": "Test seed; manufacturer display density is unknown",
+        "targetModels": ["Samsung Galaxy Tab S10+"],
+        "environments": [
+          {
+            "mode": "browser-tabbed",
+            "orientation": "portrait",
+            "viewport": [876, 1280],
+            "dpr": 2,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 32,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [828.781, 780.094],
+                "cardArea": [828.781, 711.469],
+                "matrix": [5, 2, 10]
+              },
+              "input-compact": {
+                "frame": [828.781, 780.094],
+                "cardArea": [828.781, 711.469],
+                "matrix": [10, 5, 50]
+              },
+              "output-normal": {
+                "frame": [828.781, 780.094],
+                "cardArea": [828.781, 711.469],
+                "matrix": [5, 2, 10]
+              },
+              "output-compact": {
+                "frame": [828.781, 780.094],
+                "cardArea": [828.781, 711.469],
+                "matrix": [10, 5, 50]
+              }
+            },
+            "evidence": "native/android17-s10plus/android17-s10plus-browser-tabbed-portrait.json",
+            "graphicsBackend": "swiftshader"
+          },
+          {
+            "mode": "browser-tabbed",
+            "orientation": "landscape",
+            "viewport": [1400, 756],
+            "dpr": 2,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 32,
+              "left": 0
+            },
+            "paneMode": "two-pane",
+            "views": {
+              "input-normal": {
+                "frame": [560, 310.547],
+                "cardArea": [560, 258.547],
+                "matrix": [3, 1, 3]
+              },
+              "input-compact": {
+                "frame": [560, 310.547],
+                "cardArea": [560, 258.547],
+                "matrix": [6, 1, 6]
+              },
+              "output-normal": {
+                "frame": [560, 310.547],
+                "cardArea": [560, 258.547],
+                "matrix": [3, 1, 3]
+              },
+              "output-compact": {
+                "frame": [560, 310.547],
+                "cardArea": [560, 258.547],
+                "matrix": [6, 1, 6]
+              }
+            },
+            "evidence": "native/android17-s10plus/android17-s10plus-browser-tabbed-landscape.json",
+            "graphicsBackend": "swiftshader"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "portrait",
+            "viewport": [876, 1344],
+            "dpr": 2,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "one-pane",
+            "views": {
+              "input-normal": {
+                "frame": [828.781, 876.094],
+                "cardArea": [828.781, 807.469],
+                "matrix": [5, 3, 15]
+              },
+              "input-compact": {
+                "frame": [828.781, 876.094],
+                "cardArea": [828.781, 807.469],
+                "matrix": [10, 6, 60]
+              },
+              "output-normal": {
+                "frame": [828.781, 876.094],
+                "cardArea": [828.781, 807.469],
+                "matrix": [5, 3, 15]
+              },
+              "output-compact": {
+                "frame": [828.781, 876.094],
+                "cardArea": [828.781, 807.469],
+                "matrix": [10, 6, 60]
+              }
+            },
+            "evidence": "native/android17-s10plus/android17-s10plus-standalone-pwa-portrait.json",
+            "graphicsBackend": "swiftshader"
+          },
+          {
+            "mode": "standalone-pwa",
+            "orientation": "landscape",
+            "viewport": [1400, 820],
+            "dpr": 2,
+            "safeArea": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "paneMode": "two-pane",
+            "views": {
+              "input-normal": {
+                "frame": [560, 406.547],
+                "cardArea": [560, 354.547],
+                "matrix": [3, 1, 3]
+              },
+              "input-compact": {
+                "frame": [560, 406.547],
+                "cardArea": [560, 354.547],
+                "matrix": [6, 2, 12]
+              },
+              "output-normal": {
+                "frame": [560, 406.547],
+                "cardArea": [560, 354.547],
+                "matrix": [3, 1, 3]
+              },
+              "output-compact": {
+                "frame": [560, 406.547],
+                "cardArea": [560, 354.547],
+                "matrix": [6, 2, 12]
+              }
+            },
+            "evidence": "native/android17-s10plus/android17-s10plus-standalone-pwa-landscape.json",
+            "graphicsBackend": "swiftshader"
+          }
+        ]
+      }
+    ]
+  },
   "desktops": {
     "capturedAt": "2026-10-20",
     "grouping": "Logical CSS screen test seeds; reported or inferred scaling, with 120 CSS px reserved for browser and desktop controls. These are not native measurements.",
