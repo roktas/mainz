@@ -96,8 +96,8 @@ and no action controls. Its menu otherwise supports Blank insertion without a se
 alignment remain visible in the field hint. The Output field hint directs selected pages to the selection bar.
 
 Clicking a Grid image or grip toggles selection and gives normal page focus. Shift-click adds missing pages or removes
-the anchored range. The Input Page grip uses the same selection. Field values and page borders represent the same
-targets.
+the anchored range. Where available, the Input Page grip uses the same selection. Field values and page borders
+represent the same targets.
 
 On touch screens, Selection requests the numeric keyboard. Grid content does not support text selection or touch
 callouts. Double-tapping a Grid image opens that page in Page without changing Selection or Output.
@@ -349,13 +349,24 @@ choices.
 
 Page preserves physical proportions for PDF content, Blank, and Padding. Fit is 100%. The zoom steps are 50%, 100%,
 150%, 200%, 300%, and 400%. Pinching a Page image changes zoom continuously within 50–400%, around the midpoint of the
-two fingers. Zoom buttons and keyboard controls choose the next step from that value. Pinching preserves Selection and
-Output. Application zoom is independent of browser zoom. View changes, Input switches, selection changes, and resizing
-retain each pane's zoom and latest visible region.
+two fingers, within the image's scroll bounds. An image that fits an axis stays centered on that axis. Zoom buttons and
+keyboard controls choose the next step from that value. Pinching preserves Selection and Output. Application zoom is
+independent of browser zoom. View changes, Input switches, selection changes, and resizing retain each pane's zoom and
+latest visible region.
 
-At enlarged zoom, mouse dragging pans the image. Input transfer uses the Page grip. Output reordering uses Grid,
-selection actions, or keyboard controls. At 100% or below, the wheel scrolls the workspace. Above 100%, it scrolls the
-image and does not pass scrolling to the workspace at an edge. Keyboard and touch scrolling remain native.
+In a single-pane touch layout, the first Page entry enlarges a fitted image that occupies less than 70% of the image
+viewport's width. It uses the available width with equal image gutters, up to the existing 400% limit. This initial
+choice runs once per Source and once for Output, after PDF opening completes. An explicit zoom choice takes precedence.
+Initial pointer entry brings the Page frame into view. Keyboard entry keeps the focused control visible. Fit always
+restores 100% and shows the complete page. [DESIGN](DESIGN.md#grid-and-page) defines fitting and spacing.
+
+Page controls stay on one row. Actions that do not fit remain available in the existing pane page-actions menu. A
+single-pane touch Page has no grip; use the page-selection bar to select pages. Grid grips remain available.
+
+At enlarged zoom, mouse dragging pans the image. Where available, Input transfer uses the Page grip. Output reordering
+uses Grid, selection actions, or keyboard controls. At 100% or below, the wheel scrolls the workspace. Above 100%, it
+scrolls the image and does not pass scrolling to the workspace at an edge. Keyboard and touch scrolling remain native.
+In single-pane touch Page, a vertical swipe at an image edge can continue into the workspace.
 
 **Compare page** toggles the inspected occurrence between completed Source styles and immutable opened appearance. It
 requires a completed relevant style difference. Composition alone does not enable it. Pending or invalid relevant drafts

@@ -169,6 +169,7 @@ test("Page headings and navigation follow fitted image edges", { timeout: 240000
         const views = page.locator(".mobile-workspace-tabs")
         if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
         await tab(pane, "Page")
+        await zoom(pane, "Fit page")
         const viewport = pane.getByRole("region", { name: "PDF viewport", exact: true })
         for (const key of ["Home", "End"]) {
           await viewport.focus()
@@ -194,14 +195,23 @@ test("Page headings and navigation follow fitted image edges", { timeout: 240000
             await aligned(pane)
             const geometry = await pane.locator(".page-view").evaluate((view) => {
               const box = (query) => view.querySelector(query).getBoundingClientRect()
-              const grip = view.querySelector(".inspection-heading .page-grip")?.getBoundingClientRect()
+              const handle = view.querySelector(".inspection-heading .page-grip")
+              const grip = handle?.checkVisibility() ? handle.getBoundingClientRect() : undefined
               const fit = [...view.querySelector('button[aria-label="Fit page"]').children].find(
                 (child) => getComputedStyle(child).display !== "none",
               )
               const items = [...view.querySelector(".page-zoom").children]
+                .filter((child) => child.checkVisibility() && getComputedStyle(child).visibility !== "hidden")
                 .map((child) => child.getBoundingClientRect())
                 .filter((rect) => rect.width > 1)
               return {
+                touch: getComputedStyle(view).getPropertyValue("--page-touch").trim() === "1",
+                controls: view.getAttribute("data-controls"),
+                startTargets: [box(".page-number-control").left, box(".page-navigation > button:first-child").left],
+                endTargets: [
+                  box('button[aria-label="Fit page"]').right,
+                  box(".page-navigation > button:last-child").right,
+                ],
                 starts: [box(".page-current").left, box(".page-navigation > button:first-child svg").left],
                 ends: [fit.getBoundingClientRect().right, box(".page-navigation > button:last-child svg").right],
                 grip: grip && grip.x + grip.width / 2,
@@ -213,27 +223,37 @@ test("Page headings and navigation follow fitted image edges", { timeout: 240000
                 centers: items.map((rect) => rect.x + rect.width / 2),
                 rows: items.map((rect) => rect.y + rect.height / 2),
                 heading: box(".inspection-heading").toJSON(),
-                targets: [...view.querySelectorAll(".page-tools button")].map((button) => {
-                  const rect = button.getBoundingClientRect()
-                  return rect.toJSON()
-                }),
+                targets: [...view.querySelectorAll(".page-tools button")]
+                  .filter((button) => button.checkVisibility() && getComputedStyle(button).visibility !== "hidden")
+                  .map((button) => {
+                    const rect = button.getBoundingClientRect()
+                    return rect.toJSON()
+                  }),
                 zoom: view.querySelector(".page-zoom output").textContent,
                 fit: fit.tagName === "svg" ? "icon" : fit.textContent,
               }
             })
             const label = `${name}, ${width}×${height}, ${colorScheme}, ${text}, ${key}, ${action ?? "Fit"}`
             assert.ok(
-              geometry.starts.every((x) => Math.abs(x - fitted.x) < 1),
+              geometry.touch
+                ? geometry.startTargets.every((x) => Math.abs(x - geometry.heading.left - 16) < 1)
+                : geometry.starts.every((x) => Math.abs(x - fitted.x) < 1),
               `${label}: counter and Previous align with the image start (${geometry.starts}, expected ${fitted.x})`,
             )
             assert.ok(
-              geometry.ends.every((x) => Math.abs(x - fitted.x - fitted.width) < 1),
+              geometry.touch
+                ? geometry.endTargets.every((x) => Math.abs(x - geometry.heading.right + 16) < 1)
+                : geometry.ends.every((x) => Math.abs(x - fitted.x - fitted.width) < 1),
               `${label}: Fit and Next align with the image end (${geometry.ends}, expected ${fitted.x + fitted.width})`,
             )
             if (geometry.grip !== undefined)
               assert.ok(Math.abs(geometry.grip - fitted.x - fitted.width / 2) < 1, `${label}: the grip stays centered`)
-            const compact = width <= 640
-            assert.equal(geometry.items, compact ? 3 : 4, `${label}: the zoom group uses the screen layout`)
+            const compact = width <= 640 || geometry.controls === "fit"
+            assert.equal(
+              geometry.items,
+              geometry.controls === "fit" ? 1 : compact ? 3 : 4,
+              `${label}: the zoom group uses the available row`,
+            )
             const spacing = geometry.centers.slice(1).map((center, index) => center - geometry.centers[index])
             assert.ok(
               spacing.every((gap) => Math.abs(gap - spacing[0]) < 1),
@@ -269,10 +289,7 @@ test("Page headings and navigation follow fitted image edges", { timeout: 240000
               `${label}: Fit shows an icon or the current zoom`,
             )
             if (geometry.grip !== undefined)
-              assert.ok(
-                geometry.targets[0].left >= geometry.gripRight - 1 || geometry.toolTop >= geometry.gripBottom - 1,
-                `${label}: tools wrap before covering the grip`,
-              )
+              assert.ok(geometry.targets[0].left >= geometry.gripRight - 1, `${label}: tools stay beside the grip`)
           }
         }
       }
@@ -375,6 +392,7 @@ test("Narrow Page headings keep complete control rows across adjacent phone widt
             const views = page.locator(".mobile-workspace-tabs")
             if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
             await tab(pane, "Page")
+            await zoom(pane, "Fit page")
             for (const action of [undefined, "Zoom in", "Fit page"]) {
               if (action) await zoom(pane, action)
               await aligned(pane)
@@ -386,8 +404,14 @@ test("Narrow Page headings keep complete control rows across adjacent phone widt
                   heading: box(heading),
                   counter: box(heading.querySelector(".page-number-control")),
                   tools: box(tools),
-                  buttons: [...tools.querySelectorAll("button")].map(box),
-                  leading: box(heading.querySelector(".page-grip") ?? heading.querySelector(".page-number")),
+                  buttons: [...tools.querySelectorAll("button")]
+                    .filter((button) => button.checkVisibility() && getComputedStyle(button).visibility !== "hidden")
+                    .map(box),
+                  leading: box(
+                    heading.querySelector(".page-grip")?.checkVisibility()
+                      ? heading.querySelector(".page-grip")
+                      : heading.querySelector(".page-number-control"),
+                  ),
                 }
               })
               const label = `${name}, ${width}×${height}, ${text}, ${colorScheme}, ${action ?? "Fit"}`
@@ -405,8 +429,11 @@ test("Narrow Page headings keep complete control rows across adjacent phone widt
                 `${label}: all control targets stay on one complete row inside the heading: ${JSON.stringify(layout)}`,
               )
               assert.ok(
-                layout.tools.top >= layout.leading.bottom - 1 || layout.tools.left >= layout.leading.right - 1,
-                `${label}: a wrapped tools group has its own row without covering the counter or grip`,
+                layout.tools.left >= layout.leading.right - 1 &&
+                  Math.abs(
+                    layout.counter.top + layout.counter.height / 2 - layout.tools.top - layout.tools.height / 2,
+                  ) < 1,
+                `${label}: the complete header stays on one row without covering the counter or grip`,
               )
               assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, label)
             }
@@ -429,6 +456,189 @@ test("Narrow Page headings keep complete control rows across adjacent phone widt
     await server.close()
   }
 })
+
+test(
+  "Touch Page starts readable, keeps balanced gutters, and preserves explicit zoom choices",
+  { timeout: 120000 },
+  async () => {
+    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    let browser
+    try {
+      await server.listen()
+      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      const errors = []
+      for (const [width, height, touch, single] of [
+        [375, 667, true, true],
+        [393, 852, true, true],
+        [440, 956, true, true],
+        [744, 1133, true, true],
+        [1133, 744, true, false],
+        [393, 852, false, false],
+      ]) {
+        const page = await browser.newPage({
+          viewport: { width, height },
+          hasTouch: touch,
+          isMobile: touch,
+          reducedMotion: "reduce",
+        })
+        page.on("pageerror", (error) => errors.push(error.message))
+        await page.addInitScript(() => {
+          localStorage.setItem("mainz:onboarding", "19")
+          localStorage.setItem("mainz:installation", "seen")
+        })
+        await page.goto(`${server.resolvedUrls.local[0]}?demo&input=page`)
+        for (const name of ["Input", "Output"]) {
+          const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+          const views = page.locator(".mobile-workspace-tabs")
+          const workspace = views.getByRole("button", { name, exact: true })
+          if ((await views.isVisible()) && (await workspace.getAttribute("aria-pressed")) !== "true")
+            await workspace.click()
+          if ((await pane.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected")) !== "true")
+            await tab(pane, "Page")
+          if (single)
+            await page.waitForFunction(
+              (paneName) =>
+                Number(document.querySelector(`[aria-label="${paneName} page zoom"]`)?.textContent.replace("%", "")) >
+                100,
+              name,
+            )
+          await aligned(pane)
+          const initial = await pane.getByLabel(`${name} page zoom`, { exact: true }).textContent()
+          assert.equal(
+            Number(initial.replace("%", "")) > 100,
+            single,
+            `${name}, ${width}: only single-pane touch starts enlarged`,
+          )
+          if (name === "Input")
+            assert.equal(
+              await pane.locator(".inspection-heading .page-grip").isVisible(),
+              !single,
+              `${width}: Page grip follows the layout scope`,
+            )
+          if (single) {
+            const frame = await pane.locator(".page-view").boundingBox()
+            const status = await page.locator(".footnote").boundingBox()
+            assert.ok(
+              frame.y >= 0 && frame.y + frame.height <= status.y + 1,
+              `${name}, ${width}: entry exposes the frame and navigation above status`,
+            )
+            const geometry = await pane.locator(".page-scroll").evaluate((viewport) => {
+              const bounds = viewport.getBoundingClientRect()
+              const sheet = viewport.querySelector("canvas").getBoundingClientRect()
+              const top = sheet.top - bounds.top
+              const left = sheet.left - bounds.left
+              const right = bounds.right - sheet.right
+              return {
+                top,
+                left,
+                right,
+                overflow: viewport.scrollHeight - viewport.clientHeight,
+                extraWidth: viewport.scrollWidth - viewport.clientWidth,
+              }
+            })
+            assert.ok(
+              Math.abs(geometry.top - 32) < 1,
+              `${name}, ${width}: initial top gutter ${JSON.stringify(geometry)}`,
+            )
+            assert.ok(
+              geometry.left >= 31 && Math.abs(geometry.left - geometry.right) < 1,
+              `${name}, ${width}: balanced side gutters ${JSON.stringify(geometry)}`,
+            )
+            assert.ok(
+              geometry.extraWidth <= 1 && geometry.overflow > 0,
+              `${name}, ${width}: initial zoom scrolls vertically`,
+            )
+            if (width === 375 && name === "Input") {
+              const bounds = await pane.locator(".page-scroll").boundingBox()
+              const before = await page.evaluate(() => scrollY)
+              const session = await page.context().newCDPSession(page)
+              const x = bounds.x + bounds.width / 2
+              const y = bounds.y + 60
+              await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] })
+              for (let step = 1; step <= 8; step++) {
+                await session.send("Input.dispatchTouchEvent", {
+                  type: "touchMove",
+                  touchPoints: [{ x, y: y + step * 30 }],
+                })
+                await page.evaluate(() => new Promise(requestAnimationFrame))
+              }
+              await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+              await page.waitForFunction((start) => scrollY < start - 40, before)
+              await session.detach()
+              await pane.locator(".page-view").evaluate((element) => element.scrollIntoView({ behavior: "instant" }))
+            }
+            const bottom = await pane.locator(".page-scroll").evaluate((viewport) => {
+              viewport.scrollTop = viewport.scrollHeight
+              return (
+                viewport.getBoundingClientRect().bottom -
+                viewport.querySelector("canvas").getBoundingClientRect().bottom
+              )
+            })
+            assert.ok(Math.abs(bottom - 32) < 2, `${name}, ${width}: trailing gutter ${bottom}`)
+            await zoom(pane, "Fit page")
+            await aligned(pane)
+            assert.equal(await pane.getByLabel(`${name} page zoom`, { exact: true }).textContent(), "100%")
+            const fit = await pane.locator(".page-scroll").evaluate((viewport) => ({
+              width: viewport.scrollWidth - viewport.clientWidth,
+              height: viewport.scrollHeight - viewport.clientHeight,
+            }))
+            assert.ok(
+              fit.width <= 1 && fit.height <= 1,
+              `${name}, ${width}: Reset fits the complete page ${JSON.stringify(fit)}`,
+            )
+            await tab(pane, "Grid")
+            await tab(pane, "Page")
+            await aligned(pane)
+            assert.equal(
+              await pane.getByLabel(`${name} page zoom`, { exact: true }).textContent(),
+              "100%",
+              "Returning does not repeat automatic zoom",
+            )
+            await zoom(pane, "Zoom in")
+            await tab(pane, "Grid")
+            await tab(pane, "Page")
+            await aligned(pane)
+            assert.equal(
+              await pane.getByLabel(`${name} page zoom`, { exact: true }).textContent(),
+              "150%",
+              "Returning preserves manual zoom",
+            )
+            if (width === 393 && name === "Output") {
+              await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
+              await aligned(pane)
+              await pane.getByLabel("Output page actions", { exact: true }).click()
+              assert.equal(await pane.getByRole("button", { name: "Compare page", exact: true }).isVisible(), true)
+              await pane.getByRole("button", { name: "Show original page", exact: true }).click()
+              assert.equal(await pane.locator(".sequence-options").evaluate((menu) => menu.open), false)
+              assert.equal(await page.locator(".selection-panel").isVisible(), true)
+              assert.equal(await page.getByLabel("Input page zoom", { exact: true }).textContent(), "150%")
+            }
+          }
+        }
+        await page.close()
+      }
+      const keyboard = await browser.newPage({ viewport: { width: 375, height: 549 }, hasTouch: true, isMobile: true })
+      await keyboard.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await keyboard.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await keyboard.locator(".composer:not([inert])").waitFor()
+      const input = keyboard.locator(".selection-panel")
+      await input.getByRole("tab", { name: "Grid", exact: true }).focus()
+      await keyboard.keyboard.press("ArrowRight")
+      await aligned(input)
+      const focused = await input.getByRole("tab", { name: "Page", exact: true }).evaluate((element) => ({
+        visible: element.matches(":focus-visible"),
+        top: element.getBoundingClientRect().top,
+        active: element === document.activeElement,
+      }))
+      assert.ok(focused.active && focused.visible && focused.top >= 0, "Keyboard entry keeps the focused tab visible")
+      await keyboard.close()
+      assert.deepEqual(errors, [], "Page loading and layout changes have no browser errors")
+    } finally {
+      await browser?.close()
+      await server.close()
+    }
+  },
+)
 
 test("Page fit preserves screen size across expanded desktop viewports", { timeout: 90000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })

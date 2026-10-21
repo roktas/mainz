@@ -66,9 +66,10 @@ centered control stays on the content's centerline when adjacent controls have d
 Grid grips use the card's inline center and the header's block center in both densities. Page numbers, folded corners,
 digit counts, and interaction target sizes do not move these references. Size text and interaction areas around them.
 
-Use the visible content as the reference when controls belong to an image or document. Container edges, padding, and
-invisible control boxes do not establish that alignment. Keep usable interaction targets around aligned content. Check
-alignment again when fitting, aspect ratio, zoom, font size, wrapping, or conditional controls change the layout.
+Use the visible content as the reference when controls belong to an image or document. Use the frame reference below for
+single-pane touch Page layouts. Do not infer alignment from invisible control boxes or incidental padding. Keep usable
+interaction targets around aligned content. Check alignment again when fitting, aspect ratio, zoom, font size, or
+conditional controls change the layout.
 
 ## Focus, selection, and motion
 
@@ -128,9 +129,9 @@ use the same capacity policy. Pagination stays inside the available screen at or
 
 A frame reserves at least one complete card row and usable pagination. If these minimums cannot fit, the document
 scrolls. It does not shrink controls or show a partial final row. Enlarged text and short landscape screens can require
-this exception. Page also reserves a usable image area below its heading. Narrow Page frames retain enough image height
-for complete heading control targets, including with enlarged text. Style keeps document flow for its editable fields.
-Its companion pane uses the shared fit reference.
+this exception. Page also reserves a usable image area below its heading. Its header and footer each retain one complete
+control row, including with enlarged text. Do not increase image height to make a narrow header fit. Style keeps
+document flow for its editable fields. Its companion pane uses the shared fit reference.
 
 Below 480 CSS px of viewport height, the workspace status bar scrolls with the document. It must not cover card targets
 when enlarged text or the minimum complete row requires scrolling.
@@ -328,6 +329,13 @@ keep semibold weight. Hover changes their color without changing geometry.
 Viewport calibrations can choose narrower cards within the visual rules above. Enlarged text keeps control targets and
 complete labels usable. It can reduce capacity and require document scrolling.
 
+Every card header and footer occupies one row, on every device and in both densities. This rule includes Page headers
+and bottom navigation. Controls, counters, and their text never wrap or stack inside these rows. Preserve usable targets
+and readable text. Grid reduces column capacity when its card controls need more width. Page uses compact controls and
+smaller gaps first. If controls still do not fit, put the excess Page actions in the existing pane page-actions menu.
+Keep every action accessible; do not clip controls, overlap targets, or introduce horizontal scrolling. Workspace
+headings, view toolbars, and pagination captions outside cards follow their own layout rules.
+
 Selection hides individual actions without moving the image or changing card dimensions. Normal footers keep their
 height and separator. Input centers addition. Output places removal left of duplication with one control gap. Page
 places navigation chevrons at the outer edges around these actions. Movement actions use stemmed arrows, distinct from
@@ -338,14 +346,43 @@ page edges in light mode. Resizing and density changes keep completed pixels vis
 Selection does not clear or repaint unchanged images. Initial previews show a small centered loading ring with an
 accessible busy state. Rendering does not stretch unfinished canvases.
 
-Page headings and navigation stay outside the image viewport. The counter text and Previous icon align with the fitted
-image's inline start. Fit and Next icons align with its inline end. These positions stay fixed during zoom and panning.
-The Input grip aligns with centered addition. Output has no grip. Compare and Show original page precede the zoom
-controls. Larger screens show the percentage, minus, plus, and Fit as four evenly spaced items. Phone-size screens show
-three: minus, plus, and one Fit button. At Fit, that button shows the existing icon; at other zoom levels, it shows the
-percentage. Activating it always restores Fit. The zoom value remains available to screen readers in both layouts. Equal
-control cells keep visible item centers evenly spaced. Zoom items stay on one row. The whole tools group can move to
-another heading row before its targets shrink or cover the grip.
+Page headings and navigation stay outside the image viewport. Except in the single-pane touch layout below, the counter
+text and Previous icon align with the fitted image's inline start. Fit and Next icons align with its inline end. If the
+fitted image is narrower than the minimum control span, expand the shared header/footer span enough to keep targets
+separate within the frame. These positions stay fixed during zoom and panning. The Input grip aligns with centered
+addition. Output has no grip.
+
+A single-pane touch layout shows Input or Output at a time and has a coarse primary pointer without hover. Use the
+active pane layout and input capabilities, not device names or orientation, to determine this scope. In this layout,
+neither Input Page nor Output Page exposes a grip. Remove its reserved space and interaction target. Grid grips retain
+their existing behavior. Page selection remains available through the page-selection bar.
+
+In single-pane touch Page, align the header and footer groups to the frame's inner edges. Use equal inline gutters of 16
+CSS px at ordinary text size. The counter occupies the start; tools occupy the end. Previous and Next occupy the
+footer's outer positions; addition and removal stay centered between them. Keep all targets inside the frame. Center
+visible content vertically within each row, with at least 44 CSS px of row height. These references do not follow the
+PDF image, even when the fitted image is narrow. Image proportions, zoom, and panning do not move the controls.
+
+Single-pane touch Page uses a minimum image gutter of 2 rem on all four sides: 32 CSS px at ordinary text size. Fit
+centers the complete image in the available image viewport with these gutters. If the fitted image occupies less than
+70% of that viewport's full width, the initial Page entry enlarges it to the available width after the two inline
+gutters, up to 400%. Round down to a whole percentage to avoid horizontal overflow. The image starts with the full top
+gutter and retains the same bottom gutter when scrolled to the end. Wider manual zoom levels can require horizontal
+scrolling. These gutters belong to the image area, outside the PDF; they do not increase header or footer height.
+
+Determine the initial zoom after opening completes, using the rendered image viewport and the page's physical ratio.
+Apply it once per Source and once for Output. Preserve explicit zoom choices, including Fit, through view switches,
+navigation, Source switches, and resizing. Bring the frame into view on initial pointer entry. Keep keyboard focus
+visible. Where the minimum frame fits the screen, its navigation must be visible above status. Fit always means 100% and
+the complete page inside the current image viewport. Use the existing Fit and zoom controls; do not add a separate
+fitting control. The image frame uses the same available-height budget as Grid. On short screens, document scrolling
+preserves the minimum usable frame and exposes bottom navigation without the status bar covering it.
+
+Compare and Show original page precede the zoom controls when they fit inline. Larger panes show the percentage, minus,
+plus, and Fit as four evenly spaced items. Narrow panes show three: minus, plus, and one Fit button. At Fit, that button
+shows the existing icon; at other zoom levels, it shows the percentage. Activating it always restores Fit. The zoom
+value remains available to screen readers in both layouts. Equal control cells keep visible item centers evenly spaced.
+The counter and tools share one row; the complete tools group never moves to a second row.
 
 Counters keep their dimensions during inline page entry. Current values use stronger text and totals muted text. Spaces
 separate each slash from both numbers. Grid's caption uses `4 / 27 · 28–36 / 240`, with accessible names describing both
@@ -358,8 +395,8 @@ Single-pane layouts use one pagination layout for Normal and Compact: the captio
 with previous/next buttons at the row's outer edges. The visible arrow centers align with the pane's content edges, as
 do its heading and page fields. The row can extend into available side margins while all targets stay inside the
 viewport. Pagination stays clear of the status bar within the shared bottom gutter. Its arrows use separate 40 × 44 px
-targets; the slider retains a 44 px height. At narrow widths, Page totals can sit below the current number. The
-page-entry field does not cover the grip.
+targets; the slider retains a 44 px height. Page totals stay beside the current number. The page-entry field does not
+cover another control.
 
 The lens overlays the image without receiving input. Its magnifier cursor remains visible over light and dark page
 content. Inherited image tooltips stay out of the lens. Page details use a click interaction, leaving image hover
@@ -557,9 +594,16 @@ batches. The [Page geometry tests](../test/geometry.test.js) check fitted image 
 aligned with this document when a reference changes.
 
 Page zoom items share one centerline, with less than 1 CSS px of vertical deviation. Control targets stay inside their
-heading and do not overlap. Check these rules at Fit and other zoom levels, with both themes and normal/200% text.
-Landscape phone checks cover 667 × 375, 844 × 390, and 956 × 440 CSS px. The browser tests retain a screenshot under
-`.local/tmp/web/layout/` when a matrix or Page-control assertion fails.
+heading and do not overlap. Card headers and footers each occupy one row, including counters and inline page entry.
+Check these rules at Fit and other zoom levels, with both themes and normal/200% text. Landscape phone checks cover 667
+× 375, 844 × 390, and 956 × 440 CSS px. The browser tests retain a screenshot under `.local/tmp/web/layout/` when a
+matrix or Page-control assertion fails.
+
+Single-pane touch Page checks include 320 × 568, 375 × 667, 390 × 844, 440 × 956, and portrait iPad mini viewports.
+Check both panes, short and tall PDF pages, and transitions into and out of two-pane layout. Assert that Page grips have
+no visible or keyboard target in the single-pane touch layout. Measure symmetric frame gutters and vertical control
+centers with both narrow and wide fitted images. For an overflowing image, measure its initial top gap and scroll to its
+bottom gap and navigation. Check narrow fine-pointer and two-pane touch layouts separately to enforce the scope.
 
 CI uploads layout failure screenshots as `layout-<shard>` artifacts and retains them for seven days.
 

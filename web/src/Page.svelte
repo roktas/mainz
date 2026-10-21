@@ -2,6 +2,7 @@
 
 <script module lang="ts">
   export const zoomLevels = [50, 100, 150, 200, 300, 400]
+  export type Controls = "all" | "zoom" | "fit"
 </script>
 
 <script lang="ts">
@@ -33,6 +34,8 @@
     magnification = 16,
     heading,
     headingHeight = $bindable(0),
+    controls = $bindable<Controls>("all"),
+    initialize,
     actions,
     add,
     grid,
@@ -52,6 +55,8 @@
     magnification?: Magnification
     heading?: Snippet
     headingHeight?: number
+    controls?: Controls
+    initialize?: (zoom: number) => void
     actions?: Snippet
     add?: () => boolean | undefined
     grid: (event: MouseEvent | KeyboardEvent) => void
@@ -74,6 +79,58 @@
   function measureHeading(height: number) {
     cancelAnimationFrame(headingFrame)
     headingFrame = requestAnimationFrame(() => (headingHeight = height))
+  }
+  function fitControls(element: HTMLDivElement) {
+    let frame: number
+    let counter: HTMLElement | null = null
+    const tools = element.querySelector<HTMLElement>(".page-tools")
+    const group = tools?.querySelector<HTMLElement>(".page-zoom")
+    const grip = element.querySelector<HTMLElement>(".page-grip")
+    const navigation = element.parentElement?.querySelector<HTMLElement>(".page-navigation")
+    const footerActions = navigation?.querySelector<HTMLElement>(".page-actions")
+    function schedule() {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const current = element.querySelector<HTMLElement>(".page-number-control")
+        if (current !== counter) {
+          if (counter) observer.unobserve(counter)
+          counter = current
+          if (counter) observer.observe(counter)
+        }
+        if (!element.clientWidth || !counter || !tools || !group) return
+        const style = getComputedStyle(element)
+        const width = element.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
+        const gripWidth = grip?.getBoundingClientRect().width ?? 0
+        const counterWidth = counter.getBoundingClientRect().width
+        const leading = Math.max(counterWidth, gripWidth ? (width - gripWidth) / 2 : 0)
+        const available = width - leading - gripWidth
+        const zoomStyle = getComputedStyle(group)
+        const cell = parseFloat(zoomStyle.gridAutoColumns)
+        const buttons = [...(footerActions?.children ?? [])]
+        const actionWidth =
+          buttons.reduce((sum, child) => sum + child.getBoundingClientRect().width, 0) +
+          (footerActions ? parseFloat(getComputedStyle(footerActions).columnGap) * Math.max(0, buttons.length - 1) : 0)
+        const minimum = Math.max(
+          gripWidth ? 2 * Math.max(counterWidth, cell) + gripWidth : counterWidth + cell,
+          actionWidth + 88,
+        )
+        const zoomWidth = cell * Number(zoomStyle.getPropertyValue("--zoom-items"))
+        const comparisonWidth = [...tools.children]
+          .filter((child) => child.matches(".tool"))
+          .reduce((sum, child) => sum + child.getBoundingClientRect().width, 0)
+        element.parentElement!.style.setProperty("--controls-width", `${minimum}px`)
+        controls = zoomWidth + comparisonWidth <= available + 1 ? "all" : zoomWidth <= available + 1 ? "zoom" : "fit"
+      })
+    }
+    const observer = new ResizeObserver(schedule)
+    const content = new MutationObserver(schedule)
+    content.observe(element, { childList: true, characterData: true, subtree: true })
+    for (const target of [element, group, footerActions]) if (target) observer.observe(target)
+    return () => {
+      observer.disconnect()
+      content.disconnect()
+      cancelAnimationFrame(frame)
+    }
   }
   onDestroy(() => {
     cancelAnimationFrame(headingFrame)
@@ -99,6 +156,7 @@
     }
   }
   function scrollViewport(element: HTMLDivElement) {
+    const initializeZoom = initialize
     let offset = alignment ?? untrack(() => region)
     let frame: number
     const image = element.querySelector<HTMLElement>("canvas, .blank-sheet")
@@ -115,7 +173,30 @@
         }
       | undefined
     function restore() {
-      if (pinch || !element.clientWidth || element.querySelector("canvas")?.clientWidth === 0) return
+      if (!element.clientWidth || !element.firstElementChild) return
+      // Keep control positions stable before the PDF pixels arrive.
+      const style = getComputedStyle(element.firstElementChild)
+      const width = element.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        element.parentElement!.style.setProperty("--fit-width", `${width}px`)
+        if (pinch || pinchAnchor || !image?.clientWidth || !element.firstElementChild) return
+        if (initializeZoom && sheet) {
+          const gutter = parseFloat(style.paddingBlockStart)
+          const available = Math.max(1, element.clientWidth - 2 * gutter)
+          const fit = Math.min(
+            available,
+            Math.max(1, element.clientHeight - 2 * gutter) * (sheet.size.width / sheet.size.height),
+          )
+          const touch = getComputedStyle(element).getPropertyValue("--page-touch").trim() === "1"
+          initializeZoom(
+            touch && fit < 0.7 * element.clientWidth ? Math.min(400, Math.floor((100 * available) / fit)) : level,
+          )
+          if (touch && !element.ownerDocument.activeElement?.matches(":focus-visible"))
+            element.parentElement!.scrollIntoView({ block: "start", behavior: "instant" })
+        }
+      })
+      if (pinch || element.querySelector("canvas")?.clientWidth === 0) return
       if (pinchAnchor && image) {
         if (Math.abs(image.offsetWidth - (pinchAnchor.width * level) / pinchAnchor.zoom) > 2) return
         image.style.removeProperty("transform")
@@ -134,14 +215,6 @@
         element.scrollLeft = offset.x * Math.max(0, element.scrollWidth - element.clientWidth)
         element.scrollTop = offset.y * Math.max(0, element.scrollHeight - element.clientHeight)
       }
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => {
-        if (!image?.clientWidth || !element.firstElementChild) return
-        // CSS fitting stays valid while the canvas still shows its previous zoom size.
-        const style = getComputedStyle(element.firstElementChild)
-        const width = element.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
-        element.parentElement!.style.setProperty("--fit-width", `${width}px`)
-      })
     }
     const observer = new ResizeObserver(() => {
       if (pinchAnchor) {
@@ -333,6 +406,8 @@
 
 <section
   class={["page-view", { selected }]}
+  style:--ratio={sheet ? sheet.size.width / sheet.size.height : undefined}
+  data-controls={controls}
   data-face={index % 2 === 0 ? "front" : "back"}
   aria-label={`${pane} Page view`}
   {@attach interact}
@@ -341,6 +416,7 @@
   {#if heading}<div
       class="page-label inspection-heading"
       bind:clientHeight={null, measureHeading}
+      {@attach fitControls}
       title={index % 2 === 0 ? "Front side" : "Back side"}
     >
       {@render heading()}

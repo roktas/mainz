@@ -365,59 +365,80 @@ test("Page pinch zoom preserves its anchor and shares the button zoom range", { 
         const selection = pane.getByRole("textbox", { name: "Page selection", exact: true })
         const prepared = await selection.inputValue()
         await tab(pane, "Page")
-        await pane.locator('.pdf-viewport[aria-busy="false"]').waitFor()
         const canvas = pane.locator(".page-scroll canvas")
-        await canvas.scrollIntoViewIfNeeded()
-        const before = await canvas.boundingBox()
-        const raster = await canvas.evaluate((element) => element.width)
-        const center = { x: before.x + before.width * 0.6, y: Math.min(height - 100, before.y + before.height * 0.55) }
-        const anchor = { x: (center.x - before.x) / before.width, y: (center.y - before.y) / before.height }
-        const points = (distance) => [
-          { x: center.x - distance / 2, y: center.y, id: 1 },
-          { x: center.x + distance / 2, y: center.y, id: 2 },
-        ]
-        await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: points(80) })
-        await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: points(140) })
-        const enlarged = await canvas.boundingBox()
-        assert.ok(Math.abs(enlarged.width - before.width * 1.75) < 1)
-        assert.equal(
-          await canvas.evaluate((element) => element.width),
-          raster,
-          "The live gesture reuses the existing raster",
-        )
-        await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
-        await page.waitForFunction(
-          (label) =>
-            [...document.querySelectorAll("output")].some(
-              (element) => element.getAttribute("aria-label") === label && element.textContent === "175%",
-            ),
-          `${name} page zoom`,
-        )
-        await page.waitForFunction(
-          (selector) => {
-            const element = document.querySelector(`${selector} .page-scroll canvas`)
-            return element && !element.style.transform && element.parentElement.getAttribute("aria-busy") === "false"
-          },
-          name === "Input" ? ".selection-panel" : ".composition-output",
-        )
-        const after = await canvas.boundingBox()
-        assert.ok(
-          Math.abs(after.x + after.width * anchor.x - center.x) < 2,
-          "Pinch keeps the horizontal anchor under the fingers",
-        )
-        assert.ok(
-          Math.abs(after.y + after.height * anchor.y - center.y) < 2,
-          "Pinch keeps the vertical anchor under the fingers",
-        )
-        assert.equal(await page.evaluate(() => visualViewport.scale), 1)
-        assert.equal(await selection.inputValue(), prepared)
-        assert.equal(await page.locator(".composition-totals strong").innerText(), "6 PDF pages")
-        await zoom(pane, "Zoom in")
-        assert.equal(await pane.locator("output").textContent(), "200%")
-        await zoom(pane, "Zoom out")
-        assert.equal(await pane.locator("output").textContent(), "150%")
-        await zoom(pane, "Fit page")
-        assert.equal(await pane.locator("output").textContent(), "100%")
+        for (const [distance, value] of [
+          [140, 175],
+          [220, 275],
+        ]) {
+          await zoom(pane, "Fit page")
+          await pane.locator('.pdf-viewport[aria-busy="false"]').waitFor()
+          await canvas.scrollIntoViewIfNeeded()
+          const before = await canvas.boundingBox()
+          const raster = await canvas.evaluate((element) => element.width)
+          const center = {
+            x: before.x + before.width * 0.6,
+            y: Math.min(height - 100, before.y + before.height * 0.55),
+          }
+          const anchor = { x: (center.x - before.x) / before.width, y: (center.y - before.y) / before.height }
+          const points = (separation) => [
+            { x: center.x - separation / 2, y: center.y, id: 1 },
+            { x: center.x + separation / 2, y: center.y, id: 2 },
+          ]
+          await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: points(80) })
+          await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: points(distance) })
+          const enlarged = await canvas.boundingBox()
+          assert.ok(Math.abs(enlarged.width - before.width * (value / 100)) < 1)
+          assert.equal(
+            await canvas.evaluate((element) => element.width),
+            raster,
+            "The live gesture reuses the existing raster",
+          )
+          await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+          await page.waitForFunction(
+            ({ label, value: percentage }) =>
+              [...document.querySelectorAll("output")].some(
+                (element) => element.getAttribute("aria-label") === label && element.textContent === `${percentage}%`,
+              ),
+            { label: `${name} page zoom`, value },
+          )
+          await page.waitForFunction(
+            (selector) => {
+              const element = document.querySelector(`${selector} .page-scroll canvas`)
+              return element && !element.style.transform && element.parentElement.getAttribute("aria-busy") === "false"
+            },
+            name === "Input" ? ".selection-panel" : ".composition-output",
+          )
+          const after = await canvas.boundingBox()
+          const region = await pane.locator(".page-scroll").evaluate((element) => ({
+            x: element.scrollLeft,
+            max: element.scrollWidth - element.clientWidth,
+            bounds: element.getBoundingClientRect().toJSON(),
+          }))
+          const unscrolled = after.x + region.x
+          const expected = Math.max(unscrolled - region.max, Math.min(unscrolled, center.x - after.width * anchor.x))
+          assert.ok(
+            Math.abs(after.x - expected) < 2,
+            `Pinch anchors within the horizontal scroll bounds: ${JSON.stringify({ name, width, before, after, center, anchor, region })}`,
+          )
+          if (!region.max)
+            assert.ok(
+              Math.abs(after.x + after.width / 2 - region.bounds.x - region.bounds.width / 2) < 1,
+              "An image that fits horizontally stays centered",
+            )
+          assert.ok(
+            Math.abs(after.y + after.height * anchor.y - center.y) < 2,
+            `Pinch keeps the vertical anchor under the fingers: ${JSON.stringify({ name, width, before, after, center, anchor })}`,
+          )
+          assert.equal(await page.evaluate(() => visualViewport.scale), 1)
+          assert.equal(await selection.inputValue(), prepared)
+          assert.equal(await page.locator(".composition-totals strong").innerText(), "6 PDF pages")
+          await zoom(pane, "Zoom in")
+          assert.equal(await pane.locator("output").textContent(), value === 175 ? "200%" : "300%")
+          await zoom(pane, "Zoom out")
+          assert.equal(await pane.locator("output").textContent(), value === 175 ? "150%" : "200%")
+          await zoom(pane, "Fit page")
+          assert.equal(await pane.locator("output").textContent(), "100%")
+        }
         if (width === 810 && name === "Output") {
           await pane.locator('.pdf-viewport[aria-busy="false"]').waitFor()
           await canvas.scrollIntoViewIfNeeded()
@@ -1062,14 +1083,15 @@ test(
       await page.setViewportSize({ width: 320, height: 900 })
       await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
       await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).click()
+      await aligned(output)
       assert.equal(
         await output.locator(".inspection-heading").evaluate((element) => {
           const total = element.querySelector(".page-total").getBoundingClientRect()
           const tools = element.querySelector(".page-tools").getBoundingClientRect()
-          return total.right <= tools.left || total.bottom <= tools.top
+          return total.right <= tools.left && Math.abs(total.top + total.height / 2 - tools.top - tools.height / 2) < 1
         }),
         true,
-        "Large page totals leave the controls clear with enlarged text",
+        "Large page totals share one row with the controls at enlarged text sizes",
       )
       for (let step = 0; step < 4; step++) await zoom(output, "Zoom in")
       await ready()

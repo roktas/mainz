@@ -2,7 +2,15 @@ import { readFile } from "node:fs/promises"
 import { gridPage } from "./browser.js"
 
 export async function zoom(pane, action) {
-  await pane.getByRole("button", { name: action, exact: true }).click()
+  const control = pane.locator(".page-zoom").getByRole("button", { name: action, exact: true })
+  if (action === "Fit page") return control.click()
+  const menu = pane.locator(".sequence-options")
+  const summary = pane.locator(':scope:has(.page-view[data-controls="fit"]) .sequence-options > summary')
+  await control.or(summary).click()
+  if (await menu.evaluate((element) => element.open)) {
+    await menu.getByRole("button", { name: action, exact: true }).click()
+    await menu.locator("summary").click()
+  }
 }
 
 export async function aligned(pane) {
@@ -22,19 +30,34 @@ export async function aligned(pane) {
     const frame = heading.getBoundingClientRect()
     const level = parseFloat(heading.querySelector(".page-zoom output").textContent)
     const fitted = (image.width * 100) / level
-    const grip = handle?.getBoundingClientRect()
+    const span = Math.min(
+      frame.width,
+      Math.max(fitted, parseFloat(element.style.getPropertyValue("--controls-width")) || 0),
+    )
+    const grip = handle?.checkVisibility() ? handle.getBoundingClientRect() : undefined
     const actions = navigation.querySelector(".page-actions")?.getBoundingClientRect()
-    const leading = grip ?? heading.firstElementChild.getBoundingClientRect()
-    const tools = [...heading.querySelectorAll(".page-tools button")].map((el) => el.getBoundingClientRect())
+    const leading = grip ?? heading.querySelector(".page-number-control").getBoundingClientRect()
+    const tools = [...heading.querySelectorAll(".page-tools button")]
+      .filter((el) => el.checkVisibility() && getComputedStyle(el).visibility !== "hidden")
+      .map((el) => el.getBoundingClientRect())
+    const touch = getComputedStyle(element).getPropertyValue("--page-touch").trim() === "1"
+    const edges = touch
+      ? Math.abs(heading.querySelector(".page-number-control").getBoundingClientRect().left - frame.left - 16) < 1 &&
+        Math.abs(navigation.firstElementChild.getBoundingClientRect().left - frame.left - 16) < 1 &&
+        Math.abs(
+          heading.querySelector('button[aria-label="Fit page"]').getBoundingClientRect().right - frame.right + 16,
+        ) < 1 &&
+        Math.abs(navigation.lastElementChild.getBoundingClientRect().right - frame.right + 16) < 1
+      : Math.abs(current.left - frame.x - (frame.width - span) / 2) < 1 &&
+        Math.abs(fit.getBoundingClientRect().right - frame.x - (frame.width + span) / 2) < 1 &&
+        Math.abs(current.left - previous.left) < 1 &&
+        Math.abs(fit.getBoundingClientRect().right - next.right) < 1
     return (
-      Math.abs(current.left - frame.x - (frame.width - fitted) / 2) < 1 &&
-      Math.abs(fit.getBoundingClientRect().right - frame.x - (frame.width + fitted) / 2) < 1 &&
-      Math.abs(current.left - previous.left) < 1 &&
-      Math.abs(fit.getBoundingClientRect().right - next.right) < 1 &&
+      edges &&
       (!grip ||
         (Math.abs(grip.x + grip.width / 2 - frame.x - frame.width / 2) < 1 &&
           Math.abs(grip.x + grip.width / 2 - actions.x - actions.width / 2) < 1)) &&
-      (tools[0].top >= leading.bottom || tools[0].left >= leading.right) &&
+      tools[0].left >= leading.right - 1 &&
       tools.every((tool) => Math.abs(tool.y + tool.height / 2 - tools[0].y - tools[0].height / 2) < 1)
     )
   }, view)

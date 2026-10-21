@@ -467,6 +467,7 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
         count = 0
       }
       await tab(input, "Page")
+      await zoom(input, "Fit page")
       await input.locator('.pdf-viewport[aria-busy="false"]').waitFor()
       for (let index = 0; index < 3; index++) await zoom(input, "Zoom in")
       await input.locator('.pdf-viewport[aria-busy="false"]').waitFor()

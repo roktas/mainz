@@ -19,6 +19,10 @@
 
 ### Changed
 
+- Single-pane touch Page starts with a wider image when Fit is too small. Fit still restores the complete page, and
+  explicit zoom choices persist across view changes.
+- Single-pane touch Page omits grips and aligns its header and footer controls with the frame, with balanced image
+  gutters. Card headers and footers keep one row; excess Page actions use the existing pane menu.
 - The landing product name keeps a readable minimum on narrow screens. Touch-only landing pages omit the persistent
   file-drag instruction.
 - Grid calibrations fit more complete cards in measured iPhone and iPad layouts and in Mac and external-display

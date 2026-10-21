@@ -21,7 +21,7 @@
   import Repetition from "./Repetition.svelte"
   import Grid from "./Grid.svelte"
   import PageView, { zoomLevels } from "./Page.svelte"
-  import type { Inspection, Region } from "./Page.svelte"
+  import type { Inspection, Region, Controls } from "./Page.svelte"
   import type { Magnification } from "./Lens.svelte"
   import Counter from "./Counter.svelte"
   import Icon from "./Icon.svelte"
@@ -87,6 +87,7 @@
     density?: "normal" | "compact"
     position: number
     zoom: number
+    pageInitialized?: boolean
     offset: number
     region: Region
     alignment?: Region
@@ -109,6 +110,9 @@
   const inputView = $derived((source && inputViews[source.id]) ?? initialView)
   const inputPosition = $derived(inputView.position)
   const inputCompact = $derived(inputView.density === "compact")
+  let inputControls = $state<Controls>("all")
+  let outputControls = $state<Controls>("all")
+  let outputPageInitialized = $state(false)
   let outputDensity = $state<"normal" | "compact">("normal")
   const outputCompact = $derived(outputDensity === "compact")
   let outputOffset = $state(0)
@@ -330,8 +334,11 @@
       })
   }
   function setZoom(pane: "Input" | "Output", zoom: number) {
-    if (pane === "Input") inspectInput({ zoom, alignment: undefined })
-    else outputZoom = zoom
+    if (pane === "Input") inspectInput({ zoom, pageInitialized: true, alignment: undefined })
+    else {
+      outputZoom = zoom
+      outputPageInitialized = true
+    }
   }
   function zoomBy(pane: "Input" | "Output", offset: number) {
     const zoom = pane === "Input" ? inputView.zoom : outputZoom
@@ -495,12 +502,14 @@
   }
   function showOriginal() {
     if (!inspected || !("source" in inspected.content)) return
+    outputMenu.open = false
     const { source: id, page } = inspected.content
     inspectInput(
       {
         tab: "page",
         position: page,
         zoom: outputZoom,
+        pageInitialized: true,
         region: { ...outputRegion },
         alignment: { ...outputRegion },
       },
@@ -1111,42 +1120,59 @@
   }}
 />
 
+{#snippet comparisonControls(menu = false)}
+  <button
+    class={menu ? undefined : "tool compare"}
+    aria-label="Compare page"
+    aria-pressed={comparing && !!inspection?.comparable}
+    disabled={!inspection?.comparable}
+    title="Compare page"
+    onclick={() => {
+      comparing = !comparing
+      if (menu) {
+        outputMenu.open = false
+        outputMenu.querySelector("summary")?.focus({ preventScroll: true })
+      }
+    }}
+    ><Icon name="compare" />{#if menu}Compare page{/if}</button
+  >
+  <button
+    class={menu ? undefined : "tool"}
+    aria-label="Show original page"
+    title="Show original page"
+    disabled={!inspection?.original}
+    onclick={showOriginal}
+    ><Icon name="original" />{#if menu}Show original page{/if}</button
+  >
+{/snippet}
+
+{#snippet zoomControls(pane: "Input" | "Output", menu = false)}
+  {@const zoom = pane === "Input" ? inputView.zoom : outputZoom}
+  <button
+    class={menu ? undefined : "tool"}
+    aria-label="Zoom out"
+    title="Zoom out"
+    disabled={zoom <= zoomLevels[0]}
+    onclick={() => zoomBy(pane, -1)}
+    >{#if menu}<Icon name="remove" />Zoom out{:else}−{/if}</button
+  >
+  <button
+    class={menu ? undefined : "tool"}
+    aria-label="Zoom in"
+    title="Zoom in"
+    disabled={zoom >= zoomLevels.at(-1)!}
+    onclick={() => zoomBy(pane, 1)}
+    >{#if menu}<Icon name="add" />Zoom in{:else}+{/if}</button
+  >
+{/snippet}
+
 {#snippet pageTools(pane: "Input" | "Output")}
   {@const zoom = pane === "Input" ? inputView.zoom : outputZoom}
   <div class="page-tools" role="group" aria-label={`${pane} Page controls`}>
-    {#if pane === "Output"}
-      <button
-        class="tool compare"
-        aria-label="Compare page"
-        aria-pressed={comparing && !!inspection?.comparable}
-        disabled={!inspection?.comparable}
-        title="Compare page"
-        onclick={() => (comparing = !comparing)}><Icon name="compare" /></button
-      >
-      <button
-        class="tool"
-        aria-label="Show original page"
-        title="Show original page"
-        disabled={!inspection?.original}
-        onclick={showOriginal}><Icon name="original" /></button
-      >
-    {/if}
+    {#if pane === "Output"}{@render comparisonControls()}{/if}
     <div class="page-zoom" style:--digits={String(zoom).length}>
       <output aria-label={`${pane} page zoom`}>{zoom}%</output>
-      <button
-        class="tool"
-        aria-label="Zoom out"
-        title="Zoom out"
-        disabled={zoom <= zoomLevels[0]}
-        onclick={() => zoomBy(pane, -1)}>−</button
-      >
-      <button
-        class="tool"
-        aria-label="Zoom in"
-        title="Zoom in"
-        disabled={zoom >= zoomLevels.at(-1)!}
-        onclick={() => zoomBy(pane, 1)}>+</button
-      >
+      {@render zoomControls(pane)}
       <button class="tool" aria-label="Fit page" title="Fit page · 0 or Z" onclick={() => setZoom(pane, 100)}>
         {#if zoom !== 100}<span class="fit-level" aria-hidden="true">{zoom}%</span>{/if}
         <Icon name="fit" />
@@ -1183,7 +1209,8 @@
       {count}
     />
     {#if source?.input.labels[inputPosition] && source.input.labels[inputPosition] !== String(inputPosition + 1)}<span
-        class="page-context">{source.input.labels[inputPosition]}</span
+        class="page-context"
+        title={source.input.labels[inputPosition]}>{source.input.labels[inputPosition]}</span
       >{/if}
   </span>
   <button
@@ -1425,6 +1452,7 @@
   <details class="sequence-options input-options" bind:this={inputMenu}>
     <summary aria-label="Input page actions" title="Input page actions"><Icon name="more" /></summary>
     <div class="menu-options">
+      {#if activeTab === "page" && inputControls === "fit"}{@render zoomControls("Input", true)}{/if}
       <Repetition
         pane="Input"
         bind:value={() => draft.repeat, (repeat) => set({ repeat })}
@@ -1459,6 +1487,10 @@
       ><Icon name="more" /></summary
     >
     <div class="menu-options">
+      {#if activeOutputTab === "page"}
+        {#if outputControls !== "all"}{@render comparisonControls(true)}{/if}
+        {#if outputControls === "fit"}{@render zoomControls("Output", true)}{/if}
+      {/if}
       <div class="selected-actions">
         <div class="menu-moves">{@render outputMoves()}</div>
         {#if chosen.length}<button disabled={!!outputSelectionError} onclick={() => blank(positions[0])}
@@ -1680,6 +1712,8 @@
                     {count}
                     sheet={inputInspection}
                     bind:headingHeight={inputHeadingHeight}
+                    bind:controls={inputControls}
+                    initialize={!opening && !inputView.pageInitialized ? (zoom) => setZoom("Input", zoom) : undefined}
                     bind:position={
                       () => inputView.position, (position) => inspectInput({ position, alignment: undefined })
                     }
@@ -2014,8 +2048,10 @@
                 count={output.pages.length}
                 sheet={inspection}
                 bind:headingHeight={outputHeadingHeight}
+                bind:controls={outputControls}
+                initialize={!opening && !outputPageInitialized ? (zoom) => setZoom("Output", zoom) : undefined}
                 bind:position={outputPosition}
-                bind:zoom={outputZoom}
+                bind:zoom={() => outputZoom, (zoom) => setZoom("Output", zoom)}
                 bind:comparing
                 bind:region={outputRegion}
                 heading={inspected ? outputPageHeading : undefined}

@@ -28,6 +28,7 @@
     }
     .page-label {
       display: flex;
+      flex-wrap: nowrap;
       align-items: center;
       justify-content: space-between;
       gap: 0.5em;
@@ -103,6 +104,7 @@
       }
     }
     .page-zoom {
+      --zoom-items: 4;
       --control-size: max(44px, 4ch);
       --fit-content-size: var(--icon-size);
       display: block grid;
@@ -124,6 +126,7 @@
         font-weight: 400;
       }
       @media (width <= 40rem) {
+        --zoom-items: 3;
         & > output {
           position: absolute;
           inset-block-start: 0;
@@ -209,21 +212,35 @@
     }
     .inspection-heading {
       display: block flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      min-inline-size: 0;
       min-block-size: 44px;
       align-items: center;
       justify-content: start;
-      align-content: start;
-      gap: var(--gap) 0;
+      gap: 0;
       padding-block: 0;
-      padding-inline: max(0px, calc((100% - var(--fit-width, 100%)) / 2));
+      padding-inline: max(
+        0px,
+        min(calc((100% - var(--fit-width, 100%)) / 2), calc((100% - var(--controls-width, 0px)) / 2))
+      );
       border-block-end: 1px solid var(--border);
-      & > :is(.page-number, .page-origin) {
-        flex: 0 0 44px;
+      & > .page-number {
+        flex: 1 1 auto;
         min-inline-size: 44px;
         text-align: start;
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        & .page-context {
+          min-inline-size: 0;
+          max-inline-size: 12ch;
+          overflow: clip;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
       }
       & .page-number-control {
+        flex: none;
         position: relative;
         display: inline-flex;
         align-items: center;
@@ -253,6 +270,7 @@
         flex: 0 0 44px;
       }
       &:has(> .page-grip) > .page-number {
+        flex-grow: 0;
         flex-basis: calc(50% - 22px);
       }
       & > .page-face {
@@ -260,6 +278,10 @@
       }
     }
     .page-position {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0.4em;
+      white-space: nowrap;
       position: relative;
       font-size: var(--body);
       font-variant-numeric: tabular-nums;
@@ -299,18 +321,36 @@
         }
       }
       & .page-total {
-        position: absolute;
-        inset-block-start: 0;
-        inset-inline-start: calc(100% + 0.4em);
         color: var(--muted);
         font-weight: 400;
         white-space: nowrap;
       }
-      @container catalog (width <= 18em) {
-        display: block grid;
-        text-align: start;
-        & .page-total {
-          position: static;
+    }
+    .page-view:not([data-controls="all"]) .page-tools > .tool,
+    .page-view[data-controls="fit"] .page-zoom > button:not(:last-child) {
+      position: absolute;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .page-view[data-controls="fit"] .page-zoom {
+      --fit-content-size: var(--icon-size);
+      &:has(.fit-level) {
+        --fit-content-size: calc((var(--digits) + 1) * 1ch);
+      }
+      & > output {
+        position: absolute;
+        inset-block-start: 0;
+        inset-inline-start: 0;
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: clip;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+      & .fit-level {
+        display: block flow;
+        & + svg {
+          display: none;
         }
       }
     }
@@ -351,7 +391,10 @@
       display: block grid;
       grid-template-columns: 44px minmax(0, 1fr) 44px;
       align-items: center;
-      padding-inline: max(0px, calc((100% - var(--fit-width, 100%)) / 2));
+      padding-inline: max(
+        0px,
+        min(calc((100% - var(--fit-width, 100%)) / 2), calc((100% - var(--controls-width, 0px)) / 2))
+      );
       border-block-start: 1px solid var(--border);
       & > button {
         padding-inline: 0;
@@ -414,6 +457,7 @@
     }
   }
 }
+
 @layer views {
   @scope (.composer) {
     .page-view {
@@ -449,6 +493,53 @@
       block-size: 100%;
       min-block-size: 0;
       grid-template-rows: minmax(min-content, 1fr);
+    }
+  }
+}
+
+@layer views {
+  @media (hover: none) and (pointer: coarse) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
+        .page-view {
+          --page-touch: 1;
+        }
+        .inspection-heading,
+        .page-navigation {
+          padding-inline: 16px;
+        }
+        .inspection-heading > .page-grip {
+          display: none;
+        }
+        .inspection-heading:has(> .page-grip) > .page-number {
+          flex-basis: auto;
+        }
+        .page-tools .page-zoom {
+          margin-inline-end: 0;
+        }
+        .page-navigation > button {
+          justify-content: center;
+        }
+        .page-scroll.enlarged {
+          overscroll-behavior-y: auto;
+        }
+        .pdf-viewport {
+          --fit-width: min(calc(100cqi - 4rem), calc((100cqb - 4rem) * var(--ratio, 1)));
+          block-size: max(100%, calc(var(--fit-width) * var(--zoom) / var(--ratio, 1) + 4rem));
+          padding-block: 2rem;
+          &::after {
+            inline-size: max(2rem, calc((100cqi - var(--fit-width) * var(--zoom)) / 2));
+          }
+        }
+        .page-scroll.enlarged .pdf-viewport {
+          padding-inline: max(2rem, calc((100cqi - var(--fit-width) * var(--zoom)) / 2));
+          &::after {
+            inset-inline-start: calc(
+              var(--fit-width) * var(--zoom) + max(2rem, (100cqi - var(--fit-width) * var(--zoom)) / 2)
+            );
+          }
+        }
+      }
     }
   }
 }

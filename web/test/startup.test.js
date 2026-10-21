@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises"
 import { join, resolve as resolvePath } from "node:path"
 import { build, preview } from "vite"
 import { chromium, devices } from "playwright"
-import { aligned } from "./workspace.js"
+import { aligned, zoom } from "./workspace.js"
 import { checkGeometry, checkStatus, createServer, trackWorkers, fixture, tab, pixel } from "./browser.js"
 
 async function checkMobile(browser, url) {
@@ -205,7 +205,9 @@ async function checkMobile(browser, url) {
         assert.equal(await output.locator(".sequence-entry").isVisible(), true)
         assert.equal(
           await output.locator(".page-tools .tool").evaluateAll((elements) => {
-            const boxes = elements.map((element) => element.getBoundingClientRect())
+            const boxes = elements
+              .filter((element) => getComputedStyle(element).visibility !== "hidden")
+              .map((element) => element.getBoundingClientRect())
             return boxes.every((box) => box.width >= 44 && box.height >= 44)
           }),
           true,
@@ -217,9 +219,10 @@ async function checkMobile(browser, url) {
       assert.equal(await tools.isVisible(), true)
       const toolsBox = await tools.boundingBox()
       assert.ok(toolsBox.x >= 0 && toolsBox.x + toolsBox.width <= width)
-      await tools.getByRole("button", { name: "Zoom in", exact: true }).tap()
+      await zoom(output, "Fit page")
+      await zoom(output, "Zoom in")
       assert.equal(await output.getByLabel("Output page zoom", { exact: true }).innerText(), "150%")
-      await tools.getByRole("button", { name: "Fit page", exact: true }).tap()
+      await zoom(output, "Fit page")
       assert.equal(await output.getByLabel("Output page zoom", { exact: true }).innerText(), "100%")
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
       await views.getByRole("button", { name: "Input", exact: true }).tap()

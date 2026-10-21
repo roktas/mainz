@@ -7,6 +7,7 @@ matrices.
 
 - [Tool storage](#tool-storage): SDK locations, moves, and cleanup boundaries.
 - [Browser checks](#browser-checks): pinned tools and cross-platform test behavior.
+- [Visual regression](#visual-regression): routine checks and native sampling.
 - [Native mobile setup](#native-mobile-setup): Xcode, Simulator, and Android prerequisites.
 - [Coverage](#coverage): representative groups and evidence limits.
 - [Collection and calibration](#collection-and-calibration): capture commands and acceptance.
@@ -64,6 +65,28 @@ the result.
 
 Asset preparation hashes the complete public, PDF.js, and verified WASM asset contents. It publishes complete snapshots
 atomically. Different asset revisions use separate directories; consumers of identical contents share one snapshot.
+
+## Visual regression
+
+Start or reuse the preview server and share a working URL before the first visual edit. Keep it available until push.
+Choose checks from the affected behavior rather than repeating the full device inventory for each change.
+
+| Change                                                                     | Required evidence                                                                                                                                                                 |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local spacing, labels, icons, or colors                                    | Focused browser regression at narrow phone, regular phone, large phone, and tablet widths; both themes and relevant selection states. Include enlarged text when controls change. |
+| Page/Grid sizing, scrolling, touch, safe areas, or presentation mode       | The browser checks above, plus native Simulator samples at the affected boundaries and modes.                                                                                     |
+| Shared viewport calibration, a new device group, or a new OS/browser shell | Recollect affected native groups; use the full inventory when the change affects all groups. Retain measured and synthetic coverage separately.                                   |
+
+The Page regression in `geometry.test.js` checks one-row controls, frame-edge alignment, image gutters, initial zoom,
+Fit, and retained manual zoom. It includes narrow widths, adjacent layout boundaries, enlarged text, and both themes.
+The composition suite checks addition, removal, and movement, including reduced motion. These browser checks are the
+routine CI gate. They do not establish native Safari behavior.
+
+For Page sizing, sample SE generation 3, iPhone 16, iPhone 16 Pro Max, and iPad mini generation 6. These cover short,
+regular, large, and tablet viewports. Safari in both orientations and portrait Home Screen mode give 12 native states.
+Inspect both panes in each state. Use one representative for equal geometry. Do not repeat every compatible model when
+these samples and the boundary tests cover the change. Expand the sample only when a result exposes another failure.
+Keep source and fixture hashes, platform versions, native screenshots, bounds, and test outcomes with the evidence.
 
 ## Native mobile setup
 
@@ -302,14 +325,15 @@ The completed analysis is retained under root `.local/var/viewport/`. It is gene
 must survive temporary-output cleanup. Keep that directory in a backed-up workspace. The interactive `index.html` links
 the raw artifacts; `report.md` and `summary.md` explain results and limitations.
 
-| Artifact                                     | Purpose                                                                              |
-| -------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `scope.json`, `catalog.json`, `changes.json` | Coverage, geometry groups, accepted changes                                          |
-| `native/`                                    | Native JSON/CSV, named screenshots, candidate searches, acquisition logs             |
-| `desktop/`                                   | Thirty desktop viewports, before/applied records, candidate searches and screenshots |
-| `source/`                                    | Source snapshots, manifests, hashes, and the original planning record                |
-| `checks/`                                    | Validation logs and acceptance records                                               |
-| `followup/`                                  | Later fixes, screenshots, source provenance, and validation results                  |
+| Artifact                                     | Purpose                                                                                                   |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `scope.json`, `catalog.json`, `changes.json` | Coverage, geometry groups, accepted changes                                                               |
+| `native/`                                    | Native JSON/CSV, named screenshots, candidate searches, acquisition logs                                  |
+| `desktop/`                                   | Thirty desktop viewports, before/applied records, candidate searches and screenshots                      |
+| `source/`                                    | Source snapshots, manifests, hashes, and the original planning record                                     |
+| `checks/`                                    | Validation logs and acceptance records                                                                    |
+| `followup/`                                  | Later fixes, screenshots, source provenance, and validation results                                       |
+| `page/`                                      | Page sizing and animation follow-up: before/after geometry, native samples, source hashes, and test logs. |
 
 The completed search evaluated 2,238 candidates across 82 distinct native environments and 833 candidates across 30
 desktop references: 3,071 paired-density candidates. Successful native test bodies alone took 2.63 hours, excluding
