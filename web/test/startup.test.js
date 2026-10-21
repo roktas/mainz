@@ -645,6 +645,74 @@ test(
   },
 )
 
+test(
+  "Multi-file opening recovers from invalid PDFs and cancellation stops the remaining files",
+  { timeout: 60000 },
+  async () => {
+    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    let browser
+    try {
+      await server.listen()
+      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      const page = await browser.newPage({ reducedMotion: "reduce" })
+      page.setDefaultTimeout(10000)
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(server.resolvedUrls.local[0])
+      const bytes = fixture(false)
+      const pdf = (name) => ({ name, mimeType: "application/pdf", buffer: bytes })
+      await page
+        .locator('input[type="file"]')
+        .first()
+        .setInputFiles([
+          pdf("First.pdf"),
+          { name: "Broken.pdf", mimeType: "application/pdf", buffer: Buffer.from("Not a PDF") },
+          pdf("Last.pdf"),
+        ])
+      const input = page.locator(".selection-panel")
+      await input.locator(".input-current").filter({ hasText: "Last.pdf" }).waitFor()
+      await page.locator(".loading-status").waitFor({ state: "detached" })
+      assert.deepEqual(await input.locator(".input-list button[data-source] > span:nth-child(2)").allTextContents(), [
+        "First.pdf",
+        "Last.pdf",
+      ])
+      assert.match(await page.getByRole("alert").innerText(), /Could not open Broken\.pdf/)
+      await page.evaluate(() => {
+        const read = File.prototype.arrayBuffer
+        window.readFiles = []
+        File.prototype.arrayBuffer = async function () {
+          window.readFiles.push(this.name)
+          if (this.name === "Cancelled.pdf") await new Promise((resolve) => (window.releaseRead = resolve))
+          return read.call(this)
+        }
+      })
+      await input
+        .locator('input[type="file"]')
+        .setInputFiles([
+          { name: "Another-broken.pdf", mimeType: "application/pdf", buffer: Buffer.from("Not a PDF") },
+          pdf("Cancelled.pdf"),
+          pdf("Unopened.pdf"),
+        ])
+      await page.waitForFunction(() => !!window.releaseRead)
+      await page.getByRole("button", { name: "Cancel", exact: true }).click()
+      await input.locator('input[type="file"]').setInputFiles(pdf("Retry.pdf"))
+      await input.locator(".input-current").filter({ hasText: "Retry.pdf" }).waitFor()
+      await page.evaluate(() => window.releaseRead())
+      await page.evaluate(() => new Promise(requestAnimationFrame))
+      assert.deepEqual(await page.evaluate(() => window.readFiles), [
+        "Another-broken.pdf",
+        "Cancelled.pdf",
+        "Retry.pdf",
+      ])
+      assert.equal(await input.locator(".input-list button[data-source]").count(), 3)
+      assert.equal(await input.locator(".input-current").textContent(), "Retry.pdf")
+      assert.equal(await page.getByRole("alert").count(), 0, "An abandoned batch cannot restore stale errors")
+    } finally {
+      await browser?.close()
+      await server.close()
+    }
+  },
+)
+
 test("The first PDF previews before validation and commits only after success", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser

@@ -283,23 +283,28 @@
     }
   }
   async function files(list: FileList | File[]) {
+    if (loading || updating || disposed) return
+    const failed: string[] = []
     for (const file of Array.from(list)) {
       if (!file.name.toLowerCase().endsWith(".pdf")) {
-        error("Choose a PDF file.")
+        failed.push(`Could not open ${file.name}. Choose a PDF file.`)
         continue
       }
       if (file.size > 128 * 1024 * 1024) {
-        error("Choose a PDF smaller than 128 MiB.")
+        failed.push(`Could not open ${file.name}. Choose a PDF smaller than 128 MiB.`)
         continue
       }
+      const revision = openRevision + 1
+      let source: Source | undefined
       try {
-        const source = await open(file, file.name)
-        if (!source) break
+        source = await open(file, file.name)
       } catch (reason) {
         error(`Could not read ${file.name}. ${reason instanceof Error ? reason.message : "File reading failed."}`)
-        break
       }
+      if (disposed || updating || openRevision !== revision) return
+      if (!source && failure) failed.push(failure)
     }
+    if (!disposed && failed.length) failure = failed.join(" ")
   }
   function cancelOpen() {
     openRevision++

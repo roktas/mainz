@@ -253,11 +253,12 @@ test("Document ownership releases tasks and rasters once, including validation f
       const canvas = document.createElement("canvas")
       canvas.width = canvas.height = 32
       cacheRaster(opened, 0, 1, canvas)
-      cacheRaster(styled, 0, 1, canvas)
+      const styledCanvas = canvas.cloneNode()
+      cacheRaster(styled, 0, 1, styledCanvas)
       const original = cachedRaster(opened, 0, 1),
         preview = cachedRaster(styled, 0, 1)
       documents.retain([opened, styled, opened])
-      const shared = released.length === 0 && original.width === 32 && preview.width === 32
+      const shared = released.length === 0 && original === canvas && preview === styledCanvas
       documents.retain([opened])
       documents.retain([opened])
       const comparison = original.width === 32 && preview.width === 0
@@ -305,31 +306,42 @@ test("Releasing PDF rasters clears only that document and preserves the shared c
       const { cacheRaster, cachedRaster, releaseRasters } = await import("/src/pdf.ts")
       const first = {},
         second = {}
-      const canvas = document.createElement("canvas")
-      canvas.width = canvas.height = 512
-      canvas.getContext("2d").fillRect(0, 0, 512, 512)
+      const side = 512
+      const raster = () => {
+        const canvas = document.createElement("canvas")
+        canvas.width = canvas.height = side
+        canvas.getContext("2d").fillRect(0, 0, side, side)
+        return canvas
+      }
+      const canvas = raster()
       cacheRaster(first, 1, 1, canvas)
-      cacheRaster(first, 2, 1, canvas)
-      cacheRaster(second, 1, 1, canvas)
+      cacheRaster(first, 2, 1, raster())
+      cacheRaster(second, 1, 1, raster())
+      const duplicate = raster()
+      const rejected = cacheRaster(first, 1, 1, duplicate) === false && duplicate.width === side
+      duplicate.width = duplicate.height = 0
+      const adopted = cachedRaster(first, 1, 1) === canvas
       const closed = [cachedRaster(first, 1, 1), cachedRaster(first, 2, 1)]
       const retained = cachedRaster(second, 1, 1)
       releaseRasters(first)
       releaseRasters(first)
       const removed = [cachedRaster(first, 1, 1), cachedRaster(first, 2, 1)].every((entry) => !entry)
       const cleared = closed.every((entry) => entry.width === 0 && entry.height === 0)
-      const shared = cachedRaster(second, 1, 1) === retained && retained.width === 512
-      for (let number = 2; number <= 32; number++) cacheRaster(second, number, 1, canvas)
+      const shared = cachedRaster(second, 1, 1) === retained && retained.width === side
+      for (let number = 2; number <= 32; number++) cacheRaster(second, number, 1, raster())
       const full = Array.from({ length: 32 }, (_, index) => !!cachedRaster(second, index + 1, 1)).every(Boolean)
-      cacheRaster(second, 33, 1, canvas)
+      cacheRaster(second, 33, 1, raster())
       const evicted = !cachedRaster(second, 1, 1) && retained.width === 0
       const latest = cachedRaster(second, 33, 1)
       releaseRasters(second)
-      cacheRaster(first, 1, 1, canvas)
-      const reopened = cachedRaster(first, 1, 1).width === 512
+      cacheRaster(first, 1, 1, raster())
+      const reopened = cachedRaster(first, 1, 1).width === side
       releaseRasters(first)
-      return { removed, cleared, shared, full, evicted, released: latest.width === 0, reopened }
+      return { adopted, rejected, removed, cleared, shared, full, evicted, released: latest.width === 0, reopened }
     })
     assert.deepEqual(result, {
+      adopted: true,
+      rejected: true,
       removed: true,
       cleared: true,
       shared: true,

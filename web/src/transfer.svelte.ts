@@ -36,6 +36,15 @@ export class Transfer {
   #frame: number | undefined
   #consumeClick = false
   #dwell: ReturnType<typeof setTimeout> | undefined
+  #moving = $derived(new Set(this.value?.kind === "output" ? this.value.ids : []))
+  #prefix = $derived.by(() => {
+    const pages = this.#workspace.pages
+    const moving = this.#moving
+    const prefix = new Uint32Array(pages.length + 1)
+    for (let index = 0; index < pages.length; index++)
+      prefix[index + 1] = prefix[index] + Number(!moving.has(pages[index].id))
+    return prefix
+  })
 
   target = $state<{ index: number; after: boolean }>()
   inside = $state(false)
@@ -55,10 +64,9 @@ export class Transfer {
     if (!value || !this.inside || this.blocked || !this.grid) return
     const { from, count } = this.grid
     const pages = this.#workspace.pages
-    const moving = new Set(value.kind === "output" ? value.ids : [])
+    const moving = this.#moving
     const at = this.target ? this.target.index + Number(this.target.after) : pages.length
-    const before = pages.slice(0, from).filter((page) => !moving.has(page.id)).length
-    const slot = pages.slice(0, at).filter((page) => !moving.has(page.id)).length - before
+    const slot = this.#prefix[Math.min(at, pages.length)] - this.#prefix[Math.min(from, pages.length)]
     const remaining = pages
       .slice(from, from + count)
       .flatMap((page, index) => (moving.has(page.id) ? [] : [from + index]))
@@ -79,7 +87,7 @@ export class Transfer {
   }
   get blocked() {
     const value = this.value
-    return value?.kind === "output" && !!this.target && value.ids.includes(this.#workspace.pages[this.target.index]?.id)
+    return value?.kind === "output" && !!this.target && this.#moving.has(this.#workspace.pages[this.target.index]?.id)
   }
   get label() {
     return this.target

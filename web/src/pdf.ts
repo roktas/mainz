@@ -55,22 +55,19 @@ export function cachedRaster(pdf: PDFDocumentProxy, page: number, scale: number)
   return raster.canvas
 }
 
-export function cacheRaster(pdf: PDFDocumentProxy, page: number, scale: number, source: HTMLCanvasElement) {
-  const bytes = source.width * source.height * 4
+// Takes ownership on success; rejected canvases remain the caller's responsibility.
+export function cacheRaster(pdf: PDFDocumentProxy, page: number, scale: number, canvas: HTMLCanvasElement) {
+  const bytes = canvas.width * canvas.height * 4
   const key = `${page}:${scale}`
   let pages = rasters.get(pdf)
-  if (bytes > rasterLimit || pages?.has(key)) return
+  if (bytes > rasterLimit || pages?.has(key)) return false
   while (rasterBytes + bytes > rasterLimit) discard(recent.values().next().value!)
   if (!pages) rasters.set(pdf, (pages = new Map()))
-  // Component disposal clears its canvas; retain an independent, memory-only copy.
-  const canvas = source.ownerDocument.createElement("canvas")
-  canvas.width = source.width
-  canvas.height = source.height
-  canvas.getContext("2d")!.drawImage(source, 0, 0)
   const raster = { canvas, pages, key }
   pages.set(key, raster)
   recent.add(raster)
   rasterBytes += bytes
+  return true
 }
 
 export function loadRenderer() {

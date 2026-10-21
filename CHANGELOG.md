@@ -35,9 +35,12 @@
   occurrence.
 - PDF opening reads complete page geometry in groups of 16 and releases each inspected page, including on failure or
   cancellation.
+- PDF previews cache newly rendered canvases directly, avoiding one full-image copy and temporary backing canvas.
+- Drag previews reuse Output prefix counts during a gesture instead of scanning the full Output for each target.
 
 ### Fixed
 
+- Opening several PDFs continues after an invalid file and retains its error. Cancel stops the remaining files.
 - Overlapping PDF preview renders release their own pages and cancel obsolete tasks while retaining the last completed
   image. Closed PDFs release cached rasters after their last owner leaves. Ordinary PDFs release their validation worker
   after opening.

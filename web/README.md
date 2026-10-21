@@ -54,3 +54,14 @@ Concurrent servers retain their own snapshot when these inputs differ.
 
 Restart the development server after changing these inputs. Use separate checkouts for concurrent application-source
 revisions.
+
+To inspect or remove old snapshots, first stop all Vite development and preview servers, builds, and browser tests in
+the checkout. Then run:
+
+```sh
+du -sh .local/tmp/web/assets
+rm -rf .local/tmp/web/assets
+```
+
+The next Vite command creates the required snapshot again. Do not remove snapshots while a server, build, or test uses
+them.

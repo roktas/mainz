@@ -709,41 +709,27 @@
       if (grid) cancelMove = animateOrder(grid)
     }
   }
-  function commit(next: Part[], text: string, select?: (pages: Expanded[]) => string[], origin?: HTMLElement | null) {
-    try {
-      const expanded = expand(next, sources)
-      const ids = new Set(expanded.map((page) => page.id))
-      animateEdit(expanded, ids, origin)
-      const selection = (select?.(expanded) ?? selected).filter((id) => ids.has(id))
-      const anchor = select ? selection.at(-1) : output.pages[outputAnchor ?? -1]?.id
-      const focused = document.activeElement as HTMLElement | null
-      const card = focused?.closest<HTMLElement>(".output-pages .composition-card")
-      const grid = focused?.matches(".output-pages")
-      const pageAction = focused?.closest(".composition-output .page-actions")
-      const selectionAction = focused?.closest(".composition-output .sequence-entry") ?? grid
-      const menu = focused?.closest<HTMLDetailsElement>(".sequence-options[open]")
-      const index = output.pages.findIndex((page) => `${key}-${page.id}` === card?.id)
-      const destination =
-        select && (card || grid)
-          ? expanded.findIndex((page) => page.id === selection.at(-1))
-          : card
-            ? positionAfterEdit(output.pages, expanded, index)
-            : undefined
-      if (card && index >= 0) outputPosition = index
-      change(next, text)
-      inputMenu?.removeAttribute("open")
-      outputMenu?.removeAttribute("open")
-      selected = selection
-      outputText = undefined
-      const anchorIndex = expanded.findIndex((page) => page.id === anchor)
-      outputAnchor = anchorIndex < 0 ? undefined : anchorIndex
-      if (select && outputAnchor !== undefined) outputOffset = outputAnchor
-      if (select) highlightRange({ kind: "output", ids: selection })
+  function captureEditFocus(expanded: Expanded[], selection: string[], selecting: boolean) {
+    const focused = document.activeElement as HTMLElement | null
+    const card = focused?.closest<HTMLElement>(".output-pages .composition-card")
+    const grid = focused?.matches(".output-pages")
+    const pageAction = focused?.closest(".composition-output .page-actions")
+    const selectionAction = focused?.closest(".composition-output .sequence-entry") ?? grid
+    const menu = focused?.closest<HTMLDetailsElement>(".sequence-options[open]")
+    const index = output.pages.findIndex((page) => `${key}-${page.id}` === card?.id)
+    const destination =
+      selecting && (card || grid)
+        ? expanded.findIndex((page) => page.id === selection.at(-1))
+        : card
+          ? positionAfterEdit(output.pages, expanded, index)
+          : undefined
+    if (card && index >= 0) outputPosition = index
+    return () => {
       if (destination !== undefined && destination >= 0) {
         outputPosition = destination
         outputOffset = destination
       }
-      if (transfer.touching) return true
+      if (transfer.touching) return
       if (menu) menu.querySelector("summary")?.focus()
       else if (selectionAction)
         void tick().then(() => {
@@ -751,7 +737,7 @@
             focusAfterSelection("Output")
             return
           }
-          if (grid && select && destination !== undefined && destination >= 0) {
+          if (grid && selecting && destination !== undefined && destination >= 0) {
             ;(pendingAddition.has(selection.at(-1)!)
               ? focused
               : document.getElementById(`${key}-${selection.at(-1)}`)?.querySelector<HTMLElement>(".page-image")
@@ -766,7 +752,7 @@
       else if (card || pageAction)
         void tick().then(() => {
           if (
-            !select &&
+            !selecting &&
             focused?.classList.contains("page-image") &&
             focused?.isConnected &&
             !focused.matches(":disabled") &&
@@ -789,6 +775,26 @@
             document.getElementById(`${key}-output-${activeOutputTab}`)
           )?.focus({ preventScroll: !!pageAction || pendingAddition.size > 0 })
         })
+    }
+  }
+  function commit(next: Part[], text: string, select?: (pages: Expanded[]) => string[], origin?: HTMLElement | null) {
+    try {
+      const expanded = expand(next, sources)
+      const ids = new Set(expanded.map((page) => page.id))
+      animateEdit(expanded, ids, origin)
+      const selection = (select?.(expanded) ?? selected).filter((id) => ids.has(id))
+      const anchor = select ? selection.at(-1) : output.pages[outputAnchor ?? -1]?.id
+      const restoreFocus = captureEditFocus(expanded, selection, !!select)
+      change(next, text)
+      inputMenu?.removeAttribute("open")
+      outputMenu?.removeAttribute("open")
+      selected = selection
+      outputText = undefined
+      const anchorIndex = expanded.findIndex((page) => page.id === anchor)
+      outputAnchor = anchorIndex < 0 ? undefined : anchorIndex
+      if (select && outputAnchor !== undefined) outputOffset = outputAnchor
+      if (select) highlightRange({ kind: "output", ids: selection })
+      restoreFocus()
       return true
     } catch (reason) {
       cancelMotion()

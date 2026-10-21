@@ -81,6 +81,7 @@
       active?.cancel()
       let sheet: PDFPageProxy | undefined
       let task: RenderTask | undefined
+      let transient: HTMLCanvasElement | undefined
       try {
         const { AnnotationMode } = await loadRenderer()
         if (disposed || current !== generation) return
@@ -125,13 +126,14 @@
         let raster = cachedRaster(document, number, scale)
         if (!raster) {
           raster = parent.ownerDocument.createElement("canvas")
+          transient = raster
           raster.width = Math.ceil(viewport.width)
           raster.height = Math.ceil(viewport.height)
           task = sheet.render({ canvas: raster, viewport, annotationMode: AnnotationMode.DISABLE })
           active = task
           await task.promise
           if (disposed || current !== generation) return
-          cacheRaster(document, number, scale, raster)
+          if (cacheRaster(document, number, scale, raster)) transient = undefined
         }
         target.width = raster.width
         target.height = raster.height
@@ -144,6 +146,7 @@
         failure = reason instanceof Error ? reason.message : "PDF rendering failed."
         error(`Page ${pageNumber ?? number + 1}: ${failure}`)
       } finally {
+        if (transient) transient.width = transient.height = 0
         if (active === task) active = undefined
         sheet?.cleanup()
         if (!disposed && current === generation) rendering = false
