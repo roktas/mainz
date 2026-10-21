@@ -675,7 +675,12 @@ test(
         "First.pdf",
         "Last.pdf",
       ])
-      assert.match(await page.getByRole("alert").innerText(), /Could not open Broken\.pdf/)
+      assert.equal(await page.getByRole("alert").innerText(), "1 file could not be opened.")
+      await page.getByText("Review file errors", { exact: true }).click()
+      assert.match(
+        await page.getByRole("list", { name: "File errors", exact: true }).innerText(),
+        /Could not open Broken\.pdf/,
+      )
       await page.evaluate(() => {
         const read = File.prototype.arrayBuffer
         window.readFiles = []
@@ -712,6 +717,94 @@ test(
     }
   },
 )
+
+test("Large failure batches announce a summary and retain every file error", { timeout: 60000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" })
+    page.setDefaultTimeout(10000)
+    await page.addInitScript(() => {
+      localStorage.setItem("mainz:onboarding", "19")
+      window.announcements = []
+      new MutationObserver(() => {
+        for (const element of document.querySelectorAll('[role="alert"]'))
+          if (element.textContent) window.announcements.push(element.textContent)
+      }).observe(document, { childList: true, characterData: true, subtree: true })
+    })
+    await page.goto(server.resolvedUrls.local[0])
+    const failed = Array.from({ length: 40 }, (_, index) => ({
+      name: `${index}-${"long-publication-name-".repeat(6)}.${index < 2 ? "pdf" : "txt"}`,
+      mimeType: "application/pdf",
+      buffer: Buffer.from("Not a PDF"),
+    }))
+    await page
+      .locator('input[type="file"]')
+      .first()
+      .setInputFiles([...failed, { name: "Ready.pdf", mimeType: "application/pdf", buffer: fixture(false) }])
+    await page.locator(".input-current").filter({ hasText: "Ready.pdf" }).waitFor()
+    const announcement = page.getByRole("alert")
+    await announcement.waitFor()
+    assert.ok((await announcement.innerText()).length < 120, "Batch announcements must not include every diagnostic")
+    assert.match(await announcement.innerText(), /40 files could not be opened/)
+    assert.ok(
+      await page.evaluate(() => window.announcements.every((text) => text.length < 120)),
+      "Per-file failures must not produce long intermediate announcements",
+    )
+    const errors = page.getByRole("list", { name: "File errors", exact: true })
+    const disclosure = page.getByText("Review file errors", { exact: true })
+    for (const [width, text, colorScheme] of [
+      [320, "100%", "light"],
+      [390, "200%", "dark"],
+      [768, "200%", "light"],
+      [1440, "100%", "dark"],
+    ]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.emulateMedia({ colorScheme })
+      await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+      assert.equal(await errors.isVisible(), false)
+      const alignment = await page.locator(".error-banner").evaluate((element) => {
+        const message = element.querySelector('[role="alert"]').getBoundingClientRect()
+        const button = element.querySelector("button").getBoundingClientRect()
+        const icon = element.querySelector("button svg").getBoundingClientRect()
+        return [
+          message.y + message.height / 2 - button.y - button.height / 2,
+          icon.x + icon.width / 2 - button.x - button.width / 2,
+          icon.y + icon.height / 2 - button.y - button.height / 2,
+        ]
+      })
+      assert.ok(alignment.every((offset) => Math.abs(offset) < 1), `${width}px: ${alignment}`)
+      await disclosure.focus()
+      await page.keyboard.press("Enter")
+      await errors.waitFor()
+      const messages = await errors.getByRole("listitem").allTextContents()
+      assert.equal(messages.length, failed.length)
+      for (const [index, file] of failed.entries()) assert.ok(messages[index].includes(file.name))
+      assert.match(messages[0], /Could not open/)
+      assert.match(messages[2], /Choose a PDF file/)
+      const bounds = await errors.evaluate((element) => ({
+        height: element.clientHeight,
+        overflow: element.scrollHeight > element.clientHeight,
+      }))
+      assert.ok(bounds.height <= 360 && bounds.overflow, "Details must scroll within the viewport")
+      await errors.focus()
+      await page.keyboard.press("End")
+      await page.waitForFunction(() => document.querySelector(".file-errors ul")?.scrollTop > 0)
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+      await disclosure.focus()
+      await page.keyboard.press("Enter")
+    }
+    await page.getByRole("button", { name: "Dismiss error", exact: true }).click()
+    assert.equal(await announcement.count(), 0)
+    assert.equal(await disclosure.count(), 0)
+    assert.equal(await page.locator(".input-current").textContent(), "Ready.pdf")
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
 
 test("The first PDF previews before validation and commits only after success", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })

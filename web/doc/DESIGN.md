@@ -555,6 +555,10 @@ header remains visible during a Notice. Notice text keeps its full contrast betw
 dismissal can fade the Notice. Reduced motion keeps the instruction static. Errors retain their local explanation and do
 not repeat details in the footer. Loading, empty, error, and cancellation states identify the next action.
 
+Batch opening announces one short failure count after processing. Review file errors reveals each filename and
+diagnostic outside the live alert. The list has a bounded height and supports keyboard scrolling. The dismiss button
+stays beside the summary, including on narrow screens and with enlarged text.
+
 ## Validation
 
 The [browser suites](../test/) own automated visual and interaction assertions. [AGENTS.md](../../AGENTS.md#web) owns

@@ -161,8 +161,8 @@ lint, type, and unit checks. Standard and full also build production assets. Ful
 calibration tools. Run affected native tasks separately. The build writes `.local/var/js/dist/`. Vite uses a home cache
 per checkout. Browser suites run sequentially per host. CI runs standard for main pushes and pull requests, and full for
 version tags. Manual runs select either mode and never deploy. See [browser setup](web/doc/VIEWPORTS.md#browser-checks)
-for coverage and commands. Exercise changed flows with keyboard, narrow layouts, enlarged text, both themes, and
-relevant loading/error/cancellation states.
+for coverage and required full groups before merging layout/geometry changes. Exercise changed flows with keyboard,
+narrow layouts, enlarged text, both themes, and relevant loading/error/cancellation states.
 
 ### Preview and mockups
 

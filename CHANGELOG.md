@@ -40,7 +40,8 @@
 
 ### Fixed
 
-- Opening several PDFs continues after an invalid file and retains its error. Cancel stops the remaining files.
+- Opening several PDFs continues after an invalid file. A short alert summarizes failures, with complete diagnostics in
+  a keyboard-accessible list. Cancel stops the remaining files.
 - Overlapping PDF preview renders release their own pages and cancel obsolete tasks while retaining the last completed
   image. Closed PDFs release cached rasters after their last owner leaves. Ordinary PDFs release their validation worker
   after opening.

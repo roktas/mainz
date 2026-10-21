@@ -51,7 +51,7 @@
   let noticeTimer: ReturnType<typeof setTimeout> | undefined
   let messageRevision = $state(0)
   const firstAction = "Select pages · Use + to add to Output."
-  let failure = $state("")
+  let failure = $state.raw<string | string[]>("")
   let loading = $state(false)
   let updating = $state(false)
   let openingStatus = $state("")
@@ -177,10 +177,10 @@
   function choose(id: string, sequence: Sequence) {
     sequences = { ...sequences, [id]: sequence }
   }
-  async function open(file: Uint8Array | File, name: string) {
+  async function open(file: Uint8Array | File, name: string, report = error) {
     if (loading || updating) return
     if ((file instanceof File ? file.size : file.length) > 128 * 1024 * 1024) {
-      error("Choose a PDF smaller than 128 MiB.")
+      report("Choose a PDF smaller than 128 MiB.")
       return
     }
     const revision = ++openRevision
@@ -264,7 +264,7 @@
       return source
     } catch (reason) {
       if (!disposed && revision === openRevision) {
-        error(
+        report(
           `Could not open ${name}. ${reason instanceof Error ? reason.message : "Try another PDF."} Your workspace is retained. Choose a PDF to retry.`,
         )
       }
@@ -295,16 +295,14 @@
         continue
       }
       const revision = openRevision + 1
-      let source: Source | undefined
       try {
-        source = await open(file, file.name)
+        await open(file, file.name, (text) => failed.push(text))
       } catch (reason) {
-        error(`Could not read ${file.name}. ${reason instanceof Error ? reason.message : "File reading failed."}`)
+        failed.push(`Could not read ${file.name}. ${reason instanceof Error ? reason.message : "File reading failed."}`)
       }
       if (disposed || updating || openRevision !== revision) return
-      if (!source && failure) failed.push(failure)
     }
-    if (!disposed && failed.length) failure = failed.join(" ")
+    if (!disposed && failed.length) failure = failed
   }
   function cancelOpen() {
     openRevision++
@@ -779,11 +777,22 @@
   </div>
 </header>
 <main id="workspace">
-  {#if failure}<div class="error-banner" role="alert">
-      <p>{failure}</p>
+  {#if failure}<div class="error-banner">
+      <p role="alert">
+        {#if typeof failure === "string"}{failure}{:else}{failure.length}
+          {failure.length === 1 ? "file could" : "files could"} not be opened.{/if}
+      </p>
       <button class="icon-button" aria-label="Dismiss error" onclick={() => (failure = "")}
         ><Icon name="close" /></button
       >
+      {#if Array.isArray(failure)}<details class="file-errors">
+          <summary><Icon name="next" />Review file errors</summary>
+          <!-- Keyboard users need a focusable list for native scrolling. -->
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+          <ul tabindex="0" aria-label="File errors">
+            {#each failure as message}<li>{message}</li>{/each}
+          </ul>
+        </details>{/if}
     </div>{/if}
   {#each sources.filter((source) => source.status === "error") as source (source.id)}
     <div class="error-banner" role="alert">

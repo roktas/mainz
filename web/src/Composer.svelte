@@ -1029,7 +1029,7 @@
   onkeydowncapture={(event) => {
     touchTap = undefined
     touchPointer = false
-    if (opening) return
+    if (opening || (event.target instanceof Element && event.target.closest(".file-errors"))) return
     if (event.key === "Escape" && event.target instanceof HTMLElement && event.target.closest(".page-jump")) return
     if (shortcuts(event)) return
     if (event.key === "Tab" && !event.isComposing && !event.altKey && !event.ctrlKey && !event.metaKey)

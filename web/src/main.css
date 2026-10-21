@@ -389,6 +389,25 @@
       border-color: var(--accent);
       margin-block-start: var(--gap);
     }
+    .error-banner:has(> .file-errors) {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .file-errors {
+      grid-column: 1 / -1;
+      min-inline-size: 0;
+      &[open] > summary svg {
+        rotate: 90deg;
+      }
+      ul {
+        max-block-size: min(16rem, 40dvb);
+        overflow: auto;
+        overscroll-behavior: contain;
+      }
+      li + li {
+        margin-block-start: 0.75em;
+      }
+    }
 
     .download-dialog {
       inline-size: min(100%, 500px);

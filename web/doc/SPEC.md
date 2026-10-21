@@ -30,7 +30,8 @@ another PDF retains the existing workspace until the new Source is ready. Errors
 action. Incompatible style information requires a newly prepared PDF.
 
 A multi-file selection opens each file in order. A file that fails does not prevent later files from opening. Errors
-retain the failed filenames after the batch completes. Cancel stops the current opening and the remaining files.
+appear after the batch completes. A short alert reports the failed count. Review file errors opens a scrollable list
+with every failed filename and diagnostic. Cancel stops the current opening and the remaining files.
 
 Opening the same PDF again creates an independent Source with the styles saved in that PDF and a new preparation. The
 Input chooser lists open Sources and offers Remove Input for the active Source. A Source cannot be removed while Output
