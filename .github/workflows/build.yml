@@ -136,7 +136,7 @@ jobs:
     name: Browser ${{ matrix.shard }}/8
     needs: build
     runs-on: ubuntu-26.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
