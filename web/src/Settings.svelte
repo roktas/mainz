@@ -2,6 +2,7 @@
 
 <script lang="ts">
   import Icon from "./Icon.svelte"
+  import { dismiss } from "./dismiss.ts"
   import { magnificationLevels } from "./Lens.svelte"
   import type { Magnification } from "./Lens.svelte"
   let {
@@ -28,7 +29,13 @@
   }}><Icon name="settings" /></button
 >
 
-<dialog bind:this={settingsDialog} class="settings-drawer" aria-labelledby="settings-title" closedby="any">
+<dialog
+  bind:this={settingsDialog}
+  class="settings-drawer"
+  aria-labelledby="settings-title"
+  closedby="any"
+  {@attach dismiss}
+>
   <div class="dialog-heading">
     <h2 id="settings-title">Settings</h2>
     <button class="icon-button" aria-label="Close Settings" onclick={() => settingsDialog.close()}

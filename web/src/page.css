@@ -500,44 +500,42 @@
 @layer views {
   @media (hover: none) and (pointer: coarse) {
     @scope (.composer) {
-      @container composer (width <= 55em) {
-        .page-view {
-          --page-touch: 1;
+      .page-view {
+        --page-touch: 1;
+      }
+      .inspection-heading,
+      .page-navigation {
+        padding-inline: 16px;
+      }
+      .inspection-heading > .page-grip {
+        display: none;
+      }
+      .inspection-heading:has(> .page-grip) > .page-number {
+        flex-basis: auto;
+      }
+      .page-tools .page-zoom {
+        margin-inline-end: 0;
+      }
+      .page-navigation > button {
+        justify-content: center;
+      }
+      .page-scroll.enlarged {
+        overscroll-behavior-y: auto;
+      }
+      .pdf-viewport {
+        --fit-width: min(calc(100cqi - 4rem), calc((100cqb - 4rem) * var(--ratio, 1)));
+        block-size: max(100%, calc(var(--fit-width) * var(--zoom) / var(--ratio, 1) + 4rem));
+        padding-block: 2rem;
+        &::after {
+          inline-size: max(2rem, calc((100cqi - var(--fit-width) * var(--zoom)) / 2));
         }
-        .inspection-heading,
-        .page-navigation {
-          padding-inline: 16px;
-        }
-        .inspection-heading > .page-grip {
-          display: none;
-        }
-        .inspection-heading:has(> .page-grip) > .page-number {
-          flex-basis: auto;
-        }
-        .page-tools .page-zoom {
-          margin-inline-end: 0;
-        }
-        .page-navigation > button {
-          justify-content: center;
-        }
-        .page-scroll.enlarged {
-          overscroll-behavior-y: auto;
-        }
-        .pdf-viewport {
-          --fit-width: min(calc(100cqi - 4rem), calc((100cqb - 4rem) * var(--ratio, 1)));
-          block-size: max(100%, calc(var(--fit-width) * var(--zoom) / var(--ratio, 1) + 4rem));
-          padding-block: 2rem;
-          &::after {
-            inline-size: max(2rem, calc((100cqi - var(--fit-width) * var(--zoom)) / 2));
-          }
-        }
-        .page-scroll.enlarged .pdf-viewport {
-          padding-inline: max(2rem, calc((100cqi - var(--fit-width) * var(--zoom)) / 2));
-          &::after {
-            inset-inline-start: calc(
-              var(--fit-width) * var(--zoom) + max(2rem, (100cqi - var(--fit-width) * var(--zoom)) / 2)
-            );
-          }
+      }
+      .page-scroll.enlarged .pdf-viewport {
+        padding-inline: max(2rem, calc((100cqi - var(--fit-width) * var(--zoom)) / 2));
+        &::after {
+          inset-inline-start: calc(
+            var(--fit-width) * var(--zoom) + max(2rem, (100cqi - var(--fit-width) * var(--zoom)) / 2)
+          );
         }
       }
     }

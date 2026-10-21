@@ -39,7 +39,10 @@ test("Installation guidance stays optional and independent of the product tour",
         await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
         assert.equal(await installation.evaluate((element) => element.scrollWidth <= element.clientWidth), true)
         await page.screenshot({ path: `${directory}/mobile-enlarged-${colorScheme}.png` })
-        await installation.getByRole("button", { name: "Continue in browser", exact: true }).click()
+        if (colorScheme === "dark") {
+          await installation.evaluate((element) => element.removeAttribute("closedby"))
+          await page.touchscreen.tap(2, 100)
+        } else await installation.getByRole("button", { name: "Continue in browser", exact: true }).click()
         assert.match(await page.locator(".notice").textContent(), /If you change your mind, open Help → App/)
         await welcome.waitFor()
         assert.equal(await installation.isVisible(), false)
@@ -107,31 +110,39 @@ test("Installation guidance stays optional and independent of the product tour",
     try {
       const page = await context.newPage()
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-      const icon = await page.evaluate(async () => {
+      const icons = await page.evaluate(async () => {
         const manifest = await (await fetch("manifest.webmanifest")).json()
         const asset = manifest.icons.find((item) => item.purpose.split(" ").includes("maskable"))
-        if (!asset) return null
-        const image = new Image()
-        image.src = asset.src
-        await image.decode()
-        const canvas = document.createElement("canvas")
-        canvas.width = canvas.height = image.naturalWidth
-        const pixels = canvas.getContext("2d")
-        pixels.drawImage(image, 0, 0)
-        const { data } = pixels.getImageData(0, 0, canvas.width, canvas.height)
-        let radius = 0
-        for (let y = 0; y < canvas.height; y++)
-          for (let x = 0; x < canvas.width; x++) {
-            const offset = 4 * (y * canvas.width + x)
-            if (data[offset + 3] !== 255) throw new Error("The maskable background must be opaque")
-            if (data[offset] < 247 || data[offset + 1] < 247 || data[offset + 2] < 247)
-              radius = Math.max(radius, Math.hypot(x + 0.5 - canvas.width / 2, y + 0.5 - canvas.height / 2))
-          }
-        return { size: canvas.width, radius }
+        if (!asset) return []
+        return Promise.all(
+          ["apple-touch-icon.png", "icon-192.png", asset.src].map(async (src) => {
+            const image = new Image()
+            image.src = src
+            await image.decode()
+            const canvas = document.createElement("canvas")
+            canvas.width = canvas.height = image.naturalWidth
+            const pixels = canvas.getContext("2d")
+            pixels.drawImage(image, 0, 0)
+            const { data } = pixels.getImageData(0, 0, canvas.width, canvas.height)
+            let radius = 0
+            for (let y = 0; y < canvas.height; y++)
+              for (let x = 0; x < canvas.width; x++) {
+                const offset = 4 * (y * canvas.width + x)
+                if (data[offset + 3] !== 255) throw new Error("The maskable background must be opaque")
+                if (data[offset] < 247 || data[offset + 1] < 247 || data[offset + 2] < 247)
+                  radius = Math.max(radius, Math.hypot(x + 0.5 - canvas.width / 2, y + 0.5 - canvas.height / 2))
+              }
+            return { size: canvas.width, radius: radius / canvas.width }
+          }),
+        )
       })
+      assert.deepEqual(
+        icons.map((icon) => icon.size),
+        [180, 192, 512],
+      )
       assert.ok(
-        icon && icon.size === 512 && icon.radius <= 0.4 * icon.size,
-        "Maskable artwork stays inside the guaranteed central circle on its opaque background",
+        icons.every((icon) => icon.radius >= 0.38 && icon.radius <= 0.4),
+        "iOS and Android artwork fills the central safe circle with matching margins on opaque backgrounds",
       )
       await page.locator(".composer").waitFor()
       const installation = page.getByRole("dialog", { name: "Help", exact: true })

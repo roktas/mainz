@@ -467,12 +467,15 @@ test(
       await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const errors = []
-      for (const [width, height, touch, single] of [
+      for (const [width, height, touch, enlarged] of [
         [375, 667, true, true],
         [393, 852, true, true],
         [440, 956, true, true],
         [744, 1133, true, true],
-        [1133, 744, true, false],
+        [810, 1048, true, true],
+        [1080, 778, true, true],
+        [1024, 768, true, true],
+        [1133, 744, true, true],
         [393, 852, false, false],
       ]) {
         const page = await browser.newPage({
@@ -495,7 +498,7 @@ test(
             await workspace.click()
           if ((await pane.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected")) !== "true")
             await tab(pane, "Page")
-          if (single)
+          if (enlarged)
             await page.waitForFunction(
               (paneName) =>
                 Number(document.querySelector(`[aria-label="${paneName} page zoom"]`)?.textContent.replace("%", "")) >
@@ -506,16 +509,17 @@ test(
           const initial = await pane.getByLabel(`${name} page zoom`, { exact: true }).textContent()
           assert.equal(
             Number(initial.replace("%", "")) > 100,
-            single,
-            `${name}, ${width}: only single-pane touch starts enlarged`,
+            enlarged,
+            `${name}, ${width}: touch starts enlarged when Fit leaves a narrow image`,
           )
           if (name === "Input")
             assert.equal(
               await pane.locator(".inspection-heading .page-grip").isVisible(),
-              !single,
+              !touch,
               `${width}: Page grip follows the layout scope`,
             )
-          if (single) {
+          if (enlarged) {
+            assert.notEqual(await pane.locator(".page-view").getAttribute("data-controls"), "fit")
             const frame = await pane.locator(".page-view").boundingBox()
             const status = await page.locator(".footnote").boundingBox()
             assert.ok(
@@ -603,6 +607,21 @@ test(
               "150%",
               "Returning preserves manual zoom",
             )
+            if (width === 810 || width === 1080) {
+              await page.setViewportSize(width === 810 ? { width: 1080, height: 778 } : { width: 810, height: 1048 })
+              if (await views.isVisible()) await workspace.click()
+              await aligned(pane)
+              assert.equal(await pane.getByLabel(`${name} page zoom`, { exact: true }).textContent(), "150%")
+              await zoom(pane, "Fit page")
+              await page.setViewportSize({ width, height })
+              if (await views.isVisible()) await workspace.click()
+              await aligned(pane)
+              assert.equal(
+                await pane.getByLabel(`${name} page zoom`, { exact: true }).textContent(),
+                "100%",
+                "Rotation across the pane breakpoint preserves explicit zoom and Fit",
+              )
+            }
             if (width === 393 && name === "Output") {
               await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
               await aligned(pane)

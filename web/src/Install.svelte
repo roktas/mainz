@@ -4,6 +4,7 @@
   import { onMount } from "svelte"
   import type { Snippet } from "svelte"
   import Icon from "./Icon.svelte"
+  import { dismiss } from "./dismiss.ts"
 
   type Prompt = Event & {
     prompt: () => Promise<void>
@@ -136,6 +137,7 @@
   class="installation"
   aria-labelledby="installation-title"
   closedby="any"
+  {@attach dismiss}
   onclose={() => {
     remember()
     if (pending) dismissed()

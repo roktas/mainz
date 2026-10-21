@@ -374,13 +374,12 @@
     }
   }
 
-  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (820px <= width < 830px) and (1080px <= height < 1120px) {
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (805px <= width < 835px) and (1048px <= height < 1120px) {
     @scope (.composer) {
       @container composer (width <= 55em) {
         :is(.selection-panel, .composition-output)[data-density="compact"] {
-          --grid-width: max(77px, calc(5 * var(--body)));
-          --grid-height: 7.3515625rem;
-          --thumbnail-padding: 0.28125rem;
+          --grid-height: 7.28125rem;
+          --thumbnail-padding: 0.25rem;
         }
       }
     }

@@ -194,7 +194,7 @@
 
     @container composer (width <= 55em) {
       :is(.selection-panel, .composition-output) {
-        --grid-pager-height: calc(44px + 3 * var(--small));
+        --grid-pager-height: calc(44px + 1.5 * var(--small));
       }
 
       .page-batches {

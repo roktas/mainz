@@ -6,6 +6,7 @@
   import { search } from "../test/calibration.ts"
   import type { Calibration } from "../test/calibration.ts"
   import Icon from "./Icon.svelte"
+  import { dismiss } from "./dismiss.ts"
 
   let dialog: HTMLDialogElement
   let chooser: HTMLDetailsElement
@@ -141,7 +142,14 @@
 </script>
 
 <button class="geometry-launcher" data-geometry disabled={busy} onclick={open}>Geometry</button>
-<dialog bind:this={dialog} class="geometry-dialog" data-geometry aria-labelledby="geometry-title" closedby="any">
+<dialog
+  bind:this={dialog}
+  class="geometry-dialog"
+  data-geometry
+  aria-labelledby="geometry-title"
+  closedby="any"
+  {@attach dismiss}
+>
   <div class="dialog-heading">
     <h2 id="geometry-title">Grid geometry</h2>
     <button class="icon-button" aria-label="Close geometry" onclick={close}><Icon name="close" /></button>
@@ -150,8 +158,8 @@
   <details bind:this={chooser}>
     <summary>Grid views</summary>
     <div class="geometry-actions">
-      {#each ["Input", "Output"] as const as name}
-        {#each [false, true] as compact}
+      {#each ["Input", "Output"] as const as name (name)}
+        {#each [false, true] as compact (compact)}
           <button aria-label={`Show ${name} ${compact ? "Compact" : "Normal"}`} onclick={() => show(name, compact)}
             >{name} · {compact ? "Compact" : "Normal"}</button
           >

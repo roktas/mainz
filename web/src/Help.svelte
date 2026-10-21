@@ -19,6 +19,7 @@
   import { tick, untrack } from "svelte"
   import { MediaQuery } from "svelte/reactivity"
   import Icon from "./Icon.svelte"
+  import { dismiss } from "./dismiss.ts"
   import Install from "./Install.svelte"
   import { blocked, fields } from "./keyboard.ts"
 
@@ -544,7 +545,7 @@
 
 <Install bind:pending={installationPending} recommend={onboarding} {dismissed}>
   {#snippet children(content)}
-    <dialog bind:this={help} class="help-dialog" aria-label="Help" closedby="any">
+    <dialog bind:this={help} class="help-dialog" aria-label="Help" closedby="any" {@attach dismiss}>
       <div class="dialog-heading">
         <h2>Help</h2>
         <button class="icon-button" aria-label="Close help" onclick={() => help.close()}><Icon name="close" /></button>

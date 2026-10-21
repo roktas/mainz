@@ -362,19 +362,19 @@ keyboard controls choose the next step from that value. Pinching preserves Selec
 independent of browser zoom. View changes, Input switches, selection changes, and resizing retain each pane's zoom and
 latest visible region.
 
-In a single-pane touch layout, the first Page entry enlarges a fitted image that occupies less than 70% of the image
-viewport's width. It uses the available width with equal image gutters, up to the existing 400% limit. This initial
-choice runs once per Source and once for Output, after PDF opening completes. An explicit zoom choice takes precedence.
-Initial pointer entry brings the Page frame into view. Keyboard entry keeps the focused control visible. Fit always
-restores 100% and shows the complete page. [DESIGN](DESIGN.md#grid-and-page) defines fitting and spacing.
+On a coarse primary pointer without hover, the first Page entry enlarges a fitted image that occupies less than 70% of
+the image viewport's width. It uses the available width with equal image gutters, up to the existing 400% limit. This
+initial choice runs once per Source and once for Output, after PDF opening completes. An explicit zoom choice takes
+precedence. Initial pointer entry brings the Page frame into view. Keyboard entry keeps the focused control visible. Fit
+always restores 100% and shows the complete page. [DESIGN](DESIGN.md#grid-and-page) defines fitting and spacing.
 
-Page controls stay on one row. Actions that do not fit remain available in the existing pane page-actions menu. A
-single-pane touch Page has no grip; use the page-selection bar to select pages. Grid grips remain available.
+Page controls stay on one row. Actions that do not fit remain available in the existing pane page-actions menu. A touch
+Page has no grip in either pane layout; use the page-selection bar to select pages. Grid grips remain available.
 
 At enlarged zoom, mouse dragging pans the image. Where available, Input transfer uses the Page grip. Output reordering
 uses Grid, selection actions, or keyboard controls. At 100% or below, the wheel scrolls the workspace. Above 100%, it
 scrolls the image and does not pass scrolling to the workspace at an edge. Keyboard and touch scrolling remain native.
-In single-pane touch Page, a vertical swipe at an image edge can continue into the workspace.
+In touch Page, a vertical swipe at an image edge can continue into the workspace.
 
 **Compare page** toggles the inspected occurrence between completed Source styles and immutable opened appearance. It
 requires a completed relevant style difference. Composition alone does not enable it. Pending or invalid relevant drafts

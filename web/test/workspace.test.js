@@ -7,6 +7,52 @@ import { chromium } from "playwright"
 import { checkWorkspace } from "./workspace.js"
 import { createServer, tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
 
+test("Dialogs dismiss outside taps without native light dismissal", { timeout: 60000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({ hasTouch: true, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    for (const [width, height] of [
+      [810, 1048],
+      [1080, 778],
+      [1440, 900],
+    ]) {
+      await page.setViewportSize({ width, height })
+      for (const colorScheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme })
+        for (const name of ["Settings", "Help"]) {
+          const opener = page.getByRole("button", { name, exact: true })
+          const drawer = page.getByRole("dialog", { name, exact: true })
+          await opener.tap()
+          // Exercise the application's dismissal when the browser does not implement closedby.
+          await drawer.evaluate((element) => element.removeAttribute("closedby"))
+          await drawer.getByRole("heading", { name, exact: true }).tap()
+          assert.equal(await drawer.isVisible(), true, "Inside taps keep the dialog open")
+          const bounds = await drawer.boundingBox()
+          await page.mouse.move(bounds.x + 20, bounds.y + 20)
+          await page.mouse.down()
+          await page.mouse.move(bounds.x - 20, bounds.y + 20)
+          await page.mouse.up()
+          assert.equal(await drawer.isVisible(), true, "A drag from the dialog to its backdrop keeps it open")
+          await page.touchscreen.tap(bounds.x / 2, height / 2)
+          await drawer.waitFor({ state: "hidden" })
+          assert.equal(await opener.evaluate((element) => element === document.activeElement), true)
+          await opener.click()
+          await page.keyboard.press("Escape")
+          await drawer.waitFor({ state: "hidden" })
+        }
+      }
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
 test("Workspace tools wrap without moving the view tabs", async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser

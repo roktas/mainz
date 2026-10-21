@@ -36,8 +36,8 @@ Fallback fonts keep text visible during loading. The logo supplies the header, l
 curves use the accent at full opacity. Horizontal curves remain faint. Each inline instance has unique SVG IDs. The
 dedicated [app icon](../public/icon.svg) uses the same curves in fixed purple on white, with a square canvas and safe
 margins. Its maintained PNG renditions supply the 180 px iOS touch icon and the 192/512 px manifest icons. The opaque
-512 px icon also supports Android launcher masks. All visible curves stay inside the central safe circle with radius 40%
-of the canvas width.
+512 px icon also supports Android launcher masks. All renditions use the same artwork scale. Visible curves reach
+approximately 38.5% of the canvas width from its center, inside the central safe circle with radius 40%.
 
 Page-selection hints and Style descriptions use the body text size. Compact numbers and secondary metadata retain
 smaller text. The landing's prepared-PDF link uses a thin dotted underline with clear space between dots and below the
@@ -67,9 +67,9 @@ Grid grips use the card's inline center and the header's block center in both de
 digit counts, and interaction target sizes do not move these references. Size text and interaction areas around them.
 
 Use the visible content as the reference when controls belong to an image or document. Use the frame reference below for
-single-pane touch Page layouts. Do not infer alignment from invisible control boxes or incidental padding. Keep usable
-interaction targets around aligned content. Check alignment again when fitting, aspect ratio, zoom, font size, or
-conditional controls change the layout.
+touch Page layouts. Do not infer alignment from invisible control boxes or incidental padding. Keep usable interaction
+targets around aligned content. Check alignment again when fitting, aspect ratio, zoom, font size, or conditional
+controls change the layout.
 
 ## Focus, selection, and motion
 
@@ -307,9 +307,9 @@ card dimensions and spacing. The shared frame budget and pagination placement st
 | UHD                        | 3840–4160     | 2050–2250      | Fine pointer with hover  | Two panes   | Normal: up to seven fitted columns, 134–140 × 233 px, 10.5 px padding. Compact: up to twelve fitted columns, 121.625 px high, 6.5 px padding.                                 |
 | Short touch landscape      | 667–1000      | 250–500        | Coarse pointer, no hover | One pane    | Normal: up to five fitted columns, 134–142 × 232 px, 10 px padding. Safe-area insets reduce the available column budget.                                                      |
 | Small touch portrait       | 740–750       | 1047–1090      | Coarse pointer, no hover | One pane    | Normal: 137 × 226 px, 9 px image padding. The 744 × 1047 Simulator Safari sample fits two rows with a 140 px portrait image.                                                  |
-| Medium touch portrait      | 805–835       | 980–1220       | Coarse pointer, no hover | One pane    | Normal: 142 × 231 px, 9.5 px image padding. The 810 × 994 Simulator Safari sample fits five columns with a 144 px portrait image. Compact keeps the shared geometry.          |
+| Medium touch portrait      | 805–835       | 980–1220       | Coarse pointer, no hover | One pane    | Normal: 142 × 231 px, 9.5 px image padding. The 810 × 994 Simulator Safari sample fits five columns with a 144 px portrait image.                                             |
 | Small touch portrait, tall | 740–750       | 1100–1160      | Coarse pointer, no hover | One pane    | Compact: 77.7 px wide at ordinary text size. The 744 × 1133 Simulator Safari fullscreen sample fits four rows without reducing the image.                                     |
-| Air-width touch portrait   | 820–830       | 1080–1120      | Coarse pointer, no hover | One pane    | Compact: 77 × 117.625 px, 4.5 px padding. The 820 × 1094 Safari sample gains a fourth row.                                                                                    |
+| Medium portrait, Compact   | 805–835       | 1048–1120      | Coarse pointer, no hover | One pane    | Compact: 74 × 116.5 px, 4 px padding. The 810 × 1048 standalone sample fits four rows with an 80.5 px portrait image.                                                         |
 | Medium touch landscape     | 1080–1133     | 700–900        | Coarse pointer, no hover | Two panes   | Normal: 234 px high, 136 px wide, 11 px image padding, 12 px minimum gaps. Compact: 74.57 × 116.5 px, 4 px padding. The 1080 × 778 web-app sample gains a second Compact row. |
 | Wide touch landscape       | 1180–1220     | 730–900        | Coarse pointer, no hover | Two panes   | Compact: 79 × 119 px, 5 px padding. The 1180 × 734 Safari sample gains a second row with an 80 px portrait image.                                                             |
 | Large touch portrait       | 1000–1050     | 1200–1400      | Coarse pointer, no hover | Two panes   | Normal: 142 × 231 px, 9.5 px padding. The 1024 × 1280 Safari candidate grows from 2 × 2 to 3 × 3 with the same 144 px image.                                                  |
@@ -356,29 +356,29 @@ page edges in light mode. Resizing and density changes keep completed pixels vis
 Selection does not clear or repaint unchanged images. Initial previews show a small centered loading ring with an
 accessible busy state. Rendering does not stretch unfinished canvases.
 
-Page headings and navigation stay outside the image viewport. Except in the single-pane touch layout below, the counter
-text and Previous icon align with the fitted image's inline start. Fit and Next icons align with its inline end. If the
-fitted image is narrower than the minimum control span, expand the shared header/footer span enough to keep targets
-separate within the frame. These positions stay fixed during zoom and panning. The Input grip aligns with centered
-addition. Output has no grip.
+Page headings and navigation stay outside the image viewport. Except in the touch layout below, the counter text and
+Previous icon align with the fitted image's inline start. Fit and Next icons align with its inline end. If the fitted
+image is narrower than the minimum control span, expand the shared header/footer span enough to keep targets separate
+within the frame. These positions stay fixed during zoom and panning. The Input grip aligns with centered addition.
+Output has no grip.
 
-A single-pane touch layout shows Input or Output at a time and has a coarse primary pointer without hover. Use the
-active pane layout and input capabilities, not device names or orientation, to determine this scope. In this layout,
-neither Input Page nor Output Page exposes a grip. Remove its reserved space and interaction target. Grid grips retain
-their existing behavior. Page selection remains available through the page-selection bar.
+Touch Page has a coarse primary pointer without hover, in either one-pane or two-pane layout. Use input capabilities,
+not device names or orientation, to determine this scope. In these layouts, neither Input Page nor Output Page exposes a
+grip. Remove its reserved space and interaction target. Grid grips retain their existing behavior. Page selection
+remains available through the page-selection bar.
 
-In single-pane touch Page, align the header and footer groups to the frame's inner edges. Use equal inline gutters of 16
-CSS px at ordinary text size. The counter occupies the start; tools occupy the end. Previous and Next occupy the
-footer's outer positions; addition and removal stay centered between them. Keep all targets inside the frame. Center
-visible content vertically within each row, with at least 44 CSS px of row height. These references do not follow the
-PDF image, even when the fitted image is narrow. Image proportions, zoom, and panning do not move the controls.
+In touch Page, align the header and footer groups to the frame's inner edges. Use equal inline gutters of 16 CSS px at
+ordinary text size. The counter occupies the start; tools occupy the end. Previous and Next occupy the footer's outer
+positions; addition and removal stay centered between them. Keep all targets inside the frame. Center visible content
+vertically within each row, with at least 44 CSS px of row height. These references do not follow the PDF image, even
+when the fitted image is narrow. Image proportions, zoom, and panning do not move the controls.
 
-Single-pane touch Page uses a minimum image gutter of 2 rem on all four sides: 32 CSS px at ordinary text size. Fit
-centers the complete image in the available image viewport with these gutters. If the fitted image occupies less than
-70% of that viewport's full width, the initial Page entry enlarges it to the available width after the two inline
-gutters, up to 400%. Round down to a whole percentage to avoid horizontal overflow. The image starts with the full top
-gutter and retains the same bottom gutter when scrolled to the end. Wider manual zoom levels can require horizontal
-scrolling. These gutters belong to the image area, outside the PDF; they do not increase header or footer height.
+Touch Page uses a minimum image gutter of 2 rem on all four sides: 32 CSS px at ordinary text size. Fit centers the
+complete image in the available image viewport with these gutters. If the fitted image occupies less than 70% of that
+viewport's full width, the initial Page entry enlarges it to the available width after the two inline gutters, up to
+400%. Round down to a whole percentage to avoid horizontal overflow. The image starts with the full top gutter and
+retains the same bottom gutter when scrolled to the end. Wider manual zoom levels can require horizontal scrolling.
+These gutters belong to the image area, outside the PDF; they do not increase header or footer height.
 
 Determine the initial zoom after opening completes, using the rendered image viewport and the page's physical ratio.
 Apply it once per Source and once for Output. Preserve explicit zoom choices, including Fit, through view switches,
@@ -406,8 +406,8 @@ Single-pane layouts use one pagination layout for Normal and Compact: the captio
 with previous/next buttons at the row's outer edges. The visible arrow centers align with the pane's content edges, as
 do its heading and page fields. The row can extend into available side margins while all targets stay inside the
 viewport. Pagination stays clear of the status bar within the shared bottom gutter. Its arrows use separate 40 × 44 px
-targets; the slider retains a 44 px height. Page totals stay beside the current number. The page-entry field does not
-cover another control.
+targets; the slider retains a 44 px height. Reserve one caption line below it; wrapped captions can increase the row
+height. Page totals stay beside the current number. The page-entry field does not cover another control.
 
 The lens overlays the image without receiving input. Its magnifier cursor remains visible over light and dark page
 content. Inherited image tooltips stay out of the lens. Page details use a click interaction, leaving image hover
@@ -615,11 +615,12 @@ Check these rules at Fit and other zoom levels, with both themes and normal/200%
 × 375, 844 × 390, and 956 × 440 CSS px. The browser tests retain a screenshot under `.local/tmp/web/layout/` when a
 matrix or Page-control assertion fails.
 
-Single-pane touch Page checks include 320 × 568, 375 × 667, 390 × 844, 440 × 956, and portrait iPad mini viewports.
+Touch Page checks include 320 × 568, 375 × 667, 390 × 844, 440 × 956, 810 × 1048, 1080 × 778, and iPad mini viewports.
 Check both panes, short and tall PDF pages, and transitions into and out of two-pane layout. Assert that Page grips have
-no visible or keyboard target in the single-pane touch layout. Measure symmetric frame gutters and vertical control
-centers with both narrow and wide fitted images. For an overflowing image, measure its initial top gap and scroll to its
-bottom gap and navigation. Check narrow fine-pointer and two-pane touch layouts separately to enforce the scope.
+no visible or keyboard target in touch layouts. Measure symmetric frame gutters and vertical control centers with both
+narrow and wide fitted images. For an overflowing image, measure its initial top gap and scroll to its bottom gap and
+navigation. Check fine-pointer layouts separately. Rotate touch layouts across the pane breakpoint and preserve explicit
+zoom choices, including Fit.
 
 CI uploads layout failure screenshots as `layout-<group>` artifacts and retains them for seven days.
 

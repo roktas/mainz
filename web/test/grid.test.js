@@ -7,6 +7,43 @@ import { createServer, fixture, captureLayout, tab, pagePosition } from "./brows
 import { measure } from "./measure.js"
 import inventory from "./viewports.json" with { type: "json" }
 
+test("Touch portrait pagination uses available height above the safe area", { timeout: 60000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    // Match a standalone tablet's bottom inset without treating its screen as the usable viewport.
+    await page.locator(".footnote").evaluate((element) => (element.style.paddingBlockEnd = "calc(var(--gap) + 20px)"))
+    for (const [width, height] of [
+      [810, 1048],
+      [820, 1094],
+      [834, 1080],
+    ]) {
+      await page.setViewportSize({ width, height })
+      for (const name of ["Input", "Output"]) {
+        await page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true }).click()
+        const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+        for (const density of ["Normal", "Compact"]) {
+          await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+          const geometry = await measure(pane)
+          assert.deepEqual(geometry.capacity.slice(0, 2), density === "Compact" ? [9, 4] : [5, 2])
+          assert.ok(Math.abs(geometry.image.height - (density === "Compact" ? 80.625 : 144)) < 1)
+          assert.ok(geometry.clearance >= 8 && geometry.scroll <= 1)
+          const gap = geometry.status - geometry.caption.bottom
+          assert.ok(gap >= 8 && gap <= 32, `${name}, ${width}, ${density}: caption clearance ${gap}`)
+        }
+      }
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
 function checkDensityRatio(normal, compact, label) {
   const ratio = normal / compact
   assert.ok(
@@ -323,7 +360,7 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
                 [1380, 1024, "default"],
                 [1366, 979, "default"],
                 [1366, 1060, "default"],
-                [810, 1080, "portrait"],
+                [810, 1080, "medium-compact"],
                 [805, 980, "portrait"],
                 [804, 980, "default"],
                 [805, 979, "default"],
@@ -332,9 +369,12 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
                 [810, 1220, "default"],
                 [820, 1080, "medium-compact"],
                 [829, 1119, "medium-compact"],
-                [819, 1094, "portrait"],
-                [830, 1094, "portrait"],
-                [820, 1079, "portrait"],
+                [805, 1048, "medium-compact"],
+                [834, 1119, "medium-compact"],
+                [819, 1094, "medium-compact"],
+                [830, 1094, "medium-compact"],
+                [820, 1079, "medium-compact"],
+                [820, 1047, "portrait"],
                 [820, 1120, "portrait"],
                 [740, 1047, "small"],
                 [744, 1047, "small"],
@@ -499,8 +539,8 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
               assert.ok(Math.abs(geometry.card.width - (calibration === "landscape" ? 74.57 : 79)) < 0.02)
               assert.equal(geometry.card.height, calibration === "landscape" ? 116.5 : 119)
             } else if (calibration === "medium-compact") {
-              assert.equal(geometry.card.width, 77)
-              assert.equal(geometry.card.height, 117.625)
+              assert.equal(geometry.card.width, 74)
+              assert.equal(geometry.card.height, 116.5)
             } else if (calibration === "large-tall" || calibration === "large-landscape") {
               assert.equal(geometry.card.width, calibration === "large-tall" ? 81 : 83)
               assert.equal(geometry.card.height, calibration === "large-tall" ? 119.625 : 120.625)

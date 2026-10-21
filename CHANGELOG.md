@@ -22,9 +22,10 @@
 - Grid fits more readable cards in measured phone, tablet, Mac, and external-display layouts. Columns distribute space
   evenly, with matching row gaps and unused height below complete rows. Calibrations affect only matching viewports.
 - Grid pagination displays at most 64 marks while retaining every exact slider position and page-range label.
-- Single-pane touch Page starts with a wider image when Fit is too small. Fit restores the complete page, and manual
-  zoom persists across view changes. Header and footer controls align with the frame; overflow actions use the pane
-  menu.
+- Touch Page starts with a wider image when Fit is too small, in both pane layouts. Fit restores the complete page, and
+  manual zoom persists across view changes. Header and footer controls align with the frame; overflow actions use the
+  pane menu.
+- iOS and Android Home Screen icons use larger artwork with matching safe margins.
 - Without a Notice, header actions use the space after the logo. Notices use neutral text and the information accent in
   both themes.
 - Offline installation verifies four assets concurrently and completes pending writes before rolling back a failed
@@ -40,6 +41,10 @@
 
 ### Fixed
 
+- Touch Page keeps zoom controls and frame alignment when landscape orientation exposes both panes.
+- Single-pane Grid reserves one caption line below its slider. Medium tablet portrait layouts fit four Compact rows
+  while keeping page previews readable.
+- Settings, Help, and installation help close on an outside tap even when native dialog light dismissal is unavailable.
 - Two-pane Style scrolls its fields within Input while keeping Output controls, Grid capacity, and Page frames in place.
 - FHD Grid fits two Normal rows and four Compact rows in the measured 1920 × 961 browser viewport. Desktop estimates
   reserve 120 CSS px for browser and desktop controls, with separate references for measured content viewports.
