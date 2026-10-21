@@ -4,7 +4,7 @@ Keep this file within 200 lines.
 
 ## Before editing
 
-Use the owner table, outlines, and links to read only relevant sections. Reuse them until the scope or document changes.
+Read owner sections. UI edits start at the [preview gate](#preview-and-mockups).
 
 | Change                                                           | Owner                                 |
 | ---------------------------------------------------------------- | ------------------------------------- |
@@ -60,9 +60,8 @@ The processor imports no producer or application code. Mainz imports neither Sev
 Style DSL and export integration. Megic owns publication policy and parameter semantics. Keep real integration scenarios
 in those repositories.
 
-Keep maintained inputs in Git and project output under root `.local/`. Clean disposable `.local/tmp/` after work; retain
-measurements in `.local/var/`. Keep large SDKs, runtimes, toolchains, and caches outside Dropbox. Follow
-[tool storage and evidence retention](web/doc/VIEWPORTS.md#tool-storage) before installing or moving them.
+Keep inputs in Git and project output under root `.local/`. Clean `.local/tmp/`; retain measurements in `.local/var/`.
+Keep large tools and caches outside Dropbox. Follow [tool storage](web/doc/VIEWPORTS.md#tool-storage).
 
 ## Build and validation
 
@@ -167,8 +166,9 @@ text, both themes, and relevant loading/error/cancellation states.
 
 ### Preview and mockups
 
-For UI implementation, reuse the workspace server or start one: `npm run dev -- --port 5173 --strictPort`. Share its URL
-immediately. Keep it until push, then stop it. Documentation/design discussion need no server.
+Before the first UI or visual-mockup edit, start or reuse the preview server, confirm HTTP success, and share its URL.
+Do not edit before sharing a working URL. Use `npm run dev -- --port 5173 --strictPort`. Keep the server until push,
+then stop it. Documentation-only work needs no server.
 
 `http://127.0.0.1:5173/?demo` opens the maintained seven-page fixture. Development also accepts `?demo&paint` for Style
 with Inkjet. Production preview uses `npm run preview -- --port 4173 --strictPort`.
