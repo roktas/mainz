@@ -76,6 +76,9 @@ Grid tests own the full viewport matrices and calibration boundaries. Alignment 
 calibration, both themes, both panes and densities, normal/200% text, selected states, and long page numbers. They do
 not repeat every nearby calibration boundary. Page geometry tests own fitted image and control alignment.
 
+Grid browser scenarios supply their PDF through request routing. They do not require the manual
+`.local/tmp/web/grid/sample.pdf` fixture.
+
 Before merging changes to shared layout, Grid/Page geometry, or calibration rules, run the affected full groups:
 `alignment`, `grid`, or `geometry`. Calibration-tool changes also require `viewport`. Record the commands and results in
 the PR or handoff. Documentation-only changes do not require these matrices. Standard CI remains the functional gate for

@@ -189,6 +189,9 @@ test("Phone Compact gaps keep the narrow-screen allowance below tablet widths", 
       reducedMotion: "reduce",
     })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.route("**/grid.pdf", (route) =>
+      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
+    )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
     await page.waitForFunction(
       () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
@@ -353,7 +356,13 @@ test("Touch portrait pagination uses available height above the safe area", { ti
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.route("**/grid.pdf", (route) =>
+      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
+    )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    await page.waitForFunction(
+      () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+    )
     // Match a standalone tablet's bottom inset without treating its screen as the usable viewport.
     await page.locator(".footnote").evaluate((element) => (element.style.paddingBlockEnd = "calc(var(--gap) + 20px)"))
     for (const [width, height] of [

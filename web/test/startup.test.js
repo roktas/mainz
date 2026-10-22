@@ -8,6 +8,7 @@ import { build, preview } from "vite"
 import { chromium, devices } from "playwright"
 import { aligned, zoom } from "./workspace.js"
 import { checkGeometry, checkStatus, createServer, trackWorkers, fixture, tab, pixel } from "./browser.js"
+import { measure } from "./measure.js"
 
 async function checkMobile(browser, url) {
   const sample = await readFile("test/fixtures/demo.pdf")
@@ -1096,7 +1097,7 @@ test("Input density starts from two Normal batches and retains each Source choic
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, small, large] of [
       [1920, 1080, 12, 13],
-      [2560, 1440, 24, 25],
+      [2560, 1440, 32, 33],
       [390, 1100, 2, 3],
     ]) {
       const page = await browser.newPage({ viewport: { width, height }, reducedMotion: "reduce" })
@@ -1129,6 +1130,11 @@ test("Input density starts from two Normal batches and retains each Source choic
       }
       await open("Small.pdf", small)
       assert.equal(await input.getAttribute("data-density"), "normal", "Exactly two batches retain Normal")
+      assert.equal(
+        small,
+        2 * (await measure(input)).capacity[2],
+        "The small fixture contains exactly two Normal batches",
+      )
       assert.equal(await output.getAttribute("data-density"), "normal")
       await input.getByRole("button", { name: "Compact Input grid", exact: true }).press("Space")
       await open("Large.pdf", large)
@@ -1185,20 +1191,21 @@ test(
       )
       await page.addInitScript(() => {
         const overflows = (window.previewOverflows = [])
-        const measure = () => {
+        const inspect = () => {
           for (const frame of document.querySelectorAll(".page-image .thumbnail")) {
             const canvas = frame.querySelector("canvas")
             if (canvas && canvas.getBoundingClientRect().height > frame.getBoundingClientRect().height + 1)
               overflows.push(canvas.getBoundingClientRect().height)
           }
-          requestAnimationFrame(measure)
+          requestAnimationFrame(inspect)
         }
-        requestAnimationFrame(measure)
+        requestAnimationFrame(inspect)
       })
       await page.goto(`${server.resolvedUrls.local[0]}?demo=grid&input=page`)
+      const output = page.locator(".composition-output")
       const ready = () =>
         page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
-      await page.waitForFunction(() => document.querySelectorAll(".composition-output .composition-card").length === 12)
+      await measure(output)
       await ready()
       await page.evaluate(async () => {
         const { openPDF } = await import("/src/pdf.ts")
@@ -1225,7 +1232,6 @@ test(
         }
         await task.destroy()
       })
-      const output = page.locator(".composition-output")
       const snapshots = new Map()
       const snapshot = () =>
         output
@@ -1251,12 +1257,13 @@ test(
         window.pdfContinuations = []
       })
       await ready()
-      assert.equal(await page.evaluate(() => window.pdfRenderCount), 56)
+      const count = (await measure(output)).matrix[2]
+      assert.equal(await page.evaluate(() => window.pdfRenderCount), count)
       snapshots.set("Compact", await snapshot())
       await tab(output, "Page")
       await ready()
       assert.ok(
-        await page.evaluate(() => window.pdfCleanups.size >= 56),
+        await page.evaluate((minimum) => window.pdfCleanups.size >= minimum, count),
         "Leaving Grid releases its PDF page resources",
       )
       snapshots.set("Page", await snapshot())

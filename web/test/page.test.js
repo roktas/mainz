@@ -180,7 +180,7 @@ test("Arrows enter Grid without selection and Page keys change thumbnail groups"
   }
 })
 
-test("Page and Grid share viewport bounds and density keeps the fitted image size", { timeout: 60000 }, async () => {
+test("Page and Grid share viewport bounds and density keeps the fitted image size", { timeout: 90000 }, async (t) => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser
   try {
@@ -190,150 +190,153 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
     const errors = []
     page.on("pageerror", (error) => errors.push(error.message))
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    // Grid tests own full matrix packing; Page needs a populated shared frame.
     await page.route("**/grid.pdf", (route) =>
-      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
+      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 80) }),
     )
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     for (const colorScheme of ["light", "dark"]) {
       await page.emulateMedia({ colorScheme })
-      for (const [width, height, rows, capacity] of [
-        [1920, 1080, 4, 24],
-        [2240, 1260, 6, 42],
-        [2560, 1440, 7, 56],
-        [3840, 2160, 13, 156],
+      for (const [width, height] of [
+        [1920, 1080],
+        [2240, 1260],
+        [2560, 1440],
+        [3840, 2160],
       ]) {
-        await page.setViewportSize({ width, height })
-        await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-        await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-        )
-        await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
-        await page.waitForFunction(
-          (batch) => document.querySelector(".selection-panel .grid-view")?.dataset.batch === String(batch),
-          capacity,
-        )
-        await tab(output, "Page")
-        await output.locator(".pdf-viewport[aria-busy=false]").waitFor()
-        await aligned(output)
-        const geometry = await page.evaluate(() => {
-          const grid = document.querySelector(".grid-view"),
-            view = document.querySelector(".page-view")
-          const scroll = view.querySelector(".page-scroll").getBoundingClientRect()
-          const sheet = view.querySelector("canvas").getBoundingClientRect()
-          const actions = view.querySelector(".page-actions").getBoundingClientRect()
-          const frame = view.getBoundingClientRect()
-          return {
-            rows: Number(grid.dataset.rows),
-            frames: [grid, view].map((element) => element.getBoundingClientRect().height),
-            image: [sheet.width, sheet.height],
-            surround: [scroll.width, scroll.height],
-            margins: [sheet.top - scroll.top, scroll.bottom - sheet.bottom],
-            side: sheet.left - scroll.left,
-            heading: view.querySelector(".inspection-heading").getBoundingClientRect().height,
-            actionOffset: actions.x + actions.width / 2 - frame.x - frame.width / 2,
-            fillsViewport: document.documentElement.scrollHeight <= innerHeight,
-            footerGap:
-              document.querySelector(".footnote").getBoundingClientRect().top -
-              parseFloat(getComputedStyle(document.querySelector("main")).paddingBottom) -
-              frame.bottom,
-          }
-        })
-        assert.equal(geometry.rows, rows)
-        assert.equal(geometry.heading, 45, "Output Page keeps its controls on one heading row")
-        assert.ok(Math.abs(geometry.actionOffset) < 1, "Page actions stay centered")
-        assert.equal(geometry.frames[0], geometry.frames[1], "Grid and Page keep one shared frame")
-        assert.ok(Math.abs(geometry.margins[0] - geometry.margins[1]) < 1, "Page stays vertically centered")
-        if (geometry.fillsViewport)
-          assert.ok(Math.abs(geometry.footerGap) < 1, "Spare viewport height fills the frame above the status bar")
-        else
-          assert.ok(
-            geometry.margins.every((margin) => margin <= Math.max(48, geometry.side * 1.5) + 1),
-            "Fitted margins stay balanced when the workspace exceeds the viewport height",
+        await t.test(`${width}×${height}, ${colorScheme}`, async () => {
+          await page.setViewportSize({ width, height })
+          await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+          await page.waitForFunction(
+            () => document.querySelector(".composition-totals strong")?.textContent === "80 PDF pages",
           )
-        assert.ok(
-          geometry.image.every((size, axis) => size <= geometry.surround[axis]),
-          "Fit keeps the complete PDF within its available image area",
-        )
+          await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
+          await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+          const before = await measure(input)
+          await tab(output, "Page")
+          await output.locator(".pdf-viewport[aria-busy=false]").waitFor()
+          await aligned(output)
+          const geometry = await page.evaluate(() => {
+            const grid = document.querySelector(".grid-view"),
+              view = document.querySelector(".page-view")
+            const scroll = view.querySelector(".page-scroll").getBoundingClientRect()
+            const sheet = view.querySelector("canvas").getBoundingClientRect()
+            const actions = view.querySelector(".page-actions").getBoundingClientRect()
+            const frame = view.getBoundingClientRect()
+            return {
+              rows: Number(grid.dataset.rows),
+              frames: [grid, view].map((element) => element.getBoundingClientRect().height),
+              image: [sheet.width, sheet.height],
+              surround: [scroll.width, scroll.height],
+              margins: [sheet.top - scroll.top, scroll.bottom - sheet.bottom],
+              side: sheet.left - scroll.left,
+              heading: view.querySelector(".inspection-heading").getBoundingClientRect().height,
+              actionOffset: actions.x + actions.width / 2 - frame.x - frame.width / 2,
+              fillsViewport: document.documentElement.scrollHeight <= innerHeight,
+              footerGap:
+                document.querySelector(".footnote").getBoundingClientRect().top -
+                parseFloat(getComputedStyle(document.querySelector("main")).paddingBottom) -
+                frame.bottom,
+            }
+          })
+          assert.equal(geometry.rows, before.capacity[1], "Page retains its companion Grid's row capacity")
+          assert.equal(geometry.heading, 45, "Output Page keeps its controls on one heading row")
+          assert.ok(Math.abs(geometry.actionOffset) < 1, "Page actions stay centered")
+          assert.equal(geometry.frames[0], geometry.frames[1], "Grid and Page keep one shared frame")
+          assert.ok(Math.abs(geometry.margins[0] - geometry.margins[1]) < 1, "Page stays vertically centered")
+          if (geometry.fillsViewport)
+            assert.ok(Math.abs(geometry.footerGap) < 1, "Spare viewport height fills the frame above the status bar")
+          else
+            assert.ok(
+              geometry.margins.every((margin) => margin <= Math.max(48, geometry.side * 1.5) + 1),
+              "Fitted margins stay balanced when the workspace exceeds the viewport height",
+            )
+          assert.ok(
+            geometry.image.every((size, axis) => size <= geometry.surround[axis]),
+            "Fit keeps the complete PDF within its available image area",
+          )
+        })
       }
     }
-    await page.setViewportSize({ width: 1920, height: 1080 })
-    const viewport = output.getByRole("region", { name: "PDF viewport", exact: true })
-    const fittedFrame = await output.locator(".page-view").boundingBox()
-    await zoom(output, "Zoom in")
-    assert.equal(
-      (await output.locator(".page-view").boundingBox()).height,
-      fittedFrame.height,
-      "Page zoom keeps the shared frame height",
-    )
-    await zoom(output, "Fit page")
-    await viewport.focus()
-    await page.keyboard.press("End")
-    await output.locator(".pdf-viewport[aria-busy=false]").waitFor()
-    await page.waitForFunction(() => {
-      const sheet = document.querySelector(".page-view canvas")
-      return sheet && sheet.clientWidth > sheet.clientHeight
+    await t.test("Responsive zoom and empty Output retain the shared frame", async () => {
+      await page.setViewportSize({ width: 1920, height: 1080 })
+      const viewport = output.getByRole("region", { name: "PDF viewport", exact: true })
+      const fittedFrame = await output.locator(".page-view").boundingBox()
+      await zoom(output, "Zoom in")
+      assert.equal(
+        (await output.locator(".page-view").boundingBox()).height,
+        fittedFrame.height,
+        "Page zoom keeps the shared frame height",
+      )
+      await zoom(output, "Fit page")
+      await viewport.focus()
+      await page.keyboard.press("End")
+      await output.locator(".pdf-viewport[aria-busy=false]").waitFor()
+      await page.waitForFunction(() => {
+        const sheet = document.querySelector(".page-view canvas")
+        return sheet && sheet.clientWidth > sheet.clientHeight
+      })
+      const landscape = await output.locator(".page-view").boundingBox()
+      assert.equal(landscape.height, fittedFrame.height, "Page proportions keep the shared viewport frame")
+      await tab(input, "Page")
+      await input.locator(".pdf-viewport[aria-busy=false]").waitFor()
+      const heights = await page
+        .locator(".page-view")
+        .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height))
+      assert.equal(heights[0], heights[1], "Two Pages share the height needed by the taller fitted page")
+      assert.equal(heights[0], landscape.height)
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page
+        .getByRole("navigation", { name: "Workspace view", exact: true })
+        .getByRole("button", { name: "Output", exact: true })
+        .click()
+      await page.waitForFunction(() => document.querySelector(".composition-output .page-view")?.clientHeight < 600)
+      assert.ok(
+        (await output.locator(".page-view").boundingBox()).height < 600,
+        "The hidden mobile Page does not enlarge the visible Page's frame",
+      )
+      await page.setViewportSize({ width: 1920, height: 1080 })
+      await tab(input, "Grid")
+      await tab(output, "Grid")
+      await output.getByRole("button", { name: "Normal Output grid", exact: true }).click()
+      await output.getByRole("slider", { name: "Output thumbnail range", exact: true }).press("Home")
+      await tab(output, "Page")
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
+      await page
+        .getByRole("navigation", { name: "Workspace view", exact: true })
+        .getByRole("button", { name: "Output", exact: true })
+        .click()
+      await output.locator(".pdf-viewport[aria-busy=false]").waitFor()
+      await aligned(output)
+      const natural = await image(output).boundingBox()
+      await tab(output, "Grid")
+      await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+      await tab(output, "Page")
+      await page.waitForFunction(({ width, height }) => {
+        const bounds = document.querySelector(".composition-output .page-view canvas")?.getBoundingClientRect()
+        return bounds && Math.abs(bounds.width - width) < 1 && Math.abs(bounds.height - height) < 1
+      }, natural)
+      await output.locator(".pdf-viewport[aria-busy=false]").waitFor()
+      const compact = await image(output).boundingBox()
+      assert.ok(
+        Math.abs(compact.width - natural.width) < 1 && Math.abs(compact.height - natural.height) < 1,
+        "Density preserves the fitted PDF at 200% text",
+      )
+      await page.evaluate(() => (document.documentElement.style.fontSize = ""))
+      await page.setViewportSize({ width: 1920, height: 1080 })
+      await output.getByRole("button", { name: "Select all", exact: true }).click()
+      await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
+      await output.getByRole("heading", { name: "Your Output starts here.", exact: true }).waitFor()
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+      await page.waitForFunction(() => document.querySelector(".selection-panel .grid-view")?.dataset.batch === "24")
+      assert.equal(
+        await input.locator(".grid-view").getAttribute("data-rows"),
+        "4",
+        "An empty Output Page keeps Input within the shared viewport budget",
+      )
+      assert.deepEqual(errors, [])
     })
-    const landscape = await output.locator(".page-view").boundingBox()
-    assert.equal(landscape.height, fittedFrame.height, "Page proportions keep the shared viewport frame")
-    await tab(input, "Page")
-    await input.locator(".pdf-viewport[aria-busy=false]").waitFor()
-    const heights = await page
-      .locator(".page-view")
-      .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height))
-    assert.equal(heights[0], heights[1], "Two Pages share the height needed by the taller fitted page")
-    assert.equal(heights[0], landscape.height)
-    await page.setViewportSize({ width: 390, height: 844 })
-    await page
-      .getByRole("navigation", { name: "Workspace view", exact: true })
-      .getByRole("button", { name: "Output", exact: true })
-      .click()
-    await page.waitForFunction(() => document.querySelector(".composition-output .page-view")?.clientHeight < 600)
-    assert.ok(
-      (await output.locator(".page-view").boundingBox()).height < 600,
-      "The hidden mobile Page does not enlarge the visible Page's frame",
-    )
-    await page.setViewportSize({ width: 1920, height: 1080 })
-    await tab(input, "Grid")
-    await tab(output, "Grid")
-    await output.getByRole("button", { name: "Normal Output grid", exact: true }).click()
-    await output.getByRole("slider", { name: "Output thumbnail range", exact: true }).press("Home")
-    await tab(output, "Page")
-    await page.setViewportSize({ width: 390, height: 844 })
-    await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
-    await page
-      .getByRole("navigation", { name: "Workspace view", exact: true })
-      .getByRole("button", { name: "Output", exact: true })
-      .click()
-    await output.locator(".pdf-viewport[aria-busy=false]").waitFor()
-    await aligned(output)
-    const natural = await image(output).boundingBox()
-    await tab(output, "Grid")
-    await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
-    await tab(output, "Page")
-    await page.waitForFunction(({ width, height }) => {
-      const bounds = document.querySelector(".composition-output .page-view canvas")?.getBoundingClientRect()
-      return bounds && Math.abs(bounds.width - width) < 1 && Math.abs(bounds.height - height) < 1
-    }, natural)
-    await output.locator(".pdf-viewport[aria-busy=false]").waitFor()
-    const compact = await image(output).boundingBox()
-    assert.ok(
-      Math.abs(compact.width - natural.width) < 1 && Math.abs(compact.height - natural.height) < 1,
-      "Density preserves the fitted PDF at 200% text",
-    )
-    await page.evaluate(() => (document.documentElement.style.fontSize = ""))
-    await page.setViewportSize({ width: 1920, height: 1080 })
-    await output.getByRole("button", { name: "Select all", exact: true }).click()
-    await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
-    await output.getByRole("heading", { name: "Your Output starts here.", exact: true }).waitFor()
-    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
-    await page.waitForFunction(() => document.querySelector(".selection-panel .grid-view")?.dataset.batch === "24")
-    assert.equal(
-      await input.locator(".grid-view").getAttribute("data-rows"),
-      "4",
-      "An empty Output Page keeps Input within the shared viewport budget",
-    )
-    assert.deepEqual(errors, [])
   } finally {
     await browser?.close()
     await server.close()

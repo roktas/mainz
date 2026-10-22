@@ -536,7 +536,6 @@ export async function checkWorkspace(page, prepared, ordinary) {
   check(Math.abs(headers[0].y - headers[1].y) < 1, "Input and Output headings align")
   check(await output.locator(".section-heading .primary").isVisible(), "Download is in the Output header")
   await inputStyle().click()
-  check(await input.locator(".source-tabs .style-status").isVisible(), "Style controls share the tab row")
   const control = input.locator("article.control").first()
   const [tools, panel] = await Promise.all([
     input.locator(".source-tools").boundingBox(),

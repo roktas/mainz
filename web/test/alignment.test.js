@@ -14,6 +14,9 @@ test("Style retains a Compact companion frame on short touch landscapes", { time
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.route("**/grid.pdf", (route) =>
+      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
+    )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
     await page.waitForFunction(
       () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",

@@ -5,6 +5,7 @@ import test from "node:test"
 import { chromium } from "playwright"
 import { zoom } from "./workspace.js"
 import { createServer, tab, pagePosition, gridPage, fixture, hasCursor, captureLayout } from "./browser.js"
+import { measure } from "./measure.js"
 
 test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
@@ -265,7 +266,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
         assert.equal(await field.inputValue(), "")
         assert.equal(await page.evaluate(() => document.activeElement instanceof HTMLInputElement), false)
         await pane.getByRole("button", { name: "Select all", exact: true }).tap()
-        assert.equal(await field.inputValue(), name === "Input" ? "1-7" : "1-6")
+        assert.equal(await field.inputValue(), name === "Input" ? "1-8" : "1-6")
         assert.equal(await page.evaluate(() => document.activeElement instanceof HTMLInputElement), false)
         await clear.press("Space")
         assert.equal(await field.inputValue(), "")
@@ -332,7 +333,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
         await target.tap()
         await pane.locator(".page-view").waitFor()
         assert.equal(await field.inputValue(), "2-4,6", "Double tap restores Selection before opening Page")
-        assert.match(await pagePosition(pane), name === "Input" ? /^1\s*\/\s*7$/ : /^1\s*\/\s*6$/)
+        assert.match(await pagePosition(pane), name === "Input" ? /^1\s*\/\s*8$/ : /^1\s*\/\s*6$/)
         assert.equal(await total(), before)
         const sheet = pane.locator(".page-scroll canvas")
         await pane.locator('.pdf-viewport[aria-busy="false"]').waitFor()
@@ -551,9 +552,7 @@ test("Dragging opens stable page slots, previews density, and commits only on dr
           output = page.locator(".composition-output")
         await input.getByLabel("Page selection", { exact: true }).fill("1-7")
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
-        await page.waitForFunction(
-          () => document.querySelector(".composition-output .grid-view")?.dataset.batch === "12",
-        )
+        await measure(output)
         await output.locator(".composition-card").nth(6).waitFor()
         await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
         if (density === "Compact") {
