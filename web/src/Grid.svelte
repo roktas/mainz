@@ -5,6 +5,7 @@
   import type { Snippet } from "svelte"
   import Icon from "./Icon.svelte"
   import { blocked, fields } from "./keyboard.ts"
+  import { fit } from "./fit.ts"
 
   let {
     pane,
@@ -75,6 +76,7 @@
       if (!element.clientWidth) return
       const previous = batch
       const anchor = position >= start && position < start + batch ? position : offset
+      fit(grid)
       // The viewport budget is fixed in CSS; rendered cards cannot resize it.
       const style = getComputedStyle(grid)
       columns = Math.max(1, style.gridTemplateColumns.split(" ").length)

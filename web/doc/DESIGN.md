@@ -162,7 +162,7 @@ rows = pages and applies to both Input and Output.
 | Safari, 2560 × 1358       | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
 | QHD PWA, 2560 × 1440      | 1472 px         | 4 × 4 = 16 | 8 × 8 = 64    |
 | UHD-, 3840 × 2040         | 2208 px         | 7 × 6 = 42 | 12 × 12 = 144 |
-| UHD, 3840 × 2160          | 2208 px         | 7 × 7 = 49 | 12 × 13 = 156 |
+| UHD, 3840 × 2160          | 2208 px         | 7 × 7 = 49 | 12 × 14 = 168 |
 
 Desktop references ending in `-` keep the nominal width. Their estimated height is `screenHeight - 120 CSS px`. The
 fixed allowance approximates browser and desktop controls at ordinary scale. These estimates are synthetic test inputs.
@@ -239,6 +239,17 @@ Apply these priorities in order: usable controls and complete PDF images; the re
 count optimization within a calibration. If a complete usable row cannot fit, permit document scrolling. Do not reduce
 image legibility or control sizes to avoid that exception. Shared layouts do not need to maximize card count.
 
+Keep Grid capacity stable across neighboring viewport sizes when the same matrix still fits within these visual limits.
+Before removing a row or column, fit card dimensions and gaps within their permitted ranges using the actual pane space.
+Apply the existing 80% gap ratio only to phone Compact layouts; other layouts retain 85%. A calibration boundary alone
+does not justify losing a row. Genuine fit thresholds can change the matrix when its readable cards and usable controls
+no longer fit. Equal geometry must produce equal results, independent of resize history and device names.
+
+Start boundary checks within three CSS px on each side, including one-pixel steps and fractional browser-zoom sizes.
+This is an initial test neighborhood, not an extra layout tolerance or a replacement breakpoint. Follow a discontinuity
+farther when needed to establish the actual fit limit. Retain image-size floors, margins, minimum gaps, and clear
+pagination.
+
 Ratios use width:height. The A4 target `1:sqrt(2)` describes the full card, including its header and actions. Controls
 can make the card taller than paper. At ordinary text size, the required portrait-reference bounds are
 `sqrt(2) <= height / width <= 280 / 150`, approximately 1.41–1.87. The upper bound includes the accepted tall QHD card;
@@ -304,18 +315,20 @@ previews when another column cannot fit. They apply between measured viewport ba
 authored vertical image padding, with a 0.5 rem floor for usable separation. Actual distributed spacing drives both row
 capacity and calibrated card height. Do not calculate one from the minimum gap and the other from the distributed gap.
 
-The QHD calibration targets three Normal rows below 1420 CSS px in height, with 240–280 px cards and 16 px image
-padding. From 1420 CSS px, it fits four Normal rows with 224–256 px cards and 14 px image padding. At 2560 × 1440,
-Normal cards are 150 × 229.125 px with 133 px images; Compact cards are 75 × 112.5 px with 69.5 px images. Both
-densities gain a complete row while retaining the shared frame, balanced gaps, and image-scale rule. The Normal width is
-9.375 rem and its minimum gap is 14 px. Heading and footer controls retain their ordinary size and at least 44 px
-targets. Viewport-specific card dimensions and spacing belong in `frame.css`. Card styles consume those shared values.
+The QHD preferences use 150 px Normal widths, 14–16 px image padding, and 224–280 px height limits across viewport
+bands. Desktop fitting can reduce these preferred dimensions within the visual limits to retain complete rows across
+band boundaries. At 2560 × 1440, Normal cards are 150 × 229.125 px with 133 px images; Compact cards are 75 × 112.5 px
+with 69.5 px images. Heading and footer controls retain their ordinary size and at least 44 px targets.
+Viewport-specific preferred card dimensions and spacing belong in `frame.css`. `fit.ts` fits the desktop Grid and Page
+reference from their shared measured frame, within the readability and gap limits above. It resolves dimensions before
+cards inherit them, so nested CSS expressions do not repeat across every card. Card styles consume the resolved values.
+Fine-pointer calibration padding and tool heights use fixed px or rem values.
 
 The calibration table requires viewport width, viewport height, primary pointer, orientation where relevant, and pane
 layout. Upper bounds are exclusive. Entries do not override another entry at the same density. Each entry changes only
-card dimensions and spacing. The shared frame budget and pagination placement stay independent of calibration.
+preferred card dimensions and spacing. The shared frame budget and pagination placement stay independent of calibration.
 
-| Reference                  | Width, CSS px | Height, CSS px | Input condition          | Pane layout | Card geometry                                                                                                                                                                 |
+| Reference                  | Width, CSS px | Height, CSS px | Input condition          | Pane layout | Preferred card geometry                                                                                                                                                       |
 | -------------------------- | ------------- | -------------- | ------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Desktop Compact            | 1280–2140     | 700–1200       | Fine pointer with hover  | Two panes   | Compact: six fitted columns, 121 px high, 6.4 px image padding; images stay within 1 px of the shared reference.                                                              |
 | FHD-                       | 1800–2000     | 950–1000       | Fine pointer with hover  | Two panes   | Normal: 148 × 224 px. Compact: 78 × 110.5 px. Image padding remains 14 px and 6.4 px. This entry replaces Desktop Compact within these bounds.                                |

@@ -13,6 +13,7 @@
   import type { Magnification } from "./Lens.svelte"
   import Icon from "./Icon.svelte"
   import Pdf from "./Pdf.svelte"
+  import { fit } from "./fit.ts"
   export type Inspection = {
     size: Size
     page?: number
@@ -139,18 +140,23 @@
   function measureThumbnail(element: HTMLSpanElement) {
     const ratio = sheet ? sheet.size.width / sheet.size.height : 1
     let frame: number
-    const observer = new ResizeObserver(() => {
+    const schedule = () => {
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
+        fit(element.parentElement!)
         const bounds = element.getBoundingClientRect()
         const style = getComputedStyle(element)
         const width = bounds.width - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
         const height = bounds.height - parseFloat(style.paddingBlockStart) - parseFloat(style.paddingBlockEnd)
         thumbnailWidth = Math.max(0, Math.min(width, height * ratio))
       })
-    })
+    }
+    const observer = new ResizeObserver(schedule)
     observer.observe(element)
+    observer.observe(element.closest(".page-content")!)
+    window.addEventListener("resize", schedule)
     return () => {
+      window.removeEventListener("resize", schedule)
       observer.disconnect()
       cancelAnimationFrame(frame)
     }
@@ -184,13 +190,15 @@
         if (initializeZoom && sheet) {
           const gutter = parseFloat(style.paddingBlockStart)
           const available = Math.max(1, element.clientWidth - 2 * gutter)
-          const fit = Math.min(
+          const reference = Math.min(
             available,
             Math.max(1, element.clientHeight - 2 * gutter) * (sheet.size.width / sheet.size.height),
           )
           const touch = getComputedStyle(element).getPropertyValue("--page-touch").trim() === "1"
           initializeZoom(
-            touch && fit < 0.7 * element.clientWidth ? Math.min(400, Math.floor((100 * available) / fit)) : level,
+            touch && reference < 0.7 * element.clientWidth
+              ? Math.min(400, Math.floor((100 * available) / reference))
+              : level,
           )
           if (touch && !element.ownerDocument.activeElement?.matches(":focus-visible"))
             element.parentElement!.scrollIntoView({ block: "start", behavior: "instant" })

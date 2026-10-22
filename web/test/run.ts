@@ -50,11 +50,13 @@ const minimal = {
 }
 const matrices = {
   grid: [
+    "Grid keeps feasible matrices across nearby desktop calibration boundaries",
+    "Grid retains feasible matrices across fractional desktop pane widths",
     "Measured touch frames retain complete readable matrices",
     "Measured touch calibrations isolate viewport bounds and primary input",
     "Touch Grid uses complete rows within the available viewport",
     "Grid matrices match desktop viewports and bounded calibrations",
-    "Calibrations stay isolated across viewport bounds and input capabilities",
+    "Grid fitting respects viewport bounds and input capabilities",
     "Grid scales desktop capacity, balances Page, and retains compact actions",
     "Compact pagination retains readable four- and five-digit numbers",
   ],

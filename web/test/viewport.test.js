@@ -5,9 +5,71 @@ import test from "node:test"
 import { mkdir } from "node:fs/promises"
 import { chromium } from "playwright"
 import { createServer, fixture } from "./browser.js"
-import { collect, environments } from "./measure.js"
+import { collect, environments, measure } from "./measure.js"
 import { geometry, csv } from "../src/geometry.ts"
 import { quality } from "./quality.ts"
+
+test("Stable geometry retains fresh viewport metadata after resizing", { timeout: 30000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.route("**/grid.pdf", (route) =>
+      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 8) }),
+    )
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    await page.waitForFunction(
+      () => document.querySelector(".composition-totals strong")?.textContent === "8 PDF pages",
+    )
+    for (const [width, height] of [
+      [1280, 800],
+      [1366, 900],
+    ]) {
+      await page.setViewportSize({ width, height })
+      const sample = await page.evaluate(async () => (await import("/src/geometry.ts")).stable())
+      const direct = await page.evaluate(geometry)
+      assert.deepEqual(sample.layout, direct.layout)
+      assert.deepEqual(sample.viewport, direct.viewport)
+      assert.deepEqual(sample.viewport.inner, [width, height])
+      for (const unit of ["svh", "dvh", "lvh"]) assert.equal(sample.viewport[unit], height)
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
+test("Grid measurement refreshes stylesheet preferences within the same frame", { timeout: 30000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.route("**/grid.pdf", (route) =>
+      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 32) }),
+    )
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    const input = page.locator(".selection-panel")
+    await input.getByRole("button", { name: "Normal Input grid", exact: true }).click()
+    const before = await measure(input)
+    const override = await page.addStyleTag({ content: ".composer .selection-panel { --grid-height: 14rem; }" })
+    const captured = await page.evaluate(async () => (await import("/src/geometry.ts")).capture())
+    const candidate = captured.layout.input.normal
+    assert.equal(candidate.card.height, 224)
+    assert.deepEqual(candidate.frame, before.frame)
+    assert.deepEqual((await measure(input)).card, candidate.card)
+    await override.evaluate((element) => element.remove())
+    assert.equal((await measure(input)).card.height, before.card.height)
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
 
 test("One geometry schema captures desktop and touch without changing Grid choices", { timeout: 180000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
@@ -209,7 +271,7 @@ test("One geometry schema captures desktop and touch without changing Grid choic
   }
 })
 
-test("Measured frames gain rows or columns while keeping balanced readable images", { timeout: 900000 }, async () => {
+test("Measured frames gain rows or columns while keeping balanced readable images", { timeout: 900000 }, async (t) => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser
   try {
@@ -252,47 +314,52 @@ test("Measured frames gain rows or columns while keeping balanced readable image
           style.remove()
         }
       })
-    const report = await measureSearch()
-    assert.deepEqual(report.baseline.layout.input.normal.matrix, [4, 1, 4])
-    const candidate = report.candidates.find(
-      (item) => !item.failures.length && item.layout.input.normal.matrix[1] === 2,
-    )
-    assert.ok(candidate)
-    assert.deepEqual(candidate.failures, [])
-    for (const pane of ["input", "output"]) {
-      const { normal, compact } = candidate.layout[pane]
-      assert.deepEqual(normal.matrix, [4, 2, 8])
-      assert.ok(normal.image.height >= 128)
-      assert.ok(normal.margins[2] / normal.margins[0] <= 2.05)
-      assert.ok(compact.matrix[2] >= report.baseline.layout[pane].compact.matrix[2])
-    }
-    await page.setViewportSize({ width: 744, height: 1233 })
-    await page.addStyleTag({
-      content: `
+    await t.test("Tablet gains a complete row", async () => {
+      const report = await measureSearch()
+      assert.deepEqual(report.baseline.layout.input.normal.matrix, [4, 1, 4])
+      const candidate = report.candidates.find(
+        (item) => !item.failures.length && item.layout.input.normal.matrix[1] === 2,
+      )
+      assert.ok(candidate)
+      assert.deepEqual(candidate.failures, [])
+      for (const pane of ["input", "output"]) {
+        const { normal, compact } = candidate.layout[pane]
+        assert.deepEqual(normal.matrix, [4, 2, 8])
+        assert.ok(normal.image.height >= 128)
+        assert.ok(normal.margins[2] / normal.margins[0] <= 2.05)
+        assert.ok(compact.matrix[2] >= report.baseline.layout[pane].compact.matrix[2])
+      }
+    })
+    await t.test("Tall tablet fits an extra column", async () => {
+      await page.setViewportSize({ width: 744, height: 1233 })
+      await page.addStyleTag({
+        content: `
         .composer :is(.selection-panel,.composition-output)[data-density="normal"] { --grid-height: 264px; }
         .composer :is(.selection-panel,.composition-output)[data-density="compact"] {
           --grid-width: 80px; --grid-height: 135px; --thumbnail-padding: 7.5px;
         }
       `,
+      })
+      const multipleRows = await measureSearch()
+      assert.ok(multipleRows.baseline.layout.input.compact.matrix[1] >= 3)
+      const column = multipleRows.candidates.find((item) => item.name === "compact-column-fit")
+      assert.ok(column, "The fit search includes extra columns in an existing multirow matrix")
+      assert.deepEqual(column.failures, [])
+      assert.ok(column.layout.input.compact.matrix[0] > multipleRows.baseline.layout.input.compact.matrix[0])
     })
-    const multipleRows = await measureSearch()
-    assert.ok(multipleRows.baseline.layout.input.compact.matrix[1] >= 3)
-    const column = multipleRows.candidates.find((item) => item.name === "compact-column-fit")
-    assert.ok(column, "The fit search includes extra columns in an existing multirow matrix")
-    assert.deepEqual(column.failures, [])
-    assert.ok(column.layout.input.compact.matrix[0] > multipleRows.baseline.layout.input.compact.matrix[0])
-    await page.close()
-    page = await browser.newPage({ viewport: { width: 3840, height: 2160 }, reducedMotion: "reduce" })
-    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
-      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
-    )
-    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-    )
-    await page.addStyleTag({
-      content: `
+    await t.test("Desktop retains its fitted baseline", async () => {
+      await page.close()
+      page = await browser.newPage({ viewport: { width: 3840, height: 2160 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.route("**/grid.pdf", (route) =>
+        route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
+      )
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+      await page.waitForFunction(
+        () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+      )
+      await page.addStyleTag({
+        content: `
         .composer :is(.selection-panel,.composition-output) { --grid-row-factor: 1; }
         .composer :is(.selection-panel,.composition-output)[data-density="normal"] {
           --grid-width: 148px; --grid-height: 240px; --grid-gap: 11.9px; --thumbnail-padding: 14px;
@@ -301,14 +368,12 @@ test("Measured frames gain rows or columns while keeping balanced readable image
           --grid-width: 74px; --grid-height: 125px; --grid-gap: 8px; --thumbnail-padding: 7.5px;
         }
       `,
+      })
+      const fitted = await page.evaluate(async () => (await import("/src/geometry.ts")).capture())
+      assert.deepEqual(quality(fitted), [])
+      assert.deepEqual(fitted.layout.input.normal.matrix, [7, 7, 49])
+      assert.ok(fitted.layout.input.normal.image.height >= 128)
     })
-    const desktop = await measureSearch()
-    const extra = desktop.candidates.find((item) => item.name === "normal-column-fit")
-    assert.ok(extra, "The fit search uses balanced margins within the available column budget")
-    assert.deepEqual(extra.failures, [])
-    assert.ok(extra.layout.input.normal.matrix[0] > desktop.baseline.layout.input.normal.matrix[0])
-    assert.deepEqual(extra.layout.input.normal.matrix, [7, 7, 49])
-    assert.ok(extra.layout.input.normal.image.height >= 128)
   } finally {
     await browser?.close()
     await server.close()

@@ -614,3 +614,18 @@
     }
   }
 }
+
+/* Fit desktop cards from the measured frame before dropping complete rows or columns. */
+@layer views {
+  @media (hover: hover) and (pointer: fine) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.composition-grid, .page-reference) {
+          --grid-fit: 1;
+          grid-template-columns: repeat(var(--grid-fit-columns, auto-fill), min(100%, var(--grid-width)));
+          grid-auto-rows: var(--grid-height);
+        }
+      }
+    }
+  }
+}

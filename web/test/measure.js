@@ -38,22 +38,12 @@ export function environments(records) {
 
 export async function measure(pane) {
   await pane.locator('.thumbnail[aria-busy="false"] canvas').first().waitFor()
-  let previous,
-    matches = 0,
-    result
-  await pane.page().waitForFunction(() => !document.querySelector(".thumbnail[aria-busy=true]"))
-  for (let attempt = 0; attempt < 120; attempt++) {
-    await pane.page().evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)))
-    const sample = await pane.page().evaluate(geometry)
-    const name = await pane.evaluate((element) => (element.matches(".selection-panel") ? "input" : "output"))
-    const density = (await pane.getAttribute("data-density")) || "normal"
-    result = sample.layout[name][density]
-    const signature = JSON.stringify(result)
-    matches = signature === previous ? matches + 1 : 0
-    previous = signature
-    if (result?.ready && matches >= 3) return result
-  }
-  throw new Error("Grid geometry did not stabilize before the capture deadline.")
+  return pane.evaluate(async (element) => {
+    const { stable } = await import("/src/geometry.ts")
+    const sample = await stable()
+    const name = element.matches(".selection-panel") ? "input" : "output"
+    return sample.layout[name][element.dataset.density || "normal"]
+  })
 }
 
 export async function collect(page, capture) {

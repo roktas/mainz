@@ -45,6 +45,8 @@
 
 ### Fixed
 
+- Desktop Grid fits card dimensions and gaps within their visual limits before losing a feasible row or column at a
+  calibration boundary.
 - Portrait touch Grid fits readable columns and rows across nearby phone and tablet dimensions, including nominal Chrome
   DevTools viewports. Switching to Style retains a mixed-density companion Grid's minimum frame.
 - Style shows Reset all styles only after a change and retains keyboard focus when resetting hides the control.

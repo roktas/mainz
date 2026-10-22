@@ -1,6 +1,6 @@
 // Measures rendered workspace geometry without changing Grid state or PDF content.
 
-export function geometry() {
+export function geometry(viewport = true) {
   // oxlint-disable-next-line unicorn/consistent-function-scoping -- Playwright serializes the complete probe.
   const rect = (element: Element) =>
     element.getBoundingClientRect().toJSON() as {
@@ -101,40 +101,45 @@ export function geometry() {
     const measured = grid(frame)
     if (measured) (pane.matches(".selection-panel") ? input : output)[pane.dataset.density || "normal"] = measured
   }
-  const probe = document.createElement("div")
-  Object.assign(probe.style, {
-    position: "fixed",
-    visibility: "hidden",
-    pointerEvents: "none",
-    inlineSize: "0",
-    insetBlockStart: "0",
-    insetInlineStart: "0",
-    padding:
-      "env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)",
-  })
   let svh: number | null = null,
     dvh: number | null = null,
     lvh: number | null = null
-  let safeArea: Record<string, number>
-  document.body.append(probe)
-  try {
-    const style = getComputedStyle(probe)
-    safeArea = {
-      top: parseFloat(style.paddingTop),
-      right: parseFloat(style.paddingRight),
-      bottom: parseFloat(style.paddingBottom),
-      left: parseFloat(style.paddingLeft),
-    }
-    const height = (unit: string) => {
+  let safeArea: Record<string, number> = { top: 0, right: 0, bottom: 0, left: 0 }
+  if (viewport) {
+    const probe = document.createElement("div")
+    Object.assign(probe.style, {
+      position: "fixed",
+      visibility: "hidden",
+      pointerEvents: "none",
+      inlineSize: "0",
+      insetBlockStart: "0",
+      insetInlineStart: "0",
+      padding:
+        "env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)",
+    })
+    const heights = ["svh", "dvh", "lvh"].map((unit) => {
       if (!CSS.supports("height", `100${unit}`)) return null
-      probe.style.blockSize = `100${unit}`
-      return parseFloat(getComputedStyle(probe).blockSize)
+      const element = document.createElement("div")
+      Object.assign(element.style, { position: "absolute", blockSize: `100${unit}` })
+      probe.append(element)
+      return element
+    })
+    document.body.append(probe)
+    try {
+      const style = getComputedStyle(probe)
+      safeArea = {
+        top: parseFloat(style.paddingTop),
+        right: parseFloat(style.paddingRight),
+        bottom: parseFloat(style.paddingBottom),
+        left: parseFloat(style.paddingLeft),
+      }
+      const height = (index: number) => (heights[index] ? parseFloat(getComputedStyle(heights[index]).blockSize) : null)
+      svh = height(0)
+      dvh = height(1)
+      lvh = height(2)
+    } finally {
+      probe.remove()
     }
-    svh = height("svh")
-    dvh = height("dvh")
-    lvh = height("lvh")
-  } finally {
-    probe.remove()
   }
   const media = Object.fromEntries(
     [
@@ -164,7 +169,7 @@ export function geometry() {
       if ("cssRules" in rule) rules((rule as CSSGroupingRule).cssRules)
     }
   }
-  for (const sheet of document.styleSheets) {
+  for (const sheet of viewport ? document.styleSheets : []) {
     try {
       if (sheet.cssRules) rules(sheet.cssRules)
     } catch {
@@ -274,9 +279,7 @@ export async function view(name: "Input" | "Output", compact: boolean): Promise<
 }
 
 export async function capture(): Promise<Geometry> {
-  const sample = await stable()
-  sample.layout.input = {}
-  sample.layout.output = {}
+  let sample: Geometry | undefined
   const composer = document.querySelector<HTMLElement>(".composer")!
   const previous = {
     pane: composer.dataset.view,
@@ -289,14 +292,14 @@ export async function capture(): Promise<Geometry> {
     for (const name of ["Input", "Output"] as const) {
       for (const compact of [false, true]) {
         const current = await view(name, compact)
-        if (!Object.keys(sample.layout.input).length) sample.viewport = current.viewport
         const pane = name === "Input" ? "input" : "output"
         const mode = compact ? "compact" : "normal"
         if (!current.layout[pane][mode]) throw new Error(`Open ${name} in Grid before capturing geometry.`)
+        sample ??= { ...current, layout: { ...current.layout, input: {}, output: {} } }
         sample.layout[pane][mode] = current.layout[pane][mode]
       }
     }
-    return sample
+    return sample!
   } finally {
     for (const name of ["Input", "Output"] as const) {
       choose(name)
@@ -315,6 +318,8 @@ export async function stable(timeout = 45000): Promise<Geometry> {
     ![...document.querySelectorAll(".grid-view")].some((element) => element.checkVisibility())
   )
     throw new Error("Open Input and Output in Grid before capturing geometry.")
+  // Stylesheet candidates can change preferred cards without resizing their shared frame.
+  window.dispatchEvent(new Event("resize"))
   const deadline = performance.now() + timeout
   let previous = "",
     matches = 0
@@ -329,12 +334,13 @@ export async function stable(timeout = 45000): Promise<Geometry> {
         resolve()
       })
     })
-    const sample = geometry()
+    // Viewport probes mutate the DOM; acquire them only for the completed sample.
+    const sample = geometry(false)
     const grids = [...Object.values(sample.layout.input), ...Object.values(sample.layout.output)]
     const signature = JSON.stringify(sample.layout)
     matches = signature === previous ? matches + 1 : 0
     previous = signature
-    if (grids.length && grids.every((grid) => grid.ready && grid.capacity[2] > 0) && matches >= 3) return sample
+    if (grids.length && grids.every((grid) => grid.ready && grid.capacity[2] > 0) && matches >= 3) return geometry()
   }
   throw new Error("Grid geometry did not stabilize before the capture deadline.")
 }
