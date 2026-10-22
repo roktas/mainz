@@ -9,9 +9,7 @@
 
     .footnote {
       max-inline-size: calc(max(1232px, 57.5vi) - 2 * var(--gutter));
-      @media (height < 480px) {
-        position: static;
-      }
+      position: static;
     }
 
     :scope {
@@ -23,10 +21,8 @@
   }
   @scope (.composer) {
     :scope {
-      --grid-view-height: max(956px, calc(100dvb - 400px));
       --grid-pager-height: 44px;
       --fit-height: max(860px, 33.59375vi);
-      --frame-fit-height: max(760px, 29.6875vi);
       --frame-heading-height: 45px;
     }
     /* Defaults work without a device match; calibrations below only change card geometry. */
@@ -52,28 +48,6 @@
         --grid-height: 7.8125rem;
         --thumbnail-padding: 0.46875rem;
         --card-tools-height: 1.75rem;
-      }
-    }
-    .grid-view,
-    .page-view {
-      --frame-inset: clamp(0px, calc((100cqi - 266px) / 2), calc(1.5 * var(--gap)));
-      --frame-page-height: min(
-        var(--frame-fit-height),
-        calc((100cqi - 2px - 2 * var(--frame-inset) - 52px) / var(--frame-ratio))
-      );
-      --frame-side-margin: calc((100cqi - 2px - var(--frame-page-height) * var(--frame-ratio)) / 2);
-      --frame-height-limit: max(
-        calc(268px + var(--grid-pager-height)),
-        calc(
-          var(--frame-page-height) + max(6 * var(--gap), 3 * var(--frame-side-margin)) +
-            var(--page-heading-height, var(--frame-heading-height)) + 46px
-        )
-      );
-    }
-    @container composer (width <= 55em) {
-      .grid-view,
-      .page-view {
-        --frame-ratio: var(--pane-ratio);
       }
     }
     .editing-toolbar {

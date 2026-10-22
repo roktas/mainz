@@ -13,10 +13,6 @@
       display: grid;
       grid-template-rows: minmax(0, 1fr) minmax(var(--grid-pager-height), auto);
       row-gap: 8px;
-      block-size: max(
-        calc(var(--grid-height) + var(--grid-pager-height) + 8px),
-        min(var(--grid-view-height), var(--frame-height-limit))
-      );
       min-inline-size: 0;
     }
 

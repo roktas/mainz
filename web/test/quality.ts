@@ -56,8 +56,7 @@ export function quality(sample: Geometry) {
         grid.caption.top >= grid.slider.top + grid.slider.height / 2, "caption below slider")
       require(grid.caption &&
         grid.status !== null &&
-        grid.caption.bottom <=
-          grid.status + Math.max(0, grid.scroll - grid.scrollPosition[1]) + 1, "pagination above status bar")
+        grid.caption.bottom <= grid.status + 1, "pagination above status bar")
     }
     const { normal, compact } = sample.layout[pane]
     if (normal && compact) {

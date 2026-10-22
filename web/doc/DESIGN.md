@@ -136,8 +136,9 @@ scrollbar uses the pane gutter, with at least 8 CSS px between the fields and it
 profile selectors stay visible. Output keeps the same remaining viewport height, Grid capacity, and Page frame when
 Input switches to Style. In single-pane layout, Style fields use document scrolling.
 
-Below 480 CSS px of viewport height, the workspace status bar scrolls with the document. It must not cover card targets
-when enlarged text or the minimum complete row requires scrolling.
+The workspace status bar follows the content in document order. It stays at the viewport bottom when the workspace fits.
+When enlarged text or a minimum usable frame requires document scrolling, the status bar scrolls too. It must not cover
+cards, pagination, Page controls, or Style fields at any viewport height.
 
 Two-pane Grid and Page frames align at the top and bottom. The pane divider reaches the same edge. Shorter PDF pages
 center within the shared image area. Application zoom changes the PDF inside that frame. The browser viewport already
@@ -551,11 +552,12 @@ still reveals the drop overlay on other inputs. The file chooser remains the pri
 | Notice  | Header center, above controls on narrow screens.                  | Bold `--ink` text, `--secondary` information icon, and `--muted` dismiss button. |
 | Error   | Above the workspace, or beside the affected field/dialog control. | Danger color with explanation and recovery actions.                              |
 
-The status row reserves its height and stays at the viewport bottom during scrolling. Last controls remain reachable.
-Operation and offline feedback share a centered column. Update controls appear below operation feedback. Larger
-workspace views show the active filename at the start and Build ID at the end. Narrow mobile workspace views retain
-feedback and offline actions only. The landing places Build ID at the bottom center. It can wrap between groups with
-enlarged text. Long filenames truncate with full hover text.
+The status row reserves its height below the workspace. The landing keeps it at the viewport bottom during scrolling.
+The workspace uses the document-flow rule above so that its last controls remain reachable. Operation and offline
+feedback share a centered column. Update controls appear below operation feedback. Larger workspace views show the
+active filename at the start and Build ID at the end. Narrow mobile workspace views retain feedback and offline actions
+only. The landing places Build ID at the bottom center. It can wrap between groups with enlarged text. Long filenames
+truncate with full hover text.
 
 New footer status briefly highlights the message with a light accent tint and a soft glow just around the text, then
 fades to its ordinary treatment. A successful Page image copy briefly brightens the image and its contour. Repeated

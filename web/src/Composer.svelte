@@ -210,16 +210,6 @@
         }
       : undefined,
   )
-  const frameRatio = $derived.by(() => {
-    const pages = [
-      activeTab === "page" ? inputInspection : undefined,
-      activeOutputTab === "page" ? inspection : undefined,
-    ].filter((page) => page !== undefined)
-    const ratios = (pages.length ? pages : [inputInspection, inspection]).flatMap((page) =>
-      page ? [page.size.width / page.size.height] : [],
-    )
-    return ratios.length ? Math.min(...ratios) : 1
-  })
   let inputHeadingHeight = $state(0)
   let outputHeadingHeight = $state(0)
   const frameHeadingHeight = $derived(
@@ -1519,7 +1509,6 @@
 
 <div
   class="composer"
-  style:--frame-ratio={frameRatio}
   style:--page-heading-height={frameHeadingHeight ? `${frameHeadingHeight + 1}px` : undefined}
   data-view={activeView}
   data-drag={transfer.value?.kind}
@@ -1552,12 +1541,7 @@
     >
   </nav>
   <div class="composition-panels">
-    {#if source}<section
-        class="selection-panel"
-        data-density={inputView.density}
-        style:--pane-ratio={inputInspection ? inputInspection.size.width / inputInspection.size.height : 1}
-        aria-labelledby={`${key}-selection`}
-      >
+    {#if source}<section class="selection-panel" data-density={inputView.density} aria-labelledby={`${key}-selection`}>
         <div class="section-heading input-heading" data-tour-target="input" data-tour-active={tour === "input"}>
           {@render input(`${key}-selection`)}
         </div>
@@ -1858,7 +1842,6 @@
     <section
       class="composition-output"
       data-density={outputDensity}
-      style:--pane-ratio={inspection ? inspection.size.width / inspection.size.height : 1}
       data-preview={transfer.preview ? true : undefined}
       aria-labelledby={`${key}-output`}
       data-drop={transfer.value && transfer.inside && !transfer.target ? "end" : undefined}

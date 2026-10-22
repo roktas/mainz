@@ -278,10 +278,12 @@ export async function checkStatus(page) {
   for (const bottom of [false, true]) {
     await page.evaluate((end) => window.scrollTo(0, end ? document.documentElement.scrollHeight : 0), bottom)
     const box = await page.locator(".footnote").boundingBox()
-    assert.ok(box.y >= 0 && box.y + box.height <= page.viewportSize().height + 1)
-    assert.ok(Math.abs(box.y + box.height - page.viewportSize().height) < 1)
+    const workspace = await page.locator(".composer").boundingBox()
+    if (workspace)
+      assert.ok(workspace.y + workspace.height <= box.y + 1, "Status must not cover the last workspace controls")
+    if (bottom || !workspace) {
+      assert.ok(box.y >= 0 && box.y + box.height <= page.viewportSize().height + 1)
+      assert.ok(Math.abs(box.y + box.height - page.viewportSize().height) < 1)
+    }
   }
-  const footer = await page.locator(".footnote").boundingBox()
-  const workspace = await page.locator(".composer").boundingBox()
-  assert.ok(workspace.y + workspace.height <= footer.y, "Status must not cover the last workspace controls")
 }

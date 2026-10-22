@@ -463,7 +463,6 @@
     .page-view {
       display: grid;
       grid-template-rows: auto minmax(0, 1fr) 44px;
-      block-size: min(var(--grid-view-height), var(--frame-height-limit));
       min-block-size: 0;
 
       & > .inspection-heading {

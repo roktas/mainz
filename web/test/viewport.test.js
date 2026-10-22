@@ -148,6 +148,11 @@ test("One geometry schema captures desktop and touch without changing Grid choic
         const grid = margins.layout.input.normal
         grid.margins[2] = grid.margins[3] = 2 * grid.margins[0] + 2
         assert.ok(quality(margins).some((failure) => failure.rule === "balanced image margins"))
+        const covered = structuredClone(sample)
+        covered.layout.input.normal.status = covered.layout.input.normal.caption.bottom - 8
+        covered.layout.input.normal.scroll = 40
+        covered.layout.input.normal.scrollPosition[1] = 0
+        assert.ok(quality(covered).some((failure) => failure.rule === "pagination above status bar"))
         sample.layout.input.normal.image.height = 1
         assert.ok(quality(sample).some((failure) => failure.rule === "readable image height"))
         if (viewport[1] > 900) {

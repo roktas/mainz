@@ -3,7 +3,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { chromium } from "playwright"
-import { createServer, fixture, captureLayout, tab, pagePosition } from "./browser.js"
+import { createServer, fixture, captureLayout, tab, pagePosition, checkStatus } from "./browser.js"
 import { measure } from "./measure.js"
 import inventory from "./viewports.json" with { type: "json" }
 import { quality } from "./quality.ts"
@@ -15,6 +15,71 @@ const dimensions = (sample) =>
       return [grid.capacity, grid.card.width, grid.card.height, grid.image.height, grid.gaps]
     }),
   )
+
+test("Workspace scrolling keeps Grid and Page controls clear of status", { timeout: 120000 }, async (t) => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.route("**/grid.pdf", (route) =>
+      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 62) }),
+    )
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    await page.waitForFunction(
+      () => document.querySelector(".composition-totals strong")?.textContent === "62 PDF pages",
+    )
+    for (const [width, height, scale, bottom] of [
+      [390, 699, 100, 0],
+      [375, 667, 100, 0],
+      [390, 797, 100, 34],
+      [320, 568, 200, 0],
+      [844, 390, 100, 0],
+      [1080, 724, 200, 0],
+    ]) {
+      await page.setViewportSize({ width, height })
+      await page.evaluate(
+        (appearance) => {
+          document.documentElement.style.fontSize = `${appearance.scale}%`
+          document.querySelector(".footnote").style.paddingBlockEnd = `calc(var(--gap) + ${appearance.bottom}px)`
+        },
+        { scale, bottom },
+      )
+      for (const colorScheme of ["light", "dark"])
+        await t.test(`${width}×${height}, ${scale}%, ${colorScheme}`, async () => {
+          await page.emulateMedia({ colorScheme })
+          for (const name of ["Input", "Output"]) {
+            const views = page.locator(".mobile-workspace-tabs")
+            if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
+            const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+            await tab(pane, "Grid")
+            await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill("56-62")
+            for (const density of ["Normal", "Compact"]) {
+              await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+              const grid = await measure(pane)
+              assert.ok(grid.caption.bottom <= grid.status + 1, `${name} ${density}: status clears pagination`)
+              await checkStatus(page)
+              const slider = pane.getByRole("slider")
+              await slider.focus()
+              await slider.press("End")
+              assert.equal(await slider.inputValue(), await slider.getAttribute("max"))
+            }
+            await tab(pane, "Page")
+            await pane.locator(".page-scroll canvas").waitFor()
+            await checkStatus(page)
+            const navigation = await pane.locator(".page-navigation").boundingBox()
+            const status = await page.locator(".footnote").boundingBox()
+            assert.ok(navigation.y + navigation.height <= status.y + 1, `${name}: status clears Page controls`)
+          }
+        })
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
 
 test("Grid keeps feasible matrices across nearby desktop calibration boundaries", { timeout: 420000 }, async (t) => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
@@ -1460,10 +1525,7 @@ test("Compact pagination retains readable four- and five-digit numbers", { timeo
       await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill("1000")
       await page.keyboard.press("Escape")
       await input.getByRole("button", { name: "Add to Output", exact: true }).click()
-      await page.waitForFunction(
-        (batch) => document.querySelector(".composition-output .grid-view")?.dataset.batch === String(batch),
-        columns * 7,
-      )
+      await measure(output)
       assert.equal(await output.locator(".composition-totals strong").textContent(), `${total} PDF pages`)
       assert.equal(await output.locator(".grid-view").getAttribute("data-columns"), String(columns))
       await output.getByRole("slider", { name: "Output thumbnail range", exact: true }).press("End")
