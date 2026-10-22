@@ -298,6 +298,13 @@ alternate-display and landscape failures remain explicit gaps. Physical mobile v
 this analysis. Native Mac Safari timeouts and failed Chrome fullscreen entry do not count as measured coverage. Windows
 display scaling requires a Windows measurement.
 
+The desktop follow-up retains physical Safari windows at 2200 × 1298, 2400 × 1358, and 2560 × 1358 CSS px, plus an
+installed Safari web app at native fullscreen 2560 × 1440. The QHD display uses DPR 1. Both Grid densities and panes,
+selected Output cards, and both themes have separate native evidence. The installed app reports standalone mode; native
+window fullscreen does not require a DOM fullscreen element. These measurements do not establish physical Studio Display
+or iMac coverage. Separate DPR 2 replay covers their logical viewports in Chromium and Playwright WebKit; those exports
+remain synthetic. Keep physical panel, logical scaling, and DPR separate when those displays are measured.
+
 ## Collection and calibration
 
 The development-only `?geometry` entry opens the Grid fixture and provides local JSON/CSV exports. Keep both panes in

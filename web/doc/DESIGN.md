@@ -157,7 +157,10 @@ rows = pages and applies to both Input and Output.
 | QHD observed, 2560 × 1310 | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48    |
 | QHD observed, 2560 × 1318 | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
 | QHD observed, 2560 × 1323 | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
-| QHD, 2560 × 1440          | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
+| Safari, 2200 × 1298       | 1265 px         | 4 × 3 = 12 | 6 × 6 = 36    |
+| Safari, 2400 × 1358       | 1380 px         | 4 × 3 = 12 | 7 × 7 = 49    |
+| Safari, 2560 × 1358       | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
+| QHD PWA, 2560 × 1440      | 1472 px         | 4 × 4 = 16 | 8 × 8 = 64    |
 | UHD-, 3840 × 2040         | 2208 px         | 7 × 6 = 42 | 12 × 12 = 144 |
 | UHD, 3840 × 2160          | 2208 px         | 7 × 7 = 49 | 12 × 13 = 156 |
 
@@ -285,11 +288,12 @@ gap is 85% of the authored vertical image padding, with a 0.5 rem floor for usab
 spacing drives both row capacity and calibrated card height. Do not calculate one from the minimum gap and the other
 from the distributed gap.
 
-The QHD calibration targets three Normal rows with card heights from 240 to 280 px. Browser-height references cap Normal
-cards at 260 px and use 75 × 112.5 px Compact cards. Portrait thumbnails grow with the cards and keep equal 16 px upper
-and lower margins. Cards use a 9.375 rem width and a 14 px minimum gap. Heading and footer controls retain their
-ordinary size and at least 44 px targets. Viewport-specific card dimensions and spacing belong in `frame.css`. Card
-styles consume those shared values.
+The QHD calibration targets three Normal rows below 1420 CSS px in height, with 240–280 px cards and 16 px image
+padding. From 1420 CSS px, it fits four Normal rows with 224–256 px cards and 14 px image padding. At 2560 × 1440,
+Normal cards are 150 × 229.125 px with 133 px images; Compact cards are 75 × 112.5 px with 69.5 px images. Both
+densities gain a complete row while retaining the shared frame, balanced gaps, and image-scale rule. The Normal width is
+9.375 rem and its minimum gap is 14 px. Heading and footer controls retain their ordinary size and at least 44 px
+targets. Viewport-specific card dimensions and spacing belong in `frame.css`. Card styles consume those shared values.
 
 The calibration table requires viewport width, viewport height, primary pointer, orientation where relevant, and pane
 layout. Upper bounds are exclusive. Entries do not override another entry at the same density. Each entry changes only
@@ -299,10 +303,11 @@ card dimensions and spacing. The shared frame budget and pagination placement st
 | -------------------------- | ------------- | -------------- | ------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Desktop Compact            | 1280–2140     | 700–1200       | Fine pointer with hover  | Two panes   | Compact: six fitted columns, 121 px high, 6.4 px image padding; images stay within 1 px of the shared reference.                                                              |
 | FHD-                       | 1800–2000     | 950–1000       | Fine pointer with hover  | Two panes   | Normal: 148 × 224 px. Compact: 78 × 110.5 px. Image padding remains 14 px and 6.4 px. This entry replaces Desktop Compact within these bounds.                                |
-| Medium desktop             | 2200–2400     | 1100–1350      | Fine pointer with hover  | Two panes   | Normal: 134 × 236 px, 12 px padding. Compact: up to seven fitted columns, 123.625 px high, 7.5 px padding.                                                                    |
+| Medium desktop             | 2200–2560     | 1100–1420      | Fine pointer with hover  | Two panes   | Normal: up to four fitted columns, 128–134 × 236 px, 12 px padding. Compact: shared readable widths, 112.5 px high, 7.5 px padding.                                           |
 | Large desktop              | 2960–3200     | 1500–1750      | Fine pointer with hover  | Two panes   | Normal: up to five fitted columns, 134–150 × 235 px, 11.5 px padding. Compact: up to nine fitted columns, 124.625 px high, 8 px padding.                                      |
-| QHD                        | 2560–2880     | 1280–1800      | Fine pointer with hover  | Two panes   | Normal: 240–280 px high, 150 px wide, 16 px image padding, 14 px minimum gaps                                                                                                 |
-| QHD browser                | 2560–2880     | 1315–1420      | Fine pointer with hover  | Two panes   | Normal: 150 × 240–260 px, 16 px padding, 14 px minimum gaps. Compact: 75 × 112.5 px, 7.5 px padding. This entry replaces QHD within these bounds.                             |
+| QHD short                  | 2560–2880     | 1280–1315      | Fine pointer with hover  | Two panes   | Normal: 240–280 px high, 150 px wide, 16 px image padding, 14 px minimum gaps.                                                                                                |
+| QHD browser                | 2560–2880     | 1315–1420      | Fine pointer with hover  | Two panes   | Normal: 150 × 240–260 px, 16 px padding, 14 px minimum gaps. Compact: 75 × 112.5 px, 7.5 px padding.                                                                          |
+| QHD tall                   | 2560–2880     | 1420–1800      | Fine pointer with hover  | Two panes   | Normal: 150 × 224–256 px, four fitted rows, 14 px image padding, 14 px minimum gaps. Compact: 75 × 112.5 px, 7.5 px padding.                                                  |
 | UHD-                       | 3840–4160     | 1900–2050      | Fine pointer with hover  | Two panes   | Normal: up to seven fitted columns, 134–140 × 229–240 px, 14.5 px padding. Compact: 74 × 120 px, 7.5 px padding. Both densities retain a 0.9 row-gap factor.                  |
 | UHD                        | 3840–4160     | 2050–2250      | Fine pointer with hover  | Two panes   | Normal: up to seven fitted columns, 134–140 × 233 px, 10.5 px padding. Compact: up to twelve fitted columns, 121.625 px high, 6.5 px padding.                                 |
 | Narrow touch portrait      | 350–375       | 600–900        | Coarse pointer, no hover | One pane    | Normal: 144 × 240 px, 10 px image padding. The 360 × 672 Chrome sample fits two columns.                                                                                      |

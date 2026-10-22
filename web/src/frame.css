@@ -358,18 +358,17 @@
     }
   }
 
-  @media (hover: hover) and (pointer: fine) and (2200px <= width < 2400px) and (1100px <= height < 1350px) {
+  @media (hover: hover) and (pointer: fine) and (2200px <= width < 2560px) and (1100px <= height < 1420px) {
     @scope (.composer) {
       @container composer (width > 55em) {
         :is(.selection-panel, .composition-output) {
           &:not([data-density="compact"]) {
-            --grid-width: 8.375rem;
+            --grid-width: clamp(8rem, calc((100cqi - 5 * var(--grid-gap) - 1px) / 4), 8.375rem);
             --grid-height: 14.75rem;
             --thumbnail-padding: 0.75rem;
           }
           &[data-density="compact"] {
-            --grid-width: max(74px, calc(5 * var(--body)), calc((100cqi - 8 * var(--grid-gap) - 1px) / 7));
-            --grid-height: 7.7265625rem;
+            --grid-height: 7.03125rem;
           }
         }
       }
@@ -478,7 +477,7 @@
     }
   }
 
-  @media (hover: hover) and (pointer: fine) and (2560px <= width < 2880px) and (1280px <= height < 1800px) and (not (1315px <= height < 1420px)) {
+  @media (hover: hover) and (pointer: fine) and (2560px <= width < 2880px) and (1280px <= height < 1315px) {
     @scope (.composer) {
       @container composer (width > 55em) {
         :is(.selection-panel, .composition-output) {
@@ -511,6 +510,30 @@
             --grid-width: 9.375rem;
             --grid-gap: 14px;
             --thumbnail-padding: 16px;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(75px, calc(5 * var(--body)));
+            --grid-height: 7.03125rem;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (2560px <= width < 2880px) and (1420px <= height < 1800px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            /* Fit four rows while keeping Normal images near twice the Compact image height. */
+            --grid-height: clamp(
+              14rem,
+              calc((100cqb - var(--grid-pager-height) - 3 * var(--grid-row-gap) - 10px) / 4),
+              16rem
+            );
+            --grid-width: 9.375rem;
+            --grid-gap: 14px;
+            --thumbnail-padding: 14px;
           }
           &[data-density="compact"] {
             --grid-width: max(75px, calc(5 * var(--body)));

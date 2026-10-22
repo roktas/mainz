@@ -23,6 +23,8 @@
 - Grid fits more readable cards in measured phone, tablet, Mac, and external-display layouts. Columns distribute space
   evenly, with matching row gaps and unused height below complete rows. Calibrations affect only matching viewports.
 - Measured Android touch layouts fit two Normal columns on narrow phones, extra Compact rows, and denser tablet grids.
+- Desktop Grid fits four Normal columns in more Safari window sizes. At a measured QHD PWA viewport, Normal shows 16
+  pages and Compact shows 64, with complete rows and reachable pagination.
 - Grid pagination displays at most 64 marks while retaining every exact slider position and page-range label.
 - Touch Page starts with a wider image when Fit is too small, in both pane layouts. Fit restores the complete page, and
   manual zoom persists across view changes. Header and footer controls align with the frame; overflow actions use the
