@@ -101,13 +101,21 @@
 {#if toolbarOnly}
   <div class="style-status">
     {#if status}<span class="danger" role="status">{status}</span>{/if}
-    <button
-      class="icon-button danger"
-      disabled={!changed}
-      onclick={() => reset()}
-      aria-label="Reset all styles"
-      title="Reset Input styles"><Icon name="reset" /></button
-    >
+    {#if changed}
+      <button
+        class="icon-button danger"
+        onclick={(event) => {
+          if (document.activeElement === event.currentTarget)
+            event.currentTarget
+              .closest(".selection-panel")
+              ?.querySelector<HTMLButtonElement>('.source-tabs [role="tab"][aria-selected="true"]')
+              ?.focus({ preventScroll: true })
+          reset()
+        }}
+        aria-label="Reset all styles"
+        title="Reset Input styles"><Icon name="reset" /></button
+      >
+    {/if}
   </div>
 {:else}
   <div class="workspace-content">

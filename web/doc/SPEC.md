@@ -338,8 +338,8 @@ profile. Other maps and invalid drafts show Custom. Profile choices remain indiv
 and values come from the producer and imply no application-defined printer behavior.
 
 Field reset removes one override. **Reset all styles** clears the Source's complete map, including hidden and saved
-overrides, and invalid drafts. Resets retain other Sources, selections, composition, and immutable bytes. Reset is
-disabled without overrides or invalid drafts.
+overrides, and invalid drafts. Resets retain other Sources, selections, composition, and immutable bytes. Reset appears
+only with overrides or invalid drafts. Keyboard activation returns focus to the Style tab before the control disappears.
 
 ### Processing
 

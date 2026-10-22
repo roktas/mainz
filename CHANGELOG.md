@@ -45,6 +45,7 @@
 
 ### Fixed
 
+- Style shows Reset all styles only after a change and retains keyboard focus when resetting hides the control.
 - Touch Page keeps zoom controls and frame alignment when landscape orientation exposes both panes.
 - Single-pane Grid reserves one caption line below its slider. Medium tablet portrait layouts fit four Compact rows
   while keeping page previews readable.

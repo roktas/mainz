@@ -7,6 +7,54 @@ import { chromium } from "playwright"
 import { checkWorkspace } from "./workspace.js"
 import { createServer, tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
 
+test("Style reset appears only for changes and retains keyboard focus", { timeout: 60000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({
+      viewport: { width: 768, height: 1024 },
+      hasTouch: true,
+      reducedMotion: "reduce",
+    })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    const input = page.locator(".selection-panel")
+    await tab(input, "Style")
+    const reset = input.getByRole("button", { name: "Reset all styles", exact: true })
+    const profile = input.locator(".style-profile select")
+    assert.equal(await reset.count(), 0)
+    await profile.selectOption("inkjet")
+    await reset.waitFor()
+    await reset.focus()
+    await reset.press("Enter")
+    await reset.waitFor({ state: "detached" })
+    assert.equal(await profile.inputValue(), "generic")
+    assert.equal(
+      await input
+        .getByRole("tab", { name: "Style", exact: true })
+        .evaluate((element) => element === document.activeElement),
+      true,
+    )
+    await profile.selectOption("inkjet")
+    await reset.waitFor()
+    await profile.selectOption("generic")
+    await reset.waitFor({ state: "detached" })
+    const choice = input.getByRole("checkbox").first()
+    const original = await choice.isChecked()
+    await choice.setChecked(!original)
+    await reset.waitFor()
+    await reset.click()
+    await reset.waitFor({ state: "detached" })
+    assert.equal(await choice.isChecked(), original)
+    assert.equal(await page.locator(".error-banner").count(), 0)
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
 test("Dialogs dismiss outside taps without native light dismissal", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser
