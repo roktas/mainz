@@ -124,7 +124,7 @@ test("Paired pane headings align actions, metadata, tabs, and selection fields",
   }
 })
 
-test("Page headings and navigation follow fitted image edges", { timeout: 240000 }, async () => {
+test("Page headings and navigation follow fitted image edges", { timeout: 420000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser, page
   try {
@@ -146,6 +146,12 @@ test("Page headings and navigation follow fitted image edges", { timeout: 240000
       [768, 1024, "light", "100%"],
       ...["light", "dark"].flatMap((theme) =>
         [
+          [360, 672],
+          [392, 764],
+          [750, 1144],
+          [1006, 481],
+          [876, 1280],
+          [1400, 756],
           [667, 375],
           [844, 390],
           [956, 440],

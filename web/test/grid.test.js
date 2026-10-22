@@ -6,6 +6,140 @@ import { chromium } from "playwright"
 import { createServer, fixture, captureLayout, tab, pagePosition } from "./browser.js"
 import { measure } from "./measure.js"
 import inventory from "./viewports.json" with { type: "json" }
+import { quality } from "./quality.ts"
+
+test("Measured touch frames retain complete readable matrices", { timeout: 120000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({
+      viewport: { width: 360, height: 672 },
+      hasTouch: true,
+      isMobile: true,
+      reducedMotion: "reduce",
+    })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.route("**/grid.pdf", (route) =>
+      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
+    )
+    for (const [width, height, bottom, normal, compact] of [
+      [360, 672, 24, [2, 1, 2], [3, 1, 3]],
+      [392, 764, 24, [2, 1, 2], [4, 2, 8]],
+      [750, 1080, 32, [4, 2, 8], [8, 4, 32]],
+      [750, 1144, 0, [4, 2, 8], [8, 5, 40]],
+      [1006, 481, 33, [3, 1, 3], [5, 1, 5]],
+      [800, 1160, 32, [4, 2, 8], [9, 5, 45]],
+      [876, 1280, 32, [5, 3, 15], [10, 6, 60]],
+      [1400, 756, 32, [3, 1, 3], [6, 2, 12]],
+    ]) {
+      await page.setViewportSize({ width, height })
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+      await page.waitForFunction(
+        () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+      )
+      // Replay Android's measured bottom budget without claiming native acquisition.
+      await page
+        .locator(".footnote")
+        .evaluate((element, inset) => (element.style.paddingBlockEnd = `calc(var(--gap) + ${inset}px)`), bottom)
+      const sample = await page.evaluate(async () => (await import("/src/geometry.ts")).capture())
+      assert.deepEqual(quality(sample), [], `${width}×${height}`)
+      for (const pane of ["input", "output"]) {
+        assert.deepEqual(sample.layout[pane].normal.matrix, normal, `${pane} Normal, ${width}×${height}`)
+        assert.deepEqual(sample.layout[pane].compact.matrix, compact, `${pane} Compact, ${width}×${height}`)
+      }
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
+test("Measured touch calibrations isolate viewport bounds and primary input", { timeout: 180000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  const bands = [
+    { width: [350, 375], height: [600, 900], normal: [144, 240, 10] },
+    { width: [390, 420], height: [760, 790], compact: [74, 110, 6] },
+    { width: [750, 805], height: [1060, 1200], compact: [74, 110, 6] },
+    { width: [1000, 1080], height: [450, 650], normal: [134, 232, 10] },
+    { width: [860, 900], height: [1280, 1320], normal: [134, 217, 10.5], compact: [74, 110, 6] },
+    { width: [1380, 1450], height: [740, 800], compact: [74, 110, 6] },
+  ]
+  try {
+    await server.listen()
+    for (const mode of ["touch", "mouse", "hybrid"]) {
+      browser = await chromium.launch({
+        channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
+        args:
+          mode === "hybrid"
+            ? ["--blink-settings=primaryPointerType=4,availablePointerTypes=6,primaryHoverType=2,availableHoverTypes=2"]
+            : [],
+      })
+      const page = await browser.newPage({
+        hasTouch: mode === "touch",
+        isMobile: mode === "touch",
+        reducedMotion: "reduce",
+      })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.route("**/grid.pdf", (route) =>
+        route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 60) }),
+      )
+      for (const band of bands) {
+        const [left, right] = band.width,
+          [bottom, top] = band.height
+        const middleWidth = Math.floor((left + right) / 2),
+          middleHeight = Math.floor((bottom + top) / 2)
+        const points =
+          mode === "touch"
+            ? [
+                [left, middleHeight, true],
+                [right - 1, middleHeight, true],
+                [left - 1, middleHeight, false],
+                [right, middleHeight, false],
+                [middleWidth, bottom, true],
+                [middleWidth, top - 1, true],
+                [middleWidth, bottom - 1, false],
+                [middleWidth, top, false],
+              ]
+            : [[middleWidth, middleHeight, false]]
+        for (const [width, height, active] of points) {
+          await page.setViewportSize({ width, height })
+          await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+          await page.waitForFunction(
+            () => document.querySelector(".composition-totals strong")?.textContent === "60 PDF pages",
+          )
+          const sample = await page.evaluate(async () => (await import("/src/geometry.ts")).capture())
+          assert.equal(sample.environment.pointer, mode === "touch" ? "coarse" : "fine")
+          if (mode === "hybrid") assert.equal(sample.environment.media["(any-pointer: coarse)"], true)
+          for (const density of ["normal", "compact"]) {
+            if (!band[density]) continue
+            const [cardWidth, cardHeight, padding] = active
+              ? band[density]
+              : density === "normal"
+                ? [148, 240, 14]
+                : mode !== "touch" && left === 1380
+                  ? [null, 121, 6.4]
+                  : [null, 125, 7.5]
+            for (const pane of ["input", "output"]) {
+              const grid = sample.layout[pane][density],
+                label = `${mode}, ${width}×${height}, ${pane} ${density}`
+              if (cardWidth !== null) assert.ok(Math.abs(grid.card.width - cardWidth) < 1, `${label}: card width`)
+              assert.ok(Math.abs(grid.card.height - cardHeight) < 1, `${label}: card height`)
+              assert.ok(Math.abs(grid.margins[0] - padding) < 1, `${label}: image padding`)
+            }
+          }
+        }
+      }
+      await browser.close()
+      browser = undefined
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
 
 test("Touch portrait pagination uses available height above the safe area", { timeout: 60000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
@@ -387,7 +521,7 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
                 [744, 1133, "tall"],
                 [749, 1159, "tall"],
                 [739, 1100, "default"],
-                [750, 1100, "default"],
+                [750, 1100, "tablet-compact"],
                 [744, 1099, "default"],
                 [744, 1160, "default"],
                 [527, 917, "default"],
@@ -538,9 +672,9 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
             } else if (calibration === "landscape" || calibration === "wide") {
               assert.ok(Math.abs(geometry.card.width - (calibration === "landscape" ? 74.57 : 79)) < 0.02)
               assert.equal(geometry.card.height, calibration === "landscape" ? 116.5 : 119)
-            } else if (calibration === "medium-compact") {
+            } else if (["medium-compact", "tablet-compact"].includes(calibration)) {
               assert.equal(geometry.card.width, 74)
-              assert.equal(geometry.card.height, 116.5)
+              assert.equal(geometry.card.height, calibration === "tablet-compact" ? 110 : 116.5)
             } else if (calibration === "large-tall" || calibration === "large-landscape") {
               assert.equal(geometry.card.width, calibration === "large-tall" ? 81 : 83)
               assert.equal(geometry.card.height, calibration === "large-tall" ? 119.625 : 120.625)
@@ -605,27 +739,39 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
   }
 })
 
-test("Partial Grid batches retain full-matrix card positions and dimensions", { timeout: 60000 }, async () => {
+test("Partial Grid batches retain full-matrix card positions and dimensions", { timeout: 180000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser
   try {
     await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-    const page = await browser.newPage({ reducedMotion: "reduce" })
-    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
-      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 239) }),
-    )
-    for (const [width, height] of [
-      [1537, 1001],
-      [3840, 1922],
+    for (const [width, height, hasTouch] of [
+      [1537, 1001, false],
+      [3840, 1922, false],
+      [360, 672, true],
+      [392, 764, true],
+      [750, 1144, true],
+      [1006, 481, true],
+      [876, 1280, true],
+      [1400, 756, true],
     ]) {
-      await page.setViewportSize({ width, height })
+      const page = await browser.newPage({
+        viewport: { width, height },
+        hasTouch,
+        isMobile: hasTouch,
+        reducedMotion: "reduce",
+      })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.route("**/grid.pdf", (route) =>
+        route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 239) }),
+      )
       await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
       await page.waitForFunction(
         () => document.querySelector(".composition-totals strong")?.textContent === "239 PDF pages",
       )
       for (const name of ["Input", "Output"]) {
+        const views = page.locator(".mobile-workspace-tabs")
+        if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
         const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
         const slots = () =>
           pane.locator(".composition-card:not([inert])").evaluateAll((cards) =>
@@ -654,6 +800,7 @@ test("Partial Grid batches retain full-matrix card positions and dimensions", { 
             )
         }
       }
+      await page.close()
     }
   } finally {
     await browser?.close()

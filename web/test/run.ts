@@ -50,6 +50,8 @@ const minimal = {
 }
 const matrices = {
   grid: [
+    "Measured touch frames retain complete readable matrices",
+    "Measured touch calibrations isolate viewport bounds and primary input",
     "Touch Grid uses complete rows within the available viewport",
     "Grid matrices match desktop viewports and bounded calibrations",
     "Calibrations stay isolated across viewport bounds and input capabilities",

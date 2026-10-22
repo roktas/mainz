@@ -199,6 +199,8 @@ for (const hasTouch of [false, true])
         for (const [width, height] of hasTouch
           ? [
               [320, 568],
+              [360, 672],
+              [392, 764],
               [390, 844],
               [667, 250],
               [744, 1047],
@@ -213,6 +215,10 @@ for (const hasTouch of [false, true])
               [1024, 1300],
               [1360, 980],
               [1133, 744],
+              [750, 1144],
+              [1006, 481],
+              [876, 1280],
+              [1400, 756],
             ]
           : [
               [390, 844],
@@ -353,6 +359,12 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
         .click()
       for (const [width, height] of hasTouch
         ? [
+            [360, 672],
+            [392, 764],
+            [750, 1144],
+            [1006, 481],
+            [876, 1280],
+            [1400, 756],
             [667, 250],
             [740, 1047],
             [740, 1100],

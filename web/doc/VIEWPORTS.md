@@ -432,6 +432,20 @@ standalone shortcut, in both orientations. All accepted samples pass the existin
 includes no candidate search or CSS changes. Factory OEM geometry and WebAPK installation remain unverified. The older
 Android 16 image's Chrome 133 could not open the fixture; that failed preflight contributes no measured coverage.
 
+The separate `android/2026-10-22/calibration/` record retains the Android candidate search and application review. The
+search evaluated 1,209 candidates through synthetic replay of the 44 native viewports. Replay does not reproduce Android
+system bars or safe-area insets. Native candidate captures supported six additional geometry bands in DESIGN. Compact
+cards retain their 74 px width and header controls. Candidates that reduced this width were rejected. The original
+baseline and its tracked references remain historical evidence. Applied captures use a separate source manifest and
+directory. Browser regressions cover measured bottom insets, band boundaries, primary input, partial batches, both
+themes, enlarged text, long page numbers, and Page alignment.
+
+The applied Android comparison covers 44 environments, 176 Grid views, and 88 Page panes. Fourteen environments gain
+capacity; none lose cards. Five additional native captures control paired density or review fixed-footer reachability.
+The final inventory links those captures without replacing the original applied sweep. Twenty Style companion views
+exposed seven existing frame-height changes when Style replaces a Normal Input beside Compact Output. These failures
+remain explicit in the report for the shared-layout follow-up. They do not change the accepted Grid capacity results.
+
 Before cleanup, retain successful and failed logs, source revision/hashes, fixture digests, capture metadata, accepted
 and rejected candidates, and representative native screenshots. Verify report links and hashes. Remove disposable build
 products and videos only after their needed exports are retained. Do not overwrite historical measurements with new
