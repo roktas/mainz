@@ -246,7 +246,7 @@ test("Landing compact headings fit phones and tablets and logos follow theme cha
     assert.equal(await page.title(), "PDF Composer")
     assert.equal(await page.locator(".brand-title").innerText(), "PDF Composer")
     const heading = page.getByRole("heading", { level: 1 })
-    const ordinary = page.getByText("Ordinary PDFs also support page selection and repetition.", { exact: true })
+    const copy = page.getByText("Select and repeat PDF pages. Style prepared PDFs for your printer.", { exact: true })
     for (const [width, height] of [
       [320, 568],
       [375, 667],
@@ -260,7 +260,7 @@ test("Landing compact headings fit phones and tablets and logos follow theme cha
     ]) {
       await page.setViewportSize({ width, height })
       assert.equal(await heading.innerText(), "Select & style prepared PDFs.")
-      assert.equal(await ordinary.isVisible(), false, `${width}px: phone copy stays short`)
+      assert.equal(await copy.isVisible(), true)
       for (const text of ["100%", "200%"]) {
         await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
@@ -359,8 +359,71 @@ test("Landing compact headings fit phones and tablets and logos follow theme cha
     }
     await page.setViewportSize({ width: 1440, height: 1100 })
     assert.equal(await heading.innerText(), "Select pages and style prepared PDFs.")
-    assert.equal(await ordinary.isVisible(), true, "Desktop copy explains ordinary PDF support")
-    assert.match(await page.locator(".welcome > p").last().innerText(), /printer\. Ordinary PDFs/)
+    assert.equal(await copy.isVisible(), true)
+    await mkdir("../.local/tmp/web/landing", { recursive: true })
+    for (const colorScheme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme })
+      for (const width of [320, 390, 430, 768, 1475]) {
+        await page.setViewportSize({ width, height: width === 1475 ? 776 : 1024 })
+        for (const text of ["100%", "200%"]) {
+          await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+          const typography = await page.locator(".welcome").evaluate((element) => {
+            const product = getComputedStyle(element.querySelector(".brand-title"))
+            const purpose = getComputedStyle(element.querySelector("h1"))
+            const paragraph = element.querySelector("p:not(.brand-title)")
+            const range = document.createRange()
+            range.selectNodeContents(paragraph)
+            return {
+              product: parseFloat(product.fontSize),
+              heading: parseFloat(purpose.fontSize),
+              productColor: product.color,
+              headingColor: purpose.color,
+              lines: range.getClientRects().length,
+              fits: document.documentElement.scrollWidth <= innerWidth,
+            }
+          })
+          assert.ok(typography.product >= (text === "100%" ? 24 : 48), "The product name retains a readable minimum")
+          assert.equal(
+            typography.headingColor,
+            typography.productColor,
+            "The purpose heading uses primary text contrast",
+          )
+          assert.equal(typography.fits, true, `${width}px: landing text stays within the viewport at ${text}`)
+          if (width === 1475 && text === "100%") {
+            assert.ok(typography.product >= 0.9 * typography.heading, "The desktop product name retains its prominence")
+            assert.equal(typography.lines, 1, "Wide desktop supporting copy fits one line")
+          }
+          const link = await page.getByRole("link", { name: "prepared", exact: true }).screenshot()
+          const clearance = await page.evaluate(
+            async ({ data, dark }) => {
+              const bitmap = new Image()
+              bitmap.src = `data:image/png;base64,${data}`
+              await bitmap.decode()
+              const canvas = document.createElement("canvas")
+              canvas.width = bitmap.width
+              canvas.height = bitmap.height
+              const context = canvas.getContext("2d")
+              context.drawImage(bitmap, 0, 0)
+              const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
+              let glyph = -1,
+                dots = Infinity
+              for (let y = 0; y < canvas.height; y++)
+                for (let x = 0; x < canvas.width; x++) {
+                  const offset = 4 * (y * canvas.width + x)
+                  const maximum = Math.max(...pixels.slice(offset, offset + 3))
+                  const minimum = Math.min(...pixels.slice(offset, offset + 3))
+                  if (maximum - minimum > 20) glyph = Math.max(glyph, y)
+                  else if (maximum - minimum < 4 && (dark ? minimum >= 128 : maximum <= 100)) dots = Math.min(dots, y)
+                }
+              return glyph >= 0 && Number.isFinite(dots) ? dots - glyph - 1 : -1
+            },
+            { data: link.toString("base64"), dark: colorScheme === "dark" },
+          )
+          assert.ok(clearance >= 2, `${width}px at ${text}: dotted underline leaves ${clearance}px below descenders`)
+          await page.screenshot({ path: `../.local/tmp/web/landing/${width}-${text}-${colorScheme}.png` })
+        }
+      }
+    }
     await page.setViewportSize({ width: 768, height: 1024 })
     await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))

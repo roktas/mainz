@@ -37,13 +37,14 @@ curves use the accent at full opacity. Horizontal curves remain faint. Each inli
 dedicated [app icon](../public/icon.svg) uses the same curves in fixed purple on white, with a square canvas and safe
 margins. Its maintained PNG renditions supply the 180 px iOS touch icon and the 192/512 px manifest icons. The opaque
 512 px icon also supports Android launcher masks. All renditions use the same artwork scale. Visible curves reach
-approximately 38.5% of the canvas width from its center, inside the central safe circle with radius 40%.
+approximately 39.7% of the canvas width from its center, inside the central safe circle with radius 40%.
 
 Page-selection hints and Style descriptions use the body text size. Compact numbers and secondary metadata retain
 smaller text. The landing's prepared-PDF link uses a thin dotted underline with clear space between dots and below the
-text. The underline is black in light mode and white in dark mode. Forced colors retain the underline. Desktop
-supporting copy describes ordinary PDF support. Narrow layouts retain the short copy and a single-line purpose heading
-at normal text size.
+text. The underline is black in light mode and white in dark mode. Forced colors retain the underline. The purpose
+heading uses primary text contrast with an accent link. Supporting copy distinguishes PDF page selection and repetition
+from styling prepared PDFs. It fits on one line on wide desktops and wraps on narrower layouts. Narrow layouts retain a
+single-line purpose heading at normal text size.
 
 The spacing scale uses a 28 px workspace gutter and fluid control gaps of 12–16 px at normal text size. Narrow layouts
 reduce gutters before reducing usable control space. Standard controls use 4 px corners. The landing frame uses softer

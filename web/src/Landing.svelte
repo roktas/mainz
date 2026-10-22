@@ -103,10 +103,7 @@
         >prepared</a
       > PDFs.
     </h1>
-    <p>
-      Choose, repeat, and style pages for your printer.
-      <span class="ordinary">Ordinary PDFs also support page selection and repetition.</span>
-    </p>
+    <p>Select and repeat PDF pages. Style prepared PDFs for your printer.</p>
     <div class="buttons">
       <div class="file-action">
         <label class="file-picker primary" aria-hidden={loading}

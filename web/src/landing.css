@@ -81,7 +81,7 @@
       & .brand-title {
         color: light-dark(var(--ink), oklch(100% 0 none));
         font-family: "EB Garamond", ui-serif, Georgia, serif;
-        font-size: clamp(1.5rem, calc(0.75 * var(--title)), 2rem);
+        font-size: clamp(1.5rem, calc(0.9375 * var(--title)), 2.5rem);
         font-weight: 500;
         letter-spacing: -0.02em;
         line-height: 1.2;
@@ -92,7 +92,7 @@
       }
       & h1 {
         hyphens: auto;
-        color: color-mix(in oklch, var(--ink) 35%, var(--muted));
+        color: light-dark(var(--ink), oklch(100% 0 none));
         font-family: "EB Garamond", ui-serif, Georgia, serif;
         font-weight: 500;
         font-size: var(--title);
@@ -100,7 +100,7 @@
         & a {
           color: var(--accent);
           text-decoration: none;
-          padding-block-end: 0.15em;
+          padding-block-end: max(0.1em, 4px);
           background-image: radial-gradient(
             circle,
             light-dark(oklch(0% 0 none), oklch(100% 0 none)) 0.75px,
@@ -223,9 +223,6 @@
         }
         & .welcome {
           --title: clamp(1.125rem, 18cqi - 2rem, 1.5rem);
-        }
-        & .ordinary {
-          display: none;
         }
         & .welcome .buttons {
           justify-content: center;

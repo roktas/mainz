@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none" stroke="#800080" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none" stroke="#800080" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
   <rect width="512" height="512" fill="#ffffff" stroke="none" />
   <defs>
     <path id="curve" d="M30 30s18.39 7.089444 18.39 15S30 60 30 60M30 0S11.61 7.089442 11.61 15 30 30 30 30" />
   </defs>
-  <g transform="translate(67 67) scale(6.3)">
+  <g transform="translate(63.22 63.22) scale(6.426)">
     <g transform="rotate(90 30 30)" opacity="0.35">
       <use href="#curve" transform="matrix(-1 0 0 1 60 0)" />
       <use href="#curve" />

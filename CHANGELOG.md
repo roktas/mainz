@@ -15,6 +15,8 @@
 
 ### Changed
 
+- The landing page gives the product name more prominence, increases purpose-heading contrast, and shortens its
+  supporting copy.
 - The bundled demo includes an eighth practice page with crossed strokes from the same Ital Winters 7.9 mm series.
 - The web application is named PDF Composer. Settings adjusts lens magnification from 2× to 128× with −/+ controls.
 - Normal and Compact Grid show complete rows within the available viewport. Input chooses its initial density after
@@ -29,7 +31,7 @@
 - Touch Page starts with a wider image when Fit is too small, in both pane layouts. Fit restores the complete page, and
   manual zoom persists across view changes. Header and footer controls align with the frame; overflow actions use the
   pane menu.
-- iOS and Android Home Screen icons use larger artwork with matching safe margins.
+- iOS and Android Home Screen icons use larger artwork and thicker strokes with matching safe margins.
 - Without a Notice, header actions use the space after the logo. Notices use neutral text and the information accent in
   both themes.
 - Offline installation verifies four assets concurrently and completes pending writes before rolling back a failed
