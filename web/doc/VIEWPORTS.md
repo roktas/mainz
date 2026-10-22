@@ -363,6 +363,11 @@ uses recorded dimensions in synthetic Chromium. Replay does not reproduce Safari
 scaling, or physical touch behavior. Original environment metadata remains provenance. Simulator and physical Safari/PWA
 evidence requires the same in-page export plus a corresponding native screenshot.
 
+Use native Safari/Chrome evidence to decide mobile geometry when a nominal DevTools profile gives a different result.
+Physical-device evidence takes priority over a simulator. Compare measured content viewport, safe area, presentation
+mode, and orientation; a matching device label or logical screen size does not establish equivalent Grid space. Keep
+DevTools cases as additional regressions without sacrificing the native image and control limits.
+
 On a Mac with full Xcode and compatible Simulator runtimes, make the development URL reachable from the simulator. Run
 the representative native sweep from the repository root:
 
@@ -375,14 +380,15 @@ npm run measure:simulator -- --case 744x1133-coarse --mode standalone-pwa --sear
 
 The collector reuses one UI-test build. It creates dedicated simulators for the selected groups in
 [`viewports.json`](../test/viewports.json), opens actual Safari, and installs a separate fixture web app through Add to
-Home Screen. It reuses that fixture app when its Home Screen icon is already present. It checks portrait and landscape
-in both shells. Fullscreen is attempted only when the native page exposes the API. Every exported state must match the
-requested mode and orientation at visual scale 1. On integrated displays, the export must match the selected screen
-geometry and native screenshot dimensions. The collector supports app placement on the primary display. Alternate
-integrated displays and rotation failures remain explicit gaps; powering another integrated screen off is not a
-supported placement method. Unsupported and failed states remain coverage gaps. Native search retains all candidates,
-named baseline/candidate screenshots, and the Xcode result bundle. `catalog.json` groups actual viewport, safe area,
-input capabilities, pane layout, and all four Grid frame bounds. Model names remain provenance.
+Home Screen. It closes a restored Geometry dialog before waiting for its launcher. It reuses that fixture app when its
+Home Screen icon is already present. It checks portrait and landscape in both shells. Fullscreen is attempted only when
+the native page exposes the API. Every exported state must match the requested mode and orientation at visual scale 1.
+On integrated displays, the export must match the selected screen geometry and native screenshot dimensions. The
+collector supports app placement on the primary display. Alternate integrated displays and rotation failures remain
+explicit gaps; powering another integrated screen off is not a supported placement method. Unsupported and failed states
+remain coverage gaps. Native search retains all candidates, named baseline/candidate screenshots, and the Xcode result
+bundle. `catalog.json` groups actual viewport, safe area, input capabilities, pane layout, and all four Grid frame
+bounds. Model names remain provenance.
 
 For a manual capture, set `SIMULATOR_UDID` to an available simulator's UUID, then open the probe:
 

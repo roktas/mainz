@@ -185,23 +185,28 @@ pending. Phone profiles ending in `-` keep the nominal width and estimate the av
 `2 * floor(height * 0.85 / 2)`. Calculate each orientation from its nominal dimensions. These estimates define test
 viewports; the application does not subtract the estimated browser controls again.
 
-| Device       | CSS viewport | Normal     | Compact    |
-| ------------ | ------------ | ---------- | ---------- |
-| Narrow phone | 320 × 568    | 1 × 1 = 1  | 3 × 1 = 3  |
-| iPhone       | 375 × 667    | 2 × 1 = 2  | 4 × 1 = 4  |
-| iPhone       | 667 × 375    | 4 × 1 = 4  | 7 × 1 = 7  |
-| iPhone       | 390 × 844    | 2 × 1 = 2  | 4 × 2 = 8  |
-| iPhone       | 844 × 390    | 5 × 1 = 5  | 9 × 1 = 9  |
-| iPhone       | 393 × 852    | 2 × 1 = 2  | 4 × 2 = 8  |
-| iPhone       | 852 × 393    | 5 × 1 = 5  | 9 × 1 = 9  |
-| iPhone       | 440 × 956    | 2 × 1 = 2  | 4 × 3 = 12 |
-| iPhone       | 956 × 440    | 2 × 1 = 2  | 5 × 1 = 5  |
-| iPad mini 6  | 744 × 1133   | 4 × 2 = 8  | 8 × 4 = 32 |
-| iPad mini 6  | 1133 × 744   | 3 × 1 = 3  | 6 × 1 = 6  |
-| iPad         | 768 × 1024   | 4 × 1 = 4  | 8 × 3 = 24 |
-| iPad         | 1024 × 768   | 2 × 1 = 2  | 5 × 2 = 10 |
-| iPad gen 9   | 810 × 1080   | 5 × 2 = 10 | 9 × 4 = 36 |
-| iPad gen 9   | 1080 × 810   | 3 × 1 = 3  | 5 × 2 = 10 |
+| Device         | CSS viewport | Normal     | Compact    |
+| -------------- | ------------ | ---------- | ---------- |
+| Narrow phone   | 320 × 568    | 2 × 1 = 2  | 3 × 1 = 3  |
+| iPhone         | 375 × 667    | 2 × 1 = 2  | 4 × 1 = 4  |
+| iPhone         | 667 × 375    | 4 × 1 = 4  | 7 × 1 = 7  |
+| iPhone         | 390 × 844    | 2 × 1 = 2  | 4 × 2 = 8  |
+| iPhone         | 844 × 390    | 5 × 1 = 5  | 9 × 1 = 9  |
+| iPhone         | 393 × 852    | 2 × 1 = 2  | 4 × 3 = 12 |
+| iPhone         | 852 × 393    | 5 × 1 = 5  | 9 × 1 = 9  |
+| iPhone         | 440 × 956    | 3 × 2 = 6  | 4 × 3 = 12 |
+| iPhone         | 956 × 440    | 2 × 1 = 2  | 5 × 1 = 5  |
+| Pixel          | 412 × 924    | 3 × 2 = 6  | 4 × 3 = 12 |
+| Pixel Pro      | 427 × 952    | 3 × 2 = 6  | 4 × 3 = 12 |
+| iPad mini 6    | 744 × 1133   | 4 × 2 = 8  | 8 × 5 = 40 |
+| iPad mini 6    | 1133 × 744   | 3 × 1 = 3  | 6 × 1 = 6  |
+| iPad / mini    | 768 × 1024   | 5 × 2 = 10 | 8 × 4 = 32 |
+| iPad           | 1024 × 768   | 2 × 1 = 2  | 5 × 2 = 10 |
+| iPad gen 9     | 810 × 1080   | 5 × 2 = 10 | 9 × 4 = 36 |
+| iPad gen 9     | 1080 × 810   | 3 × 1 = 3  | 5 × 2 = 10 |
+| iPad Pro 13    | 1032 × 1376  | 3 × 3 = 9  | 5 × 7 = 35 |
+| Surface Pro 10 | 960 × 1440   | 3 × 4 = 12 | 5 × 8 = 40 |
+| Galaxy A55     | 360 × 800    | 2 × 1 = 2  | 3 × 2 = 6  |
 
 Mobile has a persistent one-tap Input/Output switch and preserves pane state. Headings retain the chooser or totals
 beside Open PDF/Download. Enlarged text can stack these groups. Labels stay complete. Long filenames truncate, with
@@ -262,6 +267,11 @@ Authored geometry still meets each required bound; the pixel allowance is not an
 portrait reference at ordinary text size. Extra space from other PDF proportions does not increase the minimum. The
 side-margin guide above does not use this tolerance.
 
+Compact Grid on phone-sized touch portrait viewports below 600 CSS px permits `min(a, b) / max(a, b) >= 0.80`. This
+narrow-screen exception allows tighter row spacing without losing visual balance. It preserves the minimum card
+separation, image margins, readable preview size, and image-scale tolerance. Normal Grid, tablet layouts, and other
+input/orientation conditions retain the 0.85 gap ratio.
+
 At ordinary text size, compare the same portrait PDF image in both densities within one viewport and pane. The target
 Normal/Compact linear scale ratio is 2. For the measured ratio `r`, require `min(r, 2) / max(r, 2) >= 0.85`,
 approximately 1.70 to 2.35. Use the rendered PDF image, excluding card controls and margins. Card area does not need to
@@ -283,10 +293,16 @@ numbers at the start, grips in the center, and face information at the upper-rig
 corner. Front retains its normal corner. The fold continues the current contour without leaving a rectangular border
 behind it. Accessible labels and hover help identify both faces. Page corners do not intercept tool interactions.
 
-The shared Normal reference uses 148 × 240 px cards; Compact uses 74 × 125 px cards at ordinary text size. The minimum
-gap is 85% of the authored vertical image padding, with a 0.5 rem floor for usable separation. Actual distributed
-spacing drives both row capacity and calibrated card height. Do not calculate one from the minimum gap and the other
-from the distributed gap.
+The shared Normal reference uses 148 × 240 px cards; Compact uses 74 × 125 px cards at ordinary text size. In touch
+portrait layouts, Normal fits three columns when readable cards fit: widths range from 112 to 134 px, heights from 208
+to 226 px, and image padding from 6 to 8 px. Below a 368 px single-pane workspace, two larger cards use 124–148 px
+widths, 224–240 px heights, and 8–10 px image padding. The 128 px image floor takes priority over a third column. Touch
+portrait Compact uses a 0.9 row-gap factor, reduced to 0.8 below 600 CSS px, 6–7.5 px image padding, and a height of at
+least 109.5 px, increased when a wider calibrated card needs the required portrait silhouette. Below a 336 px workspace,
+three Compact columns grow to at most 88 × 125 px with 7.5 px image padding. These content thresholds retain readable
+previews when another column cannot fit. They apply between measured viewport bands. The minimum gap is 85% of the
+authored vertical image padding, with a 0.5 rem floor for usable separation. Actual distributed spacing drives both row
+capacity and calibrated card height. Do not calculate one from the minimum gap and the other from the distributed gap.
 
 The QHD calibration targets three Normal rows below 1420 CSS px in height, with 240–280 px cards and 16 px image
 padding. From 1420 CSS px, it fits four Normal rows with 224–256 px cards and 14 px image padding. At 2560 × 1440,
@@ -310,21 +326,17 @@ card dimensions and spacing. The shared frame budget and pagination placement st
 | QHD tall                   | 2560–2880     | 1420–1800      | Fine pointer with hover  | Two panes   | Normal: 150 × 224–256 px, four fitted rows, 14 px image padding, 14 px minimum gaps. Compact: 75 × 112.5 px, 7.5 px padding.                                                  |
 | UHD-                       | 3840–4160     | 1900–2050      | Fine pointer with hover  | Two panes   | Normal: up to seven fitted columns, 134–140 × 229–240 px, 14.5 px padding. Compact: 74 × 120 px, 7.5 px padding. Both densities retain a 0.9 row-gap factor.                  |
 | UHD                        | 3840–4160     | 2050–2250      | Fine pointer with hover  | Two panes   | Normal: up to seven fitted columns, 134–140 × 233 px, 10.5 px padding. Compact: up to twelve fitted columns, 121.625 px high, 6.5 px padding.                                 |
-| Narrow touch portrait      | 350–375       | 600–900        | Coarse pointer, no hover | One pane    | Normal: 144 × 240 px, 10 px image padding. The 360 × 672 Chrome sample fits two columns.                                                                                      |
-| Phone portrait, Compact    | 390–420       | 760–790        | Coarse pointer, no hover | One pane    | Compact: 74 × 110 px, 6 px image padding. The 392 × 764 Chrome sample fits two rows.                                                                                          |
 | Short touch landscape      | 667–1000      | 250–500        | Coarse pointer, no hover | One pane    | Normal: up to five fitted columns, 134–142 × 232 px, 10 px padding. Safe-area insets reduce the available column budget.                                                      |
 | Small touch landscape      | 1000–1080     | 450–650        | Coarse pointer, no hover | Two panes   | Normal: 134 × 232 px, 10 px image padding. The 1006 × 481 Chrome sample fits three columns per pane.                                                                          |
-| Tablet portrait, Compact   | 750–805       | 1060–1200      | Coarse pointer, no hover | One pane    | Compact: 74 × 110 px, 6 px image padding. The 750 × 1080 Chrome sample fits four rows; 750 × 1144 standalone fits five.                                                       |
-| Tall touch portrait        | 860–900       | 1280–1320      | Coarse pointer, no hover | One pane    | Normal: 134 × 217 px, 10.5 px image padding. Compact: 74 × 110 px, 6 px padding. The 876 × 1280 Chrome sample fits three Normal or six Compact rows.                          |
+| Tall touch portrait        | 860–900       | 1280–1320      | Coarse pointer, no hover | One pane    | Normal: 134 × 217 px, 10.5 px image padding. The 876 × 1280 Chrome sample fits three Normal rows.                                                                             |
 | Wide landscape, Compact    | 1380–1450     | 740–800        | Coarse pointer, no hover | Two panes   | Compact: 74 × 110 px, 6 px image padding. The 1400 × 756 Chrome sample fits two rows per pane.                                                                                |
 | Small touch portrait       | 740–750       | 1047–1090      | Coarse pointer, no hover | One pane    | Normal: 137 × 226 px, 9 px image padding. The 744 × 1047 Simulator Safari sample fits two rows with a 140 px portrait image.                                                  |
 | Medium touch portrait      | 805–835       | 980–1220       | Coarse pointer, no hover | One pane    | Normal: 142 × 231 px, 9.5 px image padding. The 810 × 994 Simulator Safari sample fits five columns with a 144 px portrait image.                                             |
-| Small touch portrait, tall | 740–750       | 1100–1160      | Coarse pointer, no hover | One pane    | Compact: 77.7 px wide at ordinary text size. The 744 × 1133 Simulator Safari fullscreen sample fits four rows without reducing the image.                                     |
-| Medium portrait, Compact   | 805–835       | 1048–1120      | Coarse pointer, no hover | One pane    | Compact: 74 × 116.5 px, 4 px padding. The 810 × 1048 standalone sample fits four rows with an 80.5 px portrait image.                                                         |
+| Small touch portrait, tall | 740–750       | 1100–1160      | Coarse pointer, no hover | One pane    | Compact: 77.7 px wide at ordinary text size. Height and image padding follow the shared touch portrait rule.                                                                  |
 | Medium touch landscape     | 1080–1133     | 700–900        | Coarse pointer, no hover | Two panes   | Normal: 234 px high, 136 px wide, 11 px image padding, 12 px minimum gaps. Compact: 74.57 × 116.5 px, 4 px padding. The 1080 × 778 web-app sample gains a second Compact row. |
 | Wide touch landscape       | 1180–1220     | 730–900        | Coarse pointer, no hover | Two panes   | Compact: 79 × 119 px, 5 px padding. The 1180 × 734 Safari sample gains a second row with an 80 px portrait image.                                                             |
 | Large touch portrait       | 1000–1050     | 1200–1400      | Coarse pointer, no hover | Two panes   | Normal: 142 × 231 px, 9.5 px padding. The 1024 × 1280 Safari candidate grows from 2 × 2 to 3 × 3 with the same 144 px image.                                                  |
-| Large touch portrait, tall | 1024–1050     | 1300–1400      | Coarse pointer, no hover | Two panes   | Compact: 81 × 119.625 px, 5.5 px padding, targeting a sixth row.                                                                                                              |
+| Large touch portrait, tall | 1024–1050     | 1300–1400      | Coarse pointer, no hover | Two panes   | Compact: 81 px wide; height and image padding follow the shared touch portrait rule.                                                                                          |
 | Large touch landscape      | 1360–1380     | 980–1060       | Coarse pointer, no hover | Two panes   | Normal: 152 × 236 px, 12 px padding. Compact: 83 × 120.625 px, 6 px padding, with a 0.9 row-gap factor.                                                                       |
 
 A mouse with a secondary touch input keeps the desktop calibration. A primary touch pointer uses touch conditions.

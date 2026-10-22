@@ -8,6 +8,101 @@ import { measure } from "./measure.js"
 import inventory from "./viewports.json" with { type: "json" }
 import { quality } from "./quality.ts"
 
+test("Touch portrait Normal Grid fits readable cards across nearby phone dimensions", { timeout: 60000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({
+      viewport: { width: 440, height: 956 },
+      hasTouch: true,
+      isMobile: true,
+      reducedMotion: "reduce",
+    })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.waitForFunction(
+      () => document.querySelector(".composition-totals strong")?.textContent === "6 PDF pages",
+    )
+    await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).click()
+    const output = page.locator(".composition-output")
+    await output.getByLabel("Page selection", { exact: true }).fill("1-6")
+    await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
+    await page.waitForFunction(
+      () => document.querySelector(".composition-totals strong")?.textContent === "12 PDF pages",
+    )
+    await output.getByLabel("Page selection", { exact: true }).fill("7-12")
+    for (const [width, height] of [
+      [412, 924],
+      [411, 924],
+      [413, 924],
+      [427, 952],
+      [426, 952],
+      [428, 952],
+      [440, 956],
+      [439, 956],
+      [441, 956],
+      [440, 955],
+      [440, 957],
+    ]) {
+      await page.setViewportSize({ width, height })
+      for (const colorScheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme })
+        await output.getByRole("button", { name: "Normal Output grid", exact: true }).click()
+        const normal = await checkGrid(output, `${width}×${height}, ${colorScheme}, Normal`)
+        assert.deepEqual(normal.matrix, [3, 2, 6])
+        assert.ok(normal.image.height <= 141)
+        await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+        const compact = await checkGrid(output, `${width}×${height}, ${colorScheme}, Compact`)
+        assert.ok(Math.abs(compact.gaps[1] - 0.8 * compact.gaps[0]) < 1)
+        checkDensityRatio(normal.image.height, compact.image.height, `${width}×${height}`)
+        assert.ok(Math.abs(normal.frame.height - compact.frame.height) < 1)
+      }
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
+test("Phone Compact gaps keep the narrow-screen allowance below tablet widths", { timeout: 120000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({
+      viewport: { width: 440, height: 956 },
+      hasTouch: true,
+      isMobile: true,
+      reducedMotion: "reduce",
+    })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    await page.waitForFunction(
+      () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+    )
+    for (const width of [440, 599, 600, 601, 744]) {
+      await page.setViewportSize({ width, height: 1133 })
+      const sample = await page.evaluate(async () => (await import("/src/geometry.ts")).capture())
+      assert.deepEqual(quality(sample), [], `${width}px`)
+      for (const pane of ["input", "output"]) {
+        const compact = sample.layout[pane].compact
+        assert.equal(compact.authored.rowFactor, width < 600 ? 0.8 : 0.9)
+        if (width === 440) {
+          assert.ok(compact.gaps[1] < 0.85 * compact.gaps[0])
+          compact.gaps[1] = 0.75 * compact.gaps[0]
+        }
+      }
+      if (width === 440) assert.ok(quality(sample).some((failure) => failure.rule === "balanced row and column gaps"))
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
 test("Measured touch frames retain complete readable matrices", { timeout: 120000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser
@@ -30,7 +125,7 @@ test("Measured touch frames retain complete readable matrices", { timeout: 12000
       [750, 1080, 32, [4, 2, 8], [8, 4, 32]],
       [750, 1144, 0, [4, 2, 8], [8, 5, 40]],
       [1006, 481, 33, [3, 1, 3], [5, 1, 5]],
-      [800, 1160, 32, [4, 2, 8], [9, 5, 45]],
+      [800, 1160, 32, [5, 2, 10], [9, 5, 45]],
       [876, 1280, 32, [5, 3, 15], [10, 6, 60]],
       [1400, 756, 32, [3, 1, 3], [6, 2, 12]],
     ]) {
@@ -60,11 +155,8 @@ test("Measured touch calibrations isolate viewport bounds and primary input", { 
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
   let browser
   const bands = [
-    { width: [350, 375], height: [600, 900], normal: [144, 240, 10] },
-    { width: [390, 420], height: [760, 790], compact: [74, 110, 6] },
-    { width: [750, 805], height: [1060, 1200], compact: [74, 110, 6] },
     { width: [1000, 1080], height: [450, 650], normal: [134, 232, 10] },
-    { width: [860, 900], height: [1280, 1320], normal: [134, 217, 10.5], compact: [74, 110, 6] },
+    { width: [860, 900], height: [1280, 1320], normal: [134, 217, 10.5] },
     { width: [1380, 1450], height: [740, 800], compact: [74, 110, 6] },
   ]
   try {
@@ -118,7 +210,9 @@ test("Measured touch calibrations isolate viewport bounds and primary input", { 
             const [cardWidth, cardHeight, padding] = active
               ? band[density]
               : density === "normal"
-                ? [148, 240, 14]
+                ? mode === "touch" && height > width
+                  ? [134, 226, 8]
+                  : [148, 240, 14]
                 : mode !== "touch" && left === 1380
                   ? [null, 121, 6.4]
                   : [null, 125, 7.5]
@@ -165,7 +259,7 @@ test("Touch portrait pagination uses available height above the safe area", { ti
           await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
           const geometry = await measure(pane)
           assert.deepEqual(geometry.capacity.slice(0, 2), density === "Compact" ? [9, 4] : [5, 2])
-          assert.ok(Math.abs(geometry.image.height - (density === "Compact" ? 80.625 : 144)) < 1)
+          assert.ok(Math.abs(geometry.image.height - (density === "Compact" ? 69.5 : 144)) < 1)
           assert.ok(geometry.clearance >= 8 && geometry.scroll <= 1)
           const gap = geometry.status - geometry.caption.bottom
           assert.ok(gap >= 8 && gap <= 32, `${name}, ${width}, ${density}: caption clearance ${gap}`)
@@ -216,8 +310,14 @@ async function checkGrid(pane, label) {
     gaps.every((gap) => gap + 1 >= 0.85 * upper),
     `${label}: Card gaps respect the image margin`,
   )
+  const gapRatio = await pane.evaluate((element) =>
+    element.dataset.density === "compact" &&
+    matchMedia("(hover: none) and (pointer: coarse) and (orientation: portrait) and (width < 600px)").matches
+      ? 0.8
+      : 0.85,
+  )
   assert.ok(
-    Math.min(...gaps) + 1 >= 0.85 * Math.max(...gaps),
+    Math.min(...gaps) + 1 >= gapRatio * Math.max(...gaps),
     `${label}: Horizontal and vertical gaps stay approximately equal`,
   )
   assert.ok(geometry.slider.top - geometry.cardsBottom >= 7, `${label}: Pagination stays clear of complete card rows`)
@@ -498,20 +598,20 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
                 [1380, 1024, "default"],
                 [1366, 979, "default"],
                 [1366, 1060, "default"],
-                [810, 1080, "medium-compact"],
+                [810, 1080, "portrait"],
                 [805, 980, "portrait"],
                 [804, 980, "default"],
                 [805, 979, "default"],
                 [834, 1219, "portrait"],
                 [835, 1080, "default"],
                 [810, 1220, "default"],
-                [820, 1080, "medium-compact"],
-                [829, 1119, "medium-compact"],
-                [805, 1048, "medium-compact"],
-                [834, 1119, "medium-compact"],
-                [819, 1094, "medium-compact"],
-                [830, 1094, "medium-compact"],
-                [820, 1079, "medium-compact"],
+                [820, 1080, "portrait"],
+                [829, 1119, "portrait"],
+                [805, 1048, "portrait"],
+                [834, 1119, "portrait"],
+                [819, 1094, "portrait"],
+                [830, 1094, "portrait"],
+                [820, 1079, "portrait"],
                 [820, 1047, "portrait"],
                 [820, 1120, "portrait"],
                 [740, 1047, "small"],
@@ -525,7 +625,7 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
                 [744, 1133, "tall"],
                 [749, 1159, "tall"],
                 [739, 1100, "default"],
-                [750, 1100, "tablet-compact"],
+                [750, 1100, "default"],
                 [744, 1099, "default"],
                 [744, 1160, "default"],
                 [527, 917, "default"],
@@ -547,6 +647,7 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
             [true, true, true],
           )
         const pane = page.locator(".selection-panel")
+        const touchPortrait = mode === "touch" && height > width
         let normalFrame, normalImage
         for (const density of ["Normal", "Compact"]) {
           await pane.getByRole("button", { name: `${density} Input grid`, exact: true }).click()
@@ -587,7 +688,7 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
             } else {
               assert.equal(
                 geometry.card.width,
-                ["portrait", "large", "large-tall", "medium-compact"].includes(calibration)
+                ["portrait", "large", "large-tall"].includes(calibration)
                   ? 142
                   : calibration === "small"
                     ? 137
@@ -597,7 +698,9 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
                         ? 152
                         : ["qhd", "qhd-window", "qhd-full"].includes(calibration)
                           ? 150
-                          : 148,
+                          : touchPortrait
+                            ? 134
+                            : 148,
                 `${label}: The calibrated width stays scoped`,
               )
             }
@@ -608,7 +711,7 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
                     ? 14
                     : ["qhd", "qhd-window"].includes(calibration)
                       ? 16
-                      : ["portrait", "large", "large-tall", "medium-compact"].includes(calibration)
+                      : ["portrait", "large", "large-tall"].includes(calibration)
                         ? 9.5
                         : calibration === "small"
                           ? 9
@@ -626,7 +729,9 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
                                       ? 12
                                       : calibration === "phone"
                                         ? 10
-                                        : 14),
+                                        : touchPortrait
+                                          ? 8
+                                          : 14),
               ) < 1,
               `${label}: Image padding stays scoped`,
             )
@@ -638,7 +743,7 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
             else if (!["uhd", "uhd-tall", "desktop-large", "phone"].includes(calibration))
               assert.equal(
                 geometry.card.height,
-                ["portrait", "large", "large-tall", "medium-compact"].includes(calibration)
+                ["portrait", "large", "large-tall"].includes(calibration)
                   ? 231
                   : calibration === "small"
                     ? 226
@@ -650,7 +755,9 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
                           ? 236
                           : calibration === "fhd"
                             ? 224
-                            : 240,
+                            : touchPortrait
+                              ? 226
+                              : 240,
               )
           } else {
             checkDensityRatio(normalImage, geometry.image.height, label)
@@ -701,18 +808,21 @@ test("Calibrations stay isolated across viewport bounds and input capabilities",
             } else if (calibration === "landscape" || calibration === "wide") {
               assert.ok(Math.abs(geometry.card.width - (calibration === "landscape" ? 74.57 : 79)) < 0.02)
               assert.equal(geometry.card.height, calibration === "landscape" ? 116.5 : 119)
-            } else if (["medium-compact", "tablet-compact"].includes(calibration)) {
-              assert.equal(geometry.card.width, 74)
-              assert.equal(geometry.card.height, calibration === "tablet-compact" ? 110 : 116.5)
             } else if (calibration === "large-tall" || calibration === "large-landscape") {
               assert.equal(geometry.card.width, calibration === "large-tall" ? 81 : 83)
-              assert.equal(geometry.card.height, calibration === "large-tall" ? 119.625 : 120.625)
+              if (calibration === "large-tall") assert.ok(geometry.card.height >= 114 && geometry.card.height < 115)
+              else assert.equal(geometry.card.height, 120.625)
             } else {
               assert.ok(
                 Math.abs(geometry.card.width - (calibration === "tall" ? 77.7 : 74)) < 0.02,
                 `${label}: Compact width stays scoped`,
               )
-              assert.equal(geometry.card.height, 125, `${label}: Compact height stays scoped`)
+              if (touchPortrait)
+                assert.ok(
+                  geometry.card.height >= 109.5 && geometry.card.height <= 111,
+                  `${label}: Readable portrait cards keep their shared height bounds`,
+                )
+              else assert.equal(geometry.card.height, 125, `${label}: Compact height stays scoped`)
             }
             if (normalFrame)
               assert.ok(

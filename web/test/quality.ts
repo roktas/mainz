@@ -41,7 +41,15 @@ export function quality(sample: Geometry) {
       const gaps = [grid.edges[0], ...grid.gaps.filter((gap) => gap !== null)]
       require(gaps.every((gap) => gap + 1 >= 8), "minimum card separation")
       require(gaps.every((gap) => gap + 1 >= 0.85 * upper), "gap to image margin")
-      require(Math.min(...gaps) + 1 >= 0.85 * Math.max(...gaps), "balanced row and column gaps")
+      const gapRatio =
+        density === "compact" &&
+        sample.environment.pointer === "coarse" &&
+        sample.environment.hover === "none" &&
+        sample.environment.orientation === "portrait" &&
+        sample.viewport.inner[0] < 600
+          ? 0.8
+          : 0.85
+      require(Math.min(...gaps) + 1 >= gapRatio * Math.max(...gaps), "balanced row and column gaps")
       require(grid.clearance !== null && grid.clearance >= 7, "pagination clears complete rows")
       require(grid.caption &&
         grid.slider &&

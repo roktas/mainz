@@ -179,8 +179,19 @@
     }
 
     @container composer (width > 55em) {
+      /* Style retains the hidden Grid's minimum row in the shared track. */
+      .selection-panel:has(.workspace-content)::after {
+        content: "";
+        grid-column: 1;
+        grid-row: 4;
+        min-block-size: calc(var(--grid-height) + var(--grid-pager-height) + 8px);
+        pointer-events: none;
+        visibility: hidden;
+      }
+
       .input-panel:has(.workspace-content) {
         display: block flow;
+        grid-column: 1;
         /* The form's intrinsic height must not enlarge the shared frame budget. */
         container-type: size;
         min-block-size: 0;
@@ -242,40 +253,41 @@
     }
   }
 
-  /* Calibration rows change card geometry, never the available viewport budget. */
-  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (350px <= width < 375px) and (600px <= height < 900px) {
+  /* Fit readable portrait columns before leaving space unused below a fixed-width row. */
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) {
     @scope (.composer) {
-      @container composer (width <= 55em) {
+      :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+        --grid-width: clamp(7rem, calc((100cqi - 2.125rem) / 3), 8.375rem);
+        --grid-height: clamp(13rem, calc(13rem + var(--grid-width) - 7.25rem), 14.125rem);
+        --thumbnail-padding: clamp(0.375rem, calc(0.375rem + (var(--grid-width) - 7.25rem) / 9), 0.5rem);
+      }
+      :is(.selection-panel, .composition-output)[data-density="compact"] {
+        --grid-height: max(calc(6.09375rem + 2 * var(--thumbnail-padding)), calc(1.415 * var(--grid-width)));
+        --thumbnail-padding: clamp(0.375rem, calc(0.375rem + (var(--grid-width) - 4.625rem) / 8), 0.46875rem);
+        --grid-row-factor: 0.9;
+        @media (width < 600px) {
+          --grid-row-factor: 0.8;
+        }
+      }
+      /* Below three readable columns, retain larger two-column previews. */
+      @container composer (width < 23rem) {
         :is(.selection-panel, .composition-output):not([data-density="compact"]) {
-          --grid-width: 9rem;
-          --thumbnail-padding: 0.625rem;
+          --grid-width: clamp(7.75rem, calc((100cqi - 1.59375rem) / 2), 9.25rem);
+          --grid-height: calc(14rem + 2 * (var(--grid-width) - 7.75rem) / 3);
+          --thumbnail-padding: calc(0.5rem + (var(--grid-width) - 7.75rem) / 12);
         }
       }
-    }
-  }
-
-  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (390px <= width < 420px) and (760px <= height < 790px) {
-    @scope (.composer) {
-      @container composer (width <= 55em) {
+      @container composer (width < 21rem) {
         :is(.selection-panel, .composition-output)[data-density="compact"] {
-          --grid-height: 6.875rem;
-          --thumbnail-padding: 0.375rem;
+          --grid-width: max(74px, calc(5 * var(--body)), min(5.5rem, calc((100cqi - 2rem) / 3)));
+          --grid-height: 7.8125rem;
+          --thumbnail-padding: 0.46875rem;
         }
       }
     }
   }
 
-  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (750px <= width < 805px) and (1060px <= height < 1200px) {
-    @scope (.composer) {
-      @container composer (width <= 55em) {
-        :is(.selection-panel, .composition-output)[data-density="compact"] {
-          --grid-height: 6.875rem;
-          --thumbnail-padding: 0.375rem;
-        }
-      }
-    }
-  }
-
+  /* Calibration rows change card geometry, never the available viewport budget. */
   @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (1000px <= width < 1080px) and (450px <= height < 650px) {
     @scope (.composer) {
       @container composer (width > 55em) {
@@ -296,10 +308,6 @@
             --grid-width: 8.375rem;
             --grid-height: 13.5625rem;
             --thumbnail-padding: 0.65625rem;
-          }
-          &[data-density="compact"] {
-            --grid-height: 6.875rem;
-            --thumbnail-padding: 0.375rem;
           }
         }
       }
@@ -447,17 +455,6 @@
     }
   }
 
-  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (805px <= width < 835px) and (1048px <= height < 1120px) {
-    @scope (.composer) {
-      @container composer (width <= 55em) {
-        :is(.selection-panel, .composition-output)[data-density="compact"] {
-          --grid-height: 7.28125rem;
-          --thumbnail-padding: 0.25rem;
-        }
-      }
-    }
-  }
-
   @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (1000px <= width < 1050px) and (1200px <= height < 1400px) {
     @scope (.composer) {
       @container composer (width > 55em) {
@@ -469,8 +466,6 @@
         @media (width >= 1024px) and (height >= 1300px) {
           :is(.selection-panel, .composition-output)[data-density="compact"] {
             --grid-width: max(81px, calc(5 * var(--body)));
-            --grid-height: 7.4765625rem;
-            --thumbnail-padding: 0.34375rem;
           }
         }
       }

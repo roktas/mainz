@@ -45,6 +45,8 @@
 
 ### Fixed
 
+- Portrait touch Grid fits readable columns and rows across nearby phone and tablet dimensions, including nominal Chrome
+  DevTools viewports. Switching to Style retains a mixed-density companion Grid's minimum frame.
 - Style shows Reset all styles only after a change and retains keyboard focus when resetting hides the control.
 - Touch Page keeps zoom controls and frame alignment when landscape orientation exposes both panes.
 - Single-pane Grid reserves one caption line below its slider. Medium tablet portrait layouts fit four Compact rows

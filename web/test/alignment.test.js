@@ -1,10 +1,52 @@
-// Checks centered grips and Page thumbnail alignment once per distinct card calibration.
+// Checks shared frames, centered grips, and Page thumbnails across distinct card calibrations.
 
 import assert from "node:assert/strict"
 import test from "node:test"
 import { chromium } from "playwright"
 import { createServer, fixture, checkGrips, tab, captureLayout } from "./browser.js"
 import { measure } from "./measure.js"
+
+test("Style retains a Compact companion frame on short touch landscapes", { timeout: 60000 }, async () => {
+  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    await page.waitForFunction(
+      () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+    )
+    const input = page.locator(".selection-panel"),
+      output = page.locator(".composition-output")
+    for (const [width, height] of [
+      [1006, 481],
+      [1006, 544],
+      [1200, 630],
+      [1200, 694],
+      [1280, 680],
+      [1187, 622],
+      [1187, 686],
+    ]) {
+      await page.setViewportSize({ width, height })
+      await tab(input, "Grid")
+      await input.getByRole("button", { name: "Normal Input grid", exact: true }).click()
+      await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+      await page.evaluate(() => scrollTo(0, 0))
+      const before = await measure(output)
+      await tab(input, "Style")
+      await page.evaluate(() => scrollTo(0, 0))
+      const after = await measure(output)
+      assert.deepEqual(after.frame, before.frame, `${width}×${height}: Style retains the shared frame`)
+      assert.deepEqual(after.capacity, before.capacity)
+      assert.equal(after.horizontalOverflow, false)
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
 
 test("Style scrolling preserves its companion Grid capacity and Page frame", { timeout: 180000 }, async () => {
   const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
@@ -201,6 +243,11 @@ for (const hasTouch of [false, true])
               [320, 568],
               [360, 672],
               [392, 764],
+              [402, 900],
+              [412, 924],
+              [427, 952],
+              [440, 956],
+              [960, 1440],
               [390, 844],
               [667, 250],
               [744, 1047],
@@ -366,6 +413,12 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
         ? [
             [360, 672],
             [392, 764],
+            [360, 800],
+            [402, 900],
+            [412, 924],
+            [427, 952],
+            [440, 956],
+            [960, 1440],
             [750, 1144],
             [1006, 481],
             [876, 1280],

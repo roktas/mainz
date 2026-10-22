@@ -148,6 +148,7 @@ test("Page headings and navigation follow fitted image edges", { timeout: 420000
         [
           [360, 672],
           [392, 764],
+          [440, 956],
           [750, 1144],
           [1006, 481],
           [876, 1280],

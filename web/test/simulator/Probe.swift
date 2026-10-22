@@ -22,8 +22,13 @@ final class Probe: XCTestCase {
 
     @MainActor private func prepare(_ app: XCUIApplication) {
         app.activate()
-        _ = typing(app.alerts.firstMatch)
-        XCTAssertTrue(app.buttons["Geometry"].waitForExistence(timeout: 45))
+        let deadline = Date().addingTimeInterval(45)
+        while Date() < deadline {
+            _ = typing(app.alerts.firstMatch)
+            if app.buttons["Close geometry"].exists { app.buttons["Close geometry"].tap() }
+            if app.buttons["Geometry"].waitForExistence(timeout: 1) { return }
+        }
+        XCTFail("The geometry launcher did not become available.")
     }
 
     @MainActor private func open(_ app: XCUIApplication) {
