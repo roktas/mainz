@@ -16,7 +16,7 @@ test("Browser modes retain critical regressions and reserve calibration matrices
     assert.equal(full.files.includes(`test/${group}.test.js`), true)
   }
   const skipped = new RegExp(standard.flags[0].slice("--test-skip-pattern=".length))
-  assert.equal(skipped.test("Calibrations stay isolated across viewport bounds and input capabilities"), true)
+  assert.equal(skipped.test("Measured touch calibrations isolate viewport bounds and primary input"), true)
   assert.equal(skipped.test("Grid pagination bounds its marks and retains exact page navigation"), false)
   assert.equal(skipped.test("Partial Grid batches retain full-matrix card positions and dimensions"), false)
   assert.deepEqual(full.flags, [])

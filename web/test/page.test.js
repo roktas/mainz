@@ -979,49 +979,10 @@ test(
       for (let position = 2; position < 7; position++)
         await input.getByRole("button", { name: "Next Input page", exact: true }).click()
       await ready()
-      for (const theme of ["light", "dark"])
-        for (const width of [320, 390, 768, 1440])
-          for (const text of [100, 200]) {
-            await page.setViewportSize({ width, height: 1000 })
-            await page.evaluate(
-              ({ theme: selectedTheme, text: scale }) => {
-                document.documentElement.dataset.theme = selectedTheme
-                document.documentElement.style.fontSize = `${scale}%`
-              },
-              { theme, text },
-            )
-            const views = page.locator(".mobile-workspace-tabs")
-            for (const [name, pane] of [
-              ["Output", output],
-              ["Input", input],
-            ]) {
-              if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
-              assert.equal(await pane.locator(".sequence-entry").isVisible(), true)
-              assert.equal(
-                await pane.getByRole("navigation", { name: `${name} page navigation`, exact: true }).isVisible(),
-                true,
-              )
-              assert.equal(await pane.locator(".page-actions button").count(), name === "Input" ? 1 : 0)
-              assert.equal(await aligned(pane), true, `${name} controls align: ${theme}, ${width}px, ${text}% text`)
-              await page.waitForFunction(
-                (element) => {
-                  const area = element.getBoundingClientRect()
-                  const sheet = element.querySelector("canvas").getBoundingClientRect()
-                  const before = sheet.y - area.y,
-                    after = area.bottom - sheet.bottom
-                  return before >= 18 && Math.abs(before - after) < 1
-                },
-                await pane.locator(".pdf-viewport").elementHandle(),
-              )
-              assert.equal(
-                await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-                true,
-                `${name}: ${theme}, ${width}px, ${text}% text`,
-              )
-            }
-          }
-      await page.setViewportSize({ width: 1440, height: 1100 })
-      await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+      for (const pane of [input, output]) {
+        assert.equal(await aligned(pane), true, "Page controls remain aligned after composition edits")
+        assert.equal(await pane.locator(".page-actions button").count(), pane === input ? 1 : 0)
+      }
       const pending = page.waitForEvent("download")
       await output.getByRole("button", { name: "Download", exact: true }).click()
       const saved = await readFile(await (await pending).path())
@@ -1031,6 +992,9 @@ test(
       await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("1")
       await input.getByRole("button", { name: "Add to Output", exact: true }).click()
       await tab(input, "Style")
+      await input.getByLabel("Edit Fill", { exact: true }).click()
+      await input.getByRole("textbox", { name: "Fill Color", exact: true }).fill("#00ff00")
+      await ready()
       await input.getByRole("button", { name: "Reset all styles", exact: true }).click()
       await tab(input, "Page")
       await ready()

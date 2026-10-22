@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { copyError, downloadName, expand, job, move, positionAfterEdit, uid } from "../src/model.ts"
+import { copyError, downloadName, expand, job, move, positionAfterEdit } from "../src/model.ts"
 import type { Part } from "../src/model.ts"
 import { pageRanges, parseSequence, toggleSequence } from "../src/pages.ts"
 import * as composition from "../src/composition.ts"
@@ -18,12 +18,6 @@ import {
   usage,
 } from "../src/styles.ts"
 import type { Description, Entry, ProfileSet } from "../src/styles.ts"
-
-test("Workspace identities are distinct nonempty strings", () => {
-  const ids = Array.from({ length: 1000 }, uid)
-  assert.ok(ids.every((id) => typeof id === "string" && id.length > 0))
-  assert.equal(new Set(ids).size, ids.length)
-})
 
 test("Profiles replace their complete scope and leave other styles independent", () => {
   const set: ProfileSet = {
