@@ -44,7 +44,7 @@ direnv exec . bundle exec rake build:wasm package:wasm setup:web
 npm run dev
 ```
 
-Open the Vite URL and choose or drop PDFs. Add `?demo` to try the bundled seven-page sample. See
+Open the Vite URL and choose or drop PDFs. Add `?demo` to try the bundled eight-page sample. See
 [AGENTS.md](../AGENTS.md#web) for checks, build configuration, and mockups. The
 [fixture guide](test/fixtures/README.md#grid-fixture) describes the local 240-page Grid sample.
 

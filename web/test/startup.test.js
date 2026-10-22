@@ -1003,7 +1003,7 @@ test("Demo variants open the maintained Input with populated or empty Output", a
       await tab(input, "Page")
       assert.equal(
         (await input.locator(".inspection-heading .page-number").innerText()).replace(/\s+/g, ""),
-        "1/7",
+        "1/8",
         "The Page counter does not repeat an identical PDF label",
       )
       await page.close()

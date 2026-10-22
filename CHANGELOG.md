@@ -15,6 +15,7 @@
 
 ### Changed
 
+- The bundled demo includes an eighth practice page with crossed strokes from the same Ital Winters 7.9 mm series.
 - The web application is named PDF Composer. Settings adjusts lens magnification from 2× to 128× with −/+ controls.
 - Normal and Compact Grid show complete rows within the available viewport. Input chooses its initial density after
   opening and retains it per Source. Grid and Page share thumbnail dimensions. At ordinary text size, Normal images stay

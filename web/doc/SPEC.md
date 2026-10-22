@@ -73,7 +73,7 @@ numbers. If a PDF label differs from its physical number, Page shows both.
 
 | Query         | Result                                                                                         |
 | ------------- | ---------------------------------------------------------------------------------------------- |
-| `?demo`       | Bundled seven-page Input with six Output pages.                                                |
+| `?demo`       | Bundled eight-page Input with six Output pages.                                                |
 | `?demo=empty` | The same Input with no Selection and empty Output, including onboarding and the addition hint. |
 | `?demo=grid`  | Large Grid fixture, available only in development.                                             |
 | `?demo&paint` | Style with the Inkjet profile, available only in development.                                  |

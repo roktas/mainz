@@ -1,7 +1,10 @@
 # Prepared PDF sample
 
-[demo.pdf](demo.pdf) contains the cover and six practice Pages from Megic's Ital Winters 7.9 mm A4 Book. PDF Composer's
-`?demo` mode opens it in development, production, and offline after application installation.
+[demo.pdf](demo.pdf) contains the cover and seven practice Pages from Megic's Ital Winters 7.9 mm A4 Book. PDF
+Composer's `?demo` mode opens it in development, production, and offline after application installation.
+
+The eighth Page is `ital-cros-79a4-wxgf`, a full-sheet crossed-stroke exercise. Megic's sample builder appends it after
+the original seven pages. The first seven pages retain exact raster equality at 150 and 300 DPI.
 
 The sample has eight Style objects and 34 parameters for patterns, guide lines, and the SAMPLE watermark. Pattern fills
 start at `#999999` with 40% opacity and remain editable. Marks and Frame remain fixed. Embedded Generic and Inkjet
@@ -9,7 +12,7 @@ profiles provide named style choices. Opening the sample preserves its saved app
 gray pattern fills. Inkjet uses 0.04 mm thin guides and soft blue (`#6B7F99`) Pattern and Partial Pattern fills at 40%
 opacity. The Style groups appear in this order: Patterns, Guides, Watermark.
 
-The Stamp Style object controls the small, distressed red SAMPLE stamp at the center of all seven pages, including the
+The Stamp Style object controls the small, distressed red SAMPLE stamp at the center of all eight pages, including the
 cover. Its fill color and opacity remain editable. Visibility is unavailable. Its frame and letter outlines stay fixed
 and visible outside the editable targets. Megic maintains the vector source and declaration in
 `test/integration/watermark.svg` and `test/integration/watermark.json`.
@@ -47,7 +50,7 @@ mkdir -p .local/tmp/web/grid
 
 Reuse an existing `sample.pdf`. With the development server running, open `http://127.0.0.1:5173/?demo=grid`. Add
 `&input=page` or `&output=page` to compare Grid with Page. The fixture stays outside production assets and the offline
-cache. Both densities remain available in production with local PDFs and the bundled seven-page demo.
+cache. Both densities remain available in production with local PDFs and the bundled eight-page demo.
 
 ## Geometry collection and calibration
 

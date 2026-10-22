@@ -170,7 +170,7 @@ Before the first UI or visual-mockup edit, start or reuse the preview server, co
 Do not edit before sharing a working URL. Use `npm run dev -- --port 5173 --strictPort`. Keep the server until push,
 then stop it. Documentation-only work needs no server.
 
-`http://127.0.0.1:5173/?demo` opens the maintained seven-page fixture. Development also accepts `?demo&paint` for Style
+`http://127.0.0.1:5173/?demo` opens the maintained eight-page fixture. Development also accepts `?demo&paint` for Style
 with Inkjet. Production preview uses `npm run preview -- --port 4173 --strictPort`.
 
 Keep self-contained HTML mockups under `.local/tmp/web/`, using project tokens and vocabulary. Retain descriptive
