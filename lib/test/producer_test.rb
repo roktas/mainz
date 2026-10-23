@@ -79,6 +79,25 @@ module Mainz
       end
     end
 
+    def test_parameter_groups_preserve_arrays_and_sort_unlisted_ids
+      source = @directory.join("groups.svg")
+      source.write(svg(SHAPE))
+      data = declaration({"guides" => "#Guides"})
+      data["groups"] = [{"title" => "Ink", "parameters" => %w[guides.stroke-width guides.display]}]
+      expected = data["groups"] +
+        [
+          {
+            "title" => "Other controls",
+            "parameters" => %w[guides.fill-color guides.fill-opacity guides.stroke-color guides.stroke-opacity]
+          }
+        ]
+      [data["parameters"], data["parameters"].to_a.reverse.to_h].each_with_index do |parameters, index|
+        declared = write("groups-#{index}.json", data.merge("parameters" => parameters))
+        output = pdf("produce", "groups-#{index}.pdf", source, "--declaration", declared)
+        assert_equal(expected, JSON.parse(command(@cli, "describe", output).stdout)["groups"])
+      end
+    end
+
     def test_optional_display_preserves_source_visibility
       %w[inline none].each do |display|
         source = @directory.join("fixed-#{display}.svg")
@@ -202,7 +221,11 @@ module Mainz
       duplicate = @directory.join("duplicate.json")
       duplicate.write("{\"targets\":{},\"targets\":{},\"parameters\":{}}")
       output = @directory.join("invalid.pdf")
-      command(@cli, "produce", source, "--declaration", duplicate, "--output", output, ok: false)
+      failure = command(@cli, "produce", source, "--declaration", duplicate, "--output", output, ok: false)
+      error = JSON.parse(failure.stderr)
+      assert_equal("invalid-contract", error["code"])
+      assert_equal("declaration", error["source"])
+      assert_equal("", error["location"])
       data = declaration({"guides" => "#Guides"})
       data["parameters"]["guides.stroke-width"]["schema"]["default"] = 0.5
       command(@cli, "produce", source, "--declaration", write("default.json", data), "--output", output, ok: false)
@@ -250,6 +273,7 @@ module Mainz
           output,
           ok: false
         )
+        assert_equal(1, failure.status.exitstatus)
         assert_equal("unsupported-context", JSON.parse(failure.stderr)["code"])
         refute_path_exists(output)
       end

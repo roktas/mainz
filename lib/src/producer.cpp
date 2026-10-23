@@ -2,7 +2,6 @@
 #include "pipeline.hh"
 #include "producer/internal.hh"
 #include <algorithm>
-#include <qpdf/BufferInputSource.hh>
 #include <qpdf/Pipeline.hh>
 #include <qpdf/QPDFEFStreamObjectHelper.hh>
 #include <qpdf/QPDFEmbeddedFileDocumentHelper.hh>
@@ -15,24 +14,6 @@ namespace mainz {
 namespace {
     using namespace detail;
     using Object = QPDFObjectHandle;
-    class Order : public JSON::Reactor {
-    public:
-        void dictionaryStart() override { ++depth; }
-        void arrayStart() override { ++depth; }
-        void containerEnd(const JSON&) override { --depth; }
-        void topLevelScalar() override { }
-        bool dictionaryItem(const std::string& key, const JSON&) override
-        {
-            if (depth == 1)
-                ids.push_back(key);
-            return false;
-        }
-        bool arrayItem(const JSON&) override { return false; }
-        std::vector<std::string> ids;
-
-    private:
-        std::size_t depth {0};
-    };
     JSON declaration(const std::string& bytes)
     {
         auto root = parse(bytes, "declaration");
@@ -95,17 +76,12 @@ namespace {
                 require(parameters.contains(text(id)) && grouped.insert(text(id)).second,
                     "Unknown or repeated group parameter.");
         }
-        // QPDF keeps dictionary keys sorted; its parser events retain authored control order.
-        auto item = root.getDictItem("parameters");
-        BufferInputSource input("Mainz parameter order",
-            bytes.substr(
-                static_cast<std::size_t>(item.getStart()), static_cast<std::size_t>(item.getEnd() - item.getStart())));
-        Order order;
-        JSON::parse(input, &order);
         auto remaining = JSON::makeArray();
-        for (const auto& id : order.ids)
+        for (const auto& [id, definition] : parameters) {
+            (void)definition;
             if (!grouped.contains(id))
                 remaining.addArrayElement(JSON::makeString(id));
+        }
         if (!array(remaining).empty())
             groups.addArrayElement(
                 dictionary({{"title", JSON::makeString("Other controls")}, {"parameters", remaining}}));

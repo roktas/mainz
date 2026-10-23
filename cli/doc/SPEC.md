@@ -57,8 +57,9 @@ units resolve at 96 DPI. Invalid dimension arguments fail with exit code 2 befor
 
 Success results use stdout JSON. Diagnostics use stderr. Machine output contains no terminal controls. Document-supplied
 text in human-readable diagnostics escapes control characters. Processor errors retain the library's structured error
-record. Producer-specific failures can use `producer-error`. Validation failures produce no stdout result except for the
-`verify` wrapper. Usage and file failures report through stderr without a JSON result.
+record. Producer-specific failures can use `producer-error`. Declaration parse errors retain the library's
+[source and location fields](../../lib/doc/SPEC.md#62-errors-and-limits). Validation failures produce no stdout result
+except for the `verify` wrapper. Usage and file failures report through stderr without a JSON result.
 
 | Exit code | Meaning                                  |
 | --------- | ---------------------------------------- |

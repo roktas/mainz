@@ -648,6 +648,7 @@ Processor errors require plain-text `code` and nonempty `message`. Codes are `pd
 `parameter`, `page`, and `region` identify affected records. Field errors supply both `source` (`manifest` or `request`)
 and `location`. Location is a [JSON Pointer](https://www.rfc-editor.org/rfc/rfc6901), not a URI fragment. The empty
 pointer names the whole JSON input. It can identify missing or unknown fields without resolving to an existing value.
+Producer JSON parse errors use `source: "declaration"` and an empty `location` for the complete SVG declaration.
 
 ```json
 {
@@ -813,7 +814,8 @@ authored IDs. For an SVG group named Ink:
 ```
 
 Properties and schemas follow Sections 1.2 and 4.3. `value` applies only after baseline capture. `default` must agree
-with eligible baselines. Ordered groups carry presentation order without changing parameter semantics.
+with eligible baselines. Ordered groups carry presentation order without changing parameter semantics. Unlisted
+parameters form an Other controls group in ID order.
 
 Selected targets support vector paths. Text and images stay outside them. Masks, filters, group opacity, unsupported
 paint contexts, and ambiguous visibility fail. Targets hidden by `display: none !important` cannot be materialized. If

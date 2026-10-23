@@ -1,6 +1,5 @@
 #include "command.hh"
 #include "producer.hh"
-#include <cairo.h>
 #include <charconv>
 #include <cmath>
 #include <fontconfig/fontconfig.h>
@@ -8,12 +7,11 @@
 
 namespace mainz::cli {
 namespace {
-    // This standalone command owns process caches; library callers retain their host's caches.
+    // Release process-owned font caches without resetting Cairo's still-shared objects.
     struct RendererCaches {
         ~RendererCaches()
         {
             pango_cairo_font_map_set_default(nullptr);
-            cairo_debug_reset_static_data();
             FcFini();
         }
     };
