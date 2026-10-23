@@ -72,6 +72,8 @@ jobs:
         run: |
           bundle install
           bundle exec rake setup:web
+          # The Azure mirror throttled package downloads in measured CI runs.
+          sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt
           npm --prefix web exec -- playwright install --with-deps --only-shell chromium
       - name: Download WASM package
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
