@@ -50,10 +50,7 @@
 
   function measure(element: HTMLDivElement) {
     const notify = initialize
-    const total = count
     const grid = element.querySelector<HTMLElement>(".composition-grid")!
-    // Density changes the cards without resizing the shared frame.
-    const navigation = compact || total > batch ? element.querySelector<HTMLElement>(".page-batches") : null
     let frame: number
     let disposed = false
     let reference: Element | null = null
@@ -68,11 +65,12 @@
         reference = card
         observer.observe(card)
       }
-      if (navigation) {
-        const bounds = grid.getBoundingClientRect()
-        const outset = Math.max(0, Math.min(20, bounds.left, document.documentElement.clientWidth - bounds.right))
-        element.style.setProperty("--pager-outset", `${outset}px`)
-      }
+      const frameBounds = grid.getBoundingClientRect()
+      const outset = Math.max(
+        0,
+        Math.min(20, frameBounds.left, document.documentElement.clientWidth - frameBounds.right),
+      )
+      element.style.setProperty("--pager-outset", `${outset}px`)
       if (!element.clientWidth) return
       const previous = batch
       const anchor = position >= start && position < start + batch ? position : offset
@@ -100,7 +98,7 @@
     }
     const observer = new ResizeObserver(scheduleResize)
     observer.observe(element)
-    if (navigation) observer.observe(navigation)
+    observer.observe(grid)
     // Card geometry can change without resizing the frame.
     const mutations = new MutationObserver(scheduleResize)
     mutations.observe(grid, { childList: true })

@@ -1,8 +1,9 @@
 // Shares browser fixtures, navigation, geometry assertions, and failure screenshots.
 
 import assert from "node:assert/strict"
-import { mkdir } from "node:fs/promises"
+import { mkdir, writeFile } from "node:fs/promises"
 import { join, resolve as resolvePath } from "node:path"
+import { measure } from "./measure.js"
 export { createServer } from "vite"
 
 const parameter = (property, schema) => ({
@@ -55,11 +56,16 @@ export const hasCursor = (element = document.activeElement) => {
   )
 }
 
-export async function captureLayout(page, name) {
+export async function captureLayout(page, name, details) {
   const directory = resolvePath("../.local/tmp/web/layout", name)
   await mkdir(directory, { recursive: true })
   const path = join(directory, "failure.png")
   await page.screenshot({ path, fullPage: true })
+  if (details)
+    await writeFile(
+      join(directory, "details.json"),
+      JSON.stringify({ viewport: page.viewportSize(), ...details }, null, 2),
+    )
   return path
 }
 
@@ -87,6 +93,7 @@ export function fixture(
   fillOnly = false,
   widthConstraints = {},
   count = prepared ? 7 : 1,
+  profileSets,
 ) {
   const pages = Object.fromEntries(Array.from({ length: count }, (_, index) => [`page${index}`, index]))
   const baseline = {
@@ -196,6 +203,7 @@ export function fixture(
         ],
       },
     ]
+  if (profileSets) manifest.profileSets = profileSets
   const objects = [
     `<< /Type /Catalog /Pages 2 0 R ${prepared ? "/Names << /EmbeddedFiles << /Names [(mainz.json) 4 0 R] >> >>" : ""} >>`,
     `<< /Type /Pages /Kids [${Array.from({ length: count }, (_, index) => `${5 + index * 2} 0 R`).join(" ")}] /Count ${count} /MediaBox [0 0 595.2756 841.8898] >>`,
@@ -285,5 +293,65 @@ export async function checkStatus(page) {
       assert.ok(box.y >= 0 && box.y + box.height <= page.viewportSize().height + 1)
       assert.ok(Math.abs(box.y + box.height - page.viewportSize().height) < 1)
     }
+  }
+}
+
+export async function checkPagination(pane, label) {
+  await measure(pane)
+  const bounds = await pane.evaluate((element) => {
+    const rect = (selector) => {
+      const { left, right, top, bottom } = element.querySelector(selector).getBoundingClientRect()
+      return { left, right, top, bottom }
+    }
+    return {
+      grid: rect(".composition-grid"),
+      pager: rect(".page-batches"),
+      slider: rect('.page-batches input[type="range"]'),
+      previous: rect(".page-batches > button:first-child"),
+      next: rect(".page-batches > button:last-of-type"),
+      previousIcon: rect(".page-batches > button:first-child svg"),
+      nextIcon: rect(".page-batches > button:last-of-type svg"),
+      caption: rect(".batch-caption"),
+      viewport: document.documentElement.clientWidth,
+    }
+  })
+  try {
+    assert.ok(
+      Math.abs((bounds.previousIcon.left + bounds.previousIcon.right) / 2 - bounds.grid.left) < 1,
+      "Previous aligns with the content's left edge",
+    )
+    assert.ok(
+      Math.abs((bounds.nextIcon.left + bounds.nextIcon.right) / 2 - bounds.grid.right) < 1,
+      "Next aligns with the content's right edge",
+    )
+    for (const button of [bounds.previous, bounds.next]) {
+      assert.ok(Math.abs(button.top - bounds.slider.top) < 1, "Arrows share the slider's row")
+      assert.ok(button.right - button.left >= 40 && button.bottom - button.top >= 44, "Arrow targets stay usable")
+      assert.ok(button.left >= 0 && button.right <= bounds.viewport, "Arrow targets stay inside the viewport")
+    }
+    for (const icon of [bounds.previousIcon, bounds.nextIcon])
+      assert.ok(
+        Math.abs((icon.top + icon.bottom - bounds.slider.top - bounds.slider.bottom) / 2) < 1,
+        "Arrows stay on the slider's centerline",
+      )
+    assert.ok(
+      bounds.previous.right <= bounds.slider.left && bounds.slider.right <= bounds.next.left,
+      "Targets stay separate",
+    )
+    assert.ok(Math.abs(bounds.slider.top - bounds.pager.top) < 1, "The slider starts the pagination row")
+    assert.ok(Math.abs(bounds.caption.top + 3 - bounds.slider.bottom) < 1, "The caption stays close below the slider")
+    if (pane.page().viewportSize().width <= 480) {
+      await pane.page().evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
+      const gap = await pane.evaluate(
+        (element) =>
+          document.querySelector(".footnote").getBoundingClientRect().top -
+          element.querySelector(".page-batches").getBoundingClientRect().bottom,
+      )
+      assert.ok(gap >= -1, "Grid pagination stays clear of the status bar")
+    }
+  } catch (error) {
+    const screenshot = await captureLayout(pane.page(), "pagination", { label, bounds })
+    error.message += `\nLayout: ${label}\nBounds: ${JSON.stringify(bounds)}\nScreenshot: ${screenshot}`
+    throw error
   }
 }

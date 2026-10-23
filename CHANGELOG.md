@@ -47,6 +47,12 @@
 
 ### Fixed
 
+- Grid pagination keeps its edge alignment when fitting mounts its controls after a view or density change. Its keyboard
+  focus indicator stays clear of the caption.
+- Normal Grid card controls keep separate touch targets, and long Compact page numbers retain readable text.
+- The lens fits short landscape viewports in both pointer modes.
+- Output explains referenced Input count and byte limits before Download, and profile descriptions retain valid ARIA
+  references for opaque profile-set IDs.
 - Prepared Inputs retain at most one idle processing worker across the workspace. Repeated Style previews reuse cached
   page buffers without copying and sending the complete PDF again.
 - Composition reads unchanged Sources directly from immutable Inputs instead of copying each complete PDF.

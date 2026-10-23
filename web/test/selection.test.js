@@ -418,7 +418,7 @@ test("Grid images and grips share selection and ordinary page focus", { timeout:
           assert.equal(await selection.inputValue(), "1", "Image clicks select the page")
           assert.equal(await cards.first().evaluate((item) => getComputedStyle(item).outlineStyle), "none")
           const grip = await cards.first().locator(".page-grip").boundingBox()
-          await page.mouse.click(grip.x - 10, grip.y + grip.height / 2)
+          await page.mouse.click(grip.x - 5, grip.y + grip.height / 2)
           assert.equal(await selection.inputValue(), "", "The extended grip area toggles its page's selection")
           assert.equal(await cards.first().evaluate((item) => getComputedStyle(item).outlineStyle), "none")
           await cards.first().locator(".page-grip").click()

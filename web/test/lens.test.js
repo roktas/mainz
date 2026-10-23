@@ -77,6 +77,68 @@ async function fixture(page, url, delayed = false) {
   }, delayed)
 }
 
+test("Lens fits short viewports at every edge for mouse and touch", { timeout: 60000 }, async () => {
+  const server = await createServer({ plugins: [harness], server: { port: 0, host: "127.0.0.1" } })
+  let browser
+  try {
+    await server.listen()
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    for (const hasTouch of [false, true]) {
+      const page = await browser.newPage({ hasTouch, isMobile: hasTouch })
+      for (const [width, height] of [
+        [667, 250],
+        [844, 300],
+      ]) {
+        await page.setViewportSize({ width, height })
+        await fixture(page, server.resolvedUrls.local[0])
+        await page.locator("#lens-source").evaluate((canvas) => {
+          document.documentElement.style.overflow = "clip"
+          document.documentElement.style.scrollbarGutter = "auto"
+          canvas.style.cssText = "position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 49"
+        })
+        for (const [x, y] of [
+          [2, 2],
+          [width - 2, 2],
+          [width - 2, height - 2],
+          [2, height - 2],
+        ]) {
+          if (hasTouch) {
+            await page.locator("#lens-source").dispatchEvent("touchstart", {
+              touches: [{ identifier: 1, clientX: x, clientY: y }],
+            })
+          } else await page.mouse.move(x, y)
+          await page
+            .locator(".lens")
+            .waitFor({ timeout: 5000 })
+            .catch((error) => {
+              error.message += `\n${width}×${height}, touch=${hasTouch}, (${x}, ${y})`
+              throw error
+            })
+          const box = await page.locator(".lens").boundingBox()
+          assert.equal(box.width, height - 24)
+          assert.equal(box.height, box.width)
+          assert.ok(box.x >= 12 && box.y >= 12 && box.x + box.width <= width - 12 && box.y + box.height <= height - 12)
+          if (hasTouch) await page.locator("#lens-source").dispatchEvent("touchend", { touches: [] })
+          else await page.keyboard.press("Escape")
+        }
+        if (hasTouch)
+          await page
+            .locator("#lens-source")
+            .dispatchEvent("touchstart", { touches: [{ identifier: 1, clientX: 50, clientY: 50 }] })
+        else await page.mouse.move(50, 50)
+        await page.locator(".lens").waitFor()
+        await page.setViewportSize({ width: width + 1, height: height - 1 })
+        await page.locator(".lens").waitFor({ state: "detached" })
+        await page.evaluate(() => window.unmountLens())
+      }
+      await page.close()
+    }
+  } finally {
+    await browser?.close()
+    await server.close()
+  }
+})
+
 test("Lens teardown releases acquired pages after delayed or failed renderer loading", { timeout: 60000 }, async () => {
   const server = await createServer({ plugins: [harness], server: { port: 0, host: "127.0.0.1" } })
   let browser

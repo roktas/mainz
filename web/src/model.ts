@@ -71,6 +71,24 @@ export function copyError(text: string): string | undefined {
     return `Enter a whole number from 1 to ${maxCopies}.`
 }
 
+export function downloadInputs<T extends { id: string; bytes: { length: number } }>(
+  parts: Part[],
+  sources: { id: string; input: T }[],
+): T[] {
+  const used = new Set(
+    parts.flatMap((part) => part.pages.flatMap((page) => ("source" in page.content ? [page.content.source] : []))),
+  )
+  const referenced = sources.filter((source) => used.has(source.id))
+  const inputs = [...new Map(referenced.map(({ input }) => [input.id, input])).values()]
+  if (inputs.length > 32)
+    throw new Error("Download supports up to 32 Inputs. Remove pages from an Input in Output to continue.")
+  if (referenced.length > 32)
+    throw new Error("Download supports up to 32 independent Input styles. Remove their pages from Output to continue.")
+  if (inputs.reduce((total, input) => total + input.bytes.length, 0) > 128 * 1024 * 1024)
+    throw new Error("Inputs used by Output exceed the 128 MiB total limit. Remove pages from an Input to continue.")
+  return inputs
+}
+
 export function sizeOf(content: Content, sources: { id: string; input: { sizes: Size[] } }[]): Size {
   if ("blank" in content) return content.blank
   const size = sources.find((source) => source.id === content.source)?.input.sizes[content.page]

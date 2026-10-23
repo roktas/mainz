@@ -442,7 +442,7 @@
       position: fixed;
       pointer-events: none;
       z-index: 50;
-      inline-size: min(320px, calc(100vi - 24px));
+      aspect-ratio: 1;
       border: 2px solid var(--accent);
       border-radius: 6px;
       overflow: clip;

@@ -392,6 +392,8 @@ compensate for their size difference to retain the same crop scale. The lens doe
 input. On touch screens, holding an image opens the lens. Moving the held finger changes the crop. Release,
 cancellation, a second finger, or scrolling dismisses it. A hold does not select, add, duplicate, or move pages.
 
+The square lens fits both viewport dimensions with 12 px margins, including its border. Resizing dismisses it.
+
 An open lens updates its preview immediately and refines the latest position without a settling delay. Only one detail
 render runs at a time. Completed detail stays aligned with the pointer where its crop overlaps the current view. Closing
 the lens cancels that render and releases its acquired page and crop buffers.
@@ -404,6 +406,11 @@ buttons disable at 2× and 128× respectively.
 Download is disabled for empty or invalid Output and for invalid drafts affecting its content. Unused invalid parameters
 do not block it. Relevant Source processing temporarily replaces Download. Completed Source previews do not imply that a
 combined Output PDF already exists.
+
+Output also checks the referenced Inputs and Sources against the Download limits: 32 of each and 128 MiB of aggregate
+Input bytes. Each Input identity counts once. Unused open Inputs do not count. An actionable error appears beside
+Download as soon as Output exceeds a limit. Removing the excess restores Download. Processor validation remains
+authoritative.
 
 Download captures the valid Job and supplies each referenced Input once. A modal reports preparation and inspection
 while locking workspace actions. Cancel, Escape, and close terminate processing and retain the workspace. Retry uses

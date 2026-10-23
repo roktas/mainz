@@ -22,7 +22,13 @@ export function fit(element: HTMLElement) {
   const tools = length("--card-tools-height")
   const image = rem * (compact ? 4.34375 : 8)
   const maxImage = compact ? (8 * rem) / (2 * 0.85) : (4.34375 * rem * 2) / 0.85
-  const minimumWidth = Math.min(preferredWidth, compact ? Math.max(74, 5 * parseFloat(style.fontSize)) : 8 * rem)
+  const minimumWidth = Math.min(
+    preferredWidth,
+    Math.max(
+      parseFloat(getComputedStyle(element.firstElementChild!).minInlineSize),
+      compact ? Math.max(74, 5 * parseFloat(style.fontSize)) : 8 * rem,
+    ),
+  )
   const bounds = element.getBoundingClientRect()
   if (!bounds.width || !Number.isFinite(preferredWidth + preferredHeight)) return
   const columns = Math.max(1, Math.floor((bounds.width - gap) / (minimumWidth + gap)))

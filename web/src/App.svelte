@@ -1,12 +1,12 @@
-<!-- Owns PDF lifetimes, Source styles, Output state, and Download. -->
+<!-- Owns PDF lifetimes, Source styles, Output state, and unsaved choices. -->
 
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte"
   import { animateRemoval } from "./motion.ts"
   import { fade } from "svelte/transition"
   import type { PDFDocumentLoadingTask } from "pdfjs-dist"
-  import { appearance, downloadName, expand, job, positionAfterEdit, sizeOf, uid } from "./model.ts"
-  import type { Input, Part, Source } from "./model.ts"
+  import { appearance, downloadInputs, downloadName, expand, job, positionAfterEdit, sizeOf, uid } from "./model.ts"
+  import type { Input, Job, Part, Source } from "./model.ts"
   import type { Inspection } from "./Page.svelte"
   import type { Magnification } from "./Lens.svelte"
   import {
@@ -24,6 +24,8 @@
   import type { Render, Scalar } from "./styles.ts"
   import { Documents, inspectPDF, openPDF, verifyPDF } from "./pdf.ts"
   import { Processor } from "./processor.ts"
+  import Download from "./Download.svelte"
+  import type { Snapshot } from "./Download.svelte"
   import Landing from "./Landing.svelte"
   import Settings from "./Settings.svelte"
   import Theme from "./Theme.svelte"
@@ -33,7 +35,7 @@
   import Style from "./Style.svelte"
   import Composer from "./Composer.svelte"
   import Help from "./Help.svelte"
-  import type { TourStep } from "./Help.svelte"
+  import type { TourStep } from "./Tour.svelte"
   import type { Sequence } from "./pages.ts"
 
   const query = new URLSearchParams(location.search)
@@ -56,17 +58,9 @@
   let updating = $state(false)
   let openingStatus = $state("")
   let tour = $state<TourStep>()
-  let downloadDialog: HTMLDialogElement
+  let downloader = $state<ReturnType<typeof Download>>(null!)
   let composer = $state<ReturnType<typeof Composer>>(null!)
   let inputMenu = $state<HTMLDetailsElement>(null!)
-  let downloadFailure = $state("")
-  let downloading = $state(false)
-  let downloadStage = $state("")
-  let downloadProcessor: Processor | undefined
-  let downloadRevision = 0
-  let downloadTask: PDFDocumentLoadingTask | undefined
-  let downloadUrl: string | undefined
-  let downloadTimer: ReturnType<typeof setTimeout> | undefined
   let outputChanged = $state(false)
   let modifiedSources = $state.raw<string[]>([])
   const unsaved = $derived(outputChanged || modifiedSources.length > 0)
@@ -106,7 +100,14 @@
     ),
   )
   const outputProcessing = $derived(outputSources.some((source) => source.status === "pending"))
-  const downloadError = $derived(outputSources.map((source) => draftError(source, counts)).find(Boolean))
+  const downloadError = $derived.by(() => {
+    try {
+      downloadInputs(parts, sources)
+      return outputSources.map((source) => draftError(source, counts)).find(Boolean)
+    } catch (reason) {
+      return reason instanceof Error ? reason.message : "Invalid Download inputs."
+    }
+  })
   const inspection: Inspection | undefined = $derived.by(() => {
     const page = output.pages[Math.min(outputPosition, Math.max(0, output.pages.length - 1))]
     if (!page) return
@@ -490,82 +491,22 @@
     })
     info("Cancelled style processing. Your choices are retained.")
   }
-  function releaseDownload() {
-    clearTimeout(downloadTimer)
-    if (downloadUrl) URL.revokeObjectURL(downloadUrl)
-    downloadUrl = undefined
-  }
-  function cancelDownload() {
-    if (downloading) {
-      downloadRevision++
-      downloadProcessor?.dispose()
-      downloadProcessor = undefined
-      void downloadTask?.destroy()
-      downloadTask = undefined
-      downloading = false
-      info("Download cancelled. Your pages and styles are retained.")
+  function downloadSnapshot(): Snapshot {
+    if (downloadError) throw new Error(downloadError)
+    const selection = parts,
+      contributors = sources
+    return {
+      recipe: job(selection, contributors),
+      inputs: downloadInputs(selection, contributors),
+      expected: output.pages.length,
+      name: () => downloadName(selection, contributors),
     }
-    downloadDialog.close()
   }
-  async function download() {
-    if (downloading || outputProcessing) return
-    const revision = ++downloadRevision
-    const processor = new Processor()
-    downloadFailure = ""
-    let loadingTask: PDFDocumentLoadingTask | undefined
-    try {
-      const recipe = job(parts, sources)
-      if (downloadError) throw new Error(downloadError)
-      const inputs = sources.filter((source) => recipe.sources[source.id]).map((source) => source.input)
-      if (inputs.length > 32) throw new Error("Download supports up to 32 Inputs.")
-      if (inputs.reduce((total, input) => total + input.bytes.length, 0) > 128 * 1024 * 1024)
-        throw new Error("Inputs used by Output exceed the 128 MiB total limit.")
-      const expected = output.pages.length
-      downloading = true
-      downloadStage = "Preparing PDF…"
-      if (!downloadDialog.open) downloadDialog.showModal()
-      downloadProcessor = processor
-      const result = await processor.compose(recipe, inputs, revision)
-      if (disposed || revision !== downloadRevision) return
-      if (result.description.pageCount !== expected || result.report?.pages.length !== expected)
-        throw new Error("The completed PDF does not match the Output page count.")
-      downloadStage = "Checking PDF…"
-      loadingTask = await openPDF(new Uint8Array(result.bytes))
-      if (disposed || revision !== downloadRevision) return
-      downloadTask = loadingTask
-      const pdf = await loadingTask.promise
-      if (pdf.numPages !== expected)
-        throw new Error("The completed PDF could not be inspected with the expected page count.")
-      await verifyPDF(pdf)
-      if (disposed || revision !== downloadRevision) return
-      releaseDownload()
-      downloadUrl = URL.createObjectURL(new Blob([result.bytes], { type: "application/pdf" }))
-      const link = document.createElement("a")
-      link.href = downloadUrl
-      link.download = downloadName(parts, sources)
-      link.click()
-      downloadTimer = setTimeout(releaseDownload, 30000)
-      outputChanged = false
-      modifiedSources = modifiedSources.filter(
-        (id) => !recipe.sources[id] || Object.keys(sources.find((source) => source.id === id)!.drafts).length > 0,
-      )
-      info(`Downloaded ${expected} ${expected === 1 ? "page" : "pages"} · ${link.download}.`)
-      downloadDialog.close()
-    } catch (reason) {
-      if (!disposed && revision === downloadRevision) {
-        downloadFailure = reason instanceof Error ? reason.message : "Output processing failed."
-        info("")
-        if (!downloadDialog.open) downloadDialog.showModal()
-      }
-    } finally {
-      void loadingTask?.destroy()
-      processor.dispose()
-      if (revision === downloadRevision) {
-        downloading = false
-        downloadProcessor = undefined
-        downloadTask = undefined
-      }
-    }
+  function downloaded(recipe: Job) {
+    outputChanged = false
+    modifiedSources = modifiedSources.filter(
+      (id) => !recipe.sources[id] || Object.keys(sources.find((source) => source.id === id)!.drafts).length > 0,
+    )
   }
   function home(event: MouseEvent) {
     if (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
@@ -652,9 +593,6 @@
     clearTimeout(noticeTimer)
     openingProcessor?.dispose()
     void openingTask?.destroy()
-    downloadProcessor?.dispose()
-    void downloadTask?.destroy()
-    releaseDownload()
     for (const preview of previews.values()) {
       clearTimeout(preview.timer)
       preview.processor?.dispose()
@@ -817,7 +755,7 @@
       sequence={active ? sequences[active.id] : undefined}
       {choose}
       change={composition}
-      {download}
+      download={() => void downloader.start()}
       {error}
       styling={sourceStyling}
       input={inputTools}
@@ -848,31 +786,13 @@
   >
 </footer>
 
-<dialog
-  bind:this={downloadDialog}
-  class="download-dialog"
-  aria-labelledby="download-title"
-  oncancel={(event) => {
-    event.preventDefault()
-    cancelDownload()
-  }}
->
-  <div class="dialog-heading">
-    <h2 id="download-title">Download</h2>
-    <button class="icon-button" aria-label="Close Download" onclick={cancelDownload}><Icon name="close" /></button>
-  </div>
-  {#if downloading}<p role="status">{downloadStage}</p>{:else if downloadFailure}<p class="error" role="alert">
-      {downloadFailure}
-    </p>{/if}
-  <div class="buttons">
-    <button onclick={cancelDownload}>Cancel</button>{#if !downloading}<button
-        class="primary"
-        disabled={outputProcessing || !!downloadError}
-        title={downloadError}
-        onclick={download}>Retry</button
-      >{/if}
-  </div>
-</dialog>
+<Download
+  bind:this={downloader}
+  prepare={downloadSnapshot}
+  blocked={outputProcessing || !!downloadError}
+  {info}
+  complete={downloaded}
+/>
 
 {#if probe && demo === "grid"}
   {#await import("./Geometry.svelte") then module}<module.default />{/await}

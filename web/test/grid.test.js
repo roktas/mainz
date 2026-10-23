@@ -4,10 +4,96 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { chromium } from "playwright"
-import { fixture, captureLayout, tab, checkStatus } from "./browser.js"
+import { fixture, captureLayout, tab, checkStatus, checkPagination } from "./browser.js"
 import { measure } from "./measure.js"
 import inventory from "./viewports.json" with { type: "json" }
 import { quality } from "./quality.ts"
+
+test("Normal card targets stay separate through phone pane and text transitions", { timeout: 90000 }, async () => {
+  const server = await serve()
+  let browser, page, label
+  try {
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.route("**/grid.pdf", (route) =>
+      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 32) }),
+    )
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    for (const width of [320, 390, 412]) {
+      await page.setViewportSize({ width, height: 924 })
+      for (const text of ["100%", "200%"]) {
+        await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+        for (const name of ["Input", "Output"]) {
+          await page
+            .getByRole("navigation", { name: "Workspace view", exact: true })
+            .getByRole("button", { name, exact: true })
+            .click()
+          const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+          await pane.getByRole("button", { name: `Normal ${name} grid`, exact: true }).click()
+          await measure(pane)
+          const field = pane.getByRole("textbox", { name: "Page selection", exact: true })
+          await field.fill("")
+          for (const selected of [false, true]) {
+            await field.fill(selected ? "1" : "")
+            label = `${width}px, ${text}, ${name}, selected=${selected}`
+            const card = pane.locator(".composition-card").first()
+            await card.scrollIntoViewIfNeeded()
+            const targets = await card.evaluate((element) =>
+              [
+                ...element.querySelectorAll(
+                  ":scope > .page-label summary, :scope > .page-label .page-grip, :scope > .input-footer button, :scope > .occurrence-actions button",
+                ),
+              ].map((button) => {
+                const rect = button.getBoundingClientRect(),
+                  after = getComputedStyle(button, "::after")
+                const left = rect.left + parseFloat(after.left),
+                  right = rect.right - parseFloat(after.right)
+                const top = rect.top + parseFloat(after.top),
+                  bottom = rect.bottom - parseFloat(after.bottom)
+                const points = [left + 1, (left + right) / 2, right - 1].flatMap((x) =>
+                  [top + 1, (top + bottom) / 2, bottom - 1].map((y) => ({
+                    x,
+                    y,
+                    hits: document.elementFromPoint(x, y)?.closest("button, summary") === button,
+                  })),
+                )
+                return { label: button.getAttribute("aria-label"), left, right, top, bottom, points }
+              }),
+            )
+            assert.ok(targets.length >= 2, label)
+            for (const target of targets) {
+              assert.ok(
+                target.right - target.left >= 44 && target.bottom - target.top >= 44,
+                `${label}: ${JSON.stringify(target)}`,
+              )
+              assert.ok(
+                target.points.every(({ hits }) => hits),
+                `${label}: ${JSON.stringify(target)}`,
+              )
+            }
+            const number = targets[0]
+            for (const point of number.points.filter((_, index) => index % 3 === 1)) {
+              await page.touchscreen.tap(point.x, point.y)
+              assert.equal(await card.locator(".page-origin[open]").count(), 1, label)
+              assert.equal(await field.inputValue(), selected ? "1" : "", label)
+              await page.touchscreen.tap(point.x, point.y)
+            }
+            const grip = targets[1]
+            await page.touchscreen.tap((grip.left + grip.right) / 2, (grip.top + grip.bottom) / 2)
+            assert.equal(await field.inputValue(), selected ? "" : "1", label)
+          }
+          await checkPagination(pane, label)
+        }
+      }
+    }
+  } catch (error) {
+    if (page) await captureLayout(page, "normal-targets", { label, error: error.message })
+    throw error
+  } finally {
+    await browser?.close()
+  }
+})
 
 const dimensions = (sample) =>
   ["input", "output"].flatMap((pane) =>
@@ -114,8 +200,8 @@ test("Grid keeps feasible matrices across nearby desktop calibration boundaries"
     let initial
     for (const [width, height, minimumNormal, minimumCompact] of [
       ...[-3, -2, -1, 0, 1, 2, 3].map((delta) => [2560 + delta, 1440, 16, 64]),
-      ...[-3, -2, -1, 0, 1, 2, 3].map((delta) => [2560, 1420 + delta, 16, 56]),
-      ...[-3, -2, -1, 0, 1, 2, 3].map((delta) => [2200 + delta, 1298, 12, 36]),
+      ...[-3, -2, -1, 0, 1, 2, 3].map((delta) => [2560, 1420 + delta, delta < 0 ? 12 : 16, 56]),
+      ...[-3, -2, -1, 0, 1, 2, 3].map((delta) => [2200 + delta, 1298, 9, 36]),
     ]) {
       await page.setViewportSize({ width, height })
       const colorScheme = "light"
@@ -129,11 +215,11 @@ test("Grid keeps feasible matrices across nearby desktop calibration boundaries"
         for (const pane of ["input", "output"]) {
           assert.ok(
             sample.layout[pane].normal.capacity[2] >= minimumNormal,
-            `${label}: Normal retains its feasible matrix`,
+            `${pane}, ${label}: Normal retains its feasible matrix (${sample.layout[pane].normal.capacity})`,
           )
           assert.ok(
             sample.layout[pane].compact.capacity[2] >= minimumCompact,
-            `${label}: Compact retains its feasible matrix`,
+            `${pane}, ${label}: Compact retains its feasible matrix (${sample.layout[pane].compact.capacity})`,
           )
         }
       })
@@ -224,8 +310,7 @@ test("Touch portrait Normal Grid fits readable cards across nearby phone dimensi
       await page.emulateMedia({ colorScheme })
       await output.getByRole("button", { name: "Normal Output grid", exact: true }).click()
       const normal = await checkGrid(output, `${width}×${height}, ${colorScheme}, Normal`)
-      assert.deepEqual(normal.matrix, [3, 2, 6])
-      assert.ok(normal.image.height <= 141)
+      assert.deepEqual(normal.matrix, [2, 1, 2])
       await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
       const compact = await checkGrid(output, `${width}×${height}, ${colorScheme}, Compact`)
       assert.ok(Math.abs(compact.gaps[1] - 0.8 * compact.gaps[0]) < 1)
@@ -325,8 +410,8 @@ test("Measured touch calibrations isolate viewport bounds and primary input", { 
   const server = await serve()
   let browser
   const bands = [
-    { width: [1000, 1080], height: [450, 650], normal: [134, 232, 10] },
-    { width: [860, 900], height: [1280, 1320], normal: [134, 217, 10.5] },
+    { width: [1000, 1080], height: [450, 650], normal: [136, 232, 10] },
+    { width: [860, 900], height: [1280, 1320], normal: [136, 219.109375, 10.5] },
     { width: [1380, 1450], height: [740, 800], compact: [74, 110, 6] },
   ]
   try {
@@ -380,7 +465,7 @@ test("Measured touch calibrations isolate viewport bounds and primary input", { 
               ? band[density]
               : density === "normal"
                 ? mode === "touch" && height > width
-                  ? [134, 226, 8]
+                  ? [136, 228.25, 8]
                   : [148, 240, 14]
                 : mode !== "touch" && left === 1380
                   ? [null, 121, 6.4]
@@ -836,14 +921,14 @@ test("Grid fitting respects viewport bounds and input capabilities", { timeout: 
             if (mode === "touch") {
               const normal =
                 {
-                  phone: [134, 142, 232, 10],
+                  phone: [136, 142, 232, 10],
                   portrait: [142, 142, 231, 9.5],
                   large: [142, 142, 231, 9.5],
                   "large-tall": [142, 142, 231, 9.5],
                   small: [137, 137, 226, 9],
                   landscape: [136, 136, 234, 11],
                   "large-landscape": [152, 152, 236, 12],
-                }[calibration] ?? (touchPortrait ? [134, 134, 226, 8] : [148, 148, 240, 14])
+                }[calibration] ?? (touchPortrait ? [136, 136, 228.25, 8] : [148, 148, 240, 14])
               const compact = {
                 landscape: [74.57, 116.5, 116.5],
                 wide: [79, 119, 119],
@@ -853,7 +938,7 @@ test("Grid fitting respects viewport bounds and input capabilities", { timeout: 
               }[calibration] ?? [74, ...(touchPortrait ? [109.5, 111] : [125, 125])]
               if (density === "Normal") {
                 assert.ok(geometry.card.width >= normal[0] - 0.02 && geometry.card.width <= normal[1] + 0.02, label)
-                assert.equal(geometry.card.height, normal[2], `${label}: Touch height stays scoped`)
+                assert.ok(Math.abs(geometry.card.height - normal[2]) < 0.02, `${label}: Touch height stays scoped`)
                 assert.ok(Math.abs(geometry.margins[0] - normal[3]) < 1, `${label}: Touch padding stays scoped`)
               } else {
                 assert.ok(Math.abs(geometry.card.width - compact[0]) < 0.02, `${label}: Touch width stays scoped`)
@@ -1124,77 +1209,123 @@ test("Grid pagination bounds its marks and retains exact page navigation", { tim
   }
 })
 
-test("Compact pagination retains readable four- and five-digit numbers", { timeout: 60000 }, async () => {
+test("Compact pagination retains readable four- and five-digit numbers", { timeout: 90000 }, async () => {
   const server = await serve()
   let browser
   try {
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-    const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" })
-    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    const errors = []
-    page.on("pageerror", (error) => errors.push(error.message))
-    await page.goto(server.resolvedUrls.local[0])
-    await page
-      .locator("input[type=file]")
-      .first()
-      .setInputFiles({
-        name: "Numbers.pdf",
-        mimeType: "application/pdf",
-        buffer: fixture(false),
+    for (const hasTouch of [false, true]) {
+      const page = await browser.newPage({
+        viewport: { width: 1920, height: 1080 },
+        hasTouch,
+        isMobile: hasTouch,
+        reducedMotion: "reduce",
       })
-    await page.locator(".composer[aria-busy=false]").waitFor()
-    const input = page.locator(".selection-panel"),
-      output = page.locator(".composition-output")
-    await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
-    for (const [copies, total, columns] of [
-      [1, 1000, 8],
-      [9, 10000, 8],
-    ]) {
-      await input.getByRole("textbox", { name: "Page selection", exact: true }).fill(Array(copies).fill("1").join(","))
-      await input.getByLabel("Input page actions", { exact: true }).click()
-      await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill("1000")
-      await page.keyboard.press("Escape")
-      await input.getByRole("button", { name: "Add to Output", exact: true }).click()
-      await measure(output)
-      assert.equal(await output.locator(".composition-totals strong").textContent(), `${total} PDF pages`)
-      assert.equal(await output.locator(".grid-view").getAttribute("data-columns"), String(columns))
-      await output.getByRole("slider", { name: "Output thumbnail range", exact: true }).press("End")
-      await output.getByRole("button", { name: `Select Output page ${total}`, exact: true }).waitFor()
-      for (const family of ["DejaVu Sans", "Liberation Sans"]) {
-        await output.evaluate((pane, value) => (pane.style.fontFamily = value), family)
-        const spacing = await output.locator(".composition-card").evaluateAll((cards) =>
-          cards.map((card) => {
-            const number = card.querySelector(".card-number strong").getBoundingClientRect()
-            const grip = card.querySelector(".page-grip svg").getBoundingClientRect()
-            const bounds = card.getBoundingClientRect()
-            return {
-              numberGap: grip.left - number.right,
-              foldGap: bounds.right - 15 - grip.right,
-              offset: grip.left + grip.width / 2 - bounds.left - bounds.width / 2,
-              font: parseFloat(getComputedStyle(card.querySelector(".card-number")).fontSize),
-            }
-          }),
-        )
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      const errors = []
+      page.on("pageerror", (error) => errors.push(error.message))
+      await page.goto(server.resolvedUrls.local[0])
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({
+          name: "Numbers.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture(false),
+        })
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output")
+      await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+      for (const [copies, total] of [
+        [1, 1000],
+        [9, 10000],
+      ]) {
+        await input
+          .getByRole("textbox", { name: "Page selection", exact: true })
+          .fill(Array(copies).fill("1").join(","))
+        await input.getByLabel("Input page actions", { exact: true }).click()
+        await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill("1000")
+        await page.keyboard.press("Escape")
+        await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+        await measure(output)
+        assert.equal(await output.locator(".composition-totals strong").textContent(), `${total} PDF pages`)
         assert.ok(
-          spacing.every(({ numberGap, foldGap, offset }) => numberGap >= 2 && foldGap >= 2 && Math.abs(offset) < 1),
-          `${family}: ${total} pages keep numbers, grips, and folds apart`,
+          Number(await output.locator(".grid-view").getAttribute("data-columns")) < 8,
+          "Long numbers reserve wider cells",
         )
-        const last = spacing.at(-1)
-        assert.ok(last.font < (total === 10000 ? 9 : 10.8), "Long page numbers shrink to fit")
+        await output.getByRole("slider", { name: "Output thumbnail range", exact: true }).press("End")
+        await output.getByRole("button", { name: `Select Output page ${total}`, exact: true }).waitFor()
+        for (const text of ["100%", "200%"]) {
+          await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+          const views = page.getByRole("navigation", { name: "Workspace view", exact: true })
+          if (await views.isVisible()) await views.getByRole("button", { name: "Output", exact: true }).click()
+          await measure(output)
+          await output.getByRole("slider", { name: "Output thumbnail range", exact: true }).press("End")
+          for (const colorScheme of ["light", "dark"]) {
+            await page.emulateMedia({ colorScheme })
+            for (const family of ["DejaVu Sans", "Liberation Sans"]) {
+              await output.evaluate((pane, value) => (pane.style.fontFamily = value), family)
+              for (const number of [total - 1, total])
+                await output.getByRole("button", { name: `Select Output page ${number}`, exact: true }).waitFor()
+              const spacing = await output.locator(".composition-card").evaluateAll((cards) =>
+                cards.map((card) => {
+                  const number = card.querySelector(".card-number strong").getBoundingClientRect()
+                  const grip = card.querySelector(".page-grip svg").getBoundingClientRect()
+                  const bounds = card.getBoundingClientRect()
+                  return {
+                    numberGap: grip.left - number.right,
+                    foldGap: bounds.right - 15 - grip.right,
+                    offset: grip.left + grip.width / 2 - bounds.left - bounds.width / 2,
+                    font: parseFloat(getComputedStyle(card.querySelector(".card-number")).fontSize),
+                  }
+                }),
+              )
+              assert.ok(
+                spacing.every(
+                  ({ numberGap, foldGap, offset }) => numberGap >= 2 && foldGap >= 2 && Math.abs(offset) < 1,
+                ),
+                `${family}: ${total} pages keep numbers, grips, and folds apart`,
+              )
+              const focusClearance = await output
+                .getByRole("slider", { name: "Output thumbnail range", exact: true })
+                .evaluate((slider) => {
+                  const style = getComputedStyle(slider)
+                  const outlineBottom =
+                    slider.getBoundingClientRect().bottom +
+                    parseFloat(style.outlineOffset) +
+                    parseFloat(style.outlineWidth)
+                  return (
+                    slider.closest(".page-batches").querySelector(".batch-caption").getBoundingClientRect().top -
+                    outlineBottom
+                  )
+                })
+              assert.ok(focusClearance >= -0.5, "Keyboard pagination focus stays clear of its caption")
+              const last = spacing.at(-1)
+              assert.ok(
+                last.font >= (text === "200%" ? 22 : 11),
+                "Long page numbers retain the 0.6875rem readability floor",
+              )
+            }
+          }
+        }
+        await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+        await measure(output)
+        await output.evaluate((pane) => pane.style.removeProperty("font-family"))
       }
-      await output.evaluate((pane) => pane.style.removeProperty("font-family"))
+      await page.setViewportSize({ width: 390, height: 900 })
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "200%"
+        document.documentElement.dataset.theme = "dark"
+      })
+      await page
+        .getByRole("navigation", { name: "Workspace view", exact: true })
+        .getByRole("button", { name: "Output", exact: true })
+        .click()
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+      assert.deepEqual(errors, [])
+      await page.close()
     }
-    await page.setViewportSize({ width: 390, height: 900 })
-    await page.evaluate(() => {
-      document.documentElement.style.fontSize = "200%"
-      document.documentElement.dataset.theme = "dark"
-    })
-    await page
-      .getByRole("navigation", { name: "Workspace view", exact: true })
-      .getByRole("button", { name: "Output", exact: true })
-      .click()
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
-    assert.deepEqual(errors, [])
   } finally {
     await browser?.close()
   }

@@ -8,6 +8,136 @@ import { chromium } from "playwright"
 import { checkWorkspace } from "./workspace.js"
 import { tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
 
+test("Opaque profile-set IDs keep their descriptions across Input switches", { timeout: 60000 }, async () => {
+  const server = await serve()
+  let browser
+  try {
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    const input = page.locator(".selection-panel")
+    const sets = [
+      {
+        id: "x y  ",
+        name: "Line profile",
+        parameters: ["guides-stroke-width"],
+        profiles: [
+          { id: "generic", name: "Generic", overrides: {} },
+          { id: "inkjet", name: "Inkjet", description: "Fine guides", overrides: { "guides-stroke-width": 0.04 } },
+        ],
+      },
+      {
+        id: "a#:/!",
+        name: "Color profile",
+        parameters: ["guides-stroke-color"],
+        profiles: [
+          { id: "generic", name: "Generic", overrides: {} },
+          { id: "inkjet", name: "Inkjet", description: "Red guides", overrides: { "guides-stroke-color": "#ff0000" } },
+        ],
+      },
+    ]
+    for (let index = 0; index < 2; index++) {
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({
+          name: `Profiles-${index}.pdf`,
+          mimeType: "application/pdf",
+          buffer: fixture(true, false, 0, false, false, {}, 7, index ? sets.toReversed() : sets),
+        })
+      await input
+        .locator(".input-current")
+        .filter({ hasText: `Profiles-${index}.pdf` })
+        .waitFor()
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+      await tab(input, "Style")
+      for (const set of sets) {
+        const profile = input.getByRole("combobox", { name: set.name, exact: true })
+        assert.equal(
+          await profile.evaluate((select) => {
+            const ids = select.getAttribute("aria-describedby").split(/\s+/)
+            return ids.length === 1 && document.getElementById(ids[0])?.textContent.trim() === "Styles from Generic."
+          }),
+          true,
+        )
+        await profile.selectOption("inkjet")
+        assert.equal(
+          await profile.evaluate((select) =>
+            document.getElementById(select.getAttribute("aria-describedby"))?.textContent.trim(),
+          ),
+          set.profiles[1].description,
+        )
+      }
+      const ids = await input
+        .locator(".style-profile select")
+        .evaluateAll((selects) => selects.map((select) => select.getAttribute("aria-describedby")))
+      assert.equal(new Set(ids).size, 2, "Each set has its own DOM description")
+    }
+    await input.locator(".input-picker > summary").click()
+    await input.getByRole("button", { name: /Profiles-0.pdf/ }).click()
+    for (const set of sets) {
+      const profile = input.getByRole("combobox", { name: set.name, exact: true })
+      assert.equal(await profile.inputValue(), "inkjet")
+      assert.equal(
+        await profile.evaluate((select) =>
+          document.getElementById(select.getAttribute("aria-describedby"))?.textContent.trim(),
+        ),
+        set.profiles[1].description,
+      )
+    }
+  } finally {
+    await browser?.close()
+  }
+})
+
+test(
+  "Download explains the referenced Input limit before preparation and recovers after removal",
+  { timeout: 120000 },
+  async () => {
+    const server = await serve()
+    let browser
+    try {
+      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(server.resolvedUrls.local[0])
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output")
+      const button = output.getByRole("button", { name: "Download", exact: true })
+      const pdf = fixture(false)
+      for (let index = 0; index < 33; index++) {
+        await page
+          .locator("input[type=file]")
+          .first()
+          .setInputFiles({ name: "Independent.pdf", mimeType: "application/pdf", buffer: pdf })
+        await page.locator(".composer[aria-busy=false]").waitFor()
+        await page.locator(".loading-status").waitFor({ state: "hidden" })
+        if (index === 32) {
+          assert.equal(await button.isEnabled(), true, "Unused open Inputs do not count")
+          assert.equal(await output.locator(".download-error").count(), 0)
+        }
+        await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+        await page.waitForFunction(
+          (count) =>
+            document.querySelector(".composition-totals strong")?.textContent ===
+            `${count} PDF ${count === 1 ? "page" : "pages"}`,
+          index + 1,
+        )
+      }
+      assert.equal(await button.isDisabled(), true)
+      assert.match(await output.locator(".download-error").innerText(), /32 Inputs.*Remove pages/)
+      assert.equal(await page.locator(".download-dialog[open]").count(), 0)
+      await output.getByRole("textbox", { name: "Page selection", exact: true }).fill("33")
+      await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
+      assert.equal(await button.isEnabled(), true)
+      assert.equal(await output.locator(".download-error").count(), 0)
+    } finally {
+      await browser?.close()
+    }
+  },
+)
+
 test("Style reset appears only for changes and retains keyboard focus", { timeout: 60000 }, async () => {
   const server = await serve()
   let browser
@@ -701,6 +831,21 @@ test("Style and Download cancellation release preview workers and retain choices
     page.setDefaultTimeout(10000)
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.addInitScript(trackWorkers)
+    await page.addInitScript(() => {
+      window.downloadURLs = []
+      const create = URL.createObjectURL,
+        revoke = URL.revokeObjectURL
+      URL.createObjectURL = (blob) => {
+        const url = create(blob)
+        if (blob.type === "application/pdf") window.downloadURLs.push({ url, revoked: false })
+        return url
+      }
+      URL.revokeObjectURL = (url) => {
+        const entry = window.downloadURLs.find((item) => item.url === url)
+        if (entry) entry.revoked = true
+        revoke(url)
+      }
+    })
     await page.goto(server.resolvedUrls.local[0])
     await page
       .locator("input[type=file]")
@@ -726,6 +871,7 @@ test("Style and Download cancellation release preview workers and retain choices
       window.holdPDFRendering = true
       window.pdfContinuations = []
       prototype.render = function (...args) {
+        if (window.failPDFRendering) throw new Error("Verification render failed.")
         const drawing = render.apply(this, args)
         drawing.onContinue = (proceed) => (window.holdPDFRendering ? window.pdfContinuations.push(proceed) : proceed())
         return drawing
@@ -787,16 +933,43 @@ test("Style and Download cancellation release preview workers and retain choices
     await page.waitForFunction((worker) => worker.terminated, cancelledDownload)
     assert.equal(await page.getByRole("dialog", { name: "Download", exact: true }).isVisible(), false)
     assert.equal(downloads.length, 0)
+    assert.equal(await page.evaluate(() => window.downloadURLs.length), 0, "Cancellation creates no downloadable URL")
     assert.equal(await output.locator(".composition-totals strong").textContent(), "2 PDF pages")
     assert.equal(await input.getByRole("combobox", { name: "Style profile", exact: true }).inputValue(), "inkjet")
     await page.evaluate(() => {
       window.holdPDFRendering = false
       window.pdfContinuations = []
     })
+    await page.clock.install()
     const saved = page.waitForEvent("download")
     await output.getByRole("button", { name: "Download", exact: true }).click()
     assert.equal(await (await saved).failure(), null)
     assert.equal(downloads.length, 1)
+    const replacement = page.waitForEvent("download")
+    await output.getByRole("button", { name: "Download", exact: true }).click()
+    await replacement
+    assert.deepEqual(
+      await page.evaluate(() => window.downloadURLs.map(({ revoked }) => revoked)),
+      [true, false],
+      "A replacement revokes the preceding PDF URL",
+    )
+    await page.clock.runFor(30001)
+    assert.deepEqual(
+      await page.evaluate(() => window.downloadURLs.map(({ revoked }) => revoked)),
+      [true, true],
+      "The retained PDF URL expires",
+    )
+    await page.evaluate(() => (window.failPDFRendering = true))
+    await output.getByRole("button", { name: "Download", exact: true }).click()
+    const dialog = page.getByRole("dialog", { name: "Download", exact: true })
+    await dialog.getByRole("alert").waitFor()
+    assert.match(await dialog.getByRole("alert").innerText(), /Verification render failed/)
+    assert.equal(downloads.length, 2, "Failed verification cannot download")
+    await page.evaluate(() => (window.failPDFRendering = false))
+    const retried = page.waitForEvent("download")
+    await dialog.getByRole("button", { name: "Retry", exact: true }).click()
+    assert.equal(await (await retried).failure(), null)
+    assert.equal(downloads.length, 3)
   } finally {
     await browser?.close()
   }

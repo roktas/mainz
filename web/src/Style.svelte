@@ -8,7 +8,7 @@
   import Control from "./Control.svelte"
   import Icon from "./Icon.svelte"
   import Quartet from "./Quartet.svelte"
-  import type { TourStep } from "./Help.svelte"
+  import type { TourStep } from "./Tour.svelte"
   let {
     source,
     controls,
@@ -30,6 +30,7 @@
     toolbarOnly?: boolean
     tour?: TourStep
   } = $props()
+  const key = $props.id()
   const definition = $derived(source.input.description)
   const groupObjects = $derived(objects(definition))
   const profiles = $derived(
@@ -121,7 +122,7 @@
   <div class="workspace-content">
     <div class="source-layout">
       <div class="source-tools">
-        {#each profiles as set (set.id)}
+        {#each profiles as set, index (set.id)}
           {@const selected = matchingProfile(set, source.overrides, source.drafts)}
           {@const description =
             selected?.description ||
@@ -143,7 +144,7 @@
                 aria-label={set.name}
                 value={selected?.id ?? ""}
                 title={`${set.name}. Applies to Input pages: ${pages}.`}
-                aria-describedby={`profile-note-${source.id}-${set.id}`}
+                aria-describedby={`${key}-profile-${index}`}
                 onchange={(event) => profile(set.id, event.currentTarget.value)}
               >
                 {#if !selected}<option value="" disabled>Custom</option>{/if}
@@ -151,7 +152,7 @@
               </select>
               <Icon name="next" />
             </div>
-            <p id={`profile-note-${source.id}-${set.id}`} class="control-description">
+            <p id={`${key}-profile-${index}`} class="control-description">
               {description}
             </p>
           </div>

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { copyError, downloadName, expand, job, move, positionAfterEdit } from "../src/model.ts"
+import { copyError, downloadInputs, downloadName, expand, job, move, positionAfterEdit } from "../src/model.ts"
 import type { Part } from "../src/model.ts"
 import { pageRanges, parseSequence, toggleSequence } from "../src/pages.ts"
 import * as composition from "../src/composition.ts"
@@ -237,6 +237,32 @@ test("Job includes only used Sources, full explicit overrides, and zero-based re
   for (const text of ["", "0", "-1", "1.5", "1001", "Infinity"]) assert.ok(copyError(text))
   assert.equal(copyError("4"), undefined)
   assert.throws(() => job([part("invalid", [0], "0")], sources), /whole number/)
+})
+
+test("Download preflight counts referenced Input identities and their aggregate bytes", () => {
+  const inputs = Array.from({ length: 33 }, (_, index) => ({
+    id: `source-${index}`,
+    input: { id: `input-${index}`, bytes: { length: 1 } },
+  }))
+  const output: Part = {
+    id: "output",
+    copies: "1",
+    front: false,
+    pages: inputs.map(({ id }) => ({ id, content: { source: id, page: 0 } })),
+  }
+  const first32 = { ...output, pages: output.pages.slice(0, 32) }
+  assert.equal(downloadInputs([first32], inputs).length, 32)
+  assert.throws(() => downloadInputs([output], inputs), /up to 32 Inputs/)
+  assert.equal(downloadInputs([{ ...output, pages: output.pages.slice(1) }], inputs).length, 32)
+  assert.deepEqual(downloadInputs([], inputs), [])
+  const variants = [{ ...inputs[0], id: "variant", overrides: { width: 0.4 } }, ...inputs]
+  const pair = { ...output, pages: [output.pages[0], { id: "variant", content: { source: "variant", page: 0 } }] }
+  assert.deepEqual(downloadInputs([pair], variants), [inputs[0].input])
+  const styles = inputs.map((source) => ({ ...source, input: inputs[0].input }))
+  assert.throws(() => downloadInputs([output], styles), /32 independent Input styles/)
+  const boundary = [{ ...inputs[0], input: { id: "large", bytes: { length: 128 * 1024 * 1024 } } }, inputs[1]]
+  assert.equal(downloadInputs([{ ...output, pages: [output.pages[0]] }], boundary).length, 1)
+  assert.throws(() => downloadInputs([{ ...output, pages: output.pages.slice(0, 2) }], boundary), /128 MiB/)
 })
 
 test("Page inspection follows occurrence identity and surviving neighbors after edits", () => {

@@ -53,15 +53,16 @@ own browser contexts and storage. Custom server scenarios own their server lifec
 npm --prefix web exec -- playwright install chromium
 ```
 
-Run `npm run test:minimal` during development. It checks formatting, lint, types, unit tests, and eleven browser
+Run `npm run test:minimal` during development. It checks formatting, lint, types, unit tests, and the critical browser
 scenarios. Those scenarios cover PDF opening, render ownership, metadata cleanup, Style, Download, cancellation,
 keyboard, touch, pinch zoom, and large Output pagination. Run focused checks for other affected behavior.
 
 Before an ordinary push, run `npm run test:standard`. It adds a production build and the functional browser regressions.
 Standard covers opening, editing, Style, Download, cancellation, PDF ownership, selection, keyboard, touch, offline use,
 updates, and large Output pagination. Animation checks use a desktop and phone without CPU throttling. Standard uses
-representative desktop and touch cases for batch navigation, shared frames, and partial batches. It omits the alignment
-and Page geometry matrices, Grid capacity/calibration matrices, and calibration tools.
+representative desktop and touch cases for batch navigation, shared frames, partial batches, and Normal card hit
+targets. The hit-target check also measures pagination after pane and text-size transitions. Standard omits the full
+alignment and Page geometry matrices, Grid capacity/calibration matrices, and calibration tools.
 
 Before a release, run `npm run test:full`. It includes every application browser scenario, complete animation matrices
 with CPU throttling, and both viewport measurement and candidate-search scenarios. Animation command entrypoints run
@@ -478,6 +479,11 @@ capacity; none lose cards. Five additional native captures control paired densit
 The final inventory links those captures without replacing the original applied sweep. Twenty Style companion views
 exposed seven existing frame-height changes when Style replaces a Normal Input beside Compact Output. These failures
 remain explicit in the report for the shared-layout follow-up. They do not change the accepted Grid capacity results.
+
+The current source includes a synthetic fix for that follow-up. The regression
+`Style retains a Compact companion frame on short touch landscapes` passes the seven failing viewports in Chromium at
+revision `12cd23971819121847ebfa89d45e9c4e22f96c1c`. This result does not replace the native failures. A new native
+capture remains pending.
 
 Before cleanup, retain successful and failed logs, source revision/hashes, fixture digests, capture metadata, accepted
 and rejected candidates, and representative native screenshots. Verify report links and hashes. Remove disposable build

@@ -17,7 +17,7 @@
     }
 
     .composition-grid {
-      grid-auto-rows: var(--grid-height);
+      grid-auto-rows: var(--card-height);
       align-content: start;
       min-block-size: 0;
     }
@@ -43,6 +43,9 @@
           block-size: 44px;
           margin: 0;
           cursor: pointer;
+          &:focus-visible {
+            outline-offset: -6px;
+          }
         }
 
         & .batch-marks {

@@ -30,7 +30,8 @@
       pointer-events: none;
 
       & > span {
-        block-size: var(--grid-height);
+        min-inline-size: var(--grid-min-width);
+        block-size: var(--card-height);
         padding-block: calc(var(--card-tools-height) / 2 + var(--thumbnail-padding));
         padding-inline: 3px;
       }
@@ -43,12 +44,12 @@
       --fold: 18px;
       --page-stroke: 1px;
       --page-border: var(--border);
-      min-inline-size: 0;
+      min-inline-size: var(--grid-min-width);
       padding-inline: var(--card-inset);
       position: relative;
       display: grid;
       grid-template-rows: calc(var(--card-tools-height) / 2 - var(--page-stroke)) calc(
-          var(--grid-height) - var(--card-tools-height)
+          var(--card-height) - var(--card-tools-height)
         ) calc(var(--card-tools-height) / 2 - var(--page-stroke));
       border: var(--page-stroke) solid var(--page-border);
       border-radius: var(--radius);
@@ -150,7 +151,7 @@
     .composition-blank {
       inline-size: min(
         100%,
-        (var(--grid-height) - var(--card-tools-height) - 2 * var(--thumbnail-padding)) * var(--ratio)
+        (var(--card-height) - var(--card-tools-height) - 2 * var(--thumbnail-padding)) * var(--ratio)
       );
       aspect-ratio: var(--ratio);
       display: flex;
@@ -179,8 +180,10 @@
           padding-inline: calc(3px - var(--page-stroke));
         }
         & .page-label {
+          z-index: 1;
           display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
+          grid-template-columns: repeat(3, minmax(44px, 1fr));
+          margin-inline: calc(-1 * var(--card-inset));
           align-items: center;
           justify-items: center;
           gap: 0;
@@ -189,7 +192,7 @@
           padding-inline: 0;
           border-block-end: 1px solid var(--border);
           & .page-grip {
-            grid-column: 2 / span 2;
+            grid-column: 2;
             & svg {
               inline-size: 14px;
               block-size: 14px;
@@ -202,6 +205,7 @@
           }
         }
         & > .occurrence-actions {
+          z-index: 1;
           margin-block-start: 0;
           grid-template-columns: repeat(2, 44px);
           justify-content: center;
@@ -219,12 +223,10 @@
             position: absolute;
             inset: -6px;
           }
-          &.page-grip::after {
-            inset-inline: -12px;
-          }
         }
       }
       & .input-footer {
+        z-index: 1;
         display: block grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         align-items: center;
@@ -287,7 +289,7 @@
     :is(.selection-panel, .composition-output)[data-density="compact"] {
       .composition-card {
         --fold: 15px;
-        block-size: var(--grid-height);
+        block-size: var(--card-height);
         grid-template-columns: minmax(0, 1fr);
         grid-template-rows: calc(var(--card-tools-height) - 2 * var(--page-stroke)) minmax(0, 1fr);
 
@@ -298,7 +300,6 @@
         & > .page-label {
           grid-template-columns: repeat(3, minmax(24px, 1fr));
           grid-template-rows: minmax(0, 1fr);
-          container-type: inline-size;
           margin-inline: calc(-1 * (var(--card-inset) + var(--page-stroke)));
           block-size: 100%;
           min-block-size: 0;
@@ -333,12 +334,11 @@
             min-block-size: 0;
             justify-content: start;
             padding: 0;
-            padding-inline-start: calc(3 * var(--gap) / 8);
+            padding-inline-start: 3px;
             border: 0;
             color: inherit;
             background: transparent;
-            /* Budget wide tabular digits within their cell so the grip keeps its center. */
-            font-size: min(calc(0.9 * var(--small)), calc((100cqi / 3 - 3 * var(--gap) / 8) / (0.65 * var(--digits))));
+            font-size: var(--compact-number-size);
             font-variant-numeric: tabular-nums;
             box-shadow: none;
 

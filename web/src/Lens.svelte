@@ -23,7 +23,7 @@
     magnification?: Magnification
     ratio?: number
   } = $props()
-  let point = $state<{ x: number; y: number; left: number; top: number }>()
+  let point = $state<{ x: number; y: number; left: number; top: number; size: number }>()
   let refining = $state(false)
   let opening: ReturnType<typeof setTimeout> | undefined
   let finger: { id: number; x: number; y: number } | undefined
@@ -227,10 +227,11 @@
   function show(x: number, y: number, touch = false) {
     if (!canvas || !pdf || rendering) return
     const bounds = canvas.getBoundingClientRect(),
-      width = Math.min(320, innerWidth - 24)
+      width = Math.max(0, Math.min(320, innerWidth - 24, innerHeight - 24))
     point = {
       x: Math.max(0, Math.min(1, (x - bounds.left) / bounds.width)),
       y: Math.max(0, Math.min(1, (y - bounds.top) / bounds.height)),
+      size: width,
       left: touch
         ? Math.max(12, Math.min(x - width / 2, innerWidth - width - 12))
         : bounds.right + width + 28 <= innerWidth
@@ -264,6 +265,7 @@
     aria-busy={refining}
     style:inset-inline-start={`${point.left}px`}
     style:inset-block-start={`${point.top}px`}
+    style:inline-size={`${point.size}px`}
     {@attach float}
   >
     <canvas {@attach refine} width="0" height="0"></canvas>

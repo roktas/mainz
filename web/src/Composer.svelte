@@ -18,13 +18,15 @@
   import type { Payload } from "./transfer.svelte.ts"
   import { animateAddition, animateMove, animateOrder, animateRemoval, editDuration } from "./motion.ts"
   import Repetition from "./Repetition.svelte"
+  import Selection from "./Selection.svelte"
+  import Origin from "./Origin.svelte"
   import Grid from "./Grid.svelte"
   import PageView, { zoomLevels } from "./Page.svelte"
   import type { Inspection, Region, Controls } from "./Page.svelte"
   import type { Magnification } from "./Lens.svelte"
   import Counter from "./Counter.svelte"
   import Icon from "./Icon.svelte"
-  import type { TourStep } from "./Help.svelte"
+  import type { TourStep } from "./Tour.svelte"
   let {
     source,
     styleable,
@@ -272,11 +274,6 @@
   }
   function initializeDensity(capacity: number) {
     if (inputView.density === undefined) inspectInput({ density: count > 2 * capacity ? "compact" : "normal" })
-  }
-  function togglePreview(event: ToggleEvent) {
-    const id = (event.currentTarget as HTMLElement).id
-    if (event.newState === "open") originOpen = id
-    else if (originOpen === id) originOpen = undefined
   }
   function inputTab(tab: InputView["tab"]) {
     inspectInput({
@@ -1242,66 +1239,78 @@
   >
 {/snippet}
 
-{#snippet inputGridMenu(page: number)}
+{#snippet inputOrigin(page: number, detail: string)}
   {#if source}
-    {@const id = `${key}-input-menu-${source.id}-${page}`}
     {@const destinations = outputPositions.get(page) ?? []}
-    <span class="page-origin">
-      <button class="card-number" popovertarget={id} aria-label={`Details for Input page ${page + 1}`}>
-        <strong>{page + 1}</strong>
-      </button>
-      <div {id} class="card-menu-options" popover="auto" onbeforetoggle={togglePreview}>
-        {#if originOpen === id}
-          <strong>Input · page {page + 1}</strong>
-          <div class="card-preview">
-            <Pdf pdf={source.input.pdf} {page} pageNumber={page + 1} thumbnail {magnification} {error} />
-          </div>
-          <p class="page-context">{source.input.name} · {page % 2 ? "Back" : "Front"} side</p>
-          {#if destinations.length}<p class="page-context">
-              Copies in Output: {destinations.length} · pages {pageRanges(destinations)}
-            </p>{/if}
-          {#if !draft.pages.length}<div class="occurrence-actions input-menu-action">
-              {@render inputPageActions(page)}
-            </div>{/if}
-        {/if}
-      </div>
-    </span>
+    {#snippet details()}
+      <strong>Copies in Output: {destinations.length}</strong>
+      <span class="page-context">Output pages: {pageRanges(destinations)}</span>
+    {/snippet}
+    <Origin
+      id={detail}
+      pane="Input"
+      number={page + 1}
+      label={source.input.labels[page]}
+      compact={inputCompact}
+      bind:opened={originOpen}
+      details={destinations.length ? details : undefined}
+    >
+      {#snippet children()}
+        <div class="card-preview">
+          <Pdf pdf={source.input.pdf} {page} pageNumber={page + 1} thumbnail {magnification} {error} />
+        </div>
+        <p class="page-context">{source.input.name} · {page % 2 ? "Back" : "Front"} side</p>
+        {#if destinations.length}<p class="page-context">
+            Copies in Output: {destinations.length} · pages {pageRanges(destinations)}
+          </p>{/if}
+        {#if !draft.pages.length}<div class="occurrence-actions input-menu-action">
+            {@render inputPageActions(page)}
+          </div>{/if}
+      {/snippet}
+    </Origin>
   {/if}
 {/snippet}
 
-{#snippet outputGridMenu(page: Expanded, index: number)}
-  {@const id = `${key}-output-menu-${page.id}`}
+{#snippet outputOrigin(page: Expanded, index: number)}
   {@const origin = provenance(page.content)}
-  <span class="page-origin">
-    <button class="card-number" popovertarget={id} aria-label={`Details for Output page ${index + 1}`}>
-      <strong>{index + 1}</strong>
-    </button>
-    <div {id} class="card-menu-options" popover="auto" onbeforetoggle={togglePreview}>
-      {#if originOpen === id}
-        <strong>Output · page {index + 1}</strong>
-        <div class="card-preview">
-          {#if origin && "page" in page.content}<Pdf
-              {...appearance(origin, page.content.page)}
-              pageNumber={page.content.page + 1}
-              thumbnail
-              {magnification}
-              {error}
-            />
-          {:else}<div
-              class="composition-blank"
-              style:--ratio={sizeOf(page.content, sources).width / sizeOf(page.content, sources).height}
-            >
-              <Icon name="blank" /><span>{page.padding ? "Padding" : "Blank"}</span>
-            </div>{/if}
-        </div>
-        <p class="page-context">
-          {origin?.input.name ?? (page.padding ? "Padding" : "Blank")}{#if "page" in page.content}
-            · original page {page.content.page + 1}{/if}
-        </p>
-        {@render occurrenceActions(page, index, !chosen.length)}
-      {/if}
-    </div>
-  </span>
+  <Origin
+    id={`${key}-output-menu-${page.id}`}
+    pane="Output"
+    number={index + 1}
+    compact={outputCompact}
+    bind:opened={originOpen}
+  >
+    {#snippet details()}
+      <strong>{origin?.input.name ?? (page.padding ? "Padding" : "Blank")}</strong>
+      <span class="page-context"
+        >{"page" in page.content
+          ? `p. ${page.content.page + 1}`
+          : `${sizeOf(page.content, sources).width.toFixed(1)} × ${sizeOf(page.content, sources).height.toFixed(1)} mm`}</span
+      >
+    {/snippet}
+    {#snippet children()}
+      <div class="card-preview">
+        {#if origin && "page" in page.content}<Pdf
+            {...appearance(origin, page.content.page)}
+            pageNumber={page.content.page + 1}
+            thumbnail
+            {magnification}
+            {error}
+          />
+        {:else}<div
+            class="composition-blank"
+            style:--ratio={sizeOf(page.content, sources).width / sizeOf(page.content, sources).height}
+          >
+            <Icon name="blank" /><span>{page.padding ? "Padding" : "Blank"}</span>
+          </div>{/if}
+      </div>
+      <p class="page-context">
+        {origin?.input.name ?? (page.padding ? "Padding" : "Blank")}{#if "page" in page.content}
+          · original page {page.content.page + 1}{/if}
+      </p>
+      {@render occurrenceActions(page, index, !chosen.length)}
+    {/snippet}
+  </Origin>
 {/snippet}
 
 {#snippet gridDensity(pane: "Input" | "Output", compact: boolean)}
@@ -1330,27 +1339,7 @@
 {/snippet}
 
 {#snippet outputGridHeading(page: Expanded, index: number)}
-  {@const origin = provenance(page.content)}
-
-  {#if outputCompact}
-    {@render outputGridMenu(page, index)}
-  {:else}<details class="page-origin" open={originOpen === page.id}>
-      <summary
-        aria-label={`Details for Output page ${index + 1}`}
-        onclick={(event) => {
-          event.preventDefault()
-          originOpen = originOpen === page.id ? undefined : page.id
-        }}><strong>{index + 1}</strong></summary
-      >
-      <div class="page-origin-info">
-        <strong>{origin?.input.name ?? (page.padding ? "Padding" : "Blank")}</strong>
-        <span class="page-context"
-          >{"page" in page.content
-            ? `p. ${page.content.page + 1}`
-            : `${sizeOf(page.content, sources).width.toFixed(1)} × ${sizeOf(page.content, sources).height.toFixed(1)} mm`}</span
-        >
-      </div>
-    </details>{/if}
+  {@render outputOrigin(page, index)}
   <button
     class="page-grip"
     aria-label={`Select or drag Output page ${index + 1}`}
@@ -1540,7 +1529,12 @@
     >
   </nav>
   <div class="composition-panels">
-    {#if source}<section class="selection-panel" data-density={inputView.density} aria-labelledby={`${key}-selection`}>
+    {#if source}<section
+        class="selection-panel"
+        style:--grid-digits={String(count).length}
+        data-density={inputView.density}
+        aria-labelledby={`${key}-selection`}
+      >
         <div class="section-heading input-heading" data-tour-target="input" data-tour-active={tour === "input"}>
           {@render input(`${key}-selection`)}
         </div>
@@ -1610,36 +1604,17 @@
               {@render styling()}
             </div>
           {:else}
-            <div class="sequence-entry">
-              <div class={["entry", { invalid: !!parsed.error }]}>
-                {@render inputTools()}
-                <input
-                  id={`${key}-input-selection`}
-                  aria-label="Page selection"
-                  inputmode="numeric"
-                  autocomplete="off"
-                  autocapitalize="off"
-                  spellcheck={false}
-                  value={draft.text}
-                  placeholder="Example: 3-5,2,2,7"
-                  title="Page numbers in order, including copies. Example: 3-5,2,2,7."
-                  aria-invalid={!!parsed.error}
-                  aria-describedby={`${key}-syntax`}
-                  oninput={(event) => numbers(event.currentTarget.value)}
-                  onkeydown={(event) => {
-                    if (
-                      event.key === "Enter" &&
-                      !event.isComposing &&
-                      !event.altKey &&
-                      !event.ctrlKey &&
-                      !event.metaKey &&
-                      !event.shiftKey
-                    ) {
-                      event.preventDefault()
-                      if (!event.repeat) add()
-                    }
-                  }}
-                />
+            <Selection
+              id={`${key}-input-selection`}
+              pane="Input"
+              value={draft.text}
+              invalid={!!parsed.error}
+              error={selectionError}
+              change={numbers}
+              submit={() => add()}
+              menu={inputTools}
+            >
+              {#snippet actions()}
                 {#if !allInput}<button
                     class="step"
                     aria-label="Select all"
@@ -1670,27 +1645,24 @@
                     ondragend={() => transfer.end()}
                     onclick={() => add()}><Icon name="add" /></button
                   >{/if}
-              </div>
-              <p id={`${key}-syntax`} class="sequence-help" role={selectionError ? "alert" : undefined}>
-                <span aria-hidden={!!selectionError}>
-                  {#if draft.pages.length}<strong
-                      >{draft.pages.length} {draft.pages.length === 1 ? "page" : "pages"} selected</strong
-                    > ·
-                  {/if}
-                  {draft.pages.length
-                    ? insertion === undefined
-                      ? "Append to Output."
-                      : `Add after Output ${insertion}.`
-                    : "Select pages or type numbers."}
-                  {#if draft.repeat !== "1" || draft.front}
-                    Repeat ×{draft.repeat}{draft.front ? " · Front aligned" : ""}.{/if}
-                  {#if hasStyles && !styleable}<span id={`${key}-style-unavailable`}
-                      >Style needs applicable Output pages.</span
-                    >{/if}
-                </span>
-                {#if selectionError}<span class="error">{selectionError}</span>{/if}
-              </p>
-            </div>
+              {/snippet}
+              {#snippet hint()}
+                {#if draft.pages.length}<strong
+                    >{draft.pages.length} {draft.pages.length === 1 ? "page" : "pages"} selected</strong
+                  > ·
+                {/if}
+                {draft.pages.length
+                  ? insertion === undefined
+                    ? "Append to Output."
+                    : `Add after Output ${insertion}.`
+                  : "Select pages or type numbers."}
+                {#if draft.repeat !== "1" || draft.front}
+                  Repeat ×{draft.repeat}{draft.front ? " · Front aligned" : ""}.{/if}
+                {#if hasStyles && !styleable}<span id={`${key}-style-unavailable`}
+                    >Style needs applicable Output pages.</span
+                  >{/if}
+              {/snippet}
+            </Selection>
             <div class="page-content">
               {#if transfer.warning && transfer.touching && transfer.value?.kind === "source" && activeView === "input"}
                 <div class="input-drop-hint" role="status"><Icon name="ban" />Move to Output.</div>
@@ -1744,37 +1716,13 @@
                           page <= highlight.last}
                         data-tour-target={first ? "first-page" : undefined}
                         data-face={page % 2 === 0 ? "front" : "back"}
-                        style:--digits={String(page + 1).length}
                         data-dragging={transfer.value?.kind === "source" &&
                         (transfer.value.page === page || (transfer.value.page === undefined && inputSelected.has(page)))
                           ? true
                           : undefined}
                       >
                         <div class="page-label">
-                          {#if inputCompact}
-                            {@render inputGridMenu(page)}
-                          {:else if destinations.length}<details class="page-origin" open={originOpen === detail}>
-                              <summary
-                                aria-label={`Details for Input page ${page + 1}`}
-                                onclick={(event) => {
-                                  event.preventDefault()
-                                  originOpen = originOpen === detail ? undefined : detail
-                                }}
-                                ><strong><span>{page + 1}</span></strong>
-                                {#if source.input.labels[page] && source.input.labels[page] !== String(page + 1)}<span
-                                    class="page-context">{source.input.labels[page]}</span
-                                  >{/if}</summary
-                              >
-                              <div id={detail} class="page-origin-info">
-                                <strong>Copies in Output: {destinations.length}</strong>
-                                <span class="page-context">Output pages: {pageRanges(destinations)}</span>
-                              </div>
-                            </details>{:else}<span class="page-number"
-                              ><strong>{page + 1}</strong>
-                              {#if source.input.labels[page] && source.input.labels[page] !== String(page + 1)}<span
-                                  class="page-context">{source.input.labels[page]}</span
-                                >{/if}</span
-                            >{/if}
+                          {@render inputOrigin(page, detail)}
                           <button
                             class="page-grip"
                             aria-label={`Select or drag Input page ${page + 1} to Output`}
@@ -1840,6 +1788,7 @@
 
     <section
       class="composition-output"
+      style:--grid-digits={String(output.pages.length).length}
       data-density={outputDensity}
       data-preview={transfer.preview ? true : undefined}
       aria-labelledby={`${key}-output`}
@@ -1869,12 +1818,16 @@
             aria-hidden={outputProcessing}
             disabled={!output.pages.length || !!output.error || outputProcessing || !!downloadError}
             title={downloadError}
+            aria-describedby={downloadError ? `${key}-download-error` : undefined}
             onclick={download}><Icon name="down" />Download</button
           >
           <span class="output-status" role="status" aria-hidden={!outputProcessing}>
             <span class="spinner" aria-hidden="true"></span>Updating PDF…
           </span>
         </div>
+        {#if downloadError}<p id={`${key}-download-error`} class="download-error error" role="alert">
+            {downloadError}
+          </p>{/if}
       </div>
       <div class="editing-toolbar output-tabs">
         <div class="tabs" role="tablist" aria-label="Output workspace">
@@ -1914,43 +1867,23 @@
         role="tabpanel"
         aria-labelledby={`${key}-output-${activeOutputTab}`}
       >
-        <div
-          class="sequence-entry"
-          data-tour-target="output-selection"
-          data-tour-active={tour === "output-selection"}
-          class:range-highlight={highlight?.kind === "output"}
-          class:removing={highlight?.kind === "output" && highlight.removing}
+        <Selection
+          id={`${key}-output-selection`}
+          pane="Output"
+          value={outputText ?? pageRanges(positions)}
+          invalid={!!outputSelectionError}
+          error={outputSelectionError}
+          disabled={!output.pages.length}
+          change={outputNumbers}
+          submit={() => remove()}
+          hiddenHint={!!transfer.value}
+          highlight={highlight?.kind === "output" ? (highlight.removing ? "remove" : "range") : undefined}
+          tour={tour === "output-selection"}
         >
-          <div class={["entry", { invalid: !!outputSelectionError }]}>
+          {#snippet menu()}
             {#if output.pages.length || tour === "output-selection"}{@render outputTools()}{/if}
-            <input
-              id={`${key}-output-selection`}
-              disabled={!output.pages.length}
-              aria-label="Page selection"
-              inputmode="numeric"
-              autocomplete="off"
-              autocapitalize="off"
-              spellcheck={false}
-              title="Output page numbers and ranges. Repeated numbers select the same page once."
-              value={outputText ?? pageRanges(positions)}
-              placeholder="Example: 2,4-6"
-              aria-invalid={!!outputSelectionError}
-              aria-describedby={`${key}-output-hint`}
-              oninput={(event) => outputNumbers(event.currentTarget.value)}
-              onkeydown={(event) => {
-                if (
-                  event.key === "Enter" &&
-                  !event.isComposing &&
-                  !event.altKey &&
-                  !event.ctrlKey &&
-                  !event.metaKey &&
-                  !event.shiftKey
-                ) {
-                  event.preventDefault()
-                  if (!event.repeat) remove()
-                }
-              }}
-            />
+          {/snippet}
+          {#snippet actions()}
             {#if output.pages.length && (positions.length < output.pages.length || outputSelectionError)}<button
                 class="step"
                 aria-label="Select all"
@@ -1988,15 +1921,14 @@
                 >
               </div>
             {/if}
-          </div>
-          <p id={`${key}-output-hint`} class="sequence-help" role={outputSelectionError ? "alert" : "status"}>
-            <span aria-hidden={!!outputSelectionError || !!transfer.value}>
-              {#if chosen.length}<strong>{chosen.length} {chosen.length === 1 ? "page" : "pages"} selected</strong> · Use
-                the selection bar.{:else if activeOutputTab === "page"}Select in Grid or type numbers.{:else}Select
-                pages or type numbers.{/if}
-            </span>
-            {#if outputSelectionError}<span class="error">{outputSelectionError}</span>
-            {:else if transfer.value}<span class="drag-status"
+          {/snippet}
+          {#snippet hint()}
+            {#if chosen.length}<strong>{chosen.length} {chosen.length === 1 ? "page" : "pages"} selected</strong> · Use the
+              selection bar.{:else if activeOutputTab === "page"}Select in Grid or type numbers.{:else}Select pages or
+              type numbers.{/if}
+          {/snippet}
+          {#snippet feedback()}
+            {#if transfer.value}<span class="drag-status"
                 ><strong
                   >{transfer.value.kind === "output"
                     ? transfer.value.ids.length === 1
@@ -2014,8 +1946,8 @@
                       : "Drag into Output"}</span
                 >
               </span>{/if}
-          </p>
-        </div>
+          {/snippet}
+        </Selection>
         <div class="page-content">
           {#if activeOutputTab === "page"}
             <div
@@ -2101,7 +2033,6 @@
                         if (grid && removing.has(page.id) && !cancelMove) cancelMove = animateOrder(grid, 800)
                       }}
                       data-face={index % 2 === 0 ? "front" : "back"}
-                      style:--digits={String(index + 1).length}
                       data-dragging={transfer.value?.kind === "output" && transfer.value.ids.includes(page.id)
                         ? true
                         : undefined}

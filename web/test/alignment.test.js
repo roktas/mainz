@@ -4,7 +4,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { chromium } from "playwright"
-import { fixture, checkGrips, tab, captureLayout } from "./browser.js"
+import { fixture, checkGrips, checkPagination, tab, captureLayout } from "./browser.js"
 import { measure } from "./measure.js"
 
 test("Style retains a Compact companion frame on short touch landscapes", { timeout: 60000 }, async () => {
@@ -163,69 +163,16 @@ test("Style scrolling preserves its companion Grid capacity and Page frame", { t
   }
 })
 
-async function checkPagination(pane) {
-  const bounds = await pane.evaluate((element) => {
-    const rect = (selector) => {
-      const { left, right, top, bottom } = element.querySelector(selector).getBoundingClientRect()
-      return { left, right, top, bottom }
-    }
-    return {
-      grid: rect(".composition-grid"),
-      pager: rect(".page-batches"),
-      slider: rect('.page-batches input[type="range"]'),
-      previous: rect(".page-batches > button:first-child"),
-      next: rect(".page-batches > button:last-of-type"),
-      previousIcon: rect(".page-batches > button:first-child svg"),
-      nextIcon: rect(".page-batches > button:last-of-type svg"),
-      caption: rect(".batch-caption"),
-      viewport: document.documentElement.clientWidth,
-    }
-  })
-  assert.ok(
-    Math.abs((bounds.previousIcon.left + bounds.previousIcon.right) / 2 - bounds.grid.left) < 1,
-    "Previous aligns with the content's left edge",
-  )
-  assert.ok(
-    Math.abs((bounds.nextIcon.left + bounds.nextIcon.right) / 2 - bounds.grid.right) < 1,
-    "Next aligns with the content's right edge",
-  )
-  for (const button of [bounds.previous, bounds.next]) {
-    assert.ok(Math.abs(button.top - bounds.slider.top) < 1, "Arrows share the slider's row")
-    assert.ok(button.right - button.left >= 40 && button.bottom - button.top >= 44, "Arrow targets stay usable")
-    assert.ok(button.left >= 0 && button.right <= bounds.viewport, "Arrow targets stay inside the viewport")
-  }
-  for (const icon of [bounds.previousIcon, bounds.nextIcon])
-    assert.ok(
-      Math.abs((icon.top + icon.bottom - bounds.slider.top - bounds.slider.bottom) / 2) < 1,
-      "Arrows stay on the slider's centerline",
-    )
-  assert.ok(
-    bounds.previous.right <= bounds.slider.left && bounds.slider.right <= bounds.next.left,
-    "Targets stay separate",
-  )
-  assert.ok(Math.abs(bounds.slider.top - bounds.pager.top) < 1, "The slider starts the pagination row")
-  assert.ok(Math.abs(bounds.caption.top + 3 - bounds.slider.bottom) < 1, "The caption stays close below the slider")
-  if (pane.page().viewportSize().width <= 480) {
-    await pane.page().evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
-    const gap = await pane.evaluate(
-      (element) =>
-        document.querySelector(".footnote").getBoundingClientRect().top -
-        element.querySelector(".page-batches").getBoundingClientRect().bottom,
-    )
-    assert.ok(gap >= -1, "Grid pagination stays clear of the status bar")
-  }
-}
-
 for (const hasTouch of [false, true])
   test(
     `Grid grips and Page thumbnail references stay aligned for ${hasTouch ? "touch" : "mouse"}`,
     { timeout: 600000 },
     async (t) => {
       const server = await serve()
-      let browser, label
+      let browser, page, label
       try {
         browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-        const page = await browser.newPage({ hasTouch, isMobile: hasTouch, reducedMotion: "reduce" })
+        page = await browser.newPage({ hasTouch, isMobile: hasTouch, reducedMotion: "reduce" })
         page.setDefaultTimeout(45000)
         // Capacity and calibration boundaries belong to grid.test.js; alignment needs only a few complete columns.
         await page.route("**/grid.pdf", (route) =>
@@ -291,7 +238,7 @@ for (const hasTouch of [false, true])
                 label = `${hasTouch ? "Touch" : "Mouse"} ${name} ${density}, ${width}×${height}, ${text} text`
                 await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).dispatchEvent("click")
                 await checkGrips(pane, `${name} ${density}, ${width}×${height}, ${text} text`)
-                if (await views.isVisible()) await checkPagination(pane)
+                if (await views.isVisible()) await checkPagination(pane, label)
                 const grid = await pane.locator(".composition-grid").evaluate((element) => ({
                   columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
                   width: element.firstElementChild.getBoundingClientRect().width,
@@ -311,6 +258,7 @@ for (const hasTouch of [false, true])
         }
         await page.close()
       } catch (error) {
+        if (page) await captureLayout(page, "alignment", { label, error: error.message })
         error.message += `\nLayout: ${label}`
         throw error
       } finally {
@@ -364,11 +312,11 @@ test("App header uses available width before wrapping its actions", { timeout: 4
 
 test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 180000 }, async () => {
   const server = await serve()
-  let browser
+  let browser, page, label
   try {
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const hasTouch of [true, false]) {
-      const page = await browser.newPage({
+      page = await browser.newPage({
         viewport: { width: 744, height: 1047 },
         hasTouch,
         isMobile: hasTouch,
@@ -442,7 +390,9 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
         for (const text of ["100%", "200%"]) {
           await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
           for (const density of ["Normal", "Compact"]) {
+            label = `${hasTouch ? "Touch" : "Mouse"} Output ${density}, ${width}×${height}, ${text}, five digits`
             await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+            await measure(output)
             await output.getByRole("slider", { name: "Output thumbnail range", exact: true }).press("End")
             await output.getByRole("button", { name: "Select Output page 10000", exact: true }).waitFor()
             await checkGrips(output, `${width}×${height}, ${text}, ${density}, five digits`)
@@ -466,6 +416,10 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
       }
       await page.close()
     }
+  } catch (error) {
+    if (page) await captureLayout(page, "alignment-five-digits", { label, error: error.message })
+    error.message += `\nLayout: ${label}`
+    throw error
   } finally {
     await browser?.close()
   }

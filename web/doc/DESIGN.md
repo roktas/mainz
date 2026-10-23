@@ -159,11 +159,11 @@ rows = pages and applies to both Input and Output.
 | QHD observed, 2560 × 1310 | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48    |
 | QHD observed, 2560 × 1318 | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
 | QHD observed, 2560 × 1323 | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
-| Safari, 2200 × 1298       | 1265 px         | 4 × 3 = 12 | 6 × 6 = 36    |
+| Safari, 2200 × 1298       | 1265 px         | 3 × 3 = 9  | 6 × 6 = 36    |
 | Safari, 2400 × 1358       | 1380 px         | 4 × 3 = 12 | 7 × 7 = 49    |
 | Safari, 2560 × 1358       | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
 | QHD PWA, 2560 × 1440      | 1472 px         | 4 × 4 = 16 | 8 × 8 = 64    |
-| UHD-, 3840 × 2040         | 2208 px         | 7 × 6 = 42 | 12 × 12 = 144 |
+| UHD-, 3840 × 2040         | 2208 px         | 6 × 6 = 36 | 12 × 12 = 144 |
 | UHD, 3840 × 2160          | 2208 px         | 7 × 7 = 49 | 12 × 14 = 168 |
 
 Desktop references ending in `-` keep the nominal width. Their estimated height is `screenHeight - 120 CSS px`. The
@@ -189,25 +189,25 @@ viewports; the application does not subtract the estimated browser controls agai
 
 | Device         | CSS viewport | Normal     | Compact    |
 | -------------- | ------------ | ---------- | ---------- |
-| Narrow phone   | 320 × 568    | 2 × 1 = 2  | 3 × 1 = 3  |
+| Narrow phone   | 320 × 568    | 1 × 1 = 1  | 3 × 1 = 3  |
 | iPhone         | 375 × 667    | 2 × 1 = 2  | 4 × 1 = 4  |
 | iPhone         | 667 × 375    | 4 × 1 = 4  | 7 × 1 = 7  |
 | iPhone         | 390 × 844    | 2 × 1 = 2  | 4 × 2 = 8  |
 | iPhone         | 844 × 390    | 5 × 1 = 5  | 9 × 1 = 9  |
 | iPhone         | 393 × 852    | 2 × 1 = 2  | 4 × 3 = 12 |
 | iPhone         | 852 × 393    | 5 × 1 = 5  | 9 × 1 = 9  |
-| iPhone         | 440 × 956    | 3 × 2 = 6  | 4 × 3 = 12 |
+| iPhone         | 440 × 956    | 2 × 1 = 2  | 4 × 3 = 12 |
 | iPhone         | 956 × 440    | 2 × 1 = 2  | 5 × 1 = 5  |
-| Pixel          | 412 × 924    | 3 × 2 = 6  | 4 × 3 = 12 |
-| Pixel Pro      | 427 × 952    | 3 × 2 = 6  | 4 × 3 = 12 |
+| Pixel          | 412 × 924    | 2 × 1 = 2  | 4 × 3 = 12 |
+| Pixel Pro      | 427 × 952    | 2 × 1 = 2  | 4 × 3 = 12 |
 | iPad mini 6    | 744 × 1133   | 4 × 2 = 8  | 8 × 5 = 40 |
 | iPad mini 6    | 1133 × 744   | 3 × 1 = 3  | 6 × 1 = 6  |
-| iPad / mini    | 768 × 1024   | 5 × 2 = 10 | 8 × 4 = 32 |
+| iPad / mini    | 768 × 1024   | 4 × 2 = 8  | 8 × 4 = 32 |
 | iPad           | 1024 × 768   | 2 × 1 = 2  | 5 × 2 = 10 |
 | iPad gen 9     | 810 × 1080   | 5 × 2 = 10 | 9 × 4 = 36 |
 | iPad gen 9     | 1080 × 810   | 3 × 1 = 3  | 5 × 2 = 10 |
 | iPad Pro 13    | 1032 × 1376  | 3 × 3 = 9  | 5 × 7 = 35 |
-| Surface Pro 10 | 960 × 1440   | 3 × 4 = 12 | 5 × 8 = 40 |
+| Surface Pro 10 | 960 × 1440   | 2 × 3 = 6  | 5 × 8 = 40 |
 | Galaxy A55     | 360 × 800    | 2 × 1 = 2  | 3 × 2 = 6  |
 
 Mobile has a persistent one-tap Input/Output switch and preserves pane state. Headings retain the chooser or totals
@@ -306,16 +306,22 @@ numbers at the start, grips in the center, and face information at the upper-rig
 corner. Front retains its normal corner. The fold continues the current contour without leaving a rectangular border
 behind it. Accessible labels and hover help identify both faces. Page corners do not intercept tool interactions.
 
+Normal headers reserve three separate 44 px cells around the centered grip. Their shared card width is at least 136 px,
+including the selected contour. Expanded targets remain above the image in hit testing. Capacity yields to these
+targets. Compact page identities use at least 0.6875 rem text, or 11 CSS px at ordinary text size. Four- and five-digit
+counts reserve wider equal header cells for the whole pane. These counts can reduce capacity and increase Compact image
+size beyond the ordinary two-to-one image-scale target. The text floor also scales with enlarged text.
+
 The shared Normal reference uses 148 × 240 px cards; Compact uses 74 × 125 px cards at ordinary text size. In touch
-portrait layouts, Normal fits three columns when readable cards fit: widths range from 112 to 134 px, heights from 208
-to 226 px, and image padding from 6 to 8 px. Below a 368 px single-pane workspace, two larger cards use 124–148 px
-widths, 224–240 px heights, and 8–10 px image padding. The 128 px image floor takes priority over a third column. Touch
-portrait Compact uses a 0.9 row-gap factor, reduced to 0.8 below 600 CSS px, 6–7.5 px image padding, and a height of at
-least 109.5 px, increased when a wider calibrated card needs the required portrait silhouette. Below a 336 px workspace,
-three Compact columns grow to at most 88 × 125 px with 7.5 px image padding. These content thresholds retain readable
-previews when another column cannot fit. They apply between measured viewport bands. The minimum gap is 85% of the
-authored vertical image padding, with a 0.5 rem floor for usable separation. Actual distributed spacing drives both row
-capacity and calibrated card height. Do not calculate one from the minimum gap and the other from the distributed gap.
+portrait layouts, Normal retains the 136 px control-width floor, a complete image at least 128 px high, and balanced
+image margins. Narrow phones can show one column. Wider phones show two columns until a third usable card fits. The
+retained geometry bands supply preferred dimensions within these constraints. Touch portrait Compact uses a 0.9 row-gap
+factor, reduced to 0.8 below 600 CSS px, 6–7.5 px image padding, and a height of at least 109.5 px, increased when a
+wider calibrated card needs the required portrait silhouette. Below a 336 px workspace, three Compact columns grow to at
+most 88 × 125 px with 7.5 px image padding. These content thresholds retain readable previews when another column cannot
+fit. They apply between measured viewport bands. The minimum gap is 85% of the authored vertical image padding, with a
+0.5 rem floor for usable separation. Actual distributed spacing drives both row capacity and calibrated card height. Do
+not calculate one from the minimum gap and the other from the distributed gap.
 
 The QHD preferences use 150 px Normal widths, 14–16 px image padding, and 224–280 px height limits across viewport
 bands. Desktop fitting can reduce these preferred dimensions within the visual limits to retain complete rows across
@@ -328,7 +334,8 @@ Fine-pointer calibration padding and tool heights use fixed px or rem values.
 
 The calibration table requires viewport width, viewport height, primary pointer, orientation where relevant, and pane
 layout. Upper bounds are exclusive. Entries do not override another entry at the same density. Each entry changes only
-preferred card dimensions and spacing. The shared frame budget and pagination placement stay independent of calibration.
+preferred card dimensions and spacing. Shared target, text, and image minima take priority over smaller preferences. The
+shared frame budget and pagination placement stay independent of calibration.
 
 | Reference                  | Width, CSS px | Height, CSS px | Input condition          | Pane layout | Preferred card geometry                                                                                                                                                       |
 | -------------------------- | ------------- | -------------- | ------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1075,16 +1082,17 @@ terms.
 
 #### Project documents and components
 
-| Reference                                                                                                                                          | Responsibility                                                             |
-| -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| [Web SPEC](SPEC.md) and [glossary](SPEC.md#glossary)                                                                                               | Workspace behavior and product terminology.                                |
-| [Design rules](#tokens-and-assets)                                                                                                                 | Visual rules and layout references.                                        |
-| [App](../src/App.svelte), [Landing](../src/Landing.svelte), and [Theme](../src/Theme.svelte)                                                       | Application shell, pane header controls, landing page, and theme control.  |
-| [Composer](../src/Composer.svelte) and [Repetition](../src/Repetition.svelte)                                                                      | Panes, view controls, selection bars, page actions, and repetition.        |
-| [Grid](../src/Grid.svelte), [Page](../src/Page.svelte), [Counter](../src/Counter.svelte), [Pdf](../src/Pdf.svelte), and [Lens](../src/Lens.svelte) | Thumbnail pagination, page viewer, page entry, page images, and magnifier. |
-| [Style](../src/Style.svelte), [Quartet](../src/Quartet.svelte), and [Control](../src/Control.svelte)                                               | Profiles, groups, Style objects, property summaries, and editors.          |
-| [Help](../src/Help.svelte) and [Settings](../src/Settings.svelte)                                                                                  | Help, welcome, Product tour, and Settings.                                 |
-| [Offline](../src/Offline.svelte) and [drag](../src/drag.ts)                                                                                        | Offline/update status and drag images.                                     |
+| Reference                                                                                                                                            | Responsibility                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| [Web SPEC](SPEC.md) and [glossary](SPEC.md#glossary)                                                                                                 | Workspace behavior and product terminology.                                      |
+| [Design rules](#tokens-and-assets)                                                                                                                   | Visual rules and layout references.                                              |
+| [App](../src/App.svelte), [Landing](../src/Landing.svelte), and [Theme](../src/Theme.svelte)                                                         | Application shell, pane header controls, landing page, and theme control.        |
+| [Composer](../src/Composer.svelte), [Selection](../src/Selection.svelte), [Origin](../src/Origin.svelte), and [Repetition](../src/Repetition.svelte) | Panes, view controls, selection bars, page actions, and repetition.              |
+| [Grid](../src/Grid.svelte), [Page](../src/Page.svelte), [Counter](../src/Counter.svelte), [Pdf](../src/Pdf.svelte), and [Lens](../src/Lens.svelte)   | Thumbnail pagination, page viewer, page entry, page images, and magnifier.       |
+| [Style](../src/Style.svelte), [Quartet](../src/Quartet.svelte), and [Control](../src/Control.svelte)                                                 | Profiles, groups, Style objects, property summaries, and editors.                |
+| [Help](../src/Help.svelte), [Tour](../src/Tour.svelte), and [Settings](../src/Settings.svelte)                                                       | Help, welcome, Product tour, and Settings.                                       |
+| [Download](../src/Download.svelte)                                                                                                                   | Download preparation, inspection, cancellation, temporary resources, and dialog. |
+| [Offline](../src/Offline.svelte) and [drag](../src/drag.ts)                                                                                          | Offline/update status and drag images.                                           |
 
 #### Standard terminology
 

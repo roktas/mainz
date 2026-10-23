@@ -33,10 +33,17 @@
       --grid-row-gap: max(var(--grid-gap), calc(var(--grid-column-gap, var(--grid-gap)) * var(--grid-row-factor, 1)));
       --thumbnail-padding: 0.875rem;
       --card-tools-height: 4.25rem;
+      --grid-min-width: 136px;
+      --grid-min-height: calc(
+        max(8rem, sqrt(2) * (var(--grid-min-width) - 2px - 4 * var(--thumbnail-padding))) + var(--card-tools-height) +
+          2 * var(--thumbnail-padding)
+      );
+      --compact-number-size: 0.6875rem;
 
       .composition-grid,
       .page-reference {
-        grid-template-columns: repeat(auto-fill, min(100%, var(--grid-width)));
+        --card-height: max(var(--grid-height), var(--grid-min-height));
+        grid-template-columns: repeat(auto-fill, min(100%, max(var(--grid-width), var(--grid-min-width))));
         gap: var(--grid-gap);
         row-gap: var(--grid-row-gap);
         padding-inline: var(--grid-gap);
@@ -44,6 +51,8 @@
       }
 
       &[data-density="compact"] {
+        --grid-min-width: calc(3 * (0.65 * var(--grid-digits, 1) * var(--compact-number-size) + 3px));
+        --grid-min-height: calc(sqrt(2) * var(--grid-min-width));
         --grid-width: max(74px, calc(5 * var(--body)));
         --grid-height: 7.8125rem;
         --thumbnail-padding: 0.46875rem;
@@ -67,38 +76,40 @@
         min-block-size: 0;
       }
       .composition-panels {
-        grid-template-rows: auto auto auto minmax(min-content, 1fr);
+        row-gap: 0;
+        column-gap: 0;
 
         & :is(.selection-panel, .composition-output) {
+          display: grid;
           grid-row: 1 / span 4;
+          grid-template-rows: subgrid;
+          row-gap: 0;
+          container-type: normal;
         }
 
         & :is(.input-panel, .output-panel) {
+          display: grid;
           grid-row: 3 / span 2;
+          grid-template-rows: subgrid;
+          row-gap: 0;
+        }
+
+        & .section-heading {
+          grid-row: 1;
+          align-self: stretch;
+        }
+
+        & :is(.source-tabs, .output-tabs) {
+          grid-row: 2;
         }
 
         & .page-content {
-          display: block flow;
-          grid-row: auto;
-          grid-template-rows: none;
           align-self: start;
+          min-inline-size: 0;
           container: catalog / inline-size;
 
           &:has(.grid-view, .page-view) {
-            display: grid;
-            grid-template-rows: minmax(0, 1fr);
             align-self: stretch;
-          }
-        }
-
-        & .inspection-target {
-          display: block flow;
-          grid-row: auto;
-          grid-template-rows: none;
-
-          &:has(.page-view) {
-            display: grid;
-            grid-template-rows: minmax(0, 1fr);
           }
         }
       }
@@ -135,7 +146,7 @@
       display: grid;
       grid-template-rows: minmax(0, 1fr);
       container-type: size;
-      min-block-size: calc(var(--grid-height) + var(--grid-pager-height) + 8px);
+      min-block-size: calc(max(var(--grid-height), var(--grid-min-height)) + var(--grid-pager-height) + 8px);
     }
 
     .page-content:has(.page-view) {
@@ -158,7 +169,7 @@
         content: "";
         grid-column: 1;
         grid-row: 4;
-        min-block-size: calc(var(--grid-height) + var(--grid-pager-height) + 8px);
+        min-block-size: calc(max(var(--grid-height), var(--grid-min-height)) + var(--grid-pager-height) + 8px);
         pointer-events: none;
         visibility: hidden;
       }
@@ -596,8 +607,12 @@
       @container composer (width > 55em) {
         :is(.composition-grid, .page-reference) {
           --grid-fit: 1;
-          grid-template-columns: repeat(var(--grid-fit-columns, auto-fill), min(100%, var(--grid-width)));
-          grid-auto-rows: var(--grid-height);
+          --card-height: var(--grid-height);
+          grid-template-columns: repeat(
+            var(--grid-fit-columns, auto-fill),
+            min(100%, max(var(--grid-width), var(--grid-min-width)))
+          );
+          grid-auto-rows: var(--card-height);
         }
       }
     }
