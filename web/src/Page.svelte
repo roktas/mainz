@@ -115,8 +115,14 @@
         const style = getComputedStyle(element)
         const width = element.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
         const gripWidth = grip?.getBoundingClientRect().width ?? 0
-        const counterWidth = counter.getBoundingClientRect().width
-        const leading = Math.max(counterWidth, gripWidth ? (width - gripWidth) / 2 : 0)
+        const label = element.querySelector<HTMLElement>(".page-number > .page-context")
+        const numberWidth =
+          counter.getBoundingClientRect().width +
+          (label
+            ? Math.min(label.scrollWidth, parseFloat(getComputedStyle(label).maxInlineSize)) +
+              parseFloat(getComputedStyle(label.parentElement!).columnGap)
+            : 0)
+        const leading = Math.max(numberWidth, gripWidth ? (width - gripWidth) / 2 : 0)
         const available = width - leading - gripWidth
         const zoomStyle = getComputedStyle(group)
         const cell = parseFloat(zoomStyle.gridAutoColumns)
@@ -125,7 +131,7 @@
           buttons.reduce((sum, child) => sum + child.getBoundingClientRect().width, 0) +
           (footerActions ? parseFloat(getComputedStyle(footerActions).columnGap) * Math.max(0, buttons.length - 1) : 0)
         const minimum = Math.max(
-          gripWidth ? 2 * Math.max(counterWidth, cell) + gripWidth : counterWidth + cell,
+          gripWidth ? 2 * Math.max(numberWidth, cell) + gripWidth : numberWidth + cell,
           actionWidth + 88,
         )
         const zoomWidth = cell * Number(zoomStyle.getPropertyValue("--zoom-items"))

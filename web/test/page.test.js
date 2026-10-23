@@ -1385,6 +1385,125 @@ test(
   },
 )
 
+test("Output Page keeps original PDF labels through composition and Input changes", { timeout: 60000 }, async () => {
+  const server = await serve()
+  let browser, page
+  const long = "Appendix-Reference-with-a-very-long-label-99999"
+  const instructions = "0.2 w 20 100 400 300 re S\n"
+  const objects = [
+    `<< /Type /Catalog /Pages 2 0 R /PageLabels << /Nums [0 << /S /r >> 2 << /S /D /St 3 >> 3 << /P (${long}) >>] >> >>`,
+    "<< /Type /Pages /Kids [4 0 R 5 0 R 6 0 R 7 0 R] /Count 4 /MediaBox [0 0 595 842] >>",
+    `<< /Length ${instructions.length} >>\nstream\n${instructions}endstream`,
+    ...Array.from({ length: 4 }, () => "<< /Type /Page /Parent 2 0 R /Contents 3 0 R /Resources <<>> >>"),
+  ]
+  let pdf = "%PDF-1.7\n"
+  const offsets = [0]
+  for (const [index, object] of objects.entries()) {
+    offsets.push(Buffer.byteLength(pdf))
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`
+  }
+  const xref = Buffer.byteLength(pdf)
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets
+    .slice(1)
+    .map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`)
+    .join("")}trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
+  try {
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+    page.setDefaultTimeout(10000)
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    await page
+      .locator("input[type=file]")
+      .first()
+      .setInputFiles({ name: "Labeled.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdf) })
+    const input = page.locator(".selection-panel"),
+      output = page.locator(".composition-output")
+    const selected = output.getByLabel("Page selection", { exact: true })
+    const labels = output.locator(".inspection-heading .page-number > .page-context")
+    const jump = async (position, label, count = 5) => {
+      await output.getByRole("button", { name: "Go to Output page", exact: true }).click()
+      const entry = output.getByRole("textbox", { name: "Go to Output page", exact: true })
+      await entry.fill(String(position))
+      await entry.press("Enter")
+      assert.match(await pagePosition(output), new RegExp(`^${position}\\s*/ ${count}$`))
+      assert.deepEqual(await labels.allTextContents(), label ? [label] : [])
+    }
+    await tab(input, "Page")
+    assert.equal(await input.locator(".inspection-heading .page-context").innerText(), "i")
+    await input.getByLabel("Page selection", { exact: true }).fill("2,1,2,3,4")
+    await input.getByLabel("Page selection", { exact: true }).press("Enter")
+    await tab(output, "Page")
+    await jump(1, "ii")
+    await jump(2, "i")
+    await jump(3, "ii")
+    await jump(4, "3")
+    await jump(5, long)
+    assert.equal(await labels.getAttribute("title"), long)
+    assert.equal(await labels.isVisible(), true)
+    for (const [width, text] of [
+      [1440, "100%"],
+      [390, "200%"],
+    ]) {
+      await page.setViewportSize({ width, height: 1000 })
+      await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+      const views = page.locator(".mobile-workspace-tabs")
+      if (await views.isVisible()) await views.getByRole("button", { name: "Output", exact: true }).click()
+      await page.waitForFunction(
+        (label) => {
+          const context = document.createElement("canvas").getContext("2d")
+          context.font = getComputedStyle(label).font
+          return label.getBoundingClientRect().width + 1 >= context.measureText("Appendix…").width
+        },
+        await labels.elementHandle(),
+      )
+      await aligned(output)
+      if ((await output.locator(".page-view").getAttribute("data-controls")) !== "all") {
+        await output.getByLabel("Output page actions", { exact: true }).click()
+        const menu = output.locator(".output-options")
+        assert.equal(await menu.getByRole("button", { name: "Compare page", exact: true }).isVisible(), true)
+        assert.equal(await menu.getByRole("button", { name: "Show original page", exact: true }).isEnabled(), true)
+        await output.getByLabel("Output page actions", { exact: true }).click()
+      }
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+    await jump(4, "3")
+    await selected.fill("4")
+    await output.getByRole("button", { name: "Move selected pages earlier", exact: true }).click()
+    assert.match(await pagePosition(output), /^3\s*\/ 5$/)
+    assert.deepEqual(await labels.allTextContents(), [], "The counter already shows the identical PDF label")
+    await output.getByRole("button", { name: "Move selected pages earlier", exact: true }).click()
+    assert.match(await pagePosition(output), /^2\s*\/ 5$/)
+    assert.deepEqual(await labels.allTextContents(), ["3"], "A reordered numeric label identifies its original page")
+    await selected.fill("1-2")
+    await output.getByLabel("Output page actions", { exact: true }).click()
+    await output.getByRole("button", { name: "Repeat selected pages", exact: true }).click()
+    await jump(3, "ii", 7)
+    await jump(4, "3", 7)
+    await output.getByLabel("Output page actions", { exact: true }).click()
+    await output.getByRole("button", { name: "Blank before first selected page", exact: true }).click()
+    await jump(3, undefined, 8)
+    assert.equal(await output.locator(".blank-sheet").isVisible(), true)
+    await jump(4, "ii", 8)
+    await page
+      .locator("input[type=file]")
+      .first()
+      .setInputFiles({ name: "Plain.pdf", mimeType: "application/pdf", buffer: fixture(false) })
+    await input.locator(".input-current").filter({ hasText: "Plain.pdf" }).waitFor()
+    assert.deepEqual(await labels.allTextContents(), ["ii"], "Switching Input keeps the inspected occurrence's label")
+    await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+    await jump(4, undefined, 9)
+    assert.equal(await output.locator(".blank-sheet").count(), 0, "An ordinary unlabeled page has no invented label")
+    await jump(5, "ii", 9)
+  } catch (error) {
+    if (page) await captureLayout(page, "page-labels", { error: error.message })
+    throw error
+  } finally {
+    await browser?.close()
+  }
+})
+
 test("Grid and Page switches preserve selections, zoom, and the inspected page", { timeout: 60000 }, async () => {
   const server = await serve()
   let browser

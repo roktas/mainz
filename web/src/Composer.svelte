@@ -1406,8 +1406,11 @@
 {/snippet}
 
 {#snippet outputPageHeading()}
+  {@const origin = inspected ? provenance(inspected.content) : undefined}
+  {@const label = inspected && "page" in inspected.content ? origin?.input.labels[inspected.content.page] : undefined}
   <span class="page-number">
     <Counter pane="Output" bind:this={outputCounter} bind:position={outputPosition} count={output.pages.length} />
+    {#if label && label !== String(outputPosition + 1)}<span class="page-context" title={label}>{label}</span>{/if}
   </span>
   {@render pageTools("Output")}
   {@render pageFace(outputPosition)}

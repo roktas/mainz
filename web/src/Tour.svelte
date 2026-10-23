@@ -135,7 +135,7 @@
       text: [
         "Select Output pages with their images, grips, or this field. The bar applies each action to the selection.",
         "← moves pages earlier and → moves them later in print order. An unavailable direction stays in place but is disabled. On narrow screens, find these moves in the … menu.",
-        "− removes selected pages. + duplicates them beside their originals. Without a selection, these controls are disabled in this tour; your pages stay unchanged.",
+        "− removes selected pages. + adds one copy of the selection after its last page. Without a selection, these controls are disabled in this tour; your pages stay unchanged.",
       ],
     },
     {
