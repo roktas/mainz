@@ -230,7 +230,6 @@
   const repeatError = $derived(copyError(repetitions))
   const inputSelected = $derived(new Set(draft.pages))
   const transfer = new Transfer({
-    key,
     get pages() {
       return output.pages
     },

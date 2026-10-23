@@ -513,11 +513,14 @@ report repeated failures.
 
 Each worker runs one job at a time and loads only its bundled processor module. A failed operation discards the WASM
 instance and extracted-page cache before the next request. Cleanup errors fail successful work without replacing an
-earlier operation error. Ordinary Inputs release their validation worker after opening. Cancellation, replacement, or
-Source removal stops obsolete processing and preview work. Later jobs start usable workers. Input bytes remain available
-for retry. Disposal releases document handles, registered Inputs, buffers, render tasks, and object URLs. Completed
-rasters use bounded memory caching, separate from persistent storage and the offline cache. Removing the last owner of a
-PDF releases its cached rasters. Input and Style comparison retain their shared PDFs. The 32 MiB budget counts retained
+earlier operation error. The workspace retains at most one idle processing worker. Completing another job releases the
+previous idle worker. Active jobs keep independent cancellation. Ordinary Inputs release their validation worker after
+opening. Repeated Style requests for the same cached Input and page sequence reuse the extracted bytes without sending
+the complete PDF again. Failure or worker disposal clears that reuse state. Cancellation, replacement, or Source removal
+stops obsolete processing and preview work. Later jobs start usable workers. Input bytes remain available for retry.
+Disposal releases document handles, registered Inputs, buffers, render tasks, and object URLs. Completed rasters use
+bounded memory caching, separate from persistent storage and the offline cache. Removing the last owner of a PDF
+releases its cached rasters. Input and Style comparison retain their shared PDFs. The 32 MiB budget counts retained
 canvas pixels; it excludes active renders, PDF.js memory, and browser overhead. It is not a total-memory guarantee.
 Persistent editable workspaces, printer control, and independent Part or occurrence styles are outside this version.
 
@@ -526,6 +529,10 @@ updates. The PDF boundary owns their loading-task and raster release, initial pa
 complete geometry in bounded batches and releases each acquired page after inspection. Cancellation discards incomplete
 geometry. Each preview render releases its own acquired page, including obsolete generations, and cancels superseded
 render tasks. Cancellation retains the last completed raster.
+
+Page pinch anchoring belongs to the displayed PDF, physical page, and sequence position. Cancellation, a page-context
+change, a hidden pane, or teardown clears pending anchoring and its temporary transform. Reattaching the same Page
+during a zoom update preserves its pending anchor.
 
 | Stage             | Retained resources                                        | Cancellation or replacement                                  |
 | ----------------- | --------------------------------------------------------- | ------------------------------------------------------------ |

@@ -6,7 +6,6 @@ import type { Page, Size } from "./model.ts"
 export type Payload = { kind: "source"; page?: number } | { kind: "output"; ids: string[] }
 
 type Workspace = {
-  key: string
   readonly pages: Page[]
   position: number
   readonly input: boolean
@@ -288,11 +287,7 @@ export class Transfer {
       if (navigation) this.navigate(event, Number(navigation.dataset.step), navigation)
       else {
         this.leave()
-        const index = card
-          ? this.#workspace.pages.findIndex((item) => `${this.#workspace.key}-${item.id}` === card.id)
-          : page
-            ? this.#workspace.position
-            : undefined
+        const index = page ? this.#workspace.position : undefined
         this.over(event, index, card ?? page ?? (hit as HTMLElement))
       }
     } else {

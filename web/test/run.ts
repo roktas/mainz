@@ -31,7 +31,10 @@ assert.deepEqual(
 )
 
 const minimal = {
-  processor: ["Processor workers pin their module and recover from failed document cleanup"],
+  processor: [
+    "Processor workers pin their module and recover from failed document cleanup",
+    "Processors bound idle runtimes and reuse immutable page buffers across retries",
+  ],
   pdf: [
     "Overlapping preview generations release their own pages and never paint stale results",
     "Input inspection bounds pending metadata and releases pages on completion, cancellation, and failure",
@@ -45,7 +48,10 @@ const minimal = {
     "Touch Selection keeps the keyboard closed and image gestures preserve pages",
     "Page and Grid keyboard actions respect key priority and the visible page order",
   ],
-  page: ["Page pinch zoom preserves its anchor and shares the button zoom range"],
+  page: [
+    "Page pinch zoom preserves its anchor and shares the button zoom range",
+    "Page cancellation clears a pending pinch before the next render",
+  ],
   grid: ["Grid pagination bounds its marks and retains exact page navigation"],
   composition: ["Edited Padding retains its dimensions and page order in the downloaded PDF"],
 }

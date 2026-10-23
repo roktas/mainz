@@ -76,7 +76,20 @@
   let thumbnailWidth = $state(0)
   let headingFrame: number
   let copyFlash: Animation | undefined
-  let pinchAnchor: { x: number; y: number; clientX: number; clientY: number; width: number; zoom: number } | undefined
+  let pinchAnchor:
+    | {
+        x: number
+        y: number
+        clientX: number
+        clientY: number
+        width: number
+        zoom: number
+        pdf?: PDFDocumentProxy
+        page?: number
+        index: number
+      }
+    | undefined
+  let cancelPinch: (() => void) | undefined
   function measureHeading(height: number) {
     cancelAnimationFrame(headingFrame)
     headingFrame = requestAnimationFrame(() => (headingHeight = height))
@@ -134,6 +147,7 @@
     }
   }
   onDestroy(() => {
+    cancelPinch?.()
     cancelAnimationFrame(headingFrame)
     copyFlash?.cancel()
   })
@@ -163,9 +177,12 @@
   }
   function scrollViewport(element: HTMLDivElement) {
     const initializeZoom = initialize
+    const position = index
+    const pdf = document
+    const page = original ? (sheet?.originalPage ?? sheet?.page) : sheet?.page
     let offset = alignment ?? untrack(() => region)
     let frame: number
-    const image = element.querySelector<HTMLElement>("canvas, .blank-sheet")
+    const image = element.querySelector<HTMLElement>(document ? "canvas" : ".blank-sheet")
     let pinch:
       | {
           distance: number
@@ -178,8 +195,8 @@
           width: number
         }
       | undefined
-    function restore() {
-      if (!element.clientWidth || !element.firstElementChild) return
+    function restore(): void {
+      if (!element.clientWidth || !element.firstElementChild) return cancel()
       // Keep control positions stable before the PDF pixels arrive.
       const style = getComputedStyle(element.firstElementChild)
       const width = element.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
@@ -225,13 +242,14 @@
       }
     }
     const observer = new ResizeObserver(() => {
-      if (pinchAnchor) {
+      if (!element.clientWidth) cancel()
+      else if (pinchAnchor) {
         cancelAnimationFrame(frame)
         frame = requestAnimationFrame(restore)
       } else restore()
     })
     observer.observe(element)
-    if (sheet && element.firstElementChild) observer.observe(element.firstElementChild)
+    if (element.firstElementChild) observer.observe(element.firstElementChild)
     if (image) observer.observe(image)
     function remember() {
       if (pinch || pinchAnchor || !element.clientWidth || element.querySelector("canvas")?.width === 0) return
@@ -241,6 +259,7 @@
       }
     }
     function begin(event: TouchEvent) {
+      if (index !== position) return cancel()
       if (event.touches.length > 2) return cancel()
       if (event.touches.length !== 2 || !image || pinchAnchor) return
       const [first, second] = event.touches
@@ -288,14 +307,18 @@
         clientY: bounds.top + bounds.height * pinch.y,
         width: pinch.width,
         zoom: pinch.zoom,
+        pdf,
+        page,
+        index: position,
       }
       pinch = undefined
       zoom = next
       restore()
     }
     function cancel() {
-      if (!pinch) return
+      if (!pinch && !pinchAnchor) return
       pinch = undefined
+      pinchAnchor = undefined
       image?.style.removeProperty("transform")
       image?.style.removeProperty("transform-origin")
       restore()
@@ -306,6 +329,9 @@
     element.addEventListener("touchend", finish, { passive: false })
     element.addEventListener("touchcancel", cancel)
     window.addEventListener("blur", cancel)
+    if (pinchAnchor && (pinchAnchor.pdf !== pdf || pinchAnchor.page !== page || pinchAnchor.index !== position))
+      cancel()
+    cancelPinch = cancel
     return () => {
       element.removeEventListener("scroll", remember)
       element.removeEventListener("touchstart", begin)
@@ -313,7 +339,7 @@
       element.removeEventListener("touchend", finish)
       element.removeEventListener("touchcancel", cancel)
       window.removeEventListener("blur", cancel)
-      cancel()
+      if (pinch) cancel()
       observer.disconnect()
       cancelAnimationFrame(frame)
     }

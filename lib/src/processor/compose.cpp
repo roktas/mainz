@@ -27,7 +27,7 @@ static Object destination(Object value, QPDF& document)
     return value;
 }
 struct JobSource {
-    // QPDF borrows its memory input; destroy the engine before its bytes.
+    // Unchanged Sources borrow Inputs; rewritten bytes must outlive their engine.
     std::string bytes;
     std::unique_ptr<Engine> engine;
     JSON manifest = JSON::makeDictionary();
@@ -77,9 +77,8 @@ Composition Engine::compose(JSON job, const std::map<std::string, std::string>& 
         auto& source = sources[id];
         source.input = input;
         source.prefix = "s" + std::to_string(sources.size() - 1) + ":";
-        source.bytes = inputs.at(input);
         try {
-            source.engine = std::make_unique<Engine>(source.bytes, &budget);
+            source.engine = std::make_unique<Engine>(inputs.at(input), &budget);
         } catch (const Error& error) {
             throw Error(error.code(), error.what(), "request", location + "/input");
         }
@@ -121,8 +120,9 @@ Composition Engine::compose(JSON job, const std::map<std::string, std::string>& 
             source.bytes = std::move(bytes);
             source.engine = std::make_unique<Engine>(source.bytes, &budget, false, syntax.get());
         }
-        require(source.bytes.size() <= pdf_limit - source_bytes, "Processed Sources exceed 128 MiB.", "limit-exceeded");
-        source_bytes += source.bytes.size();
+        auto size = changed ? source.bytes.size() : inputs.at(input).size();
+        require(size <= pdf_limit - source_bytes, "Processed Sources exceed 128 MiB.", "limit-exceeded");
+        source_bytes += size;
         QPDFPageDocumentHelper(source.engine->document).pushInheritedAttributesToPage();
         for (auto item : source.engine->document.getAllObjects()) {
             require(++budget.visits <= 65536, "Job traversal exceeds 65536 visits.", "limit-exceeded");

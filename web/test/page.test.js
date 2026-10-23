@@ -484,6 +484,66 @@ test("Page pinch zoom preserves its anchor and shares the button zoom range", { 
   }
 })
 
+test("Page cancellation clears a pending pinch before the next render", { timeout: 60000 }, async () => {
+  const server = await serve()
+  let browser
+  try {
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+    const errors = []
+    page.on("pageerror", (error) => errors.push(error.message))
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.locator(".composition-totals strong").waitFor({ state: "attached" })
+    await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).click()
+    const pane = page.locator(".composition-output")
+    for (const action of ["touchcancel", "blur", "navigate", "hidden", "detach"]) {
+      await tab(pane, "Page")
+      await zoom(pane, "Fit page")
+      await pane.locator(".pdf-viewport[aria-busy=false]").waitFor()
+      const result = await pane.locator(".page-scroll").evaluate(async (viewport, action) => {
+        const canvas = viewport.querySelector("canvas")
+        const pane = viewport.closest(".composition-output")
+        const bounds = canvas.getBoundingClientRect()
+        const touch = (distance) =>
+          [0, 1].map(
+            (id) =>
+              new Touch({
+                identifier: id,
+                target: canvas,
+                clientX: bounds.x + bounds.width / 2 + (id ? distance : -distance),
+                clientY: bounds.y + Math.min(100, bounds.height / 2),
+              }),
+          )
+        for (const [type, touches] of [
+          ["touchstart", touch(20)],
+          ["touchmove", touch(40)],
+          ["touchend", []],
+        ])
+          viewport.dispatchEvent(new TouchEvent(type, { touches, bubbles: true, cancelable: true }))
+        const pending = !!canvas.style.transform
+        if (action === "touchcancel") viewport.dispatchEvent(new TouchEvent("touchcancel", { bubbles: true }))
+        else if (action === "blur") window.dispatchEvent(new Event("blur"))
+        else if (action === "navigate")
+          viewport.closest(".page-view").querySelector('button[aria-label="Next Output page"]').click()
+        else if (action === "detach")
+          [...pane.querySelectorAll('[role="tab"]')].find((tab) => tab.textContent.trim() === "Grid").click()
+        else pane.style.display = "none"
+        if (action === "navigate") await new Promise((resolve) => requestAnimationFrame(resolve))
+        if (action === "hidden" || action === "detach")
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+        const cleared = !canvas.style.transform && !canvas.style.transformOrigin
+        pane.style.removeProperty("display")
+        return { pending, cleared }
+      }, action)
+      assert.deepEqual(result, { pending: true, cleared: true }, action)
+    }
+    assert.deepEqual(errors, [])
+  } finally {
+    await browser?.close()
+  }
+})
+
 test("The lens waits for a settled mouse and cancels pending openings", { timeout: 60000 }, async () => {
   const server = await serve()
   let browser

@@ -70,7 +70,8 @@ record. Producer-specific failures can use `producer-error`. Validation failures
 PDF output requires a file path. `-` is not an output destination. Existing destinations, including the input path, are
 never replaced. The CLI writes and flushes a complete mode-0600 temporary file in the destination directory, then
 installs it atomically without replacing an existing path. Installation uses a no-clobber link. An incomplete PDF is
-never installed.
+never installed. Atomic installation does not guarantee that the destination survives a power loss. The CLI flushes file
+contents but does not sync the parent directory.
 
 Success JSON follows PDF installation. After the CLI installs a complete destination, a stdout failure can return exit
 code 2. The caller can inspect that destination before retrying. Failed stdout writes can also leave incomplete JSON.

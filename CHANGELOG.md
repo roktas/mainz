@@ -47,6 +47,11 @@
 
 ### Fixed
 
+- Prepared Inputs retain at most one idle processing worker across the workspace. Repeated Style previews reuse cached
+  page buffers without copying and sending the complete PDF again.
+- Composition reads unchanged Sources directly from immutable Inputs instead of copying each complete PDF.
+- Page pinch cancellation clears pending anchors and temporary transforms after navigation, pane hiding, or teardown.
+- Touch Grid dragging locates visible slots without scanning the complete Output on each movement.
 - Offline installation retries temporary download failures and gives short reload and reporting guidance if it fails.
 - PDF processing retries use a fresh WASM instance after an operation or document cleanup fails. Cleanup errors retain
   the original processing error when both fail.

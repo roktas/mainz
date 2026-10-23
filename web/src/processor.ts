@@ -23,10 +23,14 @@ class OperationError extends Error {
   }
 }
 
+const idle = new Set<Processor>()
+
 export class Processor {
   private worker?: Worker
+  private buffer?: string
   private active?: {
     revision: number
+    buffer?: string
     resolve: (result: Result) => void
     reject: (error: Error) => void
   }
@@ -40,17 +44,20 @@ export class Processor {
       buffer?: { input: string; pages: number[] }
     },
   ): Promise<Result> {
-    const input = bytes.slice().buffer
-    return this.send({ bytes: input, changes }, revision, [input])
+    if (this.active) return Promise.reject(new Error("A processing job is already active."))
+    const buffer = changes?.buffer && JSON.stringify(changes.buffer)
+    const input = buffer && buffer === this.buffer ? new ArrayBuffer(0) : bytes.slice().buffer
+    return this.send({ bytes: input, changes }, revision, [input], buffer)
   }
 
   compose(job: Job, inputs: { id: string; bytes: Uint8Array }[], revision: number): Promise<Result> {
+    if (this.active) return Promise.reject(new Error("A processing job is already active."))
     const bindings = Object.fromEntries(inputs.map((input) => [input.id, input.bytes.slice().buffer]))
     return this.send({ job, inputs: bindings }, revision, Object.values(bindings))
   }
 
-  private send(operation: Operation, revision: number, transfers: ArrayBuffer[]): Promise<Result> {
-    if (this.active) return Promise.reject(new Error("A processing job is already active."))
+  private send(operation: Operation, revision: number, transfers: ArrayBuffer[], buffer?: string): Promise<Result> {
+    idle.delete(this)
     if (!this.worker) {
       this.worker = new Worker(new URL("./processor.worker.ts", import.meta.url), {
         type: "module",
@@ -60,8 +67,15 @@ export class Processor {
         if (!this.active || reply.revision !== this.active.revision) return
         const active = this.active
         this.active = undefined
-        if ("failure" in reply) active.reject(new OperationError(reply.failure))
-        else active.resolve(reply)
+        if ("failure" in reply) {
+          this.buffer = undefined
+          active.reject(new OperationError(reply.failure))
+        } else {
+          this.buffer = active.buffer
+          active.resolve(reply)
+        }
+        idle.add(this)
+        if (idle.size > 1) idle.values().next().value!.dispose()
       })
       this.worker.addEventListener("error", (event) => {
         event.preventDefault()
@@ -72,7 +86,7 @@ export class Processor {
       )
     }
     return new Promise((resolve, reject) => {
-      this.active = { revision, resolve, reject }
+      this.active = { revision, resolve, reject, buffer }
       try {
         this.worker!.postMessage({ revision, ...operation }, transfers)
       } catch (error) {
@@ -90,6 +104,8 @@ export class Processor {
   }
 
   private stop(error: Error) {
+    idle.delete(this)
+    this.buffer = undefined
     this.worker?.terminate()
     this.worker = undefined
     const active = this.active
