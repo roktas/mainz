@@ -47,7 +47,8 @@ deleting obsolete download archives or caches. Preserve retained measurements be
 
 Use the pinned Node version and the root commands in [AGENTS](../../AGENTS.md#setup-and-checks). Run one browser suite
 per host at a time. Standard fixtures reuse one Vite server per file through `test/server.ts`. Each scenario keeps its
-own browser contexts and storage. Custom server scenarios own their server lifecycle. Install a missing browser with:
+own browser contexts and storage. Production startup scenarios share one scoped build and keep separate preview servers.
+Custom server scenarios own their server lifecycle. Install a missing browser with:
 
 ```sh
 npm --prefix web exec -- playwright install chromium
@@ -57,12 +58,13 @@ Run `npm run test:minimal` during development. It checks formatting, lint, types
 scenarios. Those scenarios cover PDF opening, render ownership, metadata cleanup, Style, Download, cancellation,
 keyboard, touch, pinch zoom, and large Output pagination. Run focused checks for other affected behavior.
 
-Before an ordinary push, run `npm run test:standard`. It adds a production build and the functional browser regressions.
-Standard covers opening, editing, Style, Download, cancellation, PDF ownership, selection, keyboard, touch, offline use,
-updates, and large Output pagination. Animation checks use a desktop and phone without CPU throttling. Standard uses
-representative desktop and touch cases for batch navigation, shared frames, partial batches, and Normal card hit
-targets. The hit-target checks cover consecutive rows and measure pagination after pane and text-size transitions.
-Standard omits the full alignment and Page geometry matrices, Grid capacity/calibration matrices, and calibration tools.
+Before an ordinary push, run `npm run test:standard`. It adds asset publication checks, a production build, and the
+functional browser regressions. Standard covers opening, editing, Style, Download, cancellation, PDF ownership,
+selection, keyboard, touch, offline use, updates, and large Output pagination. Animation checks use a desktop and phone
+without CPU throttling. Standard uses representative desktop and touch cases for batch navigation, shared frames,
+partial batches, and Normal card hit targets. The hit-target checks cover consecutive rows and measure pagination after
+pane and text-size transitions. Standard omits the full alignment and Page geometry matrices, Grid capacity/calibration
+matrices, and calibration tools.
 
 Before a release, run `npm run test:full`. It includes every application browser scenario, complete animation matrices
 with CPU throttling, and both viewport measurement and candidate-search scenarios. Animation command entrypoints run
@@ -75,11 +77,12 @@ the same static rules and unit tests. Native, WASM, sanitizer, and package tasks
 `npm run test:browser -- standard grid --test-name-pattern='pagination'`. The runner checks that every browser file
 belongs to exactly one group. Add new files to `test/run.ts`. Tests keep separate servers, browser contexts, and storage
 between files. The `grid` group also runs PDF ownership, processor-worker recovery, and lens tests. The `composition`
-group also runs transfer tests. The `startup` group also runs installation tests. The `workspace` group runs workspace
-tests alone.
+group also runs transfer tests. The `startup` group also runs installation and asset publication tests. The `workspace`
+group runs workspace tests alone.
 
-`npm test` selects the fast `.test.ts` files. The browser runner selects `.test.js` files. Both use Node's test runner.
-The extension split is an existing selection convention. Node can also run TypeScript browser tests. A conversion must
+`npm test` selects the fast `.test.ts` files. The browser runner selects `.test.js` integration files, including asset
+verification. Minimal mode omits the asset case; standard and full include it. Both runners use Node's test runner. The
+extension split is an existing selection convention. Node can also run TypeScript integration tests. A conversion must
 update file selection and enable type checking for those tests.
 
 Grid tests own the full viewport matrices and calibration boundaries. Boundary sweeps omit exact mouse viewports already
@@ -319,12 +322,12 @@ alternate-display and landscape failures remain explicit gaps. Physical mobile v
 this analysis. Native Mac Safari timeouts and failed Chrome fullscreen entry do not count as measured coverage. Windows
 display scaling requires a Windows measurement.
 
-The desktop follow-up retains physical Safari windows at 2200 × 1298, 2400 × 1358, and 2560 × 1358 CSS px, plus an
-installed Safari web app at native fullscreen 2560 × 1440. The QHD display uses DPR 1. Both Grid densities and panes,
-selected Output cards, and both themes have separate native evidence. The installed app reports standalone mode; native
-window fullscreen does not require a DOM fullscreen element. These measurements do not establish physical Studio Display
-or iMac coverage. Separate DPR 2 replay covers their logical viewports in Chromium and Playwright WebKit; those exports
-remain synthetic. Keep physical panel, logical scaling, and DPR separate when those displays are measured.
+The desktop follow-up retains physical Safari windows at 2200 × 1298, 2400 × 1358, and 2560 × 1358 CSS px. It also
+retains an installed Safari web app at native fullscreen 2560 × 1440. The QHD display uses DPR 1. Both Grid densities
+and panes, selected Output cards, and both themes have separate native evidence. The installed app reports standalone
+mode; native window fullscreen does not require a DOM fullscreen element. These measurements do not establish physical
+Studio Display or iMac coverage. Separate DPR 2 replay covers their logical viewports in Chromium and Playwright WebKit;
+those exports remain synthetic. Keep physical panel, logical scaling, and DPR separate when those displays are measured.
 
 ## Collection and calibration
 
@@ -448,37 +451,24 @@ the raw artifacts; `report.md` and `summary.md` explain results and limitations.
 | `page/`                                      | Page sizing and animation follow-up: before/after geometry, native samples, source hashes, and test logs.     |
 | `android/2026-10-22/`                        | Android Grid baseline: native captures, display scenarios, summary CSV, report, source snapshots, and checks. |
 
-The completed search evaluated 2,238 candidates across 82 distinct native environments and 833 candidates across 30
-desktop references: 3,071 paired-density candidates. Successful native test bodies alone took 2.63 hours, excluding
-setup, failures, and review. The initial timing estimate underestimated retries. No paid device service was used;
-model/API monetary cost is not available from the workspace.
-
 Current application verification covers all 72 primary modes across the 18 standard phone/tablet groups and two Duo
 portrait modes. Six Duo primary modes remain unavailable. Optional fullscreen observations and earlier-CSS captures have
-separate status in the report. The final reference run contains 110 records and 440 pane/density views across both
-themes. Nine touch and six desktop CSS bands were accepted; DESIGN owns their current dimensions. Native captures and
-logical desktop estimates retain distinct provenance.
+separate status in the report. Native captures and logical desktop estimates retain distinct provenance. Detailed
+candidate counts, timings, and completed-run comparisons belong in the retained reports. DESIGN owns current geometry.
 
 The Android baseline in `android/2026-10-22/` contains 44 native environments and 176 pane/density views across eleven
 configured displays. Android 17 and Chrome 149.0.7827.5 were used with expanded Chrome controls or a launcher-installed
-standalone shortcut, in both orientations. All accepted samples pass the existing Grid quality rules. The report,
-`summary.csv`, raw JSON/CSV, screenshots, source snapshots, hashes, and checks are retained together. This baseline
-includes no candidate search or CSS changes. Factory OEM geometry and WebAPK installation remain unverified. The older
-Android 16 image's Chrome 133 could not open the fixture; that failed preflight contributes no measured coverage.
+standalone shortcut, in both orientations. All accepted samples pass the existing Grid quality rules. Retain its report,
+`summary.csv`, raw exports, screenshots, source snapshots, hashes, and checks together. Factory OEM geometry and WebAPK
+installation remain unverified. The older Android 16 image's Chrome 133 could not open the fixture; that failed
+preflight contributes no measured coverage.
 
-The separate `android/2026-10-22/calibration/` record retains the Android candidate search and application review. The
-search evaluated 1,209 candidates through synthetic replay of the 44 native viewports. Replay does not reproduce Android
-system bars or safe-area insets. Native candidate captures supported six additional geometry bands in DESIGN. Compact
-cards retain their 74 px width and header controls. Candidates that reduced this width were rejected. The original
-baseline and its tracked references remain historical evidence. Applied captures use a separate source manifest and
-directory. Browser regressions cover measured bottom insets, band boundaries, primary input, partial batches, both
-themes, enlarged text, long page numbers, and Page alignment.
+The separate `android/2026-10-22/calibration/` record retains the Android candidate search and application review.
+Synthetic replay does not reproduce Android system bars or safe-area insets. Native candidate captures support the
+applied geometry. Keep baseline and applied captures in separate directories with their source manifests.
 
-The applied Android comparison covers 44 environments, 176 Grid views, and 88 Page panes. Fourteen environments gain
-capacity; none lose cards. Five additional native captures control paired density or review fixed-footer reachability.
-The final inventory links those captures without replacing the original applied sweep. Twenty Style companion views
-exposed seven existing frame-height changes when Style replaces a Normal Input beside Compact Output. These failures
-remain explicit in the report for the shared-layout follow-up. They do not change the accepted Grid capacity results.
+The native Style comparison exposed seven frame-height changes when Style replaces a Normal Input beside Compact Output.
+These failures remain explicit in the report. They do not change the accepted Grid capacity results.
 
 The current source includes a synthetic fix for that follow-up. The regression
 `Style retains a Compact companion frame on short touch landscapes` passes the seven failing viewports in Chromium at

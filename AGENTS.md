@@ -156,13 +156,13 @@ npm run test:standard
 npm run test:full
 ```
 
-Use `test:minimal` in development, `test:standard` before pushes, and `test:full` before releases. All modes run format,
-lint, type, and unit checks. Standard and full also build production assets. Full includes all browser matrices and
-calibration tools. Run affected native tasks separately. The build writes `.local/var/js/dist/`. Vite uses a home cache
-per checkout. Browser suites run sequentially per host. CI runs standard for main pushes and pull requests, and full for
-version tags. Manual runs select either mode and never deploy. See [browser setup](web/doc/VIEWPORTS.md#browser-checks)
-for coverage and required full groups before merging layout/geometry changes. Exercise changed flows with keyboard,
-narrow layouts, enlarged text, both themes, and relevant loading/error/cancellation states.
+Use `test:minimal` in development, `test:standard` before pushes, and `test:full` before releases. All modes check
+format, lint, types, and unit tests. Standard/full also verify asset publication and build production assets. Full adds
+all browser matrices and calibration tools. Run native tasks separately. Builds write `.local/var/js/dist/`. Vite uses a
+home cache per checkout. Browser suites run sequentially per host. CI uses standard for main pushes and pull requests,
+and full for version tags. Manual runs select either mode and never deploy. See
+[browser setup](web/doc/VIEWPORTS.md#browser-checks) for required full groups before merging layout/geometry changes.
+Exercise changed flows with keyboard, narrow layouts, enlarged text, both themes, and loading/error/cancellation states.
 
 ### Preview and mockups
 

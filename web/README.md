@@ -14,26 +14,21 @@ PDFs. We do not claim a tested minimum OS or browser version.
 Grid shows thumbnails, and Page shows one large page. Both views share selections and page operations. Input shows the
 PDF as opened. Style changes applicable Output pages from the active Input.
 
-Each pane offers Normal and Compact Grid density. Input chooses its initial density from the PDF's page count and the
-available space. It retains the choice per Source. Compact page numbers open a larger preview, details, and individual
-actions.
-
-Click an image or grip, or press Space in Grid, to select or unselect pages. Shift-click adds or removes a range.
-Shift+left/right toggles pages at the keyboard cursor. Selection actions use the shared bar. Without a selection, card
-buttons and Page actions use their own page. Grid editing shortcuts require a selection.
-
-Enter in Grid adds the Input selection or duplicates the Output selection. Delete removes the Output selection, and
-Ctrl+left/right moves it, from either pane. Addition clears the Input preparation and selects the new Output block. A
-secondary contour marks the keyboard cursor in both Grid densities. Help lists the shortcuts and opens the Product tour.
-
-Escape clears preparation and selection only in the target pane, without editing Output. It also ends page navigation
-and removes the cursor. The pointer's screen half identifies the target pane. An open menu, dialog, or overlay closes
-first.
+Each pane offers Normal and Compact Grid density. Selection actions use the shared bar. Without a selection, card
+buttons and Page actions use their own page. Help explains keyboard, mouse, and touch controls and opens the Product
+tour.
 
 Try [mainz.roktas.dev](https://mainz.roktas.dev/). The [specification and glossary](doc/SPEC.md) define the workspace.
 [DESIGN.md](doc/DESIGN.md) defines its appearance.
 
 ## Development
+
+| Entry point                                               | Responsibility                                       |
+| --------------------------------------------------------- | ---------------------------------------------------- |
+| [App.svelte](src/App.svelte)                              | PDF opening, Source lifetimes, and style processing. |
+| [Composer.svelte](src/Composer.svelte)                    | Pane views, selections, Output edits, and transfers. |
+| [model.ts](src/model.ts) and [styles.ts](src/styles.ts)   | Composition and style rules shared by UI flows.      |
+| [pdf.ts](src/pdf.ts) and [processor.ts](src/processor.ts) | PDF.js resources and cancellable processor workers.  |
 
 Use the Node.js version in [`.node-version`](../.node-version) and the
 [root build dependencies](../AGENTS.md#build-and-validation). Run from the repository root:

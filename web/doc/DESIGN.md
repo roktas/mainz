@@ -322,13 +322,13 @@ The shared Normal reference uses 148 × 240 px cards; Compact uses 74 × 125 px 
 portrait layouts, Normal retains the 136 px control-width floor, a complete image at least 128 px high, and balanced
 image margins. Narrow phones can show one column. Wider phones show two columns until a third usable card fits. The
 retained geometry bands supply preferred dimensions within these constraints. Touch portrait Compact uses a 0.9 row-gap
-factor, reduced to 0.8 below 600 CSS px, 6–7.5 px image padding, and a height of at least 109.5 px, increased when a
-wider calibrated card needs the required portrait silhouette. Below a 336 px workspace, three Compact columns grow to at
-most 88 × 125 px with 7.5 px image padding. These content thresholds retain readable previews when another column cannot
-fit. They apply between measured viewport bands. The minimum gap is 85% of the authored vertical image padding, with a
-0.5 rem floor for usable separation. Normal also retains its minimum gaps for separate targets. Actual distributed
-spacing drives both row capacity and calibrated card height. Do not calculate one from the minimum gap and the other
-from the distributed gap.
+factor, reduced to 0.8 below 600 CSS px. Image padding is 6–7.5 px. Card height is at least 109.5 px. If a wider
+calibrated card needs the required portrait silhouette, increase its height. Below a 336 px workspace, three Compact
+columns grow to at most 88 × 125 px with 7.5 px image padding. These content thresholds retain readable previews when
+another column cannot fit. They apply between measured viewport bands. The minimum gap is 85% of the authored vertical
+image padding, with a 0.5 rem floor for usable separation. Normal also retains its minimum gaps for separate targets.
+Actual distributed spacing drives both row capacity and calibrated card height. Do not calculate one from the minimum
+gap and the other from the distributed gap.
 
 The QHD preferences use 150 px Normal widths, 14–16 px image padding, and 224–280 px height limits across viewport
 bands. Desktop fitting can reduce these preferred dimensions within the visual limits to retain complete rows across
@@ -426,9 +426,9 @@ vertically within each row, with at least 44 CSS px of row height. These referen
 when the fitted image is narrow. Image proportions, zoom, and panning do not move the controls.
 
 Touch Page uses a minimum image gutter of 2 rem on all four sides: 32 CSS px at ordinary text size. Fit centers the
-complete image in the available image viewport with these gutters. If the fitted image occupies less than 70% of that
-viewport's full width, the initial Page entry enlarges it to the available width after the two inline gutters, up to
-400%. Round down to a whole percentage to avoid horizontal overflow. The image starts with the full top gutter and
+complete image in the available image viewport with these gutters. If the fitted image occupies less than 70% of the
+viewport's full width, enlarge it on initial Page entry. Use the available width after the two inline gutters, up to
+400% zoom. Round down to a whole percentage to avoid horizontal overflow. The image starts with the full top gutter and
 retains the same bottom gutter when scrolled to the end. Wider manual zoom levels can require horizontal scrolling.
 These gutters belong to the image area, outside the PDF; they do not increase header or footer height.
 

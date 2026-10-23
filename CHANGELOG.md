@@ -36,17 +36,18 @@
   both themes.
 - Offline installation verifies four assets concurrently and completes pending writes before rolling back a failed
   install.
-- Output style scope, coverage, preview decisions, and Download share one Source-usage calculation per composition
-  change.
-- Repeated composition indexes prepared Source regions once instead of scanning the complete manifest for each
-  occurrence.
-- PDF opening reads complete page geometry in groups of 16 and releases each inspected page, including on failure or
+- Style previews and Download reuse composition calculations. Repeated pages and drag previews use indexes instead of
+  repeated full scans.
+- PDF opening reads complete page geometry in bounded groups and releases each inspected page, including on failure or
   cancellation.
-- PDF previews cache newly rendered canvases directly, avoiding one full-image copy and temporary backing canvas.
-- Drag previews reuse Output prefix counts during a gesture instead of scanning the full Output for each target.
+- PDF previews cache rendered canvases without creating temporary full-image copies.
 
 ### Fixed
 
+- Output Page retains PDF page labels after reordering and repetition. Long labels keep space beside Page controls.
+- SVG production uses parameter ID order for Other controls, while preserving explicit group arrays.
+- The SVG command keeps Cairo's shared caches intact, avoiding shutdown assertions after rejected content.
+- The Output tour places copied selections after the last selected page, matching the actual operation.
 - Grid pagination keeps its edge alignment when fitting mounts its controls after a view or density change. Its keyboard
   focus indicator stays clear of the caption.
 - Normal Grid card controls keep separate touch targets within cards and across consecutive rows. Long Compact page

@@ -4,8 +4,19 @@ One C++20/QPDF processor serves native and WebAssembly applications. It reads PD
 original styles, extracts pages, and executes composition Jobs. Operations return new validated documents and leave
 Input bytes unchanged.
 
-The native SVG producer prepares editable PDFs from SVG and separate style declarations. Ordinary PDFs support page
-operations. Styling and reset require a valid prepared PDF.
+Ordinary PDFs support page operations. Styling and reset require a prepared PDF with a valid Mainz contract. The native
+SVG producer creates these PDFs from SVG and separate JSON style declarations.
 
-The [specification and glossary](doc/SPEC.md) define the PDF contract, processor operations, and SVG declarations. See
-the [CLI](../cli/README.md) for command-line use and the [root README](../README.md#build-and-checks) for building.
+| Entry point                                                       | Responsibility                                                                   |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| [processor.hh](src/processor.hh) and [processor/](src/processor/) | PDF operations, validation, and composition.                                     |
+| [producer.hh](src/producer.hh) and [producer/](src/producer/)     | SVG selection, rendering, and baseline capture.                                  |
+| [wasm.cpp](src/wasm.cpp)                                          | Synchronous WASM calls, document handles, registered Inputs, and result buffers. |
+| [test/](test/)                                                    | Contract, producer, native/WASM parity, and independent preservation tests.      |
+
+The processor imports no producer or application code. Applications supply immutable Inputs separately from their Jobs.
+The [specification and glossary](doc/SPEC.md) define the file contract, operation semantics, limits, and buffer
+ownership.
+
+Use the [CLI](../cli/README.md) for batch work. Follow the
+[root build and validation guide](../AGENTS.md#build-and-validation) for native, WASM, producer, and sanitizer checks.
