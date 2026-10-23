@@ -36,6 +36,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
       const views = page.locator(".mobile-workspace-tabs")
       if (await views.isVisible()) await views.getByRole("button", { name: "Output", exact: true }).tap()
       await output.getByRole("button", { name: "Compact Output grid", exact: true }).tap()
+      await measure(output)
       const cards = output.locator(".composition-card")
       const ids = () => cards.evaluateAll((items) => items.map((item) => item.id))
       const before = await ids()
