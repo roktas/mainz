@@ -254,22 +254,42 @@ test("Landing compact headings fit phones and tablets and logos follow theme cha
             const product = getComputedStyle(element.querySelector(".brand-title"))
             const purpose = getComputedStyle(element.querySelector("h1"))
             const paragraph = element.querySelector("p:not(.brand-title)")
+            const context = document.createElement("canvas").getContext("2d")
+            const luminance = (color) => {
+              context.fillStyle = color
+              context.fillRect(0, 0, 1, 1)
+              const channels = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3).map((value) => {
+                const channel = value / 255
+                return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+              })
+              return channels.reduce((total, channel, index) => total + channel * [0.2126, 0.7152, 0.0722][index], 0)
+            }
+            const paper = luminance(getComputedStyle(document.documentElement).backgroundColor)
+            const contrast = (color) => {
+              const foreground = luminance(color)
+              return (Math.max(paper, foreground) + 0.05) / (Math.min(paper, foreground) + 0.05)
+            }
             const range = document.createRange()
             range.selectNodeContents(paragraph)
             return {
               product: parseFloat(product.fontSize),
               heading: parseFloat(purpose.fontSize),
-              productColor: product.color,
-              headingColor: purpose.color,
+              productContrast: contrast(product.color),
+              headingContrast: contrast(purpose.color),
+              copyContrast: contrast(getComputedStyle(paragraph).color),
               lines: range.getClientRects().length,
               fits: document.documentElement.scrollWidth <= innerWidth,
             }
           })
           assert.ok(typography.product >= (text === "100%" ? 24 : 48), "The product name retains a readable minimum")
-          assert.equal(
-            typography.headingColor,
-            typography.productColor,
-            "The purpose heading uses primary text contrast",
+          assert.ok(typography.headingContrast >= 7, "The purpose heading retains strong contrast")
+          assert.ok(
+            typography.headingContrast < typography.productContrast,
+            "The product name leads the purpose heading",
+          )
+          assert.ok(
+            typography.headingContrast > typography.copyContrast,
+            "The purpose heading leads the supporting copy",
           )
           assert.equal(typography.fits, true, `${width}px: landing text stays within the viewport at ${text}`)
           if (width === 1475 && text === "100%") {
@@ -690,9 +710,10 @@ test("Large failure batches announce a summary and retain every file error", { t
       "Per-file failures must not produce long intermediate announcements",
     )
     const errors = page.getByRole("list", { name: "File errors", exact: true })
-    const disclosure = page.getByText("Review file errors", { exact: true })
+    const disclosure = page.locator(".file-errors > summary")
     for (const [width, text, colorScheme] of [
       [320, "100%", "light"],
+      [320, "200%", "dark"],
       [390, "200%", "dark"],
       [768, "200%", "light"],
       [1440, "100%", "dark"],
@@ -702,19 +723,28 @@ test("Large failure batches announce a summary and retain every file error", { t
       await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
       assert.equal(await errors.isVisible(), false)
       const alignment = await page.locator(".error-banner").evaluate((element) => {
-        const message = element.querySelector('[role="alert"]').getBoundingClientRect()
+        const summary = element.querySelector("summary").getBoundingClientRect()
         const button = element.querySelector("button").getBoundingClientRect()
         const icon = element.querySelector("button svg").getBoundingClientRect()
+        const action = element.querySelector("summary > span:last-child").getBoundingClientRect()
         return [
-          message.y + message.height / 2 - button.y - button.height / 2,
+          summary.y - button.y,
           icon.x + icon.width / 2 - button.x - button.width / 2,
           icon.y + icon.height / 2 - button.y - button.height / 2,
+          Math.max(0, action.right - summary.right),
         ]
       })
       assert.ok(
         alignment.every((offset) => Math.abs(offset) < 1),
         `${width}px: ${alignment}`,
       )
+      if (width === 1440) {
+        assert.ok(
+          (await page.locator(".error-banner").boundingBox()).height <= 76,
+          "A desktop error uses one control row",
+        )
+        assert.ok((await disclosure.boundingBox()).height <= 44, "The count and disclosure share one row")
+      }
       await disclosure.focus()
       await page.keyboard.press("Enter")
       await errors.waitFor()

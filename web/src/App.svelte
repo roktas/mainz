@@ -716,21 +716,22 @@
 </header>
 <main id="workspace">
   {#if failure}<div class="error-banner">
-      <p role="alert">
-        {#if typeof failure === "string"}{failure}{:else}{failure.length}
-          {failure.length === 1 ? "file could" : "files could"} not be opened.{/if}
-      </p>
-      <button class="icon-button" aria-label="Dismiss error" onclick={() => (failure = "")}
-        ><Icon name="close" /></button
-      >
       {#if Array.isArray(failure)}<details class="file-errors">
-          <summary><Icon name="next" />Review file errors</summary>
+          <summary>
+            <span role="alert"
+              >{failure.length} {failure.length === 1 ? "file could" : "files could"} not be opened.</span
+            >
+            <span><Icon name="next" /><span>Review file errors</span></span>
+          </summary>
           <!-- Keyboard users need a focusable list for native scrolling. -->
           <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
           <ul tabindex="0" aria-label="File errors">
             {#each failure as message}<li>{message}</li>{/each}
           </ul>
-        </details>{/if}
+        </details>{:else}<p role="alert">{failure}</p>{/if}
+      <button class="icon-button" aria-label="Dismiss error" onclick={() => (failure = "")}
+        ><Icon name="close" /></button
+      >
     </div>{/if}
   {#each sources.filter((source) => source.status === "error") as source (source.id)}
     <div class="error-banner" role="alert">

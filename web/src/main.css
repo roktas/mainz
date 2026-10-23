@@ -392,14 +392,40 @@
     .error-banner:has(> .file-errors) {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      padding-block: calc(var(--gap) / 2);
     }
     .file-errors {
-      grid-column: 1 / -1;
       min-inline-size: 0;
+      & > summary {
+        flex-wrap: wrap;
+        column-gap: var(--gap);
+        row-gap: 0;
+        & > span {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5em;
+          min-inline-size: 0;
+          max-inline-size: 100%;
+          min-block-size: 44px;
+        }
+        & > span:last-child {
+          flex-wrap: wrap;
+          row-gap: 0;
+          & > span {
+            flex: 1 1 min-content;
+            min-inline-size: 0;
+          }
+        }
+        & > [role="alert"] {
+          color: var(--danger);
+        }
+      }
       &[open] > summary svg {
         rotate: 90deg;
       }
       ul {
+        margin-block-start: calc(var(--gap) / 2);
         max-block-size: min(16rem, 40dvb);
         overflow: auto;
         overscroll-behavior: contain;

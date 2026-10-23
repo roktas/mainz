@@ -92,7 +92,7 @@
       }
       & h1 {
         hyphens: auto;
-        color: light-dark(var(--ink), oklch(100% 0 none));
+        color: color-mix(in oklch, var(--ink), var(--muted));
         font-family: "EB Garamond", ui-serif, Georgia, serif;
         font-weight: 500;
         font-size: var(--title);

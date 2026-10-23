@@ -42,9 +42,9 @@ approximately 39.7% of the canvas width from its center, inside the central safe
 Page-selection hints and Style descriptions use the body text size. Compact numbers and secondary metadata retain
 smaller text. The landing's prepared-PDF link uses a thin dotted underline with clear space between dots and below the
 text. The underline is black in light mode and white in dark mode. Forced colors retain the underline. The purpose
-heading uses primary text contrast with an accent link. Supporting copy distinguishes PDF page selection and repetition
-from styling prepared PDFs. It fits on one line on wide desktops and wraps on narrower layouts. Narrow layouts retain a
-single-line purpose heading at normal text size.
+heading uses a neutral tone between primary and muted text, with at least 7:1 contrast and an accent link. Supporting
+copy distinguishes PDF page selection and repetition from styling prepared PDFs. It fits on one line on wide desktops
+and wraps on narrower layouts. Narrow layouts retain a single-line purpose heading at normal text size.
 
 The spacing scale uses a 28 px workspace gutter and fluid control gaps of 12–16 px at normal text size. Narrow layouts
 reduce gutters before reducing usable control space. Standard controls use 4 px corners. The landing frame uses softer
@@ -618,9 +618,12 @@ header remains visible during a Notice. Notice text keeps its full contrast betw
 dismissal can fade the Notice. Reduced motion keeps the instruction static. Errors retain their local explanation and do
 not repeat details in the footer. Loading, empty, error, and cancellation states identify the next action.
 
-Batch opening announces one short failure count after processing. Review file errors reveals each filename and
-diagnostic outside the live alert. The list has a bounded height and supports keyboard scrolling. The dismiss button
-stays beside the summary, including on narrow screens and with enlarged text.
+Batch opening announces one short failure count after processing. A native disclosure joins the count and Review file
+errors on one row when space permits. It wraps without extra row gaps on narrow screens and with enlarged text. The
+dismiss button aligns with the disclosure's block start. All controls retain at least 44 px targets.
+
+Review file errors reveals each filename and diagnostic outside the live alert. The list has a bounded height and
+supports keyboard scrolling.
 
 ## Validation
 

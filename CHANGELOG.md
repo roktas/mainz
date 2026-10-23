@@ -15,8 +15,8 @@
 
 ### Changed
 
-- The landing page gives the product name more prominence, increases purpose-heading contrast, and shortens its
-  supporting copy.
+- The landing page gives the product name more prominence and uses a softer neutral tone for the purpose heading.
+  Supporting copy is shorter.
 - The bundled demo includes an eighth practice page with crossed strokes from the same Ital Winters 7.9 mm series.
 - The web application is named PDF Composer. Settings adjusts lens magnification from 2× to 128× with −/+ controls.
 - Normal and Compact Grid show complete rows within the available viewport. Input chooses its initial density after
@@ -79,7 +79,8 @@
 - QHD browser windows fit seven Compact rows on the measured GNOME and macOS viewports, with three Normal rows and
   unchanged image padding and control sizes.
 - Opening several PDFs continues after an invalid file. A short alert summarizes failures, with complete diagnostics in
-  a keyboard-accessible list. Cancel stops the remaining files.
+  a keyboard-accessible list. The count and details control share a compact, wrapping disclosure. Cancel stops the
+  remaining files.
 - Overlapping PDF preview renders release their own pages and cancel obsolete tasks while retaining the last completed
   image. Closed PDFs release cached rasters after their last owner leaves. Ordinary PDFs release their validation worker
   after opening.
