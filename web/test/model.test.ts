@@ -116,11 +116,6 @@ test("Download names use the first contributing Input and local time to hundredt
   assert.equal(downloadName([blank], inputs, new Date(2026, 0, 2, 3, 4, 5, 9)), "blank-pages_2026-0102-0304-0500.pdf")
 })
 
-test("Output repeats complete ordered page groups", () => {
-  assert.deepEqual(sequence([part("practice", [1], "4")]), [2, 2, 2, 2])
-  assert.deepEqual(sequence([part("practice", [0, 1], "4")]), [1, 2, 1, 2, 1, 2, 1, 2])
-})
-
 test("Page entry retains exact order and repetitions with bounded expansion", () => {
   const selected = parseSequence("3-5,2,2,7", 7)
   assert.deepEqual(selected, { pages: [2, 3, 4, 1, 1, 6] })

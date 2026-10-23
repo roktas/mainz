@@ -7,7 +7,7 @@ import { chromium } from "playwright"
 import { fixture, captureLayout, tab, checkStatus, checkPagination } from "./browser.js"
 import { measure } from "./measure.js"
 import inventory from "./viewports.json" with { type: "json" }
-import { quality } from "./quality.ts"
+import { bounds as gridBounds, quality } from "./quality.ts"
 
 test("Normal card targets stay separate through phone pane and text transitions", { timeout: 90000 }, async () => {
   const server = await serve()
@@ -652,45 +652,13 @@ async function checkGrid(pane, label) {
   await pane.locator('.thumbnail[aria-busy="false"] canvas').first().waitFor()
   await pane.page().evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
   const geometry = await measure(pane)
-  const [upper, lower, left, right] = geometry.margins
-  assert.equal(geometry.horizontalOverflow, false, `${label}: The workspace fits horizontally`)
-  assert.ok(
-    geometry.card.height + 1 >= Math.SQRT2 * geometry.card.width &&
-      geometry.card.height <= (280 / 150) * geometry.card.width + 1,
-    `${label}: Full card proportions stay within the accepted portrait references`,
-  )
-  const minimum = (await pane.getAttribute("data-density")) === "compact" ? 69.5 : 128
-  assert.ok(geometry.image.height + 1 >= minimum, `${label}: The portrait image retains its readable reference size`)
-  assert.ok(Math.abs(upper - lower) < 1 && Math.abs(left - right) < 1, `${label}: Images stay centered`)
-  assert.ok(Math.min(...geometry.margins) >= 2, `${label}: Images keep clear margins`)
-  assert.ok(left <= 2 * upper + 1, `${label}: Side margins stay balanced`)
-  const gaps = [geometry.edges[0], ...geometry.gaps.filter((gap) => gap !== null)]
-  assert.ok(Math.abs(geometry.edges[0] - geometry.edges[1]) < 1, `${label}: Outside column spaces match`)
-  if (geometry.gaps[0] !== null)
-    assert.ok(
-      geometry.edges.every((edge) => Math.abs(edge - geometry.gaps[0]) < 1),
-      `${label}: Columns and outside edges share the available width evenly`,
-    )
-  assert.ok(
-    gaps.every((gap) => gap + 1 >= 0.85 * upper),
-    `${label}: Card gaps respect the image margin`,
-  )
   const gapRatio = await pane.evaluate((element) =>
     element.dataset.density === "compact" &&
     matchMedia("(hover: none) and (pointer: coarse) and (orientation: portrait) and (width < 600px)").matches
       ? 0.8
       : 0.85,
   )
-  assert.ok(
-    Math.min(...gaps) + 1 >= gapRatio * Math.max(...gaps),
-    `${label}: Horizontal and vertical gaps stay approximately equal`,
-  )
-  assert.ok(geometry.slider.top - geometry.cardsBottom >= 7, `${label}: Pagination stays clear of complete card rows`)
-  assert.ok(
-    geometry.caption.top >= geometry.slider.top + geometry.slider.height / 2,
-    `${label}: The caption stays below the slider`,
-  )
-  assert.ok(geometry.caption.bottom <= geometry.status + 1, `${label}: Pagination stays above the status bar`)
+  assert.deepEqual(gridBounds(geometry, await pane.getAttribute("data-density"), gapRatio), [], label)
   return geometry
 }
 

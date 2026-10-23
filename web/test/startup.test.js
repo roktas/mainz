@@ -1,7 +1,7 @@
 // Checks opening, preview loading, assets, and offline updates.
 
 import assert from "node:assert/strict"
-import test from "node:test"
+import test, { after } from "node:test"
 import { serve } from "./server.ts"
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises"
 import { join, resolve as resolvePath } from "node:path"
@@ -10,6 +10,33 @@ import { chromium, devices } from "playwright"
 import { aligned, zoom } from "./workspace.js"
 import { checkGeometry, checkStatus, createServer, trackWorkers, fixture, tab, pixel } from "./browser.js"
 import { measure } from "./measure.js"
+
+let compiled
+
+function production() {
+  return (compiled ??= (async () => {
+    const temporary = resolvePath("../.local/tmp/web")
+    await mkdir(temporary, { recursive: true })
+    const outDir = await mkdtemp(join(temporary, "production-"))
+    const previous = process.env.NODE_ENV
+    try {
+      process.env.NODE_ENV = "production"
+      await build({ base: "/composer/", build: { outDir, emptyOutDir: true }, logLevel: "warn" })
+      return outDir
+    } catch (error) {
+      await rm(outDir, { recursive: true, force: true })
+      throw error
+    } finally {
+      if (previous === undefined) delete process.env.NODE_ENV
+      else process.env.NODE_ENV = previous
+    }
+  })())
+}
+
+after(async () => {
+  const outDir = await compiled
+  if (outDir) await rm(outDir, { recursive: true, force: true })
+})
 
 async function checkMobile(browser, url) {
   for (const [width, text, colorScheme] of [
@@ -1320,20 +1347,11 @@ test("Home asks once before discarding changes and cancellation retains the work
 })
 
 test("Input switching renders thumbnails and the lens from the selected PDF", { timeout: 60000 }, async () => {
-  const temporary = resolvePath("../.local/tmp/web")
-  await mkdir(temporary, { recursive: true })
-  const outDir = await mkdtemp(join(temporary, "input-switching-"))
+  const outDir = await production()
   let server, browser
   try {
-    const previous = process.env.NODE_ENV
-    try {
-      process.env.NODE_ENV = "production"
-      await build({ build: { outDir, emptyOutDir: true }, logLevel: "warn" })
-    } finally {
-      if (previous === undefined) delete process.env.NODE_ENV
-      else process.env.NODE_ENV = previous
-    }
     server = await preview({
+      base: "/composer/",
       build: { outDir },
       preview: { host: "127.0.0.1", port: 0 },
       logLevel: "warn",
@@ -1396,7 +1414,6 @@ test("Input switching renders thumbnails and the lens from the selected PDF", { 
     await browser?.close()
     if (server)
       await new Promise((resolve, reject) => server.httpServer.close((error) => (error ? reject(error) : resolve())))
-    await rm(outDir, { recursive: true, force: true })
   }
 })
 
@@ -1495,23 +1512,13 @@ test("Concurrent Source previews isolate resets and ignore obsolete worker repli
 })
 
 test("Offline assets, scoped startup, and updates preserve a compatible workspace", { timeout: 180000 }, async () => {
-  const temporary = resolvePath("../.local/tmp/web")
-  await mkdir(temporary, { recursive: true })
-  const outDir = await mkdtemp(join(temporary, "offline-"))
+  const outDir = await production()
   let server, browser
   let finishInstall
   const installation = new Promise((resolve) => {
     finishInstall = resolve
   })
   try {
-    const previous = process.env.NODE_ENV
-    try {
-      process.env.NODE_ENV = "production"
-      await build({ base: "/composer/", build: { outDir, emptyOutDir: true }, logLevel: "warn" })
-    } finally {
-      if (previous === undefined) delete process.env.NODE_ENV
-      else process.env.NODE_ENV = previous
-    }
     const worker = await readFile(join(outDir, "sw.js"), "utf8")
     assert.deepEqual(await readFile(join(outDir, "demo.pdf")), await readFile("test/fixtures/demo.pdf"))
     let paused = false,
@@ -1854,6 +1861,5 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     await browser?.close()
     if (server)
       await new Promise((resolve, reject) => server.httpServer.close((error) => (error ? reject(error) : resolve())))
-    await rm(outDir, { recursive: true, force: true })
   }
 })

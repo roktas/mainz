@@ -2,6 +2,35 @@
 
 import type { Geometry } from "../src/geometry.ts"
 
+export function bounds(grid: Geometry["layout"]["input"][string], density: string, gapRatio: number) {
+  const failures: string[] = []
+  const require = (condition: unknown, rule: string) => {
+    if (!condition) failures.push(rule)
+  }
+  const [upper, lower, left, right] = grid.margins
+  require(!grid.horizontalOverflow, "horizontal fit")
+  require(grid.card.height + 1 >= Math.SQRT2 * grid.card.width &&
+    grid.card.height <= (280 / 150) * grid.card.width + 1, "portrait card proportions")
+  require(grid.image.height + 1 >= (density === "compact" ? 69.5 : 128), "readable image height")
+  require(Math.abs(upper - lower) < 1 && Math.abs(left - right) < 1, "centered images")
+  require(Math.min(...grid.margins) >= 2, "clear image margins")
+  require(left <= 2 * upper + 1, "balanced image margins")
+  require(Math.abs(grid.edges[0] - grid.edges[1]) < 1, "equal outside gaps")
+  const columnGap = grid.gaps[0]
+  if (columnGap !== null)
+    require(grid.edges.every((edge) => Math.abs(edge - columnGap) < 1), "even column distribution")
+  const gaps = [grid.edges[0], ...grid.gaps.filter((gap) => gap !== null)]
+  require(gaps.every((gap) => gap + 1 >= 8), "minimum card separation")
+  require(gaps.every((gap) => gap + 1 >= 0.85 * upper), "gap to image margin")
+  require(Math.min(...gaps) + 1 >= gapRatio * Math.max(...gaps), "balanced row and column gaps")
+  require(grid.clearance !== null && grid.clearance >= 7, "pagination clears complete rows")
+  require(grid.caption &&
+    grid.slider &&
+    grid.caption.top >= grid.slider.top + grid.slider.height / 2, "caption below slider")
+  require(grid.caption && grid.status !== null && grid.caption.bottom <= grid.status + 1, "pagination above status bar")
+  return failures
+}
+
 export function quality(sample: Geometry) {
   const failures: { pane: string; density: string; rule: string }[] = []
   for (const pane of ["input", "output"] as const) {
@@ -11,7 +40,6 @@ export function quality(sample: Geometry) {
       const require = (condition: unknown, rule: string) => {
         if (!condition) failures.push({ pane, density, rule })
       }
-      const [upper, lower, left, right] = grid.margins
       require(grid.available.every(
         (value, index) => value === sample.viewport.inner[index],
       ), "stable viewport across views")
@@ -26,21 +54,7 @@ export function quality(sample: Geometry) {
           Math.abs(card.width - grid.card.width) < 1 &&
           Math.abs(card.height - grid.card.height) < 1,
       ), "unclipped equal cards")
-      require(!grid.horizontalOverflow, "horizontal fit")
       require(grid.scroll <= 1 || grid.matrix[1] === 1, "minimum row scrolling")
-      require(grid.card.height + 1 >= Math.SQRT2 * grid.card.width &&
-        grid.card.height <= (280 / 150) * grid.card.width + 1, "portrait card proportions")
-      require(grid.image.height + 1 >= (density === "compact" ? 69.5 : 128), "readable image height")
-      require(Math.abs(upper - lower) < 1 && Math.abs(left - right) < 1, "centered images")
-      require(Math.min(...grid.margins) >= 2, "clear image margins")
-      require(left <= 2 * upper + 1, "balanced image margins")
-      require(Math.abs(grid.edges[0] - grid.edges[1]) < 1, "equal outside gaps")
-      const columnGap = grid.gaps[0]
-      if (columnGap !== null)
-        require(grid.edges.every((edge) => Math.abs(edge - columnGap) < 1), "even column distribution")
-      const gaps = [grid.edges[0], ...grid.gaps.filter((gap) => gap !== null)]
-      require(gaps.every((gap) => gap + 1 >= 8), "minimum card separation")
-      require(gaps.every((gap) => gap + 1 >= 0.85 * upper), "gap to image margin")
       const gapRatio =
         density === "compact" &&
         sample.environment.pointer === "coarse" &&
@@ -49,14 +63,7 @@ export function quality(sample: Geometry) {
         sample.viewport.inner[0] < 600
           ? 0.8
           : 0.85
-      require(Math.min(...gaps) + 1 >= gapRatio * Math.max(...gaps), "balanced row and column gaps")
-      require(grid.clearance !== null && grid.clearance >= 7, "pagination clears complete rows")
-      require(grid.caption &&
-        grid.slider &&
-        grid.caption.top >= grid.slider.top + grid.slider.height / 2, "caption below slider")
-      require(grid.caption &&
-        grid.status !== null &&
-        grid.caption.bottom <= grid.status + 1, "pagination above status bar")
+      for (const rule of bounds(grid, density, gapRatio)) failures.push({ pane, density, rule })
     }
     const { normal, compact } = sample.layout[pane]
     if (normal && compact) {

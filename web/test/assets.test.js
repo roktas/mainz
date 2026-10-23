@@ -1,3 +1,5 @@
+// Checks package verification and complete asset publication before browser startup.
+
 import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
 import { copyFileSync, cpSync, mkdtempSync, mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs"

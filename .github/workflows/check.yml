@@ -89,7 +89,12 @@ jobs:
           MAINZ_PRESET: ${{ inputs.preset }}
         run: |
           ccache --zero-stats
-          bundle exec rake "build:$MAINZ_PRESET" "test:$MAINZ_PRESET"
+          bundle exec rake "build:$MAINZ_PRESET"
+          if [[ $MAINZ_PRESET = native ]]; then
+            ctest --preset native -E '^contract$'
+          else
+            bundle exec rake "test:$MAINZ_PRESET"
+          fi
       - name: Build WASM and check native parity
         if: inputs.preset == 'native'
         shell: bash

@@ -7,7 +7,7 @@ import { chromium } from "playwright"
 import { fixture } from "./browser.js"
 import { collect, environments, measure } from "./measure.js"
 import { geometry, csv } from "../src/geometry.ts"
-import { quality } from "./quality.ts"
+import { bounds, quality } from "./quality.ts"
 
 test("Stable geometry retains fresh viewport metadata after resizing", { timeout: 30000 }, async () => {
   const server = await serve()
@@ -141,6 +141,11 @@ test("One geometry schema captures desktop and touch without changing Grid choic
         const grid = margins.layout.input.normal
         grid.margins[2] = grid.margins[3] = 2 * grid.margins[0] + 2
         assert.ok(quality(margins).some((failure) => failure.rule === "balanced image margins"))
+        const cramped = structuredClone(sample.layout.input.compact)
+        cramped.edges = [6, 6]
+        cramped.gaps = [6, 6]
+        cramped.margins = [7, 7, 7, 7]
+        assert.deepEqual(bounds(cramped, "compact", 0.85), ["minimum card separation"])
         const covered = structuredClone(sample)
         covered.layout.input.normal.status = covered.layout.input.normal.caption.bottom - 8
         covered.layout.input.normal.scroll = 40

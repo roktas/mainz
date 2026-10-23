@@ -13,7 +13,7 @@ const groups: Record<string, string[]> = {
   geometry: ["geometry"],
   composition: ["composition", "transfer"],
   selection: ["selection"],
-  startup: ["startup", "install"],
+  startup: ["startup", "install", "assets"],
   page: ["page"],
   workspace: ["workspace"],
   viewport: ["viewport"],
