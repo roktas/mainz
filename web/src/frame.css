@@ -29,8 +29,13 @@
     :is(.selection-panel, .composition-output) {
       --grid-height: 15rem;
       --grid-width: 9.25rem;
-      --grid-gap: max(0.5rem, calc(0.85 * var(--thumbnail-padding)));
-      --grid-row-gap: max(var(--grid-gap), calc(var(--grid-column-gap, var(--grid-gap)) * var(--grid-row-factor, 1)));
+      /* Separate the 5 px target outsets with a subpixel guard for touch hit testing. */
+      --grid-gap: max(9px, 0.5rem, calc(0.85 * var(--thumbnail-padding)));
+      --grid-row-gap: max(
+        10.5px,
+        var(--grid-gap),
+        calc(var(--grid-column-gap, var(--grid-gap)) * var(--grid-row-factor, 1))
+      );
       --thumbnail-padding: 0.875rem;
       --card-tools-height: 4.25rem;
       --grid-min-width: 136px;
@@ -39,6 +44,11 @@
           2 * var(--thumbnail-padding)
       );
       --compact-number-size: 0.6875rem;
+
+      @media (hover: hover) and (pointer: fine) {
+        /* The lower card can lift another 2 px toward the upper footer. */
+        --grid-gap: max(12px, 0.5rem, calc(0.85 * var(--thumbnail-padding)));
+      }
 
       .composition-grid,
       .page-reference {
@@ -51,6 +61,8 @@
       }
 
       &[data-density="compact"] {
+        --grid-gap: max(0.5rem, calc(0.85 * var(--thumbnail-padding)));
+        --grid-row-gap: max(var(--grid-gap), calc(var(--grid-column-gap, var(--grid-gap)) * var(--grid-row-factor, 1)));
         --grid-min-width: calc(3 * (0.65 * var(--grid-digits, 1) * var(--compact-number-size) + 3px));
         --grid-min-height: calc(sqrt(2) * var(--grid-min-width));
         --grid-width: max(74px, calc(5 * var(--body)));
@@ -257,7 +269,7 @@
       /* Below three readable columns, retain larger two-column previews. */
       @container composer (width < 23rem) {
         :is(.selection-panel, .composition-output):not([data-density="compact"]) {
-          --grid-width: clamp(7.75rem, calc((100cqi - 1.59375rem) / 2), 9.25rem);
+          --grid-width: clamp(7.75rem, calc((100cqi - max(27px, 1.6875rem)) / 2), 9.25rem);
           --grid-height: calc(14rem + 2 * (var(--grid-width) - 7.75rem) / 3);
           --thumbnail-padding: calc(0.5rem + (var(--grid-width) - 7.75rem) / 12);
         }

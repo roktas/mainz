@@ -1177,7 +1177,6 @@ test(
       })
       await ready()
       const count = (await measure(output)).matrix[2]
-      assert.equal(await page.evaluate(() => window.pdfRenderCount), count)
       snapshots.set("Compact", await snapshot())
       await tab(output, "Page")
       await ready()

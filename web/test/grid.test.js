@@ -103,6 +103,106 @@ const dimensions = (sample) =>
     }),
   )
 
+test("Normal card targets route footer and grip taps across consecutive rows", { timeout: 180000 }, async () => {
+  const server = await serve()
+  let browser, page, label, targets
+  try {
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.route("**/grid.pdf", (route) =>
+      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 32) }),
+    )
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    for (const width of [768, 772, 774, 778, 780]) {
+      for (const text of ["100%", "200%"]) {
+        await page.setViewportSize({ width, height: text === "100%" ? 1100 : 2200 })
+        await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+        await page.emulateMedia({ colorScheme: text === "100%" ? "light" : "dark" })
+        for (const name of ["Input", "Output"]) {
+          await page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true }).click()
+          const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+          await pane.getByRole("button", { name: `Normal ${name} grid`, exact: true }).click()
+          const field = pane.getByRole("textbox", { name: "Page selection", exact: true })
+          await field.fill("")
+          await pane.getByRole("slider").press("Home")
+          const grid = await measure(pane)
+          assert.ok(grid.matrix[1] >= 2, `${width}px, ${text}, ${name}: two complete rows`)
+          const lower = grid.matrix[0] + 1
+          for (const selected of [false, true]) {
+            const selection = selected ? `1,${lower}` : ""
+            const actions = selected ? [] : name === "Input" ? ["Add"] : ["Remove", "Duplicate"]
+            for (const action of [...actions, "Select or drag"]) {
+              label = `${width}px, ${text}, ${name}, selected=${selected}, ${action}`
+              await field.fill(selection)
+              await measure(pane)
+              await pane
+                .locator(".composition-card")
+                .nth(lower - 1)
+                .scrollIntoViewIfNeeded()
+              targets = await pane.evaluate((element, column) => {
+                const cards = element.querySelectorAll(".composition-card")
+                return [
+                  ...cards[0].querySelectorAll(":scope > .input-footer button, :scope > .occurrence-actions button"),
+                  cards[column].querySelector(".page-grip"),
+                ].map((button) => {
+                  const rect = button.getBoundingClientRect(),
+                    after = getComputedStyle(button, "::after")
+                  const left = rect.left + parseFloat(after.left),
+                    right = rect.right - parseFloat(after.right)
+                  const top = rect.top + parseFloat(after.top),
+                    bottom = rect.bottom - parseFloat(after.bottom)
+                  const y = button.classList.contains("page-grip") ? top + 1 : bottom - 1
+                  return {
+                    label: button.getAttribute("aria-label"),
+                    left,
+                    right,
+                    top,
+                    bottom,
+                    points: [left + 1, (left + right) / 2, right - 1].map((x) => ({
+                      x,
+                      y,
+                      hits: document.elementFromPoint(x, y)?.closest("button, summary") === button,
+                    })),
+                  }
+                })
+              }, grid.matrix[0])
+              for (const target of targets) {
+                assert.ok(target.right - target.left >= 44 && target.bottom - target.top >= 44, label)
+                assert.ok(
+                  target.points.every(({ hits }) => hits),
+                  `${label}: ${JSON.stringify(target)}`,
+                )
+                if (target !== targets.at(-1)) assert.ok(target.bottom <= targets.at(-1).top, label)
+              }
+              const target = targets.find((entry) => entry.label.startsWith(action))
+              assert.ok(target, label)
+              const before = parseInt(await page.locator(".composition-totals strong").innerText())
+              await page.touchscreen.tap(target.points[1].x, target.points[1].y)
+              if (action === "Select or drag") {
+                assert.equal(await field.inputValue(), selected ? "1" : String(lower), label)
+                assert.equal(parseInt(await page.locator(".composition-totals strong").innerText()), before, label)
+              } else {
+                const expected = before + (action === "Remove" ? -1 : 1)
+                await page.waitForFunction(
+                  (count) => document.querySelector(".composition-totals strong")?.textContent === `${count} PDF pages`,
+                  expected,
+                )
+                if (name === "Input") assert.equal(await field.inputValue(), selection, label)
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    if (page) await captureLayout(page, "normal-row-targets", { label, targets, error: error.message })
+    throw error
+  } finally {
+    await browser?.close()
+  }
+})
+
 const capture = (page) =>
   page.evaluate(async () => {
     const probe = await import("/src/geometry.ts")

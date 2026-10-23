@@ -7,13 +7,13 @@ import { readFile } from "node:fs/promises"
 import { measure } from "./measure.js"
 import { chromium } from "playwright"
 import { aligned, zoom } from "./workspace.js"
-import { fixture, hasCursor, tab, pagePosition, image, pixel } from "./browser.js"
+import { fixture, hasCursor, tab, pagePosition, image, pixel, captureLayout } from "./browser.js"
 
 const standard = process.env.MAINZ_TEST_MODE === "standard"
 
 test("Arrows enter Grid without selection and Page keys change thumbnail groups", { timeout: 60000 }, async (t) => {
   const server = await serve()
-  let browser
+  let browser, page, scenario, batch
   try {
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [density, width, theme, textSize] of [
@@ -27,7 +27,7 @@ test("Arrows enter Grid without selection and Page keys change thumbnail groups"
         (gridDensity === "Normal" && viewportWidth === 1440) ||
         (gridDensity === "Compact" && viewportWidth === 390),
     )) {
-      const page = await browser.newPage({
+      page = await browser.newPage({
         viewport: { width, height: 900 },
         reducedMotion: width === 390 ? "reduce" : "no-preference",
         colorScheme: theme,
@@ -43,7 +43,8 @@ test("Arrows enter Grid without selection and Page keys change thumbnail groups"
       )
       await page.evaluate((size) => (document.documentElement.style.fontSize = size), textSize)
       for (const name of ["Input", "Output"]) {
-        t.diagnostic(`${name} ${density}, ${width}px, ${textSize} text`)
+        scenario = `${name} ${density}, ${width}px, ${textSize} text`
+        t.diagnostic(scenario)
         if (width === 390)
           await page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true }).click()
         const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
@@ -51,8 +52,9 @@ test("Arrows enter Grid without selection and Page keys change thumbnail groups"
         await page.waitForFunction(
           () => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"),
         )
+        await measure(pane)
         const field = pane.getByLabel("Page selection", { exact: true })
-        const batch = Number(await pane.locator(".grid-view").getAttribute("data-batch"))
+        batch = Number(await pane.locator(".grid-view").getAttribute("data-batch"))
         await field.focus()
         await page.keyboard.press("ArrowRight")
         assert.equal(await field.evaluate((element) => document.activeElement === element), true, "Fields keep arrows")
@@ -180,7 +182,23 @@ test("Arrows enter Grid without selection and Page keys change thumbnail groups"
       }
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
       await page.close()
+      page = undefined
     }
+  } catch (error) {
+    if (page)
+      await captureLayout(page, "grid-navigation", {
+        label: scenario,
+        expectedBatch: batch,
+        error: error.message,
+        current: await page.evaluate(() => ({
+          batches: [...document.querySelectorAll(".grid-view")].map((view) => ({
+            pane: view.closest(".selection-panel") ? "Input" : "Output",
+            batch: view.getAttribute("data-batch"),
+          })),
+          focus: document.activeElement?.getAttribute("aria-label"),
+        })),
+      })
+    throw error
   } finally {
     await browser?.close()
   }

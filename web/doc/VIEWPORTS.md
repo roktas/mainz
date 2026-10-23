@@ -61,8 +61,8 @@ Before an ordinary push, run `npm run test:standard`. It adds a production build
 Standard covers opening, editing, Style, Download, cancellation, PDF ownership, selection, keyboard, touch, offline use,
 updates, and large Output pagination. Animation checks use a desktop and phone without CPU throttling. Standard uses
 representative desktop and touch cases for batch navigation, shared frames, partial batches, and Normal card hit
-targets. The hit-target check also measures pagination after pane and text-size transitions. Standard omits the full
-alignment and Page geometry matrices, Grid capacity/calibration matrices, and calibration tools.
+targets. The hit-target checks cover consecutive rows and measure pagination after pane and text-size transitions.
+Standard omits the full alignment and Page geometry matrices, Grid capacity/calibration matrices, and calibration tools.
 
 Before a release, run `npm run test:full`. It includes every application browser scenario, complete animation matrices
 with CPU throttling, and both viewport measurement and candidate-search scenarios. Animation command entrypoints run

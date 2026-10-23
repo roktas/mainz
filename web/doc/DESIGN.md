@@ -307,10 +307,16 @@ corner. Front retains its normal corner. The fold continues the current contour 
 behind it. Accessible labels and hover help identify both faces. Page corners do not intercept tool interactions.
 
 Normal headers reserve three separate 44 px cells around the centered grip. Their shared card width is at least 136 px,
-including the selected contour. Expanded targets remain above the image in hit testing. Capacity yields to these
-targets. Compact page identities use at least 0.6875 rem text, or 11 CSS px at ordinary text size. Four- and five-digit
-counts reserve wider equal header cells for the whole pane. These counts can reduce capacity and increase Compact image
-size beyond the ordinary two-to-one image-scale target. The text floor also scales with enlarged text.
+including the selected contour.
+
+Expanded targets remain above the image in hit testing and separate across consecutive rows. Normal reserves at least 9
+px between columns and 10.5 px between rows. The extra 0.5 px prevents touch contact and coordinate rounding from
+reaching the next target. Fine-pointer layouts with hover reserve at least 12 px gaps for the lower card's 2 px lift.
+These minima retain the required 85% gap ratio. Capacity yields to these targets.
+
+Compact page identities use at least 0.6875 rem text, or 11 CSS px at ordinary text size. Four- and five-digit counts
+reserve wider equal header cells for the whole pane. These counts can reduce capacity and increase Compact image size
+beyond the ordinary two-to-one image-scale target. The text floor also scales with enlarged text.
 
 The shared Normal reference uses 148 × 240 px cards; Compact uses 74 × 125 px cards at ordinary text size. In touch
 portrait layouts, Normal retains the 136 px control-width floor, a complete image at least 128 px high, and balanced
@@ -320,8 +326,9 @@ factor, reduced to 0.8 below 600 CSS px, 6–7.5 px image padding, and a height 
 wider calibrated card needs the required portrait silhouette. Below a 336 px workspace, three Compact columns grow to at
 most 88 × 125 px with 7.5 px image padding. These content thresholds retain readable previews when another column cannot
 fit. They apply between measured viewport bands. The minimum gap is 85% of the authored vertical image padding, with a
-0.5 rem floor for usable separation. Actual distributed spacing drives both row capacity and calibrated card height. Do
-not calculate one from the minimum gap and the other from the distributed gap.
+0.5 rem floor for usable separation. Normal also retains its minimum gaps for separate targets. Actual distributed
+spacing drives both row capacity and calibrated card height. Do not calculate one from the minimum gap and the other
+from the distributed gap.
 
 The QHD preferences use 150 px Normal widths, 14–16 px image padding, and 224–280 px height limits across viewport
 bands. Desktop fitting can reduce these preferred dimensions within the visual limits to retain complete rows across
