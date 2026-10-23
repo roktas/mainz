@@ -31,8 +31,7 @@ and removes the cursor. The pointer's screen half identifies the target pane. An
 first.
 
 Try [mainz.roktas.dev](https://mainz.roktas.dev/). The [specification and glossary](doc/SPEC.md) define the workspace.
-[DESIGN.md](doc/DESIGN.md) defines its appearance. [Open issues](doc/ISSUES.md) records unresolved device reports and
-their evidence.
+[DESIGN.md](doc/DESIGN.md) defines its appearance.
 
 ## Development
 
