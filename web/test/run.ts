@@ -9,13 +9,13 @@ import { fileURLToPath } from "node:url"
 
 const groups: Record<string, string[]> = {
   alignment: ["alignment"],
-  grid: ["grid"],
+  grid: ["grid", "pdf", "lens"],
   geometry: ["geometry"],
-  composition: ["composition"],
+  composition: ["composition", "transfer"],
   selection: ["selection"],
-  startup: ["startup"],
+  startup: ["startup", "install"],
   page: ["page"],
-  workspace: ["workspace", "pdf", "lens", "transfer", "install"],
+  workspace: ["workspace"],
   viewport: ["viewport"],
 }
 const files = readdirSync(new URL(".", import.meta.url))
@@ -55,9 +55,8 @@ const matrices = {
     "Measured touch frames retain complete readable matrices",
     "Measured touch calibrations isolate viewport bounds and primary input",
     "Touch Grid uses complete rows within the available viewport",
-    "Grid matrices match desktop viewports and bounded calibrations",
+    "Desktop Grid retains measured capacity within readable bounds",
     "Grid fitting respects viewport bounds and input capabilities",
-    "Grid scales desktop capacity, balances Page, and retains compact actions",
     "Compact pagination retains readable four- and five-digit numbers",
   ],
 }

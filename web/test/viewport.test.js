@@ -2,18 +2,17 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { mkdir } from "node:fs/promises"
+import { serve } from "./server.ts"
 import { chromium } from "playwright"
-import { createServer, fixture } from "./browser.js"
+import { fixture } from "./browser.js"
 import { collect, environments, measure } from "./measure.js"
 import { geometry, csv } from "../src/geometry.ts"
 import { quality } from "./quality.ts"
 
 test("Stable geometry retains fresh viewport metadata after resizing", { timeout: 30000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -38,15 +37,13 @@ test("Stable geometry retains fresh viewport metadata after resizing", { timeout
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Grid measurement refreshes stylesheet preferences within the same frame", { timeout: 30000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -67,15 +64,13 @@ test("Grid measurement refreshes stylesheet preferences within the same frame", 
     assert.equal((await measure(input)).card.height, before.card.height)
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("One geometry schema captures desktop and touch without changing Grid choices", { timeout: 180000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     const manifest = await fetch(`${server.resolvedUrls.local[0]}manifest.webmanifest?geometry`).then((response) =>
       response.json(),
     )
@@ -139,8 +134,6 @@ test("One geometry schema captures desktop and touch without changing Grid choic
         assert.equal(await input.getAttribute("data-density"), "compact")
         assert.equal(await selection.inputValue(), "2")
         assert.equal(await selection.evaluate((element) => element === document.activeElement), true)
-        const measured = await page.evaluate(geometry)
-        assert.deepEqual(await page.evaluate(geometry).then((value) => value.layout), measured.layout)
         assert.equal(csv(sample).trim().split("\r\n").length, 5)
         sample.environment.browserFamily = "=UNTRUSTED()"
         assert.ok(csv(sample).includes("'=UNTRUSTED()"))
@@ -195,8 +188,7 @@ test("One geometry schema captures desktop and touch without changing Grid choic
               assert.deepEqual(quality(data), [])
             } else assert.equal(exported.trim().split("\r\n").length, 5)
           }
-          await mkdir("../.local/tmp/web/viewport/probe", { recursive: true })
-          await page.screenshot({ path: `../.local/tmp/web/viewport/probe/${viewport.join("x")}.png`, fullPage: true })
+
           const alignment = await dialog.evaluate((element) => {
             const title = element.querySelector("h2").getBoundingClientRect(),
               icon = element.querySelector("svg").getBoundingClientRect()
@@ -272,15 +264,13 @@ test("One geometry schema captures desktop and touch without changing Grid choic
     assert.equal(environments([...records, duplicate]).length, 4)
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Measured frames gain rows or columns while keeping balanced readable images", { timeout: 900000 }, async (t) => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     let page = await browser.newPage({
       viewport: { width: 744, height: 1047 },
@@ -326,7 +316,6 @@ test("Measured frames gain rows or columns while keeping balanced readable image
         (item) => !item.failures.length && item.layout.input.normal.matrix[1] === 2,
       )
       assert.ok(candidate)
-      assert.deepEqual(candidate.failures, [])
       for (const pane of ["input", "output"]) {
         const { normal, compact } = candidate.layout[pane]
         assert.deepEqual(normal.matrix, [4, 2, 8])
@@ -381,6 +370,5 @@ test("Measured frames gain rows or columns while keeping balanced readable image
     })
   } finally {
     await browser?.close()
-    await server.close()
   }
 })

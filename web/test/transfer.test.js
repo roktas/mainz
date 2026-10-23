@@ -2,17 +2,17 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
+import { serve } from "./server.ts"
 import { chromium } from "playwright"
-import { createServer, fixture } from "./browser.js"
+import { fixture } from "./browser.js"
 
 test(
   "Large Output transfers preserve offscreen selections across cancellation and drop",
   { timeout: 60000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       for (const method of ["native", "touch"]) {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
@@ -92,7 +92,6 @@ test(
       }
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
@@ -101,10 +100,9 @@ test(
   "Interrupted transfers release their previews and leave subsequent actions usable",
   { timeout: 60000 },
   async (t) => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       page.setDefaultTimeout(10000)
@@ -168,7 +166,6 @@ test(
       }
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )

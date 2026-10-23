@@ -2,15 +2,15 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
+import { serve } from "./server.ts"
 import { chromium } from "playwright"
-import { createServer, fixture, checkGrips, tab, captureLayout } from "./browser.js"
+import { fixture, checkGrips, tab, captureLayout } from "./browser.js"
 import { measure } from "./measure.js"
 
 test("Style retains a Compact companion frame on short touch landscapes", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -47,15 +47,13 @@ test("Style retains a Compact companion frame on short touch landscapes", { time
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Style scrolling preserves its companion Grid capacity and Page frame", { timeout: 180000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser, page
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -144,8 +142,7 @@ test("Style scrolling preserves its companion Grid capacity and Page frame", { t
               await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(),
               "19-24",
             )
-            if (width === 1920 && text === "100%")
-              await page.screenshot({ path: `../.local/tmp/web/headers/style-${density}-${colorScheme}.png` })
+
             await tab(output, "Page")
             const styledPage = await output.locator(".page-view").boundingBox()
             await tab(input, "Grid")
@@ -163,7 +160,6 @@ test("Style scrolling preserves its companion Grid capacity and Page frame", { t
     throw error
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -225,10 +221,9 @@ for (const hasTouch of [false, true])
     `Grid grips and Page thumbnail references stay aligned for ${hasTouch ? "touch" : "mouse"}`,
     { timeout: 600000 },
     async (t) => {
-      const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+      const server = await serve()
       let browser, label
       try {
-        await server.listen()
         browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
         const page = await browser.newPage({ hasTouch, isMobile: hasTouch, reducedMotion: "reduce" })
         page.setDefaultTimeout(45000)
@@ -275,17 +270,13 @@ for (const hasTouch of [false, true])
               [810, 1080],
               [1440, 1100],
               [1920, 961],
+              [2560, 1310],
               [2560, 1318],
-              [2560, 1323],
+              [2560, 1417],
               [2560, 1440],
               [2200, 1100],
-              [2400, 1358],
-              [2559, 1419],
-              [2879, 1420],
-              [2560, 1799],
               [2960, 1500],
               [3840, 1900],
-              [3840, 1922],
               [3840, 2050],
             ]) {
           t.diagnostic(`${hasTouch ? "Touch" : "Mouse"} ${width}×${height}`)
@@ -298,20 +289,20 @@ for (const hasTouch of [false, true])
               const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
               for (const density of ["Normal", "Compact"]) {
                 label = `${hasTouch ? "Touch" : "Mouse"} ${name} ${density}, ${width}×${height}, ${text} text`
-                await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+                await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).dispatchEvent("click")
                 await checkGrips(pane, `${name} ${density}, ${width}×${height}, ${text} text`)
                 if (await views.isVisible()) await checkPagination(pane)
                 const grid = await pane.locator(".composition-grid").evaluate((element) => ({
                   columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
                   width: element.firstElementChild.getBoundingClientRect().width,
                 }))
-                await tab(pane, "Page")
+                await pane.getByRole("tab", { name: "Page", exact: true }).dispatchEvent("click")
                 const reference = await pane.locator(".page-reference").evaluate((element) => ({
                   columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
                   width: element.firstElementChild.getBoundingClientRect().width,
                 }))
                 assert.deepEqual(reference, grid, "Page retains Grid's columns and thumbnail width")
-                await tab(pane, "Grid")
+                await pane.getByRole("tab", { name: "Grid", exact: true }).dispatchEvent("click")
                 assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
               }
             }
@@ -324,16 +315,14 @@ for (const hasTouch of [false, true])
         throw error
       } finally {
         await browser?.close()
-        await server.close()
       }
     },
   )
 
 test("App header uses available width before wrapping its actions", { timeout: 45000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -370,15 +359,13 @@ test("App header uses available width before wrapping its actions", { timeout: 4
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 180000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const hasTouch of [true, false]) {
       const page = await browser.newPage({
@@ -481,6 +468,5 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })

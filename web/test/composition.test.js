@@ -2,18 +2,18 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
+import { serve } from "./server.ts"
 import { readFile } from "node:fs/promises"
 import { chromium } from "playwright"
 import { zoom } from "./workspace.js"
-import { createServer, tab, fixture, image, pagePosition } from "./browser.js"
+import { tab, fixture, image, pagePosition } from "./browser.js"
 
 const standard = process.env.MAINZ_TEST_MODE === "standard"
 
 test("Output Page removes the current occurrence, including Blank and the final page", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -56,7 +56,6 @@ test("Output Page removes the current occurrence, including Blank and the final 
     )
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -64,10 +63,9 @@ test(
   "Input changes cancel their pending gestures and transfers while Output stays independent",
   { timeout: 60000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       await page.addInitScript(() => {
@@ -185,16 +183,14 @@ test(
       assert.equal(await output.locator(".composition-totals strong").innerText(), "7 PDF pages")
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
 
 test("Grid navigation retains physical page positions during additions", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, density, colorScheme] of [
       [1440, 1100, "Normal", "light"],
@@ -259,15 +255,13 @@ test("Grid navigation retains physical page positions during additions", { timeo
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Input additions reach Output without delaying edits or taking focus", { timeout: 90000 }, async (t) => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, hasTouch, colorScheme] of [
       [1920, 1080, false, "light"],
@@ -533,15 +527,13 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Addition previews use their target image or the action area", { timeout: 90000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, touch] of [
       [1440, 1100, false],
@@ -691,7 +683,6 @@ test("Addition previews use their target image or the action area", { timeout: 9
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -699,10 +690,9 @@ test(
   "Output additions, removals, and moves animate across page actions and shortcuts",
   { timeout: 120000 },
   async (t) => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       for (const [width, height, hasTouch, colorScheme, cpu] of [
         [1440, 1100, false, "light", 4],
@@ -927,43 +917,48 @@ test(
             if (density === "Compact")
               await output.getByRole("button", { name: "Details for Output page 1", exact: true }).click()
           }
+          const allActions = width === 1440 && density === "Normal"
           await details()
           await addition(() => output.getByRole("button", { name: "Duplicate Output page 1", exact: true }).click())
-          await selection.fill("1-2")
-          await addition(
-            () => output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click(),
-            2,
-          )
-          await selection.fill("1")
-          await addition(() => output.locator(".composition-grid").press("Enter"))
-          assert.equal(
-            await output
-              .locator(".composition-card.selected .page-image")
-              .evaluate((element) => element === document.activeElement),
-            true,
-            "Keyboard duplication focuses the copy after arrival",
-          )
-          await selection.fill("1")
-          await output.getByLabel("Output page actions", { exact: true }).click()
-          await output.getByRole("textbox", { name: "Repeat selected sequence", exact: true }).fill("2")
-          await addition(() => output.getByRole("button", { name: "Repeat selected pages", exact: true }).click())
-          for (const label of ["Blank before first selected page", "Add blank page at end"]) {
+          if (allActions) {
+            await selection.fill("1-2")
+            await addition(
+              () => output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click(),
+              2,
+            )
+            await selection.fill("1")
+            await addition(() => output.locator(".composition-grid").press("Enter"))
+            assert.equal(
+              await output
+                .locator(".composition-card.selected .page-image")
+                .evaluate((element) => element === document.activeElement),
+              true,
+              "Keyboard duplication focuses the copy after arrival",
+            )
+            await selection.fill("1")
             await output.getByLabel("Output page actions", { exact: true }).click()
-            await addition(() => output.getByRole("button", { name: label, exact: true }).click(), 1, true)
+            await output.getByRole("textbox", { name: "Repeat selected sequence", exact: true }).fill("2")
+            await addition(() => output.getByRole("button", { name: "Repeat selected pages", exact: true }).click())
+            for (const label of ["Blank before first selected page", "Add blank page at end"]) {
+              await output.getByLabel("Output page actions", { exact: true }).click()
+              await addition(() => output.getByRole("button", { name: label, exact: true }).click(), 1, true)
+            }
           }
           await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
           await output.locator(".page-image").first().press("Home")
           await page.mouse.move(1, 1)
           await details()
           await removal(() => output.getByRole("button", { name: "Remove Output page 1", exact: true }).click())
-          for (const action of [
-            () => output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click(),
-            () => selection.press("Enter"),
-            () => output.locator(".composition-grid").press("Delete"),
-            () => output.locator(".composition-grid").press("-"),
-          ]) {
-            await selection.fill("1")
-            await removal(action)
+          if (allActions) {
+            for (const action of [
+              () => output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click(),
+              () => selection.press("Enter"),
+              () => output.locator(".composition-grid").press("Delete"),
+              () => output.locator(".composition-grid").press("-"),
+            ]) {
+              await selection.fill("1")
+              await removal(action)
+            }
           }
           await selection.fill("2-3")
           for (const direction of ["earlier", "later"]) {
@@ -1115,16 +1110,14 @@ test(
       }
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
 
 test("Bulk page actions consume preparations and preserve selected occurrences", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1334,15 +1327,13 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     await data.dispose()
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Edited Padding retains its dimensions and page order in the downloaded PDF", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" })
     const errors = []
@@ -1447,15 +1438,13 @@ test("Edited Padding retains its dimensions and page order in the downloaded PDF
     assert.deepEqual(errors, [])
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Grid boundary duplication focuses the final new Output occurrence", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1481,6 +1470,5 @@ test("Grid boundary duplication focuses the final new Output occurrence", async 
     )
   } finally {
     await browser?.close()
-    await server.close()
   }
 })

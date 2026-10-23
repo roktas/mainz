@@ -2,14 +2,14 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
+import { serve } from "./server.ts"
 import { chromium } from "playwright"
-import { createServer, fixture, tab } from "./browser.js"
+import { fixture, tab } from "./browser.js"
 
 test("Overlapping preview generations release their own pages and never paint stale results", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.goto(server.resolvedUrls.local[0])
@@ -144,15 +144,13 @@ test("Overlapping preview generations release their own pages and never paint st
     assert.equal(result.removed, true)
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Input inspection bounds pending metadata and releases pages on completion, cancellation, and failure", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.goto(server.resolvedUrls.local[0])
@@ -230,15 +228,13 @@ test("Input inspection bounds pending metadata and releases pages on completion,
     assert.equal(result[2].failure, "Invalid page geometry")
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Document ownership releases tasks and rasters once, including validation failures", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.goto(server.resolvedUrls.local[0])
@@ -290,15 +286,13 @@ test("Document ownership releases tasks and rasters once, including validation f
     })
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Releasing PDF rasters clears only that document and preserves the shared cache budget", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.goto(server.resolvedUrls.local[0])
@@ -352,15 +346,13 @@ test("Releasing PDF rasters clears only that document and preserves the shared c
     })
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Source replacement retains opened rasters for comparison and releases them on removal", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     page.setDefaultTimeout(10000)
@@ -413,6 +405,5 @@ test("Source replacement retains opened rasters for comparison and releases them
     assert.equal(await page.locator(".composer").count(), 0)
   } finally {
     await browser?.close()
-    await server.close()
   }
 })

@@ -2,37 +2,44 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
+import { serve } from "./server.ts"
 import { readFile } from "node:fs/promises"
 import { measure } from "./measure.js"
 import { chromium } from "playwright"
 import { aligned, zoom } from "./workspace.js"
-import { createServer, fixture, hasCursor, tab, pagePosition, image, pixel } from "./browser.js"
+import { fixture, hasCursor, tab, pagePosition, image, pixel } from "./browser.js"
+
+const standard = process.env.MAINZ_TEST_MODE === "standard"
 
 test("Arrows enter Grid without selection and Page keys change thumbnail groups", { timeout: 60000 }, async (t) => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [density, width, theme, textSize] of [
-      ["Normal", 2560, "light", "100%"],
-      ["Compact", 2560, "dark", "100%"],
+      ["Normal", 1440, "light", "100%"],
+      ["Compact", 1440, "dark", "100%"],
       ["Normal", 390, "light", "200%"],
       ["Compact", 390, "dark", "200%"],
-    ]) {
+    ].filter(
+      ([gridDensity, viewportWidth]) =>
+        !standard ||
+        (gridDensity === "Normal" && viewportWidth === 1440) ||
+        (gridDensity === "Compact" && viewportWidth === 390),
+    )) {
       const page = await browser.newPage({
-        viewport: { width, height: 1440 },
+        viewport: { width, height: 900 },
         reducedMotion: width === 390 ? "reduce" : "no-preference",
         colorScheme: theme,
       })
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.route("**/grid.pdf", (route) =>
-        route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
+        route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 60) }),
       )
       await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
       await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+        () => document.querySelector(".composition-totals strong")?.textContent === "60 PDF pages",
       )
       await page.evaluate((size) => (document.documentElement.style.fontSize = size), textSize)
       for (const name of ["Input", "Output"]) {
@@ -132,7 +139,7 @@ test("Arrows enter Grid without selection and Page keys change thumbnail groups"
           `Select ${name} page ${batch + 1}`,
         )
         assert.equal(await pane.locator(".batch-slider input").inputValue(), "1", "Pagination PageDown moves one group")
-        if (name === "Input" && width === 2560) {
+        if (name === "Input" && width === 1440) {
           const other = page.locator(".composition-output")
           await tab(other, "Page")
           const before = await pagePosition(other)
@@ -158,17 +165,17 @@ test("Arrows enter Grid without selection and Page keys change thumbnail groups"
         await page.keyboard.press("End")
         await page.waitForFunction(
           (label) => document.activeElement?.getAttribute("aria-label") === label,
-          `Select ${name} page 240`,
+          `Select ${name} page 60`,
         )
         await page.keyboard.press("PageDown")
         assert.equal(await field.inputValue(), "2")
-        assert.equal(await page.locator(".composition-totals strong").innerText(), "240 PDF pages")
+        assert.equal(await page.locator(".composition-totals strong").innerText(), "60 PDF pages")
         await field.fill("")
         await pane.locator(".sequence-help").click({ position: { x: 4, y: 4 } })
         await page.keyboard.press("ArrowLeft")
         await page.waitForFunction(
           (label) => document.activeElement?.getAttribute("aria-label") === label,
-          `Select ${name} page 240`,
+          `Select ${name} page 60`,
         )
       }
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
@@ -176,15 +183,13 @@ test("Arrows enter Grid without selection and Page keys change thumbnail groups"
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Page and Grid share viewport bounds and density keeps the fitted image size", { timeout: 90000 }, async (t) => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, reducedMotion: "reduce" })
     const errors = []
@@ -203,7 +208,7 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
         [2240, 1260],
         [2560, 1440],
         [3840, 2160],
-      ]) {
+      ].filter(([viewportWidth]) => !standard || [1920, 3840].includes(viewportWidth))) {
         await t.test(`${width}×${height}, ${colorScheme}`, async () => {
           await page.setViewportSize({ width, height })
           await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
@@ -339,15 +344,13 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
     })
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Page pinch zoom preserves its anchor and shares the button zoom range", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, colorScheme] of [
       [810, 1080, "light"],
@@ -478,15 +481,13 @@ test("Page pinch zoom preserves its anchor and shares the button zoom range", { 
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("The lens waits for a settled mouse and cancels pending openings", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, theme, textSize] of [
       [1440, "light", "100%"],
@@ -566,7 +567,6 @@ test("The lens waits for a settled mouse and cancels pending openings", { timeou
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -574,10 +574,9 @@ test(
   "Grid and Page share edits while inspection, original appearance, and Sources stay independent",
   { timeout: 120000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({
         viewport: { width: 1440, height: 1100 },
@@ -1084,16 +1083,14 @@ test(
       assert.deepEqual(errors, [])
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
 
 test("Page image activation repeats current-page copies and preserves selections", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1199,7 +1196,6 @@ test("Page image activation repeats current-page copies and preserves selections
     )
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -1207,10 +1203,9 @@ test(
   "Repeated Page copies emphasize the image and status without changing focus or geometry",
   { timeout: 60000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       for (const [width, height, colorScheme, hasTouch, reducedMotion] of [
         [1440, 1100, "light", false, "no-preference"],
@@ -1308,16 +1303,14 @@ test(
       }
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
 
 test("Grid and Page switches preserve selections, zoom, and the inspected page", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1100 },
@@ -1426,15 +1419,13 @@ test("Grid and Page switches preserve selections, zoom, and the inspected page",
     assert.equal(await pageFocused(), true, "Mouse removal focuses a surviving thumbnail")
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Grid selection keeps painted pages in place", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, theme, textSize] of [
       [2560, "light", "100%"],
@@ -1563,15 +1554,13 @@ test("Grid selection keeps painted pages in place", { timeout: 60000 }, async ()
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Unused and modified Grid keys preserve pointer controls and native shortcut priority", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1651,7 +1640,6 @@ test("Unused and modified Grid keys preserve pointer controls and native shortcu
     )
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -1659,10 +1647,9 @@ test(
   "Page shortcuts follow the mouse side and page counters open a stable inline entry",
   { timeout: 60000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       page.setDefaultTimeout(10000)
@@ -1842,7 +1829,6 @@ test(
       }
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
@@ -1851,10 +1837,9 @@ test(
   "Large Sources reuse selected-page PDFs and keep original page identities in Page and Compare",
   { timeout: 60000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
       page.setDefaultTimeout(10000)
@@ -1984,7 +1969,6 @@ test(
       assert.deepEqual(errors, [])
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )

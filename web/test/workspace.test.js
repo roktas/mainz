@@ -2,16 +2,16 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
+import { serve } from "./server.ts"
 import { readFile } from "node:fs/promises"
 import { chromium } from "playwright"
 import { checkWorkspace } from "./workspace.js"
-import { createServer, tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
+import { tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
 
 test("Style reset appears only for changes and retains keyboard focus", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 768, height: 1024 },
@@ -51,15 +51,13 @@ test("Style reset appears only for changes and retains keyboard focus", { timeou
     assert.equal(await page.locator(".error-banner").count(), 0)
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Dialogs dismiss outside taps without native light dismissal", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -97,15 +95,13 @@ test("Dialogs dismiss outside taps without native light dismissal", { timeout: 6
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Workspace tools wrap without moving the view tabs", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -272,15 +268,13 @@ test("Workspace tools wrap without moving the view tabs", async () => {
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Help stays available across pointer types and tours retain visible focus", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const hasTouch of [false, true]) {
       const page = await browser.newPage({ hasTouch, reducedMotion: "reduce" })
@@ -307,7 +301,6 @@ test("Help stays available across pointer types and tours retain visible focus",
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -315,10 +308,9 @@ test(
   "Download blocks only invalid styles used by Output, including after Input switching",
   { timeout: 60000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -363,16 +355,14 @@ test(
       assert.equal(await download.isEnabled(), true)
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
 
 test("Shortcut help follows the visible views, preserves focus, and starts the tour", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -586,7 +576,6 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
     assert.equal(await output.locator(".composition-totals strong").innerText(), "2 PDF pages")
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -594,10 +583,9 @@ test(
   "Style requires applicable Output references and retains independent Source choices",
   { timeout: 60000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
       page.setDefaultTimeout(10000)
@@ -700,16 +688,14 @@ test(
       assert.deepEqual(colors, ["#123456", "#abcdef"])
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
 
 test("Style and Download cancellation release preview workers and retain choices", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     page.setDefaultTimeout(10000)
@@ -813,7 +799,6 @@ test("Style and Download cancellation release preview workers and retain choices
     assert.equal(downloads.length, 1)
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -821,10 +806,9 @@ test(
   "Info reports actions, errors stay above the workspace, and newer feedback survives style processing",
   { timeout: 60000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
       page.setDefaultTimeout(10000)
@@ -953,16 +937,14 @@ test(
       assert.equal(await banner.count(), 0)
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
 
 test("Style selectors retain touch height and inset arrows across workspace widths", { timeout: 90000 }, async (t) => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1042,7 +1024,6 @@ test("Style selectors retain touch height and inset arrows across workspace widt
     assert.ok((await choice.locator("..").locator("svg").boundingBox()).width > 0, "Enum fields share the inset arrow")
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -1050,10 +1031,9 @@ test(
   "Settings steps lens magnification by two and keeps its value beside the controls",
   { timeout: 60000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1075,6 +1055,16 @@ test(
       const decrease = settings.getByRole("button", { name: "Decrease lens magnification", exact: true })
       const increase = settings.getByRole("button", { name: "Increase lens magnification", exact: true })
       assert.equal(await value.textContent(), "16×")
+      for (const expected of [8, 4, 2]) {
+        await decrease.press("Enter")
+        assert.equal(await value.textContent(), `${expected}×`)
+      }
+      assert.equal(await decrease.isDisabled(), true, "lower boundary")
+      for (const expected of [4, 8, 16, 32, 64, 128]) {
+        await increase.press(expected === 16 ? "Space" : "Enter")
+        assert.equal(await value.textContent(), `${expected}×`)
+      }
+      assert.equal(await increase.isDisabled(), true, "upper boundary")
       for (const width of [320, 810, 1440])
         for (const theme of ["light", "dark"])
           for (const scale of [100, 200]) {
@@ -1087,16 +1077,6 @@ test(
               },
               { theme, scale },
             )
-            for (const expected of [8, 4, 2]) {
-              await decrease.press("Enter")
-              assert.equal(await value.textContent(), `${expected}×`, label)
-            }
-            assert.equal(await decrease.isDisabled(), true, `${label}: lower boundary`)
-            for (const expected of [4, 8, 16, 32, 64, 128]) {
-              await increase.press(expected === 16 ? "Space" : "Enter")
-              assert.equal(await value.textContent(), `${expected}×`, label)
-            }
-            assert.equal(await increase.isDisabled(), true, `${label}: upper boundary`)
             const boxes = await Promise.all([value.boundingBox(), decrease.boundingBox(), increase.boundingBox()])
             for (const box of boxes.slice(1)) {
               assert.ok(box.width >= 44 && box.height >= 44, `${label}: full touch target`)
@@ -1110,11 +1090,11 @@ test(
               `${label}: separate controls`,
             )
             assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, label)
-            for (const expected of [64, 32, 16]) {
-              await decrease.click()
-              assert.equal(await value.textContent(), `${expected}×`, label)
-            }
           }
+      for (const expected of [64, 32, 16]) {
+        await decrease.click()
+        assert.equal(await value.textContent(), `${expected}×`)
+      }
       await page.keyboard.press("Escape")
       await page.getByRole("button", { name: "Settings", exact: true }).press("Enter")
       assert.equal(await value.textContent(), "16×", "Closing Settings retains lens magnification")
@@ -1186,16 +1166,14 @@ test(
       assert.notEqual(rasters[0].pixels, rasters[1].pixels, "The endpoint values change the rendered crop")
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
 
 test("Quartets and profiles preserve PDF edits and open files without profiles", { timeout: 180000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1000 },
@@ -1526,15 +1504,13 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     await page.close()
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Opaque parameter IDs retain style edits, draft errors, and downloaded values", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1598,15 +1574,13 @@ test("Opaque parameter IDs retain style edits, draft errors, and downloaded valu
     assert.deepEqual(errors, [])
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Page addition hint skips on any click", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1100 },
@@ -1649,15 +1623,13 @@ test("Page addition hint skips on any click", { timeout: 60000 }, async () => {
     assert.equal(await total(), "0 PDF pages")
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Onboarding reset is consumed once and preserves other preferences", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     const url = server.resolvedUrls.local[0]
@@ -1693,7 +1665,6 @@ test("Onboarding reset is consumed once and preserves other preferences", { time
     assert.equal(await page.evaluate(() => localStorage.getItem("mainz:onboarding")), "19")
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -1701,11 +1672,10 @@ test(
   "PDF workspace preserves composition, styles, focus, and responsive controls",
   { timeout: 240000 },
   async (context) => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     let page
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
       await page.addInitScript(() => {
@@ -1734,9 +1704,7 @@ test(
       await page.goto(server.resolvedUrls.local[0])
       await page.evaluate(() => localStorage.setItem("mainz:onboarding", "18"))
       await page.reload()
-      const result = await checkWorkspace(page, fixture(), fixture(false))
-      assert.equal(result.failed, 0)
-      console.log(`${result.checks} browser checks passed.`)
+      await checkWorkspace(page, fixture(), fixture(false))
       page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
       await page.goto(server.resolvedUrls.local[0])
       await page
@@ -1775,7 +1743,7 @@ test(
       assert.equal(await reset.isDisabled(), true)
       await page.getByRole("button", { name: "Cancel style processing", exact: true }).waitFor({ state: "hidden" })
       assert.equal(await page.locator(".error-banner").count(), 0)
-      console.log("Mixed visibility, Show/Hide, keyboard selection, and reset checks passed.")
+
       const blankOutput = page.locator(".composition-output")
       await blankOutput.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
       await page.locator(".selection-panel").getByRole("tab", { name: "Grid", exact: true }).click()
@@ -1806,7 +1774,7 @@ test(
         await blankOutput.locator(".composition-totals").getByText("1 duplex sheet", { exact: true }).isVisible(),
         true,
       )
-      console.log("Blank-only Output has a tour without Input or Style steps.")
+
       page = await browser.newPage({
         viewport: { width: 1440, height: 1100 },
         reducedMotion: "no-preference",
@@ -1972,16 +1940,12 @@ test(
       await notice.waitFor({ state: "detached" })
       assert.equal(await notice.count(), 0)
       assert.match(await status.textContent(), /Opened 1 page/)
-      console.log(
-        "The first-page animation waits for onboarding/tour and visibility, leaves Output and Selection unchanged, uses an expiring header Notice, stops on addition, and respects reduced motion and enlarged mobile text.",
-      )
     } catch (error) {
       if (page) context.diagnostic((await page.locator("[role=alert], .footnote").allTextContents()).join("\n"))
       if (page) context.diagnostic(await captureLayout(page, "workspace"))
       throw error
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )

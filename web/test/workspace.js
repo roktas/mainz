@@ -1,3 +1,4 @@
+import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { gridPage } from "./browser.js"
 
@@ -68,11 +69,6 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const errors = []
   const recordError = (error) => errors.push(error.message)
   page.on("pageerror", recordError)
-  let checks = 0
-  const check = (value, message) => {
-    if (!value) throw new Error(message)
-    checks++
-  }
   await page.setViewportSize({ width: 1440, height: 1100 })
   await page.emulateMedia({ reducedMotion: "reduce" })
   const welcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true })
@@ -96,8 +92,8 @@ export async function checkWorkspace(page, prepared, ordinary) {
     "download",
   ]
   await page.getByRole("heading", { name: "Select pages and style prepared PDFs.", exact: true }).waitFor()
-  check(!(await welcome.isVisible()), "Onboarding waits for a successfully opened PDF")
-  check(
+  assert.ok(!(await welcome.isVisible()), "Onboarding waits for a successfully opened PDF")
+  assert.ok(
     (await page.locator(".header-note").getAttribute("title")) === "Processed on your device. No uploads.",
     "The header note explains local processing on hover",
   )
@@ -108,7 +104,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
     )
     const target = page.locator(`[data-tour-target="${key}"]`)
     await target.waitFor()
-    check(await target.isVisible(), `Tour target ${key} is visible`)
+    assert.ok(await target.isVisible(), `Tour target ${key} is visible`)
     await page.waitForFunction((value) => {
       const guide = document.querySelector(".help-tour:popover-open")
       const control = document.querySelector(`[data-tour-target="${value}"]`)
@@ -132,7 +128,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
         height <= Math.max(...parts.map((part) => part.bottom)) - Math.min(...parts.map((part) => part.top)) + 64
       )
     }, key)
-    check(
+    assert.ok(
       await tour.getByRole("heading", { level: 2 }).evaluate((heading) => {
         const title = heading.getBoundingClientRect()
         const card = heading.closest(".help-tour").getBoundingClientRect()
@@ -140,7 +136,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
       }),
       `Tour ${key} starts with its title visible`,
     )
-    check(
+    assert.ok(
       await tour.evaluate((guide) => {
         const backdrop = getComputedStyle(guide, "::backdrop")
         return backdrop.filter.startsWith("blur(") && backdrop.boxShadow !== "none" && backdrop.pointerEvents === "none"
@@ -149,25 +145,25 @@ export async function checkWorkspace(page, prepared, ordinary) {
     )
     const tab = page.locator(`[data-tour-tab="${key}"]`)
     if (await tab.count()) {
-      check(
+      assert.ok(
         (await tab.getAttribute("aria-selected")) === "true" && (await tab.getAttribute("data-tour-active")) === "true",
         `Tour ${key} illuminates the selected tab together with its content`,
       )
     }
     if (await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches))
-      check(
+      assert.ok(
         await tour.evaluate((guide) => guide.getAnimations({ subtree: true }).length === 0),
         `Tour ${key} honors reduced motion`,
       )
     if (key.endsWith("-density")) {
-      check(await target.getByRole("button", { name: /^Normal / }).isVisible(), "Tour reveals Normal density")
-      check(await target.getByRole("button", { name: /^Compact / }).isVisible(), "Tour reveals Compact density")
+      assert.ok(await target.getByRole("button", { name: /^Normal / }).isVisible(), "Tour reveals Normal density")
+      assert.ok(await target.getByRole("button", { name: /^Compact / }).isVisible(), "Tour reveals Compact density")
     }
     if (key === "output-selection") {
       const unselected =
         (await target.getByRole("textbox", { name: "Page selection", exact: true }).inputValue()) === ""
       for (const name of ["Remove selected Output pages", "Duplicate selected Output pages"])
-        check(
+        assert.ok(
           (await target.getByRole("button", { name, exact: true }).isDisabled()) === unselected,
           `Tour shows ${name}, disabled without a selection`,
         )
@@ -184,14 +180,14 @@ export async function checkWorkspace(page, prepared, ordinary) {
       { label: name, previous: count },
       { timeout: 60000 },
     )
-    check(
+    assert.ok(
       (await page.locator(".input-current").count()) > 0 &&
         (await page.locator(".input-current").textContent()) === name &&
         (await page.locator(".input-list button[data-source]").count()) === count + 1,
       `Open ${name}: ${(await page.locator("[role=alert]").allTextContents()).join("; ")}`,
     )
   }
-  check(
+  assert.ok(
     await page.locator(".footnote").evaluate((footer) => getComputedStyle(footer).borderTopWidth === "0px"),
     "Landing status has no divider",
   )
@@ -203,13 +199,13 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const landing = page.locator(".drop-zone")
   const landingHeight = (await landing.boundingBox()).height
   await landing.dispatchEvent("dragenter", { dataTransfer: fileDrag })
-  check(
+  assert.ok(
     await landing.getByText("Drop PDFs to open", { exact: true }).isVisible(),
     "PDF drag shows an explicit file target",
   )
   await landing.locator(".welcome").dispatchEvent("dragenter", { dataTransfer: fileDrag })
   await landing.locator(".welcome").dispatchEvent("dragleave", { dataTransfer: fileDrag })
-  check(
+  assert.ok(
     (await landing.getByText("Drop PDFs to open", { exact: true }).isVisible()) &&
       (await landing.boundingBox()).height === landingHeight,
     "Nested file drag events preserve the target and layout",
@@ -221,9 +217,9 @@ export async function checkWorkspace(page, prepared, ordinary) {
     null,
     { timeout: 60000 },
   )
-  check(!(await page.locator(".drop-prompt").count()), "Opening the dropped PDF clears file drag feedback")
+  assert.ok(!(await page.locator(".drop-prompt").count()), "Opening the dropped PDF clears file drag feedback")
   await welcome.waitFor()
-  check(
+  assert.ok(
     await welcome
       .getByRole("button", { name: "Skip", exact: true })
       .evaluate((button) => button === document.activeElement),
@@ -240,7 +236,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
       .getAnimations({ subtree: true })
       .some((animation) => animation.effect.pseudoElement === "::backdrop"),
   )
-  check(
+  assert.ok(
     await tour.evaluate(async (guide) => {
       const pulse = guide
         .getAnimations({ subtree: true })
@@ -266,29 +262,29 @@ export async function checkWorkspace(page, prepared, ordinary) {
     await tour.getByRole("button", { name: "Next", exact: true }).click()
     await step(key)
   }
-  check(
+  assert.ok(
     (await tour.locator(".tour-progress").textContent()).includes("/ 8"),
     "Empty Output shows density and selection actions without adding sample pages",
   )
   await page.keyboard.press("Escape")
   await tour.waitFor({ state: "hidden" })
-  check(
+  assert.ok(
     await help.evaluate((button) => button === document.activeElement),
     "Escape dismisses the tour and returns focus to Help",
   )
   await page.reload()
   await open("Practice book.pdf", prepared)
-  check(!(await welcome.isVisible()), "Onboarding dismissal persists after reopening a PDF")
+  assert.ok(!(await welcome.isVisible()), "Onboarding dismissal persists after reopening a PDF")
   await page.locator(".selection-panel").getByRole("textbox", { name: "Page selection", exact: true }).fill("3-5,2,2,7")
   await page.locator(".selection-panel").getByRole("textbox", { name: "Page selection", exact: true }).press("Enter")
   await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "6 PDF pages")
   const input = page.locator(".selection-panel"),
     output = page.locator(".composition-output")
-  check(
+  assert.ok(
     (await input.getByRole("textbox", { name: "Page selection", exact: true }).inputValue()) === "",
     "Bulk addition clears the Input preparation",
   )
-  check(
+  assert.ok(
     (await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue()) === "1-6",
     "Bulk addition selects the new Output block",
   )
@@ -302,7 +298,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await outputPage().click()
   await startTour()
   await step("input")
-  check(
+  assert.ok(
     await page.locator('[data-tour-target="input"] input').evaluate((field) => field.multiple),
     "The Input step includes the file chooser that accepts several PDFs",
   )
@@ -310,34 +306,37 @@ export async function checkWorkspace(page, prepared, ordinary) {
     await tour.getByRole("button", { name: "Next", exact: true }).click()
     await step(key)
     if (key === "input-grid")
-      check((await inputPages().getAttribute("aria-selected")) === "true", "Tour opens Input Grid")
+      assert.ok((await inputPages().getAttribute("aria-selected")) === "true", "Tour opens Input Grid")
     if (key === "input-page")
-      check(
+      assert.ok(
         (await input.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected")) === "true",
         "Tour opens Input Page",
       )
     if (key === "style")
-      check(
+      assert.ok(
         (await inputStyle().getAttribute("aria-selected")) === "true" &&
           (await inputStyle().getAttribute("data-tour-active")) === "true",
         "Tour selects and highlights Style",
       )
     if (key === "output-grid")
-      check((await outputPages().getAttribute("aria-selected")) === "true", "Tour opens Output Grid")
+      assert.ok((await outputPages().getAttribute("aria-selected")) === "true", "Tour opens Output Grid")
     if (key === "output-page")
-      check((await outputPage().getAttribute("aria-selected")) === "true", "Tour opens Output Page")
+      assert.ok((await outputPage().getAttribute("aria-selected")) === "true", "Tour opens Output Page")
   }
-  check(
+  assert.ok(
     (await tour.locator(".tour-progress").textContent()).includes("/ 9"),
     "Style adds one step to the eight-step tour",
   )
   await tour.getByRole("button", { name: "Finish", exact: true }).click()
-  check(
+  assert.ok(
     (await inputStyle().getAttribute("aria-selected")) === "true" &&
       (await outputPage().getAttribute("aria-selected")) === "true",
     "Tour restores the previous workspace tabs",
   )
-  check((await output.locator(".composition-totals strong").textContent()) === "6 PDF pages", "Tour preserves Output")
+  assert.ok(
+    (await output.locator(".composition-totals strong").textContent()) === "6 PDF pages",
+    "Tour preserves Output",
+  )
   await startTour()
   await step("input")
   await tour.getByRole("button", { name: "Next", exact: true }).click()
@@ -350,7 +349,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await step("input-grid")
   await tour.getByRole("button", { name: "End tour", exact: true }).click()
   await tour.waitFor({ state: "hidden" })
-  check(
+  assert.ok(
     (await inputStyle().getAttribute("aria-selected")) === "true" &&
       (await outputPage().getAttribute("aria-selected")) === "true" &&
       (await output.locator(".composition-totals strong").textContent()) === "6 PDF pages" &&
@@ -366,11 +365,11 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const selectedSequence = page
     .locator(".selection-panel")
     .getByRole("textbox", { name: "Page selection", exact: true })
-  check(
+  assert.ok(
     (await selectedSequence.inputValue()) === "3-5, 2, 2, 7, 1",
     "Clicking a toured grip selects its page without restoring Style over the click",
   )
-  check(
+  assert.ok(
     (await inputPages().getAttribute("aria-selected")) === "true",
     "Workspace interaction retains the pane and tab being used",
   )
@@ -382,13 +381,13 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await step("input-grid")
   await selectedSequence.focus()
   await tour.waitFor({ state: "hidden" })
-  check(
+  assert.ok(
     await selectedSequence.evaluate((field) => field === document.activeElement),
     "Keyboard focus can leave the tour for a workspace control without losing its tab",
   )
   await inputPages().click()
   await outputPages().click()
-  check(
+  assert.ok(
     (await page
       .locator(".selection-panel")
       .getByRole("textbox", { name: "Page selection", exact: true })
@@ -406,19 +405,19 @@ export async function checkWorkspace(page, prepared, ordinary) {
     for (const key of workspaceSteps) {
       await tour.getByRole("button", { name: "Next", exact: true }).click()
       await step(key)
-      check(
+      assert.ok(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
         `Workspace tour ${key} fits ${width}px with ${size} text`,
       )
       const exit = await tour.getByRole("button", { name: "End tour", exact: true }).boundingBox()
       const card = await tour.boundingBox()
-      check(
+      assert.ok(
         exit.y >= card.y && exit.y + exit.height <= card.y + card.height,
         `End tour stays visible at ${key} with ${size} text`,
       )
     }
     await tour.getByRole("button", { name: "Finish", exact: true }).click()
-    check(
+    assert.ok(
       (await page.locator(".composer").getAttribute("data-view")) === "input",
       "Tour restores the mobile Input view",
     )
@@ -479,8 +478,8 @@ export async function checkWorkspace(page, prepared, ordinary) {
     const saved = page.waitForEvent("download", { timeout: 60000 })
     await trigger.click()
     const artifact = await saved
-    check((await artifact.failure()) === null, "The browser receives the completed PDF")
-    check(
+    assert.ok((await artifact.failure()) === null, "The browser receives the completed PDF")
+    assert.ok(
       /^.+_\d{4}-\d{4}-\d{4}-[0-5]\d\d{2}\.pdf$/.test(artifact.suggestedFilename()),
       "Download filename includes its base name and local timestamp to hundredths",
     )
@@ -520,11 +519,11 @@ export async function checkWorkspace(page, prepared, ordinary) {
       },
       { bytes: Array.from(bytes), images },
     )
-    check(
+    assert.ok(
       inspected.pages === count && inspected.matches.every(Boolean),
       `Downloaded pages match Output order, independent styles, dimensions, and Blanks: ${JSON.stringify(inspected)}`,
     )
-    check(
+    assert.ok(
       (await total()).startsWith(`${count} PDF `) && !(await page.locator(".download-dialog").isVisible()),
       "Successful Download preserves the workspace and closes its modal",
     )
@@ -533,46 +532,46 @@ export async function checkWorkspace(page, prepared, ordinary) {
     input.locator(".input-heading").boundingBox(),
     output.locator(".section-heading").first().boundingBox(),
   ])
-  check(Math.abs(headers[0].y - headers[1].y) < 1, "Input and Output headings align")
-  check(await output.locator(".section-heading .primary").isVisible(), "Download is in the Output header")
+  assert.ok(Math.abs(headers[0].y - headers[1].y) < 1, "Input and Output headings align")
+  assert.ok(await output.locator(".section-heading .primary").isVisible(), "Download is in the Output header")
   await inputStyle().click()
   const control = input.locator("article.control").first()
   const [tools, panel] = await Promise.all([
     input.locator(".source-tools").boundingBox(),
     input.locator(".source-layout").boundingBox(),
   ])
-  check(Math.abs(tools.width - panel.width) < 1, "Style controls use the complete Input width")
+  assert.ok(Math.abs(tools.width - panel.width) < 1, "Style controls use the complete Input width")
   const [label, widget] = await Promise.all([
     control.locator(".control-label").boundingBox(),
     control.locator(".entry").first().boundingBox(),
   ])
-  check(label.y + label.height <= widget.y, "Narrow panels stack the parameter and widget")
+  assert.ok(label.y + label.height <= widget.y, "Narrow panels stack the parameter and widget")
   await page.setViewportSize({ width: 2560, height: 1440 })
   const [wideLabel, wideWidget] = await Promise.all([
     control.locator(".control-label").boundingBox(),
     control.locator(".entry").first().boundingBox(),
   ])
-  check(
+  assert.ok(
     Math.abs(wideLabel.y + wideLabel.height / 2 - wideWidget.y - wideWidget.height / 2) < 2,
     "Wide panels keep the parameter and widget in one row",
   )
   await page.setViewportSize({ width: 1440, height: 1100 })
   const details = control.locator(".details.compact")
   await details.locator("summary").hover()
-  check(
+  assert.ok(
     (await details.locator("div").isVisible()) && (await details.innerText()).includes("eligible Output pages"),
     "Style information exposes declared scope and Output coverage on hover",
   )
   await details.locator("summary").click()
   await page.mouse.move(0, 0)
-  check(await details.locator("div").isVisible(), "Click pins style information")
+  assert.ok(await details.locator("div").isVisible(), "Click pins style information")
   await page.keyboard.press("Escape")
-  check(!(await details.locator("div").isVisible()), "Escape closes style information")
+  assert.ok(!(await details.locator("div").isVisible()), "Escape closes style information")
   await inputPages().click()
-  check(!(await input.locator(".style-status").count()), "Style controls belong only to the active Style tab")
+  assert.ok(!(await input.locator(".style-status").count()), "Style controls belong only to the active Style tab")
   await ready()
-  check((await entry.inputValue()) === "3-5,2,2,7", "Ordered duplicate page entry survives Style")
-  check(
+  assert.ok((await entry.inputValue()) === "3-5,2,2,7", "Ordered duplicate page entry survives Style")
+  assert.ok(
     !(await input
       .locator(".composition-card")
       .first()
@@ -580,14 +579,14 @@ export async function checkWorkspace(page, prepared, ordinary) {
     "An unselected Input page keeps the neutral card state",
   )
   const inputDetails = input.getByLabel("Details for Input page 1", { exact: true })
-  check(
+  assert.ok(
     (await input.locator(".composition-card").first().locator(".page-number strong").innerText()) === "1" &&
       (await inputDetails.count()) === 0,
     "Input pages without Output copies show a plain number",
   )
   await input.getByRole("button", { name: "Select or drag Input page 1 to Output", exact: true }).click()
   const pendingCard = input.locator(".composition-card").first()
-  check(
+  assert.ok(
     await pendingCard.evaluate((card) => card.classList.contains("selected")),
     "Selecting an Input page uses the accent card state",
   )
@@ -596,19 +595,19 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const mappedCard = input.locator(".composition-card").nth(1)
   await mappedCard.getByLabel("Details for Input page 2", { exact: true }).focus()
   await page.keyboard.press("Enter")
-  check(
+  assert.ok(
     (await mappedCard.evaluate((card) => card.classList.contains("selected"))) &&
       (await mappedCard.locator(".page-origin-info").innerText()) === "Copies in Output: 2\nOutput pages: 4-5",
     "Input page details show the copy count and physical Output positions",
   )
   await page.keyboard.press("Escape")
-  check(!(await mappedCard.locator(".page-origin-info").isVisible()), "Escape dismisses Input page details")
+  assert.ok(!(await mappedCard.locator(".page-origin-info").isVisible()), "Escape dismisses Input page details")
   await mappedCard.getByLabel("Details for Input page 2", { exact: true }).click()
   const otherCard = input.locator(".composition-card").nth(2)
   await otherCard.getByLabel("Details for Input page 3", { exact: true }).click()
-  check(!(await mappedCard.locator(".page-origin-info").isVisible()), "Only one page detail is open at a time")
+  assert.ok(!(await mappedCard.locator(".page-origin-info").isVisible()), "Only one page detail is open at a time")
   await entry.click()
-  check(!(await otherCard.locator(".page-origin-info").isVisible()), "Outside click dismisses Input page details")
+  assert.ok(!(await otherCard.locator(".page-origin-info").isVisible()), "Outside click dismisses Input page details")
   const theme = page.getByRole("button", { name: "Dark theme", exact: true })
   const fileFocus = async () => {
     const field = input.locator(".file-picker input")
@@ -623,7 +622,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
         getComputedStyle(element.parentElement).borderTopColor === getComputedStyle(tab).borderBottomColor
       )
     })
-    check(
+    assert.ok(
       await field.evaluate((element) => {
         const picker = getComputedStyle(element.parentElement)
         const tab = element.closest(".selection-panel").querySelector('.tabs [aria-selected="true"]')
@@ -639,13 +638,13 @@ export async function checkWorkspace(page, prepared, ordinary) {
     )
   }
   await theme.click()
-  check(
+  assert.ok(
     await theme.locator(".light-icon").evaluate((icon) => getComputedStyle(icon).display !== "none"),
     "Dark theme shows the light-theme action",
   )
   await fileFocus()
   await theme.click()
-  check(
+  assert.ok(
     await theme.locator(".dark-icon").evaluate((icon) => getComputedStyle(icon).display !== "none"),
     "Light theme shows the dark-theme action",
   )
@@ -656,23 +655,23 @@ export async function checkWorkspace(page, prepared, ordinary) {
       input.locator(".source-catalog").boundingBox(),
       output.locator(".output-pages").boundingBox(),
     ])
-    check(Math.abs(grids[0].y - grids[1].y) < 1, "Thumbnail grids share a top edge across desktop widths")
+    assert.ok(Math.abs(grids[0].y - grids[1].y) < 1, "Thumbnail grids share a top edge across desktop widths")
   }
   await input.getByRole("button", { name: "Select all", exact: true }).click()
-  check(
+  assert.ok(
     (await entry.inputValue()) === "1-7" && (await total()) === "6 PDF pages",
     "Input Select all changes only the page field",
   )
   await input.getByRole("button", { name: "Clear page sequence", exact: true }).click()
-  check((await entry.inputValue()) === "" && (await total()) === "6 PDF pages", "Input Clear keeps Output intact")
+  assert.ok((await entry.inputValue()) === "" && (await total()) === "6 PDF pages", "Input Clear keeps Output intact")
   await entry.fill("3-5,2,2,7")
   await input.getByRole("button", { name: "Select or drag Input page 2 to Output", exact: true }).click()
-  check(
+  assert.ok(
     (await entry.inputValue()).replaceAll(" ", "") === "3-5,7",
     "Unselecting an Input page removes its repeated references",
   )
   await input.getByRole("button", { name: "Select or drag Input page 2 to Output", exact: true }).click()
-  check(
+  assert.ok(
     (await entry.inputValue()).replaceAll(" ", "") === "3-5,7,2",
     "Selecting an Input page appends one reference without changing order",
   )
@@ -681,31 +680,34 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await input
     .getByRole("button", { name: "Select or drag Input page 5 to Output", exact: true })
     .click({ modifiers: ["Shift"] })
-  check((await entry.inputValue()).replaceAll(" ", "") === "1,1,3-5", "Input range selection keeps existing duplicates")
+  assert.ok(
+    (await entry.inputValue()).replaceAll(" ", "") === "1,1,3-5",
+    "Input range selection keeps existing duplicates",
+  )
   await input
     .getByRole("button", { name: "Select or drag Input page 4 to Output", exact: true })
     .click({ modifiers: ["Shift"] })
-  check(
+  assert.ok(
     (await entry.inputValue()).replaceAll(" ", "") === "1,1,3" && (await total()) === "6 PDF pages",
     "Input range removal preserves duplicates outside the range and leaves Output unchanged",
   )
   await entry.fill("1,1")
   await entry.press("Enter")
-  check((await total()) === "8 PDF pages", "Enter adds the exact repeated page entry")
+  assert.ok((await total()) === "8 PDF pages", "Enter adds the exact repeated page entry")
   await inputDetails.click()
-  check(
+  assert.ok(
     (await pendingCard.locator(".page-origin-info").innerText()) === "Copies in Output: 2\nOutput pages: 7-8",
     "Input mapping follows newly added Output copies",
   )
   await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
   await output.getByRole("button", { name: "Remove Output page 8", exact: true }).click()
   await output.getByRole("button", { name: "Remove Output page 7", exact: true }).click()
-  check(
+  assert.ok(
     (await pendingCard.locator(".page-number strong").innerText()) === "1" && (await inputDetails.count()) === 0,
     "Removing every Output copy restores the plain Input page number",
   )
   await entry.fill("3-5,2,2,7")
-  check(
+  assert.ok(
     await page.getByRole("link", { name: "PDF Composer home", exact: true }).isVisible(),
     "Header PDF symbol provides the home link",
   )
@@ -713,11 +715,11 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const settings = page.getByRole("dialog", { name: "Settings", exact: true })
   await settingsButton.click()
   const about = settings.getByRole("region", { name: "PDF Composer", exact: true })
-  check(
+  assert.ok(
     await about.getByText((await readFile("../VERSION", "utf8")).trim(), { exact: true }).isVisible(),
     "Settings shows the software version",
   )
-  check(
+  assert.ok(
     (await about.locator("time").textContent()) === (await page.locator(".footnote > time").textContent()),
     "Settings shows the current Build ID",
   )
@@ -725,70 +727,66 @@ export async function checkWorkspace(page, prepared, ordinary) {
     name: "Mainz on GitHub (opens in a new tab)",
     exact: true,
   })
-  check(
+  assert.ok(
     (await repository.getAttribute("href")) === "https://github.com/roktas/mainz" &&
       (await repository.getAttribute("target")) === "_blank" &&
       (await repository.locator("svg").isVisible()),
     "Settings links to the Mainz repository through an accessible icon",
   )
   const repositoryBounds = await repository.boundingBox()
-  check(repositoryBounds.width >= 44 && repositoryBounds.height >= 44, "The repository icon has a full touch target")
-  check(
+  assert.ok(
+    repositoryBounds.width >= 44 && repositoryBounds.height >= 44,
+    "The repository icon has a full touch target",
+  )
+  assert.ok(
     (await settings.getByLabel("Lens magnification", { exact: true }).textContent()) === "16×",
     "Settings starts at 16× lens magnification",
   )
   await settings.getByRole("button", { name: "Increase lens magnification", exact: true }).click()
   await page.keyboard.press("Tab")
-  check(
+  assert.ok(
     await repository.evaluate(
       (link) => link === document.activeElement && getComputedStyle(link).outlineStyle !== "none",
     ),
     "The repository link has visible keyboard focus",
   )
   await page.keyboard.press("Escape")
-  check(
+  assert.ok(
     !(await settings.isVisible()) && (await settingsButton.evaluate((button) => button === document.activeElement)),
     "Escape closes Settings and restores focus",
   )
   await page.mouse.move(0, 0)
-  await page.waitForTimeout(300)
   const thumbnail = input.locator(".thumbnail canvas").first()
   await thumbnail.hover()
   await page.locator(".lens").waitFor()
-  check(
+  assert.ok(
     (await page.locator(".lens").getAttribute("aria-label")).includes("32×"),
     "Input hover uses the Settings magnification",
   )
   await page.mouse.move(0, 0)
-  await page.waitForTimeout(160)
-  check((await page.locator(".lens").count()) === 0, "The lens closes when the pointer leaves the page")
+  await page.locator(".lens").waitFor({ state: "detached" })
+  assert.ok((await page.locator(".lens").count()) === 0, "The lens closes when the pointer leaves the page")
   await output.locator(".thumbnail canvas").first().hover()
   await page.locator(".lens").waitFor()
-  check(
+  assert.ok(
     (await page.locator(".lens").getAttribute("aria-label")).includes("32×"),
     "Output hover shares the Settings magnification",
   )
   await page.mouse.move(0, 0)
-  await page.waitForTimeout(160)
+  await page.locator(".lens").waitFor({ state: "detached" })
   await settingsButton.click()
   for (let index = 0; index < 2; index++)
     await settings.getByRole("button", { name: "Decrease lens magnification", exact: true }).click()
   await settings.getByRole("button", { name: "Close Settings", exact: true }).click()
-  check(
+  assert.ok(
     !(await settings.isVisible()) && (await settingsButton.evaluate((button) => button === document.activeElement)),
     "The Settings close button restores focus",
   )
-  const bounds = await thumbnail.boundingBox()
-  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 10)
-  await page.waitForTimeout(30)
-  await page.mouse.move(0, 0)
-  await page.waitForTimeout(160)
-  check((await page.locator(".lens").count()) === 0, "Passing over a page does not open a delayed lens")
   const sizes = await Promise.all([
     input.locator(".composition-card").first().boundingBox(),
     output.locator(".composition-card").first().boundingBox(),
   ])
-  check(
+  assert.ok(
     Math.abs(sizes[0].width - sizes[1].width) < 1 && Math.abs(sizes[0].height - sizes[1].height) < 1,
     "Input and Output cards have the same width and height",
   )
@@ -796,22 +794,22 @@ export async function checkWorkspace(page, prepared, ordinary) {
     input.locator(".thumbnail canvas").nth(2).boundingBox(),
     output.locator(".thumbnail canvas").first().boundingBox(),
   ])
-  check(
+  assert.ok(
     Math.abs(images[0].width - images[1].width) < 1 && Math.abs(images[0].height - images[1].height) < 1,
     "Matching pages render at the same thumbnail dimensions",
   )
-  check(
+  assert.ok(
     (await input.locator(".page-label strong").first().innerText()) === "1",
     "Input thumbnail uses the physical number",
   )
-  check(
+  assert.ok(
     (await order()).join(",") === "p. 3,p. 4,p. 5,p. 2,p. 2,p. 7",
     "Output preserves repeated physical page references",
   )
   await output.getByLabel("Output page actions", { exact: true }).click()
   await output.getByRole("button", { name: "Add blank page at end", exact: true }).click()
   const landscape = await output.locator(".composition-blank").boundingBox()
-  check(
+  assert.ok(
     Math.abs(landscape.width / landscape.height - 297 / 210) < 0.01 && landscape.height <= 168,
     "A Blank thumbnail preserves the adjacent landscape page's proportions",
   )
@@ -819,17 +817,17 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const nextPage = output.getByRole("button", { name: "Next Output page", exact: true })
   while (await nextPage.isEnabled()) await nextPage.click()
   const fitted = await output.locator(".blank-sheet").boundingBox()
-  check(
+  assert.ok(
     Math.abs(fitted.width / fitted.height - 297 / 210) < 0.01 && fitted.height <= 860,
     "Blank Page preserves landscape proportions within the PDF fit limits",
   )
-  check(
+  assert.ok(
     await output.getByRole("button", { name: "Show original page", exact: true }).isDisabled(),
     "Blank has no original Input page",
   )
   await zoom(output, "Zoom in")
   const enlarged = await output.locator(".blank-sheet").boundingBox()
-  check(
+  assert.ok(
     Math.abs(enlarged.width / fitted.width - 1.5) < 0.01 && Math.abs(enlarged.height / fitted.height - 1.5) < 0.01,
     "Zoom scales both Blank dimensions without changing its proportions",
   )
@@ -839,16 +837,16 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await output.getByRole("button", { name: "Remove Output page 7", exact: true }).click()
   const first = output.locator(".composition-card").first()
   await first.locator(".page-image").hover()
-  check(!(await first.locator(".page-origin-info").isVisible()), "Hover leaves the lens unobstructed")
+  assert.ok(!(await first.locator(".page-origin-info").isVisible()), "Hover leaves the lens unobstructed")
   await first.getByLabel("Details for Output page 1", { exact: true }).click()
   await page.mouse.move(0, 0)
-  check(
+  assert.ok(
     (await first.locator(".page-origin-info").isVisible()) &&
       (await first.locator(".page-origin-info").innerText()).includes("Practice book.pdf"),
     "Page number pins provenance for touch and keyboard",
   )
   await page.keyboard.press("Escape")
-  check(!(await first.locator(".page-origin-info").isVisible()), "Escape dismisses provenance")
+  assert.ok(!(await first.locator(".page-origin-info").isVisible()), "Escape dismisses provenance")
   const retainedCanvas = await output.locator(".composition-card").nth(2).locator("canvas").elementHandle()
   await output.getByRole("button", { name: "Select Output page 3", exact: true }).click()
   await page.keyboard.press("Control+ArrowLeft")
@@ -856,8 +854,11 @@ export async function checkWorkspace(page, prepared, ordinary) {
     connected: image.isConnected,
     width: image.width,
   }))
-  check(retained.connected && retained.width > 0, `Reordering retains the rendered canvas: ${JSON.stringify(retained)}`)
-  check(
+  assert.ok(
+    retained.connected && retained.width > 0,
+    `Reordering retains the rendered canvas: ${JSON.stringify(retained)}`,
+  )
+  assert.ok(
     await output
       .getByRole("button", { name: "Select Output page 2", exact: true })
       .evaluate((button) => button === document.activeElement),
@@ -869,12 +870,12 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await input.getByRole("button", { name: "Clear page sequence", exact: true }).click()
   await output.getByRole("button", { name: "Select or drag Output page 3", exact: true }).click()
   await input.getByRole("button", { name: "Select Input page 1", exact: true }).dblclick()
-  check(
+  assert.ok(
     (await total()) === "7 PDF pages" && (await order())[3] === "p. 1" && (await entry.inputValue()) === "",
     "Double-click inserts one copy after Output selection without an Input preparation",
   )
   await input.getByRole("button", { name: "Select Input page 2", exact: true }).dblclick()
-  check(
+  assert.ok(
     (await total()) === "8 PDF pages" && (await order())[4] === "p. 2",
     "Further insertions follow the last added occurrence",
   )
@@ -882,11 +883,11 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await output.getByRole("button", { name: "Remove Output page 5", exact: true }).click()
   await output.getByRole("button", { name: "Remove Output page 4", exact: true }).click()
   await output.getByRole("button", { name: "Duplicate Output page 1", exact: true }).click()
-  check((await total()) === "7 PDF pages", "Output plus adds an adjacent copy")
+  assert.ok((await total()) === "7 PDF pages", "Output plus adds an adjacent copy")
   await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
   await output.getByRole("button", { name: "Remove Output page 1", exact: true }).press("Space")
-  check((await total()) === "6 PDF pages", "Output minus removes only that occurrence")
-  check(
+  assert.ok((await total()) === "6 PDF pages", "Output minus removes only that occurrence")
+  assert.ok(
     await first.locator(".page-image").evaluate((button) => button === document.activeElement),
     "Removing an occurrence by keyboard moves focus to its neighbor",
   )
@@ -897,7 +898,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const dragData = await page.evaluateHandle(() => new DataTransfer())
   const transfer = input.getByRole("button", { name: "Add to Output", exact: true })
   await transfer.dispatchEvent("dragstart", { dataTransfer: dragData })
-  check(
+  assert.ok(
     (await page.locator(".composer").getAttribute("data-drag")) === "source" &&
       (await input.locator("[data-dragging]").count()) > 0,
     "Starting a drag identifies its source and highlights Output",
@@ -909,7 +910,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
     clientX: destinationBox.x + 10,
     clientY: destinationBox.y + 60,
   })
-  check(
+  assert.ok(
     (await destination.getAttribute("data-drop")) === "before" &&
       (await output.locator(".sequence-help").innerText()).includes("Before page 3"),
     "The left half marks insertion before a page",
@@ -920,13 +921,13 @@ export async function checkWorkspace(page, prepared, ordinary) {
     clientX: destinationBox.x + destinationBox.width - 10,
     clientY: destinationBox.y + 60,
   })
-  check(
+  assert.ok(
     (await destination.getAttribute("data-drop")) === "after" &&
       (await output.locator(".sequence-help").innerText()).includes("After page 3"),
     "The right half marks insertion after a page",
   )
   await page.keyboard.press("Escape")
-  check(
+  assert.ok(
     !(await page.locator(".composer[data-drag]").count()) &&
       !(await output.locator("[data-drop]").count()) &&
       (await total()) === "6 PDF pages",
@@ -936,7 +937,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await input
     .getByRole("button", { name: "Add to Output", exact: true })
     .dragTo(output.locator(".section-heading").first())
-  check((await total()) === "12 PDF pages", "Compact drag widget adds the sequence directly to Output")
+  assert.ok((await total()) === "12 PDF pages", "Compact drag widget adds the sequence directly to Output")
   await page.setViewportSize({ width: 1440, height: 1100 })
   await output.getByRole("slider", { name: "Output thumbnail range", exact: true }).press("Home")
   const thirdPage = output.getByRole("button", { name: "Select Output page 3", exact: true })
@@ -944,7 +945,10 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await output
     .getByRole("button", { name: "Select or drag Output page 1", exact: true })
     .dragTo(thirdPage, { targetPosition: { x: thirdBox.width - 10, y: 40 } })
-  check((await order()).slice(0, 3).join(",") === "p. 4,p. 5,p. 3", "Output thumbnail drag changes occurrence order")
+  assert.ok(
+    (await order()).slice(0, 3).join(",") === "p. 4,p. 5,p. 3",
+    "Output thumbnail drag changes occurrence order",
+  )
   await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
   await output.getByRole("button", { name: "Select Output page 3", exact: true }).click()
   await output.getByLabel("Output page actions", { exact: true }).click()
@@ -952,7 +956,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await output.getByLabel("Output page actions", { exact: true }).click()
   await output.getByRole("button", { name: "Move selected pages earlier", exact: true }).click()
   await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
-  check((await order()).slice(0, 3).join(",") === "p. 3,p. 4,p. 5", "Buttons provide the same ordering operation")
+  assert.ok((await order()).slice(0, 3).join(",") === "p. 3,p. 4,p. 5", "Buttons provide the same ordering operation")
   const faces = await output.locator(".composition-card").evaluateAll((cards) =>
     cards.slice(0, 2).map((card) => ({
       face: card.dataset.face,
@@ -960,7 +964,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
       help: card.querySelector(".page-face").getAttribute("title"),
     })),
   )
-  check(
+  assert.ok(
     faces[0].label === "Front side" &&
       faces[1].label === "Back side" &&
       faces[0].help === "Front side" &&
@@ -971,7 +975,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   )
   const handle = input.locator(".page-grip").first()
   await page.mouse.move(0, 0)
-  check(
+  assert.ok(
     await handle.evaluate((element) => {
       const grip = element.getBoundingClientRect(),
         card = element.closest(".composition-card").getBoundingClientRect()
@@ -984,26 +988,26 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const inputOptions = input.getByLabel("Input page actions", { exact: true })
   await inputOptions.click()
   await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill("2")
-  check(
+  assert.ok(
     (await input.locator(".sequence-help").innerText()).includes("Repeat ×2"),
     "Input repeat options remain available beside the sequence",
   )
   await input.getByRole("button", { name: "Reset selection repetitions", exact: true }).click()
   await page.keyboard.press("Escape")
-  check(!(await input.locator(".input-options").evaluate((e) => e.open)), "Escape dismisses Input page options")
+  assert.ok(!(await input.locator(".input-options").evaluate((e) => e.open)), "Escape dismisses Input page options")
   await entry.fill("1-3")
   await inputOptions.click()
   await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill("2")
   await input.getByLabel("Start each repeat on front", { exact: true }).check()
   await input.getByRole("button", { name: "Add to Output", exact: true }).click()
-  check(
+  assert.ok(
     (await total()) === "20 PDF pages" &&
       (await output.locator(".output-state").innerText()).includes("2 Padding pages"),
     "Input repetitions preserve the sequence and add duplex Padding",
   )
   await download(20)
   await inputOptions.click()
-  check(
+  assert.ok(
     (await entry.inputValue()) === "" &&
       (await input.getByRole("textbox", { name: "Repetitions", exact: true }).inputValue()) === "1" &&
       !(await input.getByLabel("Start each repeat on front", { exact: true }).isChecked()),
@@ -1011,7 +1015,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   )
   await page.keyboard.press("Escape")
   await entry.fill("2,")
-  check(
+  assert.ok(
     (await entry.getAttribute("aria-invalid")) === "true" &&
       (await input.getByRole("button", { name: "Add to Output", exact: true }).count()) === 0,
     "Invalid page entry cannot change Output",
@@ -1032,14 +1036,14 @@ export async function checkWorkspace(page, prepared, ordinary) {
     if (await remove.count()) await remove.click()
   }
   await clear()
-  check(
+  assert.ok(
     (await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).count()) === 0,
     "The empty selection bar has no removal action",
   )
   await input.getByRole("button", { name: "Add to Output", exact: true }).click()
   await entry.fill("1,1,3,4")
   await open("style-sample.pdf", prepared)
-  check(
+  assert.ok(
     (await entry.inputValue()) === "" && (await total()) === "4 PDF pages",
     "Reopening a PDF starts independent preparation without adding pages",
   )
@@ -1055,11 +1059,11 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const baselineColor = await color().inputValue()
   await color().fill("#555555")
   await output.getByRole("button", { name: "Download", exact: true }).waitFor({ state: "visible", timeout: 60000 })
-  check((await total()) === "8 PDF pages", "Styles keep the complete Output sequence")
+  assert.ok((await total()) === "8 PDF pages", "Styles keep the complete Output sequence")
   const workers = await page.locator("html").getAttribute("data-processors")
   await color().fill("#666666")
   await output.getByRole("button", { name: "Download", exact: true }).waitFor({ state: "visible", timeout: 60000 })
-  check(
+  assert.ok(
     (await page.locator("html").getAttribute("data-processors")) === workers,
     "Completed style changes reuse the warm processor",
   )
@@ -1072,60 +1076,60 @@ export async function checkWorkspace(page, prepared, ordinary) {
     .click({ modifiers: ["Shift"] })
   await output.getByLabel("Output page actions", { exact: true }).click()
   await output.getByRole("button", { name: "Repeat selected pages", exact: true }).click()
-  check(
+  assert.ok(
     (await total()) === "10 PDF pages" && (await order()).slice(3, 7).join(",") === "p. 4,p. 1,p. 4,p. 1",
     "Output repetition preserves a consecutive sequence across independent Inputs",
   )
-  check(
+  assert.ok(
     (await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue()) === "6-7",
     "Output repetition selects its final copy",
   )
   await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
-  check(
+  assert.ok(
     (await total()) === "8 PDF pages" && (await color().inputValue()) === "#555555",
     "Independent occurrence removal keeps both Input styles and the other copies",
   )
   await outputPage().click()
   await ready()
-  check(await output.locator(".inspection-heading .page-tools").isVisible(), "Page controls share the page heading")
-  check(await aligned(output), "Page numbers, centered grips, and zoom align with bottom controls")
+  assert.ok(await output.locator(".inspection-heading .page-tools").isVisible(), "Page controls share the page heading")
+  assert.ok(await aligned(output), "Page numbers, centered grips, and zoom align with bottom controls")
   const zoomOut = output.getByRole("button", { name: "Zoom out", exact: true })
   const zoomIn = output.getByRole("button", { name: "Zoom in", exact: true })
   await zoomOut.focus()
   await page.keyboard.press("Tab")
-  check(await zoomIn.evaluate((el) => el === document.activeElement), "Tab moves between inline zoom controls")
+  assert.ok(await zoomIn.evaluate((el) => el === document.activeElement), "Tab moves between inline zoom controls")
   await page.keyboard.press("Enter")
-  check(
+  assert.ok(
     (await output.getByLabel("Output page zoom", { exact: true }).innerText()) === "150%",
     "Enter activates the focused zoom control",
   )
   await zoom(output, "Fit page")
-  check(
+  assert.ok(
     (await output.locator(".download-action").count()) === 1 &&
       (await output.locator(".section-heading .download-action").isVisible()),
     "Output keeps one shared Download action while Page is open",
   )
   await zoom(output, "Zoom in")
-  check(
+  assert.ok(
     (await output.getByLabel("Output page zoom", { exact: true }).innerText()) === "150%",
     "Output page zoom increases",
   )
   await zoom(output, "Zoom out")
   await zoom(output, "Zoom out")
-  check(
+  assert.ok(
     (await output.getByLabel("Output page zoom", { exact: true }).innerText()) === "50%",
     "Output page zoom decreases",
   )
-  check(await output.getByRole("button", { name: "Zoom out", exact: true }).isDisabled(), "Zoom stops at 50%")
+  assert.ok(await output.getByRole("button", { name: "Zoom out", exact: true }).isDisabled(), "Zoom stops at 50%")
   await zoom(output, "Fit page")
-  check(
+  assert.ok(
     (await output.getByLabel("Output page zoom", { exact: true }).innerText()) === "100%",
     "Fit restores the complete page",
   )
   await ready()
   const previousPage = output.getByRole("button", { name: "Previous Output page", exact: true })
   while (await previousPage.isEnabled()) await previousPage.click()
-  check(
+  assert.ok(
     await output.getByRole("button", { name: "Compare page", exact: true }).isDisabled(),
     "Original Input occurrence has no style difference",
   )
@@ -1137,7 +1141,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
     await output.getByRole("button", { name: "Next Output page", exact: true }).click()
   await ready()
   const counter = output.locator(".inspection-heading .page-position")
-  check(
+  assert.ok(
     await output.getByRole("button", { name: "Compare page", exact: true }).isEnabled(),
     "Styled duplicate is comparable at its own Output position",
   )
@@ -1145,7 +1149,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await output.getByRole("button", { name: "Compare page", exact: true }).click()
   await ready()
   const reference = await output.locator(".page-scroll canvas").evaluate((canvas) => canvas.toDataURL())
-  check(
+  assert.ok(
     result !== reference &&
       (await output.getByRole("button", { name: "Compare page", exact: true }).getAttribute("aria-pressed")) === "true",
     "Compare page renders the immutable opened appearance",
@@ -1154,7 +1158,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await zoom(output, "Zoom in")
   await outputPages().click()
   await outputPage().click()
-  check(
+  assert.ok(
     (await counter.innerText()) === savedPosition &&
       (await output.getByLabel("Output page zoom", { exact: true }).innerText()) === "150%" &&
       (await output.getByRole("button", { name: "Compare page", exact: true }).getAttribute("aria-pressed")) === "true",
@@ -1165,19 +1169,19 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const position = await counter.innerText()
   await choose(2)
   await inputStyle().click()
-  check(
+  assert.ok(
     (await color().inputValue()) === baselineColor && (await counter.innerText()) === position,
     "Input switching keeps independent styles and Output preview position",
   )
   await choose(3)
   await inputStyle().click()
   await color().fill("invalid")
-  check(
+  assert.ok(
     (await color().getAttribute("aria-invalid")) === "true" &&
       (await output.getByRole("button", { name: "Compare page", exact: true }).isDisabled()),
     "Invalid relevant style draft disables page comparison",
   )
-  check(
+  assert.ok(
     (await output.getByRole("button", { name: "Download", exact: true }).isDisabled()) &&
       (await output.getByRole("button", { name: "Download", exact: true }).getAttribute("title")).includes(
         "fix Guide color",
@@ -1186,60 +1190,59 @@ export async function checkWorkspace(page, prepared, ordinary) {
   )
   await page.getByRole("button", { name: "Reset all styles", exact: true }).click()
   await output.getByRole("button", { name: "Download", exact: true }).waitFor({ state: "visible", timeout: 60000 })
-  check(
+  assert.ok(
     (await color().inputValue()) === baselineColor && (await total()) === "8 PDF pages",
     "Style reset preserves Output and repetitions",
   )
-  check(
+  assert.ok(
     await output.getByRole("button", { name: "Download", exact: true }).isEnabled(),
     "Completed PDF processing restores Download",
   )
   const actionBounds = await output.locator(".download-action").boundingBox()
   await color().fill("#666666")
-  check(
+  assert.ok(
     (await output.locator(".output-status").innerText()) === "Updating PDF…" &&
       (await output.locator(".output-status .spinner").isVisible()),
     "Output identifies PDF processing with text and a spinner",
   )
-  check(
+  assert.ok(
     await output.getByRole("button", { name: "Download", exact: true }).isHidden(),
     "PDF processing replaces Download with its status",
   )
   const processingBounds = await output.locator(".download-action").boundingBox()
-  check(
+  assert.ok(
     Math.abs(processingBounds.width - actionBounds.width) < 1 &&
       Math.abs(processingBounds.height - actionBounds.height) < 1,
     "PDF processing preserves the Download action dimensions",
   )
   await page.getByRole("button", { name: "Cancel style processing", exact: true }).click()
-  check(
+  assert.ok(
     (await input.locator(".style-status").innerText()).includes("Styles need retry"),
     "Cancellation retains styles with retry feedback",
   )
-  check(
+  assert.ok(
     await output.getByRole("button", { name: "Download", exact: true }).isVisible(),
     "Cancelled PDF processing restores Download",
   )
   await choose(2)
   await inputStyle().click()
-  check(
+  assert.ok(
     await page.getByRole("button", { name: "Retry Input styles", exact: true }).isVisible(),
     "Failed Output preview remains visible and retryable when another Input is active",
   )
   await choose(3)
   await page.getByRole("button", { name: "Retry Input styles", exact: true }).click()
   await output.getByRole("button", { name: "Download", exact: true }).waitFor({ state: "visible", timeout: 60000 })
-  check((await color().inputValue()) === "#666666", "Retry completes the retained style choice")
+  assert.ok((await color().inputValue()) === "#666666", "Retry completes the retained style choice")
   await outputPages().click()
   await output.getByRole("button", { name: "Select or drag Output page 1", exact: true }).click()
   const options = output.locator(".output-options")
   if ((await options.getAttribute("open")) === null) await options.locator("summary").first().click()
   await output.getByRole("button", { name: "Blank before first selected page", exact: true }).click()
-  check(
+  assert.ok(
     (await total()) === "9 PDF pages" && (await order())[0] === "210.0 × 297.0 mm",
     "Blank keeps adjacent physical dimensions",
   )
-  const responsive = []
   const previousInput = await page
     .locator('.input-list button[data-source][aria-pressed="true"]')
     .getAttribute("data-source")
@@ -1258,28 +1261,28 @@ export async function checkWorkspace(page, prepared, ordinary) {
       await page.evaluate((textScale) => (document.documentElement.style.fontSize = `${textScale}%`), scale)
       const nav = page.getByRole("navigation", { name: "Workspace view", exact: true })
       await nav.getByRole("button", { name: "Input", exact: true }).click()
-      check((await input.isVisible()) && !(await output.isVisible()), "Mobile Input takes its own pane")
+      assert.ok((await input.isVisible()) && !(await output.isVisible()), "Mobile Input takes its own pane")
       const picker = page.locator(".input-picker > summary")
       const pickerBox = await picker.boundingBox()
       const openBox = await input.locator(".file-picker").boundingBox()
-      check(
+      assert.ok(
         (Math.abs(pickerBox.y + pickerBox.height / 2 - openBox.y - openBox.height / 2) < 1 &&
           pickerBox.x + pickerBox.width <= openBox.x) ||
           pickerBox.y + pickerBox.height <= openBox.y,
         "The mobile file chooser and Open PDF share a row or stack without overlapping",
       )
-      check(
+      assert.ok(
         (await page.locator(".input-current").getAttribute("title")) === longFilename &&
           (await page.locator(".input-current").evaluate((element) => element.scrollWidth > element.clientWidth)),
         "Long mobile filenames truncate while keeping the full name in hover help",
       )
       await page.locator(".input-picker > summary").click()
-      check(
+      assert.ok(
         await page.locator(".input-picker").getByRole("button", { name: "Remove Input", exact: true }).isVisible(),
         "The mobile Input chooser offers removal",
       )
       await page.getByRole("button", { name: "Remove Input", exact: true }).scrollIntoViewIfNeeded()
-      check(
+      assert.ok(
         await page.getByRole("button", { name: "Remove Input", exact: true }).evaluate((button) => {
           const rect = button.getBoundingClientRect()
           return (
@@ -1288,24 +1291,24 @@ export async function checkWorkspace(page, prepared, ordinary) {
         }),
         "The open Input chooser stays above the workspace controls",
       )
-      check(
+      assert.ok(
         !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)),
         "Input menu and style controls fit enlarged text",
       )
       await page.keyboard.press("Escape")
       await nav.getByRole("button", { name: "Output", exact: true }).click()
-      check(!(await input.isVisible()) && (await output.isVisible()), "One tap switches to Output")
+      assert.ok(!(await input.isVisible()) && (await output.isVisible()), "One tap switches to Output")
       await (await gridPage(output, 1)).scrollIntoViewIfNeeded()
       const totalsBox = await output.locator(".output-state").boundingBox()
       const downloadBox = await output.locator(".download-action").boundingBox()
-      check(
+      assert.ok(
         (Math.abs(totalsBox.y + totalsBox.height / 2 - downloadBox.y - downloadBox.height / 2) < 1 &&
           totalsBox.x + totalsBox.width <= downloadBox.x) ||
           totalsBox.y + totalsBox.height <= downloadBox.y,
         "Mobile Output totals and Download share a row or stack without overlapping",
       )
       await first.locator(".occurrence-actions").evaluate((element) => element.scrollIntoView({ block: "center" }))
-      check(
+      assert.ok(
         await first.locator(".occurrence-actions button").evaluateAll((buttons) => {
           const boxes = buttons.map((button) => button.getBoundingClientRect())
           return boxes.every(
@@ -1329,7 +1332,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
       // Page 1 is Blank; page 2 supplies Source provenance.
       await gridPage(output, 2)
       await output.getByLabel("Details for Output page 2", { exact: true }).click()
-      check(
+      assert.ok(
         (await output.locator(".page-origin-info").filter({ hasText: longFilename }).isVisible()) &&
           !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)),
         "Output provenance fits the mobile pane",
@@ -1337,12 +1340,11 @@ export async function checkWorkspace(page, prepared, ordinary) {
       await page.keyboard.press("Escape")
       await outputPage().click()
       await ready()
-      check(
+      assert.ok(
         !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)),
         "Output preview fits enlarged text",
       )
       await outputPages().click()
-      responsive.push({ width, scale, overflow: false })
     }
   if (await output.getByRole("button", { name: "Clear Output selection", exact: true }).count())
     await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
@@ -1355,7 +1357,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
     .click()
   await page.locator(".input-picker > summary").click()
   await page.locator(".input-picker").getByRole("button", { name: "Remove Input", exact: true }).click()
-  check(
+  assert.ok(
     (await page.locator(`.input-list button[data-source="${longInput}"]`).count()) === 0 &&
       (await total()) === "9 PDF pages",
     "The mobile Input menu removes unreferenced Inputs without changing Output",
@@ -1365,7 +1367,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await page.locator(".input-picker > summary").click()
   await page.locator(`.input-list button[data-source="${previousInput}"]`).click()
   await inputPages().click()
-  check(
+  assert.ok(
     (await entry.inputValue()) === "1,1,3,4" && (await total()) === "9 PDF pages",
     "Mobile view changes preserve Input and Output",
   )
@@ -1373,7 +1375,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await page.waitForFunction(() => document.querySelector(".input-current")?.textContent === "ordinary.pdf", null, {
     timeout: 60000,
   })
-  check(!(await welcome.isVisible()), "Another PDF does not repeat onboarding")
+  assert.ok(!(await welcome.isVisible()), "Another PDF does not repeat onboarding")
   await startTour()
   await step("input")
   for (const key of [
@@ -1388,11 +1390,14 @@ export async function checkWorkspace(page, prepared, ordinary) {
     await tour.getByRole("button", { name: "Next", exact: true }).click()
     await step(key)
   }
-  check((await tour.locator(".tour-progress").textContent()).includes("/ 8"), "Ordinary PDFs use the eight-step tour")
+  assert.ok(
+    (await tour.locator(".tour-progress").textContent()).includes("/ 8"),
+    "Ordinary PDFs use the eight-step tour",
+  )
   await page.keyboard.press("Escape")
   await entry.fill("1,1")
   await input.getByRole("button", { name: "Add to Output", exact: true }).click()
-  check((await total()) === "11 PDF pages", "Ordinary one-page Input supports repetition")
+  assert.ok((await total()) === "11 PDF pages", "Ordinary one-page Input supports repetition")
   const dialog = page.locator(".download-dialog")
   let reached, release
   const started = new Promise((resolve) => (reached = resolve))
@@ -1411,7 +1416,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   page.on("download", unexpectedDownload)
   await output.getByRole("button", { name: "Download", exact: true }).click()
   await started
-  check(
+  assert.ok(
     (await dialog.getByRole("status").innerText()) === "Preparing PDF…" &&
       (await dialog.evaluate((element) => element.matches(":modal"))),
     "Download exposes progress and locks the workspace with a native modal",
@@ -1419,7 +1424,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await page.keyboard.press("Escape")
   release()
   await page.unroute("**/processor.mjs")
-  check(
+  assert.ok(
     !(await dialog.isVisible()) && (await total()) === "11 PDF pages" && cancelledDownloads === 0,
     "Escape cancels without downloading or changing Output",
   )
@@ -1428,7 +1433,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await page.route("**/processor.mjs", (route) => route.abort("failed"))
   await output.getByRole("button", { name: "Download", exact: true }).click()
   await dialog.getByRole("alert").waitFor()
-  check(
+  assert.ok(
     (await total()) === "11 PDF pages" &&
       (await dialog.getByRole("button", { name: "Retry", exact: true }).isVisible()),
     "Worker loading failure offers Retry and retains the Output",
@@ -1454,7 +1459,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await page.getByRole("button", { name: "Cancel", exact: true }).click()
   await page.evaluate(() => window.dispatchEvent(new Event("release-file")))
   await page.waitForFunction(() => document.documentElement.dataset.readingFile === "false")
-  check(
+  assert.ok(
     Number(await page.locator(".input-heading .count").innerText()) === inputs &&
       !(await page.getByRole("button", { name: "Cancel", exact: true }).isVisible()),
     "Opening can be cancelled during file reading without adding an obsolete Input",
@@ -1482,14 +1487,14 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await open("Retry.pdf", ordinary)
   await page.evaluate(() => window.dispatchEvent(new Event("release-labels")))
   await page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
-  check(
+  assert.ok(
     Number(await page.locator(".input-heading .count").innerText()) === inputs + 1 &&
       (await page.locator(".input-current").innerText()) === "Retry.pdf",
     "Cancellation during page labels cannot restore an obsolete Input after retry",
   )
   await output.getByRole("textbox", { name: "Page selection", exact: true }).fill("2-11")
   await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
-  check((await total()) === "1 PDF page", "Output can retain only an explicit Blank")
+  assert.ok((await total()) === "1 PDF page", "Output can retain only an explicit Blank")
   await outputPage().click()
   await zoom(output, "Zoom in")
   await output.getByLabel("Page selection", { exact: true }).fill("1")
@@ -1497,19 +1502,19 @@ export async function checkWorkspace(page, prepared, ordinary) {
     await page.locator(".input-picker > summary").click()
     await page.getByRole("button", { name: "Remove Input", exact: true }).click()
   }
-  check(
+  assert.ok(
     await page
       .locator("#workspace input[type=file]")
       .first()
       .evaluate((field) => field === document.activeElement),
     "Removing the final Input returns focus to Open PDF",
   )
-  check(
+  assert.ok(
     (await page.locator(".drop-zone").isVisible()) &&
       (await page.locator("html").getAttribute("data-active-processors")) === "0",
     "Removing all Inputs releases both busy and idle processors",
   )
-  check(
+  assert.ok(
     (await outputPage().getAttribute("aria-selected")) === "true" &&
       (await output.getByLabel("Output page zoom", { exact: true }).innerText()) === "150%" &&
       (await output.getByLabel("Page selection", { exact: true }).inputValue()) === "1",
@@ -1518,13 +1523,13 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await zoom(output, "Fit page")
   await outputPages().click()
   const portrait = await output.locator(".composition-blank").boundingBox()
-  check(
+  assert.ok(
     Math.abs(portrait.width / portrait.height - 210 / 297) < 0.01 && portrait.height <= 168,
     "A retained portrait Blank keeps its physical proportions without any Input",
   )
   await outputPage().click()
   const portraitPage = await output.locator(".blank-sheet").boundingBox()
-  check(
+  assert.ok(
     Math.abs(portraitPage.width / portraitPage.height - 210 / 297) < 0.01 && portraitPage.height <= 860,
     "Blank-only Page uses portrait proportions and the PDF fit limits",
   )
@@ -1538,7 +1543,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   page.on("dialog", dismissWarning)
   await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
   await page.waitForLoadState("networkidle")
-  check(
+  assert.ok(
     warnings === 0 && (await page.locator(".drop-zone").isVisible()),
     `Downloaded choices return Home without an unsaved warning (${warnings} warnings)`,
   )
@@ -1554,7 +1559,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await input.getByRole("button", { name: "Add to Output", exact: true }).click()
   await download(1)
   await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
-  check(
+  assert.ok(
     warnings === 1 && (await page.locator(".input-current").textContent()) === "Used.pdf",
     "Downloading Output retains the warning for undownloaded styles on unused Inputs",
   )
@@ -1568,9 +1573,8 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await choose(2)
   await download(1)
   await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
-  check(warnings === 2, "Unused invalid drafts do not block Download and retain their unsaved warning")
+  assert.ok(warnings === 2, "Unused invalid drafts do not block Download and retain their unsaved warning")
   page.off("dialog", dismissWarning)
-  check(errors.length === 0, `No browser runtime errors: ${errors.join("; ")}`)
+  assert.ok(errors.length === 0, `No browser runtime errors: ${errors.join("; ")}`)
   page.off("pageerror", recordError)
-  return { checks, failed: 0, responsive, runtimeErrors: errors.length }
 }

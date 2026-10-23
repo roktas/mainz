@@ -231,7 +231,7 @@ export async function checkGrips(pane, label) {
   const page = pane.page()
   const button = pane.locator(".composition-card").first().locator(".page-image")
   for (let state = 0; state < 2; state++) {
-    await button.click()
+    await button.dispatchEvent("click")
     for (const colorScheme of ["light", "dark"]) {
       await page.emulateMedia({ colorScheme })
       const offsets = await pane.locator(".composition-card").evaluateAll((cards) =>

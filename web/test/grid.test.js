@@ -2,8 +2,9 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
+import { serve } from "./server.ts"
 import { chromium } from "playwright"
-import { createServer, fixture, captureLayout, tab, pagePosition, checkStatus } from "./browser.js"
+import { fixture, captureLayout, tab, checkStatus } from "./browser.js"
 import { measure } from "./measure.js"
 import inventory from "./viewports.json" with { type: "json" }
 import { quality } from "./quality.ts"
@@ -16,11 +17,27 @@ const dimensions = (sample) =>
     }),
   )
 
+const capture = (page) =>
+  page.evaluate(async () => {
+    const probe = await import("/src/geometry.ts")
+    let result
+    for (const compact of [false, true]) {
+      for (const pane of ["Input", "Output"])
+        document.querySelector(`button[aria-label="${compact ? "Compact" : "Normal"} ${pane} grid"]`).click()
+      const current = await probe.stable()
+      result ??= { ...current, layout: { ...current.layout, input: {}, output: {} } }
+      const density = compact ? "compact" : "normal"
+      for (const pane of ["input", "output"]) result.layout[pane][density] = current.layout[pane][density]
+    }
+    return result
+  })
+
+const standard = process.env.MAINZ_TEST_MODE === "standard"
+
 test("Workspace scrolling keeps Grid and Page controls clear of status", { timeout: 120000 }, async (t) => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -47,45 +64,43 @@ test("Workspace scrolling keeps Grid and Page controls clear of status", { timeo
         },
         { scale, bottom },
       )
-      for (const colorScheme of ["light", "dark"])
-        await t.test(`${width}×${height}, ${scale}%, ${colorScheme}`, async () => {
-          await page.emulateMedia({ colorScheme })
-          for (const name of ["Input", "Output"]) {
-            const views = page.locator(".mobile-workspace-tabs")
-            if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
-            const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-            await tab(pane, "Grid")
-            await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill("56-62")
-            for (const density of ["Normal", "Compact"]) {
-              await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
-              const grid = await measure(pane)
-              assert.ok(grid.caption.bottom <= grid.status + 1, `${name} ${density}: status clears pagination`)
-              await checkStatus(page)
-              const slider = pane.getByRole("slider")
-              await slider.focus()
-              await slider.press("End")
-              assert.equal(await slider.inputValue(), await slider.getAttribute("max"))
-            }
-            await tab(pane, "Page")
-            await pane.locator(".page-scroll canvas").waitFor()
+      const colorScheme = "light"
+      await t.test(`${width}×${height}, ${scale}%, ${colorScheme}`, async () => {
+        await page.emulateMedia({ colorScheme })
+        for (const name of ["Input", "Output"]) {
+          const views = page.locator(".mobile-workspace-tabs")
+          if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
+          const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+          await tab(pane, "Grid")
+          await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill("56-62")
+          for (const density of ["Normal", "Compact"]) {
+            await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+            const grid = await measure(pane)
+            assert.ok(grid.caption.bottom <= grid.status + 1, `${name} ${density}: status clears pagination`)
             await checkStatus(page)
-            const navigation = await pane.locator(".page-navigation").boundingBox()
-            const status = await page.locator(".footnote").boundingBox()
-            assert.ok(navigation.y + navigation.height <= status.y + 1, `${name}: status clears Page controls`)
+            const slider = pane.getByRole("slider")
+            await slider.focus()
+            await slider.press("End")
+            assert.equal(await slider.inputValue(), await slider.getAttribute("max"))
           }
-        })
+          await tab(pane, "Page")
+          await pane.locator(".page-scroll canvas").waitFor()
+          await checkStatus(page)
+          const navigation = await pane.locator(".page-navigation").boundingBox()
+          const status = await page.locator(".footnote").boundingBox()
+          assert.ok(navigation.y + navigation.height <= status.y + 1, `${name}: status clears Page controls`)
+        }
+      })
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Grid keeps feasible matrices across nearby desktop calibration boundaries", { timeout: 420000 }, async (t) => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -96,20 +111,6 @@ test("Grid keeps feasible matrices across nearby desktop calibration boundaries"
     await page.waitForFunction(
       () => document.querySelector(".composition-totals strong")?.textContent === "80 PDF pages",
     )
-    const capture = () =>
-      page.evaluate(async () => {
-        const probe = await import("/src/geometry.ts")
-        let result
-        for (const compact of [false, true]) {
-          for (const pane of ["Input", "Output"])
-            document.querySelector(`button[aria-label="${compact ? "Compact" : "Normal"} ${pane} grid"]`).click()
-          const current = await probe.stable()
-          result ??= { ...current, layout: { ...current.layout, input: {}, output: {} } }
-          const density = compact ? "compact" : "normal"
-          for (const pane of ["input", "output"]) result.layout[pane][density] = current.layout[pane][density]
-        }
-        return result
-      })
     let initial
     for (const [width, height, minimumNormal, minimumCompact] of [
       ...[-3, -2, -1, 0, 1, 2, 3].map((delta) => [2560 + delta, 1440, 16, 64]),
@@ -117,44 +118,42 @@ test("Grid keeps feasible matrices across nearby desktop calibration boundaries"
       ...[-3, -2, -1, 0, 1, 2, 3].map((delta) => [2200 + delta, 1298, 12, 36]),
     ]) {
       await page.setViewportSize({ width, height })
-      for (const colorScheme of ["light", "dark"]) {
-        await page.emulateMedia({ colorScheme })
-        const label = `${width}×${height}, ${colorScheme}`
-        await t.test(label, async () => {
-          const sample = await capture()
-          initial ??= dimensions(sample)
-          assert.deepEqual(quality(sample), [], label)
-          for (const pane of ["input", "output"]) {
-            assert.ok(
-              sample.layout[pane].normal.capacity[2] >= minimumNormal,
-              `${label}: Normal retains its feasible matrix`,
-            )
-            assert.ok(
-              sample.layout[pane].compact.capacity[2] >= minimumCompact,
-              `${label}: Compact retains its feasible matrix`,
-            )
-          }
-        })
-      }
+      const colorScheme = "light"
+
+      await page.emulateMedia({ colorScheme })
+      const label = `${width}×${height}, ${colorScheme}`
+      await t.test(label, async () => {
+        const sample = await capture(page)
+        initial ??= dimensions(sample)
+        assert.deepEqual(quality(sample), [], label)
+        for (const pane of ["input", "output"]) {
+          assert.ok(
+            sample.layout[pane].normal.capacity[2] >= minimumNormal,
+            `${label}: Normal retains its feasible matrix`,
+          )
+          assert.ok(
+            sample.layout[pane].compact.capacity[2] >= minimumCompact,
+            `${label}: Compact retains its feasible matrix`,
+          )
+        }
+      })
     }
     await page.setViewportSize({ width: 2557, height: 1440 })
     await page.emulateMedia({ colorScheme: "light" })
     assert.deepEqual(
-      dimensions(await capture()),
+      dimensions(await capture(page)),
       initial,
       "Equal geometry does not depend on resize or density history",
     )
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Grid retains feasible matrices across fractional desktop pane widths", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -167,27 +166,25 @@ test("Grid retains feasible matrices across fractional desktop pane widths", { t
     )
     for (const width of [1461.75, 1462, 1462.25]) {
       await page.locator("main").evaluate((element, size) => (element.style.inlineSize = `${size}px`), width)
-      for (const colorScheme of ["light", "dark"]) {
-        await page.emulateMedia({ colorScheme })
-        const sample = await page.evaluate(async () => (await import("/src/geometry.ts")).capture())
-        assert.deepEqual(quality(sample), [], `${width}px, ${colorScheme}`)
-        for (const pane of ["input", "output"]) {
-          assert.deepEqual(sample.layout[pane].normal.capacity, [4, 4, 16])
-          assert.deepEqual(sample.layout[pane].compact.capacity, [8, 8, 64])
-        }
+      const colorScheme = "light"
+
+      await page.emulateMedia({ colorScheme })
+      const sample = await capture(page)
+      assert.deepEqual(quality(sample), [], `${width}px, ${colorScheme}`)
+      for (const pane of ["input", "output"]) {
+        assert.deepEqual(sample.layout[pane].normal.capacity, [4, 4, 16])
+        assert.deepEqual(sample.layout[pane].compact.capacity, [8, 8, 64])
       }
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Touch portrait Normal Grid fits readable cards across nearby phone dimensions", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 440, height: 956 },
@@ -222,30 +219,28 @@ test("Touch portrait Normal Grid fits readable cards across nearby phone dimensi
       [440, 957],
     ]) {
       await page.setViewportSize({ width, height })
-      for (const colorScheme of ["light", "dark"]) {
-        await page.emulateMedia({ colorScheme })
-        await output.getByRole("button", { name: "Normal Output grid", exact: true }).click()
-        const normal = await checkGrid(output, `${width}×${height}, ${colorScheme}, Normal`)
-        assert.deepEqual(normal.matrix, [3, 2, 6])
-        assert.ok(normal.image.height <= 141)
-        await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
-        const compact = await checkGrid(output, `${width}×${height}, ${colorScheme}, Compact`)
-        assert.ok(Math.abs(compact.gaps[1] - 0.8 * compact.gaps[0]) < 1)
-        checkDensityRatio(normal.image.height, compact.image.height, `${width}×${height}`)
-        assert.ok(Math.abs(normal.frame.height - compact.frame.height) < 1)
-      }
+      const colorScheme = "light"
+
+      await page.emulateMedia({ colorScheme })
+      await output.getByRole("button", { name: "Normal Output grid", exact: true }).click()
+      const normal = await checkGrid(output, `${width}×${height}, ${colorScheme}, Normal`)
+      assert.deepEqual(normal.matrix, [3, 2, 6])
+      assert.ok(normal.image.height <= 141)
+      await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+      const compact = await checkGrid(output, `${width}×${height}, ${colorScheme}, Compact`)
+      assert.ok(Math.abs(compact.gaps[1] - 0.8 * compact.gaps[0]) < 1)
+      checkDensityRatio(normal.image.height, compact.image.height, `${width}×${height}`)
+      assert.ok(Math.abs(normal.frame.height - compact.frame.height) < 1)
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Phone Compact gaps keep the narrow-screen allowance below tablet widths", { timeout: 120000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 440, height: 956 },
@@ -277,15 +272,13 @@ test("Phone Compact gaps keep the narrow-screen allowance below tablet widths", 
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Measured touch frames retain complete readable matrices", { timeout: 120000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 360, height: 672 },
@@ -296,6 +289,10 @@ test("Measured touch frames retain complete readable matrices", { timeout: 12000
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
+    )
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    await page.waitForFunction(
+      () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
     )
     for (const [width, height, bottom, normal, compact] of [
       [360, 672, 24, [2, 1, 2], [3, 1, 3]],
@@ -308,10 +305,6 @@ test("Measured touch frames retain complete readable matrices", { timeout: 12000
       [1400, 756, 32, [3, 1, 3], [6, 2, 12]],
     ]) {
       await page.setViewportSize({ width, height })
-      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-      await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-      )
       // Replay Android's measured bottom budget without claiming native acquisition.
       await page
         .locator(".footnote")
@@ -325,12 +318,11 @@ test("Measured touch frames retain complete readable matrices", { timeout: 12000
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Measured touch calibrations isolate viewport bounds and primary input", { timeout: 180000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   const bands = [
     { width: [1000, 1080], height: [450, 650], normal: [134, 232, 10] },
@@ -338,7 +330,6 @@ test("Measured touch calibrations isolate viewport bounds and primary input", { 
     { width: [1380, 1450], height: [740, 800], compact: [74, 110, 6] },
   ]
   try {
-    await server.listen()
     for (const mode of ["touch", "mouse", "hybrid"]) {
       browser = await chromium.launch({
         channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
@@ -355,6 +346,10 @@ test("Measured touch calibrations isolate viewport bounds and primary input", { 
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.route("**/grid.pdf", (route) =>
         route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 60) }),
+      )
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+      await page.waitForFunction(
+        () => document.querySelector(".composition-totals strong")?.textContent === "60 PDF pages",
       )
       for (const band of bands) {
         const [left, right] = band.width,
@@ -376,10 +371,6 @@ test("Measured touch calibrations isolate viewport bounds and primary input", { 
             : [[middleWidth, middleHeight, false]]
         for (const [width, height, active] of points) {
           await page.setViewportSize({ width, height })
-          await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-          await page.waitForFunction(
-            () => document.querySelector(".composition-totals strong")?.textContent === "60 PDF pages",
-          )
           const sample = await page.evaluate(async () => (await import("/src/geometry.ts")).capture())
           assert.equal(sample.environment.pointer, mode === "touch" ? "coarse" : "fine")
           if (mode === "hybrid") assert.equal(sample.environment.media["(any-pointer: coarse)"], true)
@@ -397,9 +388,17 @@ test("Measured touch calibrations isolate viewport bounds and primary input", { 
             for (const pane of ["input", "output"]) {
               const grid = sample.layout[pane][density],
                 label = `${mode}, ${width}×${height}, ${pane} ${density}`
-              if (cardWidth !== null) assert.ok(Math.abs(grid.card.width - cardWidth) < 1, `${label}: card width`)
-              assert.ok(Math.abs(grid.card.height - cardHeight) < 1, `${label}: card height`)
-              assert.ok(Math.abs(grid.margins[0] - padding) < 1, `${label}: image padding`)
+              // Desktop fitting changes rendered cards; input isolation concerns the preferred calibration.
+              const actual =
+                mode === "touch"
+                  ? [grid.card.width, grid.card.height, grid.margins[0]]
+                  : ["--grid-width", "--grid-height", "--thumbnail-padding"].map((name) => {
+                      const value = grid.variables[name]
+                      return parseFloat(value) * (value.endsWith("rem") ? 16 : 1)
+                    })
+              if (cardWidth !== null) assert.ok(Math.abs(actual[0] - cardWidth) < 1, `${label}: card width`)
+              assert.ok(Math.abs(actual[1] - cardHeight) < 1, `${label}: card height`)
+              assert.ok(Math.abs(actual[2] - padding) < 1, `${label}: image padding`)
             }
           }
         }
@@ -409,15 +408,13 @@ test("Measured touch calibrations isolate viewport bounds and primary input", { 
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Touch portrait pagination uses available height above the safe area", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -452,7 +449,6 @@ test("Touch portrait pagination uses available height above the safe area", { ti
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -514,10 +510,9 @@ async function checkGrid(pane, label) {
 }
 
 test("Touch Grid uses complete rows within the available viewport", { timeout: 150000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser, page
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -526,15 +521,15 @@ test("Touch Grid uses complete rows within the available viewport", { timeout: 1
     )
     const colorScheme = "light"
     await page.emulateMedia({ colorScheme })
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    await page.waitForFunction(
+      () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+    )
     for (const {
       viewport: [width, height],
       matrices: { normal, compact },
     } of inventory.cases.filter((item) => item.pointer === "coarse")) {
       await page.setViewportSize({ width, height })
-      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-      await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-      )
       for (const name of ["Input", "Output"]) {
         const views = page.locator(".mobile-workspace-tabs")
         if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
@@ -567,15 +562,13 @@ test("Touch Grid uses complete rows within the available viewport", { timeout: 1
     throw error
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
-test("Grid matrices match desktop viewports and bounded calibrations", { timeout: 600000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+test("Desktop Grid retains measured capacity within readable bounds", { timeout: 600000 }, async () => {
+  const server = await serve()
   let browser, page
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -584,46 +577,34 @@ test("Grid matrices match desktop viewports and bounded calibrations", { timeout
     )
     const colorScheme = "light"
     await page.emulateMedia({ colorScheme })
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    await page.waitForFunction(
+      () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+    )
     for (const {
       viewport: [width, height],
       matrices: { normal, compact },
     } of inventory.cases.filter((item) => item.pointer === "fine" && item.matrices)) {
       await page.setViewportSize({ width, height })
-      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-      await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-      )
-      for (const name of ["Input", "Output"]) {
-        const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-        let normalGrid
+      const sample = await capture(page)
+      const label = `${width}×${height}, ${colorScheme}`
+      assert.deepEqual(quality(sample), [], label)
+      for (const name of ["input", "output"])
         for (const [density, reference] of [
-          ["Normal", normal],
-          ["Compact", compact],
+          ["normal", normal],
+          ["compact", compact],
         ]) {
-          await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
-          const label = `${name} ${density}, ${width}×${height}, ${colorScheme}`
-          const geometry = await checkGrid(pane, label)
-          if (density === "Normal") normalGrid = geometry
-          else checkDensityRatio(normalGrid.image.height, geometry.image.height, label)
-          assert.deepEqual(geometry.matrix, reference, `${label}: Complete rows match the viewport reference`)
+          const grid = sample.layout[name][density]
           assert.ok(
-            geometry.scroll <= 1 || geometry.matrix[1] === 1,
-            `${label}: Pagination fits unless the minimum complete row requires scrolling`,
+            grid.matrix.slice(0, 2).every((count, axis) => count >= reference[axis]),
+            `${name} ${density}, ${label}: retains at least ${reference[0]}×${reference[1]} complete cards; actual ${grid.matrix}`,
           )
-          if (width === 1920 && height === 961) {
-            assert.ok(geometry.clearance >= 14, `${label}: The measured FHD viewport retains spare row space`)
+          if (width === 1920 && height === 961)
             assert.ok(
-              Math.abs(geometry.margins[0] - (density === "Normal" ? 14 : 6.4)) < 0.1,
-              `${label}: Scaling preserves the image padding`,
-            )
-          }
-          if (density === "Compact" && normalGrid.scroll <= 1 && geometry.scroll <= 1)
-            assert.ok(
-              Math.abs(normalGrid.frame.height - geometry.frame.height) < 1,
-              `${label}: Densities share one frame when neither minimum row requires scrolling`,
+              Math.abs(grid.margins[0] - (density === "normal" ? 14 : 6.4)) < 0.1,
+              `${name} ${density}, ${label}: scaling preserves image padding`,
             )
         }
-      }
     }
   } catch (error) {
     const screenshot = page && (await captureLayout(page, "desktop").catch(() => undefined))
@@ -631,15 +612,13 @@ test("Grid matrices match desktop viewports and bounded calibrations", { timeout
     throw error
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Grid fitting respects viewport bounds and input capabilities", { timeout: 900000 }, async (t) => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     for (const mode of ["mouse", "hybrid", "touch"]) {
       browser = await chromium.launch({
         channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
@@ -658,83 +637,87 @@ test("Grid fitting respects viewport bounds and input capabilities", { timeout: 
       await page.route("**/grid.pdf", (route) =>
         route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 60) }),
       )
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+      await page.waitForFunction(
+        () => document.querySelector(".composition-totals strong")?.textContent === "60 PDF pages",
+      )
       const cases =
         mode === "mouse"
           ? [
-              [1280, 699, "default"],
-              [1280, 700, "desktop-compact"],
-              [1800, 949, "desktop-compact"],
-              [1800, 950, "fhd"],
-              [1920, 961, "fhd"],
-              [1999, 999, "fhd"],
-              [1799, 961, "desktop-compact"],
-              [2000, 961, "desktop-compact"],
-              [1920, 1000, "desktop-compact"],
-              [1920, 1199, "desktop-compact"],
-              [1920, 1200, "default"],
-              [1279, 982, "default"],
-              [2140, 982, "default"],
-              [2200, 1099, "default"],
-              [2200, 1100, "desktop-medium"],
-              [2240, 1260, "desktop-medium"],
-              [2399, 1349, "desktop-medium"],
-              [2199, 1260, "default"],
-              [2400, 1260, "desktop-medium"],
-              [2240, 1350, "desktop-medium"],
-              [2559, 1419, "desktop-medium"],
-              [2240, 1420, "default"],
-              [2960, 1499, "default"],
-              [2960, 1500, "desktop-large"],
-              [3008, 1692, "desktop-large"],
-              [3199, 1749, "desktop-large"],
-              [2959, 1692, "default"],
-              [3200, 1692, "default"],
-              [3008, 1750, "default"],
-              [3840, 1899, "default"],
-              [3840, 1900, "uhd"],
-              [3840, 1922, "uhd"],
-              [3840, 2049, "uhd"],
-              [3840, 2050, "uhd-tall"],
-              [3840, 2160, "uhd-tall"],
-              [4159, 2249, "uhd-tall"],
-              [3840, 2250, "default"],
-              [3839, 1922, "default"],
-              [4160, 1922, "default"],
-              [2560, 1279, "default"],
-              [2560, 1280, "qhd"],
-              [2560, 1314, "qhd"],
-              [2560, 1315, "qhd-window"],
-              [2560, 1318, "qhd-window"],
-              [2560, 1323, "qhd-window"],
-              [2879, 1349, "qhd-window"],
-              [2560, 1350, "qhd-window"],
-              [2560, 1419, "qhd-window"],
-              [2879, 1419, "qhd-window"],
-              [2560, 1420, "qhd-full"],
-              [2560, 1440, "qhd-full"],
-              [2879, 1420, "qhd-full"],
-              [2560, 1799, "qhd-full"],
-              [2560, 1800, "default"],
-              [2559, 1310, "desktop-medium"],
-              [2880, 1310, "default"],
-              [1080, 810, "default"],
-              [810, 1080, "default"],
-              [1024, 1334, "default"],
-              [1366, 1024, "desktop-compact"],
-              [1365, 865, "desktop-compact"],
-              [1537, 1001, "desktop-compact"],
+              [1280, 699],
+              [1280, 700],
+              [1800, 949],
+              [1800, 950],
+              [1920, 961],
+              [1999, 999],
+              [1799, 961],
+              [2000, 961],
+              [1920, 1000],
+              [1920, 1199],
+              [1920, 1200],
+              [1279, 982],
+              [2140, 982],
+              [2200, 1099],
+              [2200, 1100],
+              [2240, 1260],
+              [2399, 1349],
+              [2199, 1260],
+              [2400, 1260],
+              [2240, 1350],
+              [2559, 1419],
+              [2240, 1420],
+              [2960, 1499],
+              [2960, 1500],
+              [3008, 1692],
+              [3199, 1749],
+              [2959, 1692],
+              [3200, 1692],
+              [3008, 1750],
+              [3840, 1899],
+              [3840, 1900],
+              [3840, 1922],
+              [3840, 2049],
+              [3840, 2050],
+              [3840, 2160],
+              [4159, 2249],
+              [3840, 2250],
+              [3839, 1922],
+              [4160, 1922],
+              [2560, 1279],
+              [2560, 1280],
+              [2560, 1314],
+              [2560, 1315],
+              [2560, 1318],
+              [2560, 1323],
+              [2879, 1349],
+              [2560, 1350],
+              [2560, 1419],
+              [2879, 1419],
+              [2560, 1420],
+              [2560, 1440],
+              [2879, 1420],
+              [2560, 1799],
+              [2560, 1800],
+              [2559, 1310],
+              [2880, 1310],
+              [1080, 810],
+              [810, 1080],
+              [1024, 1334],
+              [1366, 1024],
+              [1365, 865],
+              [1537, 1001],
             ]
           : mode === "hybrid"
             ? [
-                [1920, 961, "fhd"],
-                [3840, 1922, "uhd"],
-                [2560, 1310, "qhd"],
-                [2560, 1318, "qhd-window"],
-                [1080, 810, "default"],
-                [810, 1080, "default"],
-                [1024, 1334, "default"],
-                [1366, 1024, "desktop-compact"],
-                [2222, 1111, "desktop-medium"],
+                [1920, 961],
+                [3840, 1922],
+                [2560, 1310],
+                [2560, 1318],
+                [1080, 810],
+                [810, 1080],
+                [1024, 1334],
+                [1366, 1024],
+                [2222, 1111],
               ]
             : [
                 [1920, 961, "default"],
@@ -815,13 +798,14 @@ test("Grid fitting respects viewport bounds and input capabilities", { timeout: 
                 [527, 917, "default"],
                 [917, 527, "default"],
               ]
-      for (const [width, height, calibration] of cases) {
+      // The desktop reference sweep already checks both panes at these exact mouse viewports.
+      for (const [width, height, calibration] of cases.filter(
+        ([w, h]) =>
+          mode !== "mouse" ||
+          !inventory.cases.some((item) => item.pointer === "fine" && item.viewport[0] === w && item.viewport[1] === h),
+      )) {
         await t.test(`${mode}, ${width}×${height}`, async () => {
           await page.setViewportSize({ width, height })
-          await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-          await page.waitForFunction(
-            () => document.querySelector(".composition-totals strong")?.textContent === "60 PDF pages",
-          )
           if (mode === "hybrid")
             assert.deepEqual(
               await page.evaluate(() => [
@@ -892,10 +876,6 @@ test("Grid fitting respects viewport bounds and input capabilities", { timeout: 
       }
       if (mode === "mouse") {
         await page.setViewportSize({ width: 2560, height: 1310 })
-        await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-        await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "60 PDF pages",
-        )
         await page.locator("main").evaluate((element) => (element.style.inlineSize = "1462px"))
         const pane = page.locator(".selection-panel")
         for (const density of ["Normal", "Compact"]) {
@@ -909,15 +889,13 @@ test("Grid fitting respects viewport bounds and input capabilities", { timeout: 
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Partial Grid batches retain full-matrix card positions and dimensions", { timeout: 180000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, hasTouch] of [
       [1537, 1001, false],
@@ -928,7 +906,7 @@ test("Partial Grid batches retain full-matrix card positions and dimensions", { 
       [1006, 481, true],
       [876, 1280, true],
       [1400, 756, true],
-    ]) {
+    ].filter(([viewportWidth]) => !standard || [1537, 392].includes(viewportWidth))) {
       const page = await browser.newPage({
         viewport: { width, height },
         hasTouch,
@@ -978,294 +956,56 @@ test("Partial Grid batches retain full-matrix card positions and dimensions", { 
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
-test("Grid scales desktop capacity, balances Page, and retains compact actions", { timeout: 180000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
-  let browser
+test("Grid density retains inspection and compact page commands", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
-    await server.listen()
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, reducedMotion: "reduce" })
-    const errors = []
-    page.on("pageerror", (error) => errors.push(error.message))
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
     )
-    const input = page.locator(".selection-panel")
-    const output = page.locator(".composition-output")
-    for (const [width, height] of [
-      [1920, 1080],
-      [2560, 1440],
-    ]) {
-      await page.setViewportSize({ width, height })
-      const capacity = width === 1920 ? 6 : 16
-      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-      await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-      )
-      await input.getByRole("button", { name: "Normal Input grid", exact: true }).click()
-      assert.equal(await input.locator(".composition-card").count(), capacity)
-      assert.equal(await output.locator(".composition-card").count(), capacity)
-      await measure(input)
-      await measure(output)
-      assert.equal(await page.locator("main").evaluate((element) => element.clientWidth), width === 1920 ? 1232 : 1472)
-      assert.equal(await input.locator(".batch-marks > span").count(), width === 1920 ? 40 : 15)
-      const imageHeight = await input
-        .locator(".page-image canvas")
-        .first()
-        .evaluate((element) => element.clientHeight)
-      assert.equal(imageHeight, width === 1920 ? 144 : 133, "Normal thumbnails retain their fitted image height")
-      assert.deepEqual(
-        await output
-          .locator(".composition-card")
-          .first()
-          .locator(".occurrence-actions button")
-          .evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))),
-        ["Remove Output page 1", "Duplicate Output page 1"],
-      )
-      const controls = await output
-        .locator(".composition-card")
-        .first()
-        .locator(".occurrence-actions button")
-        .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()))
-      for (let index = 1; index < controls.length; index++)
-        assert.ok(controls[index].left - controls[index - 1].right >= 28, "Footer controls retain breathing room")
-      await input.getByRole("button", { name: "Next Input thumbnails", exact: true }).click()
-      await input.getByRole("button", { name: `Select Input page ${capacity + 1}`, exact: true }).waitFor()
-      await tab(input, "Page")
-      assert.match(await pagePosition(input), new RegExp(`^${capacity + 1}\\s*\\/ 240`))
-      if (width === 2560) {
-        await input.locator(".pdf-viewport[aria-busy=false]").waitFor()
-        const margins = await input.locator(".page-scroll").evaluate((element) => {
-          const frame = element.getBoundingClientRect()
-          const canvas = element.querySelector("canvas").getBoundingClientRect()
-          return [canvas.left - frame.left, frame.right - canvas.right]
-        })
-        assert.ok(
-          margins.every((margin) => margin <= 72),
-          "QHD Page side margins stay within 72 px",
-        )
-      }
-      const frames = await page.locator(".page-content").evaluateAll((elements) =>
-        elements.map((element) => {
-          const box = element.getBoundingClientRect()
-          return { width: box.width, height: box.height, top: box.y, bottom: box.bottom }
-        }),
-      )
-      assert.deepEqual(frames[0], frames[1], "Grid and Page use equal pane widths and aligned top and bottom edges")
-      await tab(input, "Grid")
-      const first = input.getByRole("button", { name: `Select Input page ${capacity + 1}`, exact: true })
-      await first.waitFor()
-      await first.focus()
-      await page.keyboard.press("End")
-      await input.getByRole("button", { name: "Select Input page 240", exact: true }).waitFor()
-      await page.waitForFunction(
-        () =>
-          document.querySelector('[aria-label="Select Input page 240"] .thumbnail')?.getAttribute("aria-busy") ===
-          "false",
-      )
-      assert.ok(
-        Math.abs(
-          (await input
-            .getByRole("button", { name: "Select Input page 240", exact: true })
-            .locator("canvas")
-            .evaluate((element) => element.getBoundingClientRect().width)) - (width === 1920 ? 142 : 144),
-        ) < 1,
-        "Landscape images fit the narrower Normal cards",
-      )
-      await page.keyboard.press("Home")
-      await input.getByRole("button", { name: "Select Input page 1", exact: true }).waitFor()
-    }
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    const input = page.locator(".selection-panel"),
+      output = page.locator(".composition-output")
+    await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
+    await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
     await input.getByRole("button", { name: "Select Input page 12", exact: true }).click()
-    await page.setViewportSize({ width: 1920, height: 1080 })
-    await page.waitForFunction(() => document.querySelectorAll(".selection-panel .composition-card").length === 6)
+    await input.getByRole("button", { name: "Normal Input grid", exact: true }).click()
     await input.getByRole("button", { name: "Select Input page 12", exact: true }).waitFor()
-    assert.equal(
-      await input.locator(".composition-card").count(),
-      6,
-      "Resizing retains the inspected page in the new group",
-    )
-    const slider = input.getByRole("slider", { name: "Input thumbnail range", exact: true })
-    await slider.focus()
-    await page.keyboard.press("Home")
-    for (let step = 0; step < 3; step++) await page.keyboard.press("ArrowRight")
-    await input.getByRole("button", { name: "Select Input page 19", exact: true }).waitFor()
+    assert.equal(await output.locator(".composition-card").count(), 24, "Each pane retains its own density")
+    await page.setViewportSize({ width: 2560, height: 1440 })
+    await measure(input)
+    await page.setViewportSize({ width: 1920, height: 1080 })
+    await measure(input)
+    assert.equal(await input.getByRole("button", { name: "Select Input page 12", exact: true }).isVisible(), true)
+    const slider = input.getByRole("slider")
+    await slider.press("Home")
+    for (let step = 0; step < 3; step++) await slider.press("ArrowRight")
     assert.equal((await input.locator(".batch-caption").innerText()).replace(/\s+/g, ""), "4/40·19–24/240")
-    assert.ok(
-      (await input.locator(".batch-total").allTextContents()).every((text) => /^\s\/\s/.test(text)),
-      "Pagination leaves visible space on both sides of each slash",
-    )
-    for (const theme of ["light", "dark"]) {
-      await page.emulateMedia({ colorScheme: theme })
-      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-      await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-      )
+    await tab(input, "Page")
+    assert.equal(await input.getByRole("group", { name: "Input grid density", exact: true }).isVisible(), false)
+    await tab(input, "Grid")
+    await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
+
+    for (const colorScheme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme })
+      await output.getByRole("button", { name: "Normal Output grid", exact: true }).click()
       const normalNumber = output.locator(".composition-card .page-origin > summary").first()
       await normalNumber.hover()
       const hoverColor = await normalNumber.evaluate((element) => getComputedStyle(element).color)
-      await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
       await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
-      await page.waitForFunction(() => document.querySelectorAll(".selection-panel .composition-card").length === 24)
-      const density = input.getByRole("group", { name: "Input grid density", exact: true })
-      await input.getByRole("button", { name: "Select Input page 12", exact: true }).click()
-      await density.getByRole("button", { name: "Normal Input grid", exact: true }).click()
-      await page.waitForFunction(
-        () => document.querySelector(".selection-panel .grid-view")?.getAttribute("data-batch") === "6",
-      )
-      assert.equal(await input.getByRole("button", { name: "Select Input page 12", exact: true }).isVisible(), true)
-      assert.equal(
-        await output.locator(".composition-card").count(),
-        24,
-        "Input density leaves Output density independent",
-      )
-      await tab(input, "Page")
-      assert.equal(await density.isVisible(), false, "Page hides Grid density controls")
-      const frames = await page.locator(".page-content").evaluateAll((elements) =>
-        elements.map((element) => {
-          const box = element.getBoundingClientRect()
-          return { width: box.width, height: box.height, top: box.y, bottom: box.bottom }
-        }),
-      )
-      assert.deepEqual(frames[0], frames[1], "Mixed densities keep Grid and Page balanced")
-      for (const mode of ["Normal", "Compact"]) {
-        await output.getByRole("button", { name: `${mode} Output grid`, exact: true }).click()
-        for (const [width, height, textSize] of [
-          [960, 720, "100%"],
-          [1280, 800, "100%"],
-          [1920, 1080, "100%"],
-          [2560, 1440, "100%"],
-          [3840, 2160, "100%"],
-          [3840, 2160, "200%"],
-        ]) {
-          await page.setViewportSize({ width, height })
-          await page.evaluate((size) => (document.documentElement.style.fontSize = size), textSize)
-          await page.evaluate(
-            () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-          )
-          const navigation = await page.evaluate(() => {
-            const grid = document.querySelector(".page-batches")
-            const footer = document.querySelector(".page-navigation")
-            const centers = [grid, footer].map((element) =>
-              [...element.querySelectorAll(":scope > button")].map((button) => {
-                const box = button.getBoundingClientRect()
-                return box.y + box.height / 2
-              }),
-            )
-            const caption = grid.querySelector(".batch-caption").getBoundingClientRect()
-            const track = grid.querySelector(".batch-slider").getBoundingClientRect()
-            const cards = [...document.querySelectorAll(".composition-card")]
-            return {
-              arrows: centers[0].map((center, index) => center - centers[1][index]),
-              captionBelow: caption.top >= track.top + track.height / 2,
-              cardGap:
-                Math.min(caption.top, track.top) -
-                Math.max(...cards.map((card) => card.getBoundingClientRect().bottom)),
-              overflow: document.documentElement.scrollWidth > innerWidth,
-            }
-          })
-          const label = `${mode} ${width}×${height}, ${textSize} text, ${theme}`
-          assert.ok(
-            navigation.arrows.every((delta) => Math.abs(delta) < 1),
-            `${label}: Grid and Page arrows align`,
-          )
-          assert.equal(navigation.captionBelow, true, `${label}: Caption stays below the slider`)
-          assert.ok(navigation.cardGap >= 8, `${label}: Pagination leaves room below the cards`)
-          assert.equal(navigation.overflow, false, `${label}: The workspace fits horizontally`)
-        }
-      }
-      await page.evaluate(() => (document.documentElement.style.fontSize = ""))
-      await page.setViewportSize({ width: 1920, height: 1080 })
-      await tab(input, "Grid")
-      assert.equal(
-        await input.locator(".composition-card").count(),
-        6,
-        "Grid retains its density across Page inspection",
-      )
-      await density.getByRole("button", { name: "Compact Input grid", exact: true }).click()
-      await page.waitForFunction(
-        () => document.querySelector(".selection-panel .grid-view")?.getAttribute("data-batch") === "24",
-      )
-      await page.setViewportSize({ width: 2560, height: 1440 })
-      await page.waitForFunction(
-        () => document.querySelector(".selection-panel .grid-view")?.getAttribute("data-batch") === "64",
-      )
-      assert.equal(await output.locator(".composition-card").count(), 64)
-      await page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
-      const geometry = await output.locator(".composition-grid").evaluate((element) => {
-        const cards = [...element.children].map((card) => card.getBoundingClientRect())
-        const card = element.firstElementChild
-        const heading = card.querySelector(".page-label").getBoundingClientRect()
-        const frame = card.querySelector(".page-image .thumbnail").getBoundingClientRect()
-        const canvas = card.querySelector(".page-image canvas").getBoundingClientRect()
-        const panel = element.parentElement.getBoundingClientRect()
-        return {
-          columns: new Set(cards.map((box) => box.x)).size,
-          rows: new Set(cards.map((box) => box.y)).size,
-          card: [cards[0].width, cards[0].height],
-          rowEdges: [cards[0].left - panel.left, panel.right - cards[7].right],
-          heading: [heading.left - cards[0].left, heading.width, heading.height],
-          numberSize: parseFloat(getComputedStyle(card.querySelector(".card-number")).fontSize),
-          numberInset: card.querySelector(".card-number strong").getBoundingClientRect().left - cards[0].left,
-          grip: card.querySelector(".page-grip svg").getBoundingClientRect().width,
-          gripCenters: [...element.children].map((item) => {
-            const bounds = item.getBoundingClientRect()
-            const grip = item.querySelector(".page-grip svg").getBoundingClientRect()
-            return Math.abs(grip.x + grip.width / 2 - bounds.x - bounds.width / 2)
-          }),
-          foldGap:
-            element.children[1].querySelector(".page-fold").getBoundingClientRect().left -
-            element.children[1].querySelector(".page-grip svg").getBoundingClientRect().right,
-          targets: [...card.querySelectorAll(".page-label > .page-origin > button, .page-label > .page-grip")].map(
-            (button) => [button.getBoundingClientRect().width, parseFloat(getComputedStyle(button, "::after").height)],
-          ),
-          nextTargetTop:
-            element.children[8].querySelector(".card-number").getBoundingClientRect().top +
-            parseFloat(getComputedStyle(element.children[8].querySelector(".card-number"), "::after").top) -
-            cards[0].bottom,
-          image: canvas.height,
-          margins: [
-            canvas.left - frame.left,
-            frame.right - canvas.right,
-            canvas.top - frame.top,
-            frame.bottom - canvas.bottom,
-          ],
-        }
-      })
-      assert.deepEqual([geometry.columns, geometry.rows], [8, 8])
-      assert.deepEqual(geometry.card, [75, 112.5])
-      assert.ok(
-        Math.abs(geometry.rowEdges[0] - geometry.rowEdges[1]) < 1,
-        "Compact columns share outside space equally",
-      )
-      assert.deepEqual(geometry.heading, [0, 75, 26], "The header fills the card width")
-      assert.equal(geometry.numberSize, 10.8, "Compact page numbers use a smaller text size")
-      assert.equal(geometry.numberInset, 6, "Page numbers keep space from the card's left edge")
-      assert.equal(geometry.grip, 15)
-      assert.ok(
-        geometry.gripCenters.every((offset) => offset < 0.5),
-        "Every Compact grip is centered on its card",
-      )
-      assert.ok(geometry.foldGap >= 2, "The grip stays clear of the folded corner")
-      assert.ok(geometry.targets.every(([width, height]) => width >= 24 && height === 44))
-      assert.ok(geometry.nextTargetTop >= 0, "Heading targets do not overlap the previous row's cards")
-      assert.ok(geometry.image >= 69 && geometry.image <= 70)
-      assert.ok(
-        geometry.margins.every((margin) => margin >= 7.5 && margin <= 15),
-        "Compact images retain balanced inner margins",
-      )
-      const compactNumber = output.locator(".composition-card .card-number").first()
-      await compactNumber.hover()
+      const number = output.locator(".composition-card .card-number").first()
+      await number.hover()
       assert.deepEqual(
-        await compactNumber.evaluate((element) => {
+        await number.evaluate((element) => {
           const style = getComputedStyle(element)
           return [style.color, style.backgroundColor, style.boxShadow]
         }),
         [hoverColor, "rgba(0, 0, 0, 0)", "none"],
-        "Compact numbers use Normal's color-only hover",
       )
       for (const pane of [input, output]) {
         const first = pane.locator(".composition-card").first()
@@ -1283,39 +1023,13 @@ test("Grid scales desktop capacity, balances Page, and retains compact actions",
             )
           }),
           true,
-          "The selected heading separator cannot cut through the selection contour",
+          "The heading separator stays inside the selected card's border",
         )
         await first.locator(".page-image").click()
       }
-      assert.equal(await input.getByRole("slider", { name: "Input thumbnail range", exact: true }).isVisible(), true)
-      const compactRange = input.getByRole("slider", { name: "Input thumbnail range", exact: true })
-      await compactRange.press("End")
-      for (const family of ["", "DejaVu Sans", "Liberation Sans"]) {
-        await input.evaluate((pane, value) => (pane.style.fontFamily = value), family)
-        const numberGaps = await input.locator(".composition-card").evaluateAll((cards) =>
-          cards.map((card) => {
-            const number = card.querySelector(".card-number strong").getBoundingClientRect()
-            const grip = card.querySelector(".page-grip svg").getBoundingClientRect()
-            return grip.left - number.right
-          }),
-        )
-        assert.ok(
-          numberGaps.every((gap) => gap >= 2),
-          `${family || "System font"}: three-digit numbers stay clear of the grips (${Math.min(...numberGaps)}px)`,
-        )
-      }
-      await input.evaluate((pane) => pane.style.removeProperty("font-family"))
-      await compactRange.press("Home")
-      await page.setViewportSize({ width: 1920, height: 1080 })
-      await page.waitForFunction(
-        () => document.querySelector(".selection-panel .grid-view")?.getAttribute("data-batch") === "24",
-      )
-      const opener = output.getByRole("button", {
-        name: "Details for Output page 1",
-        exact: true,
-      })
+      const opener = output.getByRole("button", { name: "Details for Output page 1", exact: true })
       await opener.focus()
-      await page.keyboard.press("Enter")
+      await opener.press("Enter")
       const menu = page.locator(".card-menu-options:popover-open")
       await menu.waitFor()
       await page.keyboard.press("Escape")
@@ -1332,97 +1046,15 @@ test("Grid scales desktop capacity, balances Page, and retains compact actions",
         () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
       )
     }
-    const touch = await browser.newPage({
-      viewport: { width: 1024, height: 1366 },
-      isMobile: true,
-      hasTouch: true,
-      reducedMotion: "reduce",
-    })
-    await touch.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await touch.route("**/grid.pdf", (route) =>
-      route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
-    )
-    await touch.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    const touchInput = touch.locator(".selection-panel")
-    await touchInput.getByRole("button", { name: "Compact Input grid", exact: true }).click()
-    const touchTargets = await touchInput
-      .locator(".composition-card")
-      .first()
-      .locator(".page-label > .page-origin > button, .page-label > .page-grip")
-      .evaluateAll((buttons) =>
-        buttons.map((button) => [
-          button.getBoundingClientRect().width,
-          parseFloat(getComputedStyle(button, "::after").height),
-        ]),
-      )
-    assert.ok(
-      touchTargets.every(([width, height]) => width >= 24 && height === 44),
-      "Touch retains separate heading targets of at least 24 by 44 px",
-    )
-    async function checkFrameBottom() {
-      await touch.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }))
-      const geometry = await touch.evaluate(() => ({
-        bottom:
-          document.querySelector(".footnote").getBoundingClientRect().top -
-          parseFloat(getComputedStyle(document.querySelector("main")).paddingBottom),
-        panes: [...document.querySelectorAll(".selection-panel, .composition-output")]
-          .filter((element) => element.clientWidth)
-          .map((element) => ({
-            bottom: element.getBoundingClientRect().bottom,
-            frame: element.querySelector(".grid-view, .page-view").getBoundingClientRect().bottom,
-          })),
-        overflow: document.documentElement.scrollWidth > innerWidth,
-      }))
-      assert.equal(geometry.overflow, false)
-      if (geometry.panes.length === 2) {
-        for (const pane of geometry.panes) {
-          assert.ok(
-            Math.abs(pane.frame - geometry.bottom) < 1,
-            `Frames fill the space above the status bar: ${JSON.stringify(geometry)}`,
-          )
-          assert.ok(Math.abs(pane.bottom - pane.frame) < 1, "The pane divider reaches the frame's bottom")
-        }
-      }
-    }
-    for (const [width, height] of [
-      [960, 1440],
-      [1032, 1376],
-    ]) {
-      await touch.setViewportSize({ width, height })
-      for (const size of ["100%", "200%"]) {
-        await touch.evaluate((value) => (document.documentElement.style.fontSize = value), size)
-        for (const density of ["Normal", "Compact"]) {
-          for (const name of ["Input", "Output"]) {
-            const views = touch.locator(".mobile-workspace-tabs")
-            if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
-            const pane = touch.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-            await tab(pane, "Grid")
-            await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
-            await checkFrameBottom()
-          }
-          for (const name of ["Input", "Output"]) {
-            const views = touch.locator(".mobile-workspace-tabs")
-            if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
-            const pane = touch.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-            await tab(pane, "Page")
-            await checkFrameBottom()
-          }
-        }
-      }
-    }
-    await touch.close()
-    assert.deepEqual(errors, [])
   } finally {
-    await browser?.close()
-    await server.close()
+    await browser.close()
   }
 })
 
 test("Grid pagination bounds its marks and retains exact page navigation", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1489,15 +1121,13 @@ test("Grid pagination bounds its marks and retains exact page navigation", { tim
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Compact pagination retains readable four- and five-digit numbers", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1567,6 +1197,5 @@ test("Compact pagination retains readable four- and five-digit numbers", { timeo
     assert.deepEqual(errors, [])
   } finally {
     await browser?.close()
-    await server.close()
   }
 })

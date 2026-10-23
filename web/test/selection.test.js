@@ -2,16 +2,16 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
+import { serve } from "./server.ts"
 import { chromium } from "playwright"
 import { zoom } from "./workspace.js"
-import { createServer, tab, pagePosition, gridPage, fixture, hasCursor, captureLayout } from "./browser.js"
+import { tab, pagePosition, gridPage, fixture, hasCursor, captureLayout } from "./browser.js"
 import { measure } from "./measure.js"
 
 test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, colorScheme, reducedMotion] of [
       [810, 1080, "light", "no-preference"],
@@ -205,16 +205,14 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Touch Selection keeps the keyboard closed and image gestures preserve pages", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   let page
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, colorScheme, textSize] of [
       [810, 1080, "light", "100%"],
@@ -376,15 +374,13 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
     throw error
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Grid images and grips share selection and ordinary page focus", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await page.addInitScript(() => {
@@ -521,15 +517,13 @@ test("Grid images and grips share selection and ordinary page focus", { timeout:
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Dragging opens stable page slots, previews density, and commits only on drop", { timeout: 90000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const sizes = new Map()
     for (const density of ["Normal", "Compact"]) {
@@ -759,15 +753,13 @@ test("Dragging opens stable page slots, previews density, and commits only on dr
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Dragging page images and grips preserves selection and page focus", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -824,15 +816,13 @@ test("Dragging page images and grips preserves selection and page focus", { time
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Open menus retain page commands from both panes", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -869,15 +859,13 @@ test("Open menus retain page commands from both panes", async () => {
     )
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Grid keyboard selection toggles at the cursor and stops at boundaries", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, theme, textSize] of [
       [1440, "light", "100%"],
@@ -1086,15 +1074,13 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Selection bars expose meaningful actions in both panes", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1287,15 +1273,13 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     )
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Output separates page controls from group actions for keyboard and mouse", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const interaction of ["keyboard", "mouse"]) {
       // Keep all ten pages visible while checking group actions across copies.
@@ -1469,7 +1453,6 @@ test("Output separates page controls from group actions for keyboard and mouse",
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -1477,10 +1460,9 @@ test(
   "Grid shortcuts resolve both pane selections and allow mouse then keyboard actions",
   { timeout: 90000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
       const warnings = []
@@ -1764,7 +1746,6 @@ test(
       assert.deepEqual(warnings, [])
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
@@ -1773,10 +1754,9 @@ test(
   "Escape clears the target selection without moving inspection or scroll positions",
   { timeout: 60000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       for (const [name, width, scale, theme] of [
         ["Input", 1440, 100, "light"],
@@ -1871,16 +1851,14 @@ test(
       }
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
 
 test("Selection and view shortcuts target the mouse pane and preserve native keys", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -2037,15 +2015,13 @@ test("Selection and view shortcuts target the mouse pane and preserve native key
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Page and Grid keyboard actions respect key priority and the visible page order", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -2334,15 +2310,13 @@ test("Page and Grid keyboard actions respect key priority and the visible page o
     )
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Output movement keeps direction buttons fixed at selection boundaries", { timeout: 120000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const colorScheme of ["light", "dark"]) {
       const page = await browser.newPage({ colorScheme, reducedMotion: "reduce" })
@@ -2384,6 +2358,24 @@ test("Output movement keeps direction buttons fixed at selection boundaries", { 
             await action.scrollIntoViewIfNeeded()
             const bounds = [await earlier.boundingBox(), await later.boundingBox()]
             const point = bounds[direction < 0 ? 0 : 1]
+            const inline = await output.locator(".inline-moves").isVisible()
+            const centers = []
+            for (const button of [earlier, later]) {
+              const geometry = await button.evaluate((element) => {
+                const control = element.getBoundingClientRect()
+                const icon = element.querySelector("svg path").getBoundingClientRect()
+                return {
+                  x: icon.x + icon.width / 2,
+                  dx: icon.x + icon.width / 2 - control.x - control.width / 2,
+                  dy: icon.y + icon.height / 2 - control.y - control.height / 2,
+                }
+              })
+              assert.ok(Math.abs(geometry.dy) < 1, "Move icons stay on their button's vertical center")
+              if (inline)
+                assert.ok(Math.abs(geometry.dx) < 1, "Inline move icons stay on their button's horizontal center")
+              centers.push(geometry.x)
+            }
+            if (!inline) assert.ok(Math.abs(centers[0] - centers[1]) < 1, "Menu move icons share one column")
             for (let step = 1; step <= 2; step++) {
               await revealMoves()
               assert.deepEqual(
@@ -2391,24 +2383,6 @@ test("Output movement keeps direction buttons fixed at selection boundaries", { 
                 bounds,
                 `${colorScheme}, ${width}, ${text}, ${density}: direction buttons retain their slots`,
               )
-              const inline = await output.locator(".inline-moves").isVisible()
-              const centers = []
-              for (const button of [earlier, later]) {
-                const geometry = await button.evaluate((element) => {
-                  const control = element.getBoundingClientRect()
-                  const icon = element.querySelector("svg path").getBoundingClientRect()
-                  return {
-                    x: icon.x + icon.width / 2,
-                    dx: icon.x + icon.width / 2 - control.x - control.width / 2,
-                    dy: icon.y + icon.height / 2 - control.y - control.height / 2,
-                  }
-                })
-                assert.ok(Math.abs(geometry.dy) < 1, "Move icons stay on their button's vertical center")
-                if (inline)
-                  assert.ok(Math.abs(geometry.dx) < 1, "Inline move icons stay on their button's horizontal center")
-                centers.push(geometry.x)
-              }
-              if (!inline) assert.ok(Math.abs(centers[0] - centers[1]) < 1, "Menu move icons share one column")
               assert.equal(await action.isEnabled(), true)
               const hit = await page.evaluate(
                 ({ x, y }) => document.elementFromPoint(x, y)?.closest("button")?.getAttribute("aria-label"),
@@ -2449,6 +2423,5 @@ test("Output movement keeps direction buttons fixed at selection boundaries", { 
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })

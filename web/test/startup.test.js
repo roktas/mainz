@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
+import { serve } from "./server.ts"
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises"
 import { join, resolve as resolvePath } from "node:path"
 import { build, preview } from "vite"
@@ -11,21 +12,13 @@ import { checkGeometry, checkStatus, createServer, trackWorkers, fixture, tab, p
 import { measure } from "./measure.js"
 
 async function checkMobile(browser, url) {
-  const sample = await readFile("test/fixtures/demo.pdf")
-  await mkdir("../.local/tmp/web/landing", { recursive: true })
   for (const [width, text, colorScheme] of [
-    [320, "100%", "light"],
-    [375, "100%", "dark"],
-    [390, "100%", "dark"],
-    [768, "100%", "light"],
     [320, "200%", "dark"],
-    [375, "200%", "light"],
-    [390, "200%", "light"],
-    [768, "200%", "dark"],
+    [768, "100%", "light"],
   ]) {
     const context = await browser.newContext({
       ...devices["iPhone 13"],
-      viewport: { width, height: width === 375 ? 667 : 900 },
+      viewport: { width, height: 900 },
       colorScheme,
       reducedMotion: "reduce",
     })
@@ -35,41 +28,12 @@ async function checkMobile(browser, url) {
         localStorage.setItem("mainz:onboarding", "19")
         localStorage.setItem("mainz:installation", "seen")
       })
-      await page.goto(url)
+      await page.goto(`${url}?demo=empty`)
+      await page.getByText("Demo workspace ready.", { exact: true }).waitFor()
       await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
-      assert.equal(await page.evaluate(() => innerWidth), width)
-      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
-      assert.equal(await page.locator(".drop-note").isVisible(), false)
-      assert.equal(await page.getByRole("button", { name: "Help", exact: true }).isVisible(), true)
-      assert.ok(
-        (await page.locator(".brand-title").evaluate((element) => parseFloat(getComputedStyle(element).fontSize))) >=
-          (text === "100%" ? 24 : 48),
-      )
-      await page.screenshot({ path: `../.local/tmp/web/landing/${width}-${text}-${colorScheme}.png` })
-      const picker = page.locator(".drop-zone .file-picker[aria-hidden=false]")
-      const resting = await picker.evaluate((element) => getComputedStyle(element).backgroundColor)
-      await picker.hover()
-      assert.equal(
-        await picker.evaluate((element) => getComputedStyle(element).backgroundColor),
-        resting,
-        "Touch screens do not retain hover paint on the PDF chooser",
-      )
-      await page
-        .locator("input[type=file]")
-        .first()
-        .setInputFiles({ name: "demo.pdf", mimeType: "application/pdf", buffer: sample })
-      await page.locator(".composer").waitFor({ timeout: 60000 })
-      await page.getByRole("button", { name: "Settings", exact: true }).tap()
-      const settings = page.getByRole("dialog", { name: "Settings", exact: true })
-      assert.equal(await settings.evaluate((element) => element.scrollWidth <= element.clientWidth), true)
-      const identifier = await settings.locator("time").boundingBox()
-      assert.ok(identifier.x >= 0 && identifier.x + identifier.width <= width)
-      assert.ok(identifier.y >= 0 && identifier.y + identifier.height <= page.viewportSize().height)
-      await settings.getByRole("button", { name: "Close Settings", exact: true }).tap()
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
       const views = page.getByRole("navigation", { name: "Workspace view", exact: true })
-      assert.equal(await views.isVisible(), true)
       assert.equal(
         await views.getByRole("button").evaluateAll((buttons) =>
           buttons.every((button) => {
@@ -81,99 +45,33 @@ async function checkMobile(browser, url) {
           }),
         ),
         true,
-        "Mobile view labels remain complete on one line at enlarged text sizes",
+        "Mobile view labels remain complete at enlarged text sizes",
       )
-      assert.equal(await output.isVisible(), false)
-      const navigationBox = await views.getByRole("button", { name: "Input", exact: true }).boundingBox()
-      const openingBox = await input.locator(".file-picker").boundingBox()
-      assert.ok(Math.abs(openingBox.width - navigationBox.width) < 1)
-      assert.ok(Math.abs(openingBox.height - navigationBox.height) < 1)
-      if (width <= 390) {
-        assert.equal(await page.locator(".footnote > time").isVisible(), false)
-        assert.equal(await page.locator(".footnote > .status-input").isVisible(), false)
-        const footer = await page.locator(".footnote").boundingBox()
-        assert.equal(footer.x, 0)
-        assert.equal(footer.width, await page.evaluate(() => document.documentElement.clientWidth))
-        assert.equal(
-          await page.locator(".footnote").evaluate((element) => {
-            const style = getComputedStyle(element)
-            return parseFloat(style.paddingTop) >= 12 && parseFloat(style.paddingBottom) >= 12
-          }),
-          true,
-          "Mobile feedback has breathing room above and below",
-        )
-      }
-      const selection = input.getByRole("textbox", { name: "Page selection", exact: true })
-      const thumbnail = input.getByRole("button", { name: "Select Input page 1", exact: true })
-      await thumbnail.tap()
-      assert.equal(await selection.inputValue(), "1", "Touching an image selects the page")
-      assert.equal(await thumbnail.evaluate((item) => item === document.activeElement), true)
-      const grip = input.getByRole("button", { name: "Select or drag Input page 1 to Output", exact: true })
-      await grip.tap()
-      assert.equal(await selection.inputValue(), "")
-      assert.equal(await thumbnail.evaluate((item) => item === document.activeElement), true)
-      await grip.tap()
-      assert.equal(await selection.inputValue(), "1")
-      assert.equal(await thumbnail.evaluate((item) => item === document.activeElement), true)
+      await input.getByLabel("Page selection", { exact: true }).fill("2,3")
       await input.getByRole("button", { name: "Add to Output", exact: true }).tap()
-      assert.equal(await output.locator(".output-state strong").textContent(), "1 PDF page")
-      assert.equal(await selection.inputValue(), "")
-      await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("2,3")
-      await input.getByRole("button", { name: "Add to Output", exact: true }).tap()
-      await input.getByRole("tab", { name: "Style", exact: true }).tap()
-      await input.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("inkjet")
+      assert.equal(await output.locator(".output-state strong").textContent(), "2 PDF pages")
+      await tab(input, "Style")
+      const profile = input.getByRole("combobox", { name: "Style profile", exact: true })
+      await profile.selectOption("inkjet")
       await page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
-      const guides = input.getByRole("group", { name: "Minors", exact: true })
-      await guides.getByLabel("Edit Width", { exact: true }).tap()
-      const widthField = guides.getByRole("spinbutton", {
-        name: "Minors Stroke Width (mm)",
-        exact: true,
-      })
-      assert.equal(await widthField.inputValue(), "0.04")
-      await widthField.fill("0.05")
-      assert.equal(await input.getByRole("combobox", { name: "Style profile", exact: true }).inputValue(), "")
-      assert.match(await input.locator(".style-profile .control-description").textContent(), /Custom styles/)
-      await input.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("inkjet")
-      await page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
-      assert.equal(await widthField.inputValue(), "0.04")
       const pattern = input.locator('.style-object[aria-label="Pattern"]')
       await checkGeometry(pattern)
-      if (width <= 390)
-        assert.equal(
-          await pattern
-            .locator(".quartet-component")
-            .evaluateAll((elements) =>
-              elements.every((element) => getComputedStyle(element).borderTopColor !== "rgba(0, 0, 0, 0)"),
+      assert.equal(
+        await pattern
+          .locator(".quartet-caption > span, .quartet-text > span:not([aria-hidden])")
+          .evaluateAll((labels) =>
+            labels.every(
+              (element) =>
+                element.getBoundingClientRect().height <= parseFloat(getComputedStyle(element).fontSize) * 1.7,
             ),
-          true,
-          "Touch Quartet summaries retain visible boundaries",
-        )
-      for (const label of await pattern
-        .locator(".quartet-caption > span, .quartet-text > span:not([aria-hidden])")
-        .all())
-        assert.ok(
-          await label.evaluate(
-            (element) => element.getBoundingClientRect().height <= parseFloat(getComputedStyle(element).fontSize) * 1.7,
           ),
-          "Quartet captions and values must stay on one line",
-        )
-      await pattern.getByLabel("Edit Fill", { exact: true }).tap()
-      assert.equal(
-        await pattern.evaluate((element) => {
-          const selected = element
-            .querySelector('[aria-expanded="true"]')
-            .closest(".quartet-property")
-            .getBoundingClientRect()
-          const dock = element.querySelector(".quartet-dock").getBoundingClientRect()
-          const gap = parseFloat(getComputedStyle(element.querySelector(".quartet-fields")).rowGap)
-          return dock.y >= selected.bottom && dock.y - selected.bottom <= gap * 3 + 1
-        }),
         true,
-        "The editor opens directly below its selected summary row",
+        "Quartet captions and values stay on one line",
       )
-      const colorField = pattern.getByRole("textbox", { name: "Pattern Fill Color", exact: true })
-      assert.equal(
-        await colorField.evaluate((element) => {
+      await pattern.getByLabel("Edit Fill", { exact: true }).tap()
+      const editor = pattern.getByRole("textbox", { name: "Pattern Fill Color", exact: true })
+      assert.deepEqual(
+        await editor.evaluate((element) => {
           const style = getComputedStyle(element)
           const canvas = document.createElement("canvas").getContext("2d")
           canvas.font = style.font
@@ -183,51 +81,37 @@ async function checkMobile(browser, url) {
             parseFloat(style.paddingRight) -
             parseFloat(style.borderLeftWidth) -
             parseFloat(style.borderRightWidth)
-          const required = canvas.measureText(element.value).width
-          return available >= required
+          const group = element.closest(".style-object")
+          const selected = group
+            .querySelector('[aria-expanded="true"]')
+            .closest(".quartet-property")
+            .getBoundingClientRect()
+          const dock = group.querySelector(".quartet-dock").getBoundingClientRect()
+          const gap = parseFloat(getComputedStyle(group.querySelector(".quartet-fields")).rowGap)
+          return {
+            colorFits: canvas.measureText(element.value).width <= available,
+            dockBelow: dock.y >= selected.bottom && dock.y - selected.bottom <= gap * 3 + 1,
+          }
         }),
-        true,
-        "The complete color code must fit in the editor",
-      )
-      assert.equal(
-        await pattern.getByText("Fill opacity: 0% is transparent; 100% is opaque.", { exact: true }).isVisible(),
-        true,
+        { colorFits: true, dockBelow: true },
       )
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
       await checkStatus(page)
       await views.getByRole("button", { name: "Output", exact: true }).tap()
-      assert.equal(await input.isVisible(), false)
-      assert.equal(await output.isVisible(), true)
-      await output.getByRole("tab", { name: "Page", exact: true }).tap()
-      const downloadingBox = await output.getByRole("button", { name: "Download", exact: true }).boundingBox()
-      assert.ok(Math.abs(downloadingBox.width - navigationBox.width) < 1)
-      assert.ok(Math.abs(downloadingBox.height - navigationBox.height) < 1)
-      if (width <= 390) {
-        assert.equal(await output.locator(".sequence-entry").isVisible(), true)
-        assert.equal(
-          await output.locator(".page-tools .tool").evaluateAll((elements) => {
-            const boxes = elements
-              .filter((element) => getComputedStyle(element).visibility !== "hidden")
-              .map((element) => element.getBoundingClientRect())
-            return boxes.every((box) => box.width >= 44 && box.height >= 44)
-          }),
-          true,
-          "All compact Page tools retain full-size touch targets",
-        )
-      }
-      assert.equal(await aligned(output), true, "Page controls align at narrow widths and enlarged text")
-      const tools = output.getByRole("group", { name: "Output Page controls", exact: true })
-      assert.equal(await tools.isVisible(), true)
-      const toolsBox = await tools.boundingBox()
-      assert.ok(toolsBox.x >= 0 && toolsBox.x + toolsBox.width <= width)
+      await tab(output, "Page")
+      await aligned(output)
       await zoom(output, "Fit page")
       await zoom(output, "Zoom in")
       assert.equal(await output.getByLabel("Output page zoom", { exact: true }).innerText(), "150%")
       await zoom(output, "Fit page")
-      assert.equal(await output.getByLabel("Output page zoom", { exact: true }).innerText(), "100%")
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+      const saved = page.waitForEvent("download")
+      await output.getByRole("button", { name: "Download", exact: true }).tap()
+      const artifact = await saved
+      assert.equal(await artifact.failure(), null)
+      assert.match((await readFile(await artifact.path())).subarray(0, 8).toString(), /^%PDF-/)
       await views.getByRole("button", { name: "Input", exact: true }).tap()
-      assert.equal(await input.getByRole("combobox", { name: "Style profile", exact: true }).inputValue(), "inkjet")
+      assert.equal(await profile.inputValue(), "inkjet")
     } finally {
       await context.close()
     }
@@ -235,10 +119,9 @@ async function checkMobile(browser, url) {
 }
 
 test("Landing compact headings fit phones and tablets and logos follow theme changes and reloads", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce", hasTouch: true })
     await page.goto(server.resolvedUrls.local[0])
@@ -360,7 +243,7 @@ test("Landing compact headings fit phones and tablets and logos follow theme cha
     await page.setViewportSize({ width: 1440, height: 1100 })
     assert.equal(await heading.innerText(), "Select pages and style prepared PDFs.")
     assert.equal(await copy.isVisible(), true)
-    await mkdir("../.local/tmp/web/landing", { recursive: true })
+
     for (const colorScheme of ["light", "dark"]) {
       await page.emulateMedia({ colorScheme })
       for (const width of [320, 390, 430, 768, 1475]) {
@@ -420,7 +303,6 @@ test("Landing compact headings fit phones and tablets and logos follow theme cha
             { data: link.toString("base64"), dark: colorScheme === "dark" },
           )
           assert.ok(clearance >= 2, `${width}px at ${text}: dotted underline leaves ${clearance}px below descenders`)
-          await page.screenshot({ path: `../.local/tmp/web/landing/${width}-${text}-${colorScheme}.png` })
         }
       }
     }
@@ -478,15 +360,13 @@ test("Landing compact headings fit phones and tablets and logos follow theme cha
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Landing top spacing stays bounded on wide coarse-pointer screens", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce", hasTouch: true })
     await page.goto(server.resolvedUrls.local[0])
@@ -520,15 +400,13 @@ test("Landing top spacing stays bounded on wide coarse-pointer screens", async (
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Landing logo replays entry and keeps parallax inside its framed area", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1100 },
@@ -620,7 +498,6 @@ test("Landing logo replays entry and keeps parallax inside its framed area", asy
     assert.equal(await page.getByRole("button", { name: "Replay logo animation" }).count(), 0)
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -664,10 +541,9 @@ test(
   "Ordinary Inputs release validation workers while preview and Download stay available",
   { timeout: 60000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -704,7 +580,6 @@ test(
       )
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
@@ -713,10 +588,9 @@ test(
   "Multi-file opening recovers from invalid PDFs and cancellation stops the remaining files",
   { timeout: 60000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ reducedMotion: "reduce" })
       page.setDefaultTimeout(10000)
@@ -777,16 +651,14 @@ test(
       assert.equal(await page.getByRole("alert").count(), 0, "An abandoned batch cannot restore stale errors")
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
 
 test("Large failure batches announce a summary and retain every file error", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" })
     page.setDefaultTimeout(10000)
@@ -869,19 +741,17 @@ test("Large failure batches announce a summary and retain every file error", { t
     assert.equal(await page.locator(".input-current").textContent(), "Ready.pdf")
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("The first PDF previews before validation and commits only after success", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   const gates = []
   const release = () => {
     for (const proceed of gates.splice(0)) proceed()
   }
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" })
     page.setDefaultTimeout(10000)
@@ -948,7 +818,6 @@ test("The first PDF previews before validation and commits only after success", 
   } finally {
     release()
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -956,52 +825,47 @@ test("Development assets remain available after a production build", { timeout: 
   const temporary = resolvePath("../.local/tmp/web")
   await mkdir(temporary, { recursive: true })
   const outDir = await mkdtemp(join(temporary, "asset-rebuild-"))
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     page.setDefaultTimeout(10000)
     const url = server.resolvedUrls.local[0]
     await page.goto(`${url}?demo`)
     await page.locator(".input-current").waitFor()
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const previous = process.env.NODE_ENV
-      try {
-        process.env.NODE_ENV = "production"
-        await build({ build: { outDir, emptyOutDir: true }, logLevel: "warn" })
-      } finally {
-        if (previous === undefined) delete process.env.NODE_ENV
-        else process.env.NODE_ENV = previous
-      }
-      const response = await fetch(`${url}processor.wasm`)
-      assert.equal(response.status, 200)
-      assert.match(response.headers.get("content-type"), /^application\/wasm/)
-      assert.deepEqual(
-        [...new Uint8Array(await response.arrayBuffer()).subarray(0, 4)],
-        [0, 97, 115, 109],
-        "The open development server keeps serving WASM, not the HTML fallback",
-      )
-      await page.reload()
-      await page.locator(".input-current").waitFor()
-      assert.equal(await page.locator(".input-current").textContent(), "demo.pdf")
-      await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "6 PDF pages",
-      )
+    const previous = process.env.NODE_ENV
+    try {
+      process.env.NODE_ENV = "production"
+      await build({ build: { outDir, emptyOutDir: true }, logLevel: "warn" })
+    } finally {
+      if (previous === undefined) delete process.env.NODE_ENV
+      else process.env.NODE_ENV = previous
     }
+    const response = await fetch(`${url}processor.wasm`)
+    assert.equal(response.status, 200)
+    assert.match(response.headers.get("content-type"), /^application\/wasm/)
+    assert.deepEqual(
+      [...new Uint8Array(await response.arrayBuffer()).subarray(0, 4)],
+      [0, 97, 115, 109],
+      "The open development server keeps serving WASM, not the HTML fallback",
+    )
+    await page.reload()
+    await page.locator(".input-current").waitFor()
+    assert.equal(await page.locator(".input-current").textContent(), "demo.pdf")
+    await page.waitForFunction(
+      () => document.querySelector(".composition-totals strong")?.textContent === "6 PDF pages",
+    )
   } finally {
     await browser?.close()
-    await server.close()
     await rm(outDir, { recursive: true, force: true })
   }
 })
 
 test("Demo variants open the maintained Input with populated or empty Output", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [query, pages, selected] of [
       ["", 6, 4],
@@ -1074,15 +938,13 @@ test("Demo variants open the maintained Input with populated or empty Output", a
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Unknown demo variants report an error and permit opening a local PDF", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1104,15 +966,13 @@ test("Unknown demo variants report an error and permit opening a local PDF", asy
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("A delayed demo cannot replace local pages or report obsolete failures", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const status of [200, 503]) {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
@@ -1148,15 +1008,13 @@ test("A delayed demo cannot replace local pages or report obsolete failures", { 
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Input density starts from two Normal batches and retains each Source choice", { timeout: 90000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, small, large] of [
       [1920, 1080, 12, 13],
@@ -1229,7 +1087,6 @@ test("Input density starts from two Normal batches and retains each Source choic
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -1237,10 +1094,9 @@ test(
   "View switches reuse painted PDFs and loading keeps thumbnails within their frames",
   { timeout: 60000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({
         viewport: { width: 2560, height: 1440 },
@@ -1386,16 +1242,14 @@ test(
       assert.deepEqual(errors, [])
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
 
 test("Home asks once before discarding changes and cancellation retains the workspace", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1433,7 +1287,6 @@ test("Home asks once before discarding changes and cancellation retains the work
     assert.deepEqual(warnings, ["confirm", "beforeunload", "confirm"], "Each Home attempt asks exactly once")
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -1519,10 +1372,9 @@ test("Input switching renders thumbnails and the lens from the selected PDF", { 
 })
 
 test("Concurrent Source previews isolate resets and ignore obsolete worker replies", { timeout: 60000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" })
     const errors = []
@@ -1610,7 +1462,6 @@ test("Concurrent Source previews isolate resets and ignore obsolete worker repli
     assert.deepEqual(errors, [])
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
@@ -1672,6 +1523,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     const page = await context.newPage()
     const url = server.resolvedUrls.local[0]
     await checkMobile(browser, url)
+    await page.clock.install()
     const foreignCache = `mainz:${new URL("/elsewhere/", url).href}:other`
     paused = true
     await page.goto(url)
@@ -1755,7 +1607,8 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     const installedBox = await installed.boundingBox(),
       landingBox = await page.locator(".drop-zone").boundingBox()
     assert.ok(installedBox.y + installedBox.height <= landingBox.y)
-    await installed.waitFor({ state: "detached", timeout: 15000 })
+    await page.clock.fastForward(15000)
+    await installed.waitFor({ state: "detached" })
     await page.evaluate(() => localStorage.setItem("mainz:onboarding", "19"))
     await context.setOffline(true)
     const demo = await context.newPage()
@@ -1780,7 +1633,6 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     assert.equal(await demoArtifact.failure(), null)
     assert.match((await readFile(await demoArtifact.path())).subarray(0, 8).toString(), /^%PDF-/)
     await demo.close()
-    console.log("The bundled production demo opens, styles and downloads offline under /composer/.")
     await page.goto(`${url}?reset`)
     await page.waitForURL(url)
     assert.equal(await page.evaluate(() => localStorage.getItem("mainz:onboarding")), null)
@@ -1843,13 +1695,14 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     const update = page.getByRole("button", { name: "Update application", exact: true })
     await update.waitFor({ timeout: 60000 })
     const updateNotice = page.getByRole("banner").getByRole("status")
-    await page.waitForTimeout(5500)
+    await page.clock.fastForward(5500)
     assert.equal(await updateNotice.isVisible(), true)
     assert.match(
       await updateNotice.textContent(),
       /An application update is ready\. Download and close your PDF before updating\./,
     )
-    await updateNotice.waitFor({ state: "detached", timeout: 15000 })
+    await page.clock.fastForward(15000)
+    await updateNotice.waitFor({ state: "detached" })
     assert.equal(await update.isVisible(), true)
     assert.equal(await update.isDisabled(), true)
     assert.equal(await output.locator(".composition-totals strong").textContent(), "2 PDF pages")

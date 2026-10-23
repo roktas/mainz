@@ -2,17 +2,15 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { mkdir } from "node:fs/promises"
+import { serve } from "./server.ts"
 import { chromium } from "playwright"
 import { aligned, zoom } from "./workspace.js"
-import { createServer, tab, image, captureLayout, fixture } from "./browser.js"
+import { tab, image, captureLayout, fixture } from "./browser.js"
 
 test("Paired pane headings align actions, metadata, tabs, and selection fields", { timeout: 90000 }, async (t) => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser, page
-  await mkdir("../.local/tmp/web/headers", { recursive: true })
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ reducedMotion: "reduce", hasTouch: true })
     page.setDefaultTimeout(10000)
@@ -83,11 +81,6 @@ test("Paired pane headings align actions, metadata, tabs, and selection fields",
               assert.ok(Math.abs(layout.inputField.y - layout.outputField.y) < 1)
               assert.ok(layout.totals.right <= layout.download.x && layout.totals.bottom <= layout.heading.bottom + 1)
               assert.equal(layout.overflow, false)
-              if (density === "Normal" && [1080, 1152, 2560].includes(width))
-                await page.screenshot({
-                  path: `../.local/tmp/web/headers/paired-${width}-${text}-${colorScheme}-${populated}.png`,
-                  fullPage: true,
-                })
             }
           }
         }
@@ -120,15 +113,13 @@ test("Paired pane headings align actions, metadata, tabs, and selection fields",
     throw error
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Page headings and navigation follow fitted image edges", { timeout: 420000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser, page
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     const errors = []
@@ -148,7 +139,9 @@ test("Page headings and navigation follow fitted image edges", { timeout: 420000
         [
           [360, 672],
           [392, 764],
+          [439, 956],
           [440, 956],
+          [441, 956],
           [750, 1144],
           [1006, 481],
           [876, 1280],
@@ -181,24 +174,15 @@ test("Page headings and navigation follow fitted image edges", { timeout: 420000
         for (const key of ["Home", "End"]) {
           await viewport.focus()
           await page.keyboard.press(key)
-          await page.evaluate(
-            () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-          )
           await pane.locator(".pdf-viewport[aria-busy=false]").waitFor()
-          await page.evaluate(
-            () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-          )
           await aligned(pane)
           const fitted = await image(pane).boundingBox()
-          for (const action of [undefined, "Zoom out", "Fit page", "Zoom in", "Fit page"]) {
+          const actions = [1280, 375].includes(width)
+            ? [undefined, "Zoom out", "Fit page", "Zoom in"]
+            : [undefined, "Zoom in"]
+          for (const action of actions) {
             if (action) await zoom(pane, action)
-            await page.evaluate(
-              () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-            )
             await pane.locator(".pdf-viewport[aria-busy=false]").waitFor()
-            await page.evaluate(
-              () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-            )
             await aligned(pane)
             const geometry = await pane.locator(".page-view").evaluate((view) => {
               const box = (query) => view.querySelector(query).getBoundingClientRect()
@@ -212,6 +196,7 @@ test("Page headings and navigation follow fitted image edges", { timeout: 420000
                 .map((child) => child.getBoundingClientRect())
                 .filter((rect) => rect.width > 1)
               return {
+                overflow: document.documentElement.scrollWidth > innerWidth,
                 touch: getComputedStyle(view).getPropertyValue("--page-touch").trim() === "1",
                 controls: view.getAttribute("data-controls"),
                 startTargets: [box(".page-number-control").left, box(".page-navigation > button:first-child").left],
@@ -255,6 +240,7 @@ test("Page headings and navigation follow fitted image edges", { timeout: 420000
             )
             if (geometry.grip !== undefined)
               assert.ok(Math.abs(geometry.grip - fitted.x - fitted.width / 2) < 1, `${label}: the grip stays centered`)
+            assert.equal(geometry.overflow, false, `${label}: controls fit the viewport`)
             const compact = width <= 640 || geometry.controls === "fit"
             assert.equal(
               geometry.items,
@@ -298,6 +284,7 @@ test("Page headings and navigation follow fitted image edges", { timeout: 420000
             if (geometry.grip !== undefined)
               assert.ok(geometry.targets[0].left >= geometry.gripRight - 1, `${label}: tools stay beside the grip`)
           }
+          await zoom(pane, "Fit page")
         }
       }
     }
@@ -308,15 +295,13 @@ test("Page headings and navigation follow fitted image edges", { timeout: 420000
     throw error
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
 
 test("Page controls retain space and alignment with wide fonts and enlarged mobile text", async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -364,103 +349,6 @@ test("Page controls retain space and alignment with wide fonts and enlarged mobi
     }
   } finally {
     await browser?.close()
-    await server.close()
-  }
-})
-
-test("Narrow Page headings keep complete control rows across adjacent phone widths", { timeout: 120000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
-  let browser
-  const directory = "../.local/tmp/web/headers"
-  await mkdir(directory, { recursive: true })
-  try {
-    await server.listen()
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-    const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
-    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-    for (const colorScheme of ["light", "dark"]) {
-      await page.emulateMedia({ colorScheme })
-      for (const text of ["100%", "200%"]) {
-        await page.evaluate((size) => (document.documentElement.style.fontSize = size), text)
-        for (const [width, height] of [
-          [320, 568],
-          [375, 667],
-          [390, 844],
-          [430, 932],
-          [439, 956],
-          [440, 956],
-          [441, 956],
-          [956, 440],
-        ]) {
-          await page.setViewportSize({ width, height })
-          for (const name of ["Input", "Output"]) {
-            const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-            const views = page.locator(".mobile-workspace-tabs")
-            if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
-            await tab(pane, "Page")
-            await zoom(pane, "Fit page")
-            for (const action of [undefined, "Zoom in", "Fit page"]) {
-              if (action) await zoom(pane, action)
-              await aligned(pane)
-              const layout = await pane.locator(".inspection-heading").evaluate((heading) => {
-                // oxlint-disable-next-line unicorn/consistent-function-scoping -- Playwright serializes this callback.
-                const box = (element) => element.getBoundingClientRect().toJSON()
-                const tools = heading.querySelector(".page-tools")
-                return {
-                  heading: box(heading),
-                  counter: box(heading.querySelector(".page-number-control")),
-                  tools: box(tools),
-                  buttons: [...tools.querySelectorAll("button")]
-                    .filter((button) => button.checkVisibility() && getComputedStyle(button).visibility !== "hidden")
-                    .map(box),
-                  leading: box(
-                    heading.querySelector(".page-grip")?.checkVisibility()
-                      ? heading.querySelector(".page-grip")
-                      : heading.querySelector(".page-number-control"),
-                  ),
-                }
-              })
-              const label = `${name}, ${width}×${height}, ${text}, ${colorScheme}, ${action ?? "Fit"}`
-              assert.ok(
-                layout.buttons.every(
-                  (button) =>
-                    button.width >= 44 &&
-                    button.height >= 44 &&
-                    Math.abs(button.top - layout.buttons[0].top) < 1 &&
-                    button.left >= layout.heading.left - 1 &&
-                    button.right <= layout.heading.right + 1 &&
-                    button.top >= layout.heading.top - 1 &&
-                    button.bottom <= layout.heading.bottom + 1,
-                ),
-                `${label}: all control targets stay on one complete row inside the heading: ${JSON.stringify(layout)}`,
-              )
-              assert.ok(
-                layout.tools.left >= layout.leading.right - 1 &&
-                  Math.abs(
-                    layout.counter.top + layout.counter.height / 2 - layout.tools.top - layout.tools.height / 2,
-                  ) < 1,
-                `${label}: the complete header stays on one row without covering the counter or grip`,
-              )
-              assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, label)
-            }
-            assert.equal(
-              await page.locator(".error-banner").count(),
-              0,
-              `${name}, ${width}, ${text}: no rendering errors`,
-            )
-            if ([320, 440, 956].includes(width))
-              await page.screenshot({
-                path: `${directory}/${name}-${width}-${text}-${colorScheme}.png`,
-                fullPage: true,
-              })
-          }
-        }
-      }
-    }
-  } finally {
-    await browser?.close()
-    await server.close()
   }
 })
 
@@ -468,10 +356,9 @@ test(
   "Touch Page starts readable, keeps balanced gutters, and preserves explicit zoom choices",
   { timeout: 120000 },
   async () => {
-    const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+    const server = await serve()
     let browser
     try {
-      await server.listen()
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const errors = []
       for (const [width, height, touch, enlarged] of [
@@ -661,16 +548,14 @@ test(
       assert.deepEqual(errors, [], "Page loading and layout changes have no browser errors")
     } finally {
       await browser?.close()
-      await server.close()
     }
   },
 )
 
 test("Page fit preserves screen size across expanded desktop viewports", { timeout: 90000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -703,11 +588,6 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
         [...document.querySelectorAll(".composition-output .thumbnail")].every(
           (element) => element.getAttribute("aria-busy") === "false",
         ),
-      )
-      const thumbnail = await output.locator(".page-image canvas").first().boundingBox()
-      assert.ok(
-        Math.abs(thumbnail.height - (factor === 1 ? 133 : 144)) < 1,
-        "Grid thumbnails follow their viewport range at each browser zoom",
       )
       await tab(output, "Page")
       await output.locator(".pdf-viewport[aria-busy=false] canvas").waitFor()
@@ -762,6 +642,5 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })

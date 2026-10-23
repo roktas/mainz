@@ -46,7 +46,8 @@ deleting obsolete download archives or caches. Preserve retained measurements be
 ## Browser checks
 
 Use the pinned Node version and the root commands in [AGENTS](../../AGENTS.md#setup-and-checks). Run one browser suite
-per host at a time. Tests start their own servers. Install a missing browser with:
+per host at a time. Standard fixtures reuse one Vite server per file through `test/server.ts`. Each scenario keeps its
+own browser contexts and storage. Custom server scenarios own their server lifecycle. Install a missing browser with:
 
 ```sh
 npm --prefix web exec -- playwright install chromium
@@ -58,23 +59,36 @@ pinch zoom, and large Output pagination. Run focused checks for other affected b
 
 Before an ordinary push, run `npm run test:standard`. It adds a production build and the functional browser regressions.
 Standard covers opening, editing, Style, Download, cancellation, PDF ownership, selection, keyboard, touch, offline use,
-updates, and large Output pagination. Animation checks use a desktop and phone without CPU throttling. Standard omits
-the alignment and Page geometry matrices, Grid capacity/calibration matrices, and calibration tools.
+updates, and large Output pagination. Animation checks use a desktop and phone without CPU throttling. Standard uses
+representative desktop and touch cases for batch navigation, shared frames, and partial batches. It omits the alignment
+and Page geometry matrices, Grid capacity/calibration matrices, and calibration tools.
 
 Before a release, run `npm run test:full`. It includes every application browser scenario, complete animation matrices
-with CPU throttling, and both viewport measurement and candidate-search scenarios. All modes include the same static
-rules and unit tests. Native, WASM, sanitizer, and package tasks remain subject to
+with CPU throttling, and both viewport measurement and candidate-search scenarios. Animation command entrypoints run
+once. Core addition, removal, movement, and reduced-motion operations cover each viewport and density. All modes include
+the same static rules and unit tests. Native, WASM, sanitizer, and package tasks remain subject to
 [AGENTS](../../AGENTS.md#build-and-validation).
 
 `npm run test:browser` defaults to standard mode. Add a mode and group to run focused checks, for example
 `npm run test:browser -- full grid`. Append Node test flags after the group, for example
 `npm run test:browser -- standard grid --test-name-pattern='pagination'`. The runner checks that every browser file
-belongs to exactly one group. Add new files to `test/run.ts`. Tests keep separate servers, browser contexts, and
-storage.
+belongs to exactly one group. Add new files to `test/run.ts`. Tests keep separate servers, browser contexts, and storage
+between files. The `grid` group also runs PDF ownership and lens tests. The `composition` group also runs transfer
+tests. The `startup` group also runs installation tests. The `workspace` group runs workspace tests alone.
 
-Grid tests own the full viewport matrices and calibration boundaries. Alignment tests cover each distinct card
-calibration, both themes, both panes and densities, normal/200% text, selected states, and long page numbers. They do
-not repeat every nearby calibration boundary. Page geometry tests own fitted image and control alignment.
+`npm test` selects the fast `.test.ts` files. The browser runner selects `.test.js` files. Both use Node's test runner.
+The extension split is an existing selection convention. Node can also run TypeScript browser tests. A conversion must
+update file selection and enable type checking for those tests.
+
+Grid tests own the full viewport matrices and calibration boundaries. Boundary sweeps omit exact mouse viewports already
+covered by desktop references. Desktop reference matrices set minimum capacities; extra complete rows or columns must
+still pass all visual bounds. Capacity sweeps use the light theme. Alignment tests cover each distinct card calibration,
+both themes, both panes and densities, normal/200% text, selected states, and long page numbers. They do not repeat
+every nearby calibration boundary. Geometry setup dispatches clicks directly to prevent incidental pointer effects.
+Interaction tests retain real pointer and keyboard actions. Page geometry tests own fitted image and control alignment.
+They cover fitted and enlarged pages across the matrix, with zoom limits at representative phone and desktop widths.
+Production smoke tests cover enlarged phone text and a tablet. The development suites own the larger interaction and
+layout matrices. Failure screenshots and asserted raster captures remain part of the suites.
 
 Grid browser scenarios supply their PDF through request routing. They do not require the manual
 `.local/tmp/web/grid/sample.pdf` fixture.
@@ -88,9 +102,11 @@ ordinary PRs and pushes.
 required below.
 
 CI runs standard in six browser groups for main pushes and pull requests. A `v*` version tag runs full in nine groups,
-including a separate viewport group. Native, sanitizer, and WASM checks run for both modes. In GitHub Actions, open
-**Check and publish Mainz → Run workflow** and select `standard` or `full` for a manual check. Manual checks never
-upload a Pages artifact, deploy, or cancel a push run. Only a successful push to `main` deploys the web application.
+including a separate viewport group. Native, sanitizer, and WASM checks run for both modes. Browser jobs wait for the
+native job that supplies WASM. The sanitizer job runs independently. Deployment requires both jobs and all browser
+groups to pass. In GitHub Actions, open **Check and publish Mainz → Run workflow** and select `standard` or `full` for a
+manual check. Manual checks never upload a Pages artifact, deploy, or cancel a push run. Only a successful push to
+`main` deploys the web application.
 
 `PLAYWRIGHT_CHANNEL=chrome` selects installed Chrome; `chrome-beta` selects the Beta channel. Record the actual browser
 version with its results. On macOS, use Playwright's `ControlOrMeta` for native selection and modified pointer actions.

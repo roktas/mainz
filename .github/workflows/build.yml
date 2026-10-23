@@ -22,122 +22,16 @@ concurrency:
 
 jobs:
   build:
-    name: Check ${{ matrix.preset }}
-    runs-on: ubuntu-26.04
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        preset: [native, sanitize]
-    env:
-      BUNDLE_PATH: ${{ github.workspace }}/.local/var/ruby
-      BUNDLE_APP_CONFIG: ${{ github.workspace }}/.local/var/ruby
-      MAINZ_QPDF_SOURCE: ${{ github.workspace }}/.local/src/qpdf
-      EMSDK: ${{ github.workspace }}/.local/var/cpp/emsdk
-      CMAKE_C_COMPILER_LAUNCHER: ccache
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CCACHE_DIR: ${{ github.workspace }}/.local/var/cache/ccache
-      CCACHE_BASEDIR: ${{ github.workspace }}
-      CCACHE_MAXSIZE: 1G
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: qpdf/qpdf
-          ref: 4eba95899886e851cc41d76886483b347612f2a8
-          path: .local/src/qpdf
-          persist-credentials: false
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: matrix.preset == 'native'
-        with:
-          repository: emscripten-core/emsdk
-          ref: e566f7bdcc7735f44037911c24b87a58a3c93145
-          path: .local/var/cpp/emsdk
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        if: matrix.preset == 'native'
-        with:
-          node-version-file: .node-version
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - name: Install check dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ccache clang-22 clang-format-22 clang-tidy-22 cmake libjpeg-dev libssl-dev make poppler-utils python3 qpdf zlib1g-dev libcairo2-dev librsvg2-dev librsvg2-bin libxml2-dev libpango1.0-dev libfontconfig1-dev pkg-config
-          echo "/usr/lib/llvm-22/bin" >> "$GITHUB_PATH"
-      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
-      - name: Cache Ruby dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .local/var/ruby
-          key: ruby-ubuntu-26.04-${{ runner.arch }}-${{ hashFiles('.ruby-version', 'Gemfile.lock') }}
-      - name: Install Ruby check dependencies
-        run: bundle install
-      - name: Cache compiler output
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .local/var/cache/ccache
-          key:
-            ccache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json',
-            '.github/workflows/build.yml') }}-${{ matrix.preset }}-${{ github.sha }}
-          restore-keys: |
-            ccache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', '.github/workflows/build.yml') }}-${{ matrix.preset }}-
-            ccache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', '.github/workflows/build.yml') }}-
-            ccache-${{ runner.os }}-${{ runner.arch }}-
-      - name: Cache Emscripten tools and ports
-        if: matrix.preset == 'native'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            .local/var/cpp/emsdk/upstream
-            .local/var/cpp/emsdk/node
-          key:
-            emsdk-${{ runner.os }}-${{ runner.arch }}-6.0.10-${{ hashFiles('.local/var/cpp/emsdk/emsdk_manifest.json',
-            '.local/var/cpp/emsdk/emsdk.py') }}
-      - name: Build and check ${{ matrix.preset }} processor
-        run: |
-          ccache --zero-stats
-          bundle exec rake build:${{ matrix.preset }} test:${{ matrix.preset }}
-      - name: Build WASM and check native parity
-        if: matrix.preset == 'native'
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          .local/var/cpp/emsdk/emsdk install 6.0.10
-          .local/var/cpp/emsdk/emsdk activate 6.0.10
-          source .local/var/cpp/emsdk/emsdk_env.sh
-          bundle exec rake build:wasm test:wasm
-      - name: Report compiler cache use
-        run: ccache --show-stats
-      - name: Package WASM consumer files
-        if: matrix.preset == 'native'
-        env:
-          MAINZ_REVISION: ${{ github.sha }}
-        run: bundle exec rake package:wasm
-      - name: Check and build PDF Composer
-        if: matrix.preset == 'native'
-        run: |
-          bundle exec rake setup:web test:web
-          npm run format:check
-          npm run lint
-          npm test
-          npm run build
-      - name: Upload WASM package for browser tests
-        if: matrix.preset == 'native'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: wasm
-          path: .local/var/package/wasm
-          include-hidden-files: true
-          if-no-files-found: error
-          overwrite: true
-      - name: Upload PDF Composer for GitHub Pages
-        if: matrix.preset == 'native' && github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: .local/var/js/dist
+    name: Check native
+    uses: ./.github/workflows/check.yml
+    with:
+      preset: native
+
+  sanitize:
+    name: Check sanitize
+    uses: ./.github/workflows/check.yml
+    with:
+      preset: sanitize
 
   browser:
     name: Browser ${{ matrix.mode }} / ${{ matrix.suite }}
@@ -199,7 +93,7 @@ jobs:
 
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [build, browser]
+    needs: [build, sanitize, browser]
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:

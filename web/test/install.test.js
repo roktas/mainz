@@ -2,17 +2,14 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { mkdir } from "node:fs/promises"
+import { serve } from "./server.ts"
 import { chromium, devices } from "playwright"
-import { createServer } from "./browser.js"
 
 test("Installation guidance stays optional and independent of the product tour", { timeout: 120000 }, async () => {
-  const server = await createServer({ server: { port: 0, host: "127.0.0.1" } })
+  const server = await serve()
   let browser
-  const directory = "../.local/tmp/web/installation"
-  await mkdir(directory, { recursive: true })
+
   try {
-    await server.listen()
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const colorScheme of ["light", "dark"]) {
       const context = await browser.newContext({ ...devices["iPhone 13"], colorScheme, reducedMotion: "reduce" })
@@ -25,7 +22,7 @@ test("Installation guidance stays optional and independent of the product tour",
         await page.locator(".composer").waitFor()
         assert.equal(await welcome.isVisible(), false)
         assert.equal(await installation.getByRole("button", { name: "Install app", exact: true }).count(), 0)
-        await page.screenshot({ path: `${directory}/mobile-${colorScheme}.png` })
+
         const alignment = await installation.evaluate((element) => {
           const title = element.querySelector("h2").getBoundingClientRect()
           const icon = element.querySelector(".icon-button svg").getBoundingClientRect()
@@ -38,7 +35,7 @@ test("Installation guidance stays optional and independent of the product tour",
         await page.setViewportSize({ width: 320, height: 667 })
         await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
         assert.equal(await installation.evaluate((element) => element.scrollWidth <= element.clientWidth), true)
-        await page.screenshot({ path: `${directory}/mobile-enlarged-${colorScheme}.png` })
+
         if (colorScheme === "dark") {
           await installation.evaluate((element) => element.removeAttribute("closedby"))
           await page.touchscreen.tap(2, 100)
@@ -151,7 +148,7 @@ test("Installation guidance stays optional and independent of the product tour",
         await page.getByRole("button", { name: "Help", exact: true }).click()
         assert.deepEqual(await installation.getByRole("tab").allTextContents(), ["Keyboard", "Mouse", "App"])
         await installation.getByRole("tab", { name: "App", exact: true }).click()
-        await page.screenshot({ path: `${directory}/desktop-${outcome}.png` })
+
         await page.evaluate((result) => {
           const event = new Event("beforeinstallprompt", { cancelable: true })
           event.prompt = async () => {
@@ -175,6 +172,5 @@ test("Installation guidance stays optional and independent of the product tour",
     }
   } finally {
     await browser?.close()
-    await server.close()
   }
 })
