@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url"
 
 const groups: Record<string, string[]> = {
   alignment: ["alignment"],
-  grid: ["grid", "pdf", "lens"],
+  grid: ["grid", "pdf", "lens", "processor"],
   geometry: ["geometry"],
   composition: ["composition", "transfer"],
   selection: ["selection"],
@@ -31,6 +31,7 @@ assert.deepEqual(
 )
 
 const minimal = {
+  processor: ["Processor workers pin their module and recover from failed document cleanup"],
   pdf: [
     "Overlapping preview generations release their own pages and never paint stale results",
     "Input inspection bounds pending metadata and releases pages on completion, cancellation, and failure",

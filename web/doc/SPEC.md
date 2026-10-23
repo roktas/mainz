@@ -509,13 +509,15 @@ cache. Preview uses bundled assets, fetches no document-specified resources, and
 Offline updates retain one complete compatible asset set without interrupting open work. Updating pauses PDF opening
 until reload. A blocked update restores opening.
 
-Each worker runs one job at a time. Ordinary Inputs release their validation worker after opening. Cancellation,
-replacement, or Source removal stops obsolete processing and preview work. Later jobs start usable workers. Input bytes
-remain available for retry. Disposal releases document handles, registered Inputs, buffers, render tasks, and object
-URLs. Completed rasters use bounded memory caching, separate from persistent storage and the offline cache. Removing the
-last owner of a PDF releases its cached rasters. Input and Style comparison retain their shared PDFs. Its budget is not
-a total-memory guarantee. Persistent editable workspaces, printer control, and independent Part or occurrence styles are
-outside this version.
+Each worker runs one job at a time and loads only its bundled processor module. A failed operation discards the WASM
+instance and extracted-page cache before the next request. Cleanup errors fail successful work without replacing an
+earlier operation error. Ordinary Inputs release their validation worker after opening. Cancellation, replacement, or
+Source removal stops obsolete processing and preview work. Later jobs start usable workers. Input bytes remain available
+for retry. Disposal releases document handles, registered Inputs, buffers, render tasks, and object URLs. Completed
+rasters use bounded memory caching, separate from persistent storage and the offline cache. Removing the last owner of a
+PDF releases its cached rasters. Input and Style comparison retain their shared PDFs. The 32 MiB budget counts retained
+canvas pixels; it excludes active renders, PDF.js memory, and browser overhead. It is not a total-memory guarantee.
+Persistent editable workspaces, printer control, and independent Part or occurrence styles are outside this version.
 
 App owns the document lifetime and rejects replies from obsolete requests: It selects retained documents after view
 updates. The PDF boundary owns their loading-task and raster release, initial page geometry, and labels. Opening reads

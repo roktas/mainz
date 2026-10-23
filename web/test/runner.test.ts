@@ -21,7 +21,12 @@ test("Browser modes retain critical regressions and reserve calibration matrices
   assert.equal(skipped.test("Partial Grid batches retain full-matrix card positions and dimensions"), false)
   assert.deepEqual(full.flags, [])
   assert.deepEqual(select("full", "viewport").files, ["test/viewport.test.js"])
-  assert.deepEqual(select("standard", "grid").files, ["test/grid.test.js", "test/lens.test.js", "test/pdf.test.js"])
+  assert.deepEqual(select("standard", "grid").files, [
+    "test/grid.test.js",
+    "test/lens.test.js",
+    "test/pdf.test.js",
+    "test/processor.test.js",
+  ])
   assert.deepEqual(select("standard", "composition").files, ["test/composition.test.js", "test/transfer.test.js"])
   assert.deepEqual(select("standard", "startup").files, ["test/install.test.js", "test/startup.test.js"])
   assert.deepEqual(select("standard", "workspace").files, ["test/workspace.test.js"])

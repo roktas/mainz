@@ -25,7 +25,6 @@ export type Operation =
   | { job: Job; inputs: Record<string, ArrayBuffer> }
 export type Request = Operation & {
   revision: number
-  moduleUrl: string
 }
 export type Report = {
   version: 1

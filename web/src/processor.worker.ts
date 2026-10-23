@@ -61,8 +61,9 @@ function input<T>(wasm: Module, bytes: Uint8Array, call: (pointer: number, size:
 
 async function run(job: Request): Promise<Result> {
   if (!module) {
-    const { default: create } = await import(/* @vite-ignore */ job.moduleUrl)
-    module = await create({ locateFile: (name: string) => new URL(name, job.moduleUrl).href })
+    const moduleUrl = new URL(/* @vite-ignore */ "../processor.mjs", import.meta.url).href
+    const { default: create } = await import(/* @vite-ignore */ moduleUrl)
+    module = await create({ locateFile: (name: string) => new URL(name, moduleUrl).href })
   }
   const wasm = module!
   let bytes = "bytes" in job ? new Uint8Array(job.bytes) : new Uint8Array(0)
@@ -72,6 +73,7 @@ async function run(job: Request): Promise<Result> {
   if (cached) bytes = extracted!.bytes
   let report: Report | undefined
   let handle = 0
+  let failed = false
   function open() {
     handle = input(wasm, bytes, (p, n) => wasm["_mainz_read"](p, n))
     result(wasm)
@@ -132,8 +134,19 @@ async function run(job: Request): Promise<Result> {
       description,
       report,
     }
+  } catch (error) {
+    failed = true
+    throw error
   } finally {
-    if (handle) wasm["_mainz_close"](handle)
+    if (handle) {
+      try {
+        wasm["_mainz_close"](handle)
+        result(wasm)
+      } catch (error) {
+        // oxlint-disable-next-line no-unsafe-finally -- Fail successful work, but preserve an earlier operation error.
+        if (!failed) throw error
+      }
+    }
   }
 }
 
@@ -154,6 +167,8 @@ self.addEventListener("message", async (event: MessageEvent<Request>) => {
   try {
     reply = await run(job)
   } catch (error) {
+    module = undefined
+    extracted = undefined
     reply = {
       revision: job.revision,
       failure:

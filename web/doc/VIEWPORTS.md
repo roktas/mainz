@@ -53,9 +53,9 @@ own browser contexts and storage. Custom server scenarios own their server lifec
 npm --prefix web exec -- playwright install chromium
 ```
 
-Run `npm run test:minimal` during development. It checks formatting, lint, types, unit tests, and ten browser scenarios.
-Those scenarios cover PDF opening, render ownership, metadata cleanup, Style, Download, cancellation, keyboard, touch,
-pinch zoom, and large Output pagination. Run focused checks for other affected behavior.
+Run `npm run test:minimal` during development. It checks formatting, lint, types, unit tests, and eleven browser
+scenarios. Those scenarios cover PDF opening, render ownership, metadata cleanup, Style, Download, cancellation,
+keyboard, touch, pinch zoom, and large Output pagination. Run focused checks for other affected behavior.
 
 Before an ordinary push, run `npm run test:standard`. It adds a production build and the functional browser regressions.
 Standard covers opening, editing, Style, Download, cancellation, PDF ownership, selection, keyboard, touch, offline use,
@@ -73,8 +73,9 @@ the same static rules and unit tests. Native, WASM, sanitizer, and package tasks
 `npm run test:browser -- full grid`. Append Node test flags after the group, for example
 `npm run test:browser -- standard grid --test-name-pattern='pagination'`. The runner checks that every browser file
 belongs to exactly one group. Add new files to `test/run.ts`. Tests keep separate servers, browser contexts, and storage
-between files. The `grid` group also runs PDF ownership and lens tests. The `composition` group also runs transfer
-tests. The `startup` group also runs installation tests. The `workspace` group runs workspace tests alone.
+between files. The `grid` group also runs PDF ownership, processor-worker recovery, and lens tests. The `composition`
+group also runs transfer tests. The `startup` group also runs installation tests. The `workspace` group runs workspace
+tests alone.
 
 `npm test` selects the fast `.test.ts` files. The browser runner selects `.test.js` files. Both use Node's test runner.
 The extension split is an existing selection convention. Node can also run TypeScript browser tests. A conversion must

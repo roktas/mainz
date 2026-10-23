@@ -10,7 +10,7 @@ let renderer: Promise<typeof import("pdfjs-dist")> | undefined
 type Raster = { canvas: HTMLCanvasElement; pages: Map<string, Raster>; key: string }
 const rasters = new WeakMap<PDFDocumentProxy, Map<string, Raster>>()
 const recent = new Set<Raster>()
-const rasterLimit = 32 * 1024 * 1024
+const rasterLimit = 32 * 1024 * 1024 // Retained canvas pixels only; excludes active renders and PDF.js memory.
 let rasterBytes = 0
 
 export class Documents {

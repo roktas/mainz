@@ -47,6 +47,8 @@
 
 ### Fixed
 
+- PDF processing retries use a fresh WASM instance after an operation or document cleanup fails. Cleanup errors retain
+  the original processing error when both fail.
 - The workspace status bar no longer covers Grid pagination or Page controls when a minimum usable frame needs
   scrolling.
 - Desktop Grid fits card dimensions and gaps within their visual limits before losing a feasible row or column at a

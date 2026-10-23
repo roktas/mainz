@@ -73,7 +73,7 @@ test(
         const Original = Worker
         window.Worker = class extends Original {
           postMessage(message, ...rest) {
-            if (window.pauseOpening && message.moduleUrl && message.bytes && !message.changes) {
+            if (window.pauseOpening && message.bytes && !message.changes) {
               window.resumeOpening = () => super.postMessage(message, ...rest)
               return
             }
