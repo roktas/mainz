@@ -26,7 +26,7 @@ export function fit(element: HTMLElement) {
   const bounds = element.getBoundingClientRect()
   if (!bounds.width || !Number.isFinite(preferredWidth + preferredHeight)) return
   const columns = Math.max(1, Math.floor((bounds.width - gap) / (minimumWidth + gap)))
-  const width = Math.max(
+  let width = Math.max(
     minimumWidth,
     Math.min(
       preferredWidth,
@@ -35,19 +35,27 @@ export function fit(element: HTMLElement) {
       (bounds.width - gap) / columns - gap,
     ),
   )
-  const columnGap = (bounds.width - columns * width) / (columns + 1)
-  const minimumGap = Math.max(gap, 0.85 * columnGap)
-  const minimumHeight = Math.max(
-    Math.SQRT2 * width,
-    Math.max(image, Math.SQRT2 * (width - 2 - 4 * padding)) + tools + 2 * padding,
-  )
   // Grid and Page share the same frame; reserve its pager and clear the first slider row.
   const available =
     element.closest<HTMLElement>(".page-content")!.getBoundingClientRect().height - length("--grid-pager-height") - 10
-  const rows = Math.max(1, Math.floor((available + minimumGap) / (minimumHeight + minimumGap)))
+  const minimumHeight = (cardWidth: number) =>
+    Math.max(Math.SQRT2 * cardWidth, Math.max(image, Math.SQRT2 * (cardWidth - 2 - 4 * padding)) + tools + 2 * padding)
+  const rowCount = (cardWidth: number) => {
+    const minimumGap = Math.max(gap, (0.85 * (bounds.width - columns * cardWidth)) / (columns + 1))
+    return Math.max(1, Math.floor((available + minimumGap) / (minimumHeight(cardWidth) + minimumGap)))
+  }
+  // A slightly narrower card can retain a complete row at the readable image floor.
+  const narrower = Math.max(
+    minimumWidth,
+    Math.min(width, (image + tools + 2 * padding) / Math.SQRT2, image / Math.SQRT2 + 2 + 4 * padding),
+  )
+  if (rowCount(narrower) > rowCount(width)) width = narrower
+  const columnGap = (bounds.width - columns * width) / (columns + 1)
+  const minimumGap = Math.max(gap, 0.85 * columnGap)
+  const rows = rowCount(width)
   const idealGap = Math.max(gap, columnGap)
   const height = Math.max(
-    minimumHeight,
+    minimumHeight(width),
     Math.min(
       preferredHeight,
       (280 / 150) * width,
