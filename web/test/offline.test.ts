@@ -16,7 +16,10 @@ const ASSETS = Array.from({ length: 12 }, (_, index) => ({
   sha256: createHash("sha256").update(`asset-${index}`).digest("hex"),
 }))
 
-function installation(failure = false) {
+function installation({
+  corrupt = false,
+  responses = [],
+}: { corrupt?: boolean; responses?: (number | Error | Response)[] } = {}) {
   type Install = { waitUntil: (promise: Promise<void>) => void }
   const listeners = new Map<string, (event: Install) => void>()
   const entries = new Set()
@@ -34,6 +37,7 @@ function installation(failure = false) {
     URL,
     Request,
     Uint8Array,
+    setTimeout: (callback: () => void) => setImmediate(callback),
     crypto: {
       subtle: {
         digest: async (...args: Parameters<typeof webcrypto.subtle.digest>) => {
@@ -59,7 +63,13 @@ function installation(failure = false) {
       peak = Math.max(peak, ++active)
       const name = new URL(request.url).pathname.split("/").at(-1)
       try {
-        if (failure && name === "asset-0") return new Response("wrong digest")
+        if (name === "asset-0") {
+          const response = responses.shift()
+          if (response instanceof Error) throw response
+          if (response instanceof Response) return response
+          if (response) return new Response("Unavailable", { status: response })
+          if (corrupt) return new Response("wrong digest")
+        }
         await gate
         return new Response(name)
       } finally {
@@ -94,7 +104,7 @@ test("Offline installation overlaps a bounded number of verified asset requests"
 })
 
 test("A failed digest waits for in-flight writes before deleting the partial offline cache", async () => {
-  const run = installation(true)
+  const run = installation({ corrupt: true })
   let failed = false
   const completion = run.completed.catch((error) => {
     failed = true
@@ -109,8 +119,48 @@ test("A failed digest waits for in-flight writes before deleting the partial off
     assert.equal(run.state().active, 0)
     assert.equal(run.state().entries, 0)
     assert.equal(run.state().deleted, 1)
+    assert.equal(run.state().requested, 4, "Incompatible bytes are not retried")
   } finally {
     run.release()
     await completion
+  }
+})
+
+test("Offline installation retries transient downloads and stops on permanent failures", async (t) => {
+  for (const [name, responses, requested, succeeds] of [
+    ["network and server recovery", [new TypeError("Network failed"), 503], 14, true],
+    [
+      "interrupted response body",
+      [
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new TypeError("Download interrupted"))
+            },
+          }),
+        ),
+      ],
+      13,
+      true,
+    ],
+    ["rate limiting", [429], 13, true],
+    ["server failure after three attempts", [503, 503, 503, 200], 6, false],
+    ["missing asset", [404, 200], 4, false],
+  ] as const) {
+    await t.test(name, async () => {
+      const run = installation({ responses: [...responses] })
+      run.release()
+      if (succeeds) {
+        await run.completed
+        assert.equal(run.state().entries, 12)
+        assert.equal(run.state().deleted, 0)
+      } else {
+        await assert.rejects(run.completed, /Missing application asset/)
+        assert.equal(run.state().entries, 0)
+        assert.equal(run.state().deleted, 1)
+      }
+      assert.equal(run.state().requested, requested)
+      assert.ok(run.state().peak <= 4)
+    })
   }
 })

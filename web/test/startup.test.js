@@ -1487,7 +1487,9 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     assert.deepEqual(await readFile(join(outDir, "demo.pdf")), await readFile("test/fixtures/demo.pdf"))
     let paused = false,
       release = "initial",
-      incompatible = false
+      incompatible = false,
+      transient = false,
+      attempts = 0
     server = await preview({
       base: "/composer/",
       build: { outDir },
@@ -1509,6 +1511,11 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
                 )
               } else if (paused && request.url === "/composer/notices/svelte.txt") {
                 void installation.then(next)
+              } else if (transient && request.url === "/composer/processor.mjs") {
+                if (++attempts === 1) {
+                  response.statusCode = 503
+                  response.end("Temporarily unavailable")
+                } else next()
               } else if (incompatible && request.url === "/composer/processor.mjs") {
                 response.setHeader("Content-Type", "text/javascript")
                 response.end("throw new Error('incompatible processor');")
@@ -1590,6 +1597,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
       await checkStatus(installingPage)
     }
     await installingPage.close()
+    transient = true
     paused = false
     finishInstall()
     await page.setViewportSize({ width: 1440, height: 900 })
@@ -1601,6 +1609,8 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     assert.equal(initialCaches.length, 1)
     assert.ok(initialCaches[0].startsWith("mainz:"))
     assert.match(initialCaches[0], /\/composer\/:initial$/)
+    assert.equal(attempts, 2, "Installation recovers from a temporary asset download failure")
+    transient = false
     const installed = page.getByText("PDF Composer is ready for offline use.", { exact: true })
     await installed.waitFor()
     assert.equal(await page.getByRole("banner").getByRole("status").count(), 1)
@@ -1765,11 +1775,24 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
       await registration.update()
       await completed
     })
-    await page
-      .getByText("Offline installation failed. The current application is retained.", {
-        exact: true,
-      })
-      .waitFor()
+    const failure = page.getByText(
+      "Offline setup failed. Reload this page in a moment. If it keeps failing, report it.",
+      { exact: true },
+    )
+    await failure.waitFor()
+    for (const width of [320, 390, 768]) {
+      for (const colorScheme of ["light", "dark"]) {
+        await page.setViewportSize({ width, height: 900 })
+        await page.emulateMedia({ colorScheme })
+        await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+        const box = await failure.boundingBox()
+        const landing = await page.locator(".drop-zone").boundingBox()
+        assert.ok(box.x >= 0 && box.x + box.width <= width)
+        assert.ok(box.y + box.height <= landing.y, "Recovery guidance stays above the file controls")
+      }
+    }
+    await page.setViewportSize({ width: 1440, height: 900 })
     assert.notEqual(
       await page.locator(".error-banner").evaluate((element) => getComputedStyle(element).color),
       await page.locator(".footnote").evaluate((element) => getComputedStyle(element).color),

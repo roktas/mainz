@@ -507,7 +507,9 @@ library restrictions.
 PDF processing stays on the device. PDF bytes and document-derived values are never uploaded or placed in the offline
 cache. Preview uses bundled assets, fetches no document-specified resources, and executes no PDF actions or scripts.
 Offline updates retain one complete compatible asset set without interrupting open work. Updating pauses PDF opening
-until reload. A blocked update restores opening.
+until reload. A blocked update restores opening. Offline installation retries temporary download failures before it
+reports a failure. Missing or incompatible assets block installation. Failure guidance asks users to reload the page and
+report repeated failures.
 
 Each worker runs one job at a time and loads only its bundled processor module. A failed operation discards the WASM
 instance and extracted-page cache before the next request. Cleanup errors fail successful work without replacing an

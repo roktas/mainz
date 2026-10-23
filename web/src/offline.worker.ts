@@ -8,6 +8,25 @@ const cacheName = `${prefix}${VERSION}`
 const urls = ASSETS.map((asset) => new URL(asset.path, worker.registration.scope).href)
 const entry = new URL("index.html", worker.registration.scope).href
 
+async function download(url: string) {
+  for (let attempt = 0; ; attempt++) {
+    let response: Response | undefined
+    try {
+      response = await fetch(new Request(url, { cache: "reload" }))
+      if (response.ok) return { response, bytes: await response.clone().arrayBuffer() }
+    } catch (error) {
+      if (attempt === 2) throw error
+      response = undefined
+    }
+    if (response) {
+      if ((response.status < 500 && response.status !== 429) || attempt === 2)
+        throw new Error("Missing application asset.")
+      await response.body?.cancel()
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt))
+  }
+}
+
 worker.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
@@ -16,9 +35,7 @@ worker.addEventListener("install", (event) => {
         for (let index = 0; index < urls.length; index += 4) {
           const results = await Promise.allSettled(
             urls.slice(index, index + 4).map(async (url, offset) => {
-              const response = await fetch(new Request(url, { cache: "reload" }))
-              if (!response.ok) throw new Error("Missing application asset.")
-              const bytes = await response.clone().arrayBuffer()
+              const { response, bytes } = await download(url)
               const digest = await crypto.subtle.digest("SHA-256", bytes)
               const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
               if (sha256 !== ASSETS[index + offset].sha256) throw new Error("Incompatible application asset.")

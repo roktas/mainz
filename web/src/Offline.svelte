@@ -16,6 +16,7 @@
   let waiting = $state<ServiceWorker>()
   let status = $state("")
   const updateReady = "An application update is ready. Download and close your PDF before updating."
+  const installFailed = "Offline setup failed. Reload this page in a moment. If it keeps failing, report it."
   function report(text: string, kind: "info" | "notice" | "error" = "info") {
     status = kind === "info" ? text : ""
     if (kind === "notice") notify(text)
@@ -52,13 +53,12 @@
               waiting = navigator.serviceWorker.controller ? worker : undefined
               report(waiting ? updateReady : "PDF Composer is ready for offline use.", "notice")
             }
-            if (worker.state === "redundant")
-              report("Offline installation failed. The current application is retained.", "error")
+            if (worker.state === "redundant") report(installFailed, "error")
           })
         })
       })
       .catch(() => {
-        if (!disposed) report("Offline installation failed. Reconnect and reload to retry.", "error")
+        if (!disposed) report(installFailed, "error")
       })
     return () => {
       disposed = true
