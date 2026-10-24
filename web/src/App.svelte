@@ -67,8 +67,8 @@
   let modifiedSources = $state.raw<string[]>([])
   const unsaved = $derived(outputChanged || modifiedSources.length > 0)
   let homeApproved = false
-  let homeClicks = 0
-  let homeTimer: ReturnType<typeof setTimeout> | undefined
+  let logoClicks = 0
+  let logoTimer: ReturnType<typeof setTimeout> | undefined
   let outputPosition = $state(0)
   let outputZoom = $state(100)
   let comparing = $state(false)
@@ -512,17 +512,21 @@
       (id) => !recipe.sources[id] || Object.keys(sources.find((source) => source.id === id)!.drafts).length > 0,
     )
   }
-  function home(event: MouseEvent) {
-    if (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
+  function logo(event: MouseEvent) {
+    const landing = event.currentTarget instanceof HTMLButtonElement
+    if (!landing && (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)) return
     event.preventDefault()
-    clearTimeout(homeTimer)
-    if (++homeClicks === 3) {
-      homeClicks = 0
+    clearTimeout(logoTimer)
+    logoClicks = Math.max(logoClicks + 1, event.detail)
+    if (logoClicks >= 3) {
+      logoClicks = 0
       examples.show()
       return
     }
-    homeTimer = setTimeout(() => {
-      homeClicks = 0
+    if (landing) logoReplay++
+    logoTimer = setTimeout(() => {
+      logoClicks = 0
+      if (landing) return
       if (unsaved && !confirm("Return home? Input style changes and Output choices have not been downloaded.")) return
       homeApproved = true
       location.assign(import.meta.env.BASE_URL)
@@ -610,7 +614,7 @@
   })
   onDestroy(() => {
     disposed = true
-    clearTimeout(homeTimer)
+    clearTimeout(logoTimer)
     clearTimeout(noticeTimer)
     openingProcessor?.dispose()
     void openingTask?.destroy()
@@ -695,8 +699,8 @@
         class="brand icon-button"
         aria-label="Replay logo animation"
         title="Replay logo animation"
-        onclick={() => logoReplay++}><Logo /></button
-      >{:else}<a class="brand" href={import.meta.env.BASE_URL} aria-label="PDF Composer home" onclick={home}><Logo /></a
+        onclick={logo}><Logo /></button
+      >{:else}<a class="brand" href={import.meta.env.BASE_URL} aria-label="PDF Composer home" onclick={logo}><Logo /></a
       >{/if}
     {#if notice}<div
         class="notice"
@@ -817,7 +821,7 @@
   complete={downloaded}
 />
 
-<Examples bind:this={examples} navigate={example} />
+<Examples bind:this={examples} navigate={example} workspace={!!active || parts.length > 0} />
 
 {#if probe && demo === "grid"}
   {#await import("./Geometry.svelte") then module}<module.default />{/await}

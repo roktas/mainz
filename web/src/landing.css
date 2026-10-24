@@ -14,7 +14,7 @@
       padding: var(--inset);
       padding-block: calc(1.5 * var(--gap));
       margin-block-start: var(--gap);
-      &:focus-within {
+      &:has(:focus-visible) {
         background: var(--tint);
         border-color: var(--accent);
       }

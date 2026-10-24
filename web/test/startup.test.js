@@ -539,6 +539,15 @@ test("Landing logo replays entry and keeps parallax inside its framed area", asy
       await touch.locator(".hero-mark .logo").evaluate((element) => getComputedStyle(element).transform),
       "none",
     )
+    for (const target of [page, touch]) {
+      await target.reload()
+      const trigger = target.getByRole("button", { name: "Replay logo animation", exact: true })
+      for (let click = 0; click < 3; click++) await trigger[target === touch ? "tap" : "click"]()
+      const examples = target.getByRole("dialog", { name: "Explore the app", exact: true })
+      await examples.waitFor()
+      assert.equal(await examples.getByRole("link").count(), 2)
+      await examples.getByRole("button", { name: "Close examples", exact: true }).click()
+    }
     await page.goto(server.resolvedUrls.local[0] + "?demo")
     await page.locator(".input-current").waitFor()
     assert.equal(await page.getByRole("link", { name: "PDF Composer home" }).count(), 1)

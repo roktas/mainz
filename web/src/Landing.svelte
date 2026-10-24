@@ -1,4 +1,4 @@
-<!-- Offers local PDF opening, demo gestures, file drops, and the landing logo animation. -->
+<!-- Offers local PDF opening, file drops, and the landing logo animation. -->
 
 <script lang="ts">
   import Icon from "./Icon.svelte"
@@ -20,68 +20,6 @@
   } = $props()
   let dragging = $state(false)
   let dragDepth = 0
-  function demo(element: HTMLInputElement) {
-    const events = new AbortController()
-    const { signal } = events
-    let timer: ReturnType<typeof setTimeout> | undefined
-    let start: PointerEvent | undefined
-    let held = false
-    const stop = () => {
-      clearTimeout(timer)
-      start = undefined
-    }
-    const load = () => {
-      held = true
-      stop()
-      location.search = "?demo"
-    }
-    element.addEventListener(
-      "pointerdown",
-      (event) => {
-        if (element.disabled) return
-        stop()
-        if (event.ctrlKey && event.shiftKey && event.button === 0) {
-          event.preventDefault()
-          load()
-        } else if (event.pointerType === "touch" && event.isPrimary) {
-          start = event
-          timer = setTimeout(load, 700)
-        }
-      },
-      { signal },
-    )
-    element.addEventListener(
-      "pointermove",
-      (event) => {
-        if (start && Math.hypot(event.clientX - start.clientX, event.clientY - start.clientY) > 8) stop()
-      },
-      { signal },
-    )
-    element.addEventListener("pointerup", stop, { signal })
-    element.addEventListener("pointercancel", stop, { signal })
-    element.addEventListener("pointerleave", stop, { signal })
-    element.addEventListener(
-      "contextmenu",
-      (event) => {
-        if (start || held) event.preventDefault()
-      },
-      { signal },
-    )
-    element.addEventListener(
-      "click",
-      (event) => {
-        if (held || (event.ctrlKey && event.shiftKey)) {
-          event.preventDefault()
-          load()
-        }
-      },
-      { signal },
-    )
-    return () => {
-      stop()
-      events.abort()
-    }
-  }
   function parallax(element: HTMLDivElement) {
     const zone = element.parentElement!
     const events = new AbortController()
@@ -174,7 +112,6 @@
             accept="application/pdf,.pdf"
             multiple
             disabled={loading || updating}
-            {@attach demo}
             onchange={(event) => {
               if (event.currentTarget.files) void open(event.currentTarget.files)
               event.currentTarget.value = ""

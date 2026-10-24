@@ -4,8 +4,7 @@
 
 ### Added
 
-- Installed apps can open examples through three logo clicks or taps. The landing PDF chooser also opens the demo with
-  Ctrl+Shift+click or a touch hold.
+- Three logo clicks or taps open examples on every screen, including in installed apps.
 - Optional app installation guidance, dismissible iPhone/iPad startup help, dedicated Home Screen icons, and Android
   launcher-mask support.
 - Help on the landing page and touch screens, plus Product tour steps for Grid density and Output selection actions.
@@ -47,6 +46,7 @@
 ### Fixed
 
 - Notices float above the page without moving the header or workspace when they appear or close.
+- Touch presses on the PDF chooser retain button feedback without selecting text or tinting the landing frame.
 - Touch controls retain press feedback without native tap rectangles or box glows.
 - View tabs retain clear horizontal spacing on narrow screens and shorter selected underlines at every width.
 - Narrow Grid pagination gives the slider more width while keeping its arrows aligned.

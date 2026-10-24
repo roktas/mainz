@@ -124,9 +124,10 @@ beside − and + buttons, aligned like the Page zoom controls. Application infor
 separator. Version and Build ID values align to the end and wrap with enlarged text. The repository link uses an
 accessible icon target.
 
-The logo's workspace triple-click gesture opens Explore the app as a normal modal dialog. Use short action labels and
-plain descriptions of each example, without showing query strings or developer parameter names. The landing PDF chooser
-keeps its ordinary appearance for its modifier-click and touch-hold demo gestures.
+The logo's triple-click gesture opens Explore the app as a normal modal dialog on every screen. Use short action labels
+and plain descriptions of each example, without showing query strings or developer parameter names. Only the workspace
+offers the welcome choice. PDF chooser controls do not select text or open native touch callouts during a hold. Taps
+open the system file picker.
 
 Pointer opening places initial focus on the Settings drawer. Keyboard opening focuses its Close button. Keyboard
 navigation keeps a visible focus indicator on each control.
@@ -580,7 +581,8 @@ scrolling within the dialog. Installation guidance does not change workspace geo
 
 The landing product name retains a readable minimum independently of the purpose heading. Enlarged text scales the name
 and permits wrapping. The persistent drop hint appears only with fine-pointer and hover capability. Actual file dragging
-still reveals the drop overlay on other inputs. The file chooser remains the primary opening action.
+still reveals the drop overlay on other inputs. The file chooser remains the primary opening action. Keyboard focus
+highlights the landing frame. A touch press keeps its feedback on the chooser without tinting the frame.
 
 ## Feedback presentation
 
