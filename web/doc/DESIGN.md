@@ -124,6 +124,10 @@ show the magnification beside − and + buttons, aligned like the Page zoom cont
 bottom behind a thin separator. Version and Build ID values align to the end and wrap with enlarged text. The repository
 link uses an accessible icon target.
 
+The logo's workspace triple-click gesture opens Explore the app as a normal modal dialog. Use short action labels and
+plain descriptions of each example, without showing query strings or developer parameter names. The landing PDF chooser
+keeps its ordinary appearance for its modifier-click and touch-hold demo gestures.
+
 Pointer opening places initial focus on the Settings drawer. Keyboard opening focuses its Close button. Keyboard
 navigation keeps a visible focus indicator on each control.
 
@@ -754,6 +758,7 @@ role. For example, toolbar and menu can describe visual groups without correspon
 | Header actions    | Üst çubuk işlemleri         | The Help, Settings, and theme buttons as a group.                                                  |
 | Privacy indicator | Gizlilik göstergesi         | The lock icon and “On your device” text.                                                           |
 | Theme toggle      | Tema değiştirme düğmesi     | The sun/moon button that switches between light and dark themes.                                   |
+| Examples dialog   | Örnekler penceresi          | The “Explore the app” dialog with demo, empty Output, and welcome choices.                         |
 | Skip link         | İçeriğe atlama bağlantısı   | The “Skip to workspace” link that becomes visible with keyboard focus.                             |
 | Workspace         | Çalışma alanı               | The main area for work with Input and Output.                                                      |
 | Input pane        | Input bölmesi               | The complete Input section, including its header, tabs, selection bar, and content.                |
@@ -1120,7 +1125,7 @@ terms.
 | [Composer](../src/Composer.svelte), [Selection](../src/Selection.svelte), [Origin](../src/Origin.svelte), and [Repetition](../src/Repetition.svelte) | Panes, view controls, selection bars, page actions, and repetition.              |
 | [Grid](../src/Grid.svelte), [Page](../src/Page.svelte), [Counter](../src/Counter.svelte), [Pdf](../src/Pdf.svelte), and [Lens](../src/Lens.svelte)   | Thumbnail pagination, page viewer, page entry, page images, and magnifier.       |
 | [Style](../src/Style.svelte), [Quartet](../src/Quartet.svelte), and [Control](../src/Control.svelte)                                                 | Profiles, groups, Style objects, property summaries, and editors.                |
-| [Help](../src/Help.svelte), [Tour](../src/Tour.svelte), and [Settings](../src/Settings.svelte)                                                       | Help, welcome, Product tour, and Settings.                                       |
+| [Help](../src/Help.svelte), [Tour](../src/Tour.svelte), [Settings](../src/Settings.svelte), and [Examples](../src/Examples.svelte)                   | Help, welcome, Product tour, Settings, and examples.                             |
 | [Download](../src/Download.svelte)                                                                                                                   | Download preparation, inspection, cancellation, temporary resources, and dialog. |
 | [Offline](../src/Offline.svelte) and [drag](../src/drag.ts)                                                                                          | Offline/update status and drag images.                                           |
 

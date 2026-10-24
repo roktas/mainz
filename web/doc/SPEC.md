@@ -78,6 +78,16 @@ numbers. If a PDF label differs from its physical number, Page shows both.
 | `?demo=grid`  | Large Grid fixture, available only in development.                                             |
 | `?demo&paint` | Style with the Inkjet profile, available only in development.                                  |
 
+In a workspace, three quick clicks or taps on the upper-left logo open the examples dialog. Its three choices open the
+demo, start with empty Output, or show the welcome again. Links navigate inside the application scope, including in an
+installed app. Before an example replaces undownloaded changes, the application asks for confirmation. A single click
+still returns home after the short triple-click interval. On the landing page, the logo still replays its animation
+immediately.
+
+On the landing page, Ctrl+Shift+click on Choose a PDF loads the ordinary demo. A touch hold of 700 ms on the same
+control does the same. Moving away or cancelling the touch cancels the hold; an ordinary click or tap still opens local
+PDFs.
+
 Unknown demo values show an Error and retain local PDF opening. Local opening takes precedence over a pending demo
 result or error. The bundled demo remains available offline after application installation. The
 [fixture guide](../test/fixtures/README.md) owns its contents and rebuild procedure.

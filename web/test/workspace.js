@@ -1539,8 +1539,10 @@ export async function checkWorkspace(page, prepared, ordinary) {
     await warning.dismiss()
   }
   page.on("dialog", dismissWarning)
-  await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
-  await page.waitForLoadState("networkidle")
+  await Promise.all([
+    page.waitForEvent("load"),
+    page.getByRole("link", { name: "PDF Composer home", exact: true }).click(),
+  ])
   assert.ok(
     warnings === 0 && (await page.locator(".drop-zone").isVisible()),
     `Downloaded choices return Home without an unsaved warning (${warnings} warnings)`,
@@ -1556,7 +1558,9 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await entry.fill("1")
   await input.getByRole("button", { name: "Add to Output", exact: true }).click()
   await download(1)
+  let confirmation = page.waitForEvent("dialog")
   await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
+  await confirmation
   assert.ok(
     warnings === 1 && (await page.locator(".input-current").textContent()) === "Used.pdf",
     "Downloading Output retains the warning for undownloaded styles on unused Inputs",
@@ -1570,7 +1574,9 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
   await choose(2)
   await download(1)
+  confirmation = page.waitForEvent("dialog")
   await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
+  await confirmation
   assert.ok(warnings === 2, "Unused invalid drafts do not block Download and retain their unsaved warning")
   page.off("dialog", dismissWarning)
   assert.ok(errors.length === 0, `No browser runtime errors: ${errors.join("; ")}`)

@@ -1,4 +1,4 @@
-/* Orders CSS layers and styles the application frame, header, footer, and feedback. */
+/* Orders CSS layers and styles the application frame, header, footer, feedback, and dialogs. */
 
 @layer tokens, base, components, layouts, views;
 
@@ -103,6 +103,9 @@
     }
   }
   @scope (#app) {
+    .brand {
+      touch-action: manipulation;
+    }
     :scope {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
@@ -437,6 +440,44 @@
 
     .download-dialog {
       inline-size: min(100%, 500px);
+    }
+
+    .examples {
+      inline-size: min(28rem, calc(100% - 2 * var(--gap)));
+      padding: var(--gap);
+      font-size: var(--body);
+      overflow: auto;
+      overscroll-behavior: contain;
+      & > .dialog-heading {
+        align-items: center;
+      }
+      & nav {
+        display: block grid;
+        gap: calc(var(--gap) / 2);
+      }
+      & a {
+        display: block grid;
+        gap: 0.25em;
+        min-block-size: 44px;
+        padding: var(--gap);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--ink);
+        text-decoration: none;
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            border-color: var(--accent);
+            background: var(--tint);
+          }
+        }
+        &:active {
+          background: var(--tint);
+        }
+      }
+      & span {
+        color: var(--muted);
+        font-size: var(--small);
+      }
     }
 
     .skip {

@@ -1316,7 +1316,9 @@ test("Home asks once before discarding changes and cancellation retains the work
       warnings.push(dialog.type())
       await dialog.dismiss()
     })
+    const confirmation = page.waitForEvent("dialog")
     await home.click()
+    await confirmation
     assert.deepEqual(warnings, ["confirm"])
     assert.equal(await page.locator(".composition-totals strong").textContent(), "7 pages")
     page.once("dialog", async (dialog) => {
@@ -1745,7 +1747,10 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     assert.equal(await update.isDisabled(), true)
     assert.equal(await output.locator(".composition-totals strong").textContent(), "2 pages")
     assert.equal(await input.getByRole("textbox", { name: "Guide Color", exact: true }).inputValue(), "#884488")
-    await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
+    await Promise.all([
+      page.waitForEvent("load"),
+      page.getByRole("link", { name: "PDF Composer home", exact: true }).click(),
+    ])
     await update.waitFor()
     assert.equal(await update.isEnabled(), true)
     const other = await context.newPage()

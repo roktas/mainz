@@ -4,6 +4,8 @@
 
 ### Added
 
+- Installed apps can open examples through three logo clicks or taps. The landing PDF chooser also opens the demo with
+  Ctrl+Shift+click or a touch hold.
 - Optional app installation guidance, dismissible iPhone/iPad startup help, dedicated Home Screen icons, and Android
   launcher-mask support.
 - Help on the landing page and touch screens, plus Product tour steps for Grid density and Output selection actions.

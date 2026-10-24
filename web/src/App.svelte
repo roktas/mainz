@@ -28,6 +28,7 @@
   import type { Snapshot } from "./Download.svelte"
   import Landing from "./Landing.svelte"
   import Settings from "./Settings.svelte"
+  import Examples from "./Examples.svelte"
   import Theme from "./Theme.svelte"
   import Logo from "./Logo.svelte"
   import Icon from "./Icon.svelte"
@@ -60,11 +61,14 @@
   let tour = $state<TourStep>()
   let downloader = $state<ReturnType<typeof Download>>(null!)
   let composer = $state<ReturnType<typeof Composer>>(null!)
+  let examples = $state<ReturnType<typeof Examples>>(null!)
   let inputMenu = $state<HTMLDetailsElement>(null!)
   let outputChanged = $state(false)
   let modifiedSources = $state.raw<string[]>([])
   const unsaved = $derived(outputChanged || modifiedSources.length > 0)
   let homeApproved = false
+  let homeClicks = 0
+  let homeTimer: ReturnType<typeof setTimeout> | undefined
   let outputPosition = $state(0)
   let outputZoom = $state(100)
   let comparing = $state(false)
@@ -510,7 +514,23 @@
   }
   function home(event: MouseEvent) {
     if (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
-    if (unsaved && !confirm("Return home? Input style changes and Output choices have not been downloaded.")) {
+    event.preventDefault()
+    clearTimeout(homeTimer)
+    if (++homeClicks === 3) {
+      homeClicks = 0
+      examples.show()
+      return
+    }
+    homeTimer = setTimeout(() => {
+      homeClicks = 0
+      if (unsaved && !confirm("Return home? Input style changes and Output choices have not been downloaded.")) return
+      homeApproved = true
+      location.assign(import.meta.env.BASE_URL)
+    }, 400)
+  }
+  function example(event: MouseEvent) {
+    if (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
+    if (unsaved && !confirm("Open an example? Input style changes and Output choices have not been downloaded.")) {
       event.preventDefault()
       return
     }
@@ -590,6 +610,7 @@
   })
   onDestroy(() => {
     disposed = true
+    clearTimeout(homeTimer)
     clearTimeout(noticeTimer)
     openingProcessor?.dispose()
     void openingTask?.destroy()
@@ -795,6 +816,8 @@
   {info}
   complete={downloaded}
 />
+
+<Examples bind:this={examples} navigate={example} />
 
 {#if probe && demo === "grid"}
   {#await import("./Geometry.svelte") then module}<module.default />{/await}

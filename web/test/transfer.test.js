@@ -138,7 +138,10 @@ test(
             await page.locator("body").dispatchEvent("pointercancel", contact)
           else if (interruption === "secondary")
             await page.locator("body").dispatchEvent("pointerdown", { ...contact, pointerId: 8, isPrimary: false })
-          else await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
+          else {
+            await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
+            await page.locator(".composer[data-drag]").waitFor({ state: "hidden" })
+          }
           assert.equal(
             await page.locator(".composer[data-drag]").count(),
             0,
