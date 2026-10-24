@@ -1784,17 +1784,25 @@ test("Page addition hint skips on any click", { timeout: 60000 }, async () => {
     assert.equal(await settings.isVisible(), true, "The same click still opens Settings")
     assert.equal(await flight.count(), 0)
     await settings.getByRole("button", { name: "Close Settings", exact: true }).click()
-    await page.setViewportSize({ width: 390, height: 900 })
-    await page.reload()
-    await flight.waitFor()
-    await pause()
-    await page
-      .getByRole("navigation", { name: "Workspace view", exact: true })
-      .getByRole("button", { name: "Output", exact: true })
-      .tap()
-    assert.equal(await flight.count(), 0, "Touch activation also skips the animation immediately")
-    assert.equal(await page.locator(".composition-output").isVisible(), true)
-    assert.equal(await total(), "0 pages")
+    for (const width of [390, 810]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.reload()
+      await flight.waitFor()
+      await pause()
+      const header = await page.locator(".header-inner").boundingBox()
+      await page
+        .getByRole("navigation", { name: "Workspace view", exact: true })
+        .getByRole("button", { name: "Output", exact: true })
+        .tap()
+      assert.equal(await flight.count(), 0, "Touch activation also skips the animation immediately")
+      assert.deepEqual(
+        await page.locator(".header-inner").boundingBox(),
+        header,
+        `${width}px: Notice dismissal keeps the header in place`,
+      )
+      assert.equal(await page.locator(".composition-output").isVisible(), true)
+      assert.equal(await total(), "0 pages")
+    }
   } finally {
     await browser?.close()
   }
@@ -2034,7 +2042,10 @@ test(
         parseFloat(await instructionText.evaluate((element) => getComputedStyle(element).fontSize)) >
           parseFloat(statusStyle.font),
       )
-      assert.equal(await notice.evaluate((element) => getComputedStyle(element).backgroundColor), "rgba(0, 0, 0, 0)")
+      assert.equal(
+        await notice.evaluate((element) => getComputedStyle(element).backgroundColor),
+        await page.locator("html").evaluate((element) => getComputedStyle(element).backgroundColor),
+      )
       const headerBounds = await page.getByRole("banner").boundingBox()
       const noticeBounds = await notice.boundingBox()
       assert.ok(

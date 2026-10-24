@@ -118,11 +118,11 @@ selector and Open PDF align with the switch above them. The Output summary or de
 same columns. If enlarged text leaves insufficient room, keep the Input/Output switch labels and omit their icons.
 
 The header places the Home logo at the start and Help, Settings, and theme controls at the end. It states that
-processing stays on the device. When no Notice is present, actions can use all space after the logo before wrapping.
-Help remains visible on coarse-pointer devices and on the landing page. Settings opens a right drawer. Lens controls
-show the magnification beside − and + buttons, aligned like the Page zoom controls. Application information sits at the
-bottom behind a thin separator. Version and Build ID values align to the end and wrap with enlarged text. The repository
-link uses an accessible icon target.
+processing stays on the device. Header actions use all space after the logo before wrapping. Help remains visible on
+coarse-pointer devices and on the landing page. Settings opens a right drawer. Lens controls show the magnification
+beside − and + buttons, aligned like the Page zoom controls. Application information sits at the bottom behind a thin
+separator. Version and Build ID values align to the end and wrap with enlarged text. The repository link uses an
+accessible icon target.
 
 The logo's workspace triple-click gesture opens Explore the app as a normal modal dialog. Use short action labels and
 plain descriptions of each example, without showing query strings or developer parameter names. The landing PDF chooser
@@ -569,7 +569,7 @@ Detailed shortcut tables stay in Help.
 
 The first-addition hint brightens a visible Input thumbnail, then sends a fading visual copy toward empty Output. The
 copy begins moving before the fixed light fully fades. On mobile it moves toward the Output switch and stays within the
-viewport. The header reserves space for its Notice before animation geometry is measured. Reduced motion retains only
+viewport. Its Notice floats above the page without changing header or workspace geometry. Reduced motion retains only
 the instruction. [SPEC.md](SPEC.md#help-and-onboarding) owns hint eligibility, dismissal, and tour state restoration.
 
 App installation guidance uses a separate native dialog and dismissal state. iPhone and iPad browser visits show it once
@@ -584,11 +584,11 @@ still reveals the drop overlay on other inputs. The file chooser remains the pri
 
 ## Feedback presentation
 
-| Message | Placement                                                         | Treatment                                                                        |
-| ------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Info    | Bottom status row.                                                | Small muted `--info` text.                                                       |
-| Notice  | Header center, above controls on narrow screens.                  | Bold `--ink` text, `--secondary` information icon, and `--muted` dismiss button. |
-| Error   | Above the workspace, or beside the affected field/dialog control. | Danger color with explanation and recovery actions.                              |
+| Message | Placement                                                         | Treatment                                                                                   |
+| ------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Info    | Bottom status row.                                                | Small muted `--info` text.                                                                  |
+| Notice  | Floating at the top center of the viewport.                       | Neutral surface, thin border, soft shadow, bold text, information icon, and dismiss button. |
+| Error   | Above the workspace, or beside the affected field/dialog control. | Danger color with explanation and recovery actions.                                         |
 
 The status row reserves its height below the workspace. The landing keeps it at the viewport bottom during scrolling.
 The workspace uses the document-flow rule above so that its last controls remain reachable. Operation and offline
@@ -636,10 +636,12 @@ These animations use the same paths for buttons, menus, keyboard shortcuts, and 
 Drag and drop retains its own preview during movement. Reduced motion shows all edits immediately, without these
 effects.
 
-Notices use no colored surface or border. They can wrap beside their icon and keyboard-accessible dismiss button. The
-header remains visible during a Notice. Notice text keeps its full contrast between entry and dismissal. Entry and
-dismissal can fade the Notice. Reduced motion keeps the instruction static. Errors retain their local explanation and do
-not repeat details in the footer. Loading, empty, error, and cancellation states identify the next action.
+Notices use the paper surface, border, and shadow tokens. They wrap beside their icon and keyboard-accessible dismiss
+button. Opening, replacing, or dismissing a Notice never changes header height, workspace position, or Grid capacity.
+Notices stay visible during scrolling and respect the viewport's safe area. Notice text keeps its full contrast between
+entry and dismissal. Entry and dismissal can fade the Notice. Reduced motion keeps the instruction static. Errors retain
+their local explanation and do not repeat details in the footer. Loading, empty, error, and cancellation states identify
+the next action.
 
 Batch opening announces one short failure count after processing. A native disclosure joins the count and Review file
 errors on one row when space permits. It wraps without extra row gaps on narrow screens and with enlarged text. The
@@ -1059,7 +1061,7 @@ Their visual popover name does not require every panel to use the browser's Popo
 
 | English term                | Turkish equivalent                    | UI element                                                                             |
 | --------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------- |
-| Notice                      | Geçici bildirim                       | Temporary guidance or an event message in the app header.                              |
+| Notice                      | Geçici bildirim                       | Temporary guidance or an event message floating above the page.                        |
 | Status message              | Durum iletisi                         | Progress, result, or cancellation information in the status bar. SPEC calls this Info. |
 | Error banner                | Hata bandı                            | A persistent general error area above the workspace content.                           |
 | Inline error message        | Alan içi hata iletisi                 | Local error text beside selection, Style, or page preview content.                     |

@@ -14,7 +14,6 @@
 
     :scope {
       block-size: 100dvb;
-      /* Keep sticky Notices within the document when usable content requires scrolling. */
       min-block-size: min-content;
       grid-template-rows: auto minmax(min-content, 1fr) auto;
     }

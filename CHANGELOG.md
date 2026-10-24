@@ -46,6 +46,7 @@
 
 ### Fixed
 
+- Notices float above the page without moving the header or workspace when they appear or close.
 - Touch controls retain press feedback without native tap rectangles or box glows.
 - View tabs retain clear horizontal spacing on narrow screens and shorter selected underlines at every width.
 - Narrow Grid pagination gives the slider more width while keeping its arrows aligned.
