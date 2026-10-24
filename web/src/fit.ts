@@ -1,4 +1,4 @@
-// Fits desktop Grid/Page cards within the measured frame and DESIGN's readability limits.
+// Fits desktop Grid/Page cards within the measured frame and VIEW's readability limits.
 
 export function fit(element: HTMLElement) {
   for (const name of ["width", "height", "row-gap"]) element.style.removeProperty(`--grid-${name}`)

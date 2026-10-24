@@ -1,9 +1,8 @@
 # Viewport measurement and calibration
 
 This document owns platform setup, viewport acquisition, calibration, and retained evidence. Read only the relevant
-section. [SPEC](SPEC.md) owns product behavior. [DESIGN](DESIGN.md#grid-and-page) owns visual limits and calibration
-rules. The maintained [inventory](../test/viewports.json) owns device groups, source attribution, and reference
-matrices.
+section. [SPEC](SPEC.md) owns product behavior. [VIEW](VIEW.md#grid-and-page) owns visual limits and calibration rules.
+The maintained [inventory](../test/viewports.json) owns device groups, source attribution, and reference matrices.
 
 - [Tool storage](#tool-storage): SDK locations, moves, and cleanup boundaries.
 - [Browser checks](#browser-checks): pinned tools and cross-platform test behavior.
@@ -364,8 +363,8 @@ scrolling document. The collector rejects a capture that changes pointer or hove
 
 The search tries 27 deterministic combinations of card width, height, and spacing, plus up to four measured fits for an
 extra row or column in either density. Fits use the available column budget while preserving image-size floors, balanced
-margins, card proportions, and control space. Their dimensions are constrained by DESIGN's rendered bounds. It evaluates
-Normal and Compact together through the actual renderer. DESIGN bounds reject candidates before ranking. The report
+margins, card proportions, and control space. Their dimensions are constrained by VIEW's rendered bounds. It evaluates
+Normal and Compact together through the actual renderer. VIEW bounds reject candidates before ranking. The report
 retains the Pareto frontier. A recommendation must increase capacity without a density losing cards, reduce unused
 height without a material image-size loss, or correct a failing baseline. Current reference matrices verify the
 baseline. Candidate counts can improve; frame budgets remain acceptance gates. The search writes no production CSS.
@@ -463,7 +462,7 @@ The main analysis covers all 72 primary modes across the 18 standard phone/table
 header follow-up separately covers Duo Open inner-display Safari and SE generation 3 Safari in both orientations.
 Optional fullscreen observations and earlier-CSS captures have separate status in the report. Native captures and
 logical desktop estimates retain distinct provenance. Detailed candidate counts, timings, and completed-run comparisons
-belong in the retained reports. DESIGN owns current geometry.
+belong in the retained reports. VIEW owns current geometry.
 
 The Android baseline in `android/2026-10-22/` contains 44 native environments and 176 pane/density views across eleven
 configured displays. Android 17 and Chrome 149.0.7827.5 were used with expanded Chrome controls or a launcher-installed

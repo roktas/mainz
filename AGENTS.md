@@ -6,17 +6,17 @@ Keep this file within 200 lines.
 
 Read owner sections. UI edits start at the [preview gate](#preview-and-mockups).
 
-| Change                                                           | Owner                                 |
-| ---------------------------------------------------------------- | ------------------------------------- |
-| PDF contract, processor, native/WASM boundary, SVG production    | [Library SPEC](lib/doc/SPEC.md)       |
-| Commands, request files, diagnostics, output installation        | [CLI SPEC](cli/doc/SPEC.md)           |
-| Workspace behavior and product vocabulary                        | [Web SPEC](web/doc/SPEC.md)           |
-| Visual rules, focus, motion, layout references, UI anatomy       | [Web DESIGN](web/doc/DESIGN.md)       |
-| Simulator/SDK setup, viewport acquisition, calibration, evidence | [Web VIEWPORTS](web/doc/VIEWPORTS.md) |
+| Change                                                           | Owner                           |
+| ---------------------------------------------------------------- | ------------------------------- |
+| PDF contract, processor, native/WASM boundary, SVG production    | [Library SPEC](lib/doc/SPEC.md) |
+| Commands, request files, diagnostics, output installation        | [CLI SPEC](cli/doc/SPEC.md)     |
+| Workspace behavior and product vocabulary                        | [Web SPEC](web/doc/SPEC.md)     |
+| Visual rules, focus, motion, layout references, UI anatomy       | [Web VIEW](web/doc/VIEW.md)     |
+| Simulator/SDK setup, viewport acquisition, calibration, evidence | [Web MEMO](web/doc/MEMO.md)     |
 
 Keep rules, shared tokens, and required layout references in their owning documents. Keep implementation details and
 animation keyframes in source files. Maintain product terms in the [library glossary](lib/doc/SPEC.md#glossary) and
-[web glossary](web/doc/SPEC.md#glossary). Maintain UI element names in the [UI glossary](web/doc/DESIGN.md#ui-glossary).
+[web glossary](web/doc/SPEC.md#glossary). Maintain UI element names in the [UI glossary](web/doc/VIEW.md#ui-glossary).
 
 ## Documentation alignment
 
@@ -61,7 +61,7 @@ Style DSL and export integration. Megic owns publication policy and parameter se
 in those repositories.
 
 Keep inputs in Git and project output under root `.local/`. Clean `.local/tmp/`; retain measurements in `.local/var/`.
-Keep large tools and caches outside Dropbox. Follow [tool storage](web/doc/VIEWPORTS.md#tool-storage).
+Keep large tools and caches outside Dropbox. Follow [tool storage](web/doc/MEMO.md#tool-storage).
 
 ## Build and validation
 
@@ -126,14 +126,14 @@ Independent HexaPDF comparison: `direnv exec . bundle exec rake 'preserve[origin
 Use the pinned Svelte, TypeScript, Vite, and PDF.js stack. When available, use `svelte-code-writer` and
 `svelte-core-bestpractices` before component or module work. When available, use `good-css` and `modern-css` for CSS.
 Run the Svelte autofixer on affected components. Reuse [styles](web/src/main.css), the [logo](web/public/logo.svg),
-existing controls, and both themes. Follow DESIGN's focus and reduced-motion rules. Keep user PDFs and document-derived
+existing controls, and both themes. Follow VIEW's focus and reduced-motion rules. Keep user PDFs and document-derived
 values out of the offline cache.
 
 Start each CSS, TypeScript, and Svelte file under `web/src/` with a useful one-line responsibility or ownership comment.
 Follow it with one blank line. When the responsibility changes, update the comment.
 
-Before UI commit/push/handoff, pass DESIGN's [alignment](web/doc/DESIGN.md#alignment) and
-[validation](web/doc/DESIGN.md#validation) gates. Use rendered bounds and screenshots at affected widths, both
+Before UI commit/push/handoff, pass VIEW's [alignment](web/doc/VIEW.md#alignment) and
+[validation](web/doc/VIEW.md#validation) gates. Use rendered bounds and screenshots at affected widths, both
 densities/panes, selected states, and long labels. Compare visible icon centers with owning content on both axes.
 Formatting, types, and no overflow do not pass this gate. Cover alignment fixes with focused browser regression tests.
 
@@ -161,7 +161,7 @@ format, lint, types, and unit tests. Standard/full also verify asset publication
 all browser matrices and calibration tools. Run native tasks separately. Builds write `.local/var/js/dist/`. Vite uses a
 home cache per checkout. Browser suites run sequentially per host. CI uses standard for main pushes and pull requests,
 and full for version tags. Manual runs select either mode and never deploy. See
-[browser setup](web/doc/VIEWPORTS.md#browser-checks) for required full groups before merging layout/geometry changes.
+[browser setup](web/doc/MEMO.md#browser-checks) for required full groups before merging layout/geometry changes.
 Exercise changed flows with keyboard, narrow layouts, enlarged text, both themes, and loading/error/cancellation states.
 
 ### Preview and mockups

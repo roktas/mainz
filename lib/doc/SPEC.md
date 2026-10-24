@@ -234,7 +234,7 @@ array are permitted.
 Groups are presentation hints, not targets or assignment scopes. A group can contain several Style objects or part of
 one. Bindings identify related controls. Applications choose widgets without introducing parameter types, coupled
 assignments, or placeholder PDF parameters. Workspace rendering belongs to the
-[Web SPEC](../../web/doc/SPEC.md#source-styles) and [DESIGN](../../web/doc/DESIGN.md#style-presentation).
+[Web SPEC](../../web/doc/SPEC.md#source-styles) and [VIEW](../../web/doc/VIEW.md#style-presentation).
 
 Group and parameter arrays preserve authored presentation order. Unlisted parameters use ID order. JSON object order
 never substitutes for these arrays. Description, extraction, and composition retain their order while pruning or

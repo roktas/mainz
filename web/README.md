@@ -19,7 +19,7 @@ buttons and Page actions use their own page. Help explains keyboard, mouse, and 
 tour.
 
 Try [mainz.roktas.dev](https://mainz.roktas.dev/). The [specification and glossary](doc/SPEC.md) define the workspace.
-[DESIGN.md](doc/DESIGN.md) defines its appearance.
+[VIEW.md](doc/VIEW.md) defines its appearance.
 
 ## Development
 

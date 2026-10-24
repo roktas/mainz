@@ -5,8 +5,8 @@ repetition, removal, and ordering across Inputs. Prepared PDFs also expose their
 support page composition. Input retains its opened appearance. Output shows the composition with completed Source
 styles. Download executes a Mainz Job.
 
-This document owns workspace behavior and the [product glossary](#glossary). [DESIGN.md](DESIGN.md) owns visual rules,
-layout reference cases, and the [UI glossary](DESIGN.md#ui-glossary). The [library specification](../../lib/doc/SPEC.md)
+This document owns workspace behavior and the [product glossary](#glossary). [VIEW.md](VIEW.md) owns visual rules,
+layout reference cases, and the [UI glossary](VIEW.md#ui-glossary). The [library specification](../../lib/doc/SPEC.md)
 owns PDF contracts, painting restrictions, and processor limits. Source files own implementation details. Build and
 validation commands belong in [AGENTS.md](../../AGENTS.md#web).
 
@@ -58,7 +58,7 @@ Input Grid measures Normal batch capacity. Above twice that capacity, it starts 
 Normal. Each Source retains that choice, including manual changes. Resizing, browser zoom, Page, and Style do not
 reevaluate it. Density changes preserve selections, inspection, and operations. Both densities use the remaining
 viewport height and show complete rows. Short viewports retain one complete row and usable controls through document
-scrolling. [DESIGN.md](DESIGN.md#workspace) defines capacity references and calibration limits.
+scrolling. [VIEW.md](VIEW.md#workspace) defines capacity references and calibration limits.
 
 In two-pane layout, Style groups scroll below the profile selectors while the workspace headings, tabs, profiles, and
 Output controls remain visible. Switching Input to Style preserves Output's Grid capacity and Page frame. Single-pane
@@ -376,7 +376,7 @@ On a coarse primary pointer without hover, the first Page entry enlarges a fitte
 the image viewport's width. It uses the available width with equal image gutters, up to the existing 400% limit. This
 initial choice runs once per Source and once for Output, after PDF opening completes. An explicit zoom choice takes
 precedence. Initial pointer entry brings the Page frame into view. Keyboard entry keeps the focused control visible. Fit
-always restores 100% and shows the complete page. [DESIGN](DESIGN.md#grid-and-page) defines fitting and spacing.
+always restores 100% and shows the complete page. [VIEW](VIEW.md#grid-and-page) defines fitting and spacing.
 
 Page controls stay on one row. Actions that do not fit remain available in the existing pane page-actions menu. A touch
 Page has no grip in either pane layout; use the page-selection bar to select pages. Grid grips remain available.
@@ -563,8 +563,8 @@ during a zoom update preserves its pending anchor.
 
 [Model tests](../test/model.test.ts) cover composition, identities, ordering, and style requests.
 [Browser tests](../test/) cover actual PDF edits, keyboard routing, focus, cancellation, recovery, demo, and offline
-updates. Layout reference cases and their input matrix belong in [DESIGN.md](DESIGN.md#validation). These documents
-describe current requirements, not a claim of physical-device or accessibility certification.
+updates. Layout reference cases and their input matrix belong in [VIEW.md](VIEW.md#validation). These documents describe
+current requirements, not a claim of physical-device or accessibility certification.
 
 ## Glossary
 

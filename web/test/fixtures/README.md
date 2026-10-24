@@ -37,8 +37,8 @@ build.
 ## Grid fixture
 
 The development Grid sample composes 240 physical pages from `demo.pdf`. Its maintained Job and Input bindings are
-[`grid-job.json`](grid-job.json) and [`grid-inputs.json`](grid-inputs.json).
-[`DESIGN.md`](../../doc/DESIGN.md#workspace) defines Normal and Compact geometry and expected desktop capacities.
+[`grid-job.json`](grid-job.json) and [`grid-inputs.json`](grid-inputs.json). [`VIEW.md`](../../doc/VIEW.md#workspace)
+defines Normal and Compact geometry and expected desktop capacities.
 
 If `.local/tmp/web/grid/sample.pdf` is absent, run these commands from the repository root after building the native
 CLI:
@@ -54,6 +54,6 @@ cache. Both densities remain available in production with local PDFs and the bun
 
 ## Geometry collection and calibration
 
-See [VIEWPORTS](../../doc/VIEWPORTS.md#collection-and-calibration) for the shared probe, native Simulator acquisition,
-desktop references, calibration commands, and evidence retention. [DESIGN](../../doc/DESIGN.md#grid-and-page) owns
-visual acceptance limits.
+See [MEMO](../../doc/MEMO.md#collection-and-calibration) for the shared probe, native Simulator acquisition, desktop
+references, calibration commands, and evidence retention. [VIEW](../../doc/VIEW.md#grid-and-page) owns visual acceptance
+limits.

@@ -1,4 +1,4 @@
-// Evaluates the DESIGN portrait-fixture bounds before any candidate ranking.
+// Evaluates the VIEW portrait-fixture bounds before any candidate ranking.
 
 import type { Geometry } from "../src/geometry.ts"
 

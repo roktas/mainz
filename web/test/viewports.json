@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "source": "web/doc/DESIGN.md#workspace",
+  "source": "web/doc/VIEW.md#workspace",
   "simulators": {
     "source": "Installed CoreSimulator supportedDeviceTypes and capabilities.plist",
     "capturedAt": "2026-10-20",
