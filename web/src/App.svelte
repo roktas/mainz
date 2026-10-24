@@ -643,9 +643,10 @@
       <button class="danger" onclick={removeSource}><Icon name="trash" />Remove Input</button>
     </div>
   </details>
-  <label class="file-picker"
-    ><Icon name="add" />Open PDF<input
+  <label class="file-picker" title="Open PDF"
+    ><Icon name="add" /><span>Open PDF</span><input
       type="file"
+      aria-label="Open PDF"
       accept="application/pdf,.pdf"
       multiple
       disabled={loading || updating}

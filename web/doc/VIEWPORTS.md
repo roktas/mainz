@@ -184,6 +184,12 @@ XCUITest for rotation and Home Screen installation; `simctl` alone does not prov
 uses the home DerivedData directory above. Delete only the collector's dedicated test devices after retained evidence is
 complete. Keep installed runtimes for future runs.
 
+For a simulator with multiple displays, select the active display explicitly with
+`simctl io ... screenshot --display=...`. On Duo, `primary-1` captures the Open inner display; XCTest screenshots can
+capture the inactive outer display. Use Device Hub to rotate Duo when XCTest orientation changes do not rotate it.
+Verify the exported content viewport and screenshot dimensions together; the browser's screen dimensions can still
+describe the outer display.
+
 ### Android
 
 Install official Android command-line tools, platform tools, the emulator, and a compatible system image in the home
@@ -317,10 +323,11 @@ documentation. Public references describe platform conditions, viewport dimensio
 
 Keep simulator, physical, synthetic, and replay evidence distinct. Chromium touch emulation is useful for regression; it
 does not reproduce Safari bars, safe areas, or physical gestures. A screenshot and matching exported geometry are
-required for native evidence. Retail iOS Chrome is unavailable in the installed Simulator runtimes. Duo
-alternate-display and landscape failures remain explicit gaps. Physical mobile validation is outside the agreed scope of
-this analysis. Native Mac Safari timeouts and failed Chrome fullscreen entry do not count as measured coverage. Windows
-display scaling requires a Windows measurement.
+required for native evidence. Retail iOS Chrome is unavailable in the installed Simulator runtimes. Duo Open
+inner-display Safari has portrait and landscape samples in the header follow-up. Other Duo postures and Home Screen
+modes retain separate coverage gaps. Physical mobile validation is outside the agreed scope of this analysis. Native Mac
+Safari timeouts and failed Chrome fullscreen entry do not count as measured coverage. Windows display scaling requires a
+Windows measurement.
 
 The desktop follow-up retains physical Safari windows at 2200 × 1298, 2400 × 1358, and 2560 × 1358 CSS px. It also
 retains an installed Safari web app at native fullscreen 2560 × 1440. The QHD display uses DPR 1. Both Grid densities
@@ -449,12 +456,14 @@ the raw artifacts; `report.md` and `summary.md` explain results and limitations.
 | `checks/`                                    | Validation logs and acceptance records                                                                        |
 | `followup/`                                  | Later fixes, screenshots, source provenance, and validation results                                           |
 | `page/`                                      | Page sizing and animation follow-up: before/after geometry, native samples, source hashes, and test logs.     |
+| `headers/`                                   | Narrow header and toolbar checks, Duo Open and SE Safari captures, source hashes, and spacing comparisons.    |
 | `android/2026-10-22/`                        | Android Grid baseline: native captures, display scenarios, summary CSV, report, source snapshots, and checks. |
 
-Current application verification covers all 72 primary modes across the 18 standard phone/tablet groups and two Duo
-portrait modes. Six Duo primary modes remain unavailable. Optional fullscreen observations and earlier-CSS captures have
-separate status in the report. Native captures and logical desktop estimates retain distinct provenance. Detailed
-candidate counts, timings, and completed-run comparisons belong in the retained reports. DESIGN owns current geometry.
+The main analysis covers all 72 primary modes across the 18 standard phone/tablet groups and two Duo portrait modes. The
+header follow-up separately covers Duo Open inner-display Safari and SE generation 3 Safari in both orientations.
+Optional fullscreen observations and earlier-CSS captures have separate status in the report. Native captures and
+logical desktop estimates retain distinct provenance. Detailed candidate counts, timings, and completed-run comparisons
+belong in the retained reports. DESIGN owns current geometry.
 
 The Android baseline in `android/2026-10-22/` contains 44 native environments and 176 pane/density views across eleven
 configured displays. Android 17 and Chrome 149.0.7827.5 were used with expanded Chrome controls or a launcher-installed

@@ -101,7 +101,7 @@
 
 {#if toolbarOnly}
   <div class="style-status">
-    {#if status}<span class="danger" role="status">{status}</span>{/if}
+    {#if status}<span class="danger" role="status" title={status}>{status}</span>{/if}
     {#if changed}
       <button
         class="icon-button danger"

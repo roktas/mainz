@@ -121,7 +121,7 @@ test(
         await page.waitForFunction(
           (count) =>
             document.querySelector(".composition-totals strong")?.textContent ===
-            `${count} PDF ${count === 1 ? "page" : "pages"}`,
+            `${count} ${count === 1 ? "page" : "pages"}`,
           index + 1,
         )
       }
@@ -228,7 +228,7 @@ test("Dialogs dismiss outside taps without native light dismissal", { timeout: 6
   }
 })
 
-test("Workspace tools wrap without moving the view tabs", async () => {
+test("Workspace tools stay on one row without moving the view tabs", async () => {
   const server = await serve()
   let browser
   try {
@@ -293,20 +293,19 @@ test("Workspace tools wrap without moving the view tabs", async () => {
           reference ??= bounds
           const label = `${name} ${view}, ${width}px, ${text}`
           assert.deepEqual(bounds, reference, `${label}: adjacent tools preserve tab positions and sizes`)
-          if (text === "100%")
-            assert.ok(
-              bounds.every((rect) => rect.y === 0),
-              `${label}: tabs share one row`,
-            )
+          assert.ok(
+            bounds.every((rect) => rect.y === 0),
+            `${label}: tabs share one row`,
+          )
           if (view === "Grid") {
             const tabs = await pane.locator(".tabs").boundingBox()
             const density = await pane.locator(".grid-density").boundingBox()
-            assert.ok(
-              density.y >= tabs.y + tabs.height || density.x >= tabs.x + tabs.width,
-              `${label}: density controls do not cover tabs`,
-            )
+            assert.ok(density.x >= tabs.x + tabs.width - 1, `${label}: density controls do not cover tabs`)
             assert.ok(density.x >= 0 && density.x + density.width <= width, `${label}: density controls fit`)
-            if (text === "100%") assert.equal(density.y, tabs.y, `${label}: tabs and density controls share one row`)
+            assert.ok(
+              Math.abs(density.y + density.height / 2 - tabs.y - tabs.height / 2) < 1,
+              `${label}: tabs and density controls share one centerline`,
+            )
           }
           if (text === "100%" && view !== "Style")
             assert.ok(
@@ -628,7 +627,7 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
         await helpDialog.getByRole("tab", { name: "Mouse", exact: true }).getAttribute("aria-selected"),
         "true",
       )
-      assert.equal(await output.locator(".composition-totals strong").innerText(), "2 PDF pages")
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "2 pages")
       await page.keyboard.press("Escape")
       await helpDialog.waitFor({ state: "hidden" })
       assert.equal(await help.evaluate((item) => item === document.activeElement), true)
@@ -703,7 +702,7 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
     await tour.getByRole("button", { name: "End tour", exact: true }).click()
     assert.equal(await help.evaluate((item) => item === document.activeElement), true)
     assert.equal(await selection.inputValue(), "")
-    assert.equal(await output.locator(".composition-totals strong").innerText(), "2 PDF pages")
+    assert.equal(await output.locator(".composition-totals strong").textContent(), "2 pages")
   } finally {
     await browser?.close()
   }
@@ -889,7 +888,7 @@ test("Style and Download cancellation release preview workers and retain choices
     await input.getByRole("button", { name: "Cancel style processing", exact: true }).click()
     await page.waitForFunction((worker) => worker.terminated, cancelledStyle)
     assert.equal(await input.getByRole("combobox", { name: "Style profile", exact: true }).inputValue(), "inkjet")
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "2 PDF pages")
+    assert.equal(await output.locator(".composition-totals strong").textContent(), "2 pages")
     assert.equal(await page.getByRole("button", { name: "Retry Input styles", exact: true }).count(), 1)
     await page.evaluate(() => {
       window.holdPDFRendering = false
@@ -934,7 +933,7 @@ test("Style and Download cancellation release preview workers and retain choices
     assert.equal(await page.getByRole("dialog", { name: "Download", exact: true }).isVisible(), false)
     assert.equal(downloads.length, 0)
     assert.equal(await page.evaluate(() => window.downloadURLs.length), 0, "Cancellation creates no downloadable URL")
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "2 PDF pages")
+    assert.equal(await output.locator(".composition-totals strong").textContent(), "2 pages")
     assert.equal(await input.getByRole("combobox", { name: "Style profile", exact: true }).inputValue(), "inkjet")
     await page.evaluate(() => {
       window.holdPDFRendering = false
@@ -1071,7 +1070,7 @@ test(
       await page.locator(".error-banner").filter({ hasText: "Could not open Broken.pdf." }).waitFor()
       assert.equal(await status.count(), 0)
       assert.match(await page.locator(".error-banner").textContent(), /PDF Composer cannot read this PDF/)
-      assert.equal(await page.locator(".composition-totals strong").textContent(), "2 PDF pages")
+      assert.equal(await page.locator(".composition-totals strong").textContent(), "2 pages")
       assert.equal(await page.locator(".error-banner").count(), 1)
       // Preserve PDF byte offsets to isolate an unknown manifest field.
       const unknown = Buffer.from(fixture().toString().replace('"groups":', '"extra": '))
@@ -1086,7 +1085,7 @@ test(
       assert.match(await banner.textContent(), /style information.*invalid or incompatible/)
       assert.match(await banner.textContent(), /Your workspace is retained\. Choose a PDF to retry\./)
       assert.match(await banner.textContent(), /prepare it again with the current Mainz format/)
-      assert.equal(await page.locator(".composition-totals strong").textContent(), "2 PDF pages")
+      assert.equal(await page.locator(".composition-totals strong").textContent(), "2 pages")
       for (const [viewportWidth, text, colorScheme] of [
         [1440, "100%", "light"],
         [320, "200%", "dark"],
@@ -1763,7 +1762,7 @@ test("Page addition hint skips on any click", { timeout: 60000 }, async () => {
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(server.resolvedUrls.local[0] + "?demo=empty")
     const flight = page.locator(".page-flight:popover-open")
-    const total = () => page.locator(".composition-totals strong").innerText()
+    const total = () => page.locator(".composition-totals strong").textContent()
     const pause = () => flight.evaluate((element) => element.getAnimations().forEach((animation) => animation.pause()))
     await flight.waitFor()
     await pause()
@@ -1774,7 +1773,7 @@ test("Page addition hint skips on any click", { timeout: 60000 }, async () => {
       0,
       "Skipping also dismisses the addition notice",
     )
-    assert.equal(await total(), "0 PDF pages")
+    assert.equal(await total(), "0 pages")
     await page.reload()
     await flight.waitFor()
     await pause()
@@ -1793,7 +1792,7 @@ test("Page addition hint skips on any click", { timeout: 60000 }, async () => {
       .tap()
     assert.equal(await flight.count(), 0, "Touch activation also skips the animation immediately")
     assert.equal(await page.locator(".composition-output").isVisible(), true)
-    assert.equal(await total(), "0 PDF pages")
+    assert.equal(await total(), "0 pages")
   } finally {
     await browser?.close()
   }
@@ -1942,11 +1941,8 @@ test(
       }
       assert.match(await blankTour.locator(".tour-progress").textContent(), /\/ 5/)
       await blankTour.getByRole("button", { name: "Finish", exact: true }).click()
-      assert.equal(await blankOutput.locator(".composition-totals strong").textContent(), "1 PDF page")
-      assert.equal(
-        await blankOutput.locator(".composition-totals").getByText("1 duplex sheet", { exact: true }).isVisible(),
-        true,
-      )
+      assert.equal(await blankOutput.locator(".composition-totals strong").textContent(), "1 page")
+      assert.equal((await blankOutput.locator(".composition-totals").innerText()).trim(), "1 page, 1 sheet")
 
       page = await browser.newPage({
         viewport: { width: 1440, height: 1100 },
@@ -1994,7 +1990,7 @@ test(
         await page.getByRole("button", { name: "Select Input page 1", exact: true }).getAttribute("aria-pressed"),
         "true",
       )
-      assert.equal(await page.locator(".composition-totals strong").textContent(), "0 PDF pages")
+      assert.equal(await page.locator(".composition-totals strong").textContent(), "0 pages")
       const origin = await page.locator('[data-tour-target="first-page"] .thumbnail canvas').boundingBox()
       const spotlight = await flight.evaluate((element) => {
         const style = getComputedStyle(element, "::backdrop")
@@ -2027,7 +2023,7 @@ test(
       )
       await flight.waitFor({ state: "hidden" })
       assert.equal(await instructionText.textContent(), instruction)
-      assert.equal(await page.locator(".composition-totals strong").textContent(), "0 PDF pages")
+      assert.equal(await page.locator(".composition-totals strong").textContent(), "0 pages")
       assert.ok(
         Number(await instructionText.evaluate((element) => getComputedStyle(element).fontWeight)) >
           Number(statusStyle.weight),
@@ -2080,7 +2076,7 @@ test(
       await page.emulateMedia({ reducedMotion: "reduce" })
       await flight.waitFor({ state: "hidden" })
       assert.equal(await instructionText.textContent(), instruction)
-      assert.equal(await page.locator(".composition-totals strong").textContent(), "0 PDF pages")
+      assert.equal(await page.locator(".composition-totals strong").textContent(), "0 pages")
       await page.reload()
       await openHintInput()
       await notice.filter({ hasText: instruction }).waitFor()

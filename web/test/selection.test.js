@@ -131,7 +131,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
           "Progress toward Output dismisses the delayed hint",
         )
         await send("touchEnd")
-        assert.equal(await page.locator(".composition-totals strong").innerText(), "6 PDF pages")
+        assert.equal(await page.locator(".composition-totals strong").textContent(), "6 pages")
         assert.equal(await preparation.inputValue(), "1", "Input rejects drops without consuming the preparation")
         await send("touchStart", { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 })
         await send("touchMove", { x: bounds.x + bounds.width / 2 + 10, y: bounds.y + bounds.height / 2 })
@@ -143,7 +143,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
         await send("touchEnd")
         await output.waitFor({ state: "visible" })
         await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "7 PDF pages",
+          () => document.querySelector(".composition-totals strong")?.textContent === "7 pages",
         )
         assert.equal(await input.locator('input[aria-label="Page selection"]').inputValue(), "")
         assert.equal(await page.evaluate(() => document.activeElement instanceof HTMLInputElement), false)
@@ -191,7 +191,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
         await send("touchEnd")
         assert.match(await pagePosition(output), /^3\s*\/\s*7$/, "Insertion preserves the inspected occurrence")
         assert.equal(await preparation.inputValue(), "")
-        assert.equal(await output.locator(".composition-totals strong").innerText(), "7 PDF pages")
+        assert.equal(await output.locator(".composition-totals strong").textContent(), "7 pages")
         assert.equal(await page.locator(".drag-image, .page-drop-ghost, .composer[data-touch-drag]").count(), 0)
         await tab(output, "Grid")
         await cards.nth(2).waitFor()
@@ -239,7 +239,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
       const session = await page.context().newCDPSession(page)
       const send = (type, point) =>
         session.send("Input.dispatchTouchEvent", { type, touchPoints: point ? [{ ...point, id: 1 }] : [] })
-      const total = () => page.locator(".composition-totals strong").innerText()
+      const total = () => page.locator(".composition-totals strong").textContent()
       const lens = page.getByRole("region", { name: /^Magnified page / })
       for (const name of ["Input", "Output"]) {
         await page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true }).tap()
@@ -273,10 +273,10 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
         if (name === "Output") {
           await field.fill("1")
           await pane.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).tap()
-          assert.equal(await total(), "7 PDF pages")
+          assert.equal(await total(), "7 pages")
           assert.equal(await page.evaluate(() => document.activeElement instanceof HTMLInputElement), false)
           await pane.getByRole("button", { name: "Remove selected Output pages", exact: true }).tap()
-          assert.equal(await total(), "6 PDF pages")
+          assert.equal(await total(), "6 pages")
           assert.equal(await page.evaluate(() => document.activeElement instanceof HTMLInputElement), false)
         }
         await field.fill("2-4,6")
@@ -353,7 +353,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
           await sheet.tap()
           assert.equal(await total(), before, "Taps on different inspected pages do not combine into a copy")
           await pane.getByRole("button", { name: "Previous Output page", exact: true }).tap()
-          for (const expected of ["7 PDF pages", "8 PDF pages"]) {
+          for (const expected of ["7 pages", "8 pages"]) {
             await sheet.tap()
             await sheet.tap()
             await page.waitForFunction(
@@ -745,7 +745,7 @@ test("Dragging opens stable page slots, previews density, and commits only on dr
         await output.dispatchEvent("dragover", { dataTransfer: transfer })
         await output.locator(".composition-empty .drop-placeholder").waitFor()
         await output.dispatchEvent("drop", { dataTransfer: transfer })
-        assert.equal(await output.locator(".composition-totals strong").innerText(), "1 PDF page")
+        assert.equal(await output.locator(".composition-totals strong").textContent(), "1 page")
         assert.equal(await page.locator(".drag-image").count(), 0)
         assert.deepEqual(errors, [])
         await transfer.dispose()
@@ -812,7 +812,7 @@ test("Dragging page images and grips preserves selection and page focus", { time
         assert.equal(await prepared.inputValue(), "1,3,3")
         assert.equal(await selected.inputValue(), "1,3")
         assert.equal(await target.evaluate((element) => element === document.activeElement), true)
-        assert.equal(await output.locator(".composition-totals strong").innerText(), "7 PDF pages")
+        assert.equal(await output.locator(".composition-totals strong").textContent(), "7 pages")
       }
     }
   } finally {
@@ -839,7 +839,7 @@ test("Open menus retain page commands from both panes", async () => {
     for (const key of ["Shift+ArrowRight", "Space", "Enter", "Delete", "Control+ArrowLeft", "?", "v"]) {
       await page.keyboard.press(key)
       assert.equal(await selected.inputValue(), "2", `${key} retains selection while a menu is open`)
-      assert.equal(await output.locator(".composition-totals strong").innerText(), "6 PDF pages")
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "6 pages")
       assert.equal(await output.getByRole("tab", { name: "Grid", exact: true }).getAttribute("aria-selected"), "true")
       assert.equal(await page.getByRole("dialog", { name: "Help", exact: true }).isVisible(), false)
     }
@@ -849,13 +849,13 @@ test("Open menus retain page commands from both panes", async () => {
     assert.equal(await selected.inputValue(), "2")
     await thumbnail.focus()
     await page.keyboard.press("Delete")
-    assert.equal(await output.locator(".composition-totals strong").innerText(), "5 PDF pages")
+    assert.equal(await output.locator(".composition-totals strong").textContent(), "5 pages")
     await prepared.fill("1")
     await input.getByLabel("Input page actions", { exact: true }).click()
     await prepared.press("Enter")
     assert.equal(
-      await output.locator(".composition-totals strong").innerText(),
-      "6 PDF pages",
+      await output.locator(".composition-totals strong").textContent(),
+      "6 pages",
       "The selection field retains its own Enter action after configuring repetitions",
     )
   } finally {
@@ -1044,19 +1044,19 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
           await page.keyboard.press("Delete")
           assert.equal(await selection.inputValue(), "1,9-10", "Delete keeps immutable Input pages and preparation")
         } else {
-          const total = () => output.locator(".composition-totals strong").innerText()
+          const total = () => output.locator(".composition-totals strong").textContent()
           await selection.fill("1,13-14")
           await (await gridPage(panel, 2)).focus()
           await cards.last().dispatchEvent("keydown", { key: "Delete", repeat: true })
           await page.keyboard.press("Alt+Delete")
-          assert.equal(await total(), "14 PDF pages", "Held or modified Delete keeps the composition")
+          assert.equal(await total(), "14 pages", "Held or modified Delete keeps the composition")
           await page.keyboard.press("Delete")
-          assert.equal(await total(), "11 PDF pages")
+          assert.equal(await total(), "11 pages")
           assert.equal(await selection.inputValue(), "")
           await cursor(1)
           await page.keyboard.press("Space")
           await page.keyboard.press("Delete")
-          assert.equal(await total(), "10 PDF pages")
+          assert.equal(await total(), "10 pages")
           await cursor(1)
           await selection.fill("1-10")
           await cards.last().press("ArrowRight")
@@ -1241,7 +1241,7 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     await tab(output, "Page")
     assert.equal(await output.locator(".page-actions button").count(), 0)
     await output.getByRole("region", { name: "PDF viewport", exact: true }).press("Space")
-    assert.equal(await output.locator(".composition-totals strong").innerText(), "8 PDF pages")
+    assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
     assert.equal(await selected.inputValue(), "1")
     await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
     assert.equal(await output.locator(".page-actions button").count(), 2)
@@ -1264,7 +1264,7 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     assert.equal(await selected.inputValue(), "1-3")
     await output.getByLabel("Output page actions", { exact: true }).focus()
     await page.keyboard.press("Delete")
-    assert.equal(await output.locator(".composition-totals strong").innerText(), "0 PDF pages")
+    assert.equal(await output.locator(".composition-totals strong").textContent(), "0 pages")
     assert.equal(
       await output
         .getByRole("tab", { name: "Grid", exact: true })
@@ -1295,7 +1295,7 @@ test("Output separates page controls from group actions for keyboard and mouse",
         output = page.locator(".composition-output")
       const prepared = input.getByRole("textbox", { name: "Page selection", exact: true })
       const selected = output.getByRole("textbox", { name: "Page selection", exact: true })
-      const total = () => output.locator(".composition-totals strong").innerText()
+      const total = () => output.locator(".composition-totals strong").textContent()
       const contents = () =>
         output.locator(".composition-card:not([inert]) .page-origin-info .page-context").allTextContents()
       if (interaction === "keyboard") {
@@ -1316,7 +1316,7 @@ test("Output separates page controls from group actions for keyboard and mouse",
         await input.getByRole("button", { name: "Select Input page 4", exact: true }).click({ modifiers: ["Shift"] })
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
       }
-      assert.equal(await total(), "4 PDF pages", "Addition transfers every selected Input page")
+      assert.equal(await total(), "4 pages", "Addition transfers every selected Input page")
       assert.equal(await prepared.inputValue(), "", "Successful group addition resets the preparation")
       assert.equal(await selected.inputValue(), "2-4")
       assert.deepEqual(await contents(), ["p. 1", "p. 2", "p. 3", "p. 4"])
@@ -1343,7 +1343,7 @@ test("Output separates page controls from group actions for keyboard and mouse",
       )
       await selected.fill("99")
       await output.getByRole("button", { name: "Select Output page 4", exact: true }).press("Enter")
-      assert.equal(await total(), "4 PDF pages", "Invalid selection text blocks group edits")
+      assert.equal(await total(), "4 pages", "Invalid selection text blocks group edits")
       await selected.fill("2-4")
       if (interaction === "keyboard") {
         await output.getByRole("button", { name: "Select Output page 4", exact: true }).press("Control+ArrowLeft")
@@ -1371,7 +1371,7 @@ test("Output separates page controls from group actions for keyboard and mouse",
       for (const position of [4, 7]) {
         if (interaction === "keyboard") await page.keyboard.press("Shift+Equal")
         else await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
-        assert.equal(await total(), `${position + 3} PDF pages`, "Each addition makes exactly one group copy")
+        assert.equal(await total(), `${position + 3} pages`, "Each addition makes exactly one group copy")
         assert.equal(await selected.inputValue(), `${position + 1}-${position + 3}`)
         assert.equal(
           await output.locator(".composition-card.range-highlight").count(),
@@ -1393,12 +1393,12 @@ test("Output separates page controls from group actions for keyboard and mouse",
       ])
       if (interaction === "keyboard") await page.keyboard.press("Delete")
       else await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
-      assert.equal(await total(), "7 PDF pages", "Removal removes the selected copy and leaves other copies intact")
+      assert.equal(await total(), "7 pages", "Removal removes the selected copy and leaves other copies intact")
       await selected.fill("5-7")
       if (interaction === "keyboard")
         await output.getByRole("button", { name: "Select Output page 7", exact: true }).press("-")
       else await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
-      assert.equal(await total(), "4 PDF pages")
+      assert.equal(await total(), "4 pages")
       await selected.fill("2,4")
       if (interaction === "keyboard")
         await output.getByRole("button", { name: "Select Output page 4", exact: true }).press("Enter")
@@ -1663,8 +1663,8 @@ test(
         })
         await page.keyboard.press("Delete")
         assert.equal(
-          await output.locator(".composition-totals strong").innerText(),
-          "0 PDF pages",
+          await output.locator(".composition-totals strong").textContent(),
+          "0 pages",
           "Removal changes data immediately",
         )
         await page.waitForFunction(() => window.removalFrames.length === 3)
@@ -2034,7 +2034,7 @@ test("Page and Grid keyboard actions respect key priority and the visible page o
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     const selection = input.getByRole("textbox", { name: "Page selection", exact: true })
-    const total = () => output.locator(".composition-totals strong").innerText()
+    const total = () => output.locator(".composition-totals strong").textContent()
     const ready = () =>
       page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
     await input.getByRole("button", { name: "Select Input page 1", exact: true }).waitFor()
@@ -2070,13 +2070,13 @@ test("Page and Grid keyboard actions respect key priority and the visible page o
     await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Select Input page 3")
     assert.equal(await cards.nth(2).evaluate(hasCursor), true, "The keyboard position has a secondary contour")
     await page.keyboard.press("Enter")
-    assert.equal(await total(), "1 PDF page")
+    assert.equal(await total(), "1 page")
     await cards.nth(1).dispatchEvent("keydown", { key: "Enter", repeat: true })
-    assert.equal(await total(), "1 PDF page")
+    assert.equal(await total(), "1 page")
     await output.getByRole("button", { name: "Select Output page 1", exact: true }).focus()
     assert.equal(await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "1")
     await page.keyboard.press("Enter")
-    assert.equal(await total(), "2 PDF pages")
+    assert.equal(await total(), "2 pages")
     await page.keyboard.press("ArrowRight")
     assert.equal(await page.evaluate(() => document.activeElement?.matches(".composition-grid")), true)
     await page.keyboard.press("ArrowLeft")
@@ -2098,7 +2098,7 @@ test("Page and Grid keyboard actions respect key priority and the visible page o
             .evaluate((element) => element === document.activeElement),
           true,
         )
-      assert.equal(await total(), "2 PDF pages", "N/P navigate without editing the composition")
+      assert.equal(await total(), "2 pages", "N/P navigate without editing the composition")
     }
     await page.keyboard.press("Space")
     await output.getByRole("button", { name: "Select Output page 1", exact: true }).focus()
@@ -2110,7 +2110,7 @@ test("Page and Grid keyboard actions respect key priority and the visible page o
       true,
     )
     await page.keyboard.press("Control+ArrowLeft")
-    assert.equal(await total(), "2 PDF pages")
+    assert.equal(await total(), "2 pages")
     const movingCard = await output.locator(".composition-card").last().getAttribute("id")
     for (const [key, position] of [
       ["Control+ArrowRight", 1],
@@ -2136,9 +2136,9 @@ test("Page and Grid keyboard actions respect key priority and the visible page o
       )
     }
     await page.keyboard.press("Shift+Equal")
-    assert.equal(await total(), "3 PDF pages")
+    assert.equal(await total(), "3 pages")
     await page.keyboard.press("-")
-    assert.equal(await total(), "2 PDF pages")
+    assert.equal(await total(), "2 pages")
     await output.getByRole("button", { name: "Select Output page 1", exact: true }).waitFor()
     await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Select Output page 2")
     await page.keyboard.press("p")
@@ -2195,9 +2195,9 @@ test("Page and Grid keyboard actions respect key priority and the visible page o
     await input.locator(".inspection-heading").hover()
     await page.keyboard.press("Shift+P")
     await page.keyboard.press("Space")
-    assert.equal(await total(), "3 PDF pages")
+    assert.equal(await total(), "3 pages")
     await inputViewport.dispatchEvent("keydown", { key: " ", repeat: true })
-    assert.equal(await total(), "3 PDF pages")
+    assert.equal(await total(), "3 pages")
     assert.equal(await selection.inputValue(), "")
     for (let index = 0; index < 8; index++) await page.keyboard.press("p")
     assert.match(await pagePosition(input), /1\s*\/ 7/)
@@ -2208,7 +2208,7 @@ test("Page and Grid keyboard actions respect key priority and the visible page o
     await outputViewport.focus()
     await outputViewport.hover()
     await page.keyboard.press("Space")
-    assert.equal(await total(), "4 PDF pages")
+    assert.equal(await total(), "4 pages")
     await page.keyboard.press("Home")
     await zoom(output, "Zoom in")
     await ready()
@@ -2267,7 +2267,7 @@ test("Page and Grid keyboard actions respect key priority and the visible page o
     await page.keyboard.press("Shift+Equal")
     assert.equal(await output.getByLabel("Output page zoom", { exact: true }).innerText(), "200%")
     await page.keyboard.press("-")
-    assert.equal(await total(), "4 PDF pages")
+    assert.equal(await total(), "4 pages")
     await ready()
     await outputViewport.evaluate((element) => (element.scrollLeft = 100))
     await page.keyboard.press("ArrowRight")
@@ -2282,17 +2282,17 @@ test("Page and Grid keyboard actions respect key priority and the visible page o
     assert.match(await pagePosition(output), /4\s*\/ 4/)
     await output.getByRole("textbox", { name: "Page selection", exact: true }).fill("1")
     await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).press("Space")
-    assert.equal(await total(), "5 PDF pages")
+    assert.equal(await total(), "5 pages")
     await selection.focus()
     await page.keyboard.press("ArrowLeft")
     await page.keyboard.press("Space")
-    assert.equal(await total(), "5 PDF pages")
+    assert.equal(await total(), "5 pages")
     assert.match(await pagePosition(output), /5\s*\/ 5/, "Insertion before the inspected page preserves its identity")
     await output.getByRole("button", { name: "Previous Output page", exact: true }).click()
     await output.getByRole("button", { name: "Next Output page", exact: true }).focus()
     await page.keyboard.press("Space")
     assert.match(await pagePosition(output), /5\s*\/ 5/)
-    assert.equal(await total(), "5 PDF pages")
+    assert.equal(await total(), "5 pages")
     await page.setViewportSize({ width: 390, height: 900 })
     await page
       .getByRole("navigation", { name: "Workspace view", exact: true })

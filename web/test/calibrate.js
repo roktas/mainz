@@ -88,7 +88,7 @@ try {
       })
       await page.goto(values.url)
       await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+        () => document.querySelector(".composition-totals strong")?.textContent === "240 pages",
       )
       const override = await page.addStyleTag({ content: "/* Candidate geometry. */" })
       const searched = await search(

@@ -86,7 +86,7 @@ test(
           assert.deepEqual(result, { blocked: true, preview: true }, method)
           await page.locator(".composer[data-drag]").waitFor({ state: "hidden" })
           assert.equal(await selection.inputValue(), cancelled ? original : `${to - 2}-${to - 1}`, method)
-          assert.equal(await output.locator(".composition-totals strong").innerText(), "10000 PDF pages")
+          assert.equal(await output.locator(".composition-totals strong").textContent(), "10000 pages")
         }
         await page.close()
       }
@@ -110,7 +110,7 @@ test(
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
-      await output.locator(".composition-totals strong").filter({ hasText: "6 PDF pages" }).waitFor()
+      await output.locator(".composition-totals strong").filter({ hasText: "6 pages" }).waitFor()
       await input.getByLabel("Page selection", { exact: true }).fill("")
       for (const pointer of ["native", "touch"]) {
         for (const interruption of ["blur", "resize", "pointercancel", "secondary", "home"]) {
@@ -147,12 +147,12 @@ test(
           assert.equal(await page.locator(".drag-image, [data-press]").count(), 0)
           if (interruption === "home") {
             await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-            await output.locator(".composition-totals strong").filter({ hasText: "6 PDF pages" }).waitFor()
+            await output.locator(".composition-totals strong").filter({ hasText: "6 pages" }).waitFor()
             await input.getByLabel("Page selection", { exact: true }).fill("")
           } else {
             if (dataTransfer) await output.dispatchEvent("drop", { dataTransfer })
             else await output.dispatchEvent("pointerup", contact)
-            assert.equal(await output.locator(".composition-totals strong").innerText(), "6 PDF pages")
+            assert.equal(await output.locator(".composition-totals strong").textContent(), "6 pages")
             await input.getByRole("button", { name: "Select Input page 1", exact: true }).click()
             assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "1")
             await input.getByLabel("Page selection", { exact: true }).fill("")

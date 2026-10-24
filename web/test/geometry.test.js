@@ -6,13 +6,16 @@ import { serve } from "./server.ts"
 import { chromium } from "playwright"
 import { aligned, zoom } from "./workspace.js"
 import { tab, image, captureLayout, fixture } from "./browser.js"
+import { measure } from "./measure.js"
 
-test("Paired pane headings align actions, metadata, tabs, and selection fields", { timeout: 90000 }, async (t) => {
+test("Pane headers, tabs, and selections stay on single aligned rows", { timeout: 180000 }, async (t) => {
   const server = await serve()
   let browser, page
   try {
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-    page = await browser.newPage({ reducedMotion: "reduce", hasTouch: true })
+    page = await browser.newPage({ reducedMotion: "reduce", hasTouch: true, isMobile: true })
+    const errors = []
+    page.on("pageerror", (error) => errors.push(error.message))
     page.setDefaultTimeout(10000)
     await page.addInitScript(() => {
       localStorage.setItem("mainz:onboarding", "19")
@@ -36,57 +39,138 @@ test("Paired pane headings align actions, metadata, tabs, and selection fields",
     await page.locator(".input-current").waitFor()
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
+    const show = async (name) => {
+      if (await page.locator(".mobile-workspace-tabs").isVisible())
+        await page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true }).click()
+    }
+    const rows = async (pane) => {
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+      const layout = await pane.evaluate((element) => {
+        // oxlint-disable-next-line unicorn/consistent-function-scoping -- Playwright serializes the page callback.
+        const rect = (node) => node.getBoundingClientRect().toJSON()
+        const bands = [
+          [".section-heading", ":scope > :not(.download-error)"],
+          [".editing-toolbar", '[role="tab"], .grid-density > button, .style-status > button'],
+          [".sequence-entry > .entry", "input, button, summary"],
+        ]
+        return bands.flatMap(([selector, controls]) => {
+          const band = element.querySelector(selector)
+          if (!band?.checkVisibility()) return []
+          return [
+            {
+              selector,
+              bounds: rect(band),
+              controls: [...band.querySelectorAll(controls)]
+                .filter((node) => node.checkVisibility())
+                .map((node) => ({
+                  bounds: rect(node),
+                  target: node.matches("button, input, summary"),
+                  overflow: !node.matches("input") && node.scrollWidth > node.clientWidth + 1,
+                  icon: (() => {
+                    if (!node.matches("button, summary, .file-picker") || node.innerText.trim()) return null
+                    const path = node.querySelector("svg path")
+                    if (!path) return null
+                    const box = path.getBBox()
+                    const center = new DOMPoint(box.x + box.width / 2, box.y + box.height / 2).matrixTransform(
+                      path.getScreenCTM(),
+                    )
+                    return { x: center.x, y: center.y }
+                  })(),
+                })),
+            },
+          ]
+        })
+      })
+      for (const { selector, bounds, controls } of layout) {
+        const diagnostic = JSON.stringify({ selector, bounds, controls })
+        const center = controls[0].bounds.y + controls[0].bounds.height / 2
+        for (const control of controls) {
+          const box = control.bounds
+          assert.ok(Math.abs(box.y + box.height / 2 - center) < 1, diagnostic)
+          assert.ok(box.left >= bounds.left - 1 && box.right <= bounds.right + 1, diagnostic)
+          assert.equal(control.overflow, false, diagnostic)
+          if (control.target) assert.ok(box.width >= 44 && box.height >= 44, diagnostic)
+          if (control.icon) {
+            assert.ok(Math.abs(control.icon.x - box.x - box.width / 2) < 1, diagnostic)
+            assert.ok(Math.abs(control.icon.y - box.y - box.height / 2) < 1, diagnostic)
+          }
+        }
+        for (let index = 1; index < controls.length; index++)
+          assert.ok(controls[index].bounds.left >= controls[index - 1].bounds.right - 1, diagnostic)
+        if (selector === ".editing-toolbar")
+          assert.ok(
+            bounds.bottom - 1 - Math.max(...controls.map(({ bounds: control }) => control.bottom)) >= 8,
+            diagnostic,
+          )
+      }
+      if (await page.locator(".mobile-workspace-tabs").isVisible()) {
+        const columns = await page
+          .locator(".mobile-workspace-tabs > button")
+          .evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().toJSON()))
+        for (const [index, control] of layout[0].controls.entries()) {
+          assert.ok(Math.abs(control.bounds.x - columns[index].x) < 1, "Stacked control rows share column edges")
+          assert.ok(Math.abs(control.bounds.width - columns[index].width) < 1, "Stacked widgets have equal widths")
+        }
+      }
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
+      return layout.map(({ bounds }) => bounds)
+    }
     for (const populated of [false, true]) {
       if (populated) {
+        await page.setViewportSize({ width: 951, height: 589 })
+        await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+        await show("Input")
         await input.getByLabel("Page selection", { exact: true }).fill("1-7")
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+        await input.getByLabel("Page selection", { exact: true }).fill("1-2")
+        await output.getByLabel("Page selection", { exact: true }).fill("2-3")
       }
       for (const text of ["100%", "200%"]) {
         await page.evaluate((size) => (document.documentElement.style.fontSize = size), text)
-        for (const width of [960, 1024, 1080, 1133, 1150, 1151, 1152, 1153, 1280, 1440, 1920, 2560, 3840]) {
-          await page.setViewportSize({ width, height: 1100 })
-          if (!(await input.isVisible()) || !(await output.isVisible())) continue
-          for (const density of ["Normal", "Compact"]) {
-            await input.getByRole("button", { name: `${density} Input grid`, exact: true }).click()
-            await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
-            for (const colorScheme of ["light", "dark"]) {
-              await page.emulateMedia({ colorScheme })
-              t.diagnostic(`${width}px, ${text}, ${density}, ${colorScheme}, populated=${populated}`)
-              const layout = await page.locator(".composition-panels").evaluate((panels) => {
-                const box = (selector) => panels.querySelector(selector).getBoundingClientRect().toJSON()
-                const titles = [".input-label", ".composition-output > .section-heading h2"].map((selector, index) => {
-                  const node = panels.querySelector(selector)
-                  const range = document.createRange()
-                  range.selectNodeContents(index === 0 ? node : node.lastChild)
-                  return range.getBoundingClientRect().toJSON()
-                })
-                return {
-                  inputTitle: titles[0],
-                  outputTitle: titles[1],
-                  open: box(".input-heading .file-picker"),
-                  download: box(".download-action"),
-                  totals: box(".output-state"),
-                  heading: box(".composition-output > .section-heading"),
-                  inputTabs: box(".source-tabs"),
-                  outputTabs: box(".output-tabs"),
-                  inputField: box('.selection-panel input[aria-label="Page selection"]'),
-                  outputField: box('.composition-output input[aria-label="Page selection"]'),
-                  overflow: document.documentElement.scrollWidth > innerWidth,
-                }
-              })
-              assert.ok(Math.abs(layout.open.y - layout.download.y) < 1, JSON.stringify(layout))
-              assert.ok(Math.abs(layout.inputTitle.y - layout.outputTitle.y) < 1, JSON.stringify(layout))
-              assert.ok(Math.abs(layout.open.height - layout.download.height) < 1)
-              assert.ok(Math.abs(layout.inputTabs.y - layout.outputTabs.y) < 1)
-              assert.ok(Math.abs(layout.inputField.y - layout.outputField.y) < 1)
-              assert.ok(layout.totals.right <= layout.download.x && layout.totals.bottom <= layout.heading.bottom + 1)
-              assert.equal(layout.overflow, false)
+        for (const [width, height] of [
+          [320, 568],
+          [390, 844],
+          [393, 852],
+          [669, 871],
+          [768, 1048],
+          [928, 589],
+          [929, 589],
+          [951, 589],
+        ]) {
+          await page.setViewportSize({ width, height })
+          const paired = []
+          for (const [name, pane] of [
+            ["Input", input],
+            ["Output", output],
+          ]) {
+            await show(name)
+            for (const density of ["Normal", "Compact"]) {
+              await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+              for (const colorScheme of ["light", "dark"]) {
+                await page.emulateMedia({ colorScheme })
+                t.diagnostic(`${width}px, ${text}, ${name}, ${density}, ${colorScheme}, populated=${populated}`)
+                await rows(pane)
+              }
             }
+            const before = await rows(pane)
+            await tab(pane, "Page")
+            const after = await rows(pane)
+            assert.ok(Math.abs(before[1].height - after[1].height) < 1, "View changes retain the toolbar height")
+            if (name === "Input" && populated) {
+              await tab(pane, "Style")
+              await rows(pane)
+            }
+            await tab(pane, "Grid")
+            paired.push(await rows(pane))
+          }
+          if (!(await page.locator(".mobile-workspace-tabs").isVisible())) {
+            for (let index = 0; index < 3; index++)
+              assert.ok(Math.abs(paired[0][index].y - paired[1][index].y) < 1, "Paired control rows stay aligned")
           }
         }
       }
     }
-    await page.setViewportSize({ width: 1080, height: 810 })
+    await page.setViewportSize({ width: 951, height: 589 })
     await page.evaluate(() => {
       document.documentElement.style.fontSize = "100%"
       window.holdStyles = true
@@ -96,9 +180,9 @@ test("Paired pane headings align actions, metadata, tabs, and selection fields",
     await input.getByRole("textbox", { name: "Guide Color", exact: true }).fill("#884488")
     await page.waitForFunction(() => !!window.finishStyles)
     await output.locator('.output-status[aria-hidden="false"]').waitFor()
-    assert.deepEqual(
-      await output.locator(".download-action").boundingBox(),
-      before,
+    const updating = await output.locator(".download-action").boundingBox()
+    assert.ok(
+      Math.abs(updating.x - before.x) < 1 && Math.abs(updating.width - before.width) < 1,
       "Updating keeps the Download area fixed",
     )
     const opening = await input.locator(".input-heading .file-picker").boundingBox()
@@ -108,6 +192,55 @@ test("Paired pane headings align actions, metadata, tabs, and selection fields",
       window.finishStyles()
     })
     await page.waitForFunction(() => !document.querySelector('.output-status[aria-hidden="false"]'))
+    await rows(input)
+    await rows(output)
+    await page.setViewportSize({ width: 320, height: 568 })
+    await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
+    await show("Input")
+    await input.getByRole("textbox", { name: "Guide Color", exact: true }).fill("invalid")
+    await rows(input)
+    await input.getByRole("button", { name: "Reset all styles", exact: true }).click()
+    await rows(input)
+    await page.setViewportSize({ width: 951, height: 589 })
+    await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+    await tab(input, "Grid")
+    await input.getByRole("tab", { name: "Grid", exact: true }).focus()
+    await page.keyboard.press("ArrowRight")
+    assert.equal(await input.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected"), "true")
+    await rows(input)
+    await page.keyboard.press("ArrowLeft")
+    await rows(input)
+    await input
+      .getByLabel("Select Input · Prepared pages with a very long descriptive input filename.pdf")
+      .press("Enter")
+    assert.equal(await input.getByRole("group", { name: "Inputs", exact: true }).isVisible(), true)
+    await page.keyboard.press("Escape")
+    await output.getByLabel("Page selection", { exact: true }).fill("1-7")
+    await output.getByLabel("Page selection", { exact: true }).press("Enter")
+    await input.getByLabel("Page selection", { exact: true }).fill("1,1,1,1,1,1,1,1,1,1")
+    await input.getByLabel("Input page actions", { exact: true }).click()
+    await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill("1000")
+    await page.keyboard.press("Escape")
+    await input.getByLabel("Page selection", { exact: true }).press("Enter")
+    await page.waitForFunction(
+      () => document.querySelector(".composition-totals strong")?.textContent === "10000 pages",
+    )
+    for (const width of [320, 390]) {
+      await page.setViewportSize({ width, height: 844 })
+      await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
+      await show("Output")
+      const details = output.getByRole("button", { name: "Output details", exact: true })
+      await details.click()
+      assert.equal((await output.locator(".output-details").innerText()).trim(), "10000 pages, 5000 sheets")
+      await page.keyboard.press("Escape")
+      await rows(output)
+    }
+    await page.setViewportSize({ width: 951, height: 589 })
+    await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+    await output.getByRole("button", { name: "Output details", exact: true }).waitFor({ state: "hidden" })
+    assert.equal(await output.locator(".composition-totals").innerText(), "10000 pages, 5000 sheets")
+    await rows(output)
+    assert.deepEqual(errors, [])
   } catch (error) {
     if (page) await captureLayout(page, "pane-headings")
     throw error
@@ -594,13 +727,8 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
       await fitted(image(output))
       await tab(output, "Grid")
       await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
-      await page.waitForFunction(() =>
-        document.querySelector('.composition-output[data-density="compact"] .composition-card'),
-      )
-      assert.ok(
-        await output.locator(".grid-view").evaluate((element) => Number(element.dataset.rows) >= 7),
-        "Compact capacity uses the expanded viewport without a fixed row cap",
-      )
+      const compact = await measure(output)
+      assert.ok(compact.matrix[1] >= 7, "Compact capacity uses the expanded viewport without a fixed row cap")
       await input.locator(".pdf-viewport[aria-busy=false] canvas").waitFor()
       await fitted(image(input))
       const surround = await input.locator(".page-scroll").boundingBox()

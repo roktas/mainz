@@ -64,6 +64,9 @@ Each visual group has an explicit alignment reference: an edge, centerline, or t
 and footers use the same reference on both axes. Align text by its baseline and icons by their visible bounds. A
 centered control stays on the content's centerline when adjacent controls have different widths.
 
+Stacked rows with corresponding controls share column widths and gaps. Align each control's start and end edges with the
+controls above and below it. Apply the same tracks to buttons and selectors; their labels do not set independent widths.
+
 Grid grips use the card's inline center and the header's block center in both densities. Page numbers, folded corners,
 digit counts, and interaction target sizes do not move these references. Size text and interaction areas around them.
 
@@ -100,9 +103,18 @@ the frame and center it horizontally.
 Desktop Input and Output have equal widths and equal gutters around the center separator. Their headings, tabs, fields,
 hints, and content share row tracks. The filename chooser belongs to Input's heading and includes Remove Input below the
 open-PDF list. Open PDF and Download occupy corresponding positions. Output totals sit beside Download. Relevant
-processing replaces it in the same reserved area without changing heading dimensions. Narrow two-pane headings place
-Open PDF and Download on their second row. Output totals share that row beside Download. Both actions align at the
-bottom of the shared heading track, including with long filenames.
+processing replaces it in the same reserved area without changing heading dimensions.
+
+Each pane header, view toolbar, and selection bar stays on one control row at every supported width and text size.
+Controls never wrap or move to another row. Preserve usable gaps, full-size touch targets, and shared vertical
+alignment. The Input selector gives space to Open PDF and truncates long filenames; the Input list retains each full
+name. The Output summary uses concise counts, such as `6 pages, 3 sheets`, without PDF or duplex prefixes. If these
+counts still do not fit, make them available through a clickable details control. Do not split the header to fit them.
+At enlarged text sizes, Open PDF and Download can use their icons with the same accessible names and touch targets.
+
+In single-pane layouts, the Input/Output switch and the pane header share two equal columns and the same gap. The Input
+selector and Open PDF align with the switch above them. The Output summary or details control and Download use those
+same columns. If enlarged text leaves insufficient room, keep the Input/Output switch labels and omit their icons.
 
 The header places the Home logo at the start and Help, Settings, and theme controls at the end. It states that
 processing stays on the device. When no Notice is present, actions can use all space after the logo before wrapping.
@@ -117,9 +129,11 @@ navigation keeps a visible focus indicator on each control.
 Tabs use square corners and an accent underline. Unselected tabs gain color on hover. Keyboard focus uses a soft tint
 and one border, without glow. Grid, Page, and Style use their existing outlined icons. Disabled Style retains its
 crossed-out brush and explanatory hint. Density controls sit beside the Grid tabs, outside the tablist. Narrow panes
-reduce tab padding to keep both groups on one row at normal text size. Adjacent tools wrap as a group when more space is
-needed. Tabs use the available width and reserve space for adjacent controls across views. The toolbar retains its
-height in Page so desktop content frames remain aligned.
+reduce tab padding, then use icon-only tabs if the labels still do not fit. Keep accessible names and explanatory
+titles. Tabs, density controls, and Style tools never wrap or overlap. Reserve space for adjacent controls across views.
+The toolbar retains its height in Grid, Page, and Style so content frames do not shift. Keep at least 8 CSS px between
+its controls and bottom separator. Take added space from the gap below the separator; retain the total vertical space so
+the selection bar, content frame, and Grid capacity do not move.
 
 Routine hints, empty states, and tour steps describe controls and results without assuming a mouse or keyboard. Keep
 input-specific instructions in Help's Keyboard and Mouse sections.
@@ -218,7 +232,8 @@ Input and Output do not use fixed thumbnail counts.
 
 ## Page fields
 
-Selection fields and Style profiles span the pane width. Both page fields have the accessible name Page selection.
+Selection fields and Style profiles span the pane width. Both page fields have the accessible name Page selection. The
+field, action-menu button, and all inline actions stay on one row, including with enlarged text and active selections.
 Action menus occupy the first position and open below the field's start edge. Menus share padding, corners, and viewport
 bounds. Output shows movement buttons in the field bar when the pane fits seven 44 px controls and a ten-character
 field. Narrower panes put movement before Blank insertion in the menu. This rule uses pane width and font metrics,
@@ -745,19 +760,20 @@ The pane divider is a separator. It has no resize interaction, so its name is no
 
 #### Pane headers and status bar
 
-| English term            | Turkish equivalent                | UI element                                                                                     |
-| ----------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Pane header             | Bölme üst alanı                   | The section with the Input chooser and Open PDF, or the Output heading, summary, and Download. |
-| Pane heading            | Bölme başlığı                     | The Input or Output title text.                                                                |
-| Input selector          | Input seçicisi                    | The chooser that opens from the filename in the Input header.                                  |
-| Input list              | Input listesi                     | The open-PDF list with numbers, filenames, and a checkmark for the active Input.               |
-| Count badge             | Sayı rozeti                       | A small bordered count, such as the Input count or a Style group's object count.               |
-| Remove Input button     | Input kaldırma düğmesi            | The action below the open-PDF list that removes the active Input.                              |
-| File picker button      | Dosya seçme düğmesi               | Open PDF or Choose a PDF. It opens the system file picker.                                     |
-| Output summary          | Output özet bilgisi               | The PDF page count, duplex sheet count, and optional Padding count.                            |
-| Download button         | İndirme düğmesi                   | The primary action that downloads Output.                                                      |
-| Status bar / App footer | Durum çubuğu / Uygulama alt alanı | The bottom row with the filename, status message, and Build ID.                                |
-| Build ID                | Derleme kimliği                   | The build value in the status bar and Settings.                                                |
+| English term                    | Turkish equivalent                  | UI element                                                                                     |
+| ------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Pane header                     | Bölme üst alanı                     | The section with the Input chooser and Open PDF, or the Output heading, summary, and Download. |
+| Pane heading                    | Bölme başlığı                       | The Input or Output title text.                                                                |
+| Input selector                  | Input seçicisi                      | The chooser that opens from the filename in the Input header.                                  |
+| Input list                      | Input listesi                       | The open-PDF list with numbers, filenames, and a checkmark for the active Input.               |
+| Count badge                     | Sayı rozeti                         | A small bordered count, such as the Input count or a Style group's object count.               |
+| Remove Input button             | Input kaldırma düğmesi              | The action below the open-PDF list that removes the active Input.                              |
+| File picker button              | Dosya seçme düğmesi                 | Open PDF or Choose a PDF. It opens the system file picker.                                     |
+| Output summary                  | Output özet bilgisi                 | Concise page and sheet counts, such as 6 pages, 3 sheets.                                      |
+| Output details button / popover | Output ayrıntıları düğmesi / paneli | The control that exposes the counts when the concise Output summary does not fit inline.       |
+| Download button                 | İndirme düğmesi                     | The primary action that downloads Output.                                                      |
+| Status bar / App footer         | Durum çubuğu / Uygulama alt alanı   | The bottom row with the filename, status message, and Build ID.                                |
+| Build ID                        | Derleme kimliği                     | The build value in the status bar and Settings.                                                |
 
 ### Views and tabs
 

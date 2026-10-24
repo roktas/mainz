@@ -244,9 +244,16 @@
     }
     .style-status {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      min-inline-size: 0;
       align-items: center;
       gap: var(--gap);
+      & > span {
+        min-inline-size: 0;
+        overflow: clip;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
       & .icon-button {
         border: 1px solid transparent;
         border-radius: 50%;

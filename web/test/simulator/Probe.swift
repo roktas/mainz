@@ -34,6 +34,7 @@ final class Probe: XCTestCase {
     @MainActor private func open(_ app: XCUIApplication) {
         // WebKit can report a landscape launcher frame beyond the window; tap its visible leading portion.
         app.buttons["Geometry"].coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)).tap()
+        XCTAssertTrue(wait(app.buttons["Close geometry"], app, timeout: 45))
     }
 
     @MainActor private func images(_ app: XCUIApplication, _ prefix: String) {

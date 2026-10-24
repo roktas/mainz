@@ -277,7 +277,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   assert.ok(!(await welcome.isVisible()), "Onboarding dismissal persists after reopening a PDF")
   await page.locator(".selection-panel").getByRole("textbox", { name: "Page selection", exact: true }).fill("3-5,2,2,7")
   await page.locator(".selection-panel").getByRole("textbox", { name: "Page selection", exact: true }).press("Enter")
-  await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "6 PDF pages")
+  await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "6 pages")
   const input = page.locator(".selection-panel"),
     output = page.locator(".composition-output")
   assert.ok(
@@ -333,10 +333,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
       (await outputPage().getAttribute("aria-selected")) === "true",
     "Tour restores the previous workspace tabs",
   )
-  assert.ok(
-    (await output.locator(".composition-totals strong").textContent()) === "6 PDF pages",
-    "Tour preserves Output",
-  )
+  assert.ok((await output.locator(".composition-totals strong").textContent()) === "6 pages", "Tour preserves Output")
   await startTour()
   await step("input")
   await tour.getByRole("button", { name: "Next", exact: true }).click()
@@ -352,7 +349,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   assert.ok(
     (await inputStyle().getAttribute("aria-selected")) === "true" &&
       (await outputPage().getAttribute("aria-selected")) === "true" &&
-      (await output.locator(".composition-totals strong").textContent()) === "6 PDF pages" &&
+      (await output.locator(".composition-totals strong").textContent()) === "6 pages" &&
       (await help.evaluate((button) => button === document.activeElement)),
     "End tour restores the previous tabs and focus without changing Output",
   )
@@ -524,7 +521,8 @@ export async function checkWorkspace(page, prepared, ordinary) {
       `Downloaded pages match Output order, independent styles, dimensions, and Blanks: ${JSON.stringify(inspected)}`,
     )
     assert.ok(
-      (await total()).startsWith(`${count} PDF `) && !(await page.locator(".download-dialog").isVisible()),
+      (await total()) === `${count} ${count === 1 ? "page" : "pages"}` &&
+        !(await page.locator(".download-dialog").isVisible()),
       "Successful Download preserves the workspace and closes its modal",
     )
   }
@@ -659,11 +657,11 @@ export async function checkWorkspace(page, prepared, ordinary) {
   }
   await input.getByRole("button", { name: "Select all", exact: true }).click()
   assert.ok(
-    (await entry.inputValue()) === "1-7" && (await total()) === "6 PDF pages",
+    (await entry.inputValue()) === "1-7" && (await total()) === "6 pages",
     "Input Select all changes only the page field",
   )
   await input.getByRole("button", { name: "Clear page sequence", exact: true }).click()
-  assert.ok((await entry.inputValue()) === "" && (await total()) === "6 PDF pages", "Input Clear keeps Output intact")
+  assert.ok((await entry.inputValue()) === "" && (await total()) === "6 pages", "Input Clear keeps Output intact")
   await entry.fill("3-5,2,2,7")
   await input.getByRole("button", { name: "Select or drag Input page 2 to Output", exact: true }).click()
   assert.ok(
@@ -688,12 +686,12 @@ export async function checkWorkspace(page, prepared, ordinary) {
     .getByRole("button", { name: "Select or drag Input page 4 to Output", exact: true })
     .click({ modifiers: ["Shift"] })
   assert.ok(
-    (await entry.inputValue()).replaceAll(" ", "") === "1,1,3" && (await total()) === "6 PDF pages",
+    (await entry.inputValue()).replaceAll(" ", "") === "1,1,3" && (await total()) === "6 pages",
     "Input range removal preserves duplicates outside the range and leaves Output unchanged",
   )
   await entry.fill("1,1")
   await entry.press("Enter")
-  assert.ok((await total()) === "8 PDF pages", "Enter adds the exact repeated page entry")
+  assert.ok((await total()) === "8 pages", "Enter adds the exact repeated page entry")
   await inputDetails.click()
   assert.ok(
     (await pendingCard.locator(".page-origin-info").innerText()) === "Copies in Output: 2\nOutput pages: 7-8",
@@ -871,22 +869,22 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await output.getByRole("button", { name: "Select or drag Output page 3", exact: true }).click()
   await input.getByRole("button", { name: "Select Input page 1", exact: true }).dblclick()
   assert.ok(
-    (await total()) === "7 PDF pages" && (await order())[3] === "p. 1" && (await entry.inputValue()) === "",
+    (await total()) === "7 pages" && (await order())[3] === "p. 1" && (await entry.inputValue()) === "",
     "Double-click inserts one copy after Output selection without an Input preparation",
   )
   await input.getByRole("button", { name: "Select Input page 2", exact: true }).dblclick()
   assert.ok(
-    (await total()) === "8 PDF pages" && (await order())[4] === "p. 2",
+    (await total()) === "8 pages" && (await order())[4] === "p. 2",
     "Further insertions follow the last added occurrence",
   )
   await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
   await output.getByRole("button", { name: "Remove Output page 5", exact: true }).click()
   await output.getByRole("button", { name: "Remove Output page 4", exact: true }).click()
   await output.getByRole("button", { name: "Duplicate Output page 1", exact: true }).click()
-  assert.ok((await total()) === "7 PDF pages", "Output plus adds an adjacent copy")
+  assert.ok((await total()) === "7 pages", "Output plus adds an adjacent copy")
   await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
   await output.getByRole("button", { name: "Remove Output page 1", exact: true }).press("Space")
-  assert.ok((await total()) === "6 PDF pages", "Output minus removes only that occurrence")
+  assert.ok((await total()) === "6 pages", "Output minus removes only that occurrence")
   assert.ok(
     await first.locator(".page-image").evaluate((button) => button === document.activeElement),
     "Removing an occurrence by keyboard moves focus to its neighbor",
@@ -930,14 +928,14 @@ export async function checkWorkspace(page, prepared, ordinary) {
   assert.ok(
     !(await page.locator(".composer[data-drag]").count()) &&
       !(await output.locator("[data-drop]").count()) &&
-      (await total()) === "6 PDF pages",
+      (await total()) === "6 pages",
     "Cancelling clears drag feedback without changing Output",
   )
   await dragData.dispose()
   await input
     .getByRole("button", { name: "Add to Output", exact: true })
     .dragTo(output.locator(".section-heading").first())
-  assert.ok((await total()) === "12 PDF pages", "Compact drag widget adds the sequence directly to Output")
+  assert.ok((await total()) === "12 pages", "Compact drag widget adds the sequence directly to Output")
   await page.setViewportSize({ width: 1440, height: 1100 })
   await output.getByRole("slider", { name: "Output thumbnail range", exact: true }).press("Home")
   const thirdPage = output.getByRole("button", { name: "Select Output page 3", exact: true })
@@ -1001,8 +999,8 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await input.getByLabel("Start each repeat on front", { exact: true }).check()
   await input.getByRole("button", { name: "Add to Output", exact: true }).click()
   assert.ok(
-    (await total()) === "20 PDF pages" &&
-      (await output.locator(".output-state").innerText()).includes("2 Padding pages"),
+    (await total()) === "20 pages" &&
+      (await output.locator(".output-state").innerText()).trim() === "20 pages, 10 sheets",
     "Input repetitions preserve the sequence and add duplex Padding",
   )
   await download(20)
@@ -1044,7 +1042,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await entry.fill("1,1,3,4")
   await open("style-sample.pdf", prepared)
   assert.ok(
-    (await entry.inputValue()) === "" && (await total()) === "4 PDF pages",
+    (await entry.inputValue()) === "" && (await total()) === "4 pages",
     "Reopening a PDF starts independent preparation without adding pages",
   )
   await entry.fill("1,1,3,4")
@@ -1059,7 +1057,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const baselineColor = await color().inputValue()
   await color().fill("#555555")
   await output.getByRole("button", { name: "Download", exact: true }).waitFor({ state: "visible", timeout: 60000 })
-  assert.ok((await total()) === "8 PDF pages", "Styles keep the complete Output sequence")
+  assert.ok((await total()) === "8 pages", "Styles keep the complete Output sequence")
   const workers = await page.locator("html").getAttribute("data-processors")
   await color().fill("#666666")
   await output.getByRole("button", { name: "Download", exact: true }).waitFor({ state: "visible", timeout: 60000 })
@@ -1077,7 +1075,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await output.getByLabel("Output page actions", { exact: true }).click()
   await output.getByRole("button", { name: "Repeat selected pages", exact: true }).click()
   assert.ok(
-    (await total()) === "10 PDF pages" && (await order()).slice(3, 7).join(",") === "p. 4,p. 1,p. 4,p. 1",
+    (await total()) === "10 pages" && (await order()).slice(3, 7).join(",") === "p. 4,p. 1,p. 4,p. 1",
     "Output repetition preserves a consecutive sequence across independent Inputs",
   )
   assert.ok(
@@ -1086,7 +1084,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   )
   await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
   assert.ok(
-    (await total()) === "8 PDF pages" && (await color().inputValue()) === "#555555",
+    (await total()) === "8 pages" && (await color().inputValue()) === "#555555",
     "Independent occurrence removal keeps both Input styles and the other copies",
   )
   await outputPage().click()
@@ -1191,7 +1189,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await page.getByRole("button", { name: "Reset all styles", exact: true }).click()
   await output.getByRole("button", { name: "Download", exact: true }).waitFor({ state: "visible", timeout: 60000 })
   assert.ok(
-    (await color().inputValue()) === baselineColor && (await total()) === "8 PDF pages",
+    (await color().inputValue()) === baselineColor && (await total()) === "8 pages",
     "Style reset preserves Output and repetitions",
   )
   assert.ok(
@@ -1240,7 +1238,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   if ((await options.getAttribute("open")) === null) await options.locator("summary").first().click()
   await output.getByRole("button", { name: "Blank before first selected page", exact: true }).click()
   assert.ok(
-    (await total()) === "9 PDF pages" && (await order())[0] === "210.0 × 297.0 mm",
+    (await total()) === "9 pages" && (await order())[0] === "210.0 × 297.0 mm",
     "Blank keeps adjacent physical dimensions",
   )
   const previousInput = await page
@@ -1266,10 +1264,10 @@ export async function checkWorkspace(page, prepared, ordinary) {
       const pickerBox = await picker.boundingBox()
       const openBox = await input.locator(".file-picker").boundingBox()
       assert.ok(
-        (Math.abs(pickerBox.y + pickerBox.height / 2 - openBox.y - openBox.height / 2) < 1 &&
-          pickerBox.x + pickerBox.width <= openBox.x) ||
-          pickerBox.y + pickerBox.height <= openBox.y,
-        "The mobile file chooser and Open PDF share a row or stack without overlapping",
+        Math.abs(pickerBox.y + pickerBox.height / 2 - openBox.y - openBox.height / 2) < 1 &&
+          pickerBox.x + pickerBox.width <= openBox.x &&
+          Math.abs(pickerBox.width - openBox.width) < 1,
+        "The mobile file chooser and Open PDF share one row with equal columns",
       )
       assert.ok(
         (await page.locator(".input-current").getAttribute("title")) === longFilename &&
@@ -1302,10 +1300,10 @@ export async function checkWorkspace(page, prepared, ordinary) {
       const totalsBox = await output.locator(".output-state").boundingBox()
       const downloadBox = await output.locator(".download-action").boundingBox()
       assert.ok(
-        (Math.abs(totalsBox.y + totalsBox.height / 2 - downloadBox.y - downloadBox.height / 2) < 1 &&
-          totalsBox.x + totalsBox.width <= downloadBox.x) ||
-          totalsBox.y + totalsBox.height <= downloadBox.y,
-        "Mobile Output totals and Download share a row or stack without overlapping",
+        Math.abs(totalsBox.y + totalsBox.height / 2 - downloadBox.y - downloadBox.height / 2) < 1 &&
+          totalsBox.x + totalsBox.width <= downloadBox.x &&
+          Math.abs(totalsBox.width - downloadBox.width) < 1,
+        "Mobile Output totals and Download share one row with equal columns",
       )
       await first.locator(".occurrence-actions").evaluate((element) => element.scrollIntoView({ block: "center" }))
       assert.ok(
@@ -1359,7 +1357,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await page.locator(".input-picker").getByRole("button", { name: "Remove Input", exact: true }).click()
   assert.ok(
     (await page.locator(`.input-list button[data-source="${longInput}"]`).count()) === 0 &&
-      (await total()) === "9 PDF pages",
+      (await total()) === "9 pages",
     "The mobile Input menu removes unreferenced Inputs without changing Output",
   )
   await page.evaluate(() => (document.documentElement.style.fontSize = ""))
@@ -1368,7 +1366,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await page.locator(`.input-list button[data-source="${previousInput}"]`).click()
   await inputPages().click()
   assert.ok(
-    (await entry.inputValue()) === "1,1,3,4" && (await total()) === "9 PDF pages",
+    (await entry.inputValue()) === "1,1,3,4" && (await total()) === "9 pages",
     "Mobile view changes preserve Input and Output",
   )
   await open("ordinary.pdf", ordinary)
@@ -1397,7 +1395,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await page.keyboard.press("Escape")
   await entry.fill("1,1")
   await input.getByRole("button", { name: "Add to Output", exact: true }).click()
-  assert.ok((await total()) === "11 PDF pages", "Ordinary one-page Input supports repetition")
+  assert.ok((await total()) === "11 pages", "Ordinary one-page Input supports repetition")
   const dialog = page.locator(".download-dialog")
   let reached, release
   const started = new Promise((resolve) => (reached = resolve))
@@ -1425,7 +1423,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   release()
   await page.unroute("**/processor.mjs")
   assert.ok(
-    !(await dialog.isVisible()) && (await total()) === "11 PDF pages" && cancelledDownloads === 0,
+    !(await dialog.isVisible()) && (await total()) === "11 pages" && cancelledDownloads === 0,
     "Escape cancels without downloading or changing Output",
   )
   page.off("download", unexpectedDownload)
@@ -1434,8 +1432,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await output.getByRole("button", { name: "Download", exact: true }).click()
   await dialog.getByRole("alert").waitFor()
   assert.ok(
-    (await total()) === "11 PDF pages" &&
-      (await dialog.getByRole("button", { name: "Retry", exact: true }).isVisible()),
+    (await total()) === "11 pages" && (await dialog.getByRole("button", { name: "Retry", exact: true }).isVisible()),
     "Worker loading failure offers Retry and retains the Output",
   )
   await page.unroute("**/processor.mjs")
@@ -1494,7 +1491,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   )
   await output.getByRole("textbox", { name: "Page selection", exact: true }).fill("2-11")
   await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
-  assert.ok((await total()) === "1 PDF page", "Output can retain only an explicit Blank")
+  assert.ok((await total()) === "1 page", "Output can retain only an explicit Blank")
   await outputPage().click()
   await zoom(output, "Zoom in")
   await output.getByLabel("Page selection", { exact: true }).fill("1")

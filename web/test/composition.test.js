@@ -30,7 +30,7 @@ test("Output Page removes the current occurrence, including Blank and the final 
       ["Remove Output page 1", "Duplicate Output page 1"],
     )
     await actions.getByRole("button", { name: "Remove Output page 1", exact: true }).click()
-    assert.equal(await output.locator(".composition-totals strong").innerText(), "5 PDF pages")
+    assert.equal(await output.locator(".composition-totals strong").textContent(), "5 pages")
     assert.equal(await output.getByLabel("Page selection", { exact: true }).inputValue(), "")
     await output.getByLabel("Output page actions", { exact: true }).click()
     await output.getByRole("button", { name: "Add blank page at end", exact: true }).click()
@@ -40,7 +40,7 @@ test("Output Page removes the current occurrence, including Blank and the final 
     await page.keyboard.press("End")
     await output.locator(".blank-sheet").waitFor()
     await actions.getByRole("button", { name: "Remove Output page 6", exact: true }).click()
-    assert.equal(await output.locator(".composition-totals strong").innerText(), "5 PDF pages")
+    assert.equal(await output.locator(".composition-totals strong").textContent(), "5 pages")
     await output.getByRole("button", { name: "Select all", exact: true }).click()
     await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
     await input.getByLabel("Page selection", { exact: true }).fill("1")
@@ -92,7 +92,7 @@ test(
         await input.locator("input[type=file]").setInputFiles({ name, mimeType: "application/pdf", buffer: fixture() })
         await page.waitForFunction(() => !!window.resumeOpening)
       }
-      await output.locator(".composition-totals strong").filter({ hasText: "6 PDF pages" }).waitFor()
+      await output.locator(".composition-totals strong").filter({ hasText: "6 pages" }).waitFor()
       await output.getByRole("button", { name: "Select Output page 1", exact: true }).click()
       await open("Second.pdf")
       const transfer = await page.evaluateHandle(() => new DataTransfer())
@@ -101,14 +101,14 @@ test(
       })
       await page.locator('.composer[data-drag="source"]').waitFor()
       await page.keyboard.press("Delete")
-      assert.equal(await output.locator(".composition-totals strong").innerText(), "6 PDF pages")
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "6 pages")
       assert.equal(await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "1")
       await page.evaluate(() => window.resumeOpening())
       await input.locator(".input-current").filter({ hasText: "Second.pdf" }).waitFor()
       await page.waitForFunction(() => !document.querySelector(".composer[data-drag]"))
       assert.equal(await page.locator(".drag-image").count(), 0)
       await output.dispatchEvent("drop", { dataTransfer: transfer })
-      assert.equal(await output.locator(".composition-totals strong").innerText(), "6 PDF pages")
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "6 pages")
       await input.locator(".input-picker > summary").click()
       await input.locator(".input-list button[data-source]").first().click()
       assert.equal(await input.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "3-5,2,2,7")
@@ -124,7 +124,7 @@ test(
       await output.dispatchEvent("pointermove", { ...contact, clientX: 1000 })
       await output.dispatchEvent("pointerup", { ...contact, clientX: 1000 })
       assert.equal(await page.locator(".composer").getAttribute("data-drag"), null)
-      assert.equal(await output.locator(".composition-totals strong").innerText(), "6 PDF pages")
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "6 pages")
       await open("Fourth.pdf")
       await page.evaluate(() => {
         const time = performance.now()
@@ -152,14 +152,14 @@ test(
       await thumbnail.dispatchEvent("click", { detail: 2 })
       await thumbnail.dispatchEvent("dblclick", { detail: 2 })
       assert.equal(
-        await output.locator(".composition-totals strong").innerText(),
-        "6 PDF pages",
+        await output.locator(".composition-totals strong").textContent(),
+        "6 pages",
         "A double-click cannot start in one Input and add pages from another",
       )
       await thumbnail.dblclick()
       assert.equal(
-        await output.locator(".composition-totals strong").innerText(),
-        "7 PDF pages",
+        await output.locator(".composition-totals strong").textContent(),
+        "7 pages",
         "A complete double-click still adds the current page",
       )
       await open("Sixth.pdf")
@@ -180,7 +180,7 @@ test(
         "true",
         "Output's double-tap continues independently of Input changes",
       )
-      assert.equal(await output.locator(".composition-totals strong").innerText(), "7 PDF pages")
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "7 pages")
     } finally {
       await browser?.close()
     }
@@ -286,9 +286,7 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-      await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "6 PDF pages",
-      )
+      await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "6 pages")
       // Freeze the moving preview before its first paint so geometry checks do not depend on machine speed.
       await page.evaluate(() => {
         new MutationObserver(() => {
@@ -562,7 +560,7 @@ test("Addition previews use their target image or the action area", { timeout: 9
         for (const action of ["card", "selection", "keyboard"]) {
           await page.goto(`${server.resolvedUrls.local[0]}?demo`)
           await page.waitForFunction(
-            () => document.querySelector(".composition-totals strong")?.textContent === "6 PDF pages",
+            () => document.querySelector(".composition-totals strong")?.textContent === "6 pages",
           )
           const output = page.locator(".composition-output")
           const workspace = page.locator(".mobile-workspace-tabs > button:last-child")
@@ -641,7 +639,7 @@ test("Addition previews use their target image or the action area", { timeout: 9
       for (const action of ["input", "copy", "repeat"]) {
         await page.goto(`${server.resolvedUrls.local[0]}?demo`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "6 PDF pages",
+          () => document.querySelector(".composition-totals strong")?.textContent === "6 pages",
         )
         const pane = page.locator(action === "input" ? ".selection-panel" : ".composition-output")
         const workspace = page.locator(`.mobile-workspace-tabs > button:${action === "input" ? "first" : "last"}-child`)
@@ -714,7 +712,7 @@ test(
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
         await page.goto(`${server.resolvedUrls.local[0]}?demo`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "6 PDF pages",
+          () => document.querySelector(".composition-totals strong")?.textContent === "6 pages",
         )
         await page.evaluate(() => {
           new MutationObserver(() => {
@@ -1138,7 +1136,7 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     const inputFront = input.getByLabel("Start each repeat on front", { exact: true })
     const outputFront = output.getByLabel("Start each repeat on front", { exact: true })
     const order = () => output.locator(".page-origin-info .page-context").allTextContents()
-    const total = () => output.locator(".composition-totals strong").innerText()
+    const total = () => output.locator(".composition-totals strong").textContent()
     const ready = () =>
       page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
     await input.getByRole("button", { name: "Select or drag Input page 2 to Output", exact: true }).click()
@@ -1176,14 +1174,14 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     await input
       .getByRole("button", { name: "Select or drag Input page 7 to Output", exact: true })
       .dragTo(output.locator(".section-heading"))
-    assert.equal(await total(), "6 PDF pages")
+    assert.equal(await total(), "6 pages")
     assert.equal(await prepared.inputValue(), "1,3,1")
     const data = await page.evaluateHandle(() => new DataTransfer())
     const grip = input.getByRole("button", { name: "Select or drag Input page 1 to Output", exact: true })
     await grip.dispatchEvent("dragstart", { dataTransfer: data })
     await page.keyboard.press("Escape")
     assert.equal(await prepared.inputValue(), "1,3,1")
-    assert.equal(await total(), "6 PDF pages")
+    assert.equal(await total(), "6 pages")
     await grip.dragTo(output.getByRole("button", { name: "Select Output page 2", exact: true }), {
       targetPosition: { x: 5, y: 40 },
     })
@@ -1208,7 +1206,7 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     await inputRepeat.fill("1000")
     await inputFront.check()
     await prepared.press("Enter")
-    assert.equal(await total(), "12 PDF pages")
+    assert.equal(await total(), "12 pages")
     assert.equal(await prepared.inputValue(), "1-7,1-4")
     assert.equal(await inputRepeat.inputValue(), "1000")
     assert.equal(await inputFront.isChecked(), true)
@@ -1218,7 +1216,7 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     assert.equal(await inputFront.isChecked(), false)
     await selected.fill("1-12")
     await selected.press("Enter")
-    assert.equal(await total(), "0 PDF pages")
+    assert.equal(await total(), "0 pages")
     await prepared.fill("1-5")
     await prepared.press("Enter")
     await selected.fill("2,2,4")
@@ -1264,13 +1262,13 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     await outputRepeat.fill("3")
     await outputFront.check()
     await output.getByRole("button", { name: "Repeat selected pages", exact: true }).click()
-    assert.equal(await total(), "9 PDF pages")
+    assert.equal(await total(), "9 pages")
     assert.equal(await selected.inputValue(), "7-8")
     await outputOptions.click()
     assert.equal(await outputRepeat.inputValue(), "2")
     assert.equal(await outputFront.isChecked(), false)
     await output.getByRole("button", { name: "Repeat selected pages", exact: true }).click()
-    assert.equal(await total(), "11 PDF pages")
+    assert.equal(await total(), "11 pages")
     assert.equal(await selected.inputValue(), "9-10")
     await selected.fill("99")
     assert.equal(await selected.getAttribute("aria-invalid"), "true")
@@ -1279,7 +1277,7 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
       true,
     )
     await selected.press("Enter")
-    assert.equal(await total(), "11 PDF pages")
+    assert.equal(await total(), "11 pages")
     await selected.fill("9-11")
     await outputOptions.click()
     await outputRepeat.fill("4")
@@ -1300,7 +1298,7 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     assert.equal(await selected.inputValue(), "13")
     await selected.fill("1-13")
     await selected.press("Enter")
-    assert.equal(await total(), "0 PDF pages")
+    assert.equal(await total(), "0 pages")
     assert.equal(await selected.inputValue(), "")
     await prepared.fill("3,1,3")
     await inputOptions.click()
@@ -1323,7 +1321,7 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     await page.locator(".input-list button[data-source]").first().click()
     assert.equal(await prepared.inputValue(), "3,1,3", "Reopened PDFs keep independent ordered preparations")
     assert.equal(await input.locator(".composition-card.selected").count(), 2)
-    assert.equal(await total(), "0 PDF pages")
+    assert.equal(await total(), "0 pages")
     await data.dispose()
   } finally {
     await browser?.close()
@@ -1358,13 +1356,12 @@ test("Edited Padding retains its dimensions and page order in the downloaded PDF
     await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill("2")
     await input.getByLabel("Start each repeat on front", { exact: true }).check()
     await prepared.press("Enter")
-    assert.equal(await output.locator(".composition-totals strong").innerText(), "10 PDF pages")
-    assert.match(await output.locator(".output-state").innerText(), /3 Padding pages/)
+    assert.equal(await output.locator(".composition-totals strong").textContent(), "10 pages")
+    assert.equal((await output.locator(".output-state").innerText()).trim(), "10 pages, 5 sheets")
     await selected.fill("2")
     await options.click()
     await output.getByRole("button", { name: "Move selected pages later", exact: true }).click()
     assert.equal(await selected.inputValue(), "3")
-    assert.doesNotMatch(await output.locator(".output-state").innerText(), /Padding/)
     await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
     assert.equal(await selected.inputValue(), "4")
     await selected.fill("3")
@@ -1454,7 +1451,7 @@ test("Grid boundary duplication focuses the final new Output occurrence", async 
     await output.getByRole("button", { name: "Select Output page 6", exact: true }).press("ArrowRight")
     await page.waitForFunction(() => document.activeElement?.matches(".output-pages"))
     await page.keyboard.press("Enter")
-    assert.equal(await output.locator(".composition-totals strong").innerText(), "8 PDF pages")
+    assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
     assert.equal(await output.getByLabel("Page selection", { exact: true }).inputValue(), "7-8")
     assert.equal(
       await output

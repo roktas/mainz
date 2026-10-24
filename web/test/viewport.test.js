@@ -20,9 +20,7 @@ test("Stable geometry retains fresh viewport metadata after resizing", { timeout
       route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 8) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "8 PDF pages",
-    )
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "8 pages")
     for (const [width, height] of [
       [1280, 800],
       [1366, 900],
@@ -101,7 +99,7 @@ test("One geometry schema captures desktop and touch without changing Grid choic
         )
         await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+          () => document.querySelector(".composition-totals strong")?.textContent === "240 pages",
         )
         const input = page.locator(".selection-panel")
         await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
@@ -167,7 +165,7 @@ test("One geometry schema captures desktop and touch without changing Grid choic
           await page.getByRole("button", { name: "Geometry", exact: true }).click()
           await dialog.getByRole("button", { name: "Reload fixture", exact: true }).click()
           await page.waitForFunction(
-            () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+            () => document.querySelector(".composition-totals strong")?.textContent === "240 pages",
           )
           await page.getByRole("button", { name: "Geometry", exact: true }).click()
           await dialog.getByLabel("Device or environment", { exact: true }).fill("Fixture test")
@@ -288,9 +286,7 @@ test("Measured frames gain rows or columns while keeping balanced readable image
       route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-    )
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "240 pages")
     // Replay the native safe-area budget and shared reference cards; this is regression evidence, not native acquisition.
     await page.addStyleTag({
       content: `
@@ -355,7 +351,7 @@ test("Measured frames gain rows or columns while keeping balanced readable image
       )
       await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
       await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+        () => document.querySelector(".composition-totals strong")?.textContent === "240 pages",
       )
       await page.addStyleTag({
         content: `

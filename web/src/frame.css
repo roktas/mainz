@@ -73,8 +73,8 @@
     }
     .editing-toolbar {
       --view-tools-width: 90px;
-      min-block-size: calc(46px + var(--gap) / 2);
-      align-items: start;
+      min-block-size: calc(46px + var(--gap));
+      align-items: center;
 
       & > .tabs {
         flex: 1 0 auto;
@@ -128,18 +128,6 @@
       .grid-view,
       .page-view {
         min-block-size: 100%;
-      }
-    }
-    @container catalog (width <= 28rem) {
-      .editing-toolbar > .tabs {
-        flex: none;
-        inline-size: calc(100% - var(--view-tools-width) - 0.25em);
-        & > button {
-          flex: 1 0 auto;
-          min-inline-size: 44px;
-          padding-inline: 0.125em;
-          gap: 0.25em;
-        }
       }
     }
   }

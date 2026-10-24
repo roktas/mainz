@@ -44,6 +44,7 @@
 
 ### Fixed
 
+- Pane headers, view toolbars, and page selection controls stay on one row in narrow layouts.
 - Output Page retains PDF page labels after reordering and repetition. Long labels keep space beside Page controls.
 - SVG production uses parameter ID order for Other controls, while preserving explicit group arrays.
 - The SVG command keeps Cairo's shared caches intact, avoiding shutdown assertions after rejected content.

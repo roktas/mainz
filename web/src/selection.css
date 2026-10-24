@@ -190,6 +190,7 @@
         }
       }
       & .sequence-entry > .entry {
+        flex-wrap: nowrap;
         & > .transfer:disabled,
         & > .output-selection > .primary:disabled {
           color: color-mix(in oklch, var(--accent) 65%, var(--muted));

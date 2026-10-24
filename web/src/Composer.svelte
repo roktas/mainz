@@ -75,6 +75,24 @@
     tour?: TourStep
   } = $props()
   const key = $props.id()
+  function summary(element: HTMLDivElement) {
+    const counts = element.querySelector<HTMLElement>(".composition-totals")!
+    let frame: number
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const overflow = counts.scrollWidth > element.clientWidth + 1
+        element.toggleAttribute("data-overflow", overflow)
+        if (!overflow) document.getElementById(`${key}-output-summary`)?.hidePopover()
+      })
+    })
+    observer.observe(element)
+    observer.observe(counts)
+    return () => {
+      cancelAnimationFrame(frame)
+      observer.disconnect()
+    }
+  }
   const motion = new MediaQuery("(prefers-reduced-motion: no-preference)")
   $effect(() => {
     if (motion.current) return
@@ -1338,6 +1356,13 @@
   </div>
 {/snippet}
 
+{#snippet outputSummary()}
+  <strong>{output.pages.length} {output.pages.length === 1 ? "page" : "pages"}</strong>, {Math.ceil(
+    output.pages.length / 2,
+  )}
+  {Math.ceil(output.pages.length / 2) === 1 ? "sheet" : "sheets"}
+{/snippet}
+
 {#snippet outputGridHeading(page: Expanded, index: number)}
   {@render outputOrigin(page, index)}
   <button
@@ -1547,6 +1572,7 @@
             <button
               id={`${key}-grid`}
               role="tab"
+              aria-label="Grid"
               aria-selected={activeTab === "grid"}
               aria-controls={`${key}-source-panel`}
               tabindex={activeTab === "grid" ? 0 : -1}
@@ -1554,11 +1580,12 @@
               onclick={() => inputTab("grid")}
               title="Grid view"
               data-tour-tab="input-grid"
-              data-tour-active={tour === "input-grid"}><Icon name="grid" />Grid</button
+              data-tour-active={tour === "input-grid"}><Icon name="grid" /><span>Grid</span></button
             >
             <button
               id={`${key}-page`}
               role="tab"
+              aria-label="Page"
               aria-selected={activeTab === "page"}
               aria-controls={`${key}-source-panel`}
               tabindex={activeTab === "page" ? 0 : -1}
@@ -1566,11 +1593,12 @@
               onclick={() => inputTab("page")}
               title="Page view"
               data-tour-tab="input-page"
-              data-tour-active={tour === "input-page"}><Icon name="page" />Page</button
+              data-tour-active={tour === "input-page"}><Icon name="page" /><span>Page</span></button
             >
             {#if hasStyles}<button
                 id={`${key}-style`}
                 role="tab"
+                aria-label="Style"
                 aria-selected={activeTab === "style"}
                 aria-controls={`${key}-source-panel`}
                 tabindex={activeTab === "style" ? 0 : -1}
@@ -1583,10 +1611,8 @@
                   : "Style unavailable. Add applicable pages from this Input to Output to use Style."}
                 data-tour-tab="style"
                 data-tour-active={tour === "style"}
-                ><Icon
-                  name={styleable ? "style" : "style-off"}
-                />Style{#if Object.keys(source.overrides).length || Object.keys(source.drafts).length}<span
-                    class="edit-dot"
+                ><Icon name={styleable ? "style" : "style-off"} /><span>Style</span
+                >{#if Object.keys(source.overrides).length || Object.keys(source.drafts).length}<span class="edit-dot"
                   ></span>{/if}</button
               >{/if}
           </div>
@@ -1804,39 +1830,42 @@
         <div>
           <h2 id={`${key}-output`}><Icon name="output" />Output</h2>
         </div>
-        <div class="composition-totals output-state">
-          <strong>{output.pages.length} PDF {output.pages.length === 1 ? "page" : "pages"}</strong>
-          <span
-            >{Math.ceil(output.pages.length / 2)} duplex {Math.ceil(output.pages.length / 2) === 1
-              ? "sheet"
-              : "sheets"}</span
+        <div class="output-state" {@attach summary}>
+          <span class="composition-totals">{@render outputSummary()}</span>
+          <button
+            class="icon-button"
+            popovertarget={`${key}-output-summary`}
+            aria-label="Output details"
+            title="Output details"><Icon name="info" /></button
           >
-          {#if output.pages.some((page) => page.padding)}{@const padding = output.pages.filter(
-              (page) => page.padding,
-            ).length}<span>{padding} Padding {padding === 1 ? "page" : "pages"}</span>{/if}
         </div>
         <div class="download-action" data-tour-target="download" data-tour-active={tour === "download"}>
           <button
             class="primary"
+            aria-label="Download"
             aria-hidden={outputProcessing}
             disabled={!output.pages.length || !!output.error || outputProcessing || !!downloadError}
-            title={downloadError}
+            title={downloadError ?? "Download"}
             aria-describedby={downloadError ? `${key}-download-error` : undefined}
-            onclick={download}><Icon name="down" />Download</button
+            onclick={download}><Icon name="down" /><span>Download</span></button
           >
           <span class="output-status" role="status" aria-hidden={!outputProcessing}>
-            <span class="spinner" aria-hidden="true"></span>Updating PDF…
+            <span class="spinner" aria-hidden="true"></span><span>Updating PDF…</span>
           </span>
         </div>
         {#if downloadError}<p id={`${key}-download-error`} class="download-error error" role="alert">
             {downloadError}
           </p>{/if}
       </div>
+      <div id={`${key}-output-summary`} class="output-details" popover="auto" role="note" aria-label="Output details">
+        {@render outputSummary()}
+      </div>
       <div class="editing-toolbar output-tabs">
         <div class="tabs" role="tablist" aria-label="Output workspace">
           <button
             id={`${key}-output-grid`}
             role="tab"
+            aria-label="Grid"
             aria-selected={activeOutputTab === "grid"}
             aria-controls={`${key}-output-panel`}
             tabindex={activeOutputTab === "grid" ? 0 : -1}
@@ -1844,11 +1873,12 @@
             onclick={() => setOutputTab("grid")}
             title="Grid view"
             data-tour-tab="output-grid"
-            data-tour-active={tour === "output-grid"}><Icon name="grid" />Grid</button
+            data-tour-active={tour === "output-grid"}><Icon name="grid" /><span>Grid</span></button
           >
           <button
             id={`${key}-output-page`}
             role="tab"
+            aria-label="Page"
             aria-selected={activeOutputTab === "page"}
             aria-controls={`${key}-output-panel`}
             tabindex={activeOutputTab === "page" ? 0 : -1}
@@ -1856,7 +1886,7 @@
             onclick={() => setOutputTab("page")}
             title="Page view"
             data-tour-tab="output-page"
-            data-tour-active={tour === "output-page"}><Icon name="page" />Page</button
+            data-tour-active={tour === "output-page"}><Icon name="page" /><span>Page</span></button
           >
         </div>
         {#if activeOutputTab === "grid"}{@render gridDensity("Output", outputCompact)}{/if}

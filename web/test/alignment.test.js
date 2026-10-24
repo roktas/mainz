@@ -18,9 +18,7 @@ test("Style retains a Compact companion frame on short touch landscapes", { time
       route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-    )
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "240 pages")
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     for (const [width, height] of [
@@ -181,7 +179,7 @@ for (const hasTouch of [false, true])
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
         await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "32 PDF pages",
+          () => document.querySelector(".composition-totals strong")?.textContent === "32 pages",
         )
         for (const [width, height] of hasTouch
           ? [
@@ -341,7 +339,7 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
       await page.keyboard.press("Escape")
       await input.getByRole("button", { name: "Add to Output", exact: true }).click()
       await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "10000 PDF pages",
+        () => document.querySelector(".composition-totals strong")?.textContent === "10000 pages",
       )
       await page
         .getByRole("navigation", { name: "Workspace view", exact: true })

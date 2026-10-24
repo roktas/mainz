@@ -127,7 +127,7 @@ try {
         }
         await page.goto(values.url)
         await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+          () => document.querySelector(".composition-totals strong")?.textContent === "240 pages",
         )
         const id = `${item.id}-${colorScheme}`
         const sample = await collect(page, async (pane, density) => {

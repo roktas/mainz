@@ -38,9 +38,7 @@ test("Arrows enter Grid without selection and Page keys change thumbnail groups"
         route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 60) }),
       )
       await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-      await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "60 PDF pages",
-      )
+      await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "60 pages")
       await page.evaluate((size) => (document.documentElement.style.fontSize = size), textSize)
       for (const name of ["Input", "Output"]) {
         scenario = `${name} ${density}, ${width}px, ${textSize} text`
@@ -171,7 +169,7 @@ test("Arrows enter Grid without selection and Page keys change thumbnail groups"
         )
         await page.keyboard.press("PageDown")
         assert.equal(await field.inputValue(), "2")
-        assert.equal(await page.locator(".composition-totals strong").innerText(), "60 PDF pages")
+        assert.equal(await page.locator(".composition-totals strong").textContent(), "60 pages")
         await field.fill("")
         await pane.locator(".sequence-help").click({ position: { x: 4, y: 4 } })
         await page.keyboard.press("ArrowLeft")
@@ -231,7 +229,7 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
           await page.setViewportSize({ width, height })
           await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
           await page.waitForFunction(
-            () => document.querySelector(".composition-totals strong")?.textContent === "80 PDF pages",
+            () => document.querySelector(".composition-totals strong")?.textContent === "80 pages",
           )
           await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
           await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
@@ -455,7 +453,7 @@ test("Page pinch zoom preserves its anchor and shares the button zoom range", { 
           )
           assert.equal(await page.evaluate(() => visualViewport.scale), 1)
           assert.equal(await selection.inputValue(), prepared)
-          assert.equal(await page.locator(".composition-totals strong").innerText(), "6 PDF pages")
+          assert.equal(await page.locator(".composition-totals strong").textContent(), "6 pages")
           await zoom(pane, "Zoom in")
           assert.equal(await pane.locator("output").textContent(), value === 175 ? "200%" : "300%")
           await zoom(pane, "Zoom out")
@@ -490,7 +488,7 @@ test("Page pinch zoom preserves its anchor and shares the button zoom range", { 
             })
           }
           assert.equal(await selection.inputValue(), prepared)
-          assert.equal(await page.locator(".composition-totals strong").innerText(), "6 PDF pages")
+          assert.equal(await page.locator(".composition-totals strong").textContent(), "6 pages")
         }
       }
       assert.deepEqual(errors, [])
@@ -719,11 +717,11 @@ test(
       await input.getByRole("button", { name: "Clear page sequence", exact: true }).click()
       await input.getByRole("button", { name: "Add Input page 2 to Output", exact: true }).press("Space")
       assert.equal(await select.inputValue(), "")
-      assert.equal(await output.locator(".composition-totals strong").innerText(), "1 PDF page")
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "1 page")
       await tab(input, "Page")
       await select.fill("7,2,2")
       await input.getByRole("button", { name: "Add to Output", exact: true }).click()
-      assert.equal(await output.locator(".composition-totals strong").innerText(), "4 PDF pages")
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "4 pages")
       assert.equal(await select.inputValue(), "")
       await select.fill("7,2,2")
       await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
@@ -1029,7 +1027,7 @@ test(
       await viewport.press("Delete")
       assert.match(await pagePosition(output), /3\s*\/ 4/)
       await output.getByRole("button", { name: "Duplicate Output page 3", exact: true }).click()
-      assert.equal(await output.locator(".composition-totals strong").innerText(), "5 PDF pages")
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "5 pages")
       await zoom(input, "Fit page")
       await zoom(output, "Fit page")
       await input.getByRole("button", { name: "Previous Input page", exact: true }).click()
@@ -1050,7 +1048,7 @@ test(
       await input.locator(".inspection-heading .page-grip").dragTo(output.locator(".inspection-target"), {
         targetPosition: { x: dropBox.width - 2, y: 100 },
       })
-      assert.equal(await output.locator(".composition-totals strong").innerText(), "8 PDF pages")
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
       assert.equal(await select.inputValue(), "")
       assert.equal(await output.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected"), "true")
       for (let position = 2; position < 7; position++)
@@ -1107,7 +1105,7 @@ test(
       await input.getByLabel("Input page actions", { exact: true }).click()
       await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill("1000")
       await input.getByRole("button", { name: "Add to Output", exact: true }).click()
-      assert.equal(await output.locator(".composition-totals strong").innerText(), "10000 PDF pages")
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "10000 pages")
       const beforeDrop = await pagePosition(output)
       await input.locator(".inspection-heading .page-grip").dispatchEvent("dragstart", {
         dataTransfer: transfer,
@@ -1121,7 +1119,7 @@ test(
       )
       await output.locator(".inspection-target").dispatchEvent("drop", { dataTransfer: transfer })
       assert.equal(await pagePosition(output), beforeDrop)
-      assert.equal(await output.locator(".composition-totals strong").innerText(), "10000 PDF pages")
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "10000 pages")
       assert.match(await page.locator(".error-banner").innerText(), /supports up to 10000/)
       assert.equal(await output.locator("[data-drop]").count(), 0)
       await page.setViewportSize({ width: 320, height: 900 })
@@ -1182,7 +1180,7 @@ test("Page image activation repeats current-page copies and preserves selections
     const prepared = input.getByLabel("Page selection", { exact: true })
     const selected = output.getByLabel("Page selection", { exact: true })
     const options = input.getByLabel("Input page actions", { exact: true })
-    const total = () => output.locator(".composition-totals strong").innerText()
+    const total = () => output.locator(".composition-totals strong").textContent()
     const ready = () =>
       page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
     const pageFocused = () => page.evaluate(() => !!document.activeElement?.matches(".page-image, .page-scroll"))
@@ -1195,10 +1193,10 @@ test("Page image activation repeats current-page copies and preserves selections
     await thumbnail.click()
     assert.equal(await prepared.inputValue(), "4", "A click toggles all repeated occurrences of the physical page")
     assert.equal(await pageFocused(), true, "Mouse selection permits immediate keyboard use")
-    assert.equal(await total(), "0 PDF pages")
+    assert.equal(await total(), "0 pages")
     await prepared.fill("4,2,2")
     await thumbnail.dblclick()
-    assert.equal(await total(), "8 PDF pages", "Grid addition uses the exact prepared order, copies, and alignment")
+    assert.equal(await total(), "8 pages", "Grid addition uses the exact prepared order, copies, and alignment")
     assert.equal(await prepared.inputValue(), "")
     assert.equal(await selected.inputValue(), "1-8")
     assert.equal(await pageFocused(), true)
@@ -1207,32 +1205,32 @@ test("Page image activation repeats current-page copies and preserves selections
     await ready()
     assert.match(await pagePosition(input), /2\s*\/ 7/)
     await image(input).click()
-    assert.equal(await total(), "8 PDF pages", "A single Page click only focuses the image")
+    assert.equal(await total(), "8 pages", "A single Page click only focuses the image")
     await image(input).dblclick()
-    assert.equal(await total(), "9 PDF pages", "Without a preparation, addition uses the current page")
+    assert.equal(await total(), "9 pages", "Without a preparation, addition uses the current page")
     assert.equal(await pageFocused(), true)
     await prepared.fill("1,3")
     await image(input).dblclick()
-    assert.equal(await total(), "10 PDF pages", "Page adds only the inspected page while preserving the preparation")
+    assert.equal(await total(), "10 pages", "Page adds only the inspected page while preserving the preparation")
     assert.equal(await prepared.inputValue(), "1,3")
     assert.equal(await selected.inputValue(), "1-8")
     await input.getByRole("region", { name: "PDF viewport", exact: true }).dblclick({ position: { x: 2, y: 2 } })
-    assert.equal(await total(), "10 PDF pages", "Viewport gutters do not add pages")
+    assert.equal(await total(), "10 pages", "Viewport gutters do not add pages")
     await zoom(input, "Zoom in")
     await ready()
     await image(input).dblclick({ position: { x: 100, y: 100 } })
-    assert.equal(await total(), "11 PDF pages", "Double-click works while the enlarged page supports panning")
+    assert.equal(await total(), "11 pages", "Double-click works while the enlarged page supports panning")
     assert.equal(await pageFocused(), true)
     await ready()
     await tab(output, "Page")
     await selected.fill("1,3")
     await ready()
     await image(output).dblclick()
-    assert.equal(await total(), "12 PDF pages", "A selection does not block copying the inspected page")
+    assert.equal(await total(), "12 pages", "A selection does not block copying the inspected page")
     await image(output).dblclick()
-    assert.equal(await total(), "13 PDF pages", "A second double-click creates another copy")
+    assert.equal(await total(), "13 pages", "A second double-click creates another copy")
     await output.getByRole("region", { name: "PDF viewport", exact: true }).press("Space")
-    assert.equal(await total(), "14 PDF pages", "Space uses the same current-page operation")
+    assert.equal(await total(), "14 pages", "Space uses the same current-page operation")
     assert.equal(await selected.inputValue(), "1, 6", "Inserted copies preserve the originally selected occurrences")
     assert.equal(
       await output.locator(".page-actions button").count(),
@@ -1240,7 +1238,7 @@ test("Page image activation repeats current-page copies and preserves selections
       "Selection temporarily removes individual Page actions",
     )
     await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
-    assert.equal(await total(), "16 PDF pages")
+    assert.equal(await total(), "16 pages")
     assert.equal(await selected.inputValue(), "7-8", "The selection bar still selects the complete new group")
     assert.equal(
       await output
@@ -1256,13 +1254,13 @@ test("Page image activation repeats current-page copies and preserves selections
     for (let index = 0; index < 16; index++)
       await output.getByRole("button", { name: "Next Output page", exact: true }).click()
     await output.locator(".blank-sheet span").dblclick()
-    assert.equal(await total(), "18 PDF pages", "Blank images support the same duplication action")
+    assert.equal(await total(), "18 pages", "Blank images support the same duplication action")
     assert.equal(await selected.inputValue(), "")
     assert.equal(await pageFocused(), true)
     await output.getByRole("button", { name: "Select all", exact: true }).click()
     await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
     await output.getByRole("region", { name: "PDF viewport", exact: true }).dblclick()
-    assert.equal(await total(), "0 PDF pages", "An empty viewport cannot add a page")
+    assert.equal(await total(), "0 pages", "An empty viewport cannot add a page")
     await output.getByRole("region", { name: "PDF viewport", exact: true }).focus()
     await page.keyboard.press("v")
     assert.equal(
@@ -1317,7 +1315,7 @@ test(
             await canvas.tap()
             await canvas.tap()
           } else await canvas.dblclick()
-          assert.equal(await pane.locator(".composition-totals strong").innerText(), `${count} PDF pages`)
+          assert.equal(await pane.locator(".composition-totals strong").textContent(), `${count} pages`)
           assert.equal(await pane.getByLabel("Page selection", { exact: true }).inputValue(), "")
           assert.equal(
             await pane.locator(".page-scroll").evaluate((element) => element === document.activeElement),
@@ -1762,9 +1760,7 @@ test("Unused and modified Grid keys preserve pointer controls and native shortcu
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "6 PDF pages",
-    )
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "6 pages")
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     const prepared = input.getByLabel("Page selection", { exact: true })
@@ -1828,10 +1824,10 @@ test("Unused and modified Grid keys preserve pointer controls and native shortcu
       )
     }
     await prepared.fill("1")
-    const total = await output.locator(".composition-totals strong").innerText()
+    const total = await output.locator(".composition-totals strong").textContent()
     await prepared.dispatchEvent("keydown", { key: "Enter", isComposing: true })
     assert.equal(
-      await output.locator(".composition-totals strong").innerText(),
+      await output.locator(".composition-totals strong").textContent(),
       total,
       "IME confirmation does not add prepared pages",
     )
@@ -2140,7 +2136,7 @@ test(
         pages: undefined,
         count: 51,
       })
-      assert.equal(await output.locator(".composition-totals strong").innerText(), "18 PDF pages")
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "18 pages")
 
       const sample = await readFile("test/fixtures/demo.pdf")
       const retained = await page.evaluate(async (bytes) => {

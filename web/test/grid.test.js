@@ -177,15 +177,15 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
               }
               const target = targets.find((entry) => entry.label.startsWith(action))
               assert.ok(target, label)
-              const before = parseInt(await page.locator(".composition-totals strong").innerText())
+              const before = parseInt(await page.locator(".composition-totals strong").textContent())
               await page.touchscreen.tap(target.points[1].x, target.points[1].y)
               if (action === "Select or drag") {
                 assert.equal(await field.inputValue(), selected ? "1" : String(lower), label)
-                assert.equal(parseInt(await page.locator(".composition-totals strong").innerText()), before, label)
+                assert.equal(parseInt(await page.locator(".composition-totals strong").textContent()), before, label)
               } else {
                 const expected = before + (action === "Remove" ? -1 : 1)
                 await page.waitForFunction(
-                  (count) => document.querySelector(".composition-totals strong")?.textContent === `${count} PDF pages`,
+                  (count) => document.querySelector(".composition-totals strong")?.textContent === `${count} pages`,
                   expected,
                 )
                 if (name === "Input") assert.equal(await field.inputValue(), selection, label)
@@ -231,9 +231,7 @@ test("Workspace scrolling keeps Grid and Page controls clear of status", { timeo
       route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 62) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "62 PDF pages",
-    )
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "62 pages")
     for (const [width, height, scale, bottom] of [
       [390, 699, 100, 0],
       [375, 667, 100, 0],
@@ -294,9 +292,7 @@ test("Grid keeps feasible matrices across nearby desktop calibration boundaries"
       route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 80) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "80 PDF pages",
-    )
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "80 pages")
     let initial
     for (const [width, height, minimumNormal, minimumCompact] of [
       ...[-3, -2, -1, 0, 1, 2, 3].map((delta) => [2560 + delta, 1440, 16, 64]),
@@ -347,9 +343,7 @@ test("Grid retains feasible matrices across fractional desktop pane widths", { t
       route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 80) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "80 PDF pages",
-    )
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "80 pages")
     for (const width of [1461.75, 1462, 1462.25]) {
       await page.locator("main").evaluate((element, size) => (element.style.inlineSize = `${size}px`), width)
       const colorScheme = "light"
@@ -380,16 +374,12 @@ test("Touch portrait Normal Grid fits readable cards across nearby phone dimensi
     })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "6 PDF pages",
-    )
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "6 pages")
     await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).click()
     const output = page.locator(".composition-output")
     await output.getByLabel("Page selection", { exact: true }).fill("1-6")
     await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "12 PDF pages",
-    )
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "12 pages")
     await output.getByLabel("Page selection", { exact: true }).fill("7-12")
     for (const [width, height] of [
       [412, 924],
@@ -438,9 +428,7 @@ test("Phone Compact gaps keep the narrow-screen allowance below tablet widths", 
       route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-    )
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "240 pages")
     for (const width of [440, 599, 600, 601, 744]) {
       await page.setViewportSize({ width, height: 1133 })
       const sample = await page.evaluate(async () => (await import("/src/geometry.ts")).capture())
@@ -476,9 +464,7 @@ test("Measured touch frames retain complete readable matrices", { timeout: 12000
       route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-    )
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "240 pages")
     for (const [width, height, bottom, normal, compact] of [
       [360, 672, 24, [2, 1, 2], [3, 1, 3]],
       [392, 764, 24, [2, 1, 2], [4, 2, 8]],
@@ -533,9 +519,7 @@ test("Measured touch calibrations isolate viewport bounds and primary input", { 
         route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 60) }),
       )
       await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-      await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "60 PDF pages",
-      )
+      await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "60 pages")
       for (const band of bands) {
         const [left, right] = band.width,
           [bottom, top] = band.height
@@ -607,9 +591,7 @@ test("Touch portrait pagination uses available height above the safe area", { ti
       route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 240) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-    )
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "240 pages")
     // Match a standalone tablet's bottom inset without treating its screen as the usable viewport.
     await page.locator(".footnote").evaluate((element) => (element.style.paddingBlockEnd = "calc(var(--gap) + 20px)"))
     for (const [width, height] of [
@@ -675,9 +657,7 @@ test("Touch Grid uses complete rows within the available viewport", { timeout: 1
     const colorScheme = "light"
     await page.emulateMedia({ colorScheme })
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-    )
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "240 pages")
     for (const {
       viewport: [width, height],
       matrices: { normal, compact },
@@ -731,9 +711,7 @@ test("Desktop Grid retains measured capacity within readable bounds", { timeout:
     const colorScheme = "light"
     await page.emulateMedia({ colorScheme })
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
-    )
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "240 pages")
     for (const {
       viewport: [width, height],
       matrices: { normal, compact },
@@ -791,9 +769,7 @@ test("Grid fitting respects viewport bounds and input capabilities", { timeout: 
         route.fulfill({ contentType: "application/pdf", body: fixture(true, false, 0, false, false, {}, 60) }),
       )
       await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-      await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "60 PDF pages",
-      )
+      await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "60 pages")
       const cases =
         mode === "mouse"
           ? [
@@ -1072,7 +1048,7 @@ test("Partial Grid batches retain full-matrix card positions and dimensions", { 
       )
       await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
       await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "239 PDF pages",
+        () => document.querySelector(".composition-totals strong")?.textContent === "239 pages",
       )
       for (const name of ["Input", "Output"]) {
         const views = page.locator(".mobile-workspace-tabs")
@@ -1190,13 +1166,13 @@ test("Grid density retains inspection and compact page commands", { timeout: 600
       await opener.click()
       await menu.getByRole("button", { name: "Duplicate Output page 1", exact: true }).click()
       await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "241 PDF pages",
+        () => document.querySelector(".composition-totals strong")?.textContent === "241 pages",
       )
       await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
       await opener.click()
       await menu.getByRole("button", { name: "Remove Output page 1", exact: true }).click()
       await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "240 PDF pages",
+        () => document.querySelector(".composition-totals strong")?.textContent === "240 pages",
       )
     }
   } finally {
@@ -1317,7 +1293,7 @@ test("Compact pagination retains readable four- and five-digit numbers", { timeo
         await page.keyboard.press("Escape")
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
         await measure(output)
-        assert.equal(await output.locator(".composition-totals strong").textContent(), `${total} PDF pages`)
+        assert.equal(await output.locator(".composition-totals strong").textContent(), `${total} pages`)
         assert.ok(
           Number(await output.locator(".grid-view").getAttribute("data-columns")) < 8,
           "Long numbers reserve wider cells",
