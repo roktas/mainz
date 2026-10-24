@@ -828,7 +828,9 @@ module Mainz
     end
 
     def test_composition_indexes_reordered_repeated_regions
-      fixture(@source, method(:across_pages), pdf_objects: method(:across_page_objects))
+      source = file("extraction-pages.pdf")
+      fixture(source, method(:across_pages), pdf_objects: method(:across_page_objects))
+      write("inputs.json", {"input" => source.to_s})
       output, result = compose(
         {
           "version" => 1,
@@ -845,7 +847,7 @@ module Mainz
       assert_equal(%w[p0 p1 p2 p3 p4 p5], description["parameters"]["s0:width"]["pages"])
       assert_equal(%w[p0 p2 p3 p5], description["parameters"]["s0:guide-color"]["pages"])
       reset = operation(output, "indexed-reset.pdf", reset: true)
-      original = Mainz::Preservation.read(@source)
+      original = Mainz::Preservation.read(source)
       restored = Mainz::Preservation.read(reset)
       [1, 0, 1, 1, 0, 1].each_with_index do |physical, index|
         assert_equal(original[physical], restored[index])
