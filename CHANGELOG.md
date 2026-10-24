@@ -44,6 +44,9 @@
 
 ### Fixed
 
+- Touch controls retain press feedback without native tap rectangles or box glows.
+- View tabs retain clear horizontal spacing on narrow screens and shorter selected underlines at every width.
+- Narrow Grid pagination gives the slider more width while keeping its arrows aligned.
 - Pane headers, view toolbars, and page selection controls stay on one row in narrow layouts.
 - Output Page retains PDF page labels after reordering and repetition. Long labels keep space beside Page controls.
 - SVG production uses parameter ID order for Other controls, while preserving explicit group arrays.

@@ -33,8 +33,10 @@
         }
         &:active:not(:has(input:disabled)) {
           filter: brightness(1.5);
-          box-shadow: 0 0 14px color-mix(in oklch, var(--accent) 45%, transparent);
           transition-duration: 0s;
+          @media (hover: hover) and (pointer: fine) {
+            box-shadow: 0 0 14px color-mix(in oklch, var(--accent) 45%, transparent);
+          }
         }
         @media (prefers-reduced-motion: no-preference) {
           transition:

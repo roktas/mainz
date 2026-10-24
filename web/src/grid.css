@@ -197,7 +197,7 @@
       }
 
       .page-batches {
-        grid-template-columns: 40px minmax(0, 1fr) 40px;
+        grid-template-columns: 32px minmax(0, 1fr) 32px;
         grid-template-rows: 44px auto;
         block-size: auto;
         inline-size: calc(100% + 2 * var(--pager-outset, 0px));
@@ -211,8 +211,9 @@
         }
 
         & > button {
-          inline-size: 40px;
-          min-inline-size: 40px;
+          inline-size: 32px;
+          min-inline-size: 32px;
+          padding-inline: 0;
         }
 
         & > .batch-caption {
@@ -226,11 +227,17 @@
         }
 
         & > button:first-child {
-          padding-inline: 0 max(0px, calc(40px - 2 * max(10px, var(--pager-outset, 0px))));
+          justify-content: start;
+          & svg {
+            margin-inline-start: max(0px, calc(var(--pager-outset, 0px) - 10px));
+          }
         }
 
         & > button:last-of-type {
-          padding-inline: max(0px, calc(40px - 2 * max(10px, var(--pager-outset, 0px)))) 0;
+          justify-content: end;
+          & svg {
+            margin-inline-end: max(0px, calc(var(--pager-outset, 0px) - 10px));
+          }
         }
       }
     }

@@ -4,6 +4,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { readFile } from "node:fs/promises"
+import { measure } from "./measure.js"
 import { chromium } from "playwright"
 import { checkWorkspace } from "./workspace.js"
 import { tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
@@ -1249,6 +1250,7 @@ test(
               },
               { theme, scale },
             )
+            await measure(page.locator(".selection-panel"))
             const boxes = await Promise.all([value.boundingBox(), decrease.boundingBox(), increase.boundingBox()])
             for (const box of boxes.slice(1)) {
               assert.ok(box.width >= 44 && box.height >= 44, `${label}: full touch target`)

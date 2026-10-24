@@ -284,7 +284,8 @@ export async function checkGeometry(group) {
 
 export async function checkStatus(page) {
   for (const bottom of [false, true]) {
-    await page.evaluate((end) => window.scrollTo(0, end ? document.documentElement.scrollHeight : 0), bottom)
+    if (bottom) await page.locator(".footnote").scrollIntoViewIfNeeded()
+    else await page.evaluate(() => window.scrollTo(0, 0))
     const box = await page.locator(".footnote").boundingBox()
     const workspace = await page.locator(".composer").boundingBox()
     if (workspace)
@@ -326,7 +327,7 @@ export async function checkPagination(pane, label) {
     )
     for (const button of [bounds.previous, bounds.next]) {
       assert.ok(Math.abs(button.top - bounds.slider.top) < 1, "Arrows share the slider's row")
-      assert.ok(button.right - button.left >= 40 && button.bottom - button.top >= 44, "Arrow targets stay usable")
+      assert.ok(button.right - button.left >= 32 && button.bottom - button.top >= 44, "Arrow targets stay usable")
       assert.ok(button.left >= 0 && button.right <= bounds.viewport, "Arrow targets stay inside the viewport")
     }
     for (const icon of [bounds.previousIcon, bounds.nextIcon])

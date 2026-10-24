@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { gridPage } from "./browser.js"
 
 export async function zoom(pane, action) {
+  await pane.locator(".inspection-heading").scrollIntoViewIfNeeded()
   const control = pane.locator(".page-zoom").getByRole("button", { name: action, exact: true })
   if (action === "Fit page") return control.click()
   const menu = pane.locator(".sequence-options")
@@ -617,7 +618,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
       const tab = document.querySelector('.selection-panel .tabs [aria-selected="true"]')
       return (
         element.matches(":focus-visible") &&
-        getComputedStyle(element.parentElement).borderTopColor === getComputedStyle(tab).borderBottomColor
+        getComputedStyle(element.parentElement).borderTopColor === getComputedStyle(tab, "::after").borderBottomColor
       )
     })
     assert.ok(
@@ -629,7 +630,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
           getComputedStyle(element).outlineColor === "rgba(0, 0, 0, 0)" &&
           picker.outlineStyle === "none" &&
           picker.borderTopWidth === "1px" &&
-          picker.borderTopColor === getComputedStyle(tab).borderBottomColor
+          picker.borderTopColor === getComputedStyle(tab, "::after").borderBottomColor
         )
       }),
       "Open PDF keeps one accent border for keyboard focus in both themes",

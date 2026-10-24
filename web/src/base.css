@@ -70,6 +70,7 @@
   }
   html {
     scrollbar-gutter: stable;
+    -webkit-tap-highlight-color: transparent;
     &:has(dialog:modal) {
       overflow: hidden;
     }
@@ -113,8 +114,10 @@
     &:active:not(:disabled):not(:has(input:disabled)) {
       filter: brightness(1.5);
       transition-duration: 0s;
-      &:not(.page-image) {
-        box-shadow: 0 0 14px color-mix(in oklch, var(--accent) 45%, transparent);
+      @media (hover: hover) and (pointer: fine) {
+        &:not(.page-image) {
+          box-shadow: 0 0 14px color-mix(in oklch, var(--accent) 45%, transparent);
+        }
       }
     }
     &:disabled {

@@ -54,8 +54,9 @@ single-pane Grid pagination use the target sizes in [Grid and Page](#grid-and-pa
 The shared `--icon-size` token sets ordinary icons to 1.125 rem. Control-specific icon sizes use their own visual role.
 
 Icon buttons use transparent surfaces, accent stroke emphasis on hover, and immediate press feedback. Destructive
-actions retain danger colors. Text and primary buttons can use a soft accent glow. Hover requires a fine pointer with
-hover support. Disabled actions remain recognizable. In particular, both Input addition and Output duplication keep a
+actions retain danger colors. Text and primary buttons can use a soft accent glow with a fine pointer and hover support.
+Touch presses use color and brightness feedback without box glows. Disable the browser's native tap highlight throughout
+the application. Disabled actions remain recognizable. In particular, both Input addition and Output duplication keep a
 clearly visible + against their primary surface.
 
 ## Alignment
@@ -129,11 +130,14 @@ navigation keeps a visible focus indicator on each control.
 Tabs use square corners and an accent underline. Unselected tabs gain color on hover. Keyboard focus uses a soft tint
 and one border, without glow. Grid, Page, and Style use their existing outlined icons. Disabled Style retains its
 crossed-out brush and explanatory hint. Density controls sit beside the Grid tabs, outside the tablist. Narrow panes
-reduce tab padding, then use icon-only tabs if the labels still do not fit. Keep accessible names and explanatory
-titles. Tabs, density controls, and Style tools never wrap or overlap. Reserve space for adjacent controls across views.
-The toolbar retains its height in Grid, Page, and Style so content frames do not shift. Keep at least 8 CSS px between
-its controls and bottom separator. Take added space from the gap below the separator; retain the total vertical space so
-the selection bar, content frame, and Grid capacity do not move.
+reduce tab padding, then use icon-only tabs if the labels still do not fit. With visible labels, keep at least 12 CSS px
+between adjacent tab contents. Keep accessible names and explanatory titles. Tabs, density controls, and Style tools
+never wrap or overlap. Reserve space for adjacent controls across views. The toolbar retains its height in Grid, Page,
+and Style so content frames do not shift. Keep at least 8 CSS px between its controls and bottom separator. Take added
+space from the gap below the separator; retain the total vertical space so the selection bar, content frame, and Grid
+capacity do not move.
+
+Inset the selected tab underline by 4 CSS px at each end at every width.
 
 Routine hints, empty states, and tour steps describe controls and results without assuming a mouse or keyboard. Keep
 input-specific instructions in Help's Keyboard and Mouse sections.
@@ -225,7 +229,7 @@ viewports; the application does not subtract the estimated browser controls agai
 | Galaxy A55     | 360 × 800    | 2 × 1 = 2  | 3 × 2 = 6  |
 
 Mobile has a persistent one-tap Input/Output switch and preserves pane state. Headings retain the chooser or totals
-beside Open PDF/Download. Enlarged text can stack these groups. Labels stay complete. Long filenames truncate, with
+beside Open PDF/Download on one row, including with enlarged text. Labels stay complete. Long filenames truncate, with
 their full text available through hover and the chooser. Remove Input remains available in the chooser at every width.
 Tabs and shared page fields remain usable in Page. Both densities fill complete rows within the available pane height.
 Input and Output do not use fixed thumbnail counts.
@@ -472,7 +476,7 @@ Calibration entries change card dimensions without changing this shared placemen
 Single-pane layouts use one pagination layout for Normal and Compact: the caption sits directly below the slider row,
 with previous/next buttons at the row's outer edges. The visible arrow centers align with the pane's content edges, as
 do its heading and page fields. The row can extend into available side margins while all targets stay inside the
-viewport. Pagination stays clear of the status bar within the shared bottom gutter. Its arrows use separate 40 × 44 px
+viewport. Pagination stays clear of the status bar within the shared bottom gutter. Its arrows use separate 32 × 44 px
 targets; the slider retains a 44 px height. Reserve one caption line below it; wrapped captions can increase the row
 height. Page totals stay beside the current number. The page-entry field does not cover another control.
 

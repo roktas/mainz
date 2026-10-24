@@ -221,8 +221,18 @@
             position: relative;
             min-inline-size: 44px;
             border-block-start: 3px solid transparent;
-            padding-inline: clamp(0.125em, 1cqi, 0.75em);
+            padding-inline: clamp(0.125em, 2cqi, 0.75em);
             white-space: nowrap;
+            &[aria-selected="true"] {
+              border-block-end-color: transparent;
+              &::after {
+                content: "";
+                position: absolute;
+                inset-inline: 4px;
+                inset-block-end: -3px;
+                border-block-end: 3px solid var(--accent);
+              }
+            }
             & > .edit-dot {
               position: absolute;
               inset-block-start: 0.25em;

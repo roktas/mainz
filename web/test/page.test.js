@@ -1683,6 +1683,7 @@ test("Grid selection keeps painted pages in place", { timeout: 60000 }, async ()
                 }
               }),
             )
+          await measure(pane)
           const count = await pane.locator(".composition-card").count()
           const footers = pane.locator(".composition-card > .input-footer, .composition-card > .occurrence-actions")
           const footerLines = async () => {
@@ -1699,7 +1700,6 @@ test("Grid selection keeps painted pages in place", { timeout: 60000 }, async ()
               `${name}: footer lines and space remain available`,
             )
           }
-          await measure(pane)
           const before = await painted()
           assert.ok(
             before.every((item) => item.centered),
