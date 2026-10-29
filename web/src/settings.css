@@ -1,0 +1,112 @@
+/* Styles the Settings drawer and lens magnification controls. */
+
+@layer components {
+  @scope (#app) {
+    .settings-button {
+      color: var(--accent);
+    }
+    .settings-drawer {
+      inset-block: 0;
+      inset-inline-start: auto;
+      inset-inline-end: 0;
+      margin: 0;
+      inline-size: min(24rem, 100vi);
+      block-size: 100dvb;
+      max-inline-size: 100%;
+      max-block-size: 100dvb;
+      border-radius: 0;
+      border-block: 0;
+      border-inline-end: 0;
+      &:focus-visible {
+        outline: 2px solid transparent;
+      }
+      &[open] {
+        display: flex;
+        flex-direction: column;
+      }
+      & > * {
+        flex: none;
+      }
+      & .about {
+        margin-block-start: auto;
+        padding-block-start: var(--gutter);
+        border-block-start: 1px solid var(--border);
+        & .dialog-heading {
+          align-items: center;
+        }
+        & h3 {
+          font-size: var(--heading);
+        }
+        & .icon-button {
+          display: grid;
+          place-items: center;
+          flex: none;
+          color: var(--muted);
+        }
+        & dl {
+          display: grid;
+          gap: 0.5em;
+          margin: 0;
+          font-size: var(--body);
+          & > div {
+            display: grid;
+            grid-template-columns: max-content minmax(0, 1fr);
+            gap: var(--gap);
+          }
+        }
+        & dt {
+          color: var(--muted);
+        }
+        & dd {
+          margin: 0;
+          text-align: end;
+          font-variant-numeric: tabular-nums;
+          overflow-wrap: anywhere;
+        }
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        opacity: 0;
+        translate: 100% 0;
+        transition:
+          opacity 160ms var(--ease-out),
+          translate 160ms var(--ease-out),
+          display 160ms allow-discrete var(--ease-out),
+          overlay 160ms allow-discrete var(--ease-out);
+        &[open] {
+          animation: none;
+          opacity: 1;
+          translate: 0;
+        }
+        @starting-style {
+          &[open] {
+            opacity: 0;
+            translate: 100% 0;
+          }
+        }
+      }
+    }
+    .magnification {
+      display: block grid;
+      grid-template-columns: repeat(3, max(44px, 4ch));
+      align-items: center;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      & legend {
+        margin-block-end: var(--gap);
+        font-size: var(--body);
+        font-weight: 600;
+      }
+      & > output {
+        font-family: ui-monospace, monospace;
+        font-size: var(--body);
+        text-align: center;
+        color: var(--muted);
+      }
+      & > button {
+        inline-size: 100%;
+        font-family: ui-monospace, monospace;
+      }
+    }
+  }
+}

@@ -1,0 +1,113 @@
+name: Check and publish Mainz
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Browser test mode (manual runs never deploy)
+        type: choice
+        options: [standard, full]
+        default: standard
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mainz-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Check native
+    uses: ./.github/workflows/check.yml
+    with:
+      preset: native
+
+  sanitize:
+    name: Check sanitize
+    uses: ./.github/workflows/check.yml
+    with:
+      preset: sanitize
+
+  browser:
+    name: Browser ${{ matrix.mode }} / ${{ matrix.suite }}
+    needs: build
+    runs-on: ubuntu-26.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          [
+            "${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && 'full' || inputs.mode ||
+            'standard' }}",
+          ]
+        suite:
+          ${{ fromJSON((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') || inputs.mode == 'full')
+          && '["alignment", "grid", "geometry", "composition", "selection", "startup", "page", "workspace", "viewport"]'
+          || '["grid", "composition", "selection", "startup", "page", "workspace"]') }}
+    env:
+      BUNDLE_PATH: ${{ github.workspace }}/.local/var/ruby
+      BUNDLE_APP_CONFIG: ${{ github.workspace }}/.local/var/ruby
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: ruby/setup-ruby@26e5b7d197ebf60545ee9667bcbace0be11ccaec # v1.334.0
+      - name: Cache Ruby dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .local/var/ruby
+          key: ruby-ubuntu-26.04-${{ runner.arch }}-${{ hashFiles('.ruby-version', 'Gemfile.lock') }}
+      - name: Install browser check dependencies
+        run: |
+          bundle install
+          bundle exec rake setup:web
+          # The Azure mirror throttled package downloads in measured CI runs.
+          sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt
+          npm --prefix web exec -- playwright install --with-deps --only-shell chromium
+      - name: Install WebKit for Grid, Page, and Help regressions
+        if: matrix.suite == 'grid' || matrix.suite == 'workspace' || matrix.suite == 'page'
+        run: npm --prefix web exec -- playwright install --with-deps webkit
+      - name: Download WASM package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: wasm
+          path: .local/var/package/wasm
+      - name: Check browser suite
+        run: npm run test:browser -- ${{ matrix.mode }} ${{ matrix.suite }}
+      - name: Upload layout failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: layout-${{ matrix.suite }}
+          path: .local/tmp/web/layout/**/*.png
+          include-hidden-files: true
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: 7
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [build, sanitize, browser]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy PDF Composer to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

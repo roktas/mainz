@@ -1,0 +1,631 @@
+/* Sets shared Grid/Page frame dimensions, column capacity, and alignment with the workspace. */
+
+@layer views {
+  @scope (#app) {
+    /* Keep descendant mutations from rebuilding a relational scope across the workspace. */
+    :scope:has(> main > .composer) {
+      block-size: 100dvb;
+      min-block-size: min-content;
+      grid-template-rows: auto minmax(min-content, 1fr) auto;
+
+      .masthead,
+      main {
+        inline-size: min(100%, max(1232px, 57.5vi));
+      }
+
+      .footnote {
+        max-inline-size: calc(max(1232px, 57.5vi) - 2 * var(--gutter));
+        position: static;
+      }
+    }
+  }
+  @scope (.composer) {
+    :scope {
+      --grid-pager-height: 44px;
+      --fit-height: max(860px, 33.59375vi);
+      --frame-heading-height: 45px;
+    }
+    /* Defaults work without a device match; calibrations below only change card geometry. */
+    :is(.selection-panel, .composition-output) {
+      --grid-height: 15rem;
+      --grid-width: 9.25rem;
+      /* Separate the 5 px target outsets with a subpixel guard for touch hit testing. */
+      --grid-gap: max(9px, 0.5rem, calc(0.85 * var(--thumbnail-padding)));
+      --grid-min-row-gap: 10.5px;
+      --grid-row-gap: max(
+        var(--grid-min-row-gap),
+        var(--grid-gap),
+        calc(var(--grid-column-gap, var(--grid-gap)) * var(--grid-row-factor, 1))
+      );
+      --thumbnail-padding: 0.875rem;
+      --card-tools-height: 4.25rem;
+      --grid-min-width: 136px;
+      --grid-min-height: calc(
+        max(8rem, sqrt(2) * (var(--grid-min-width) - 2px - 4 * var(--thumbnail-padding))) + var(--card-tools-height) +
+          2 * var(--thumbnail-padding)
+      );
+      --compact-number-size: 0.6875rem;
+
+      @media (hover: hover) and (pointer: fine) {
+        /* The lower card can lift another 2 px toward the upper footer. */
+        --grid-gap: max(12px, 0.5rem, calc(0.85 * var(--thumbnail-padding)));
+      }
+
+      .composition-grid,
+      .page-reference {
+        --card-height: max(var(--grid-height), var(--grid-min-height));
+        grid-template-columns: repeat(auto-fill, min(100%, max(var(--grid-width), var(--grid-min-width))));
+        gap: var(--grid-gap);
+        row-gap: var(--grid-row-gap);
+        padding-inline: var(--grid-gap);
+        justify-content: space-evenly;
+      }
+
+      &[data-density="compact"] {
+        --grid-gap: max(0.5rem, calc(0.85 * var(--thumbnail-padding)));
+        --grid-row-gap: max(var(--grid-gap), calc(var(--grid-column-gap, var(--grid-gap)) * var(--grid-row-factor, 1)));
+        --grid-min-width: calc(3 * (0.65 * var(--grid-digits, 1) * var(--compact-number-size) + 3px));
+        --grid-min-height: calc(sqrt(2) * var(--grid-min-width));
+        --grid-width: max(74px, calc(5 * var(--body)));
+        --grid-height: 7.8125rem;
+        --thumbnail-padding: 0.46875rem;
+        --card-tools-height: 1.75rem;
+      }
+    }
+    .editing-toolbar {
+      --view-tools-width: 90px;
+      min-block-size: calc(46px + var(--gap));
+      align-items: center;
+
+      & > .tabs {
+        flex: 1 0 auto;
+        min-inline-size: 0;
+        max-inline-size: 100%;
+        margin-inline-end: 0;
+      }
+    }
+    @container composer (width > 55em) {
+      .page-content:has(.grid-view, .page-view) {
+        min-block-size: 0;
+      }
+      .composition-panels {
+        row-gap: 0;
+        column-gap: 0;
+
+        & :is(.selection-panel, .composition-output) {
+          display: grid;
+          grid-row: 1 / span 4;
+          grid-template-rows: subgrid;
+          row-gap: 0;
+          container-type: normal;
+        }
+
+        & :is(.input-panel, .output-panel) {
+          display: grid;
+          grid-row: 3 / span 2;
+          grid-template-rows: subgrid;
+          row-gap: 0;
+        }
+
+        & .section-heading {
+          grid-row: 1;
+          align-self: stretch;
+        }
+
+        & :is(.source-tabs, .output-tabs) {
+          grid-row: 2;
+        }
+
+        & .page-content {
+          align-self: start;
+          min-inline-size: 0;
+          container: catalog / inline-size;
+
+          &:has(.grid-view, .page-view) {
+            align-self: stretch;
+          }
+        }
+      }
+      .grid-view,
+      .page-view {
+        min-block-size: 100%;
+      }
+    }
+  }
+
+  @scope (.composer) {
+    :scope {
+      min-block-size: 0;
+    }
+
+    .composition-panels {
+      min-block-size: 0;
+      grid-template-rows: auto auto auto minmax(0, 1fr);
+    }
+
+    .page-content:has(.grid-view, .page-view) {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+      container-type: size;
+      min-block-size: calc(max(var(--grid-height), var(--grid-min-height)) + var(--grid-pager-height) + 8px);
+    }
+
+    .page-content:has(.page-view) {
+      min-block-size: calc(320px + var(--page-heading-height, var(--frame-heading-height)) + 46px);
+    }
+
+    .inspection-target:has(.page-view) {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    :scope :is(.grid-view, .page-view) {
+      block-size: 100%;
+      min-block-size: 0;
+    }
+
+    @container composer (width > 55em) {
+      /* Style retains the hidden Grid's minimum row in the shared track. */
+      .selection-panel:has(.workspace-content)::after {
+        content: "";
+        grid-column: 1;
+        grid-row: 4;
+        min-block-size: calc(max(var(--grid-height), var(--grid-min-height)) + var(--grid-pager-height) + 8px);
+        pointer-events: none;
+        visibility: hidden;
+      }
+
+      .input-panel:has(.workspace-content) {
+        display: block flow;
+        grid-column: 1;
+        /* The form's intrinsic height must not enlarge the shared frame budget. */
+        container-type: size;
+        min-block-size: 0;
+
+        .page-content,
+        .workspace-content,
+        .source-layout,
+        .source-tools {
+          block-size: 100%;
+          min-block-size: 0;
+        }
+
+        .source-tools {
+          display: block flex;
+          flex-direction: column;
+        }
+
+        .style-profile {
+          flex: none;
+        }
+
+        .control-list {
+          flex: 1;
+          align-content: start;
+          min-block-size: 0;
+          overflow: auto;
+          overscroll-behavior: contain;
+          scrollbar-width: thin;
+          scrollbar-gutter: stable;
+          padding-inline-end: var(--gap);
+          margin-inline-end: calc(-1 * var(--gap));
+        }
+      }
+    }
+
+    @container composer (width <= 55em) {
+      .composition-panels {
+        display: flex;
+        flex-direction: column;
+      }
+
+      :scope[data-view="input"] .selection-panel,
+      :scope[data-view="output"] .composition-output {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+      }
+
+      .input-panel,
+      .output-panel {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+      }
+
+      .page-content {
+        flex: 1;
+      }
+    }
+  }
+
+  /* Fit readable portrait columns before leaving space unused below a fixed-width row. */
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) {
+    @scope (.composer) {
+      :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+        --grid-width: clamp(7rem, calc((100cqi - 2.125rem) / 3), 8.375rem);
+        --grid-height: clamp(13rem, calc(13rem + var(--grid-width) - 7.25rem), 14.125rem);
+        --thumbnail-padding: clamp(0.375rem, calc(0.375rem + (var(--grid-width) - 7.25rem) / 9), 0.5rem);
+      }
+      :is(.selection-panel, .composition-output)[data-density="compact"] {
+        --grid-height: max(calc(6.09375rem + 2 * var(--thumbnail-padding)), calc(1.415 * var(--grid-width)));
+        --thumbnail-padding: clamp(0.375rem, calc(0.375rem + (var(--grid-width) - 4.625rem) / 8), 0.46875rem);
+        --grid-row-factor: 0.9;
+        @media (width < 600px) {
+          --grid-row-factor: 0.8;
+        }
+      }
+      /* Below three readable columns, retain larger two-column previews. */
+      @container composer (width < 23rem) {
+        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+          --grid-width: clamp(7.75rem, calc((100cqi - max(27px, 1.6875rem)) / 2), 9.25rem);
+          --grid-height: calc(14rem + 2 * (var(--grid-width) - 7.75rem) / 3);
+          --thumbnail-padding: calc(0.5rem + (var(--grid-width) - 7.75rem) / 12);
+        }
+      }
+      @container composer (width < 21rem) {
+        :is(.selection-panel, .composition-output)[data-density="compact"] {
+          --grid-width: max(74px, calc(5 * var(--body)), min(5.5rem, calc((100cqi - 2rem) / 3)));
+          --grid-height: 7.8125rem;
+          --thumbnail-padding: 0.46875rem;
+        }
+      }
+      @media (width < 600px) {
+        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+          :is(.composition-grid, .page-reference) {
+            --grid-fit: portrait;
+          }
+          .page-reference {
+            block-size: calc(100cqb - var(--grid-pager-height) - 8px);
+          }
+        }
+      }
+    }
+  }
+
+  /* Calibration rows change card geometry, never the available viewport budget. */
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (1000px <= width < 1080px) and (450px <= height < 650px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+          --grid-width: 8.375rem;
+          --grid-height: 14.5rem;
+          --thumbnail-padding: 0.625rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (860px <= width < 900px) and (1280px <= height < 1320px) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            --grid-width: 8.375rem;
+            --grid-height: 13.5625rem;
+            --thumbnail-padding: 0.65625rem;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (1380px <= width < 1450px) and (740px <= height < 800px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output)[data-density="compact"] {
+          --grid-height: 6.875rem;
+          --thumbnail-padding: 0.375rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (667px <= width < 1000px) and (250px <= height < 500px) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
+        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+          --grid-width: clamp(8.375rem, calc((100cqi - 6 * var(--grid-gap) - 1px) / 5), 8.875rem);
+          --grid-height: 14.5rem;
+          --thumbnail-padding: 0.625rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (1280px <= width < 2140px) and (700px <= height < 1200px) and (not ((1800px <= width < 2000px) and (950px <= height < 1000px))) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output)[data-density="compact"] {
+          --grid-width: max(74px, calc(5 * var(--body)), calc((100cqi - 7 * var(--grid-gap) - 1px) / 6));
+          --grid-height: 7.5625rem;
+          --thumbnail-padding: 0.4rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (1800px <= width < 2000px) and (950px <= height < 1000px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            --grid-height: 14rem;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(78px, calc(5 * var(--body)));
+            --grid-height: 6.90625rem;
+            --thumbnail-padding: 0.4rem;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (2200px <= width < 2560px) and (1100px <= height < 1420px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            --grid-width: clamp(8rem, calc((100cqi - 5 * var(--grid-gap) - 1px) / 4), 8.375rem);
+            --grid-height: 14.75rem;
+            --thumbnail-padding: 0.75rem;
+          }
+          &[data-density="compact"] {
+            --grid-height: 7.03125rem;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (2960px <= width < 3200px) and (1500px <= height < 1750px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            --grid-width: clamp(8.375rem, calc((100cqi - 6 * var(--grid-gap) - 1px) / 5), 9.375rem);
+            --grid-height: 14.6875rem;
+            --thumbnail-padding: 0.71875rem;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(74px, calc(5 * var(--body)), calc((100cqi - 10 * var(--grid-gap) - 1px) / 9));
+            --grid-height: 7.7890625rem;
+            --thumbnail-padding: 0.5rem;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (3840px <= width < 4160px) and (2050px <= height < 2250px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            --grid-width: clamp(8.375rem, calc((100cqi - 8 * var(--grid-gap) - 1px) / 7), 8.75rem);
+            --grid-height: 14.5625rem;
+            --thumbnail-padding: 0.65625rem;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(74px, calc(5 * var(--body)), calc((100cqi - 13 * var(--grid-gap) - 1px) / 12));
+            --grid-height: 7.6015625rem;
+            --thumbnail-padding: 0.40625rem;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (740px <= width < 750px) and (1047px <= height < 1090px) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
+        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+          --grid-width: 8.5625rem;
+          --grid-height: 14.125rem;
+          --thumbnail-padding: 0.5625rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (805px <= width < 835px) and (980px <= height < 1220px) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
+        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+          --grid-width: 8.875rem;
+          --grid-height: 14.4375rem;
+          --thumbnail-padding: 0.59375rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (740px <= width < 750px) and (1100px <= height < 1160px) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
+        :is(.selection-panel, .composition-output)[data-density="compact"] {
+          --grid-width: max(77.7px, calc(5 * var(--body)));
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (1000px <= width < 1050px) and (1200px <= height < 1400px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output):not([data-density="compact"]) {
+          --grid-width: 8.875rem;
+          --grid-height: 14.4375rem;
+          --thumbnail-padding: 0.59375rem;
+        }
+        @media (width >= 1024px) and (height >= 1300px) {
+          :is(.selection-panel, .composition-output)[data-density="compact"] {
+            --grid-width: max(81px, calc(5 * var(--body)));
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (2560px <= width < 2880px) and (1280px <= height < 1315px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            /* Three rows share the frame after pagination, two gaps, and 10 px of clearance. */
+            --grid-height: clamp(
+              15rem,
+              calc((100cqb - var(--grid-pager-height) - 2 * var(--grid-row-gap) - 10px) / 3),
+              280px
+            );
+            --grid-width: 9.375rem;
+            --grid-gap: 14px;
+            --thumbnail-padding: 16px;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (2560px <= width < 2880px) and (1315px <= height < 1420px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            --grid-height: clamp(
+              15rem,
+              calc((100cqb - var(--grid-pager-height) - 2 * var(--grid-row-gap) - 10px) / 3),
+              16.25rem
+            );
+            --grid-width: 9.375rem;
+            --grid-gap: 14px;
+            --thumbnail-padding: 16px;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(75px, calc(5 * var(--body)));
+            --grid-height: 7.03125rem;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (2560px <= width < 2880px) and (1420px <= height < 1800px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            /* Fit four rows while keeping Normal images near twice the Compact image height. */
+            --grid-height: clamp(
+              14rem,
+              calc((100cqb - var(--grid-pager-height) - 3 * var(--grid-row-gap) - 10px) / 4),
+              16rem
+            );
+            --grid-width: 9.375rem;
+            --grid-gap: 14px;
+            --thumbnail-padding: 14px;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(75px, calc(5 * var(--body)));
+            --grid-height: 7.03125rem;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (1080px <= width < 1133px) and (700px <= height < 900px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            --grid-height: 14.625rem;
+            --grid-width: 8.5rem;
+            --grid-gap: 12px;
+            --thumbnail-padding: 11px;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(74.57px, calc(5 * var(--body)));
+            --grid-height: 7.28125rem;
+            --thumbnail-padding: 0.25rem;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (1180px <= width < 1220px) and (730px <= height < 900px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output)[data-density="compact"] {
+          --grid-width: max(79px, calc(5 * var(--body)));
+          --grid-height: 7.4375rem;
+          --thumbnail-padding: 0.3125rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (1360px <= width < 1380px) and (980px <= height < 1060px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          &:not([data-density="compact"]) {
+            --grid-width: 9.5rem;
+            --grid-height: 14.75rem;
+            --thumbnail-padding: 0.75rem;
+          }
+          &[data-density="compact"] {
+            --grid-width: max(83px, calc(5 * var(--body)));
+            --grid-height: 7.5390625rem;
+            --thumbnail-padding: 0.375rem;
+            --grid-row-factor: 0.9;
+          }
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (3840px <= width < 4160px) and (1900px <= height < 2050px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-row-factor: 0.9;
+
+          &:not([data-density="compact"]) {
+            --thumbnail-padding: 0.90625rem;
+            --grid-width: clamp(8.375rem, calc((100cqi - 8 * var(--grid-gap) - 1px) / 7), 8.75rem);
+            --grid-height: clamp(
+              14.3125rem,
+              calc((100cqb - var(--grid-pager-height) - 5 * var(--grid-row-gap) - 10px) / 6),
+              15rem
+            );
+          }
+          &[data-density="compact"] {
+            --grid-height: 7.5rem;
+          }
+        }
+      }
+    }
+  }
+}
+
+/* Fit desktop cards from the measured frame before dropping complete rows or columns. */
+@layer views {
+  @media (hover: hover) and (pointer: fine) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.composition-grid, .page-reference) {
+          --grid-fit: 1;
+          --card-height: var(--grid-height);
+          grid-template-columns: repeat(
+            var(--grid-fit-columns, auto-fill),
+            min(100%, max(var(--grid-width), var(--grid-min-width)))
+          );
+          grid-auto-rows: var(--card-height);
+        }
+      }
+    }
+  }
+}

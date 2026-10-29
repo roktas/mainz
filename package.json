@@ -1,0 +1,25 @@
+{
+  "name": "mainz",
+  "private": true,
+  "scripts": {
+    "calibrate": "npm --prefix web run calibrate --",
+    "measure": "npm --prefix web run measure --",
+    "measure:simulator": "npm --prefix web run measure:simulator --",
+    "test:viewport": "npm --prefix web run test:viewport --",
+    "dev": "npm --prefix web run dev --",
+    "preview": "npm --prefix web run preview --",
+    "build": "npm --prefix web run build --",
+    "check": "npm --prefix web run check --",
+    "format": "web/node_modules/.bin/oxfmt .",
+    "format:check": "web/node_modules/.bin/oxfmt --check .",
+    "lint": "web/node_modules/.bin/oxlint web",
+    "test": "npm --prefix web test --",
+    "test:minimal": "npm run format:check && npm run lint && npm run check && npm test && npm run test:browser -- minimal",
+    "test:standard": "npm run format:check && npm run lint && npm test && npm run build && npm run test:browser -- standard",
+    "test:full": "npm run format:check && npm run lint && npm test && npm run build && npm run test:browser -- full",
+    "test:browser": "npm --prefix web run test:browser --"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

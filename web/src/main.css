@@ -1,0 +1,531 @@
+/* Orders CSS layers and styles the application frame, header, footer, feedback, and dialogs. */
+
+@layer tokens, base, components, layouts, views;
+
+@import "./page.css";
+@import "./workspace.css";
+@import "./frame.css";
+@import "./grid.css";
+@import "./help.css";
+@import "./quartet.css";
+@import "./editor.css";
+@import "./landing.css";
+
+@import "./base.css";
+@import "./cards.css";
+@import "./selection.css";
+@import "./transfer.css";
+@import "./settings.css";
+@import "./controls.css";
+
+@layer components {
+  @scope (.drag-image, .addition-preview, .removal-preview) {
+    :scope {
+      position: fixed;
+      inset-block-start: 0;
+      inset-inline-start: 0;
+      z-index: 1000;
+      pointer-events: none;
+    }
+  }
+  @scope (.addition-preview, .removal-preview) {
+    :scope {
+      opacity: 0.95;
+      background: oklch(100% 0 none);
+      box-shadow: 0 4px 12px var(--shadow);
+      outline: 1px solid var(--accent);
+      &[data-copies="2"] {
+        box-shadow:
+          4px 4px oklch(100% 0 none),
+          5px 5px var(--accent),
+          0 4px 12px var(--shadow);
+      }
+      &[data-copies="3"] {
+        box-shadow:
+          4px 4px oklch(100% 0 none),
+          5px 5px var(--accent),
+          8px 8px oklch(100% 0 none),
+          9px 9px var(--accent),
+          0 4px 12px var(--shadow);
+      }
+    }
+  }
+  @scope (.composer) {
+    [data-adding] {
+      visibility: hidden;
+    }
+    [data-removing] .page-scroll > * {
+      visibility: hidden;
+    }
+  }
+  @scope (.feedback) {
+    :scope {
+      min-inline-size: 0;
+      display: block grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.5em;
+      color: light-dark(oklch(0% 0 none), oklch(100% 0 none));
+      font-size: var(--body);
+      font-weight: 700;
+      text-align: center;
+      &[data-kind="error"] {
+        color: var(--danger);
+      }
+      &:has(.file-errors) {
+        align-items: start;
+        & > svg {
+          margin-block-start: calc((44px - 1em) / 2);
+        }
+      }
+      &[data-kind="error"]:has(.feedback-actions > button:not(.icon-button)) {
+        .feedback-message,
+        .feedback-actions {
+          grid-column: 2 / -1;
+        }
+      }
+    }
+    .feedback-message {
+      min-inline-size: 0;
+      overflow-wrap: anywhere;
+    }
+    .feedback-actions {
+      display: block flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5em;
+      min-inline-size: 0;
+      & > button {
+        max-inline-size: 100%;
+      }
+    }
+    .feedback-actions > .icon-button {
+      color: inherit;
+      &:active {
+        background: color-mix(in oklch, currentColor 12%, transparent);
+      }
+    }
+    .spinner {
+      color: var(--accent);
+      inline-size: 1em;
+      block-size: 1em;
+      border: 2px solid currentColor;
+      border-inline-end-color: transparent;
+      border-radius: 50%;
+      @media (prefers-reduced-motion: no-preference) {
+        animation: spin 800ms linear infinite;
+      }
+    }
+    svg {
+      inline-size: 1em;
+      block-size: 1em;
+    }
+  }
+  @scope (#app) {
+    .brand {
+      touch-action: manipulation;
+    }
+    :scope {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto 1fr auto;
+      min-block-size: 100dvb;
+    }
+    .masthead,
+    main {
+      inline-size: min(100%, 1380px);
+      margin-inline: auto;
+      padding-inline-start: max(var(--gutter), env(safe-area-inset-left, 0px));
+      padding-inline-end: max(var(--gutter), env(safe-area-inset-right, 0px));
+    }
+    main {
+      container-type: inline-size;
+      padding-block-start: var(--gutter);
+      padding-block-end: var(--gutter);
+      &:has(.composer) {
+        display: flex;
+        flex-direction: column;
+        padding-inline-start: max(min(var(--gutter), max(0px, (100% - 266px) / 2)), env(safe-area-inset-left, 0px));
+        padding-inline-end: max(min(var(--gutter), max(0px, (100% - 266px) / 2)), env(safe-area-inset-right, 0px));
+      }
+    }
+    .header-inner {
+      min-block-size: calc(72px + env(safe-area-inset-top, 0px));
+      padding-block-start: env(safe-area-inset-top, 0px);
+      display: block grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      align-content: center;
+      gap: var(--gap);
+      border-block-end: 1px solid var(--border);
+      & .brand {
+        grid-column: 1;
+        grid-row: 1;
+        justify-self: start;
+      }
+      & .header-actions {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
+      }
+      &:has(.header-feedback) {
+        row-gap: 0;
+        padding-block-end: calc(var(--gap) / 2);
+      }
+    }
+    .masthead {
+      container: app-header / inline-size;
+      &:has(.header-feedback) {
+        position: sticky;
+        inset-block-start: 0;
+        z-index: 3;
+        background: var(--paper);
+      }
+    }
+    .header-feedback {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      justify-self: center;
+      inline-size: min(100%, 40rem);
+      min-inline-size: 0;
+      max-block-size: min(16rem, 40dvb);
+      overflow: auto;
+      overscroll-behavior: contain;
+      & > .feedback + .feedback {
+        margin-block-start: calc(var(--gap) / 2);
+      }
+      & .feedback[data-kind="progress"] p {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: clip;
+      }
+    }
+    @container app-header (width > 55rem) {
+      .header-inner:has(.header-feedback) {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 32rem) minmax(0, 1fr);
+        padding-block-end: 0;
+        & .header-actions {
+          grid-column: 3;
+        }
+        & .header-note {
+          display: none;
+        }
+      }
+      .header-feedback {
+        grid-column: 2;
+        grid-row: 1;
+        padding-block: calc(var(--gap) / 2);
+      }
+    }
+    .header-actions {
+      display: block flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: end;
+      max-inline-size: 100%;
+      gap: var(--gap);
+      margin-inline-start: auto;
+      & > :is(.icon-button, .theme) svg {
+        inline-size: 1.375rem;
+        block-size: 1.375rem;
+      }
+      & > .help-button svg {
+        inline-size: 1.625rem;
+        block-size: 1.625rem;
+      }
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.65em;
+      min-block-size: 44px;
+      color: var(--ink);
+      text-decoration: none;
+      &.icon-button {
+        padding: 0;
+      }
+    }
+    .brand .logo {
+      flex: none;
+      inline-size: 3.25rem;
+      block-size: 3.25rem;
+      padding: 0.25rem;
+      stroke-width: 3.2;
+    }
+    .logo {
+      display: block flow;
+      inline-size: 100%;
+      block-size: 100%;
+      color: var(--accent);
+      & [id$="-SCUH"] {
+        opacity: var(--logo-horizontal-opacity);
+      }
+    }
+    .header-note {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5em;
+      color: var(--muted);
+      font-size: var(--small);
+    }
+    .theme {
+      min-inline-size: 44px;
+      min-block-size: 44px;
+      padding: 10px;
+      border: 0;
+      color: var(--accent);
+      background: transparent;
+      & .light-icon {
+        display: none;
+      }
+    }
+    .edit-dot {
+      inline-size: 6px;
+      block-size: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .footnote {
+      position: sticky;
+      inset-block-end: 0;
+      inline-size: calc(100% - 2 * var(--gutter));
+      max-inline-size: calc(1380px - 2 * var(--gutter));
+      z-index: 2;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5em;
+      margin-block: 0;
+      margin-inline: auto;
+      padding-block: var(--gap);
+      padding-block-end: calc(var(--gap) + env(safe-area-inset-bottom, 0px));
+      padding-inline-start: max(0px, calc(env(safe-area-inset-left, 0px) - var(--gutter)));
+      padding-inline-end: max(0px, calc(env(safe-area-inset-right, 0px) - var(--gutter)));
+      background: var(--paper);
+      color: var(--info);
+      font-size: var(--small);
+      & > .status-input {
+        flex: 0 1 12em;
+        min-inline-size: 0;
+        max-inline-size: 100%;
+        overflow: clip;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            color: var(--accent);
+          }
+        }
+      }
+      & > .status-messages {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        justify-items: center;
+        gap: 0.5em;
+        flex: 1 1 18em;
+        min-inline-size: 0;
+        text-align: center;
+        & .status-message {
+          display: inline flow-root;
+          border-radius: var(--radius);
+          @media (prefers-reduced-motion: no-preference) {
+            animation: status-flash 1500ms var(--ease-out);
+          }
+        }
+      }
+      & > time {
+        margin-inline-start: auto;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            color: var(--accent);
+          }
+        }
+      }
+    }
+    @keyframes status-flash {
+      from,
+      35% {
+        color: var(--accent);
+        background-color: color-mix(in oklch, var(--accent) 12%, var(--paper));
+        box-shadow: 0 0 12px 0.35em color-mix(in oklch, var(--accent) 20%, transparent);
+      }
+      to {
+        color: var(--info);
+        background-color: transparent;
+        box-shadow: 0 0 12px 0.35em transparent;
+      }
+    }
+    main:has(.composer) + .footnote {
+      border-block-start: 1px solid var(--border);
+    }
+    main:not(:has(.composer)) + .footnote {
+      row-gap: var(--gap);
+      & > time {
+        flex-basis: 100%;
+        text-align: center;
+        white-space: normal;
+      }
+    }
+    .error {
+      color: var(--danger);
+      font-size: var(--body);
+      border: 1px solid currentColor;
+      border-radius: var(--radius);
+      padding: 0.75em;
+      margin-block: 0.75em;
+    }
+    .file-errors {
+      min-inline-size: 0;
+      & > summary {
+        flex-wrap: wrap;
+        column-gap: var(--gap);
+        row-gap: 0;
+        & > span {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5em;
+          min-inline-size: 0;
+          max-inline-size: 100%;
+          min-block-size: 44px;
+        }
+        & > span:last-child {
+          flex-wrap: wrap;
+          row-gap: 0;
+          & > span {
+            flex: 1 1 min-content;
+            min-inline-size: 0;
+          }
+        }
+        & > [role="alert"] {
+          color: var(--danger);
+        }
+      }
+      &[open] > summary svg {
+        rotate: 90deg;
+      }
+      ul {
+        margin-block-start: calc(var(--gap) / 2);
+        max-block-size: min(16rem, 40dvb);
+        overflow: auto;
+        overscroll-behavior: contain;
+      }
+      li + li {
+        margin-block-start: 0.75em;
+      }
+    }
+
+    .download-dialog {
+      inset-block-start: max(13px, env(safe-area-inset-top, 0px));
+      inset-block-end: auto;
+      inset-inline: var(--gutter);
+      inline-size: fit-content;
+      max-inline-size: min(36rem, calc(100% - 2 * var(--gutter)));
+      margin-block: 0;
+      margin-inline: auto;
+      padding: calc(var(--gap) / 2);
+      border: 0;
+      border-radius: 0;
+      background: var(--paper);
+      &::backdrop {
+        background: color-mix(in oklch, var(--paper) 65%, transparent);
+      }
+    }
+
+    .examples {
+      inline-size: min(28rem, calc(100% - 2 * var(--gap)));
+      padding: var(--gap);
+      font-size: var(--body);
+      overflow: auto;
+      overscroll-behavior: contain;
+      & > .dialog-heading {
+        align-items: center;
+      }
+      & nav {
+        display: block grid;
+        gap: calc(var(--gap) / 2);
+      }
+      & a {
+        display: block grid;
+        gap: 0.25em;
+        min-block-size: 44px;
+        padding: var(--gap);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--ink);
+        text-decoration: none;
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            border-color: var(--accent);
+            background: var(--tint);
+          }
+        }
+        &:active {
+          background: var(--tint);
+        }
+      }
+      & span {
+        color: var(--muted);
+        font-size: var(--small);
+      }
+    }
+  }
+  @scope (html[data-theme="dark"] #app) {
+    .theme .light-icon {
+      display: block;
+    }
+    .theme .dark-icon {
+      display: none;
+    }
+  }
+  @media (prefers-color-scheme: dark) {
+    @scope (html:not([data-theme="light"]) #app) {
+      .theme .light-icon {
+        display: block;
+      }
+      .theme .dark-icon {
+        display: none;
+      }
+    }
+  }
+}
+@layer layouts {
+  @scope (#app) {
+    @media (width <= 30em) {
+      main:has(
+        .composer[data-view="input"] .selection-panel .grid-view,
+        .composer[data-view="output"] .composition-output .grid-view
+      ) {
+        /* Pagination visibility must not change the frame used to decide its capacity. */
+        padding-block-end: 0;
+      }
+
+      .header-inner {
+        gap: 0.25rem;
+      }
+      .header-actions {
+        gap: 0.25rem;
+      }
+      .header-note {
+        display: none;
+      }
+      main:has(.composer) + .footnote {
+        inline-size: 100%;
+        max-inline-size: none;
+        padding-inline-start: max(var(--gutter), env(safe-area-inset-left, 0px));
+        padding-inline-end: max(var(--gutter), env(safe-area-inset-right, 0px));
+        padding-block: var(--gap);
+        padding-block-end: calc(var(--gap) + env(safe-area-inset-bottom, 0px));
+        font-size: var(--body);
+        & > .status-input,
+        & > time {
+          display: none;
+        }
+      }
+    }
+  }
+}

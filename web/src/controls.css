@@ -1,0 +1,279 @@
+/* Styles reusable fields, buttons, tabs, and shared interaction feedback. */
+
+@layer components {
+  @scope (#app) {
+    :is(summary, .brand, .quartet-switch, .picker):active:not(:has(input:disabled)) {
+      filter: brightness(1.5);
+    }
+    .icon-button {
+      min-inline-size: 44px;
+      min-block-size: 44px;
+      padding: 8px;
+      border: 0;
+      background: transparent;
+    }
+    .tool {
+      inline-size: 44px;
+      block-size: 44px;
+      min-inline-size: 44px;
+      min-block-size: 44px;
+      padding: 4px;
+      line-height: 1;
+    }
+    .danger:not(:disabled) {
+      color: var(--danger);
+    }
+
+    .text-button {
+      border: 0;
+      background: transparent;
+      min-inline-size: 0;
+      padding-inline: 0.5em;
+      color: var(--accent);
+      font-size: var(--small);
+      &:disabled {
+        background: transparent;
+      }
+    }
+    .download-action {
+      display: grid;
+    }
+    .count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-inline-size: 1.75em;
+      padding-inline: 0.4em;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: var(--small);
+      color: var(--muted);
+    }
+
+    .file-picker {
+      position: relative;
+      &,
+      & input {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+      }
+      & input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        inline-size: 100%;
+        block-size: 100%;
+        overflow: clip;
+        cursor: pointer;
+      }
+      &:has(input:focus-visible) {
+        border-color: var(--secondary);
+      }
+      & input:focus-visible {
+        outline: 2px solid transparent;
+      }
+      &:has(input:disabled) {
+        opacity: 0.55;
+        cursor: default;
+      }
+    }
+    .editing-toolbar {
+      display: flex;
+      align-items: center;
+      gap: var(--gap);
+      border-block-end: 1px solid var(--border);
+      margin-block-end: var(--gutter);
+    }
+    .tabs {
+      display: flex;
+      gap: var(--gap);
+      margin-inline-end: auto;
+      & svg {
+        inline-size: 1.5em;
+        block-size: 1.5em;
+      }
+      & button {
+        min-inline-size: 90px;
+        min-block-size: 44px;
+        border: 0;
+        border-block-end: 3px solid transparent;
+        border-radius: 0;
+        background: transparent;
+        color: var(--muted);
+        &[aria-selected="true"] {
+          color: var(--accent);
+          border-block-end-color: var(--accent);
+        }
+        &:disabled {
+          color: color-mix(in oklch, var(--muted) 75%, var(--paper));
+        }
+        @media (hover: hover) and (pointer: fine) {
+          &:hover:not(:disabled) {
+            background: transparent;
+            box-shadow: none;
+            &:not([aria-selected="true"]) {
+              color: var(--ink);
+            }
+          }
+        }
+        &:focus-visible {
+          border-block-end-color: var(--secondary);
+          background: color-mix(in oklch, var(--secondary) 12%, var(--surface));
+          outline: 2px solid transparent;
+        }
+      }
+    }
+    .workspace-icon {
+      inline-size: 2.25rem;
+      block-size: 2.25rem;
+      color: var(--secondary);
+    }
+    .select {
+      position: relative;
+      display: block grid;
+      min-inline-size: 0;
+      & > select {
+        inline-size: 100%;
+        min-inline-size: 0;
+      }
+      & > svg {
+        position: absolute;
+        inset-inline-end: var(--gap);
+        inset-block-start: 50%;
+        translate: 0 -50%;
+        rotate: 90deg;
+        pointer-events: none;
+      }
+    }
+    .entry {
+      display: flex;
+      align-items: center;
+      min-inline-size: 0;
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      background: var(--surface);
+      & > .select {
+        flex: 1;
+      }
+      & > input:not([type="range"]),
+      & > .select > select {
+        flex: 1;
+        min-inline-size: 0;
+        inline-size: 0;
+        min-block-size: 44px;
+        padding: 10px 12px;
+        border: 0;
+        color: var(--ink);
+        background: transparent;
+        font-size: var(--body);
+      }
+      & > .select > select {
+        inline-size: 100%;
+        padding-inline-end: calc(2 * var(--gap) + var(--icon-size));
+      }
+      & .step,
+      & .reset {
+        flex: 0 0 44px;
+        min-inline-size: 44px;
+        inline-size: 44px;
+        min-block-size: 44px;
+        padding: 8px;
+        border: 0;
+        border-inline-start: 1px solid var(--border);
+        border-radius: 0;
+        font-size: 1.125rem;
+      }
+      & .step:not(.primary),
+      & .reset {
+        background: transparent;
+      }
+      & .reset {
+        border-radius: 0 var(--radius) var(--radius) 0;
+      }
+      & .exact {
+        flex: 0 0 5.5rem;
+        inline-size: 5.5rem;
+        text-align: end;
+      }
+      &:has(input:focus-visible, select:focus-visible) {
+        border-color: var(--secondary);
+      }
+      & input:focus-visible,
+      & select:focus-visible {
+        outline: 2px solid transparent;
+      }
+      & button:focus-visible {
+        outline-offset: -3px;
+      }
+      &.invalid {
+        border-color: var(--danger);
+      }
+    }
+
+    fieldset {
+      min-inline-size: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+    .dialog-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: var(--gap);
+      margin-block-end: var(--gap);
+      & p {
+        font-size: var(--small);
+        color: var(--muted);
+        margin-block-start: 0.5em;
+      }
+    }
+    .buttons {
+      display: flex;
+      justify-content: end;
+      gap: var(--gap);
+    }
+    .empty {
+      min-block-size: 280px;
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      gap: var(--gap);
+      padding: var(--gutter);
+      text-align: center;
+      color: var(--muted);
+    }
+  }
+}
+@layer layouts {
+  @scope (#app) {
+    :is(.icon-button, .theme, .tool, .page-grip, .reset, .step:not(.primary)) {
+      @media (hover: hover) and (pointer: fine) {
+        &:hover:not(:disabled) {
+          background: transparent;
+          box-shadow: none;
+          text-shadow:
+            0 0 3px color-mix(in oklch, currentColor 85%, transparent),
+            0 0 12px color-mix(in oklch, currentColor 70%, transparent);
+          &:not(.danger) {
+            color: var(--accent);
+          }
+          & svg {
+            filter: drop-shadow(0 0 2px color-mix(in oklch, currentColor 85%, transparent))
+              drop-shadow(0 0 6px color-mix(in oklch, currentColor 70%, transparent));
+          }
+        }
+      }
+      &:active:not(:disabled) {
+        background: transparent;
+        box-shadow: none;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        & svg {
+          transition: filter 120ms var(--ease-out);
+        }
+      }
+    }
+  }
+}

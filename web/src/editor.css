@@ -1,0 +1,384 @@
+/* Styles Source parameters, profiles, and their editing layout. */
+
+@layer components {
+  @scope (#app) {
+    .visibility {
+      display: flex;
+      flex: 1;
+      align-self: stretch;
+      min-inline-size: 0;
+      border-radius: calc(var(--radius) - 1px) 0 0 calc(var(--radius) - 1px);
+      overflow: clip;
+      & label {
+        position: relative;
+        display: flex;
+        flex: 1;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5em;
+        min-inline-size: 0;
+        min-block-size: 44px;
+        padding: 10px 12px;
+        font-size: var(--body);
+        cursor: pointer;
+        &:not(:first-child) {
+          border-inline-start: 1px solid var(--border);
+        }
+        @media (hover: hover) and (pointer: fine) {
+          &:hover:not(:has(input:disabled)) {
+            background: var(--tint);
+            box-shadow: 0 0 12px color-mix(in oklch, var(--accent) 30%, transparent);
+          }
+        }
+        &:active:not(:has(input:disabled)) {
+          filter: brightness(1.5);
+          transition-duration: 0s;
+          @media (hover: hover) and (pointer: fine) {
+            box-shadow: 0 0 14px color-mix(in oklch, var(--accent) 45%, transparent);
+          }
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          transition:
+            filter 120ms var(--ease-out),
+            box-shadow 120ms var(--ease-out);
+        }
+        &:has(input:checked) {
+          color: light-dark(var(--on-accent), var(--accent));
+          background: light-dark(var(--accent), color-mix(in oklch, var(--tint) 80%, var(--accent)));
+          font-weight: 600;
+        }
+        &:has(input:focus-visible) {
+          text-decoration: underline;
+          text-underline-offset: 0.2em;
+        }
+      }
+      & input {
+        position: absolute;
+        inset: 0;
+        inline-size: 100%;
+        block-size: 100%;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+        &:focus-visible {
+          outline: 2px solid transparent;
+        }
+      }
+      & svg {
+        flex: none;
+        inline-size: 1.5em;
+        block-size: 1.5em;
+      }
+    }
+    .control {
+      padding-block: var(--gap);
+      &.compact {
+        display: grid;
+        padding-block: 0;
+        & .control-label {
+          display: grid;
+          align-items: center;
+          min-block-size: 44px;
+        }
+        & > .entry {
+          grid-row: 2;
+        }
+        & > .state {
+          grid-row: 3;
+        }
+      }
+    }
+    .style-profile {
+      display: grid;
+      gap: calc(var(--gap) / 2);
+      padding-block-end: var(--gap);
+      margin-block: var(--gap);
+      border-block-end: 1px solid var(--border);
+      & select {
+        inline-size: 100%;
+        min-inline-size: 0;
+        min-block-size: 46px;
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            border-color: var(--accent);
+            background: var(--tint);
+          }
+        }
+        &:focus-visible {
+          border-color: var(--secondary);
+          outline: 2px solid transparent;
+        }
+      }
+      & .control-description {
+        margin: 0;
+      }
+    }
+    .control-label > div {
+      min-inline-size: 0;
+      & > :is(label, span):not(.control-description) {
+        font-size: var(--body);
+        font-weight: 600;
+      }
+    }
+    .parameter-id {
+      display: block;
+      color: var(--muted);
+      margin-block-start: 0.2em;
+      font-family: ui-monospace, monospace;
+      font-size: var(--small);
+    }
+    .control-description,
+    .state {
+      color: var(--muted);
+      margin-block: 0.5em;
+    }
+    .control-description {
+      font-size: var(--body);
+    }
+    span.control-description {
+      margin-block: 0;
+      margin-inline-start: 0.75em;
+      font-weight: 400;
+    }
+    .state {
+      font-size: var(--small);
+      & strong {
+        font-weight: 400;
+      }
+      &.override {
+        color: var(--accent);
+      }
+    }
+    .picker {
+      position: relative;
+      flex: 0 0 44px;
+      min-block-size: 44px;
+      display: grid;
+      place-items: center;
+      & input {
+        position: absolute;
+        inset: 0;
+        inline-size: 100%;
+        block-size: 100%;
+        opacity: 0;
+        cursor: pointer;
+      }
+    }
+    .swatch {
+      inline-size: 20px;
+      block-size: 20px;
+      &.unassigned {
+        background: repeating-linear-gradient(45deg, var(--soft) 0 4px, var(--edge) 4px 5px);
+      }
+    }
+    .slider {
+      flex: 1;
+      inline-size: 0;
+      min-inline-size: 0;
+      margin-inline-start: 0.5em;
+      min-block-size: 44px;
+    }
+    .details {
+      color: var(--muted);
+      font-size: var(--small);
+      margin-block-start: 0.4em;
+      & p:not(:first-child) {
+        margin-block-start: 0.5em;
+      }
+    }
+    .style-group {
+      & > summary {
+        align-items: start;
+        min-block-size: 44px;
+        color: var(--ink);
+        font-size: var(--body);
+        padding-block: 0.5em;
+        font-weight: 700;
+        &:active {
+          opacity: 0.8;
+        }
+        & > svg {
+          margin-block-start: calc((1lh - 1.125rem) / 2);
+        }
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            color: var(--accent);
+          }
+        }
+        & > span:not(.count) {
+          min-inline-size: 0;
+          & > span:first-child {
+            display: inline flow-root;
+            max-inline-size: 100%;
+            color: var(--ink);
+            font-size: var(--small);
+            line-height: 1lh;
+            vertical-align: top;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+          }
+        }
+        & > .count {
+          flex: none;
+          margin-inline-start: auto;
+          font-weight: 400;
+          @media (hover: hover) and (pointer: fine) {
+            &:hover {
+              color: var(--accent);
+            }
+          }
+        }
+      }
+      &[open] > summary > svg {
+        rotate: 90deg;
+      }
+      &[open] > summary > span:not(.count) > span:first-child {
+        color: var(--accent);
+      }
+      @media (hover: hover) and (pointer: fine) {
+        & > summary:hover > span:not(.count) > span:first-child {
+          color: var(--hover);
+        }
+      }
+    }
+    .style-group > fieldset {
+      & > .control:first-child {
+        padding-block-start: 0;
+      }
+    }
+    .composer[data-keyboard="false"] .style-group > summary:focus-visible {
+      outline-color: transparent;
+    }
+    .style-object > h4 {
+      margin-block: calc(var(--gap) / 2) 0.5em;
+      font-size: var(--body);
+      font-weight: 600;
+      text-align: start;
+    }
+    .style-object + .style-object > h4 {
+      margin-block-start: calc(var(--gap) * 1.5);
+    }
+  }
+}
+@layer layouts {
+  @scope (#app) {
+    .workspace-content,
+    .source-tools {
+      min-inline-size: 0;
+    }
+    .source-layout {
+      grid-template-columns: minmax(0, 1fr);
+      display: grid;
+      gap: var(--gutter);
+      align-items: start;
+    }
+    .style-status {
+      display: flex;
+      flex-wrap: nowrap;
+      min-inline-size: 0;
+      align-items: center;
+      gap: var(--gap);
+      & > span {
+        min-inline-size: 0;
+        overflow: clip;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      & .icon-button {
+        border: 1px solid transparent;
+        border-radius: 50%;
+        @media (hover: hover) and (pointer: fine) {
+          &:hover:not(:disabled) {
+            border-color: transparent;
+            box-shadow: none;
+          }
+        }
+        &:focus-visible {
+          border-color: var(--danger);
+          outline: 2px solid transparent;
+        }
+      }
+      margin-block: var(--gap);
+      font-size: var(--small);
+    }
+  }
+}
+
+@layer layouts {
+  @scope (#app) {
+    .composer {
+      & .control-list {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--gap);
+      }
+      & .control {
+        position: relative;
+        & .control-label:has(.compact) {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 44px;
+          align-items: center;
+        }
+        & .details.compact {
+          grid-column: 2;
+          grid-row: 1;
+          & summary {
+            inline-size: 44px;
+            min-block-size: 44px;
+            justify-content: center;
+            padding: 0;
+            border-radius: var(--radius);
+          }
+          & > div {
+            position: absolute;
+            z-index: 20;
+            inset-inline: 0;
+            inset-block-start: calc(44px + var(--gap));
+            padding: var(--gap);
+            border: 1px solid var(--edge);
+            border-radius: var(--radius);
+            background: var(--surface);
+            box-shadow: 0 4px 16px var(--shadow);
+            font-size: var(--small);
+            overflow-wrap: anywhere;
+          }
+        }
+      }
+    }
+    @container (width <= 18em) {
+      .composer .control > .entry:has(> .step) {
+        flex-wrap: wrap;
+        & > input {
+          flex-basis: 100%;
+          inline-size: 100%;
+          order: -1;
+          border-block-end: 1px solid var(--border);
+        }
+        & .step,
+        & .reset {
+          flex: 1 0 44px;
+        }
+      }
+    }
+    @container catalog (width > 35em) {
+      .composer .control:not(.compact) {
+        display: grid;
+        grid-template-columns: minmax(9rem, 0.7fr) minmax(0, 1.3fr);
+        gap: 0.4em var(--gap);
+        align-items: center;
+        & .control-label {
+          grid-column: 1;
+          grid-row: 1;
+        }
+        & > .entry {
+          grid-column: 2;
+          grid-row: 1;
+        }
+        & .state {
+          grid-column: 2;
+        }
+      }
+    }
+  }
+}

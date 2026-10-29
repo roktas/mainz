@@ -1,0 +1,495 @@
+/* Styles page cards, density variants, and origin menus shared by the workspace. */
+
+@layer layouts {
+  @scope (#app) {
+    .composition-grid,
+    .page-reference {
+      display: grid;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .composition-grid:focus-visible {
+      outline: 2px solid transparent;
+      @media (forced-colors: active) {
+        outline-color: Highlight;
+      }
+    }
+    .composition-grid {
+      position: relative;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+    }
+    .page-reference {
+      position: absolute;
+      inset-block-start: 0;
+      inset-inline: -1px;
+      visibility: hidden;
+      pointer-events: none;
+
+      & > span {
+        min-inline-size: var(--grid-min-width);
+        block-size: var(--card-height);
+        padding-block: calc(var(--card-tools-height) / 2 + var(--thumbnail-padding));
+        padding-inline: 3px;
+      }
+    }
+    [data-density="compact"] .page-reference > span {
+      padding-inline: 8.5px;
+    }
+    .composition-card {
+      --card-inset: calc(0.35rem + 1px - var(--page-stroke));
+      --fold: 18px;
+      --page-stroke: 1px;
+      --page-border: var(--border);
+      min-inline-size: var(--grid-min-width);
+      padding-inline: var(--card-inset);
+      position: relative;
+      display: grid;
+      grid-template-rows: calc(var(--card-tools-height) / 2 - var(--page-stroke)) calc(
+          var(--card-height) - var(--card-tools-height)
+        ) calc(var(--card-tools-height) / 2 - var(--page-stroke));
+      border: var(--page-stroke) solid var(--page-border);
+      border-radius: var(--radius);
+      background: var(--soft);
+      @media (hover: hover) and (pointer: fine) {
+        &:has(.page-grip:hover) {
+          box-shadow: 0 6px 16px var(--shadow);
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          transition:
+            translate 280ms var(--ease-in-out),
+            rotate 160ms var(--ease-out),
+            scale 160ms var(--ease-out),
+            opacity 120ms var(--ease-out),
+            box-shadow 160ms var(--ease-out),
+            border-color 150ms var(--ease-out);
+          &:has(.page-grip:hover) {
+            translate: 0 -2px;
+          }
+        }
+      }
+      &[data-dragging] {
+        opacity: 0.3;
+      }
+      &[data-drop] {
+        --page-border: var(--accent);
+      }
+      &.selected {
+        --page-border: var(--accent);
+        --page-stroke: 2px;
+      }
+      .composer[data-keyboard="true"]
+        .composition-grid:not([data-cursor-boundary])
+        > &:has(> .page-image:focus-visible) {
+        --page-border: var(--secondary);
+        --page-stroke: 2px;
+        @media (prefers-reduced-motion: no-preference) {
+          animation: cursor-enter 280ms var(--ease-out);
+        }
+        @media (forced-colors: active) {
+          --page-border: Highlight;
+        }
+      }
+      & > .page-image:focus-visible {
+        outline-color: transparent;
+        @media (forced-colors: active) {
+          outline-color: Highlight;
+        }
+      }
+      & .page-context {
+        display: block;
+        margin-block: 0.3em;
+        overflow-wrap: anywhere;
+      }
+    }
+    @keyframes cursor-enter {
+      from,
+      to {
+        box-shadow: 0 0 14px transparent;
+      }
+      35% {
+        box-shadow: 0 0 14px color-mix(in oklch, var(--secondary) 30%, transparent);
+      }
+    }
+    .page-image {
+      position: relative;
+      display: block;
+      inline-size: 100%;
+      min-inline-size: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--ink);
+      text-align: start;
+      cursor: grab;
+      @media (hover: hover) and (pointer: fine) {
+        &:hover:not(:disabled) {
+          background: transparent;
+          color: var(--accent);
+        }
+      }
+      &:active {
+        cursor: grabbing;
+      }
+      & .page-label {
+        padding-inline: 0.2em;
+      }
+    }
+
+    .occurrence-actions {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-block-start: 0.4em;
+      border-block-start: 1px solid var(--border);
+      & svg {
+        inline-size: 14px;
+        block-size: 14px;
+      }
+      & button {
+        inline-size: 100%;
+        min-inline-size: 44px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+      }
+    }
+    .composition-blank {
+      inline-size: min(
+        100%,
+        (var(--card-height) - var(--card-tools-height) - 2 * var(--thumbnail-padding)) * var(--ratio)
+      );
+      aspect-ratio: var(--ratio);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5em;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: var(--small);
+      background: var(--surface);
+    }
+    .composer {
+      & .composition-card {
+        & .occurrence-actions > .move > svg {
+          inline-size: 17px;
+          block-size: 17px;
+        }
+
+        & .thumbnail {
+          inline-size: auto;
+          margin-inline: calc(-1 * var(--card-inset));
+          min-block-size: 0;
+          block-size: 100%;
+          padding-block: var(--thumbnail-padding);
+          padding-inline: calc(3px - var(--page-stroke));
+        }
+        & .page-label {
+          z-index: 1;
+          display: grid;
+          min-inline-size: 0;
+          grid-template-columns: repeat(3, minmax(44px, 1fr));
+          margin-inline: calc(-1 * var(--card-inset));
+          align-items: center;
+          justify-items: center;
+          justify-content: center;
+          gap: 0;
+          /* Separate expanded targets even when the selected contour uses the inner width. */
+          column-gap: 1px;
+          min-block-size: var(--card-tool-size, 32px);
+          padding-block: 0;
+          padding-inline: 0;
+          border-block-end: 1px solid var(--border);
+          & .page-grip {
+            grid-column: 2;
+            & svg {
+              inline-size: 14px;
+              block-size: 14px;
+            }
+          }
+          & :is(.page-number, summary) .page-context {
+            overflow: clip;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+        & > .occurrence-actions {
+          z-index: 1;
+          margin-block-start: 0;
+          grid-template-columns: repeat(2, 44px);
+          justify-content: center;
+          column-gap: var(--gap);
+        }
+        & :is(.page-grip, .occurrence-actions button, .input-footer button, .page-origin > summary) {
+          position: relative;
+          inline-size: 32px;
+          min-inline-size: 32px;
+          block-size: var(--card-tool-size, 32px);
+          min-block-size: var(--card-tool-size, 32px);
+          justify-self: center;
+          &::after {
+            content: "";
+            position: absolute;
+            inset-block: calc((var(--card-tool-size, 32px) - 44px) / 2);
+            inset-inline: -6px;
+          }
+        }
+      }
+      & .input-footer {
+        z-index: 1;
+        display: block grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        align-items: center;
+        justify-items: center;
+        border-block-start: 1px solid var(--border);
+        font-size: var(--small);
+        color: var(--muted);
+        & button {
+          grid-column: 2 / span 2;
+          & svg {
+            inline-size: 14px;
+            block-size: 14px;
+          }
+        }
+      }
+      & .composition-card.selected {
+        background: color-mix(in oklch, var(--accent) 8%, var(--soft));
+      }
+      & .composition-card.range-highlight {
+        background: color-mix(in oklch, var(--accent) 24%, var(--soft));
+      }
+      & .composition-card.removing {
+        background: color-mix(in oklch, var(--danger) 24%, var(--soft));
+        pointer-events: none;
+      }
+    }
+    .page-origin {
+      & > summary {
+        min-inline-size: 44px;
+        min-block-size: 44px;
+        padding-inline: 0.25em;
+        justify-content: center;
+        & strong > span:first-child {
+          text-decoration: underline dotted var(--muted);
+          text-underline-offset: 0.2em;
+        }
+      }
+      & .page-origin-info {
+        position: absolute;
+        z-index: 6;
+        inset-inline: 0.35rem;
+        inset-block-start: 44px;
+        display: grid;
+        gap: 0.4em;
+        padding: var(--gap);
+        border: 1px solid var(--edge);
+        border-radius: var(--radius);
+        background: var(--surface);
+        color: var(--ink);
+        box-shadow: 0 4px 16px var(--shadow);
+        font-size: var(--small);
+        overflow-wrap: anywhere;
+      }
+    }
+  }
+}
+
+@layer views {
+  @scope (.composer) {
+    :is(.selection-panel, .composition-output)[data-density="compact"] {
+      .composition-card {
+        --fold: 15px;
+        block-size: var(--card-height);
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: calc(var(--card-tools-height) - 2 * var(--page-stroke)) minmax(0, 1fr);
+
+        & > :is(.input-footer, .occurrence-actions) {
+          display: none;
+        }
+
+        & > .page-label {
+          grid-template-columns: repeat(3, minmax(24px, 1fr));
+          grid-template-rows: minmax(0, 1fr);
+          margin-inline: calc(-1 * (var(--card-inset) + var(--page-stroke)));
+          block-size: 100%;
+          min-block-size: 0;
+          padding: 0;
+          position: relative;
+          border-block-end: 0;
+
+          &::after {
+            content: "";
+            position: absolute;
+            inset-inline: var(--page-stroke);
+            inset-block-end: 0;
+            block-size: 1px;
+            background: var(--border);
+            pointer-events: none;
+          }
+
+          & > .page-origin {
+            grid-column: 1;
+            grid-row: 1;
+            justify-self: stretch;
+            min-inline-size: 0;
+            block-size: 100%;
+            text-align: start;
+          }
+
+          & > .page-origin > button {
+            display: block flex;
+            inline-size: 100%;
+            min-inline-size: 0;
+            block-size: 100%;
+            min-block-size: 0;
+            justify-content: start;
+            padding: 0;
+            padding-inline-start: 3px;
+            border: 0;
+            color: inherit;
+            background: transparent;
+            font-size: var(--compact-number-size);
+            font-variant-numeric: tabular-nums;
+            box-shadow: none;
+
+            & strong {
+              font-weight: inherit;
+            }
+
+            @media (hover: hover) and (pointer: fine) {
+              &:hover {
+                color: var(--accent);
+              }
+            }
+          }
+
+          & > .page-grip {
+            grid-column: 2;
+            grid-row: 1;
+            inline-size: 100%;
+            min-inline-size: 0;
+            block-size: 100%;
+            min-block-size: 0;
+            padding-inline: 0;
+
+            & svg {
+              inline-size: 15px;
+              block-size: 15px;
+            }
+
+            &::after {
+              inset-block-start: calc(-1 * (var(--grid-gap) + var(--page-stroke)));
+              inset-block-end: auto;
+              inset-inline: 0;
+              block-size: 44px;
+            }
+          }
+
+          & > .page-origin > button {
+            position: relative;
+
+            &::after {
+              content: "";
+              position: absolute;
+              inset-block-start: calc(-1 * (var(--grid-gap) + var(--page-stroke)));
+              inset-block-end: auto;
+              inset-inline: 0;
+              block-size: 44px;
+            }
+          }
+        }
+
+        & .thumbnail {
+          padding-block: var(--thumbnail-padding);
+          padding-inline: calc(8.5px - var(--page-stroke));
+        }
+
+        & > .page-image {
+          min-block-size: 0;
+          /* Keep the image area fixed when the centered header's border inset changes. */
+          margin-block: calc(var(--page-stroke) - 1px) calc(1px - var(--page-stroke));
+        }
+
+        & .page-face {
+          pointer-events: none;
+        }
+      }
+    }
+
+    .card-menu-options[popover] {
+      margin: 0;
+      inset-block: auto;
+      inset-inline: auto;
+      margin-block-start: calc(var(--gap) / 2);
+      position-area: block-end span-inline-end;
+      position-try-fallbacks:
+        flip-block,
+        flip-inline,
+        flip-block flip-inline;
+      inline-size: min(17rem, calc(100vi - 2 * var(--gutter)));
+      max-block-size: min(70dvb, 38rem);
+      padding: var(--gap);
+      overflow: auto;
+      overscroll-behavior: contain;
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      color: var(--ink);
+      background: var(--surface);
+      box-shadow: 0 4px 16px var(--shadow);
+      font-size: var(--body);
+
+      &:popover-open {
+        display: block grid;
+        gap: calc(var(--gap) / 2);
+      }
+
+      & .occurrence-actions {
+        grid-template-columns: repeat(4, 44px);
+        margin: 0;
+        border: 0;
+
+        & button {
+          inline-size: 44px;
+          min-inline-size: 44px;
+          block-size: 44px;
+          min-block-size: 44px;
+
+          &::after {
+            content: none;
+          }
+        }
+      }
+
+      & .card-preview {
+        display: block grid;
+        place-items: center;
+        inline-size: 100%;
+        block-size: 220px;
+        background: light-dark(var(--page-surround), var(--soft));
+
+        & .thumbnail {
+          inline-size: 100%;
+          block-size: 100%;
+          min-block-size: 0;
+          margin: 0;
+          padding: var(--gap);
+          background: light-dark(var(--page-surround), var(--soft));
+        }
+
+        & .composition-blank {
+          inline-size: min(100%, calc((220px - 2 * var(--gap)) * var(--ratio)));
+        }
+      }
+
+      @container composer (width <= 55em) {
+        position-area: none;
+        inset: 0;
+        margin: auto;
+      }
+    }
+  }
+}

@@ -1,0 +1,452 @@
+/* Coordinates Input/Output pane layout, headings, page markers, and responsive navigation. */
+
+@layer layouts {
+  @scope (#app) {
+    .composer {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      container: composer / inline-size;
+      overflow-anchor: none;
+    }
+    .composition-panels {
+      display: grid;
+      flex: 1;
+      gap: var(--gutter);
+    }
+    .selection-panel,
+    .composition-output {
+      min-inline-size: 0;
+      container: catalog / inline-size;
+    }
+    .composition-output:only-child {
+      grid-column: 1 / -1;
+      border-inline-start: 0;
+      padding-inline-start: 0;
+    }
+    .composer .section-heading {
+      min-block-size: 46px;
+      align-items: center;
+      & h2 {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        font-size: var(--heading);
+      }
+    }
+
+    .composition-totals {
+      inline-size: max-content;
+      max-inline-size: 100%;
+      flex: none;
+      overflow: clip;
+      white-space: nowrap;
+      font-size: var(--small);
+      color: var(--muted);
+      & strong {
+        color: var(--accent);
+      }
+    }
+    .output-details {
+      margin: 0;
+      inset-block: auto;
+      inset-inline: auto;
+      margin-block-start: calc(var(--gap) / 2);
+      position-area: block-end span-inline-end;
+      position-try-fallbacks:
+        flip-block,
+        flip-inline,
+        flip-block flip-inline;
+      max-inline-size: calc(100vi - 2 * var(--gutter));
+      padding: var(--gap);
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      color: var(--ink);
+      background: var(--surface);
+      font-size: var(--small);
+    }
+    .download-error {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      margin: 0;
+    }
+    .composition-empty {
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: var(--gap);
+      min-block-size: 10rem;
+      padding: var(--gutter);
+      color: var(--muted);
+      text-align: center;
+    }
+    :is(.empty, .composition-empty) {
+      & :is(h3, p) {
+        font-size: var(--body);
+      }
+    }
+    @container composer (width > 55em) {
+      .composition-panels {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+    }
+
+    .source-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.3em 0.5em;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--muted);
+      background: var(--surface);
+      white-space: nowrap;
+      font-size: var(--small);
+    }
+    .mobile-workspace-tabs {
+      display: none;
+    }
+    .composer {
+      & .page-grip {
+        display: grid;
+        place-items: center;
+        min-inline-size: 44px;
+        min-block-size: 44px;
+        padding: 0;
+        border: 0;
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--accent);
+        cursor: grab;
+        & svg {
+          stroke-width: 2.4;
+        }
+        &:focus-visible {
+          outline: 2px solid transparent;
+          & svg {
+            color: var(--secondary);
+            filter: drop-shadow(0 0 2px color-mix(in oklch, currentColor 85%, transparent))
+              drop-shadow(0 0 6px color-mix(in oklch, currentColor 70%, transparent));
+          }
+        }
+      }
+      & .page-face {
+        position: absolute;
+        z-index: 2;
+        inset-block-start: calc(-1 * var(--page-stroke));
+        inset-inline-end: calc(-1 * var(--page-stroke));
+        inline-size: 44px;
+        block-size: 44px;
+      }
+      & [data-face="back"] .page-face {
+        --fold-fill: color-mix(in oklch, var(--border) 35%, var(--muted));
+        &::before {
+          content: "";
+          position: absolute;
+          inset-block-start: 0;
+          inset-inline-end: 0;
+          inline-size: var(--fold);
+          block-size: var(--fold);
+          background: var(--paper);
+        }
+        & .page-fold {
+          position: absolute;
+          inset-block-start: calc(var(--page-stroke) / 2);
+          inset-inline-end: calc(var(--page-stroke) / 2);
+          inline-size: calc(var(--fold) - var(--page-stroke));
+          block-size: calc(var(--fold) - var(--page-stroke));
+          overflow: visible;
+          filter: drop-shadow(-1px 1px 2px var(--shadow));
+        }
+        & .fold-fill {
+          fill: var(--fold-fill);
+          stroke: var(--fold-fill);
+          stroke-width: 0;
+        }
+        & .fold-edge {
+          fill: none;
+          stroke: var(--page-border);
+          stroke-width: var(--page-stroke);
+          stroke-linecap: butt;
+          stroke-linejoin: round;
+        }
+      }
+      & .selected[data-face="back"] .page-face .fold-fill {
+        stroke-width: var(--page-stroke);
+      }
+      & .input-heading {
+        display: grid;
+        align-content: start;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.5em;
+        & .file-picker {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5em;
+          white-space: nowrap;
+        }
+      }
+      & .source-tabs,
+      & .output-tabs {
+        container: toolbar / inline-size;
+        flex-wrap: nowrap;
+        border-block-end: 1px solid var(--border);
+        margin-block-start: var(--gap);
+        margin-block-end: calc(var(--gap) / 2);
+        padding-block-end: calc(var(--gap) / 2);
+        inline-size: 100%;
+        gap: 0.25em;
+        & .tabs {
+          flex-wrap: nowrap;
+          gap: 0;
+          & > button {
+            position: relative;
+            min-inline-size: 44px;
+            border-block-start: 3px solid transparent;
+            padding-inline: clamp(0.125em, 2cqi, 0.75em);
+            white-space: nowrap;
+            &[aria-selected="true"] {
+              border-block-end-color: transparent;
+              &::after {
+                content: "";
+                position: absolute;
+                inset-inline: 4px;
+                inset-block-end: -3px;
+                border-block-end: 3px solid var(--accent);
+              }
+            }
+            & > .edit-dot {
+              position: absolute;
+              inset-block-start: 0.25em;
+              inset-inline-end: 0.25em;
+            }
+          }
+        }
+      }
+      & .source-tabs {
+        & .style-status {
+          margin: 0;
+          margin-inline-start: auto;
+          gap: 0.25em;
+        }
+      }
+      & .output-state {
+        position: relative;
+        display: block flex;
+        align-items: center;
+        min-inline-size: 0;
+        justify-content: end;
+        text-align: end;
+        &:not([data-overflow]) > button {
+          display: none;
+        }
+        &[data-overflow] > .composition-totals {
+          position: absolute;
+          visibility: hidden;
+        }
+      }
+      & .input-heading {
+        container: heading / inline-size;
+        &:has(.input-picker[open]) {
+          z-index: 5;
+        }
+      }
+      & .composition-output > .section-heading {
+        container: heading / inline-size;
+        display: grid;
+        align-content: start;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 0.5em;
+        & > div:first-child {
+          display: block flex;
+          align-items: center;
+          min-block-size: 44px;
+        }
+      }
+    }
+    @container composer (width > 55em) {
+      .composer .selection-panel {
+        padding-inline-end: var(--gutter);
+      }
+      .composer .composition-output {
+        padding-inline-start: var(--gutter);
+        border-inline-start: 0;
+        position: relative;
+        &::before {
+          content: "";
+          position: absolute;
+          inset-block: 0;
+          inset-inline-start: 0;
+          inline-size: 1px;
+          background: var(--border);
+        }
+        &:only-child {
+          padding-inline-start: 0;
+          &::before {
+            display: none;
+          }
+        }
+      }
+    }
+    .input-picker {
+      position: relative;
+      min-inline-size: 0;
+      & > summary {
+        border-radius: var(--radius);
+        & h2 {
+          display: flex;
+          flex-wrap: nowrap;
+          flex: 1;
+          min-inline-size: 0;
+          align-items: center;
+          gap: 0.5em;
+          white-space: nowrap;
+          color: var(--ink);
+        }
+        & .count {
+          font-size: var(--small);
+        }
+      }
+      & .input-current {
+        flex: 1;
+        min-inline-size: 0;
+        overflow: clip;
+        text-overflow: ellipsis;
+        font-size: var(--body);
+        font-weight: 600;
+        color: var(--accent);
+      }
+      & .input-chevron {
+        flex: none;
+        rotate: 90deg;
+        display: grid;
+        place-items: center;
+        font-size: var(--small);
+        color: var(--muted);
+      }
+      & .input-list {
+        position: absolute;
+        z-index: 5;
+        inset-block-start: calc(100% + 4px);
+        inset-inline: 0 auto;
+        inline-size: min(32rem, calc(100vi - 2 * var(--gutter)));
+        max-block-size: 70dvb;
+        padding: var(--gap);
+        display: block grid;
+        gap: var(--gap);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        box-shadow: 0 8px 24px var(--shadow);
+        overflow: auto;
+        overscroll-behavior: contain;
+        & button {
+          display: block flex;
+          gap: 0.5em;
+          align-items: center;
+          text-align: start;
+          min-inline-size: 0;
+          & > span:nth-child(2) {
+            flex: 1;
+            min-inline-size: 0;
+            overflow-wrap: anywhere;
+          }
+          &[aria-pressed="true"] {
+            color: var(--accent);
+            border-color: var(--accent);
+          }
+        }
+      }
+    }
+    @container composer (width <= 55em) {
+      .composer .mobile-workspace-tabs {
+        margin-block-end: var(--gap);
+        & button {
+          &[aria-pressed="true"] {
+            border-color: var(--accent);
+            color: var(--accent);
+          }
+        }
+      }
+      .composer[data-view="input"] .composition-output,
+      .composer[data-view="output"] .selection-panel {
+        display: none;
+      }
+      .composer .input-heading {
+        & .input-label,
+        & .input-picker .count,
+        & .input-picker h2 > .workspace-icon {
+          display: none;
+        }
+      }
+      .composer .composition-output > .section-heading {
+        & > div:first-child {
+          display: none;
+        }
+        & .output-state {
+          min-inline-size: 0;
+          justify-content: start;
+          text-align: start;
+        }
+      }
+      .composer {
+        & .mobile-workspace-tabs,
+        & .input-heading,
+        & .composition-output > .section-heading {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: var(--gap);
+        }
+        & .mobile-workspace-tabs button,
+        & .input-picker > summary,
+        & .input-heading .file-picker,
+        & .download-action > button,
+        & .output-state > button {
+          min-block-size: calc(2.25rem + 2 * clamp(0.5rem, 0.44rem + 0.2vi, 0.75rem) + 2px);
+        }
+        & .input-heading .file-picker,
+        & .download-action > button,
+        & .output-state > button {
+          inline-size: 100%;
+          min-inline-size: 0;
+        }
+        & .output-state > button {
+          border: 1px solid var(--edge);
+          background: var(--surface);
+        }
+        & .input-picker > summary {
+          padding-inline: 0.75em;
+          border: 1px solid var(--edge);
+          background: var(--surface);
+          &:focus-visible {
+            border-color: var(--secondary);
+            outline: 2px solid transparent;
+          }
+        }
+      }
+    }
+    @container toolbar (width <= 20em) {
+      .tabs > button > span:not(.edit-dot) {
+        display: none;
+      }
+    }
+    @container composer (width <= 16em) {
+      .mobile-workspace-tabs button {
+        padding-inline: 0.25em;
+        & .workspace-icon {
+          display: none;
+        }
+      }
+    }
+    @container heading (width <= 16em) {
+      .composer .input-heading .file-picker,
+      .composer .download-action > button {
+        min-inline-size: 44px;
+        padding-inline: 4px;
+        & > span {
+          display: none;
+        }
+      }
+    }
+  }
+}
