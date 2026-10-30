@@ -248,9 +248,26 @@ executable rules. An empty array is permitted. Each set requires `id`, `name`, n
 Names are nonempty plain text. Descriptions are plain text. A parameter belongs to at most one set. Unlisted parameters
 remain editable.
 
-Each set has 1–32 ordered profiles. A profile requires `id`, `name`, and `overrides`, with optional `description`. IDs
-follow Section 4.1 and are unique within their set. Override keys belong to that set and hold valid parameter scalar
-values. Unknown fields and references fail. The first profile represents original styles and has empty overrides.
+Each set has 1–32 ordered profiles. A profile requires `id`, `name`, and `overrides`, with optional `description` and
+`details`. IDs follow Section 4.1 and are unique within their set. Override keys belong to that set and hold valid
+parameter scalar values. Unknown fields and references fail. The first profile represents original styles and has empty
+overrides.
+
+Profile annotations have three levels:
+
+| Field         | Requirement | Purpose                                                          |
+| ------------- | ----------- | ---------------------------------------------------------------- |
+| `name`        | Required    | Short, nonempty display name for profile selection.              |
+| `description` | Optional    | Brief summary suitable for persistent display.                   |
+| `details`     | Optional    | Longer explanation with usage guidance, rationale, or tradeoffs. |
+
+Descriptions and details are independent plain-text strings. Details can contain paragraph breaks and follow the
+existing JSON string limits. Consumers render annotations as plain text, without interpreting markup or executable
+content. Applications choose how to expose details on demand. The Web SPEC owns workspace interactions.
+
+This separation keeps selectors and visible summaries compact while retaining the context needed to choose a profile.
+For example, a name can describe the visible style while details explain printer suitability and limitations.
+Annotations do not change profile identity, parameter scope, overrides, or printer behavior.
 
 Opening preserves saved overrides without applying a profile. Choosing a profile replaces all overrides within its set.
 Omitted parameters return to their own baselines. Other parameters and sets retain their choices.
@@ -262,9 +279,10 @@ and meanings belong to the author.
 The [CLI specification](../../cli/doc/SPEC.md#21-profile-selection) owns command-line ID lookup and ambiguity
 diagnostics.
 
-Extraction prunes missing parameter references and overrides, dropping sets with no retained parameters. Composition
-remaps set and parameter identities per Source while retaining names, descriptions, and order. Repeated pages share
-their Source's sets. Separate Sources keep independent sets even with the same Input.
+Styling, reset, and description preserve all profile annotations. Extraction prunes missing parameter references and
+overrides, dropping sets with no retained parameters. Composition remaps set and parameter identities per Source.
+Extraction and composition retain names, descriptions, details, and authored order. Repeated pages share their Source's
+sets. Separate Sources keep independent sets even with the same Input.
 
 ### 4.6 Complete JSON example
 
@@ -357,10 +375,12 @@ parameters. A corresponding PDF must supply the scopes and resources from Sectio
       "name": "Style profile",
       "parameters": ["partial-fill-color", "partial-fill-opacity", "partial-width"],
       "profiles": [
-        { "id": "generic", "name": "Generic", "overrides": {} },
+        { "id": "generic", "name": "Outlined", "overrides": {} },
         {
           "id": "inkjet",
-          "name": "Inkjet",
+          "name": "Filled",
+          "description": "Pale fills and fine outlines.",
+          "details": "Pale fills suit inkjet printers. Some entry-level laser printers reproduce them as visible dot patterns.",
           "overrides": {
             "partial-fill-color": "#A9A9A9",
             "partial-fill-opacity": 0.4,
@@ -592,7 +612,8 @@ Description has exactly `version`, `pageCount`, `pages`, `parameters`, and optio
 is `1`. Page count is positive within build limits and includes physical pages without editable regions. `pages` maps
 manifest IDs to objects with zero-based integer `index` and optional string PDF `label`. Indexes name actual pages.
 Missing labels fall back to one-based physical numbers. Prepared descriptions have nonempty page/parameter maps.
-Ordinary PDFs have empty maps and no `groups`. Profile sets are returned without selecting or changing them.
+Ordinary PDFs have empty maps and no `groups`. Profile sets include all profile annotations and are returned without
+selecting or changing them.
 
 Each parameter entry has exactly:
 

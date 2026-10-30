@@ -532,6 +532,12 @@ directly below. The first select aligns with Output's page field. A neutral divi
 controls. Style selects retain native selection behavior, use the shared inset chevron, and keep their full touch height
 on touch browsers.
 
+Profile information buttons sit beside the description, with their visible icons centered on its first text line. They
+retain a 44 px touch target without narrowing the select. Profile details use a floating panel anchored to the button,
+with the profile name above the longer text. If no anchored position fits, it centers within the viewport. The panel
+wraps text, scrolls within the viewport, and uses the shared surface, border, focus, and theme tokens. Opening it does
+not move the workspace or individual controls.
+
 A Quartet presents Fill, Stroke, Width, and Visibility in equal components. Fill and Stroke summaries combine
 independent color and opacity rows. Color swatches show full color independently of opacity. A separate level marker
 shows exact opacity. Width belongs visually to Stroke. Values use neutral ink, including overrides. Labels and type
@@ -963,17 +969,18 @@ inspected page. Movement arrows change the Output order.
 Style groups use the [disclosure pattern](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/). Group and object labels
 come from the PDF.
 
-| English term             | Turkish equivalent               | UI element                                                                          |
-| ------------------------ | -------------------------------- | ----------------------------------------------------------------------------------- |
-| Style profile selector   | Stil profili seçicisi            | The select above the Style groups, with profile choices such as Generic and Inkjet. |
-| Profile description      | Profil açıklaması                | The description directly below the selected profile.                                |
-| Style group / Disclosure | Stil grubu / Açılır-kapanır grup | A PDF-authored group, such as Watermark, Patterns, or Guides.                       |
-| Group header             | Grup üst alanı                   | The row with the disclosure indicator, group title, description, and object count.  |
-| Disclosure indicator     | Açılma-kapanma göstergesi        | The small arrow whose direction indicates the expanded or collapsed state.          |
-| Object count badge       | Nesne sayısı rozeti              | The number of Style objects at the end of the group header.                         |
-| Group content            | Grup içeriği                     | The objects and controls visible inside an expanded group.                          |
-| Style object             | Stil nesnesi                     | The object associated with related Style controls, such as Watermark or Slants.     |
-| Object heading           | Nesne başlığı                    | The object name and its description.                                                |
+| English term                   | Turkish equivalent                  | UI element                                                                              |
+| ------------------------------ | ----------------------------------- | --------------------------------------------------------------------------------------- |
+| Style profile selector         | Stil profili seçicisi               | The select above the Style groups, with profile choices such as Outlined and Filled.    |
+| Profile description            | Profil açıklaması                   | The description directly below the selected profile.                                    |
+| Profile details button / panel | Profil ayrıntıları düğmesi / paneli | The information button beside the description and its panel of longer profile guidance. |
+| Style group / Disclosure       | Stil grubu / Açılır-kapanır grup    | A PDF-authored group, such as Watermark, Patterns, or Guides.                           |
+| Group header                   | Grup üst alanı                      | The row with the disclosure indicator, group title, description, and object count.      |
+| Disclosure indicator           | Açılma-kapanma göstergesi           | The small arrow whose direction indicates the expanded or collapsed state.              |
+| Object count badge             | Nesne sayısı rozeti                 | The number of Style objects at the end of the group header.                             |
+| Group content                  | Grup içeriği                        | The objects and controls visible inside an expanded group.                              |
+| Style object                   | Stil nesnesi                        | The object associated with related Style controls, such as Watermark or Slants.         |
+| Object heading                 | Nesne başlığı                       | The object name and its description.                                                    |
 
 #### Quartet and property editors
 

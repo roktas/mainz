@@ -7,12 +7,13 @@ The Pages are the cover, `ital-guid-79a4-wxgx`, full-sheet CROS (`ital-cros-79a4
 (`ital-cros-79a4-wxgr`), in that order. Output starts with `1,2,3,4,3,4,3,4`. Repetitions expose no additional Book
 content.
 
-The sample has nine Style objects and 35 parameters for the cover, patterns, guide lines, and the SAMPLE watermark.
-Cover controls the ribbon and motifs, with saved fill color `#A0892C`. Text stays fixed. Pattern fills start at
-`#999999` with 40% opacity and remain editable. Marks and Frame remain fixed. Embedded Generic and Inkjet profiles
-provide named style choices. Opening the sample preserves its saved appearance. Generic restores the sample's gray
-pattern fills. Inkjet uses 0.04 mm thin guides and soft blue (`#6B7F99`) Pattern and Partial Pattern fills at 40%
-opacity. The Style groups appear in this order: Cover, Patterns, Guides, Watermark.
+The sample has ten Style objects and 39 parameters for the cover, patterns, guide lines, header, and the SAMPLE
+watermark. Cover controls the ribbon and motifs, with saved fill color `#A0892C`. Text stays fixed. Pattern fills start
+transparent and remain editable. Marks and Frame remain fixed. Embedded Outlined, Filled, Outlined+, and Filled+
+profiles include short descriptions and longer `details` with printer guidance. Their IDs remain `generic`, `inkjet`,
+`generic+`, and `inkjet+`. Opening the sample preserves its saved appearance. Outlined restores the sample's unfilled
+patterns. Filled uses 0.04 mm thin guides and soft blue (`#6B7F99`) Pattern and Repeats fills at 40% opacity. The Style
+groups appear in this order: Cover, Patterns, Guides, Margins, Watermark. Margins contains Header.
 
 The Watermark Style object controls the small, distressed red SAMPLE stamp at the center of all four pages, including
 the cover. Its fill color and opacity remain editable. Visibility is unavailable. Its frame and letter outlines stay
@@ -31,7 +32,7 @@ cp .local/sample/demo.pdf ../mainz/web/test/fixtures/demo.pdf
 
 The script checks the contract, saved overrides, reset, and protected content with independent HexaPDF inspection. It
 also compares the fixed watermark outline with an independent SVG export after setting fill opacity to zero. Poppler
-requires exact original/reset raster equality at 150/300 DPI. The separate Cairo Inkjet reference permits a maximum
+requires exact original/reset raster equality at 150/300 DPI. The separate Cairo Filled reference permits a maximum
 24/255 difference in 0.001% of raster channels. That bound permits subpixel differences from re-export while retaining
 exact protected-content comparisons. Vite copies this maintained fixture into the application assets on each start or
 build.

@@ -415,7 +415,7 @@ void profile_sets(JSON sets, const std::map<std::string, JSON>& parameters)
         require(!profiles.empty() && profiles.size() <= 32, "A profile set requires 1 to 32 profiles.");
         std::set<std::string> profile_ids;
         for (const auto& profile : profiles) {
-            auto fields_present = fields(profile, {"id", "name", "overrides"}, {"description"});
+            auto fields_present = fields(profile, {"id", "name", "overrides"}, {"description", "details"});
             auto identity = text(profile.getDictItem("id"));
             identifier(identity);
             require(profile_ids.insert(identity).second, "Duplicate profile ID.");
@@ -423,6 +423,8 @@ void profile_sets(JSON sets, const std::map<std::string, JSON>& parameters)
                 "Empty profile name.");
             if (fields_present.contains("description"))
                 text(profile.getDictItem("description"));
+            if (fields_present.contains("details"))
+                text(profile.getDictItem("details"));
             for (const auto& [parameter, choice] : object(profile.getDictItem("overrides"))) {
                 require(scope.contains(parameter), "Override is outside its profile set.");
                 const auto& definition = parameters.at(parameter);

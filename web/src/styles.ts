@@ -38,6 +38,7 @@ export type Profile = {
   id: string
   name: string
   description?: string
+  details?: string
   overrides: Record<string, Scalar>
 }
 export type ProfileSet = {

@@ -1194,6 +1194,8 @@ module Mainz
       assert_equal(manifest["profileSets"], JSON.parse(description)["profileSets"])
       changed = operation(source, "profiles-edited.pdf", manifest["profileSets"][0]["profiles"][1]["overrides"])
       assert_equal(manifest["profileSets"], snapshot(changed)[0]["profileSets"])
+      restored = operation(changed, "profiles-reset.pdf", reset: true)
+      assert_equal(manifest["profileSets"], snapshot(restored)[0]["profileSets"])
       pruned = extract(source, "profiles-extracted.pdf", [0])
       profile = snapshot(pruned)[0]["profileSets"][0]
       assert_equal(["width"], profile["parameters"])
@@ -1223,6 +1225,16 @@ module Mainz
         [%w[guide-color guide-fill width]] * 2,
         sets.map { |item| item["parameters"].map { |id| mapping[id]["parameter"] }.sort }
       )
+      [profile, *sets].each do |set|
+        assert_equal(
+          manifest["profileSets"][0].except("id", "parameters", "profiles"),
+          set.except("id", "parameters", "profiles")
+        )
+        assert_equal(
+          manifest["profileSets"][0]["profiles"].map { |choice| choice.except("overrides") },
+          set["profiles"].map { |choice| choice.except("overrides") }
+        )
+      end
     end
 
     def test_profiles_require_valid_scopes_and_original_first_choice
@@ -1236,6 +1248,11 @@ module Mainz
         -> (s) { s[0]["profiles"][1]["id"] = "generic" },
         -> (s) { s[0]["profiles"][1]["name"] = "" },
         -> (s) { s[0]["profiles"][1]["description"] = false },
+        -> (s) { s[0]["profiles"][1]["details"] = nil },
+        -> (s) { s[0]["profiles"][1]["details"] = false },
+        -> (s) { s[0]["profiles"][1]["details"] = 1 },
+        -> (s) { s[0]["profiles"][1]["details"] = [] },
+        -> (s) { s[0]["profiles"][1]["details"] = {} },
         -> (s) { s[0]["profiles"] *= 17 }
       ]
       mutations.each do |mutation|
@@ -1248,6 +1265,25 @@ module Mainz
           pdf_objects: method(:across_page_objects)
         )
         assert_equal("invalid-contract", failure_code(file("invalid-profiles.pdf")))
+      end
+    end
+
+    def test_profile_details_obey_json_string_limits
+      source = file("profile-details.pdf")
+      [2048, 2049].each do |length|
+        manifest = fixture(
+          source,
+          -> (data) {
+            profile_fixture(data)
+            data["profileSets"][0]["profiles"][0]["details"] = "ğ" * length
+          },
+          pdf_objects: method(:across_page_objects)
+        )
+        if length == 2048
+          assert_equal(manifest["profileSets"], describe(source)["profileSets"])
+        else
+          assert_equal("limit-exceeded", failure_code(source))
+        end
       end
     end
 
@@ -1475,11 +1511,12 @@ module Mainz
           "description" => "Printer styles",
           "parameters" => %w[width guide-color guide-fill],
           "profiles" => [
-            {"id" => "generic", "name" => "Generic", "overrides" => {}},
+            {"id" => "generic", "name" => "Generic", "details" => "", "overrides" => {}},
             {
               "id" => "inkjet",
               "name" => "Inkjet",
               "description" => "Light fills and fine lines",
+              "details" => "Pale fills suit inkjet printers.\n\nSome printers show visible dots. <b>Çizgi</b> is plain text.",
               "overrides" => {"width" => 0.15, "guide-color" => "#A9A9A9", "guide-fill" => 0.4}
             }
           ]

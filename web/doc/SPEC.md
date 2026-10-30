@@ -80,7 +80,7 @@ numbers. If a PDF label differs from its physical number, Page shows both.
 | `?demo`       | Four-page Input, all pages selected, with Output ordered as `1,2,3,4,3,4,3,4`.                 |
 | `?demo=empty` | The same Input with no Selection and empty Output, including onboarding and the addition hint. |
 | `?demo=grid`  | 240-page Input and Output from 60 repetitions of the four sample pages.                        |
-| `?demo&paint` | Style with the Inkjet profile, available only in development.                                  |
+| `?demo&paint` | Style with the Filled profile, available only in development.                                  |
 
 On every screen, three quick clicks or taps on the upper-left logo open the examples dialog. The landing page offers the
 demo, Grid demo, and empty Output, in that order. The workspace also offers Show the welcome again. Links navigate
@@ -357,10 +357,16 @@ A profile set appears only with several profiles and at least one parameter in t
 labels the select. The selected profile's description stays visible. Missing descriptions use a short description based
 on the profile name. The affected Input pages appear in hover help.
 
+When the selected profile has nonempty `details`, an information button beside the description opens its longer
+guidance. The panel shows the profile name and plain-text details, preserving paragraph breaks. It supports keyboard
+scrolling; its close button, Escape, or an outside click closes it. Escape returns focus to the information button.
+Changing the profile or Input closes the panel. Custom styles and profiles without details show no information button.
+Reading guidance does not change styles.
+
 Choosing a profile replaces the Source's overrides throughout that set and clears its invalid drafts. Omitted parameters
 return to authored baselines. Other sets and Sources retain their choices. Matching override maps select the declared
 profile. Other maps and invalid drafts show Custom. Profile choices remain individually editable. Names, descriptions,
-and values come from the producer and imply no application-defined printer behavior.
+details, and values come from the producer and imply no application-defined printer behavior.
 
 Field reset removes one override. **Reset all styles** clears the Source's complete map, including hidden and saved
 overrides, and invalid drafts. Resets retain other Sources, selections, composition, and immutable bytes. Reset appears

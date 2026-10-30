@@ -9,7 +9,7 @@ import { chromium, webkit } from "playwright"
 import { checkWorkspace } from "./workspace.js"
 import { tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
 
-test("Opaque profile-set IDs keep their descriptions across Input switches", { timeout: 60000 }, async () => {
+test("Opaque profile-set IDs keep their annotations across Input switches", { timeout: 60000 }, async () => {
   const server = await serve()
   let browser
   try {
@@ -25,7 +25,13 @@ test("Opaque profile-set IDs keep their descriptions across Input switches", { t
         parameters: ["guides-stroke-width"],
         profiles: [
           { id: "generic", name: "Generic", overrides: {} },
-          { id: "inkjet", name: "Inkjet", description: "Fine guides", overrides: { "guides-stroke-width": 0.04 } },
+          {
+            id: "inkjet",
+            name: "Fine guides with a deliberately long profile name for narrow panes",
+            description: "Fine guides",
+            details: "Fine lines use less ink.\n\n<b>Çizgi</b> stays plain text.",
+            overrides: { "guides-stroke-width": 0.04 },
+          },
         ],
       },
       {
@@ -33,8 +39,14 @@ test("Opaque profile-set IDs keep their descriptions across Input switches", { t
         name: "Color profile",
         parameters: ["guides-stroke-color"],
         profiles: [
-          { id: "generic", name: "Generic", overrides: {} },
-          { id: "inkjet", name: "Inkjet", description: "Red guides", overrides: { "guides-stroke-color": "#ff0000" } },
+          { id: "generic", name: "Generic", details: " \n", overrides: {} },
+          {
+            id: "inkjet",
+            name: "Red guides",
+            description: "Red guides",
+            details: "Red guide lines.\n\n<script>throw new Error('profile')</script>",
+            overrides: { "guides-stroke-color": "#ff0000" },
+          },
         ],
       },
     ]
@@ -55,6 +67,10 @@ test("Opaque profile-set IDs keep their descriptions across Input switches", { t
       await tab(input, "Style")
       for (const set of sets) {
         const profile = input.getByRole("combobox", { name: set.name, exact: true })
+        const group = input
+          .locator(".style-profile")
+          .filter({ has: page.getByRole("combobox", { name: set.name, exact: true }) })
+        assert.equal(await group.getByRole("button").count(), 0)
         assert.equal(
           await profile.evaluate((select) => {
             const ids = select.getAttribute("aria-describedby").split(/\s+/)
@@ -69,11 +85,34 @@ test("Opaque profile-set IDs keep their descriptions across Input switches", { t
           ),
           set.profiles[1].description,
         )
+        const information = group.getByRole("button", { name: `Details for ${set.profiles[1].name}`, exact: true })
+        await information.focus()
+        await information.press("Enter")
+        const panel = input.getByRole("region", { name: set.profiles[1].name, exact: true })
+        await panel.waitFor()
+        assert.equal(await panel.locator("p").innerText(), set.profiles[1].details)
+        assert.equal(await panel.locator("b, script").count(), 0)
+        assert.equal(await profile.inputValue(), "inkjet", "Reading guidance does not change styles")
+        await page.keyboard.press("Escape")
+        await panel.waitFor({ state: "hidden" })
+        assert.equal(await information.evaluate((element) => element === document.activeElement), true)
+        await information.click()
+        await profile.selectOption("generic")
+        assert.equal(await input.locator(".profile-details:popover-open").count(), 0)
+        await profile.selectOption("inkjet")
       }
       const ids = await input
         .locator(".style-profile select")
         .evaluateAll((selects) => selects.map((select) => select.getAttribute("aria-describedby")))
       assert.equal(new Set(ids).size, 2, "Each set has its own DOM description")
+      const targets = await input
+        .getByRole("button", { name: /^Details for / })
+        .evaluateAll((buttons) =>
+          buttons
+            .filter((button) => button.hasAttribute("popovertarget"))
+            .map((button) => button.getAttribute("popovertarget")),
+        )
+      assert.equal(new Set(targets).size, 2, "Each profile set has its own details panel")
     }
     await input.locator(".input-picker > summary").click()
     await input.getByRole("button", { name: /Profiles-0.pdf/ }).click()
@@ -89,6 +128,153 @@ test("Opaque profile-set IDs keep their descriptions across Input switches", { t
     }
   } finally {
     await browser?.close()
+  }
+})
+
+test("Profile details stay readable and aligned across layouts", { timeout: 180000 }, async () => {
+  const server = await serve()
+  await mkdir("../.local/tmp/web/profiles", { recursive: true })
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    let page
+    try {
+      page = await browser.newPage({ viewport: { width: 1440, height: 1080 }, reducedMotion: "reduce", hasTouch: true })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo&paint`)
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output")
+      const chooser = input.getByRole("combobox", { name: "Style profile", exact: true })
+      await chooser.waitFor()
+      assert.deepEqual(await chooser.locator("option").allTextContents(), [
+        "Outlined",
+        "Filled",
+        "Outlined+",
+        "Filled+",
+      ])
+      const information = input.getByRole("button", { name: "Details for Filled", exact: true })
+      for (const density of ["Normal", "Compact"]) {
+        await tab(input, "Grid")
+        await input.getByRole("button", { name: `${density} Input grid`, exact: true }).click()
+        await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+        await tab(input, "Style")
+        for (const [width, height] of [
+          [320, 568],
+          [390, 844],
+          [768, 1024],
+          [1440, 1080],
+        ])
+          for (const theme of ["light", "dark"])
+            for (const scale of [100, 200]) {
+              const label = `${engine.name()}-${density}-${width}-${theme}-${scale}`
+              await page.setViewportSize({ width, height })
+              await page.evaluate(
+                (value) => {
+                  document.documentElement.dataset.theme = value.theme
+                  document.documentElement.style.fontSize = `${value.scale}%`
+                },
+                { theme, scale },
+              )
+              await information.scrollIntoViewIfNeeded()
+              const geometry = await information.evaluate((button) => {
+                const target = button.getBoundingClientRect(),
+                  text = button.previousElementSibling
+                const style = getComputedStyle(text),
+                  paragraph = text.getBoundingClientRect()
+                const path = button.querySelector("path"),
+                  bounds = path.getBBox()
+                const center = new DOMPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2).matrixTransform(
+                  path.getScreenCTM(),
+                )
+                return {
+                  width: target.width,
+                  height: target.height,
+                  x: center.x - (target.x + target.width / 2),
+                  y: center.y - (paragraph.y + parseFloat(style.paddingBlockStart) + parseFloat(style.lineHeight) / 2),
+                }
+              })
+              assert.ok(geometry.width >= 44 && geometry.height >= 44, `${label}: usable information target`)
+              assert.ok(
+                Math.abs(geometry.x) < 1 && Math.abs(geometry.y) < 1,
+                `${label}: information icon shares the first text line's center`,
+              )
+              const before = await output.boundingBox()
+              await information.focus()
+              await information.press("Enter")
+              const panel = input.getByRole("region", { name: "Filled", exact: true })
+              await panel.waitFor()
+              await page.waitForFunction(() => document.activeElement?.matches(".profile-details"))
+              assert.match(await panel.innerText(), /preferred starting point for inkjet printers/)
+              assert.equal(
+                await panel.evaluate((element) => element.scrollTop),
+                0,
+                `${label}: guidance starts at its title`,
+              )
+              const bounds = await panel.boundingBox()
+              assert.ok(
+                bounds.x >= 0 &&
+                  bounds.y >= 0 &&
+                  bounds.x + bounds.width <= width + 1 &&
+                  bounds.y + bounds.height <= height + 1,
+                JSON.stringify({ label, bounds, button: await information.boundingBox() }),
+              )
+              assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, label)
+              assert.deepEqual(await output.boundingBox(), before, `${label}: guidance does not move Output`)
+              if (await panel.evaluate((element) => element.scrollHeight - element.clientHeight > 1)) {
+                const ended = panel.evaluate(
+                  (element) => new Promise((resolve) => element.addEventListener("scrollend", resolve, { once: true })),
+                )
+                await panel.press("End")
+                await ended
+                const bottom = await panel.evaluate((element) => element.scrollTop)
+                assert.ok(bottom > 0, `${label}: End scrolls the guidance`)
+                const returned = panel.evaluate(
+                  (element) => new Promise((resolve) => element.addEventListener("scrollend", resolve, { once: true })),
+                )
+                await panel.press("PageUp")
+                await returned
+                assert.ok(
+                  await panel.evaluate((element, offset) => element.scrollTop < offset, bottom),
+                  `${label}: Page Up scrolls the guidance`,
+                )
+              }
+              if (
+                density === "Normal" &&
+                ((width === 390 && theme === "light" && scale === 100) ||
+                  (width === 1440 && theme === "dark" && scale === 200))
+              )
+                await page.screenshot({ path: `../.local/tmp/web/profiles/${label}.png` })
+              await page.keyboard.press("Escape")
+              await panel.waitFor({ state: "hidden" })
+              assert.equal(await information.evaluate((element) => element === document.activeElement), true, label)
+            }
+        await page.setViewportSize({ width: 1440, height: 1080 })
+        await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+        await information.click()
+        await input.getByRole("region", { name: "Filled", exact: true }).waitFor()
+        await input.getByRole("tab", { name: "Style", exact: true }).click()
+        assert.equal(await input.locator(".profile-details:popover-open").count(), 0)
+        assert.equal(await chooser.inputValue(), "inkjet")
+        await information.click()
+        await input.getByRole("button", { name: "Close profile details", exact: true }).click()
+        assert.equal(await input.locator(".profile-details:popover-open").count(), 0)
+      }
+    } catch (error) {
+      if (page) {
+        const details = await page.evaluate(() => ({
+          font: document.documentElement.style.fontSize,
+          active: document.activeElement?.outerHTML.slice(0, 250),
+          panels: [...document.querySelectorAll(".profile-details:popover-open")].map((element) => ({
+            top: element.scrollTop,
+            height: element.clientHeight,
+            scroll: element.scrollHeight,
+          })),
+        }))
+        await captureLayout(page, `profile-details-${engine.name()}`, details)
+      }
+      throw error
+    } finally {
+      await browser.close()
+    }
   }
 })
 
@@ -1596,7 +1782,7 @@ test("Demo Cover is first and its fill survives Download and reopening", { timeo
     await tab(input, "Style")
     assert.deepEqual(
       await input.locator(".style-group > summary > span:not(.count) > span:first-child").allTextContents(),
-      ["Cover", "Patterns", "Guides", "Watermark"],
+      ["Cover", "Patterns", "Guides", "Margins", "Watermark"],
     )
     const cover = page.getByRole("textbox", { name: "Cover", exact: true })
     assert.equal(await cover.inputValue(), "#A0892C")
@@ -1842,7 +2028,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     await page.setViewportSize({ width: 1440, height: 1000 })
     assert.deepEqual(
       await input.locator(".style-group > summary > span:not(.count) > span:first-child").allTextContents(),
-      ["Patterns", "Guides", "Watermark"],
+      ["Patterns", "Guides", "Margins", "Watermark"],
     )
     assert.equal(await input.getByText("Practice shapes and repeats.", { exact: true }).isVisible(), true)
     const pattern = input.getByRole("group", { name: "Pattern", exact: true })
@@ -1861,15 +2047,15 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     assert.equal(await pattern.getByRole("checkbox").count(), 1)
     assert.deepEqual(
       await pattern
-        .getByRole("img", { name: "Fill color: #999999", exact: true })
+        .getByRole("img", { name: "Fill color: #000000", exact: true })
         .locator("span")
         .evaluate((element) => ({
           color: getComputedStyle(element).backgroundColor,
           opacity: getComputedStyle(element).opacity,
         })),
-      { color: "rgb(153, 153, 153)", opacity: "1" },
+      { color: "rgb(0, 0, 0)", opacity: "1" },
     )
-    assert.match(await pattern.locator('.quartet-text[title^="Fill opacity:"]').textContent(), /40%/)
+    assert.equal((await pattern.locator('.quartet-text[title^="Fill opacity:"]').textContent()).trim(), "0%")
     await checkGeometry(pattern)
     const watermark = input.locator('.style-object[aria-label="Watermark"]')
     await checkGeometry(watermark)
@@ -1988,6 +2174,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     await width.fill("0.05")
     assert.equal(await chooser.inputValue(), "")
     assert.match(await chooser.textContent(), /Custom/)
+    assert.equal(await input.locator(".profile-summary > button").count(), 0)
     await chooser.selectOption("generic")
     await page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
     assert.equal(await width.inputValue(), baselineWidth)

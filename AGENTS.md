@@ -171,7 +171,7 @@ Do not edit before sharing a working URL. Use `npm run dev -- --port 5173 --stri
 then stop it. Documentation-only work needs no server.
 
 `http://127.0.0.1:5173/?demo` opens the maintained four-page fixture with eight Output occurrences. Development also
-accepts `?demo&paint` for Style with Inkjet. Production preview uses `npm run preview -- --port 4173 --strictPort`.
+accepts `?demo&paint` for Style with Filled. Production preview uses `npm run preview -- --port 4173 --strictPort`.
 
 Keep self-contained HTML mockups under `.local/tmp/web/`, using project tokens and vocabulary. Retain descriptive
 variants for comparison. Add `package.json` containing `{"private":true}` in that temporary tree to keep Vite's cache

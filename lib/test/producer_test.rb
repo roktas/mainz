@@ -34,7 +34,12 @@ module Mainz
             "parameters" => ids,
             "profiles" => [
               {"id" => "original", "name" => "Original", "overrides" => {}},
-              {"id" => "lighter", "name" => "Lighter", "overrides" => {ids[1] => 0.3}}
+              {
+                "id" => "lighter",
+                "name" => "Lighter",
+                "details" => "Reduces ink coverage.\n\nCheck fine lines on your printer.",
+                "overrides" => {ids[1] => 0.3}
+              }
             ]
           }
         ]

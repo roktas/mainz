@@ -1,4 +1,4 @@
-<!-- Shows the active Source's applicable Style profiles and parameter groups. -->
+<!-- Shows the active Source's Style profiles, their guidance, and parameter groups. -->
 
 <script lang="ts">
   import { feedback, groups, matchingProfile, objects, resolve } from "./styles.ts"
@@ -150,9 +150,46 @@
               </select>
               <Icon name="next" />
             </div>
-            <p id={`${key}-profile-${index}`} class="control-description">
-              {description}
-            </p>
+            <div class="profile-summary">
+              <p id={`${key}-profile-${index}`} class="control-description">
+                {description}
+              </p>
+              {#key selected}
+                {#if selected?.details?.trim()}
+                  <button
+                    class="icon-button"
+                    popovertarget={`${key}-profile-details-${index}`}
+                    aria-label={`Details for ${selected.name}`}
+                    title={`Details for ${selected.name}`}><Icon name="info" /></button
+                  >
+                  <section
+                    id={`${key}-profile-details-${index}`}
+                    class="profile-details"
+                    popover="auto"
+                    tabindex="-1"
+                    aria-labelledby={`${key}-profile-title-${index}`}
+                    ontoggle={(event) => {
+                      if (event.newState === "open") {
+                        event.currentTarget.scrollTop = 0
+                        event.currentTarget.focus({ preventScroll: true })
+                      }
+                    }}
+                  >
+                    <header>
+                      <h3 id={`${key}-profile-title-${index}`}>{selected.name}</h3>
+                      <button
+                        class="icon-button"
+                        popovertarget={`${key}-profile-details-${index}`}
+                        popovertargetaction="hide"
+                        aria-label="Close profile details"
+                        title="Close profile details"><Icon name="close" /></button
+                      >
+                    </header>
+                    <p>{selected.details}</p>
+                  </section>
+                {/if}
+              {/key}
+            </div>
           </div>
         {/each}
         <div class="control-list">

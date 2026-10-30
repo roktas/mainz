@@ -387,7 +387,13 @@ module Mainz
           parameters: %w[opacity width],
           profiles: [
             {id: "generic", name: "Generic", overrides: {}},
-            {id: profile_id, name: "Inkjet", overrides: {opacity: 0.4}},
+            {
+              id: profile_id,
+              name: "Inkjet",
+              description: "Pale strokes",
+              details: "Uses less ink.\n\nSome printers show visible dots.",
+              overrides: {opacity: 0.4}
+            },
             {id: "bold", name: "Bold", overrides: {opacity: 0.8, width: 0.4}}
           ]
         },
