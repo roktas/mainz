@@ -1624,6 +1624,30 @@ test("Production Grid demo repeats the bundled sample without another PDF asset"
   }
 })
 
+test("Offline reads do not recreate a retired cache", { timeout: 60000 }, async () => {
+  const outDir = await production()
+  let server, browser
+  try {
+    server = await preview({ base: "/composer/", build: { outDir }, preview: { host: "127.0.0.1", port: 0 } })
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const page = await browser.newPage()
+    await page.goto(server.resolvedUrls.local[0])
+    await page.waitForFunction(() => !!navigator.serviceWorker.controller)
+    const result = await page.evaluate(async () => {
+      const names = await caches.keys()
+      for (const name of names) await caches.delete(name)
+      const response = await fetch(new URL("demo.pdf", document.baseURI))
+      return { status: response.status, names: await caches.keys() }
+    })
+    assert.equal(result.status, 503, "A retired worker cannot serve assets from a missing cache")
+    assert.deepEqual(result.names, [], "A late read must not recreate a retired cache")
+  } finally {
+    await browser?.close()
+    if (server)
+      await new Promise((resolve, reject) => server.httpServer.close((error) => (error ? reject(error) : resolve())))
+  }
+})
+
 test("Offline assets, scoped startup, and updates preserve a compatible workspace", { timeout: 180000 }, async () => {
   const outDir = await production()
   let server, browser
@@ -1979,7 +2003,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
         .evaluate((element) => getComputedStyle(element).color),
       await page.locator(".footnote").evaluate((element) => getComputedStyle(element).color),
     )
-    assert.ok((await page.evaluate(() => caches.keys())).every((name) => name.endsWith(":next")))
+    assert.deepEqual(await page.evaluate(() => caches.keys()), [`mainz:${url}:next`])
     await context.setOffline(true)
     await page.reload()
     assert.equal(

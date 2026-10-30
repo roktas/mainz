@@ -94,7 +94,7 @@ worker.addEventListener("fetch", (event) => {
   event.respondWith(
     (async () => {
       // Cached static bytes already match their build digest, independent of hosting Vary headers.
-      const response = await (await caches.open(cacheName)).match(navigation ? entry : url.href, { ignoreVary: true })
+      const response = await caches.match(navigation ? entry : url.href, { cacheName, ignoreVary: true })
       return (
         response ??
         new Response("Offline application assets are unavailable. Reconnect and reload.", {
