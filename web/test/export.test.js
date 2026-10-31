@@ -10,6 +10,86 @@ import { fixture, tab } from "./browser.js"
 
 const inventory = JSON.parse(await readFile(new URL("./viewports.json", import.meta.url), "utf8"))
 
+test(
+  "View prepares before opening the Output PDF and retains cancellation and popup recovery",
+  { timeout: 90000 },
+  async () => {
+    const server = await serve()
+    const browser = await chromium.launch({ channel: "chromium" })
+    try {
+      const page = await browser.newPage({ reducedMotion: "reduce" })
+      await page.addInitScript(() => {
+        localStorage.setItem("mainz:onboarding", "19")
+        const Original = Worker
+        window.Worker = class extends Original {
+          postMessage(message, ...rest) {
+            if (window.holdExport && message.job) {
+              window.resumeExport = () => super.postMessage(message, ...rest)
+              return
+            }
+            super.postMessage(message, ...rest)
+          }
+        }
+      })
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const output = page.locator(".composition-output")
+      await page.evaluate(() => (window.holdExport = true))
+      const before = await output.boundingBox()
+      await output.getByRole("button", { name: "View PDF", exact: true }).click()
+      const progress = page.locator('.header-feedback .feedback[data-kind="progress"]')
+      await progress.getByRole("button", { name: "Cancel", exact: true }).waitFor()
+      assert.equal(page.context().pages().length, 1, "No blank preparation tab")
+      assert.deepEqual(await output.boundingBox(), before)
+      const pending = page.waitForEvent("popup")
+      await page.evaluate(() => window.resumeExport())
+      const viewer = await pending
+      await viewer.waitForLoadState()
+      assert.ok(viewer.url().startsWith("blob:"))
+      const bytes = await page.evaluate(
+        async (url) => [...new Uint8Array(await (await fetch(url)).arrayBuffer())],
+        viewer.url(),
+      )
+      assert.equal(Buffer.from(bytes).subarray(0, 5).toString(), "%PDF-")
+      const description = await page.evaluate(async (buffer) => {
+        const { Processor } = await import("/src/processor.ts")
+        const processor = new Processor()
+        try {
+          return (await processor.run(new Uint8Array(buffer), 1)).description
+        } finally {
+          processor.dispose()
+        }
+      }, bytes)
+      assert.equal(description.pageCount, 8)
+      await viewer.close()
+      await page.evaluate(() => {
+        window.holdExport = true
+        window.resumeExport = undefined
+      })
+      await output.getByRole("button", { name: "View PDF", exact: true }).click()
+      await progress.getByRole("button", { name: "Cancel", exact: true }).click()
+      assert.equal(page.context().pages().length, 1)
+      assert.match(await page.locator(".footnote").innerText(), /View cancelled/)
+      // Reject the browser popup only, then retry the already completed PDF with a fresh user gesture.
+      await page.evaluate(() => {
+        window.holdExport = false
+        window.originalOpen = window.open
+        window.open = () => null
+      })
+      await output.getByRole("button", { name: "View PDF", exact: true }).click()
+      const failure = page.getByRole("dialog", { name: "View", exact: true })
+      await failure.getByRole("button", { name: "Retry", exact: true }).waitFor()
+      assert.match(await failure.innerText(), /Allow popups/)
+      await page.evaluate(() => (window.open = window.originalOpen))
+      const retry = page.waitForEvent("popup")
+      await failure.getByRole("button", { name: "Retry", exact: true }).click()
+      await (await retry).close()
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
 test("Output actions stay reachable with enlarged text", { timeout: 30000 }, async () => {
   const server = await serve()
   const browser = await chromium.launch()
@@ -27,6 +107,31 @@ test("Output actions stay reachable with enlarged text", { timeout: 30000 }, asy
         if (await switcher.isVisible()) await switcher.click()
         const print = await output.getByRole("button", { name: "Print", exact: true }).boundingBox()
         const download = await output.getByRole("button", { name: "Download", exact: true }).boundingBox()
+        const view = await output.getByRole("button", { name: "View PDF", exact: true }).boundingBox()
+        assert.equal(print.width, view.width)
+        assert.equal(print.height, view.height)
+        assert.ok(print.x + print.width < view.x && view.x + view.width < download.x)
+        const glyphs = await output
+          .locator(".output-actions > .icon-button svg")
+          .evaluateAll((icons) => icons.map((icon) => icon.getBoundingClientRect().width))
+        assert.equal(glyphs[0], glyphs[1])
+        assert.ok(glyphs[0] >= 28)
+        const ink = await output.locator(".output-actions > .icon-button path").evaluateAll((paths) =>
+          paths.map((path) => {
+            const box = path.getBBox()
+            const matrix = path.getScreenCTM()
+            return {
+              left: new DOMPoint(box.x, box.y).matrixTransform(matrix).x,
+              right: new DOMPoint(box.x + box.width, box.y).matrixTransform(matrix).x,
+            }
+          }),
+        )
+        assert.ok(
+          Math.abs(ink[1].left - ink[0].right - (download.x - ink[1].right)) < 1,
+          "Visible Print–View and View–Download gaps match",
+        )
+        const documentIcon = page.locator(".input-heading .workspace-icon, .input-title .workspace-icon").first()
+        if (await documentIcon.isVisible()) assert.equal((await documentIcon.boundingBox()).width, glyphs[0])
         assert.ok(print.width >= 44 && print.height >= 44 && download.width >= 44 && download.height >= 44)
         assert.ok(print.x >= 0 && print.x + print.width < download.x && download.x + download.width <= width)
         assert.ok(Math.abs(print.y + print.height / 2 - download.y - download.height / 2) < 1)
@@ -66,7 +171,7 @@ test("Output actions stay reachable with enlarged text", { timeout: 30000 }, asy
   }
 })
 
-test("Mobile Download retains the workspace button column beside Print", { timeout: 90000 }, async () => {
+test("Mobile Output keeps Print, View, and Download on one row", { timeout: 90000 }, async () => {
   const server = await serve()
   const cases = inventory.cases.filter((entry) => entry.pointer === "coarse")
   await mkdir("../.local/tmp/web/layout/export", { recursive: true })
@@ -89,21 +194,18 @@ test("Mobile Download retains the workspace button column beside Print", { timeo
           const switcher = page.getByRole("button", { name: "Output", exact: true })
           if (!(await switcher.isVisible())) continue
           await switcher.click()
-          const reference = await switcher.boundingBox()
           const download = output.getByRole("button", { name: "Download", exact: true })
           const button = await download.boundingBox()
           const print = await output.getByRole("button", { name: "Print", exact: true }).boundingBox()
+          const view = await output.getByRole("button", { name: "View PDF", exact: true }).boundingBox()
           const state = await output.locator(".output-state").boundingBox()
-          const diagnostic = JSON.stringify({ engine: engine.name(), id, size, reference, button, print, state })
-          assert.ok(
-            Math.abs(button.width - reference.width) < 1 && Math.abs(button.height - reference.height) < 1,
-            diagnostic,
-          )
-          assert.ok(Math.abs(button.x - reference.x) < 1, diagnostic)
+          const diagnostic = JSON.stringify({ engine: engine.name(), id, size, button, print, view, state })
+          assert.equal(print.width, view.width, diagnostic)
+          assert.equal(print.height, view.height, diagnostic)
+          assert.ok(print.x + print.width < view.x && view.x + view.width < button.x, diagnostic)
           assert.ok(print.width >= 44 && print.height >= 44 && state.width >= 44, diagnostic)
           assert.ok(state.x + state.width <= print.x && print.x + print.width < button.x, diagnostic)
           assert.ok(Math.abs(print.y + print.height / 2 - button.y - button.height / 2) < 1, diagnostic)
-          if (size === 100) assert.equal(await download.locator("span").isVisible(), true, diagnostic)
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), diagnostic)
           if (width === 375 && height === 667)
             await output
@@ -119,13 +221,40 @@ test("Mobile Download retains the workspace button column beside Print", { timeo
 
 test("Print receives the generated Output PDF and its selected filename", { timeout: 90000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch(engine === chromium ? { channel: "chromium" } : {})
+  for (const touch of [false, true]) {
+    const browser = await chromium.launch({ channel: "chromium" })
     try {
-      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
-      await page.addInitScript(() => {
+      const page = await browser.newPage({
+        viewport: { width: 1440, height: 1000 },
+        reducedMotion: "reduce",
+        hasTouch: touch,
+      })
+      await page.addInitScript((apple) => {
         if (location.protocol === "http:") localStorage.setItem("mainz:onboarding", "19")
         window.printRequests = []
+        if (apple) {
+          Object.defineProperty(navigator, "vendor", { get: () => "Apple Computer, Inc." })
+          const open = window.open
+          window.open = (...args) => {
+            const viewer = open.apply(window, args)
+            if (!viewer) return viewer
+            return new Proxy(viewer, {
+              get(target, key) {
+                if (key === "print")
+                  return () => {
+                    if (window.blockPrint) throw new Error("Printing blocked")
+                    window.printRequests.push({
+                      href: target.location.href,
+                      type: target.document.contentType,
+                      title: target.document.title,
+                    })
+                  }
+                const value = Reflect.get(target, key, target)
+                return typeof value === "function" ? value.bind(target) : value
+              },
+            })
+          }
+        }
         window.addEventListener("message", (event) => {
           if (event.origin === location.origin && event.data?.kind === "print-test")
             window.printRequests.push(event.data)
@@ -136,7 +265,7 @@ test("Print receives the generated Output PDF and its selected filename", { time
             { kind: "print-test", href: location.href, type: document.contentType, title: document.title },
             location.origin,
           )
-      })
+      }, touch)
       await page.goto(server.resolvedUrls.local[0])
       await page
         .locator("input[type=file]")
@@ -166,57 +295,49 @@ test("Print receives the generated Output PDF and its selected filename", { time
       const action = output.getByRole("button", { name: "Print", exact: true })
       await action.focus()
       const before = await output.locator(".section-heading").boundingBox()
-      if (engine === chromium)
-        await page.evaluate(() => {
-          window.transitions = []
-          window.watchPrint = true
-          // oxlint-disable-next-line unicorn/consistent-function-scoping -- Playwright serializes this page callback.
-          const sample = () => {
-            if (!window.watchPrint) return
-            const composer = document.querySelector(".composer")
-            window.transitions.push({
-              scroll: [scrollX, scrollY],
-              view: composer.dataset.view,
-              tabs: [...composer.querySelectorAll("[role=tab][aria-selected=true]")].map((element) => element.id),
-              panes: [...composer.querySelectorAll(".selection-panel, .composition-output")].map((element) =>
-                element.getBoundingClientRect().toJSON(),
-              ),
-              panel: !!document.querySelector(".print-dialog[open]"),
-            })
-            requestAnimationFrame(sample)
-          }
-          sample()
-        })
+      await page.evaluate(() => {
+        window.transitions = []
+        window.watchPrint = true
+        // oxlint-disable-next-line unicorn/consistent-function-scoping -- Playwright serializes this page callback.
+        const sample = () => {
+          if (!window.watchPrint) return
+          const composer = document.querySelector(".composer")
+          window.transitions.push({
+            scroll: [scrollX, scrollY],
+            view: composer.dataset.view,
+            tabs: [...composer.querySelectorAll("[role=tab][aria-selected=true]")].map((element) => element.id),
+            panes: [...composer.querySelectorAll(".selection-panel, .composition-output")].map((element) =>
+              element.getBoundingClientRect().toJSON(),
+            ),
+            panel: !!document.querySelector(".print-dialog[open]"),
+          })
+          requestAnimationFrame(sample)
+        }
+        sample()
+      })
       await action.click()
       const print = page.getByRole("dialog", { name: "Print", exact: true })
-      let url
-      if (engine === chromium) {
-        await page.waitForFunction(() => window.printRequests.length > 0)
-        const request = await page.evaluate(() => window.printRequests[0])
-        assert.equal(request.type, "application/pdf")
-        assert.equal(request.title, "Practice.pdf")
-        url = request.href
-        assert.equal(await print.isVisible(), false)
-        assert.deepEqual(await output.locator(".section-heading").boundingBox(), before)
-        assert.equal(await action.evaluate((button) => document.activeElement === button), true)
-        const transitions = await page.evaluate(() => {
-          window.watchPrint = false
-          return window.transitions
-        })
-        for (const sample of transitions) assert.deepEqual(sample, transitions[0])
-      } else {
-        await print.getByRole("link", { name: "Open PDF to print", exact: true }).waitFor()
-        assert.equal(await print.locator(".print-name").innerText(), "Practice.pdf")
-        url = await print.getByRole("link", { name: "Open PDF to print", exact: true }).getAttribute("href")
-      }
+      await page.waitForFunction(() => window.printRequests.length > 0)
+      const request = await page.evaluate(() => window.printRequests[0])
+      assert.equal(request.type, "application/pdf")
+      assert.equal(request.title, "Practice.pdf")
+      const url = request.href
+      assert.equal(await print.isVisible(), false)
+      assert.deepEqual(await output.locator(".section-heading").boundingBox(), before)
+      assert.equal(await action.evaluate((button) => document.activeElement === button), true)
+      const transitions = await page.evaluate(() => {
+        window.watchPrint = false
+        return window.transitions
+      })
+      for (const sample of transitions) assert.deepEqual(sample, transitions[0])
+
       const bytes = await page.evaluate(
         async (href) => [...new Uint8Array(await (await fetch(href)).arrayBuffer())],
         url,
       )
       assert.equal(Buffer.from(bytes).subarray(0, 5).toString(), "%PDF-")
       const pending = page.waitForEvent("download")
-      if (engine === chromium) await output.getByRole("button", { name: "Download", exact: true }).click()
-      else await print.getByRole("link", { name: "Download PDF", exact: true }).click()
+      await output.getByRole("button", { name: "Download", exact: true }).click()
       const saved = await pending
       assert.equal(saved.suggestedFilename(), "Practice.pdf")
       assert.ok((await readFile(await saved.path())).equals(Buffer.from(bytes)), "Downloaded bytes match the print PDF")
@@ -231,17 +352,16 @@ test("Print receives the generated Output PDF and its selected filename", { time
       }, bytes)
       assert.equal(description.pageCount, 2, "Print gets composed Output, not the seven-page Input")
       assert.equal(description.parameters["s0:guides-stroke-color"].parameter.value, "#765432")
-      if (engine === chromium) {
-        await page.addInitScript(() => {
-          window.print = () => {
-            throw new Error("Printing blocked")
-          }
-        })
-        await action.click()
-        await print.getByRole("link", { name: "Open PDF to print", exact: true }).waitFor()
-        assert.equal(await print.locator(".print-name").innerText(), "Practice.pdf")
-        await print.getByRole("button", { name: "Close Print", exact: true }).click()
-      }
+      await page.evaluate(() => (window.blockPrint = true))
+      await page.addInitScript(() => {
+        window.print = () => {
+          throw new Error("Printing blocked")
+        }
+      })
+      await action.click()
+      await print.getByRole("link", { name: "Open PDF to print", exact: true }).waitFor()
+      assert.equal(await print.locator(".print-name").innerText(), "Practice.pdf")
+      await print.getByRole("button", { name: "Close Print", exact: true }).click()
       await trigger.click()
       assert.equal(await field.inputValue(), "Practice.pdf")
       await editor.getByRole("button", { name: "Use default", exact: true }).click()
@@ -249,7 +369,7 @@ test("Print receives the generated Output PDF and its selected filename", { time
       assert.match(await field.inputValue(), /^Export_\d{4}-\d{4}-\d{4}-\d{4}\.pdf$/)
       await mkdir("../.local/var/printing", { recursive: true })
       await writeFile(
-        `../.local/var/printing/${engine.name()}.json`,
+        `../.local/var/printing/chromium-${touch ? "touch" : "desktop"}.json`,
         JSON.stringify(
           {
             browser: browser.version(),
@@ -257,7 +377,7 @@ test("Print receives the generated Output PDF and its selected filename", { time
             pdf: createHash("sha256").update(Buffer.from(bytes)).digest("hex"),
             inputPages: 7,
             outputPages: description.pageCount,
-            mode: engine === chromium ? "native-pdf-viewer" : "open-download-fallback",
+            mode: "native-pdf-viewer",
             systemDialog: "substituted at window.print",
             result: "passed",
           },

@@ -104,7 +104,8 @@ export async function verifyPDF(pdf: PDFDocumentProxy) {
     const viewport = page.getViewport({ scale: Math.min(0.2, 2048 / size.width, 2048 / size.height) })
     canvas.width = Math.ceil(viewport.width)
     canvas.height = Math.ceil(viewport.height)
-    await page.render({ canvas, viewport, annotationMode: AnnotationMode.DISABLE }).promise
+    // Offscreen inspection must also finish while a native PDF window has focus.
+    await page.render({ canvas, viewport, intent: "print", annotationMode: AnnotationMode.DISABLE }).promise
   } finally {
     canvas.width = canvas.height = 0
     page.cleanup()

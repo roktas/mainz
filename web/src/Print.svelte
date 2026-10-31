@@ -9,21 +9,53 @@
   let frame = $state<HTMLIFrameElement>()
   let pdf = $state.raw<Prepared>()
   let url = $state("")
-  // shortcut: embedded printing is limited to non-Apple desktop viewers; expand after native browser acceptance.
-  const direct =
-    navigator.pdfViewerEnabled && !navigator.vendor.includes("Apple") && !matchMedia("(pointer: coarse)").matches
+  let timer: ReturnType<typeof setInterval> | undefined
+  const direct = navigator.pdfViewerEnabled
+  const separate = navigator.vendor.includes("Apple")
   function release() {
+    clearInterval(timer)
+    pdf = undefined
     if (url) URL.revokeObjectURL(url)
     url = ""
   }
-  export function show(prepared: Prepared) {
+  export function show(prepared: Prepared, viewer?: Window) {
     release()
+    if (viewer?.closed) return
     pdf = prepared
     url = URL.createObjectURL(new Blob([prepared.bytes], { type: "application/pdf" }))
     if (!direct) dialog.showModal()
+    else if (separate) open(viewer)
+  }
+  function open(reserved?: Window) {
+    const viewer = reserved ?? window.open(url, "_blank")
+    if (!viewer) {
+      dialog.showModal()
+      return
+    }
+    if (reserved) viewer.location.replace(url)
+    let attempts = 0
+    timer = setInterval(() => {
+      if (viewer.closed || ++attempts > 40) {
+        clearInterval(timer)
+        if (viewer.closed) pdf = undefined
+        else dialog.showModal()
+        return
+      }
+      try {
+        if (viewer.document.contentType !== "application/pdf" || viewer.document.readyState !== "complete") return
+        clearInterval(timer)
+        viewer.document.title = pdf!.name
+        viewer.focus()
+        viewer.print()
+        pdf = undefined
+      } catch {
+        clearInterval(timer)
+        dialog.showModal()
+      }
+    }, 250)
   }
   function print() {
-    if (!pdf || !direct || !frame || !url) return
+    if (!pdf || !frame || !url) return
     try {
       const viewer = frame.contentWindow
       if (!viewer || viewer.location.href !== url) return
@@ -42,7 +74,7 @@
   onDestroy(release)
 </script>
 
-{#if direct && url}
+{#if direct && !separate && url}
   <iframe
     bind:this={frame}
     class="print-frame"

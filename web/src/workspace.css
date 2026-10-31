@@ -3,7 +3,7 @@
 @layer layouts {
   @scope (#app) {
     .composer {
-      --print-size: max(46px, calc(1.5rem + 16px));
+      --document-icon-size: 1.75rem;
       display: flex;
       flex-direction: column;
       flex: 1;
@@ -322,8 +322,8 @@
       .composer .section-heading h2 {
         font-size: 1rem;
         & .workspace-icon {
-          inline-size: 1.75rem;
-          block-size: 1.75rem;
+          inline-size: var(--document-icon-size);
+          block-size: var(--document-icon-size);
         }
       }
       .composer .input-heading .file-picker,
@@ -453,7 +453,6 @@
           min-inline-size: 0;
           justify-content: start;
           text-align: start;
-          margin-inline-end: calc(var(--print-size) + 0.25em);
         }
       }
       .composer {
@@ -472,7 +471,7 @@
           min-block-size: calc(2.25rem + 2 * clamp(0.5rem, 0.44rem + 0.2vi, 0.75rem) + 2px);
         }
         & .input-heading .file-picker,
-        & .output-actions > button,
+        & .output-actions > .primary,
         & .output-state > button {
           inline-size: 100%;
           min-inline-size: 0;
@@ -491,15 +490,8 @@
           }
         }
       }
-      .composer .output-actions {
-        position: relative;
-        & > .print-action {
-          position: absolute;
-          inset-inline-end: calc(100% + 0.25em);
-          inset-block: 0;
-          inline-size: var(--print-size);
-          min-inline-size: var(--print-size);
-        }
+      .composer .composition-output > .section-heading {
+        grid-template-columns: minmax(44px, 1fr) auto;
       }
     }
     @container toolbar (width <= 20em) {

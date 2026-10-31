@@ -1332,14 +1332,13 @@ export async function checkWorkspace(page, prepared, ordinary) {
       const totalsBox = await output.locator(".output-state").boundingBox()
       const printBox = await output.getByRole("button", { name: "Print", exact: true }).boundingBox()
       const downloadBox = await output.getByRole("button", { name: "Download", exact: true }).boundingBox()
-      const switchBox = await nav.getByRole("button", { name: "Output", exact: true }).boundingBox()
+      const viewBox = await output.getByRole("button", { name: "View PDF", exact: true }).boundingBox()
       assert.ok(
         Math.abs(totalsBox.y + totalsBox.height / 2 - downloadBox.y - downloadBox.height / 2) < 1 &&
           totalsBox.x + totalsBox.width <= printBox.x &&
-          printBox.x + printBox.width < downloadBox.x &&
-          Math.abs(downloadBox.x - switchBox.x) < 1 &&
-          Math.abs(downloadBox.width - switchBox.width) < 1,
-        "Mobile Download retains the Output column, with Print between totals and Download",
+          printBox.x + printBox.width < viewBox.x &&
+          viewBox.x + viewBox.width < downloadBox.x,
+        "Mobile Output keeps totals, Print, View, and Download on one row",
       )
       await first.locator(".occurrence-actions").evaluate((element) => element.scrollIntoView({ block: "center" }))
       assert.ok(

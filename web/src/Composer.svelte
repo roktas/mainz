@@ -38,6 +38,7 @@
     change,
     download,
     print,
+    viewPDF,
     filename,
     rename,
     error,
@@ -62,6 +63,7 @@
     change: (text: string) => void
     download: () => void
     print: () => void
+    viewPDF: () => void
     filename?: string
     rename: (source: HTMLElement) => void
     error: (message: string) => void
@@ -1898,6 +1900,13 @@
             title={downloadError ?? "Print Output PDF"}
             disabled={!output.pages.length || outputProcessing || !!downloadError}
             onclick={print}><Icon name="print" /></button
+          >
+          <button
+            class="icon-button view-action"
+            aria-label="View PDF"
+            title={downloadError ?? "View Output PDF"}
+            disabled={!output.pages.length || outputProcessing || !!downloadError}
+            onclick={viewPDF}><Icon name="eye" /></button
           >
           <button
             class="primary"

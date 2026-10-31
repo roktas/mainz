@@ -1,4 +1,4 @@
-<!-- Prepares validated Output PDFs for download or print, with cancellation and shared progress feedback. -->
+<!-- Prepares validated Output PDFs for printing, viewing, and downloading with shared cancellation and progress. -->
 
 <script module lang="ts">
   import type { Input, Job } from "./model.ts"
@@ -25,13 +25,15 @@
     blocked,
     info,
     print,
+    progress = $bindable(""),
   }: {
     prepare: () => Snapshot
     blocked: boolean
     info: (text: string) => void
-    print: (pdf: Prepared) => void
+    print: (pdf: Prepared, viewer?: Window) => void
+    progress?: string
   } = $props()
-  let action = $state<"Download" | "Print">("Download")
+  let action = $state<"Download" | "Print" | "View">("Download")
   let dialog: HTMLDialogElement
   let failure = $state("")
   let running = $state(false)
@@ -40,14 +42,24 @@
   let revision = 0
   let task: PDFDocumentLoadingTask | undefined
   let url: string | undefined
+  let viewURL: string | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   let disposed = false
+  let printWindow: Window | undefined
+  let viewReady = false
+  function view() {
+    if (!viewURL) return
+    const viewer = window.open(viewURL, "_blank")
+    if (!viewer) throw new Error("Allow popups to view the Output PDF, then retry.")
+    viewer.opener = null
+    dialog.close()
+  }
   function release() {
     clearTimeout(timer)
     if (url) URL.revokeObjectURL(url)
     url = undefined
   }
-  function cancel() {
+  export function cancel() {
     if (running) {
       revision++
       processor?.dispose()
@@ -55,13 +67,17 @@
       void task?.destroy()
       task = undefined
       running = false
+      progress = ""
+      printWindow?.close()
+      printWindow = undefined
       info(`${action} cancelled. Your pages and styles are retained.`)
     }
     dialog.close()
   }
-  export async function start(next: "Download" | "Print" = "Download") {
+  export async function start(next: "Download" | "Print" | "View" = "Download") {
     if (running || blocked) return
     action = next
+    viewReady = false
     const generation = ++revision
     const worker = new Processor()
     failure = ""
@@ -70,16 +86,23 @@
       const snapshot = prepare()
       const { recipe, inputs, expected } = snapshot
       running = true
+      if (action === "Print" && navigator.pdfViewerEnabled && navigator.vendor.includes("Apple")) {
+        printWindow = window.open("", "_blank") ?? undefined
+        if (!printWindow) throw new Error("Allow popups to print the Output PDF, then retry.")
+        printWindow.document.title = "Print Output"
+      }
       let bytes = snapshot.prepared
       if (!bytes) {
         stage = "Preparing PDF…"
-        if (!dialog.open) dialog.showModal()
+        if (action === "View") progress = stage
+        else if (!dialog.open) dialog.showModal()
         processor = worker
         const result = await worker.compose(recipe, inputs, generation)
         if (disposed || generation !== revision) return
         if (result.description.pageCount !== expected || result.report?.pages.length !== expected)
           throw new Error("The completed PDF does not match the Output page count.")
         stage = "Checking PDF…"
+        if (action === "View") progress = stage
         loadingTask = await openPDF(new Uint8Array(result.bytes))
         if (disposed || generation !== revision) return
         task = loadingTask
@@ -91,8 +114,16 @@
         bytes = result.bytes
       }
       dialog.close()
+      if (action === "View") {
+        if (viewURL) URL.revokeObjectURL(viewURL)
+        viewURL = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }))
+        viewReady = true
+        view()
+        return
+      }
       if (action === "Print") {
-        print({ bytes, name: snapshot.name(), expected, complete: snapshot.complete })
+        print({ bytes, name: snapshot.name(), expected, complete: snapshot.complete }, printWindow)
+        printWindow = undefined
         return
       }
       release()
@@ -107,6 +138,8 @@
       dialog.close()
     } catch (reason) {
       if (!disposed && generation === revision) {
+        printWindow?.close()
+        printWindow = undefined
         failure = reason instanceof Error ? reason.message : "Output processing failed."
         info("")
         if (!dialog.open) dialog.showModal()
@@ -115,6 +148,7 @@
       void loadingTask?.destroy()
       worker.dispose()
       if (generation === revision) {
+        progress = ""
         running = false
         processor = undefined
         task = undefined
@@ -127,6 +161,8 @@
     processor?.dispose()
     void task?.destroy()
     release()
+    if (viewURL) URL.revokeObjectURL(viewURL)
+    printWindow?.close()
   })
 </script>
 
@@ -142,7 +178,19 @@
   <Feedback kind={running ? "progress" : "error"} text={running ? stage : failure}>
     {#snippet actions()}
       <button onclick={cancel}>Cancel</button>
-      {#if !running}<button class="primary" disabled={blocked} onclick={() => start(action)}>Retry</button>{/if}
+      {#if !running}<button
+          class="primary"
+          disabled={blocked}
+          onclick={() => {
+            if (action === "View" && viewReady) {
+              try {
+                view()
+              } catch (reason) {
+                failure = reason instanceof Error ? reason.message : "PDF viewing failed."
+              }
+            } else void start(action)
+          }}>Retry</button
+        >{/if}
     {/snippet}
   </Feedback>
 </dialog>

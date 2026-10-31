@@ -466,12 +466,12 @@ the lens cancels that render and releases its acquired page and crop buffers.
 Settings shows the current lens magnification beside − and + buttons. Each step halves or doubles the magnification. The
 buttons disable at 2× and 128× respectively.
 
-## Download, Print, and recovery
+## Download, Print, View, and recovery
 
-Download and Print are disabled for empty or invalid Output and for invalid drafts affecting its content. Unused invalid
-parameters do not block them. Relevant Source processing disables both actions while the header reports progress.
-Full-document Style processing retains one completed composition per Source. Other combined Outputs need their own PDF
-preparation.
+Download, Print, and View are disabled for empty or invalid Output and for invalid drafts affecting its content. Unused
+invalid parameters do not block them. Relevant Source processing disables these actions while the header reports
+progress. Full-document Style processing retains one completed composition per Source. Other combined Outputs need their
+own PDF preparation.
 
 Output also checks the referenced Inputs and Sources against the Download limits: 32 of each and 128 MiB of aggregate
 Input bytes. Each Input identity counts once. Unused open Inputs do not count. An actionable error appears beside
@@ -495,14 +495,20 @@ remains in the workspace until Home. The editor rejects empty names, path separa
 `.pdf` when needed. Use default restores automatic naming. The header does not display the filename beside its controls.
 
 Print captures the same Job and uses the same preparation, validation, inspection, and cancellation as Download. It
-hands the completed PDF bytes to the browser's PDF viewer, preserving the Output pages and styles. Eligible non-Apple
-desktop viewers receive a print request with the Output filename as the viewer document title, without an application
-viewer panel. Other browsers use a panel with Open PDF to print and Download PDF. A rejected or inaccessible print API
-also opens that panel. The browser can silently ignore a print request; Download remains available. Paper, scaling,
-printer selection, and the choice of system dialog belong to the browser or PDF application, which also controls the
-print-job name. A print request does not prove that printing completed and does not clear the unsaved warning.
-Downloading the prepared PDF clears the downloaded choices' warning. Unused Source changes and invalid drafts retain
-their warning.
+hands the completed PDF bytes to the browser's PDF viewer, preserving the Output pages and styles. Browsers with native
+PDF viewing receive a print request with the Output filename as the viewer document title, without an application viewer
+panel. Apple browsers use a separate PDF window because embedded iOS PDF printing can omit pages. Print reserves that
+window during the user action, before asynchronous preparation. Cancellation or preparation failure closes the reserved
+window. Browsers without native PDF viewing use a panel with Open PDF to print and Download PDF. A rejected or
+inaccessible print API also opens that panel. The browser can silently ignore a print request; Download remains
+available. Paper, scaling, printer selection, and the choice of system dialog belong to the browser or PDF application,
+which also controls the print-job name. A print request does not prove that printing completed and does not clear the
+unsaved warning. Downloading the prepared PDF clears the downloaded choices' warning. Unused Source changes and invalid
+drafts retain their warning.
+
+View captures and inspects the same Output PDF. Preparation and Cancel appear in the app header. A new browser PDF tab
+opens only after preparation succeeds. A blocked popup retains the completed PDF for Retry with a fresh user action.
+Viewing does not clear the unsaved warning. The browser controls its PDF viewer's displayed name and download behavior.
 
 Opening, rendering, or processing failures retain the workspace and last completed Source bytes. Errors explain the next
 action and retain local retry controls. No partial or uninspected PDF downloads. Recoverable failures do not discard
@@ -638,25 +644,26 @@ enter the retained cache. Temporary render canvases release after completion, ca
 
 App coordinates Input opening and selects retained documents after view updates. Output owns the accepted composition,
 occurrence selection, inspection, filename, and Download acknowledgment. Export owns shared Output preparation and
-inspection. Print owns the native viewer and its temporary URL; the filename editor owns only its draft. Each Source's
-Preview owns style processing, cancellation, and displayed-document handoff. App and Preview ignore obsolete processing
-results. The PDF boundary owns loading-task and raster release, initial page geometry, and labels. Opening reads
-complete geometry in bounded batches and releases each acquired page after inspection. Cancellation discards incomplete
-geometry. Each preview render releases its own acquired page, including obsolete generations, and cancels superseded
-render tasks. Cancellation retains the last completed raster.
+inspection and the latest View URL. Print owns its native PDF frame or window and temporary URL. The filename editor
+owns only its draft. Each Source's Preview owns style processing, cancellation, and displayed-document handoff. App and
+Preview ignore obsolete processing results. The PDF boundary owns loading-task and raster release, initial page
+geometry, and labels. Opening reads complete geometry in bounded batches and releases each acquired page after
+inspection. Cancellation discards incomplete geometry. Each preview render releases its own acquired page, including
+obsolete generations, and cancels superseded render tasks. Cancellation retains the last completed raster.
 
 Page pinch anchoring belongs to the displayed PDF, physical page, and sequence position. Cancellation, a page-context
 change, a hidden pane, or teardown clears pending anchoring and its temporary transform. Reattaching the same Page
 during a zoom update preserves its pending anchor.
 
-| Stage             | Retained resources                                         | Cancellation or replacement                                                                       |
-| ----------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Open and validate | Pending PDF loading task and validation worker             | Destroy the task and worker. Ignore late reads and labels.                                        |
-| Attach            | Immutable Input PDF and its Source                         | Retain the Input while any Source uses it.                                                        |
-| Style update      | Source preview, completed composition bytes, and processor | Cancel obsolete work. Keep the last completed preview.                                            |
-| Download          | Completed bytes or independent processing, temporary URL   | Release temporary resources. Keep selections and styles.                                          |
-| Print             | One native-viewer frame and URL; snapshot during handoff   | Handoff or panel close releases the snapshot; replacement or disposal releases the frame and URL. |
-| Remove or dispose | Documents retained by remaining Sources                    | Release documents and rasters after their last owner leaves.                                      |
+| Stage             | Retained resources                                              | Cancellation or replacement                                                                                            |
+| ----------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Open and validate | Pending PDF loading task and validation worker                  | Destroy the task and worker. Ignore late reads and labels.                                                             |
+| Attach            | Immutable Input PDF and its Source                              | Retain the Input while any Source uses it.                                                                             |
+| Style update      | Source preview, completed composition bytes, and processor      | Cancel obsolete work. Keep the last completed preview.                                                                 |
+| Download          | Completed bytes or independent processing, temporary URL        | Release temporary resources. Keep selections and styles.                                                               |
+| Print             | One native PDF frame or window and URL; snapshot during handoff | Handoff, window close, or panel close releases the snapshot. Replacement or disposal releases the owned frame and URL. |
+| View              | Latest completed PDF URL                                        | The next completed View or disposal releases the URL.                                                                  |
+| Remove or dispose | Documents retained by remaining Sources                         | Release documents and rasters after their last owner leaves.                                                           |
 
 ## Acceptance
 

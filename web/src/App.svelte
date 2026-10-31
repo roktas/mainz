@@ -52,6 +52,7 @@
   let updating = $state(false)
   let openingStatus = $state("")
   let offlineStatus = $state("")
+  let exportStatus = $state("")
   let tour = $state<TourStep>()
   let exporter = $state<ReturnType<typeof Export>>(null!)
   let printer = $state<ReturnType<typeof Print>>(null!)
@@ -634,8 +635,11 @@
         onclick={logo}><Logo /></button
       >{:else}<a class="brand" href={import.meta.env.BASE_URL} aria-label="PDF Composer home" onclick={logo}><Logo /></a
       >{/if}
-    {#if loading || processingSource || offlineStatus || failure || failedSources.length || (notice && notice !== firstAction)}
+    {#if loading || processingSource || offlineStatus || exportStatus || failure || failedSources.length || (notice && notice !== firstAction)}
       <div class="header-feedback">
+        {#if exportStatus}<Feedback kind="progress" text={exportStatus}>
+            {#snippet actions()}<button onclick={() => exporter.cancel()}>Cancel</button>{/snippet}
+          </Feedback>{/if}
         {#if loading}<Feedback kind="progress" class="opening-progress" text={openingStatus}>
             {#snippet actions()}<button onclick={cancelOpen}>Cancel</button>{/snippet}
           </Feedback>{:else if processingSource}<Feedback
@@ -676,7 +680,9 @@
             kind="error"
             text={`${source.input.name}: ${source.preview.error} The last completed preview is shown.`}
           >
-            {#snippet actions()}<button onclick={() => schedule(source.id)}>Retry Input styles</button>{/snippet}
+            {#snippet actions()}<button aria-label="Retry Input styles" onclick={() => schedule(source.id)}
+                >Retry</button
+              >{/snippet}
           </Feedback>{/each}
       </div>
     {/if}
@@ -717,6 +723,7 @@
       change={composition}
       download={() => void exporter.start()}
       print={() => void exporter.start("Print")}
+      viewPDF={() => void exporter.start("View")}
       filename={output.filename}
       rename={(source) => filenameEditor.show(source)}
       {error}
@@ -758,10 +765,11 @@
 
 <Export
   bind:this={exporter}
+  bind:progress={exportStatus}
   prepare={exportSnapshot}
   blocked={outputProcessing || !!downloadError}
   {info}
-  print={(pdf) => printer.show(pdf)}
+  print={(pdf, viewer) => printer.show(pdf, viewer)}
 />
 <Print bind:this={printer} {info} />
 <Filename bind:this={filenameEditor} bind:value={output.filename} suggest={() => downloadName(parts, sources)} />

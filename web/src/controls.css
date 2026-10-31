@@ -36,19 +36,27 @@
       }
     }
     .output-actions {
+      --output-glyph-size: var(--document-icon-size);
+      --output-action-size: max(46px, calc(var(--output-glyph-size) + 8px));
       display: flex;
       align-items: stretch;
-      gap: 0.5em;
-      & > .print-action {
+      gap: 0.25em;
+      & > .icon-button {
         flex: none;
-        inline-size: var(--print-size);
-        min-inline-size: var(--print-size);
+        inline-size: var(--output-action-size);
+        min-inline-size: var(--output-action-size);
         min-block-size: 46px;
         border: 1px solid transparent;
+        padding: 3px;
         & > svg {
-          inline-size: 1.5rem;
-          block-size: 1.5rem;
+          flex: none;
+          inline-size: var(--output-glyph-size);
+          block-size: var(--output-glyph-size);
         }
+      }
+      & > .view-action {
+        /* Match the visible gap between the icons at their 20/24 viewBox bounds. */
+        margin-inline-end: calc((var(--output-action-size) - var(--output-glyph-size) * 5 / 6) / 2);
       }
     }
     .count {

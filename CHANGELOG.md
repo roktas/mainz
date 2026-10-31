@@ -9,6 +9,7 @@
 - On-demand authored guidance in Style, with no information button for missing or blank details.
 - Print for the generated Output PDF, with browser PDF viewing and download alternatives.
 - Editable Output filenames for Download and Print, with a way to restore automatic naming.
+- A separate View PDF action between Print and Download, with preparation feedback in the app header.
 
 ### Changed
 
@@ -16,6 +17,7 @@
 - Extended Page zoom to 3200% for buttons, keyboard shortcuts, pinch, and width fitting.
 - Floating Quartet editors on desktop, retaining inline editors on narrow and touch layouts.
 - Reduced desktop pane headings and document icons while preserving interaction targets.
+- Matched Print and View glyphs to the 28 px document icons, with equal visible gaps between Output actions.
 
 ### Fixed
 
@@ -24,6 +26,8 @@
 - Matched the desktop Open PDF and Download button dimensions.
 - Kept parameter information dismissal inside its Style editor and restored focus to its information button.
 - Reduced exaggerated thin strokes in Grid thumbnails with bounded sampling and separate thumbnail/Page raster reuse.
+- Kept narrow-screen header feedback within the existing header area without moving the workspace.
+- Used a separate PDF window for Safari printing to retain all Output pages instead of printing an embedded first page.
 
 ## 1.0.0 - 2026-10-29
 

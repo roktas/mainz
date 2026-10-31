@@ -151,6 +151,7 @@
       }
     }
     .header-inner {
+      position: relative;
       min-block-size: calc(72px + env(safe-area-inset-top, 0px));
       padding-block-start: env(safe-area-inset-top, 0px);
       display: block grid;
@@ -171,7 +172,6 @@
       }
       &:has(.header-feedback) {
         row-gap: 0;
-        padding-block-end: calc(var(--gap) / 2);
       }
     }
     .masthead {
@@ -184,12 +184,20 @@
       }
     }
     .header-feedback {
-      grid-column: 1 / -1;
-      grid-row: 2;
+      position: absolute;
+      inset-block-start: env(safe-area-inset-top, 0px);
+      inset-block-end: 0;
+      inset-inline: 0;
+      z-index: 1;
+      margin-inline: auto;
+      padding-inline: calc(var(--gap) / 2);
+      background: var(--paper);
+      display: block grid;
+      grid-auto-rows: max-content;
+      align-content: safe center;
       justify-self: center;
       inline-size: min(100%, 40rem);
       min-inline-size: 0;
-      max-block-size: min(16rem, 40dvb);
       overflow: auto;
       overscroll-behavior: contain;
       & > .feedback + .feedback {
@@ -200,6 +208,11 @@
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
         overflow: clip;
+      }
+    }
+    @container app-header (width <= 55rem) {
+      .header-inner:has(.header-feedback) > :is(.brand, .header-actions) {
+        visibility: hidden;
       }
     }
     @container app-header (width > 55rem) {
@@ -214,9 +227,11 @@
         }
       }
       .header-feedback {
+        position: static;
         grid-column: 2;
         grid-row: 1;
         padding-block: calc(var(--gap) / 2);
+        max-block-size: min(16rem, 40dvb);
       }
     }
     .header-actions {
@@ -430,7 +445,7 @@
       pointer-events: none;
     }
     .output-dialog {
-      inset-block-start: max(13px, env(safe-area-inset-top, 0px));
+      inset-block-start: max(8px, env(safe-area-inset-top, 0px));
       inset-block-end: auto;
       inset-inline: var(--gutter);
       inline-size: fit-content;

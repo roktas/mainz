@@ -108,6 +108,23 @@ They cover fitted and enlarged pages across the matrix, with zoom limits at repr
 Production smoke tests cover enlarged phone text and a tablet. The development suites own the larger interaction and
 layout matrices. Failure screenshots and asserted raster captures remain part of the suites.
 
+### Output printing checks
+
+The browser Print test substitutes the operating-system dialog only. It retains generated PDF bytes and checks their
+page count, styles, filename, and equality with Download. This test does not establish native print-dialog support.
+Native Safari acceptance uses its normal UI. Safari controlled by WebDriver can suppress `window.print()`.
+
+Native checks on 2026-10-31 cover the separate-window Print path. macOS 27.0.1 (26A434), Safari 27.0.1
+(22625.1.29.11.28), and an iPad (9th generation) simulator with iOS 27.0 (24A434) show all eight Output pages. The iOS
+27.0 Home Screen app opens the PDF but does not open the native print sheet. Home Screen printing remains unaccepted.
+The available iOS 27.1 runtime supports only iPhone Duo. Its fixture navigation failed before Print. That run supplies
+no printing result. The reported physical iPad (8th generation), iPadOS 26.6.2, and physical printer output remain
+untested. The user requested simulator-only validation for this follow-up.
+
+Evidence is retained in `.local/var/printing/followup/`, including source changes, browser logs, native logs,
+screenshots, and the fixture digest. Keep native Safari and Home Screen results separate. A PDF tab alone does not prove
+that the system print sheet opened or that all pages reached it.
+
 Grid browser scenarios supply their PDF through request routing. They do not require the manual
 `.local/tmp/web/grid/sample.pdf` fixture.
 

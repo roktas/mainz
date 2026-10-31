@@ -82,8 +82,8 @@ async function bounds(page, feedback) {
     const actions = element.querySelector(".feedback-actions")?.getBoundingClientRect()
     const icon = element.querySelector(":scope > svg, :scope > .spinner").getBoundingClientRect()
     const controls = Array.from(document.querySelectorAll(".header-inner > .brand, .header-actions"), (control) =>
-      control.getBoundingClientRect().toJSON(),
-    )
+      getComputedStyle(control).visibility === "hidden" ? undefined : control.getBoundingClientRect().toJSON(),
+    ).filter(Boolean)
     return {
       width: innerWidth,
       overflow: document.documentElement.scrollWidth > innerWidth,
@@ -124,6 +124,65 @@ async function bounds(page, feedback) {
 
 const frames = (page) =>
   page.evaluate(() => new Promise((finish) => requestAnimationFrame(() => requestAnimationFrame(finish))))
+
+test("Header progress preserves workspace bounds and scroll at narrow widths", { timeout: 120000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    try {
+      const page = await browser.newPage({ hasTouch: true, reducedMotion: "reduce" })
+      await page.addInitScript(() => {
+        localStorage.setItem("mainz:onboarding", "19")
+        const Original = Worker
+        window.Worker = class extends Original {
+          postMessage(message, ...rest) {
+            if (window.holdStyles && (message.changes || message.job)) return
+            super.postMessage(message, ...rest)
+          }
+        }
+      })
+      await page.goto(server.resolvedUrls.local[0] + "?demo")
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const geometry = () =>
+        page.evaluate(() => ({
+          scroll: [scrollX, scrollY],
+          boxes: [".header-inner", "main", ".composer"].map((selector) => {
+            const box = document.querySelector(selector).getBoundingClientRect()
+            return selector === ".header-inner" ? { y: box.y, height: box.height } : { y: box.y }
+          }),
+        }))
+      for (const width of [320, 390, 810, 1024])
+        for (const text of ["100%", "200%"]) {
+          await page.setViewportSize({ width, height: 900 })
+          await page.emulateMedia({ colorScheme: text === "100%" ? "dark" : "light" })
+          await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+          const input = page.getByRole("button", { name: "Input", exact: true })
+          if (await input.isVisible()) await input.click()
+          await page.locator(".selection-panel").getByRole("tab", { name: "Style", exact: true }).click()
+          const profile = page.getByRole("combobox", { name: "Style profile", exact: true })
+          await profile.scrollIntoViewIfNeeded()
+          await page.evaluate(() => (window.holdStyles = true))
+          const before = await geometry()
+          const current = await profile.inputValue()
+          const choices = await profile
+            .locator("option:not([disabled])")
+            .evaluateAll((options) => options.map((option) => option.value))
+          await profile.selectOption(choices.find((value) => value !== current))
+          const cancel = page.getByRole("button", { name: "Cancel style processing", exact: true })
+          await cancel.waitFor()
+          assert.deepEqual(await geometry(), before, JSON.stringify({ engine: engine.name(), width, text }))
+          assert.ok(await cancel.isEnabled())
+          await cancel.click()
+          await page.evaluate(() => (window.holdStyles = false))
+          const retry = page.getByRole("button", { name: "Retry Input styles", exact: true })
+          await retry.click()
+          await cancel.waitFor({ state: "hidden" })
+        }
+    } finally {
+      await browser.close()
+    }
+  }
+})
 
 async function matrix(page, feedback, name, settle = () => frames(page)) {
   const directory = resolve("../.local/var/web/feedback")
@@ -259,7 +318,15 @@ test(
             const retry = error.getByRole("button", { name: "Retry Input styles", exact: true })
             await retry.scrollIntoViewIfNeeded()
             const target = await retry.boundingBox()
-            assert.ok(target.width >= 44 && target.height >= 44 && target.y >= 0 && target.y + target.height <= 568)
+            assert.ok(
+              target.width >= 44 && target.height >= 44 && target.y >= 0 && target.y + target.height <= 568,
+              JSON.stringify({
+                engine: engine.name(),
+                width,
+                target,
+                header: await page.locator(".header-inner").boundingBox(),
+              }),
+            )
             assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
             await page.screenshot({
               path: resolve(`../.local/var/web/feedback/recovery-${engine.name()}-${width}-${colorScheme}.png`),
