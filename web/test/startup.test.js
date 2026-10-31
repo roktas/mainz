@@ -1907,12 +1907,38 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     ])
     await update.waitFor()
     assert.equal(await update.isEnabled(), true)
+    await updateNotice.waitFor()
     for (const [width, text] of [
       [320, "200%"],
       [1440, "100%"],
     ]) {
       await page.setViewportSize({ width, height: 900 })
       await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+      const alignment = await updateNotice.evaluate((message) => {
+        const group = message.closest(".feedback")
+        const icon = group.querySelector(":scope > svg").getBoundingClientRect()
+        const action = group.querySelector(".feedback-actions svg").getBoundingClientRect()
+        const header = document.querySelector(".header-inner").getBoundingClientRect()
+        const range = document.createRange()
+        range.selectNodeContents(message)
+        const words = range.getBoundingClientRect()
+        const visible = message.getBoundingClientRect()
+        return {
+          gaps: [Math.max(words.left, visible.left) - icon.right, action.left - Math.min(words.right, visible.right)],
+          center: (icon.left + action.right) / 2,
+          headerCenter: header.x + header.width / 2,
+          vertical: words.y + words.height / 2 - header.y - header.height / 2,
+          height: words.height,
+          lineHeight: parseFloat(getComputedStyle(message).lineHeight),
+        }
+      })
+      assert.ok(
+        alignment.gaps.every((gap) => gap >= 0 && gap <= 24),
+        JSON.stringify(alignment),
+      )
+      assert.ok(Math.abs(alignment.center - alignment.headerCenter) < 1, JSON.stringify(alignment))
+      assert.ok(Math.abs(alignment.vertical) < 2, JSON.stringify(alignment))
+      assert.ok(alignment.height <= alignment.lineHeight, JSON.stringify(alignment))
       const gap = await update.evaluate((button) => {
         const timestamp = document.querySelector(".footnote > time").getBoundingClientRect()
         return timestamp.top - button.getBoundingClientRect().bottom

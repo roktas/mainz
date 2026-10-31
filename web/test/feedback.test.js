@@ -105,11 +105,14 @@ async function bounds(page, feedback) {
     Math.abs(result.icon.y + result.icon.height / 2 - result.message.y - result.message.height / 2) < 1,
     JSON.stringify(result),
   )
-  if (result.actions)
+  if (result.actions) {
+    assert.ok(result.message.left - result.icon.right <= 24, JSON.stringify(result))
+    assert.ok(result.actions.left - result.message.right <= 24, JSON.stringify(result))
     assert.ok(
       result.message.right <= result.actions.left + 1 || result.message.bottom <= result.actions.top + 1,
       JSON.stringify(result),
     )
+  }
   if (await feedback.evaluate((element) => !!element.closest(".header-feedback")))
     for (const control of result.controls)
       assert.ok(
@@ -124,6 +127,62 @@ async function bounds(page, feedback) {
 
 const frames = (page) =>
   page.evaluate(() => new Promise((finish) => requestAnimationFrame(() => requestAnimationFrame(finish))))
+
+test("Touch dialog focus stays quiet and keyboard focus stays visible", { timeout: 30000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 810, height: 1080 },
+        hasTouch: true,
+        reducedMotion: "reduce",
+      })
+      await page.addInitScript(() => {
+        localStorage.setItem("mainz:onboarding", "19")
+        const Original = Worker
+        window.Worker = class extends Original {
+          postMessage(message, ...rest) {
+            if (window.holdExport && message.job) return
+            super.postMessage(message, ...rest)
+          }
+        }
+      })
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      await page.getByRole("button", { name: "Output", exact: true }).tap()
+      await page.evaluate(() => (window.holdExport = true))
+      await page.locator(".composition-output").getByRole("button", { name: "Download", exact: true }).tap()
+      const dialog = page.getByRole("dialog", { name: "Download", exact: true })
+      const cancel = dialog.getByRole("button", { name: "Cancel", exact: true })
+      await cancel.waitFor()
+      assert.equal(
+        await cancel.evaluate((button) => {
+          const style = getComputedStyle(button)
+          return (
+            style.outlineStyle === "none" || style.outlineWidth === "0px" || style.outlineColor === "rgba(0, 0, 0, 0)"
+          )
+        }),
+        true,
+      )
+      await page.keyboard.press("Tab")
+      await cancel.focus()
+      assert.equal(
+        await cancel.evaluate((button) => {
+          const style = getComputedStyle(button)
+          return (
+            style.outlineStyle !== "none" && style.outlineWidth !== "0px" && style.outlineColor !== "rgba(0, 0, 0, 0)"
+          )
+        }),
+        true,
+      )
+      await cancel.tap()
+      assert.equal(await dialog.isVisible(), false)
+    } finally {
+      await browser.close()
+    }
+  }
+})
 
 test("Header progress preserves workspace bounds and scroll at narrow widths", { timeout: 120000 }, async () => {
   const server = await serve()
@@ -312,9 +371,16 @@ test(
             await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
             const message = await error.locator(".feedback-message").boundingBox()
             const actions = await error.locator(".feedback-actions").boundingBox()
-            assert.ok(message.width >= 160, JSON.stringify({ width, message, actions }))
-            assert.ok(actions.y >= message.y + message.height - 1, JSON.stringify({ width, message, actions }))
-            assert.ok((await error.boundingBox()).height < 650, "Recovery needs bounded reading and scrolling")
+            assert.ok(message.width > 0, JSON.stringify({ width, message, actions }))
+            assert.ok(message.x + message.width <= actions.x, JSON.stringify({ width, message, actions }))
+            assert.ok(Math.abs(message.y + message.height / 2 - actions.y - actions.height / 2) < 1)
+            const text = error.getByRole("alert")
+            assert.equal(await text.getAttribute("title"), (await text.innerText()).trim())
+            await text.evaluate((element) => (element.scrollLeft = element.scrollWidth))
+            assert.ok(
+              await text.evaluate((element) => element.scrollLeft > 0),
+              "Long errors can be read within their single line",
+            )
             const retry = error.getByRole("button", { name: "Retry Input styles", exact: true })
             await retry.scrollIntoViewIfNeeded()
             const target = await retry.boundingBox()

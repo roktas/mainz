@@ -125,6 +125,11 @@ Evidence is retained in `.local/var/printing/followup/`, including source change
 screenshots, and the fixture digest. Keep native Safari and Home Screen results separate. A PDF tab alone does not prove
 that the system print sheet opened or that all pages reached it.
 
+The 2026-11-01 View follow-up uses the same iPad simulator and iOS 27.0 runtime. A native PDF link opens Safari's viewer
+inside the installed app. Closing it preserves a custom nine-page Output. `view7.log` and `View.swift` retain the
+successful native scenario. Physical iPad Chrome feedback established that Retry opens the PDF. The changed Chrome path
+has browser regression coverage with the iOS Chrome user agent, but no new physical-device run.
+
 Grid browser scenarios supply their PDF through request routing. They do not require the manual
 `.local/tmp/web/grid/sample.pdf` fixture.
 

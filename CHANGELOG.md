@@ -18,6 +18,7 @@
 - Floating Quartet editors on desktop, retaining inline editors on narrow and touch layouts.
 - Reduced desktop pane headings and document icons while preserving interaction targets.
 - Matched Print and View glyphs to the 28 px document icons, with equal visible gaps between Output actions.
+- Compact mobile Output actions, with a square Download icon button and totals beside the icons.
 
 ### Fixed
 
@@ -28,6 +29,10 @@
 - Reduced exaggerated thin strokes in Grid thumbnails with bounded sampling and separate thumbnail/Page raster reuse.
 - Kept narrow-screen header feedback within the existing header area without moving the workspace.
 - Used a separate PDF window for Safari printing to retain all Output pages instead of printing an embedded first page.
+- Kept View from attempting asynchronous PDF popups in iPad Chrome and used Safari's in-app PDF viewer for Home Screen
+  viewing.
+- Kept header messages compact, centered, and on one row, with reachable recovery actions and no persistent touch focus
+  outlines on non-editable controls.
 
 ## 1.0.0 - 2026-10-29
 

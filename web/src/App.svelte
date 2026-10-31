@@ -617,7 +617,12 @@
   >
 {/snippet}
 
-<svelte:document onclick={dismiss} onkeydown={dismiss} />
+<svelte:document
+  onclick={dismiss}
+  onkeydown={dismiss}
+  onpointerdowncapture={() => (document.documentElement.dataset.keyboard = "false")}
+  onkeydowncapture={() => (document.documentElement.dataset.keyboard = "true")}
+/>
 <svelte:window
   onbeforeunload={(event) => {
     const approved = homeApproved

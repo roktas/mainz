@@ -19,6 +19,7 @@
   import { Processor } from "./processor.ts"
   import { openPDF, verifyPDF } from "./pdf.ts"
   import Feedback from "./Feedback.svelte"
+  import Icon from "./Icon.svelte"
 
   let {
     prepare,
@@ -42,15 +43,27 @@
   let revision = 0
   let task: PDFDocumentLoadingTask | undefined
   let url: string | undefined
-  let viewURL: string | undefined
+  let viewURL = $state<string>()
   let timer: ReturnType<typeof setTimeout> | undefined
   let disposed = false
   let printWindow: Window | undefined
-  let viewReady = false
-  function view() {
+  let viewReady = $state(false)
+  const standalone =
+    matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  function view(gesture = false) {
     if (!viewURL) return
+    // Home Screen Safari keeps the workspace when a native PDF link opens its in-app viewer.
+    // iOS Chrome can create a failed tab before rejecting an asynchronous window.open().
+    if (
+      standalone ||
+      (!gesture && (/CriOS\//.test(navigator.userAgent) || navigator.userActivation?.isActive === false))
+    ) {
+      dialog.showModal()
+      return
+    }
     const viewer = window.open(viewURL, "_blank")
-    if (!viewer) throw new Error("Allow popups to view the Output PDF, then retry.")
+    if (!viewer) throw new Error("Allow popups to view PDF.")
     viewer.opener = null
     dialog.close()
   }
@@ -88,7 +101,7 @@
       running = true
       if (action === "Print" && navigator.pdfViewerEnabled && navigator.vendor.includes("Apple")) {
         printWindow = window.open("", "_blank") ?? undefined
-        if (!printWindow) throw new Error("Allow popups to print the Output PDF, then retry.")
+        if (!printWindow) throw new Error("Allow popups to print PDF.")
         printWindow.document.title = "Print Output"
       }
       let bytes = snapshot.prepared
@@ -118,7 +131,7 @@
         if (viewURL) URL.revokeObjectURL(viewURL)
         viewURL = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }))
         viewReady = true
-        view()
+        view(!!snapshot.prepared)
         return
       }
       if (action === "Print") {
@@ -175,21 +188,34 @@
     cancel()
   }}
 >
-  <Feedback kind={running ? "progress" : "error"} text={running ? stage : failure}>
+  <Feedback kind={running ? "progress" : failure ? "error" : "notice"} text={running ? stage : failure || "PDF ready."}>
     {#snippet actions()}
-      <button onclick={cancel}>Cancel</button>
-      {#if !running}<button
+      <button aria-label="Cancel" title="Cancel" onclick={cancel}><Icon name="close" /><span>Cancel</span></button>
+      {#if !running && viewReady && standalone}<a
           class="primary"
+          href={viewURL}
+          target="_blank"
+          rel="noopener"
+          aria-label="View PDF"
+          title="View PDF"
+          onclick={() => dialog.close()}><Icon name="eye" /><span>View PDF</span></a
+        >{:else if !running}<button
+          class="primary"
+          aria-label={viewReady && !failure ? "View PDF" : "Retry"}
+          title={viewReady && !failure ? "View PDF" : "Retry"}
           disabled={blocked}
           onclick={() => {
             if (action === "View" && viewReady) {
               try {
-                view()
+                view(true)
               } catch (reason) {
                 failure = reason instanceof Error ? reason.message : "PDF viewing failed."
               }
             } else void start(action)
-          }}>Retry</button
+          }}
+          ><Icon name={viewReady && !failure ? "eye" : "reset"} /><span
+            >{viewReady && !failure ? "View PDF" : "Retry"}</span
+          ></button
         >{/if}
     {/snippet}
   </Feedback>

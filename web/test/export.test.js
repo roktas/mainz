@@ -43,6 +43,11 @@ test(
       assert.deepEqual(await output.boundingBox(), before)
       const pending = page.waitForEvent("popup")
       await page.evaluate(() => window.resumeExport())
+      await progress.waitFor({ state: "hidden" })
+      const fresh = page
+        .getByRole("dialog", { name: "View", exact: true })
+        .getByRole("button", { name: "View PDF", exact: true })
+      if (await fresh.isVisible()) await fresh.click()
       const viewer = await pending
       await viewer.waitForLoadState()
       assert.ok(viewer.url().startsWith("blob:"))
@@ -78,6 +83,8 @@ test(
       })
       await output.getByRole("button", { name: "View PDF", exact: true }).click()
       const failure = page.getByRole("dialog", { name: "View", exact: true })
+      await failure.waitFor()
+      if (await fresh.isVisible()) await fresh.click()
       await failure.getByRole("button", { name: "Retry", exact: true }).waitFor()
       assert.match(await failure.innerText(), /Allow popups/)
       await page.evaluate(() => (window.open = window.originalOpen))
@@ -89,6 +96,69 @@ test(
     }
   },
 )
+
+test("iOS Chrome View waits for a fresh tap before opening a PDF tab", { timeout: 30000 }, async () => {
+  const server = await serve()
+  const browser = await chromium.launch({ channel: "chromium" })
+  try {
+    const page = await browser.newPage({
+      viewport: { width: 810, height: 1080 },
+      hasTouch: true,
+      reducedMotion: "reduce",
+      userAgent:
+        "Mozilla/5.0 (iPad; CPU OS 26_6_2 like Mac OS X) AppleWebKit/605.1.15 CriOS/158.0.8127.2 Mobile Safari/604.1",
+    })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.locator(".composer[aria-busy=false]").waitFor()
+    await page.getByRole("button", { name: "Output", exact: true }).tap()
+    await page.locator(".composition-output").getByRole("button", { name: "View PDF", exact: true }).tap()
+    const ready = page.getByRole("dialog", { name: "View", exact: true })
+    await ready.getByText("PDF ready.", { exact: true }).waitFor()
+    assert.equal(page.context().pages().length, 1, "No failed or blank PDF tab before the fresh tap")
+    const pending = page.waitForEvent("popup")
+    await ready.getByRole("button", { name: "View PDF", exact: true }).tap()
+    const viewer = await pending
+    await viewer.waitForLoadState()
+    assert.ok(viewer.url().startsWith("blob:"))
+    assert.equal(await ready.isVisible(), false)
+    await viewer.close()
+  } finally {
+    await browser.close()
+  }
+})
+
+test("Installed View uses a native PDF link without a scripted popup", { timeout: 30000 }, async () => {
+  const server = await serve()
+  const browser = await chromium.launch({ channel: "chromium" })
+  try {
+    const page = await browser.newPage({ reducedMotion: "reduce" })
+    await page.addInitScript(() => {
+      localStorage.setItem("mainz:onboarding", "19")
+      Object.defineProperty(navigator, "standalone", { get: () => true })
+      window.open = () => {
+        throw new Error("Installed View must not request a popup")
+      }
+    })
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.locator(".composer[aria-busy=false]").waitFor()
+    await page.locator(".composition-output").getByRole("button", { name: "View PDF", exact: true }).click()
+    const ready = page.getByRole("dialog", { name: "View", exact: true })
+    const link = ready.getByRole("link", { name: "View PDF", exact: true })
+    await link.waitFor()
+    assert.equal(await link.getAttribute("rel"), "noopener")
+    const pending = page.waitForEvent("popup")
+    await link.click()
+    const viewer = await pending
+    await viewer.waitForLoadState()
+    assert.ok(viewer.url().startsWith("blob:"))
+    assert.equal(await ready.isVisible(), false)
+    assert.equal(await page.locator(".composition-output .composition-totals").innerText(), "8 pages, 4 sheets")
+    await viewer.close()
+  } finally {
+    await browser.close()
+  }
+})
 
 test("Output actions stay reachable with enlarged text", { timeout: 30000 }, async () => {
   const server = await serve()
@@ -104,7 +174,8 @@ test("Output actions stay reachable with enlarged text", { timeout: 30000 }, asy
       for (const size of [100, 200]) {
         await page.evaluate((textSize) => (document.documentElement.style.fontSize = `${textSize}%`), size)
         const switcher = page.getByRole("button", { name: "Output", exact: true })
-        if (await switcher.isVisible()) await switcher.click()
+        const mobile = await switcher.isVisible()
+        if (mobile) await switcher.click()
         const print = await output.getByRole("button", { name: "Print", exact: true }).boundingBox()
         const download = await output.getByRole("button", { name: "Download", exact: true }).boundingBox()
         const view = await output.getByRole("button", { name: "View PDF", exact: true }).boundingBox()
@@ -112,11 +183,20 @@ test("Output actions stay reachable with enlarged text", { timeout: 30000 }, asy
         assert.equal(print.height, view.height)
         assert.ok(print.x + print.width < view.x && view.x + view.width < download.x)
         const glyphs = await output
-          .locator(".output-actions > .icon-button svg")
+          .locator(".output-actions > button svg")
           .evaluateAll((icons) => icons.map((icon) => icon.getBoundingClientRect().width))
         assert.equal(glyphs[0], glyphs[1])
         assert.ok(glyphs[0] >= 28)
-        const ink = await output.locator(".output-actions > .icon-button path").evaluateAll((paths) =>
+        if (mobile) {
+          assert.equal(glyphs[0], glyphs[2])
+          assert.equal(download.width, print.width)
+          assert.equal(download.height, download.width)
+          assert.equal(
+            await output.getByRole("button", { name: "Download", exact: true }).locator("span").isVisible(),
+            false,
+          )
+        }
+        const ink = await output.locator(".output-actions > button path").evaluateAll((paths) =>
           paths.map((path) => {
             const box = path.getBBox()
             const matrix = path.getScreenCTM()
@@ -200,6 +280,13 @@ test("Mobile Output keeps Print, View, and Download on one row", { timeout: 9000
           const view = await output.getByRole("button", { name: "View PDF", exact: true }).boundingBox()
           const state = await output.locator(".output-state").boundingBox()
           const diagnostic = JSON.stringify({ engine: engine.name(), id, size, button, print, view, state })
+          const totals = output.locator(".composition-totals")
+          if (await totals.isVisible()) {
+            const counts = await totals.boundingBox()
+            assert.ok(Math.abs(counts.x + counts.width - state.x - state.width) < 1, diagnostic)
+            const gap = print.x - counts.x - counts.width
+            assert.ok(gap >= 12 && gap <= print.width, "Counts stay close to the icons with a readable gap")
+          }
           assert.equal(print.width, view.width, diagnostic)
           assert.equal(print.height, view.height, diagnostic)
           assert.ok(print.x + print.width < view.x && view.x + view.width < button.x, diagnostic)

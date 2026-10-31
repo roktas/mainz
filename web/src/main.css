@@ -61,8 +61,10 @@
   @scope (.feedback) {
     :scope {
       min-inline-size: 0;
+      inline-size: fit-content;
+      max-inline-size: 100%;
       display: block grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: max(44px, 1em) minmax(0, 1fr) auto;
       align-items: center;
       gap: 0.5em;
       color: light-dark(oklch(0% 0 none), oklch(100% 0 none));
@@ -72,32 +74,41 @@
       &[data-kind="error"] {
         color: var(--danger);
       }
+      &:not(:has(.feedback-actions)) {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
       &:has(.file-errors) {
         align-items: start;
         & > svg {
           margin-block-start: calc((44px - 1em) / 2);
         }
       }
-      &[data-kind="error"]:has(.feedback-actions > button:not(.icon-button)) {
-        .feedback-message,
-        .feedback-actions {
-          grid-column: 2 / -1;
-        }
-      }
     }
     .feedback-message {
       min-inline-size: 0;
       overflow-wrap: anywhere;
+      text-align: start;
+      & > p {
+        overflow: auto;
+        scrollbar-width: none;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
     .feedback-actions {
-      display: block flex;
-      flex-wrap: wrap;
+      display: block grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
       align-items: center;
       justify-content: center;
-      gap: 0.5em;
+      gap: 0.75em;
       min-inline-size: 0;
-      & > button {
+      & > :is(button, a) {
+        min-inline-size: 44px;
         max-inline-size: 100%;
+        &:not(.icon-button) {
+          padding-inline: 0.75em;
+        }
       }
     }
     .feedback-actions > .icon-button {
@@ -107,6 +118,7 @@
       }
     }
     .spinner {
+      justify-self: center;
       color: var(--accent);
       inline-size: 1em;
       block-size: 1em;
@@ -120,6 +132,7 @@
     svg {
       inline-size: 1em;
       block-size: 1em;
+      justify-self: center;
     }
   }
   @scope (#app) {
@@ -151,6 +164,7 @@
       }
     }
     .header-inner {
+      anchor-name: --header;
       position: relative;
       min-block-size: calc(72px + env(safe-area-inset-top, 0px));
       padding-block-start: env(safe-area-inset-top, 0px);
@@ -169,9 +183,6 @@
         grid-column: 2;
         grid-row: 1;
         justify-self: end;
-      }
-      &:has(.header-feedback) {
-        row-gap: 0;
       }
     }
     .masthead {
@@ -195,6 +206,7 @@
       display: block grid;
       grid-auto-rows: max-content;
       align-content: safe center;
+      justify-items: center;
       justify-self: center;
       inline-size: min(100%, 40rem);
       min-inline-size: 0;
@@ -202,12 +214,6 @@
       overscroll-behavior: contain;
       & > .feedback + .feedback {
         margin-block-start: calc(var(--gap) / 2);
-      }
-      & .feedback[data-kind="progress"] p {
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
-        overflow: clip;
       }
     }
     @container app-header (width <= 55rem) {
@@ -227,11 +233,7 @@
         }
       }
       .header-feedback {
-        position: static;
-        grid-column: 2;
-        grid-row: 1;
-        padding-block: calc(var(--gap) / 2);
-        max-block-size: min(16rem, 40dvb);
+        inline-size: min(100%, 32rem);
       }
     }
     .header-actions {
@@ -445,7 +447,8 @@
       pointer-events: none;
     }
     .output-dialog {
-      inset-block-start: max(8px, env(safe-area-inset-top, 0px));
+      position-anchor: --header;
+      inset-block-start: anchor(center);
       inset-block-end: auto;
       inset-inline: var(--gutter);
       inline-size: fit-content;
@@ -456,10 +459,13 @@
       border: 0;
       border-radius: 0;
       background: var(--paper);
+      transform: translateY(-50%);
       &::backdrop {
         background: color-mix(in oklch, var(--paper) 65%, transparent);
       }
       &.print-dialog {
+        inset-block-start: max(8px, env(safe-area-inset-top, 0px));
+        transform: none;
         inline-size: min(36rem, calc(100% - 2 * var(--gutter)));
         padding: var(--gap);
         font-size: var(--body);
@@ -481,6 +487,25 @@
             justify-content: center;
             min-block-size: 46px;
           }
+        }
+      }
+    }
+    .export-dialog .feedback-actions {
+      & svg {
+        display: none;
+      }
+      & :is(button, a) {
+        white-space: nowrap;
+      }
+      @media (width <= 30em) {
+        & svg {
+          display: block;
+        }
+        & span {
+          display: none;
+        }
+        & :is(button, a) {
+          padding-inline: 0.25em;
         }
       }
     }

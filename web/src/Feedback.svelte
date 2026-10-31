@@ -39,11 +39,7 @@
 >
   {#if kind === "progress"}<span class="spinner" aria-hidden="true"></span>{:else}<Icon name="info" />{/if}
   <div class="feedback-message">
-    {#if text}<p
-        role={kind === "error" ? "alert" : "status"}
-        aria-atomic="true"
-        title={kind === "progress" ? text : undefined}
-      >
+    {#if text}<p role={kind === "error" ? "alert" : "status"} aria-atomic="true" title={text}>
         {text}
       </p>{/if}
     {@render children?.()}

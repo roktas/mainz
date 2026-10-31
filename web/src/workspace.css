@@ -451,8 +451,8 @@
         }
         & .output-state {
           min-inline-size: 0;
-          justify-content: start;
-          text-align: start;
+          justify-content: end;
+          text-align: end;
         }
       }
       .composer {
@@ -471,7 +471,6 @@
           min-block-size: calc(2.25rem + 2 * clamp(0.5rem, 0.44rem + 0.2vi, 0.75rem) + 2px);
         }
         & .input-heading .file-picker,
-        & .output-actions > .primary,
         & .output-state > button {
           inline-size: 100%;
           min-inline-size: 0;
@@ -492,6 +491,25 @@
       }
       .composer .composition-output > .section-heading {
         grid-template-columns: minmax(44px, 1fr) auto;
+      }
+      .composer .output-actions {
+        gap: clamp(0.375em, 1cqi, 0.5em);
+      }
+      .composer .output-actions > .primary {
+        flex: none;
+        align-self: center;
+        aspect-ratio: 1;
+        inline-size: var(--output-action-size);
+        min-inline-size: var(--output-action-size);
+        min-block-size: var(--output-action-size);
+        padding: 3px;
+        & > svg {
+          inline-size: var(--output-glyph-size);
+          block-size: var(--output-glyph-size);
+        }
+        & > span {
+          display: none;
+        }
       }
     }
     @container toolbar (width <= 20em) {

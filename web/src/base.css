@@ -86,7 +86,8 @@
     font: inherit;
   }
   button,
-  .file-picker {
+  .file-picker,
+  a.primary {
     appearance: none;
     min-inline-size: 104px;
     min-block-size: 46px;
@@ -143,6 +144,9 @@
       }
     }
   }
+  a.primary {
+    text-decoration: none;
+  }
   input,
   select {
     max-inline-size: 100%;
@@ -179,6 +183,9 @@
   :focus-visible {
     outline: 1px solid var(--secondary);
     outline-offset: 2px;
+  }
+  :is(button, a.primary):focus-visible {
+    outline-offset: -1px;
   }
   h1,
   h2,
@@ -260,6 +267,14 @@
     to {
       opacity: 1;
       translate: 0 0;
+    }
+  }
+}
+
+@layer views {
+  @scope (html[data-keyboard="false"]) {
+    :focus-visible:not(input, select, textarea, [contenteditable]) {
+      outline: 2px solid transparent;
     }
   }
 }

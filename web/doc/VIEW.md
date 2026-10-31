@@ -84,7 +84,8 @@ The interface targets [WCAG 2.2 AA](https://www.w3.org/TR/WCAG22/). Status and s
 Keyboard focus remains visible in both themes and forced colors. Bordered controls show one secondary border without a
 separate outer ring. Transparent outlines remain available for forced-colors repainting. Controls without visible
 borders use a 1 px secondary focus outline. Compound fields mark their outer boundary. Embedded buttons retain their own
-visible focus. Focus does not change control geometry.
+visible focus. Pointer and touch actions do not leave focus outlines on non-editable controls, including dialog
+defaults. Keyboard input restores visible focus. Focus does not change control geometry.
 
 Selection and keyboard position remain distinct. Selected Grid cards have a 2 px accent contour and a subtle accent
 tint. The Grid cursor uses a 2 px secondary contour around the card and folded corner, including on selected cards.
@@ -133,9 +134,10 @@ counts still do not fit, make them available through a clickable details control
 At enlarged text sizes, Open PDF and Download can use their icons with the same accessible names and touch targets.
 
 In single-pane layouts, the Input/Output switch and the pane header share two equal columns and the same gap. The Input
-selector and Open PDF align with the switch above them. Output totals use the remaining space before Print, View, and
-Download. These actions stay together at the end of the row. Download can omit its label when space is insufficient. If
-enlarged text leaves insufficient room, keep the Input/Output switch labels and omit their icons.
+selector and Open PDF align with the switch above them. Output totals align to the end of the space before Print, View,
+and Download. These actions stay together at the end of the row with wider gaps. Download uses the same 28 px icon size
+as Print and View, with a square primary-colored target and no text label. Desktop Download retains its labeled primary
+button. If enlarged text leaves insufficient room, keep the Input/Output switch labels and omit their icons.
 
 The header places the Home logo at the start and Help, Settings, and theme controls at the end. It states that
 processing stays on the device. Feedback occupies the center, as defined below. Header actions use all space after the
@@ -657,18 +659,20 @@ remain available. Feedback has no enclosing border, shadow, or button surface. M
 white text in dark mode, at weight 700. Busy rings use the accent. Errors use the danger color.
 
 Wide headers use balanced side columns for the logo and actions, with feedback in the middle. The privacy indicator
-gives its space to active feedback. The ordinary header height and workspace position stay stable for short messages.
-Narrow headers show feedback within the existing header area and temporarily hide the logo and header actions. Opening
-or dismissing feedback does not move the workspace or document scroll. Long messages scroll inside this area. Long
-progress filenames occupy at most two lines, with the complete message retained for assistive technology and hover.
-Notices and Errors wrap in full. Text recovery actions use a separate row below the message. Feedback never introduces
-horizontal overflow or overlaps header controls. Large error lists scroll within a bounded area. Active feedback remains
-visible during document scrolling and respects the safe area.
+gives its space to active feedback. Feedback keeps its natural content width so that its information and dismiss icons
+stay beside the message. Center the group vertically within the existing header. Feedback does not change the header
+height or workspace position. Narrow headers show feedback within the existing header area and temporarily hide the logo
+and header actions. Opening or dismissing feedback does not move the workspace or document scroll. Each message and its
+actions use one row. Long messages scroll horizontally within their line, with the complete text retained for assistive
+technology and hover. Recovery actions keep a clear gap. Feedback never introduces horizontal overflow or overlaps
+header controls. Large error lists scroll within a bounded area. Active feedback remains visible during document
+scrolling and respects the safe area.
 
 New Download or Print preparation uses a compact native modal centered at the header. It shares the busy ring, message,
 and actions above. Progress needs one row without a separate title or Close button. Errors retain readable text, Cancel,
 and Retry. The modal backdrop distinguishes its locked workspace from ordinary header feedback. View preparation uses
-ordinary header feedback and opens the PDF tab only when preparation succeeds.
+ordinary header feedback and opens the PDF only when preparation succeeds. Compact Output dialogs use named icons for
+Cancel, Retry, and View PDF when text leaves insufficient room.
 
 Direct PDF printing opens the browser's print UI without an application PDF viewer or another panel behind it.
 Preparation and return preserve pane geometry, selections, view, zoom, and document scroll. Focus remains on Print.
