@@ -1984,16 +1984,20 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
       { exact: true },
     )
     await failure.waitFor()
+    const recovery = page.locator(".header-feedback")
     for (const width of [320, 390, 768]) {
       for (const colorScheme of ["light", "dark"]) {
         await page.setViewportSize({ width, height: 900 })
         await page.emulateMedia({ colorScheme })
         await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
-        const box = await failure.boundingBox()
+        const box = await recovery.boundingBox()
         const landing = await page.locator(".drop-zone").boundingBox()
         assert.ok(box.x >= 0 && box.x + box.width <= width)
-        assert.ok(box.y + box.height <= landing.y, "Recovery guidance stays above the file controls")
+        assert.ok(box.y + box.height <= landing.y, "The recovery area stays above the file controls")
+        await recovery.evaluate((element) => (element.scrollTop = element.scrollHeight))
+        const end = await failure.boundingBox()
+        assert.ok(end.y + end.height <= box.y + box.height + 1, "The full recovery message remains reachable")
       }
     }
     await page.setViewportSize({ width: 1440, height: 900 })
