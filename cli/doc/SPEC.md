@@ -79,6 +79,10 @@ units resolve at 96 DPI. Invalid dimension arguments fail with exit code 2 befor
 
 ## 4. Results and files
 
+`description` and `details` remain plain-text JSON strings. `describe` retains them on parameter schemas, groups,
+profile sets, and profiles; `profiles` retains both set and profile annotations. Details require their owner's own
+description under the library contract. Invalid annotation dependencies use the existing structured validation errors.
+
 Success results use stdout JSON. Diagnostics use stderr. Machine output contains no terminal controls. Document-supplied
 text in human-readable diagnostics escapes control characters. Processor errors retain the library's structured error
 record. Producer-specific failures can use `producer-error`. Declaration parse errors retain the library's

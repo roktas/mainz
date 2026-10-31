@@ -286,9 +286,36 @@ void value(JSON item, JSON schema, const std::string& property)
             "Value is not in the schema enum.");
     }
 }
+static bool blank(const std::string& value)
+{
+    // Match the whitespace removed by ECMAScript String.trim() in annotation consumers.
+    static constexpr std::u32string_view spaces = U"\t\n\v\f\r "
+                                                  U"\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008"
+                                                  U"\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff";
+    std::size_t position = 0;
+    while (position < value.size()) {
+        bool error = false;
+        auto c = QUtil::get_next_utf8_codepoint(value, position, error);
+        require(!error, "Invalid Unicode.");
+        if (spaces.find(static_cast<char32_t>(c)) == spaces.npos)
+            return false;
+    }
+    return true;
+}
+void annotations(JSON item, const std::set<std::string>& present)
+{
+    if (present.contains("description")) {
+        auto description = text(item.getDictItem("description"));
+        if (present.contains("details"))
+            require(!blank(description), "Details require a nonempty description.");
+    } else
+        require(!present.contains("details"), "Details require a description.");
+    if (present.contains("details"))
+        text(item.getDictItem("details"));
+}
 void schema(JSON item, const std::string& property)
 {
-    std::set<std::string> optional {"$schema", "enum", "title", "description", "default"};
+    std::set<std::string> optional {"$schema", "enum", "title", "description", "details", "default"};
     if (numeric_property(property))
         for (auto key : {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"})
             optional.insert(key);
@@ -300,9 +327,9 @@ void schema(JSON item, const std::string& property)
     if (present.contains("$schema"))
         require(text(item.getDictItem("$schema")) == "https://json-schema.org/draft/2020-12/schema",
             "Unsupported schema dialect.");
-    for (auto key : {"title", "description"})
-        if (present.contains(key))
-            text(item.getDictItem(key));
+    if (present.contains("title"))
+        text(item.getDictItem("title"));
+    annotations(item, present);
     if (present.contains("pattern"))
         require(text(item.getDictItem("pattern")) == "^#[0-9a-fA-F]{6}$", "Unsupported color pattern.");
     if (present.contains("enum")) {
@@ -397,14 +424,13 @@ void profile_sets(JSON sets, const std::map<std::string, JSON>& parameters)
     auto items = array(sets);
     std::set<std::string> set_ids, owned;
     for (const auto& set : items) {
-        auto present = fields(set, {"id", "name", "parameters", "profiles"}, {"description"});
+        auto present = fields(set, {"id", "name", "parameters", "profiles"}, {"description", "details"});
         auto id = text(set.getDictItem("id"));
         identifier(id);
         require(set_ids.insert(id).second, "Duplicate profile set ID.");
         require(
             text(set.getDictItem("name")).find_first_not_of(" \t\r\n") != std::string::npos, "Empty profile set name.");
-        if (present.contains("description"))
-            text(set.getDictItem("description"));
+        annotations(set, present);
         std::set<std::string> scope;
         for (const auto& parameter : ids(set.getDictItem("parameters"))) {
             require(parameters.contains(parameter) && owned.insert(parameter).second,
@@ -421,10 +447,7 @@ void profile_sets(JSON sets, const std::map<std::string, JSON>& parameters)
             require(profile_ids.insert(identity).second, "Duplicate profile ID.");
             require(text(profile.getDictItem("name")).find_first_not_of(" \t\r\n") != std::string::npos,
                 "Empty profile name.");
-            if (fields_present.contains("description"))
-                text(profile.getDictItem("description"));
-            if (fields_present.contains("details"))
-                text(profile.getDictItem("details"));
+            annotations(profile, fields_present);
             for (const auto& [parameter, choice] : object(profile.getDictItem("overrides"))) {
                 require(scope.contains(parameter), "Override is outside its profile set.");
                 const auto& definition = parameters.at(parameter);
@@ -601,10 +624,9 @@ void manifest(JSON root, std::size_t page_count)
     if (present.contains("groups")) {
         std::set<std::string> grouped;
         for (const auto& group : array(root.getDictItem("groups"))) {
-            auto annotations = fields(group, {"title", "parameters"}, {"description"});
+            auto group_fields = fields(group, {"title", "parameters"}, {"description", "details"});
             text(group.getDictItem("title"));
-            if (annotations.contains("description"))
-                text(group.getDictItem("description"));
+            annotations(group, group_fields);
             for (const auto& id : ids(group.getDictItem("parameters"), false))
                 require(parameters.contains(id) && grouped.insert(id).second, "Unknown or repeated UI parameter.");
         }

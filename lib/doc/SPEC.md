@@ -173,6 +173,27 @@ without control characters. They obey published string limits and remain opaque 
 delimiter-based commands. ID collections contain no duplicates. Style numbers must fit finite binary64 values within
 property limits. Protected PDF numbers never pass through that representation.
 
+#### Presentation annotations
+
+Parameter schemas, presentation groups, profile sets, and profiles share the following annotation semantics. Their
+existing `name` or `title` requirements remain unchanged.
+
+| Field             | Requirement                                                    | Purpose                                                     |
+| ----------------- | -------------------------------------------------------------- | ----------------------------------------------------------- |
+| `name` or `title` | Defined by the owning object                                   | The shortest display label.                                 |
+| `description`     | Optional                                                       | A concise explanation for persistent display when supplied. |
+| `details`         | Optional; requires a nonblank `description` on the same object | A longer explanation that expands that description.         |
+
+Details explain the same subject as their description. They do not replace it or introduce a separate assignment scope.
+A supplied `details` field without a description, or with an empty or whitespace-only description, is invalid.
+Whitespace-only means empty after ECMAScript `String.trim()` whitespace and line terminators are removed. Descriptions
+without details remain valid. Neither annotation assigns values or changes PDF painting.
+
+Both fields are plain-text strings under the existing JSON string and total-byte limits. Paragraph breaks are permitted.
+Consumers do not interpret markup or executable content. They display a supplied description with its label and expose
+details on demand. Empty or whitespace-only details create no information icon or other details control. The Web SPEC
+owns the workspace interactions.
+
 ### 4.2 Manifest fields
 
 | Field         | Requirement                                                                        |
@@ -208,12 +229,12 @@ it.
 | `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` | Finite numeric bounds for numbers                    |
 | `enum`                                                       | Nonempty unique valid values of the declared type    |
 | `pattern`                                                    | Colors only, exactly `^#[0-9a-fA-F]{6}$`             |
-| `title`, `description`                                       | Optional plain-text annotations                      |
+| `title`, `description`, `details`                            | Optional plain-text annotations under Section 4.1    |
 | `default`                                                    | Optional baseline annotation, never an assignment    |
 
 Other keywords, arbitrary regular expressions, `$ref`, remote schemas, and array, object, or Boolean schemas are
 rejected. Standard [validation and annotation semantics](https://json-schema.org/draft/2020-12/json-schema-validation)
-still apply within this profile.
+still apply within this profile. `details` is a Mainz presentation annotation, not a JSON Schema validation keyword.
 
 Constraints must admit at least one valid value. They narrow the supported property domain and trusted limits, never
 widen them. For example, `minimum: 0` cannot permit a zero width override. Display requires an enum containing exactly
@@ -228,8 +249,8 @@ property defines its unit.
 ### 4.4 Presentation groups
 
 `groups` is an ordered array. Each group requires plain-text `title` and ordered `parameters`, with optional plain-text
-`description`. References name existing parameters. A parameter occurs in at most one group. Empty groups and an empty
-array are permitted.
+`description` and `details` under Section 4.1. References name existing parameters. A parameter occurs in at most one
+group. Empty groups and an empty array are permitted.
 
 Groups are presentation hints, not targets or assignment scopes. A group can contain several Style objects or part of
 one. Bindings identify related controls. Applications choose widgets without introducing parameter types, coupled
@@ -244,30 +265,19 @@ remapping references. Presentation never changes scope, precedence, validation, 
 
 `profileSets` stores named override choices in the same manifest. It contains no CSS, geometry, printer detection, or
 executable rules. An empty array is permitted. Each set requires `id`, `name`, nonempty unique `parameters`, and
-`profiles`, with optional `description`. Set IDs are unique within the manifest. Set and profile IDs follow Section 4.1.
-Names are nonempty plain text. Descriptions are plain text. A parameter belongs to at most one set. Unlisted parameters
-remain editable.
+`profiles`, with optional `description` and `details` under Section 4.1. Set IDs are unique within the manifest. Set and
+profile IDs follow Section 4.1. Names are nonempty plain text. Descriptions are plain text. A parameter belongs to at
+most one set. Unlisted parameters remain editable.
 
 Each set has 1–32 ordered profiles. A profile requires `id`, `name`, and `overrides`, with optional `description` and
 `details`. IDs follow Section 4.1 and are unique within their set. Override keys belong to that set and hold valid
 parameter scalar values. Unknown fields and references fail. The first profile represents original styles and has empty
 overrides.
 
-Profile annotations have three levels:
-
-| Field         | Requirement | Purpose                                                          |
-| ------------- | ----------- | ---------------------------------------------------------------- |
-| `name`        | Required    | Short, nonempty display name for profile selection.              |
-| `description` | Optional    | Brief summary suitable for persistent display.                   |
-| `details`     | Optional    | Longer explanation with usage guidance, rationale, or tradeoffs. |
-
-Descriptions and details are independent plain-text strings. Details can contain paragraph breaks and follow the
-existing JSON string limits. Consumers render annotations as plain text, without interpreting markup or executable
-content. Applications choose how to expose details on demand. The Web SPEC owns workspace interactions.
-
-This separation keeps selectors and visible summaries compact while retaining the context needed to choose a profile.
-For example, a name can describe the visible style while details explain printer suitability and limitations.
-Annotations do not change profile identity, parameter scope, overrides, or printer behavior.
+Profile names, descriptions, and details follow Section 4.1. A name identifies the visible style; its description
+summarizes that style. Details can expand the summary with usage guidance, rationale, or tradeoffs. They require that
+profile's own description, even when the set has a description. Annotations do not change profile identity, parameter
+scope, overrides, or printer behavior.
 
 Opening preserves saved overrides without applying a profile. Choosing a profile replaces all overrides within its set.
 Omitted parameters return to their own baselines. Other parameters and sets retain their choices.
@@ -623,8 +633,9 @@ Each parameter entry has exactly:
 | `baseline`  | Summary independent of current overrides                              |
 | `pages`     | Nonempty unique page-ID array in current physical order               |
 
-Groups retain their descriptions. Width uses millimeters, alpha a unitless ratio, and color/display no numeric unit.
-Description contains no widget names or executable content.
+Groups retain their descriptions and details. Parameter schemas and profile sets retain the same annotations. Width uses
+millimeters, alpha a unitless ratio, and color/display no numeric unit. Description contains no widget names or
+executable content.
 
 | Baseline summary  | Exact fields and meaning                                                            |
 | ----------------- | ----------------------------------------------------------------------------------- |

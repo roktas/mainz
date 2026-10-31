@@ -1197,6 +1197,12 @@ module Mainz
       restored = operation(changed, "profiles-reset.pdf", reset: true)
       assert_equal(manifest["profileSets"], snapshot(restored)[0]["profileSets"])
       pruned = extract(source, "profiles-extracted.pdf", [0])
+      [source, changed, restored, pruned].each do |candidate|
+        summary = describe(candidate)
+        assert_equal(manifest["parameters"]["width"]["schema"], summary["parameters"]["width"]["parameter"]["schema"])
+        assert_equal(manifest["groups"][0].except("parameters"), summary["groups"][0].except("parameters"))
+      end
+
       profile = snapshot(pruned)[0]["profileSets"][0]
       assert_equal(["width"], profile["parameters"])
       assert_equal({"width" => 0.15}, profile["profiles"][1]["overrides"])
@@ -1221,6 +1227,13 @@ module Mainz
       assert_equal(2, sets.map { |item| item["id"] }.uniq.length)
       assert_empty(sets[0]["parameters"] & sets[1]["parameters"])
       mapping = JSON.parse(result.stdout)["parameters"]
+      summary = describe(output)
+      mapping.each do |id, original|
+        next unless original["parameter"] == "width"
+
+        assert_equal(manifest["parameters"]["width"]["schema"], summary["parameters"][id]["parameter"]["schema"])
+      end
+
       assert_equal(
         [%w[guide-color guide-fill width]] * 2,
         sets.map { |item| item["parameters"].map { |id| mapping[id]["parameter"] }.sort }
@@ -1248,11 +1261,6 @@ module Mainz
         -> (s) { s[0]["profiles"][1]["id"] = "generic" },
         -> (s) { s[0]["profiles"][1]["name"] = "" },
         -> (s) { s[0]["profiles"][1]["description"] = false },
-        -> (s) { s[0]["profiles"][1]["details"] = nil },
-        -> (s) { s[0]["profiles"][1]["details"] = false },
-        -> (s) { s[0]["profiles"][1]["details"] = 1 },
-        -> (s) { s[0]["profiles"][1]["details"] = [] },
-        -> (s) { s[0]["profiles"][1]["details"] = {} },
         -> (s) { s[0]["profiles"] *= 17 }
       ]
       mutations.each do |mutation|
@@ -1283,6 +1291,46 @@ module Mainz
           assert_equal(manifest["profileSets"], describe(source)["profileSets"])
         else
           assert_equal("limit-exceeded", failure_code(source))
+        end
+      end
+    end
+
+    def test_details_require_descriptions_on_every_annotation_owner
+      owners = [
+        -> (data) { data["parameters"]["width"]["schema"] },
+        -> (data) { data["groups"][0] },
+        -> (data) { data["profileSets"][0] },
+        -> (data) { data["profileSets"][0]["profiles"][1] }
+      ]
+      owners.each do |owner|
+        [nil, false, 1, [], {}].each do |invalid|
+          fixture(
+            file("invalid-annotations.pdf"),
+            -> (data) {
+              profile_fixture(data)
+              owner.call(data)["details"] = invalid
+            },
+            pdf_objects: method(:across_page_objects)
+          )
+          assert_equal("invalid-contract", failure_code(file("invalid-annotations.pdf")))
+        end
+
+        [:missing, "", " \t\n", "\u00a0\u2003\u202f\ufeff"].each do |description|
+          fixture(
+            file("invalid-annotations.pdf"),
+            -> (data) {
+              profile_fixture(data)
+              annotation = owner.call(data)
+              annotation["details"] = "Longer guidance."
+              if description == :missing
+                annotation.delete("description")
+              else
+                annotation["description"] = description
+              end
+            },
+            pdf_objects: method(:across_page_objects)
+          )
+          assert_equal("invalid-contract", failure_code(file("invalid-annotations.pdf")))
         end
       end
     end
@@ -1504,14 +1552,26 @@ module Mainz
 
     def profile_fixture(manifest)
       across_pages(manifest)
+      manifest["parameters"]["width"]["schema"].merge!(
+        "description" => "Outline thickness.",
+        "details" => "Changes every eligible outline.\n\n<b>Width</b> is plain text."
+      )
+      manifest["groups"][0]["details"] = "Practice shapes and their controls.\n\nUse the same settings across pages."
       manifest["profileSets"] = [
         {
           "id" => "print",
           "name" => "Style profile",
           "description" => "Printer styles",
+          "details" => "Choose one complete set of authored styles.",
           "parameters" => %w[width guide-color guide-fill],
           "profiles" => [
-            {"id" => "generic", "name" => "Generic", "details" => "", "overrides" => {}},
+            {
+              "id" => "generic",
+              "name" => "Generic",
+              "description" => "Original styles",
+              "details" => "",
+              "overrides" => {}
+            },
             {
               "id" => "inkjet",
               "name" => "Inkjet",

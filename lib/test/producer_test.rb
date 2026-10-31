@@ -25,18 +25,35 @@ module Mainz
           data["parameters"]["guides.stroke-opacity"]["value"] = 0.15
         end
 
-        data["groups"] = [{"title" => "Visibility", "parameters" => [data["parameters"].keys.first]}]
+        data["groups"] = [
+          {
+            "title" => "Visibility",
+            "description" => "Object visibility.",
+            "details" => "Controls the complete selected object.",
+            "parameters" => [data["parameters"].keys.first]
+          }
+        ]
         ids = data["parameters"].keys
+        data["parameters"].each_value do |parameter|
+          parameter["schema"].merge!(
+            "description" => "Changes this property.",
+            "details" => "Applies to the declared targets.\n\nPlain text only."
+          )
+        end
+
         data["profileSets"] = [
           {
             "id" => "print",
             "name" => "Print",
+            "description" => "Printing styles.",
+            "details" => "Choose a complete set of property values.",
             "parameters" => ids,
             "profiles" => [
               {"id" => "original", "name" => "Original", "overrides" => {}},
               {
                 "id" => "lighter",
                 "name" => "Lighter",
+                "description" => "Lighter ink coverage.",
                 "details" => "Reduces ink coverage.\n\nCheck fine lines on your printer.",
                 "overrides" => {ids[1] => 0.3}
               }
@@ -50,6 +67,10 @@ module Mainz
         summary = JSON.parse(command(@cli, "describe", native).stdout)
         assert_equal(1, summary["pageCount"], label)
         assert_equal(data["parameters"].keys.sort, summary["parameters"].keys.sort, label)
+        data["parameters"].each do |id, parameter|
+          assert_equal(parameter["schema"], summary["parameters"][id]["parameter"]["schema"], label)
+        end
+
         assert_equal(data["profileSets"], summary["profileSets"], label)
         assert_equal(data["groups"].first, summary["groups"].first, label)
         if label == "structural-style"
@@ -195,6 +216,12 @@ module Mainz
           declaration({"guides" => "#Guides"})
         ],
         [svg(SHAPE), {"targets" => {}, "parameters" => {}}],
+        [
+          svg(SHAPE),
+          declaration({"guides" => "#Guides"}).merge(
+            "groups" => [{"title" => "Guides", "parameters" => ["guides.display"], "details" => "Missing summary."}]
+          )
+        ],
         [svg(SHAPE), declaration({"guides" => "#Missing"})],
         [svg(SHAPE.sub("fill:none", "opacity:.5;fill:none")), declaration({"guides" => "#Guides"})],
         ["<!DOCTYPE svg [<!ENTITY x \"bad\">]>" + svg(SHAPE), declaration({"guides" => "#Guides"})],
@@ -239,9 +266,11 @@ module Mainz
     end
 
     def test_dense_capture_uses_the_embedded_manifest_limit
-      shapes = (%w[#000000 #111111] * 6000).map do |color|
-        "<rect stroke=\"#{color}\" x=\"30\" y=\"30\" width=\"50\" height=\"40\"/>"
-      end.join
+      shapes = (%w[#000000 #111111] * 6000)
+        .map do |color|
+          "<rect stroke=\"#{color}\" x=\"30\" y=\"30\" width=\"50\" height=\"40\"/>"
+        end
+        .join
       source = @directory.join("dense.svg")
       source.write(svg("<g id=\"Guides\" fill=\"none\">#{shapes}</g>"))
       declared = write("declaration.json", declaration({"guides" => "#Guides"}))

@@ -245,6 +245,16 @@ module Mainz
       before = prepared.binread
       assert_equal(sets, JSON.parse(command("profiles", prepared).stdout))
       assert_equal(sets, JSON.parse(command("profiles", "-", input: before).stdout))
+      description = JSON.parse(command("describe", prepared).stdout)
+      assert_equal(
+        "Controls outline thickness.",
+        description["parameters"]["width"]["parameter"]["schema"]["description"]
+      )
+      assert_equal(
+        "Widths apply to both declared stroke targets.",
+        description["parameters"]["width"]["parameter"]["schema"]["details"]
+      )
+      assert_equal("Controls shared by both targets.", description["groups"][0]["details"])
       assert_equal(before, prepared.binread)
       assert_equal([], JSON.parse(command("profiles", @prepared).stdout))
       ordinary = @directory.join("ordinary.pdf")
@@ -384,6 +394,7 @@ module Mainz
           id: set_id,
           name: "Printer",
           description: "Practice strokes",
+          details: "Choose the styles for all practice strokes.\n\nEach choice replaces its complete scope.",
           parameters: %w[opacity width],
           profiles: [
             {id: "generic", name: "Generic", overrides: {}},
@@ -418,10 +429,24 @@ module Mainz
               binding: {targets: %w[ink other], property: "stroke-opacity"}
             },
             width: {
-              schema: {type: "number", exclusiveMinimum: 0, maximum: 0.4},
+              schema: {
+                type: "number",
+                exclusiveMinimum: 0,
+                maximum: 0.4,
+                description: "Controls outline thickness.",
+                details: "Widths apply to both declared stroke targets."
+              },
               binding: {targets: %w[ink other], property: "stroke-width"}
             }
           },
+          groups: [
+            {
+              title: "Stroke",
+              description: "Shared stroke properties.",
+              details: "Controls shared by both targets.",
+              parameters: %w[opacity width]
+            }
+          ],
           profileSets: sets
         )
       )

@@ -27,6 +27,7 @@ std::vector<JSON> array(JSON);
 std::map<std::string, JSON> object(JSON);
 JSON member(JSON, const std::string& key);
 std::set<std::string> fields(JSON, const std::set<std::string>& required, const std::set<std::string>& optional = {});
+void annotations(JSON, const std::set<std::string>& present);
 JSON dictionary(std::initializer_list<std::pair<std::string, JSON>>);
 std::string encode(JSON, std::size_t limit, std::size_t& remaining);
 std::string encode(JSON, std::size_t limit);

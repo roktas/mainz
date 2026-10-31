@@ -68,10 +68,9 @@ namespace {
         auto groups = present.contains("groups") ? root.getDictItem("groups") : JSON::makeArray();
         std::set<std::string> grouped;
         for (const auto& group : array(groups)) {
-            auto annotations = fields(group, {"title", "parameters"}, {"description"});
+            auto group_fields = fields(group, {"title", "parameters"}, {"description", "details"});
             text(group.getDictItem("title"));
-            if (annotations.contains("description"))
-                text(group.getDictItem("description"));
+            annotations(group, group_fields);
             for (const auto& id : array(group.getDictItem("parameters")))
                 require(parameters.contains(text(id)) && grouped.insert(text(id)).second,
                     "Unknown or repeated group parameter.");
