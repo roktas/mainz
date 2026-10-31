@@ -1,7 +1,8 @@
-<!-- Owns Download preparation, inspection, cancellable header feedback, and temporary PDF resources. -->
+<!-- Prepares validated Output PDFs for download or print, with cancellation and shared progress feedback. -->
 
 <script module lang="ts">
   import type { Input, Job } from "./model.ts"
+  export type Prepared = { bytes: ArrayBuffer; name: string; expected: number; complete: () => void }
   export type Snapshot = {
     recipe: Job
     inputs: Input[]
@@ -23,11 +24,14 @@
     prepare,
     blocked,
     info,
+    print,
   }: {
     prepare: () => Snapshot
     blocked: boolean
     info: (text: string) => void
+    print: (pdf: Prepared) => void
   } = $props()
+  let action = $state<"Download" | "Print">("Download")
   let dialog: HTMLDialogElement
   let failure = $state("")
   let running = $state(false)
@@ -51,12 +55,13 @@
       void task?.destroy()
       task = undefined
       running = false
-      info("Download cancelled. Your pages and styles are retained.")
+      info(`${action} cancelled. Your pages and styles are retained.`)
     }
     dialog.close()
   }
-  export async function start() {
+  export async function start(next: "Download" | "Print" = "Download") {
     if (running || blocked) return
+    action = next
     const generation = ++revision
     const worker = new Processor()
     failure = ""
@@ -84,6 +89,11 @@
         await verifyPDF(pdf)
         if (disposed || generation !== revision) return
         bytes = result.bytes
+      }
+      dialog.close()
+      if (action === "Print") {
+        print({ bytes, name: snapshot.name(), expected, complete: snapshot.complete })
+        return
       }
       release()
       url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }))
@@ -122,8 +132,8 @@
 
 <dialog
   bind:this={dialog}
-  class="download-dialog"
-  aria-label="Download"
+  class="output-dialog export-dialog"
+  aria-label={action}
   oncancel={(event) => {
     event.preventDefault()
     cancel()
@@ -132,7 +142,7 @@
   <Feedback kind={running ? "progress" : "error"} text={running ? stage : failure}>
     {#snippet actions()}
       <button onclick={cancel}>Cancel</button>
-      {#if !running}<button class="primary" disabled={blocked} onclick={start}>Retry</button>{/if}
+      {#if !running}<button class="primary" disabled={blocked} onclick={() => start(action)}>Retry</button>{/if}
     {/snippet}
   </Feedback>
 </dialog>

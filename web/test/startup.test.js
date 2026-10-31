@@ -1536,7 +1536,7 @@ test("Concurrent Source previews isolate resets and ignore obsolete worker repli
     await choose(0)
     await input.getByRole("button", { name: "Reset Fill Color", exact: true }).click()
     assert.equal(await color.inputValue(), "#000000")
-    assert.equal(await output.locator(".download-action button").isDisabled(), true)
+    assert.equal(await output.getByRole("button", { name: "Download", exact: true }).isDisabled(), true)
     await page.evaluate(() => {
       window.holdReplies = false
       for (const reply of window.pendingReplies.splice(0).toReversed()) reply()

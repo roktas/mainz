@@ -37,7 +37,11 @@ test("Browser modes retain critical regressions and reserve calibration matrices
     "test/install.test.js",
     "test/startup.test.js",
   ])
-  assert.deepEqual(select("standard", "workspace").files, ["test/feedback.test.js", "test/workspace.test.js"])
+  assert.deepEqual(select("standard", "workspace").files, [
+    "test/export.test.js",
+    "test/feedback.test.js",
+    "test/workspace.test.js",
+  ])
   assert.throws(() => select("unknown"), /Unknown browser mode/)
   assert.throws(() => select("standard", "unknown"), /Unknown browser group/)
   assert.throws(() => select("standard", "viewport"), /No standard browser checks/)

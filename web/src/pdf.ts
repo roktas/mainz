@@ -47,9 +47,9 @@ export function releaseRasters(pdf: PDFDocumentProxy) {
   rasters.delete(pdf)
 }
 
-export function cachedRaster(pdf: PDFDocumentProxy, page: number, scale?: number) {
+export function cachedRaster(pdf: PDFDocumentProxy, page: number, scale?: number, sampling = scale) {
   const pages = rasters.get(pdf)
-  let raster = scale === undefined ? undefined : pages?.get(`${page}:${scale}`)
+  let raster = scale === undefined ? undefined : pages?.get(`${page}:${scale}:${sampling}`)
   if (scale === undefined)
     for (const entry of pages?.values() ?? [])
       if (entry.key.startsWith(`${page}:`)) {
@@ -63,9 +63,15 @@ export function cachedRaster(pdf: PDFDocumentProxy, page: number, scale?: number
 }
 
 // Takes ownership on success; rejected canvases remain the caller's responsibility.
-export function cacheRaster(pdf: PDFDocumentProxy, page: number, scale: number, canvas: HTMLCanvasElement) {
+export function cacheRaster(
+  pdf: PDFDocumentProxy,
+  page: number,
+  scale: number,
+  canvas: HTMLCanvasElement,
+  sampling = scale,
+) {
   const bytes = canvas.width * canvas.height * 4
-  const key = `${page}:${scale}`
+  const key = `${page}:${scale}:${sampling}`
   let pages = rasters.get(pdf)
   if (bytes > rasterLimit || pages?.has(key)) return false
   while (rasterBytes + bytes > rasterLimit) discard(recent.values().next().value!)

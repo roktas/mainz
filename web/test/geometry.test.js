@@ -62,6 +62,7 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
               bounds: rect(band),
               controls: [...band.querySelectorAll(controls)]
                 .filter((node) => node.checkVisibility())
+                .flatMap((node) => (node.matches(".output-actions") ? [...node.children] : [node]))
                 .map((node) => ({
                   bounds: rect(node),
                   target: node.matches("button, input, summary"),
@@ -107,9 +108,21 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
         const columns = await page
           .locator(".mobile-workspace-tabs > button")
           .evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().toJSON()))
-        for (const [index, control] of layout[0].controls.entries()) {
-          assert.ok(Math.abs(control.bounds.x - columns[index].x) < 1, "Stacked control rows share column edges")
-          assert.ok(Math.abs(control.bounds.width - columns[index].width) < 1, "Stacked widgets have equal widths")
+        const controls = layout[0].controls
+        const isOutput = await pane.evaluate((element) => element.classList.contains("composition-output"))
+        const peers = isOutput ? [controls.at(-1)] : controls
+        for (const [index, control] of peers.entries()) {
+          const column = columns[isOutput ? 1 : index]
+          assert.ok(Math.abs(control.bounds.x - column.x) < 1, "Stacked control rows share column edges")
+          assert.ok(Math.abs(control.bounds.width - column.width) < 1, "Stacked widgets have equal widths")
+        }
+        if (isOutput) {
+          const [summary, print, download] = controls.map((control) => control.bounds)
+          assert.ok(Math.abs(summary.x - columns[0].x) < 1, "Output summary starts in the first column")
+          assert.ok(
+            summary.right <= print.left && print.right < download.left,
+            "Print fits between summary and Download",
+          )
         }
       }
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
@@ -175,12 +188,12 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
       document.documentElement.style.fontSize = "100%"
       window.holdStyles = true
     })
-    const before = await output.locator(".download-action").boundingBox()
+    const before = await output.locator(".output-actions").boundingBox()
     await tab(input, "Style")
     await input.getByRole("textbox", { name: "Guide Color", exact: true }).fill("#884488")
     await page.waitForFunction(() => !!window.finishStyles)
     await page.locator(".header-feedback .style-progress").waitFor()
-    const updating = await output.locator(".download-action").boundingBox()
+    const updating = await output.locator(".output-actions").boundingBox()
     assert.ok(
       Math.abs(updating.x - before.x) < 1 && Math.abs(updating.width - before.width) < 1,
       "Updating keeps the Download area fixed",
@@ -309,11 +322,15 @@ test("Page headings and navigation share stable frame edges and centerlines", { 
           await page.keyboard.press(key)
           await pane.locator(".pdf-viewport[aria-busy=false]").waitFor()
           await aligned(pane)
-          const actions = [1280, 375].includes(width)
-            ? [undefined, "Zoom out", "Reset zoom", "Zoom in"]
+          const actions = [1280, 375, 390].includes(width)
+            ? [undefined, "Zoom out", "Reset zoom", "Zoom in", "3200%"]
             : [undefined, "Zoom in"]
           for (const action of actions) {
-            if (action) await zoom(pane, action)
+            if (action === "3200%") {
+              while ((await pane.getByLabel(`${name} page zoom`, { exact: true }).textContent()) !== action)
+                await zoom(pane, "Zoom in")
+              assert.equal(await pane.getByRole("button", { name: "Zoom in", exact: true }).first().isEnabled(), false)
+            } else if (action) await zoom(pane, action)
             await pane.locator(".pdf-viewport[aria-busy=false]").waitFor()
             await aligned(pane)
             const geometry = await pane.locator(".page-view").evaluate((view) => {

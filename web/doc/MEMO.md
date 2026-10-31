@@ -53,17 +53,18 @@ Custom server scenarios own their server lifecycle. Install a missing browser wi
 npm --prefix web exec -- playwright install chromium webkit
 ```
 
-Run `npm run test:minimal` during development. It checks formatting, lint, types, unit tests, and the critical browser
-scenarios. Those scenarios cover PDF opening, render ownership, metadata cleanup, Style, Download, cancellation,
-keyboard, touch, pinch zoom, and large Output pagination. Run focused checks for other affected behavior.
+During development, run focused checks for the affected behavior. `npm run test:minimal` groups formatting, lint, types,
+unit tests, and critical browser scenarios. Those scenarios cover PDF opening, render ownership, metadata cleanup,
+Style, Download, cancellation, keyboard, touch, pinch zoom, and large Output pagination. Reserve long suites and
+complete matrices for ship.
 
-Before an ordinary push, run `npm run test:standard`. It adds asset publication checks, a production build, and the
-functional browser regressions. Standard covers opening, editing, Style, Download, cancellation, PDF ownership,
-selection, keyboard, touch, offline use, updates, and large Output pagination. Animation checks use a desktop and phone
-without CPU throttling. Standard uses representative desktop and touch cases for batch navigation, shared frames,
-partial batches, and Normal card hit targets. The hit-target checks cover consecutive rows and measure pagination after
-pane and text-size transitions. Standard omits the full alignment and Page geometry matrices, Grid capacity/calibration
-matrices, and calibration tools.
+Before ship, run `npm run test:standard`. It adds asset publication checks, a production build, and the functional
+browser regressions. Standard covers opening, editing, Style, Download, cancellation, PDF ownership, selection,
+keyboard, touch, offline use, updates, and large Output pagination. Animation checks use a desktop and phone without CPU
+throttling. Standard uses representative desktop and touch cases for batch navigation, shared frames, partial batches,
+and Normal card hit targets. The hit-target checks cover consecutive rows and measure pagination after pane and
+text-size transitions. Standard omits the full alignment and Page geometry matrices, Grid capacity/calibration matrices,
+and calibration tools.
 
 Before a release, run `npm run test:full`. It includes every application browser scenario, complete animation matrices
 with CPU throttling, and both viewport measurement and candidate-search scenarios. Animation command entrypoints run
@@ -71,9 +72,11 @@ once. Core addition, removal, movement, and reduced-motion operations cover each
 the same static rules and unit tests. Native, WASM, sanitizer, and package tasks remain subject to
 [AGENTS](../../AGENTS.md#build-and-validation).
 
-The workspace suite checks Help sizing and panel scrolling in Chromium and WebKit. The Grid suite checks portrait phone
-geometry in both engines. The Page suite checks double activation zoom in both engines and uses Chromium's native touch
-dispatch for swipe, pan, and pinch. WebKit tests do not establish native iPadOS Safari behavior.
+The workspace suite checks Help sizing, panel scrolling, and PDF export in Chromium and WebKit. Its native PDF printing
+scenario launches full Chromium with `channel: "chromium"`; CI installs that browser for the workspace group. The Grid
+suite checks portrait phone geometry in both engines. The Page suite checks double activation zoom in both engines and
+uses Chromium's native touch dispatch for swipe, pan, and pinch. WebKit tests do not establish native iPadOS Safari
+behavior.
 
 On Linux, Playwright's screenshot CLI disables mobile and touch emulation for WebKit device presets. Use a Chromium
 touch preset for CLI screenshots. The WebKit suites create contexts with explicit mobile and touch settings.
@@ -88,7 +91,7 @@ content, geometry, or interaction requirements.
 belongs to exactly one group. Add new files to `test/run.ts`. Tests keep separate servers, browser contexts, and storage
 between files. The `grid` group also runs PDF ownership, processor-worker recovery, and lens tests. The `composition`
 group also runs transfer tests. The `startup` group also runs installation and asset publication tests. The `workspace`
-group runs workspace and header feedback tests.
+group runs workspace, header feedback, and Output export tests.
 
 `npm test` selects the fast `.test.ts` files. The browser runner selects `.test.js` integration files, including asset
 verification. Minimal mode omits the asset case; standard and full include it. Both runners use Node's test runner. The
@@ -456,6 +459,12 @@ orientation. `synthetic-only` does not establish native browser coverage. Unavai
 iOS Chrome and portrait monitors, remain explicit gaps until their own measurements exist.
 
 ## Retained evidence
+
+Thumbnail sampling measurements belong under `.local/var/clarity/`. Keep the baseline, candidate, and applied records
+with source hashes, fixture digests, browser versions, viewport, density, pixel ratio, and profile. Include cold batch
+completion, first-image timing, cached revisits, and simultaneous render-canvas bytes. The canvas measurements exclude
+PDF.js allocations and browser overhead. Retain the independent Poppler reference and representative before/after
+images. Synthetic browser measurements do not establish physical-device performance.
 
 The completed analysis is retained under root `.local/var/viewport/`, or in `.local/var/viewport.tar.xz` after storage
 cleanup. It is generated evidence, excluded from Git, and must survive temporary-output cleanup. Keep the measurements

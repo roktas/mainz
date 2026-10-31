@@ -3,7 +3,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
-import { chromium } from "playwright"
+import { chromium, webkit } from "playwright"
 import { fixture, tab } from "./browser.js"
 
 test("Overlapping preview generations release their own pages and never paint stale results", async () => {
@@ -21,6 +21,7 @@ test("Overlapping preview generations release their own pages and never paint st
         requests = [],
         handles = [],
         tasks = [],
+        canvases = [],
         errors = []
       let resize,
         next = 0
@@ -63,6 +64,7 @@ test("Overlapping preview generations release their own pages and never paint st
             getViewport: ({ scale }) => ({ width: 100 * scale, height: 100 * scale }),
             cleanup: () => handle.cleaned++,
             render: ({ canvas }) => {
+              canvases.push(canvas)
               handle.rendered++
               let resolve, reject
               const task = {
@@ -120,6 +122,7 @@ test("Overlapping preview generations release their own pages and never paint st
           retained,
           last,
           cancelled: tasks.filter((task) => task.cancelled).length,
+          released: canvases.every((raster) => raster.width === 0 && raster.height === 0),
           removed: !target.querySelector("canvas"),
         }
       } finally {
@@ -141,11 +144,86 @@ test("Overlapping preview generations release their own pages and never paint st
     assert.deepEqual(result.retained, result.first)
     assert.deepEqual(result.last, [0, 0, 255, 255])
     assert.equal(result.cancelled, 1)
+    assert.equal(result.released, true)
     assert.equal(result.removed, true)
   } finally {
     await browser?.close()
   }
 })
+
+test(
+  "Thumbnails retain fine guides without reusing Page rasters or changing Page pixels",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    for (const engine of [chromium, webkit])
+      for (const dpr of [0.5, 1, 1.5, 2]) {
+        const browser = await engine.launch()
+        try {
+          const page = await browser.newPage({ deviceScaleFactor: dpr })
+          await page.goto(server.resolvedUrls.local[0])
+          const result = await page.evaluate(async () => {
+            const { mount, unmount, tick, Pdf } = await import("/test/fixtures/preview.ts")
+            const { openPDF, releaseRasters } = await import("/src/pdf.ts")
+            const task = await openPDF(new Uint8Array(await (await fetch("/demo.pdf")).arrayBuffer()))
+            const pdf = await task.promise
+            const target = document.createElement("div")
+            document.body.append(target)
+            const images = [],
+              errors = []
+            try {
+              for (const thumbnail of [false, true, false, true]) {
+                const component = mount(Pdf, {
+                  target,
+                  props: { pdf, page: 1, thumbnail, thumbnailWidth: 100, error: (text) => errors.push(text) },
+                })
+                try {
+                  await tick()
+                  const frame = target.querySelector(".thumbnail, .pdf-viewport")
+                  frame.style.cssText = "inline-size:100px;block-size:142px;min-block-size:0;padding:0"
+                  const canvas = frame.querySelector("canvas")
+                  canvas.style.inlineSize = "100px"
+                  while (frame.getAttribute("aria-busy") === "true") await new Promise(requestAnimationFrame)
+                  const pixels = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data
+                  let chroma = 0
+                  for (let y = Math.floor(canvas.height * 0.2); y < canvas.height * 0.9; y++)
+                    for (let x = Math.floor(canvas.width * 0.15); x < canvas.width * 0.85; x++) {
+                      const offset = (y * canvas.width + x) * 4
+                      const channels = [pixels[offset], pixels[offset + 1], pixels[offset + 2]]
+                      chroma += Math.max(...channels) - Math.min(...channels)
+                    }
+                  images.push({
+                    thumbnail,
+                    width: canvas.width,
+                    height: canvas.height,
+                    chroma,
+                    pixels: canvas.toDataURL(),
+                  })
+                } finally {
+                  await unmount(component)
+                }
+              }
+              return { images, errors }
+            } finally {
+              releaseRasters(pdf)
+              await task.destroy()
+              target.remove()
+            }
+          })
+          assert.deepEqual(result.errors, [])
+          const [direct, thumbnail, directAgain, thumbnailAgain] = result.images
+          assert.deepEqual([thumbnail.width, thumbnail.height], [direct.width, direct.height])
+          // The 150 DPI Poppler reference retains these guides with substantially less color weight than direct Page sampling.
+          if (dpr < 2) assert.ok(thumbnail.chroma < direct.chroma * 0.9 && thumbnail.chroma > direct.chroma * 0.1)
+          else assert.equal(thumbnail.pixels, direct.pixels)
+          assert.equal(directAgain.pixels, direct.pixels)
+          assert.equal(thumbnailAgain.pixels, thumbnail.pixels)
+        } finally {
+          await browser.close()
+        }
+      }
+  },
+)
 
 test("Input inspection bounds pending metadata and releases pages on completion, cancellation, and failure", async () => {
   const server = await serve()
@@ -228,6 +306,82 @@ test("Input inspection bounds pending metadata and releases pages on completion,
     assert.equal(result[2].failure, "Invalid page geometry")
   } finally {
     await browser?.close()
+  }
+})
+
+test("Thumbnail allocation stays within its pixel limit and releases failed renders", { timeout: 30000 }, async () => {
+  const server = await serve()
+  const browser = await chromium.launch()
+  try {
+    const page = await browser.newPage()
+    await page.goto(server.resolvedUrls.local[0])
+    const result = await page.evaluate(async () => {
+      const { mount, unmount, tick, Pdf } = await import("/test/fixtures/preview.ts")
+      const { cachedRaster, releaseRasters } = await import("/src/pdf.ts")
+      const surfaces = [],
+        allocations = [],
+        errors = [],
+        images = []
+      const pdf = {
+        async getPage() {
+          return {
+            getViewport: ({ scale }) => ({ width: 595.3 * scale, height: 841.9 * scale }),
+            cleanup() {},
+            render({ canvas }) {
+              surfaces.push(canvas)
+              allocations.push(canvas.width * canvas.height)
+              return {
+                promise: surfaces.length === 2 ? Promise.reject(new Error("Renderer failed")) : Promise.resolve(),
+                cancel() {},
+              }
+            },
+          }
+        },
+      }
+      const target = document.createElement("div")
+      document.body.append(target)
+      const component = mount(Pdf, {
+        target,
+        props: { pdf, page: 0, thumbnail: true, error: (text) => errors.push(text) },
+      })
+      let cached
+      try {
+        await tick()
+        const frame = target.querySelector(".thumbnail"),
+          canvas = frame.querySelector("canvas")
+        for (const [index, [width, height]] of [
+          [1800, 2500],
+          [1900, 2600],
+          [5000, 7000],
+        ].entries()) {
+          frame.style.cssText = `inline-size:${width}px;block-size:${height}px;min-block-size:0;padding:0`
+          while (surfaces.length <= index || frame.getAttribute("aria-busy") === "true")
+            await new Promise(requestAnimationFrame)
+          images.push({ width: canvas.width, height: canvas.height, failed: !!frame.querySelector(".error") })
+          cached ??= cachedRaster(pdf, 0)
+        }
+      } finally {
+        await unmount(component)
+        releaseRasters(pdf)
+        target.remove()
+      }
+      return {
+        images,
+        allocations,
+        errors,
+        released: surfaces.every((surface) => surface.width === 0 && surface.height === 0),
+        cacheReleased: cached.width === 0 && cached.height === 0,
+      }
+    })
+    assert.ok(result.allocations.every((pixels) => pixels > 0 && pixels <= 16 * 1024 * 1024))
+    assert.ok(result.images.every((image) => image.width * image.height <= 16 * 1024 * 1024))
+    assert.deepEqual(result.images[1], { ...result.images[0], failed: true })
+    assert.equal(result.images[2].failed, false)
+    assert.deepEqual(result.errors, ["Page 1: Renderer failed"])
+    assert.equal(result.released, true)
+    assert.equal(result.cacheReleased, true)
+  } finally {
+    await browser.close()
   }
 })
 

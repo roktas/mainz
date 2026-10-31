@@ -94,6 +94,7 @@ export function fixture({
   widthConstraints = {},
   count = prepared ? 7 : 1,
   profileSets,
+  annotations,
 } = {}) {
   const pages = Object.fromEntries(Array.from({ length: count }, (_, index) => [`page${index}`, index]))
   const baseline = {
@@ -204,6 +205,11 @@ export function fixture({
       },
     ]
   if (profileSets) manifest.profileSets = profileSets
+  if (annotations) {
+    Object.assign(manifest.groups[0], annotations.group)
+    for (const [id, metadata] of Object.entries(annotations.parameters ?? {}))
+      Object.assign(manifest.parameters[id].schema, metadata)
+  }
   const objects = [
     `<< /Type /Catalog /Pages 2 0 R ${prepared ? "/Names << /EmbeddedFiles << /Names [(mainz.json) 4 0 R] >> >>" : ""} >>`,
     `<< /Type /Pages /Kids [${Array.from({ length: count }, (_, index) => `${5 + index * 2} 0 R`).join(" ")}] /Count ${count} /MediaBox [0 0 595.2756 841.8898] >>`,

@@ -37,6 +37,9 @@
     choose,
     change,
     download,
+    print,
+    filename,
+    rename,
     error,
     styling,
     input,
@@ -58,6 +61,9 @@
     choose: (id: string, sequence: Sequence) => void
     change: (text: string) => void
     download: () => void
+    print: () => void
+    filename?: string
+    rename: (source: HTMLElement) => void
     error: (message: string) => void
     styling?: Snippet<[toolbarOnly?: boolean]>
     input: Snippet<[heading: string]>
@@ -1548,6 +1554,13 @@
             onclick={repeat}>Repeat selected pages</button
           >{/if}
       {:else if chosen.length}<p>Select consecutive pages to repeat a sequence.</p>{/if}
+      <button
+        onclick={() => {
+          const source = outputMenu.querySelector<HTMLElement>("summary")!
+          outputMenu.open = false
+          rename(source)
+        }}>Set Output filename</button
+      >
     </div>
   </details>
 {/snippet}
@@ -1859,7 +1872,15 @@
     >
       <div class="section-heading">
         <div>
-          <h2 id={`${key}-output`}><Icon name="output" />Output</h2>
+          <h2 id={`${key}-output`} aria-label="Output">
+            <button
+              class="output-name"
+              onclick={(event) => rename(event.currentTarget)}
+              aria-label="Set Output filename"
+              title={filename ? `Output filename · ${filename}` : "Set Output filename"}
+              ><Icon name="output" /><span>Output</span></button
+            >
+          </h2>
         </div>
         <div class="output-state" {@attach summary}>
           <span class="composition-totals">{@render outputSummary()}</span>
@@ -1870,7 +1891,14 @@
             title="Output details"><Icon name="info" /></button
           >
         </div>
-        <div class="download-action" data-tour-target="download" data-tour-active={tour === "download"}>
+        <div class="output-actions" data-tour-target="download" data-tour-active={tour === "download"}>
+          <button
+            class="icon-button print-action"
+            aria-label="Print"
+            title={downloadError ?? "Print Output PDF"}
+            disabled={!output.pages.length || outputProcessing || !!downloadError}
+            onclick={print}><Icon name="print" /></button
+          >
           <button
             class="primary"
             aria-label="Download"

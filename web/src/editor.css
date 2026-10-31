@@ -1,7 +1,7 @@
 /* Styles Source parameters, profiles, and their editing layout. */
 
 @layer components {
-  @position-try --profile-center {
+  @position-try --guidance-center {
     position-area: none;
     inset-block: var(--gutter);
     inset-inline: var(--gutter);
@@ -121,12 +121,13 @@
       }
     }
     .profile-summary,
-    .profile-details > header {
+    .guidance > .guidance-heading,
+    .style-object > h4:has(> .guidance-trigger) {
       display: block grid;
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: start;
       column-gap: calc(var(--gap) / 2);
-      &:has(> button) > :is(p, h3) {
+      &:has(> button) > :is(p, [role="heading"], span:first-child) {
         margin: 0;
         padding-block: max(0px, calc((44px - 1lh) / 2));
       }
@@ -138,7 +139,7 @@
       inline-size: 1.5rem;
       block-size: 1.5rem;
     }
-    .profile-details {
+    .guidance {
       margin: 0;
       inset-block: auto;
       inset-inline: auto;
@@ -148,7 +149,7 @@
         flip-block,
         flip-inline,
         flip-block flip-inline,
-        --profile-center;
+        --guidance-center;
       inline-size: min(30rem, 100cqi, calc(100vi - 2 * var(--gutter)));
       max-block-size: calc(100dvb - 2 * var(--gutter));
       padding: var(--gap);
@@ -158,6 +159,8 @@
       background: var(--surface);
       box-shadow: 0 4px 16px var(--shadow);
       font-size: var(--body);
+      font-weight: 400;
+      cursor: auto;
       overflow: auto;
       overflow-wrap: anywhere;
       overscroll-behavior: contain;
@@ -165,14 +168,15 @@
         border-color: var(--secondary);
         outline: 2px solid transparent;
       }
-      & header {
+      & .guidance-heading {
         margin-block-end: 0.5em;
       }
-      & h3 {
+      & [role="heading"] {
         font-size: var(--body);
+        font-weight: 600;
       }
-      & p {
-        margin: 0;
+      & .guidance-text {
+        display: block flow;
         white-space: pre-line;
       }
     }
@@ -182,6 +186,10 @@
         font-size: var(--body);
         font-weight: 600;
       }
+    }
+    .parameter-details {
+      white-space: pre-line;
+      overflow-wrap: anywhere;
     }
     .parameter-id {
       display: block;
@@ -268,7 +276,7 @@
             color: var(--accent);
           }
         }
-        & > span:not(.count) {
+        & > span:first-child {
           min-inline-size: 0;
           & > span:first-child {
             display: inline flow-root;
@@ -295,11 +303,11 @@
       &[open] > summary > svg {
         rotate: 90deg;
       }
-      &[open] > summary > span:not(.count) > span:first-child {
+      &[open] > summary > span:first-child > span:first-child {
         color: var(--accent);
       }
       @media (hover: hover) and (pointer: fine) {
-        & > summary:hover > span:not(.count) > span:first-child {
+        & > summary:hover > span:first-child > span:first-child {
           color: var(--hover);
         }
       }
@@ -317,6 +325,11 @@
       font-size: var(--body);
       font-weight: 600;
       text-align: start;
+    }
+    .style-group > summary > .guidance-trigger {
+      flex: none;
+      block-size: max(44px, 1lh);
+      margin-block: min(0px, calc((1lh - 44px) / 2));
     }
     .style-object + .style-object > h4 {
       margin-block-start: calc(var(--gap) * 1.5);
@@ -403,6 +416,9 @@
             background: var(--surface);
             box-shadow: 0 4px 16px var(--shadow);
             font-size: var(--small);
+            max-block-size: min(24rem, 50dvb);
+            overflow: auto;
+            overscroll-behavior: contain;
             overflow-wrap: anywhere;
           }
         }

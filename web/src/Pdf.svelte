@@ -1,6 +1,15 @@
 <!-- Renders PDF preview rasters and supplies each image's hover lens. -->
 
 <script module lang="ts">
+  function scaleFor(size: { width: number; height: number }, requested: number) {
+    const limit = 16 * 1024 * 1024
+    let scale = Math.min(requested, Math.sqrt(limit / size.width / size.height))
+    const width = Math.ceil(size.width * scale),
+      height = Math.ceil(size.height * scale)
+    if (width * height > limit)
+      scale = (Math.floor(limit / Math.min(width, height)) - 0.5) / Math.max(size.width, size.height)
+    return scale
+  }
   let measurements: (() => void)[] = []
   function measure<T>(read: () => T): Promise<T> {
     return new Promise((resolve, reject) => {
@@ -95,6 +104,7 @@
       let sheet: PDFPageProxy | undefined
       let task: RenderTask | undefined
       let transient: HTMLCanvasElement | undefined
+      let sample: HTMLCanvasElement | undefined
       try {
         const { AnnotationMode } = await loadRenderer()
         if (disposed || current !== generation) return
@@ -121,11 +131,10 @@
         const { width, height } = bounds
         const fit = Math.min(width / size.width, height / size.height) * (small ? level / 100 : 1)
         lensScale = (small ? Math.min(width / size.width, height / size.height) : reference / size.width) / fit
-        const scale = Math.min(
-          fit * Math.min(devicePixelRatio, 2),
-          Math.sqrt((16 * 1024 * 1024) / (size.width * size.height)),
-        )
-        const viewport = sheet.getViewport({ scale })
+        const scale = scaleFor(size, fit * Math.min(devicePixelRatio, 2))
+        // Existing high-density rasters need no extra sampling or temporary canvas.
+        const sampling = small ? scaleFor(size, Math.max(scale, fit * Math.min(devicePixelRatio, 1) * 2)) : scale
+        const viewport = sheet.getViewport({ scale: sampling })
         if (small) {
           target.style.inlineSize = `${size.width * fit}px`
           target.style.blockSize = `${size.height * fit}px`
@@ -134,7 +143,7 @@
         completed = undefined
         rendering = true
         failure = ""
-        let raster = cachedRaster(document, number, scale)
+        let raster = cachedRaster(document, number, scale, sampling)
         if (!raster) {
           raster = parent.ownerDocument.createElement("canvas")
           transient = raster
@@ -144,7 +153,18 @@
           active = task
           await task.promise
           if (disposed || current !== generation) return
-          if (cacheRaster(document, number, scale, raster)) transient = undefined
+          if (sampling > scale) {
+            sample = raster
+            raster = parent.ownerDocument.createElement("canvas")
+            transient = raster
+            raster.width = Math.ceil(size.width * scale)
+            raster.height = Math.ceil(size.height * scale)
+            const context = raster.getContext("2d")!
+            context.imageSmoothingEnabled = true
+            context.imageSmoothingQuality = "high"
+            context.drawImage(sample, 0, 0, raster.width, raster.height)
+          }
+          if (cacheRaster(document, number, scale, raster, sampling)) transient = undefined
         }
         target.width = raster.width
         target.height = raster.height
@@ -157,6 +177,7 @@
         failure = reason instanceof Error ? reason.message : "PDF rendering failed."
         error(`Page ${pageNumber ?? number + 1}: ${failure}`)
       } finally {
+        if (sample) sample.width = sample.height = 0
         if (transient) transient.width = transient.height = 0
         if (active === task) active = undefined
         sheet?.cleanup()

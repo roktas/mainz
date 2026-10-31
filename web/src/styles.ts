@@ -5,6 +5,7 @@ import type { Part } from "./model.ts"
 export type Scalar = number | string
 export type Render = { overrides: Record<string, Scalar>; pages?: number[] }
 export type Usage = Map<string, Map<number, number>>
+export type Annotations = { description?: string; details?: never } | { description: string; details?: string }
 export type PaintDuo = { color?: string; opacity?: string }
 export type Quartet = {
   fill: PaintDuo
@@ -13,10 +14,9 @@ export type Quartet = {
   visibility?: string
 }
 export type Property = "display" | "stroke-width" | "stroke-color" | "fill-color" | "stroke-opacity" | "fill-opacity"
-export type Schema = {
+export type Schema = Annotations & {
   type: "number" | "string"
   title?: string
-  description?: string
   enum?: Scalar[]
   minimum?: number
   maximum?: number
@@ -34,26 +34,24 @@ export type Entry = {
   baseline: { kind: "uniform"; value: Scalar } | { kind: "mixed" } | { kind: "unrepresentable"; reason: string }
   pages: string[]
 }
-export type Profile = {
+export type Profile = Annotations & {
   id: string
   name: string
-  description?: string
-  details?: string
   overrides: Record<string, Scalar>
 }
-export type ProfileSet = {
+export type ProfileSet = Annotations & {
   id: string
   name: string
-  description?: string
   parameters: string[]
   profiles: Profile[]
 }
+export type Group = Annotations & { title: string; parameters: string[] }
 export type Description = {
   version: 1
   pageCount: number
   pages: Record<string, { index: number; label?: string }>
   parameters: Record<string, Entry>
-  groups?: { title: string; description?: string; parameters: string[] }[]
+  groups?: Group[]
   profileSets?: ProfileSet[]
 }
 
@@ -86,7 +84,7 @@ export function applyProfile(
   }
 }
 
-export function groups(description: Description) {
+export function groups(description: Description): Group[] {
   const supplied = description.groups ?? []
   const used = new Set(supplied.flatMap((group) => group.parameters))
   const remaining = Object.keys(description.parameters)
@@ -261,7 +259,7 @@ export function feedback(entry: Entry, text: string): string | undefined {
     if (binding.property === "stroke-width" ? value <= 0 : value < 0 || value > 1)
       return binding.property === "stroke-width"
         ? "Width must be greater than zero."
-        : "Opacity must be between 0 and 1."
+        : "Opacity must be between 0% and 100%."
     if (
       (schema.minimum !== undefined && value < schema.minimum) ||
       (schema.maximum !== undefined && value > schema.maximum) ||

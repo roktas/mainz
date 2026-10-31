@@ -15,7 +15,7 @@ const groups: Record<string, string[]> = {
   selection: ["selection"],
   startup: ["startup", "install", "assets"],
   page: ["page"],
-  workspace: ["workspace", "feedback"],
+  workspace: ["workspace", "feedback", "export"],
   viewport: ["viewport"],
 }
 const files = readdirSync(new URL(".", import.meta.url))
@@ -40,10 +40,13 @@ const minimal = {
   ],
   pdf: [
     "Overlapping preview generations release their own pages and never paint stale results",
+    "Thumbnails retain fine guides without reusing Page rasters or changing Page pixels",
+    "Thumbnail allocation stays within its pixel limit and releases failed renders",
     "Input inspection bounds pending metadata and releases pages on completion, cancellation, and failure",
   ],
   startup: ["The first PDF previews before validation and commits only after success"],
   workspace: [
+    "Opacity percentages preserve precision and leave room for their sliders",
     "Opaque parameter IDs retain style edits, draft errors, and downloaded values",
     "Style and Download cancellation release preview workers and retain choices",
     "Download reuses completed full-document styles and invalidates changed Output",

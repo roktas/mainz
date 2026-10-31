@@ -39,7 +39,7 @@ test("Opaque profile-set IDs keep their annotations across Input switches", { ti
         name: "Color profile",
         parameters: ["guides-stroke-color"],
         profiles: [
-          { id: "generic", name: "Generic", details: " \n", overrides: {} },
+          { id: "generic", name: "Generic", description: "Styles from Generic.", details: " \n", overrides: {} },
           {
             id: "inkjet",
             name: "Red guides",
@@ -90,7 +90,7 @@ test("Opaque profile-set IDs keep their annotations across Input switches", { ti
         await information.press("Enter")
         const panel = input.getByRole("region", { name: set.profiles[1].name, exact: true })
         await panel.waitFor()
-        assert.equal(await panel.locator("p").innerText(), set.profiles[1].details)
+        assert.equal(await panel.locator(".guidance-text").innerText(), set.profiles[1].details)
         assert.equal(await panel.locator("b, script").count(), 0)
         assert.equal(await profile.inputValue(), "inkjet", "Reading guidance does not change styles")
         await page.keyboard.press("Escape")
@@ -98,7 +98,7 @@ test("Opaque profile-set IDs keep their annotations across Input switches", { ti
         assert.equal(await information.evaluate((element) => element === document.activeElement), true)
         await information.click()
         await profile.selectOption("generic")
-        assert.equal(await input.locator(".profile-details:popover-open").count(), 0)
+        assert.equal(await input.locator(".guidance:popover-open").count(), 0)
         await profile.selectOption("inkjet")
       }
       const ids = await input
@@ -128,6 +128,188 @@ test("Opaque profile-set IDs keep their annotations across Input switches", { ti
     }
   } finally {
     await browser?.close()
+  }
+})
+
+test("Authored details share one panel across Style owners and omit blank guidance", { timeout: 60000 }, async () => {
+  const server = await serve()
+  await mkdir("../.local/tmp/web/profiles", { recursive: true })
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    const annotations = {
+      group: { description: "Guide controls.", details: "Group guidance.\n\n<b>Text</b> remains plain." },
+      parameters: {
+        "guides-display": {
+          title: "Guide object",
+          description: "Controls the guide object.",
+          details: "Object guidance.\n\nApplies to the whole guide object.",
+        },
+        "guides-stroke-color": {
+          description: "Outline color.",
+          details: `Color guidance.\n\n<script>not executable</script>\n\n${"More guidance. ".repeat(240)}End of guidance.`,
+        },
+      },
+    }
+    const set = {
+      id: "appearance",
+      name: "Appearance",
+      description: "Choose guide styles.",
+      details: "Set guidance.\n\nChoices share the same scope.",
+      parameters: ["guides-stroke-color"],
+      profiles: [
+        { id: "original", name: "Original", overrides: {} },
+        {
+          id: "fine",
+          name: "Fine guides",
+          description: "Colored guide outlines.",
+          details: "Profile guidance.\n\nUses the declared outline color.",
+          overrides: { "guides-stroke-color": "#123456" },
+        },
+      ],
+    }
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(server.resolvedUrls.local[0])
+      const input = page.locator(".selection-panel")
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({
+          name: "Guidance.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture({ count: 3, grouped: true, annotations, profileSets: [set] }),
+        })
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+      await tab(input, "Style")
+      assert.equal(await input.locator(".guidance-trigger").count(), 3)
+      const chooser = input.getByRole("combobox", { name: "Appearance", exact: true })
+      await chooser.selectOption("fine")
+      for (const [width, size] of [
+        [1440, 100],
+        [390, 200],
+      ]) {
+        await page.setViewportSize({ width, height: 1000 })
+        await page.evaluate((textSize) => (document.documentElement.style.fontSize = `${textSize}%`), size)
+        for (const [name, text] of [
+          ["Guides", annotations.group.details],
+          ["Guide object", annotations.parameters["guides-display"].details],
+          [set.name, set.details],
+          ["Fine guides", set.profiles[1].details],
+        ]) {
+          const trigger = input.getByRole("button", { name: `Details for ${name}`, exact: true })
+          await trigger.scrollIntoViewIfNeeded()
+          const alignment = await trigger.evaluate((button) => {
+            const target = button.getBoundingClientRect(),
+              reference = button.previousElementSibling,
+              box = reference.getBoundingClientRect(),
+              style = getComputedStyle(reference),
+              path = button.querySelector("path"),
+              bounds = path.getBBox(),
+              center = new DOMPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2).matrixTransform(
+                path.getScreenCTM(),
+              )
+            return {
+              width: target.width,
+              height: target.height,
+              x: center.x - target.x - target.width / 2,
+              y: center.y - box.y - parseFloat(style.paddingBlockStart) - parseFloat(style.lineHeight) / 2,
+            }
+          })
+          assert.ok(
+            alignment.width >= 44 && alignment.height >= 44 && Math.abs(alignment.x) < 1 && Math.abs(alignment.y) < 1,
+            JSON.stringify({ engine: engine.name(), name, width, size, alignment }),
+          )
+          await trigger.click()
+          const panel = input.getByRole("region", { name, exact: true })
+          await panel.waitFor()
+          assert.equal(await panel.locator(".guidance-text").innerText(), text)
+          assert.equal(await panel.locator("b,script").count(), 0)
+          assert.equal(
+            await panel.locator(".guidance-text").evaluate((element) => getComputedStyle(element).fontWeight),
+            "400",
+          )
+          await panel.locator(".guidance-text").click()
+          assert.equal(await input.locator(".style-group").first().getAttribute("open"), "")
+          const box = await panel.boundingBox()
+          assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= width && box.y + box.height <= 1000)
+          await panel.screenshot({
+            path: `../.local/tmp/web/profiles/${engine.name()}-guidance-${width}-${name.replaceAll(" ", "-")}.png`,
+          })
+          await page.keyboard.press("Escape")
+          assert.equal(await trigger.evaluate((button) => button === document.activeElement), true)
+          assert.equal(await chooser.inputValue(), "fine")
+          if (name === "Guides") {
+            await trigger.click()
+            await panel.getByRole("button", { name: "Close details", exact: true }).click()
+            assert.equal(await panel.isVisible(), false)
+            assert.equal(await input.locator(".style-group").first().getAttribute("open"), "")
+          }
+        }
+      }
+      for (const [width, size] of [
+        [1440, 100],
+        [390, 200],
+      ]) {
+        await page.setViewportSize({ width, height: 1000 })
+        await page.evaluate((textSize) => (document.documentElement.style.fontSize = `${textSize}%`), size)
+        const trigger = input.getByRole("button", { name: "Edit Stroke", exact: true })
+        const details = input.getByLabel("Details for Guide Color", { exact: true })
+        await trigger.click()
+        await details.click()
+        assert.equal(
+          await input.locator(".parameter-details").innerText(),
+          annotations.parameters["guides-stroke-color"].details,
+        )
+        const information = input.getByRole("region", { name: "Guide Color information", exact: true })
+        const scroll = await information.evaluate((panel) => {
+          panel.scrollTop = panel.scrollHeight
+          return { top: panel.scrollTop, height: panel.clientHeight, total: panel.scrollHeight }
+        })
+        assert.ok(scroll.top > 0 && scroll.height <= 500 && scroll.top + scroll.height >= scroll.total - 1)
+        await information.focus()
+        await page.keyboard.press("Home")
+        await page.waitForFunction(() => document.activeElement.scrollTop === 0)
+        await page.keyboard.press("Escape")
+        assert.equal(await information.isVisible(), false)
+        assert.equal(await input.locator(".quartet-panel").isVisible(), true)
+        assert.equal(await details.evaluate((element) => element === document.activeElement), true)
+        await page.keyboard.press("Escape")
+        assert.equal(await input.locator(".quartet-panel").count(), 0)
+        assert.equal(await trigger.evaluate((element) => element === document.activeElement), true)
+      }
+      await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+      await page.setViewportSize({ width: 1440, height: 1000 })
+      const blank = { description: "Short description.", details: " \n\t\u00a0\u2003\u202f\ufeff " }
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({
+          name: "Blank-guidance.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture({
+            count: 3,
+            grouped: true,
+            annotations: { group: blank, parameters: { "guides-display": blank } },
+            profileSets: [
+              {
+                ...set,
+                ...blank,
+                profiles: [
+                  { ...set.profiles[0], ...blank },
+                  { ...set.profiles[1], ...blank },
+                ],
+              },
+            ],
+          }),
+        })
+      await input.locator(".input-current").filter({ hasText: "Blank-guidance.pdf" }).waitFor()
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+      await tab(input, "Style")
+      assert.equal(await input.locator(".guidance-trigger").count(), 0)
+    } finally {
+      await browser.close()
+    }
   }
 })
 
@@ -202,7 +384,7 @@ test("Profile details stay readable and aligned across layouts", { timeout: 1800
               await information.press("Enter")
               const panel = input.getByRole("region", { name: "Filled", exact: true })
               await panel.waitFor()
-              await page.waitForFunction(() => document.activeElement?.matches(".profile-details"))
+              await page.waitForFunction(() => document.activeElement?.matches(".guidance"))
               assert.match(await panel.innerText(), /preferred starting point for inkjet printers/)
               assert.equal(
                 await panel.evaluate((element) => element.scrollTop),
@@ -252,18 +434,18 @@ test("Profile details stay readable and aligned across layouts", { timeout: 1800
         await information.click()
         await input.getByRole("region", { name: "Filled", exact: true }).waitFor()
         await input.getByRole("tab", { name: "Style", exact: true }).click()
-        assert.equal(await input.locator(".profile-details:popover-open").count(), 0)
+        assert.equal(await input.locator(".guidance:popover-open").count(), 0)
         assert.equal(await chooser.inputValue(), "inkjet")
         await information.click()
-        await input.getByRole("button", { name: "Close profile details", exact: true }).click()
-        assert.equal(await input.locator(".profile-details:popover-open").count(), 0)
+        await input.getByRole("button", { name: "Close details", exact: true }).click()
+        assert.equal(await input.locator(".guidance:popover-open").count(), 0)
       }
     } catch (error) {
       if (page) {
         const details = await page.evaluate(() => ({
           font: document.documentElement.style.fontSize,
           active: document.activeElement?.outerHTML.slice(0, 250),
-          panels: [...document.querySelectorAll(".profile-details:popover-open")].map((element) => ({
+          panels: [...document.querySelectorAll(".guidance:popover-open")].map((element) => ({
             top: element.scrollTop,
             height: element.clientHeight,
             scroll: element.scrollHeight,
@@ -314,7 +496,7 @@ test(
       }
       assert.equal(await button.isDisabled(), true)
       assert.match(await output.locator(".download-error").innerText(), /32 Inputs.*Remove pages/)
-      assert.equal(await page.locator(".download-dialog[open]").count(), 0)
+      assert.equal(await page.locator(".export-dialog[open]").count(), 0)
       await output.getByRole("textbox", { name: "Page selection", exact: true }).fill("33")
       await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
       assert.equal(await button.isEnabled(), true)
@@ -2068,7 +2250,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     )
     await watermark.getByLabel("Edit Fill", { exact: true }).click()
     await watermark.getByRole("textbox", { name: "Watermark", exact: true }).fill("#336699")
-    await watermark.getByRole("spinbutton", { name: "Watermark Fill Opacity (ratio)", exact: true }).fill("0.6")
+    await watermark.getByRole("spinbutton", { name: "Watermark Fill Opacity (%)", exact: true }).fill("60")
     await page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
     assert.equal(await chooser.inputValue(), "generic")
     assert.match(await watermark.locator('.quartet-text[title^="Fill opacity:"]').textContent(), /60%/)
@@ -2101,7 +2283,9 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     await guideSection.locator(":scope > summary").press("Enter")
     assert.equal(await minor.isVisible(), true)
     assert.equal(await guideHelp.isVisible(), true)
-    const labels = await guideSection.locator(".style-object > h4 > span:first-child").allTextContents()
+    const labels = await guideSection
+      .locator(".style-object")
+      .evaluateAll((objects) => objects.map((object) => object.getAttribute("aria-label")))
     assert.deepEqual(labels, ["Slants", "Angles", "Minors", "Majors", "Halves"])
     const visibility = pattern.getByRole("checkbox")
     await visibility.uncheck()
@@ -2185,18 +2369,18 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     })
     assert.equal(await strokePaint.getByRole("textbox", { name: "Minors Stroke Color", exact: true }).count(), 1)
     assert.equal(
-      await strokePaint.getByRole("spinbutton", { name: "Minors Stroke Opacity (ratio)", exact: true }).count(),
+      await strokePaint.getByRole("spinbutton", { name: "Minors Stroke Opacity (%)", exact: true }).count(),
       1,
     )
     const minorOpacity = input.getByRole("spinbutton", {
-      name: "Minors Stroke Opacity (ratio)",
+      name: "Minors Stroke Opacity (%)",
       exact: true,
     })
     const majorOpacity = major.locator('.quartet-text[title^="Stroke opacity:"]')
     const originalMajorOpacity = await majorOpacity.textContent()
-    await minorOpacity.fill("0.3")
+    await minorOpacity.fill("30")
     await page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
-    assert.equal(await minorOpacity.inputValue(), "0.3")
+    assert.equal(await minorOpacity.inputValue(), "30")
     assert.equal(await majorOpacity.textContent(), originalMajorOpacity)
     const minorVisibility = minor.getByRole("checkbox")
     await minorVisibility.uncheck()
@@ -2212,7 +2396,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     await input.getByRole("button", { name: "Add to Output", exact: true }).click()
     await input.getByRole("tab", { name: "Style", exact: true }).click()
     await reveal("Minors", "Opacity")
-    assert.equal(await minorOpacity.inputValue(), "0.3")
+    assert.equal(await minorOpacity.inputValue(), "30")
     assert.equal(await watermark.getByRole("img", { name: "Fill color: #336699", exact: true }).count(), 1)
     assert.match(await watermark.locator('.quartet-text[title^="Fill opacity:"]').textContent(), /60%/)
     assert.equal(await minorVisibility.isChecked(), false)
@@ -2242,7 +2426,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
       assert.equal(await filled.getByRole("note", { name: `${label}: not applicable`, exact: true }).count(), 1)
     await filled.getByLabel("Edit Fill", { exact: true }).click()
     await filled.getByRole("textbox", { name: "Fill Color", exact: true }).fill("#A9A9A9")
-    await filled.getByRole("spinbutton", { name: "Fill Opacity (ratio)", exact: true }).fill("0.4")
+    await filled.getByRole("spinbutton", { name: "Fill Opacity (%)", exact: true }).fill("40")
     await page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
     assert.match(await filled.locator('.quartet-text[title^="Fill opacity:"]').textContent(), /40%/)
     await page.keyboard.press("Escape")
@@ -2276,6 +2460,112 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     await page.close()
   } finally {
     await browser?.close()
+  }
+})
+
+test("Opacity percentages preserve precision and leave room for their sliders", { timeout: 120000 }, async () => {
+  const server = await serve()
+  await mkdir("../.local/tmp/web/layout/opacity", { recursive: true })
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(server.resolvedUrls.local[0])
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({
+          name: "Opacity.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture({
+            grouped: true,
+            profileSets: [
+              {
+                id: "opacity",
+                name: "Opacity profile",
+                parameters: ["guides-stroke-opacity"],
+                profiles: [
+                  { id: "original", name: "Original", overrides: {} },
+                  { id: "precise", name: "Precise", overrides: { "guides-stroke-opacity": 0.789764747191011 } },
+                ],
+              },
+            ],
+          }),
+        })
+      const input = page.locator(".selection-panel")
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+      await tab(input, "Style")
+      const profile = input.getByRole("combobox", { name: "Opacity profile", exact: true })
+      await profile.selectOption("precise")
+      await input.getByRole("button", { name: "Edit Stroke", exact: true }).click()
+      const field = input.getByRole("spinbutton", { name: "Guide Opacity (%)", exact: true })
+      const slider = input.getByRole("slider", { name: "Adjust Guide Opacity", exact: true })
+      assert.equal(await field.inputValue(), "79")
+      assert.equal(await slider.getAttribute("aria-valuetext"), "79%")
+      await field.focus()
+      assert.equal(await field.inputValue(), "79")
+      assert.ok(Math.abs(parseFloat(await field.getAttribute("title")) - 78.9764747191011) < 1e-12)
+      await field.press("Tab")
+      assert.equal(await field.inputValue(), "79")
+      assert.equal(await slider.inputValue(), "0.789764747191011")
+      assert.equal(await profile.inputValue(), "precise", "Focus and display rounding assign nothing")
+      for (const width of [320, 390, 768, 1440]) {
+        await page.setViewportSize({ width, height: 1100 })
+        for (const text of ["100%", "200%"]) {
+          await page.evaluate((size) => (document.documentElement.style.fontSize = size), text)
+          for (const colorScheme of ["light", "dark"]) {
+            await page.emulateMedia({ colorScheme })
+            await field.scrollIntoViewIfNeeded()
+            const bounds = await field.evaluate((element) => {
+              const entry = element.parentElement
+              const track = entry.querySelector(".slider").getBoundingClientRect()
+              const value = element.getBoundingClientRect()
+              const unit = entry.querySelector(".unit").getBoundingClientRect()
+              const reset = entry.querySelector(".reset").getBoundingClientRect()
+              return {
+                track: track.width,
+                value: value.width,
+                aligned: [track, unit, reset].every(
+                  (box) => Math.abs(box.y + box.height / 2 - value.y - value.height / 2) < 1,
+                ),
+                separate: track.right <= value.left && value.right <= unit.left && unit.right <= reset.left,
+                fits: entry.scrollWidth <= entry.clientWidth,
+              }
+            })
+            const label = `${engine.name()}, ${width}, ${text}, ${colorScheme}`
+            assert.ok(
+              bounds.track >= 44 && bounds.aligned && bounds.separate && bounds.fits,
+              `${label}: ${JSON.stringify(bounds)}`,
+            )
+            await field.focus()
+            assert.ok(
+              Math.abs((await field.boundingBox()).width - bounds.value) < 1,
+              `${label}: precision keeps the same width`,
+            )
+            await field.press("Tab")
+            await input.locator(".quartet-panel").screenshot({
+              path: `../.local/tmp/web/layout/opacity/${engine.name()}-${width}-${text}-${colorScheme}.png`,
+            })
+          }
+        }
+      }
+      await field.fill("7")
+      assert.equal(await field.inputValue(), "7", "Typing does not expose floating-point conversion noise")
+      const compact = await field.boundingBox()
+      await field.fill("12.3456789")
+      assert.ok(Math.abs((await field.boundingBox()).width - compact.width) < 1, "Precise entry keeps the same width")
+      await field.press("Tab")
+      assert.equal(await field.inputValue(), "12.3")
+      assert.equal(await slider.inputValue(), "0.123456789")
+      await field.fill("101")
+      assert.equal(await field.getAttribute("aria-invalid"), "true")
+      assert.match(await input.locator(".control .error").innerText(), /between 0% and 100%/)
+      await input.getByRole("button", { name: "Reset Guide Opacity", exact: true }).click()
+      assert.equal(await field.inputValue(), "100")
+    } finally {
+      await browser.close()
+    }
   }
 })
 

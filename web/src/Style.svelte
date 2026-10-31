@@ -6,6 +6,7 @@
   import type { Entry } from "./styles.ts"
   import type { Source } from "./model.ts"
   import Control from "./Control.svelte"
+  import Guidance from "./Guidance.svelte"
   import Icon from "./Icon.svelte"
   import Quartet from "./Quartet.svelte"
   import type { TourStep } from "./Tour.svelte"
@@ -82,12 +83,13 @@
       {@const label = schema.title ?? representative}
       <div class="style-object" role="group" aria-label={label}>
         <h4>
-          <span>{label}</span>
-          {#if schema.description}
-            <span class="control-description">
-              {schema.description}
-            </span>
-          {/if}
+          <span>
+            {label}
+            {#if schema.description}
+              <span class="control-description">{schema.description}</span>
+            {/if}
+          </span>
+          <Guidance title={label} details={schema.details} />
         </h4>
         <Quartet quartet={object.quartet} {entry} drafts={source.drafts} {field} change={style} />
       </div>
@@ -124,9 +126,7 @@
           {@const selected = matchingProfile(set, source.overrides, source.drafts)}
           {@const description =
             selected?.description ||
-            (selected
-              ? set.description || `Styles from ${selected.name}.`
-              : "Custom styles. Choose a profile to apply its values.")}
+            (selected ? `Styles from ${selected.name}.` : "Custom styles. Choose a profile to apply its values.")}
           {@const pages = pageRanges(
             [...new Set(set.parameters.flatMap((id) => definition.parameters[id].pages))]
               .map((page) => definition.pages[page].index)
@@ -150,44 +150,18 @@
               </select>
               <Icon name="next" />
             </div>
+            {#if set.description}
+              <div class="profile-summary">
+                <p class="control-description">{set.description}</p>
+                <Guidance title={set.name} details={set.details} />
+              </div>
+            {/if}
             <div class="profile-summary">
               <p id={`${key}-profile-${index}`} class="control-description">
                 {description}
               </p>
               {#key selected}
-                {#if selected?.details?.trim()}
-                  <button
-                    class="icon-button"
-                    popovertarget={`${key}-profile-details-${index}`}
-                    aria-label={`Details for ${selected.name}`}
-                    title={`Details for ${selected.name}`}><Icon name="info" /></button
-                  >
-                  <section
-                    id={`${key}-profile-details-${index}`}
-                    class="profile-details"
-                    popover="auto"
-                    tabindex="-1"
-                    aria-labelledby={`${key}-profile-title-${index}`}
-                    ontoggle={(event) => {
-                      if (event.newState === "open") {
-                        event.currentTarget.scrollTop = 0
-                        event.currentTarget.focus({ preventScroll: true })
-                      }
-                    }}
-                  >
-                    <header>
-                      <h3 id={`${key}-profile-title-${index}`}>{selected.name}</h3>
-                      <button
-                        class="icon-button"
-                        popovertarget={`${key}-profile-details-${index}`}
-                        popovertargetaction="hide"
-                        aria-label="Close profile details"
-                        title="Close profile details"><Icon name="close" /></button
-                      >
-                    </header>
-                    <p>{selected.details}</p>
-                  </section>
-                {/if}
+                <Guidance title={selected?.name ?? set.name} details={selected?.details} />
               {/key}
             </div>
           </div>
@@ -206,6 +180,7 @@
                   <span>{group.title}</span>
                   {#if group.description}<span class="control-description">{group.description}</span>{/if}
                 </span>
+                <Guidance title={group.title} details={group.details} />
                 <span class="count" role="img" aria-label={countLabel} title={countLabel}>{count}</span>
                 <Icon name="next" />
               </summary>

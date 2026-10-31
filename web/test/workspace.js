@@ -462,8 +462,9 @@ export async function checkWorkspace(page, prepared, ordinary) {
             const style = frame && getComputedStyle(frame)
             return canvas
               ? {
-                  width: frame.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd),
-                  height: frame.clientHeight - parseFloat(style.paddingBlockStart) - parseFloat(style.paddingBlockEnd),
+                  width: frame.clientWidth,
+                  height: frame.clientHeight,
+                  padding: style.padding,
                   rasterWidth: canvas.width,
                   rasterHeight: canvas.height,
                   image: canvas.toDataURL(),
@@ -491,46 +492,69 @@ export async function checkWorkspace(page, prepared, ordinary) {
     const bytes = await readFile(await artifact.path())
     const inspected = await page.evaluate(
       async ({ bytes: pdfBytes, images: expectedImages }) => {
-        const { openPDF, loadRenderer } = await import("/src/pdf.ts")
-        const { AnnotationMode } = await loadRenderer()
+        const { openPDF, releaseRasters } = await import("/src/pdf.ts")
+        const { mount, unmount, tick, Pdf } = await import("/test/fixtures/preview.ts")
         const task = await openPDF(Uint8Array.from(pdfBytes))
+        const target = document.createElement("div")
+        target.style.cssText = "position:fixed;inset-inline-start:-10000px"
+        document.body.append(target)
+        const failures = []
+        let pdf
         try {
-          const pdf = await task.promise
+          pdf = await task.promise
           const matches = []
           for (let index = 0; index < pdf.numPages; index++) {
-            const sheet = await pdf.getPage(index + 1)
             const expected = expectedImages[index]
             if (!expected) {
-              matches.push((await sheet.getOperatorList()).fnArray.length === 0)
+              const sheet = await pdf.getPage(index + 1)
+              try {
+                matches.push((await sheet.getOperatorList()).fnArray.length === 0)
+              } finally {
+                sheet.cleanup()
+              }
               continue
             }
-            const size = sheet.getViewport({ scale: 1 })
-            const viewport = sheet.getViewport({
-              scale:
-                Math.min(expected.width / size.width, expected.height / size.height) * Math.min(devicePixelRatio, 2),
+            // Compare exported content through the same real thumbnail boundary, independently of its sampling policy.
+            const component = mount(Pdf, {
+              target,
+              props: {
+                pdf,
+                page: index,
+                thumbnail: true,
+                error: (message) => failures.push(message),
+              },
             })
-            const canvas = document.createElement("canvas")
-            canvas.width = expected.rasterWidth
-            canvas.height = expected.rasterHeight
-            await sheet.render({ canvas, viewport, annotationMode: AnnotationMode.DISABLE }).promise
-            matches.push(canvas.toDataURL() === expected.image)
-            canvas.width = 0
-            canvas.height = 0
+            try {
+              await tick()
+              const frame = target.querySelector(".thumbnail")
+              frame.style.cssText = `inline-size:${expected.width}px;block-size:${expected.height}px;padding:${expected.padding};border:0`
+              while (frame.getAttribute("aria-busy") === "true") await new Promise(requestAnimationFrame)
+              const canvas = frame.querySelector("canvas")
+              matches.push(
+                canvas.width === expected.rasterWidth &&
+                  canvas.height === expected.rasterHeight &&
+                  canvas.toDataURL() === expected.image,
+              )
+            } finally {
+              await unmount(component)
+            }
           }
-          return { pages: pdf.numPages, matches }
+          return { pages: pdf.numPages, matches, errors: failures }
         } finally {
+          if (pdf) releaseRasters(pdf)
+          target.remove()
           await task.destroy()
         }
       },
       { bytes: Array.from(bytes), images },
     )
     assert.ok(
-      inspected.pages === count && inspected.matches.every(Boolean),
+      inspected.pages === count && inspected.matches.every(Boolean) && inspected.errors.length === 0,
       `Downloaded pages match Output order, independent styles, dimensions, and Blanks: ${JSON.stringify(inspected)}`,
     )
     assert.ok(
       (await total()) === `${count} ${count === 1 ? "page" : "pages"}` &&
-        !(await page.locator(".download-dialog").isVisible()),
+        !(await page.locator(".export-dialog").isVisible()),
       "Successful Download preserves the workspace and closes its modal",
     )
   }
@@ -1111,8 +1135,8 @@ export async function checkWorkspace(page, prepared, ordinary) {
   )
   await zoom(output, "Reset zoom")
   assert.ok(
-    (await output.locator(".download-action").count()) === 1 &&
-      (await output.locator(".section-heading .download-action").isVisible()),
+    (await output.locator(".output-actions").count()) === 1 &&
+      (await output.locator(".section-heading .output-actions").isVisible()),
     "Output keeps one shared Download action while Page is open",
   )
   await zoom(output, "Zoom in")
@@ -1204,7 +1228,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
     await output.getByRole("button", { name: "Download", exact: true }).isEnabled(),
     "Completed PDF processing restores Download",
   )
-  const actionBounds = await output.locator(".download-action").boundingBox()
+  const actionBounds = await output.locator(".output-actions").boundingBox()
   await color().fill("#666666")
   assert.ok(
     (await page.locator(".header-feedback .style-progress").innerText()).includes("Updating styles") &&
@@ -1215,7 +1239,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
     await output.getByRole("button", { name: "Download", exact: true }).isDisabled(),
     "Download remains visible and disabled during Style processing",
   )
-  const processingBounds = await output.locator(".download-action").boundingBox()
+  const processingBounds = await output.locator(".output-actions").boundingBox()
   assert.ok(
     Math.abs(processingBounds.width - actionBounds.width) < 1 &&
       Math.abs(processingBounds.height - actionBounds.height) < 1,
@@ -1306,12 +1330,16 @@ export async function checkWorkspace(page, prepared, ordinary) {
       assert.ok(!(await input.isVisible()) && (await output.isVisible()), "One tap switches to Output")
       await (await gridPage(output, 1)).scrollIntoViewIfNeeded()
       const totalsBox = await output.locator(".output-state").boundingBox()
-      const downloadBox = await output.locator(".download-action").boundingBox()
+      const printBox = await output.getByRole("button", { name: "Print", exact: true }).boundingBox()
+      const downloadBox = await output.getByRole("button", { name: "Download", exact: true }).boundingBox()
+      const switchBox = await nav.getByRole("button", { name: "Output", exact: true }).boundingBox()
       assert.ok(
         Math.abs(totalsBox.y + totalsBox.height / 2 - downloadBox.y - downloadBox.height / 2) < 1 &&
-          totalsBox.x + totalsBox.width <= downloadBox.x &&
-          Math.abs(totalsBox.width - downloadBox.width) < 1,
-        "Mobile Output totals and Download share one row with equal columns",
+          totalsBox.x + totalsBox.width <= printBox.x &&
+          printBox.x + printBox.width < downloadBox.x &&
+          Math.abs(downloadBox.x - switchBox.x) < 1 &&
+          Math.abs(downloadBox.width - switchBox.width) < 1,
+        "Mobile Download retains the Output column, with Print between totals and Download",
       )
       await first.locator(".occurrence-actions").evaluate((element) => element.scrollIntoView({ block: "center" }))
       assert.ok(
@@ -1404,7 +1432,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await entry.fill("1,1")
   await input.getByRole("button", { name: "Add to Output", exact: true }).click()
   assert.ok((await total()) === "11 pages", "Ordinary one-page Input supports repetition")
-  const dialog = page.locator(".download-dialog")
+  const dialog = page.locator(".export-dialog")
   let reached, release
   const started = new Promise((resolve) => (reached = resolve))
   const held = new Promise((resolve) => (release = resolve))

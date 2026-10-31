@@ -3,6 +3,7 @@
 @layer layouts {
   @scope (#app) {
     .composer {
+      --print-size: max(46px, calc(1.5rem + 16px));
       display: flex;
       flex-direction: column;
       flex: 1;
@@ -33,6 +34,59 @@
         gap: 0.5em;
         font-size: var(--heading);
       }
+    }
+    .output-name {
+      padding: 0;
+      min-inline-size: 0;
+      min-block-size: 44px;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      color: inherit;
+      font: inherit;
+      gap: 0.5em;
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          color: var(--accent);
+        }
+      }
+      &:focus-visible {
+        outline: 2px solid var(--secondary);
+        outline-offset: 2px;
+      }
+    }
+    .filename-panel {
+      margin: auto;
+      inset: 0;
+      inline-size: min(30rem, calc(100vi - 2 * var(--gutter)));
+      max-block-size: calc(100dvb - 2 * var(--gutter));
+      padding: var(--gap);
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 4px 16px var(--shadow);
+      font-size: var(--body);
+      overflow: auto;
+      & form {
+        display: grid;
+        gap: calc(var(--gap) / 2);
+      }
+      & h3,
+      & p {
+        margin: 0;
+      }
+      & input {
+        inline-size: 100%;
+        min-inline-size: 0;
+      }
+      & .filename-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: calc(var(--gap) / 2);
+      }
+    }
+    .composer .output-actions > .primary {
+      flex: 1;
     }
 
     .composition-totals {
@@ -265,6 +319,18 @@
       }
     }
     @container composer (width > 55em) {
+      .composer .section-heading h2 {
+        font-size: 1rem;
+        & .workspace-icon {
+          inline-size: 1.75rem;
+          block-size: 1.75rem;
+        }
+      }
+      .composer .input-heading .file-picker,
+      .composer .output-actions > .primary {
+        inline-size: 9em;
+        min-inline-size: 9em;
+      }
       .composer .selection-panel {
         padding-inline-end: var(--gutter);
       }
@@ -387,6 +453,7 @@
           min-inline-size: 0;
           justify-content: start;
           text-align: start;
+          margin-inline-end: calc(var(--print-size) + 0.25em);
         }
       }
       .composer {
@@ -400,12 +467,12 @@
         & .mobile-workspace-tabs button,
         & .input-picker > summary,
         & .input-heading .file-picker,
-        & .download-action > button,
+        & .output-actions > button,
         & .output-state > button {
           min-block-size: calc(2.25rem + 2 * clamp(0.5rem, 0.44rem + 0.2vi, 0.75rem) + 2px);
         }
         & .input-heading .file-picker,
-        & .download-action > button,
+        & .output-actions > button,
         & .output-state > button {
           inline-size: 100%;
           min-inline-size: 0;
@@ -424,6 +491,16 @@
           }
         }
       }
+      .composer .output-actions {
+        position: relative;
+        & > .print-action {
+          position: absolute;
+          inset-inline-end: calc(100% + 0.25em);
+          inset-block: 0;
+          inline-size: var(--print-size);
+          min-inline-size: var(--print-size);
+        }
+      }
     }
     @container toolbar (width <= 20em) {
       .tabs > button > span:not(.edit-dot) {
@@ -440,7 +517,7 @@
     }
     @container heading (width <= 16em) {
       .composer .input-heading .file-picker,
-      .composer .download-action > button {
+      .composer .output-actions > button {
         min-inline-size: 44px;
         padding-inline: 4px;
         & > span {

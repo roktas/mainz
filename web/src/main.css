@@ -419,7 +419,17 @@
       }
     }
 
-    .download-dialog {
+    .print-frame {
+      position: fixed;
+      inset-block-start: 0;
+      inset-inline-start: 0;
+      inline-size: 1px;
+      block-size: 1px;
+      border: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .output-dialog {
       inset-block-start: max(13px, env(safe-area-inset-top, 0px));
       inset-block-end: auto;
       inset-inline: var(--gutter);
@@ -433,6 +443,30 @@
       background: var(--paper);
       &::backdrop {
         background: color-mix(in oklch, var(--paper) 65%, transparent);
+      }
+      &.print-dialog {
+        inline-size: min(36rem, calc(100% - 2 * var(--gutter)));
+        padding: var(--gap);
+        font-size: var(--body);
+        & h2 {
+          margin: 0;
+          font-size: var(--heading);
+        }
+        & .print-name {
+          overflow-wrap: anywhere;
+          color: var(--muted);
+        }
+        & .print-actions {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+          gap: calc(var(--gap) / 2);
+          & a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-block-size: 46px;
+          }
+        }
       }
     }
 

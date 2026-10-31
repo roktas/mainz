@@ -1,6 +1,12 @@
 /* Styles Quartet summaries and property editors. */
 
 @layer components {
+  @position-try --quartet-center {
+    position-area: none;
+    inset-block: var(--gutter);
+    inset-inline: var(--gutter);
+    margin: auto;
+  }
   @scope (#app) {
     .quartet {
       container: quartet / inline-size;
@@ -147,6 +153,36 @@
         grid-row: var(--editor-row, auto);
         padding-block-start: var(--gap);
         border-block-start: 1px solid var(--border);
+        &[popover] {
+          margin: 0;
+          inset: auto;
+          margin-block-start: calc(var(--gap) / 2);
+          position-area: block-end span-inline-end;
+          position-try-fallbacks:
+            flip-block,
+            flip-inline,
+            flip-block flip-inline,
+            --quartet-center;
+          inline-size: min(34rem, calc(100vi - 2 * var(--gutter)));
+          max-block-size: calc(100dvb - 2 * var(--gutter));
+          padding: 0;
+          border: 1px solid var(--accent);
+          border-radius: var(--radius);
+          background: var(--surface);
+          box-shadow: 0 4px 16px var(--shadow);
+          overflow: auto;
+          overscroll-behavior: contain;
+          & .quartet-close {
+            display: flex;
+          }
+          & .paint-controls {
+            grid-template-columns: minmax(0, 1fr);
+          }
+        }
+      }
+      & .quartet-close {
+        display: none;
+        margin-inline-start: auto;
       }
       & .quartet-trigger[aria-expanded="true"] > .quartet-component,
       & .quartet-component:has(> .quartet-trigger[aria-expanded="true"]) {

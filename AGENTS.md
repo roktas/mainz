@@ -79,7 +79,7 @@ direnv exec . bundle install
 direnv exec . bundle exec rake build:native test:native
 ```
 
-Run these task groups with `direnv exec . bundle exec rake`:
+Use focused development checks. Reserve long suites and full matrices for ship (`direnv exec . bundle exec rake`):
 
 | Change                                       | Tasks                                                                 |
 | -------------------------------------------- | --------------------------------------------------------------------- |
@@ -132,10 +132,10 @@ values out of the offline cache.
 Start each CSS, TypeScript, and Svelte file under `web/src/` with a useful one-line responsibility or ownership comment.
 Follow it with one blank line. When the responsibility changes, update the comment.
 
-Before UI commit/push/handoff, pass VIEW's [alignment](web/doc/VIEW.md#alignment) and
-[validation](web/doc/VIEW.md#validation) gates. Use rendered bounds and screenshots at affected widths, both
-densities/panes, selected states, and long labels. Compare visible icon centers with owning content on both axes.
-Formatting, types, and no overflow do not pass this gate. Cover alignment fixes with focused browser regression tests.
+Before UI ship, pass VIEW's [alignment](web/doc/VIEW.md#alignment) and [validation](web/doc/VIEW.md#validation) gates.
+During development, use focused bounds and screenshots at affected widths, densities/panes, states, and long labels.
+Compare visible icon centers with owning content on both axes. Formatting, types, and no overflow do not prove
+alignment. Cover alignment fixes with focused browser regression tests.
 
 [Oxfmt](.oxfmtrc.json) owns formatting, including Markdown. Exclude `.local/` and `node_modules/`.
 [Oxlint](.oxlintrc.json) covers web scripts and Svelte script blocks. Svelte diagnostics and `svelte-check` cover
@@ -156,13 +156,13 @@ npm run test:standard
 npm run test:full
 ```
 
-Use `test:minimal` in development, `test:standard` before pushes, and `test:full` before releases. All modes check
-format, lint, types, and unit tests. Standard/full also verify asset publication and build production assets. Full adds
-all browser matrices and calibration tools. Run native tasks separately. Builds write `.local/var/js/dist/`. Vite uses a
+Use focused checks during development. Use `test:standard` before ship and `test:full` before releases. All modes check
+format, lint, types, and unit tests. Standard/full verify asset publication and build production assets. Full adds
+browser matrices and calibration tools. Run native tasks separately. Builds write `.local/var/js/dist/`. Vite uses a
 home cache per checkout. Browser suites run sequentially per host. CI uses standard for main pushes and pull requests,
 and full for version tags. Manual runs select either mode and never deploy. See
-[browser setup](web/doc/MEMO.md#browser-checks) for required full groups before merging layout/geometry changes.
-Exercise changed flows with keyboard, narrow layouts, enlarged text, both themes, and loading/error/cancellation states.
+[browser setup](web/doc/MEMO.md#browser-checks) for required full groups before ship. Exercise changed flows with
+keyboard, narrow layouts, enlarged text, both themes, and loading/error/cancellation states.
 
 ### Preview and mockups
 

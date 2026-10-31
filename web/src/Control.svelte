@@ -28,6 +28,7 @@
   const key = $props.id()
   let hovering = $state(false)
   let pinned = $state(false)
+  let editing = $state<string>()
   let details = $state<HTMLDetailsElement>(null!)
   const schema = $derived(entry.parameter.schema)
   const title = $derived(
@@ -40,12 +41,13 @@
   const text = $derived(current(entry, draft))
   const error = $derived(draft !== undefined ? feedback(entry, text) : undefined)
   const override = $derived(draft !== undefined || Object.hasOwn(entry.parameter, "value"))
-  const unit = $derived(property === "stroke-width" ? "mm" : property.endsWith("opacity") ? "ratio" : "")
+  const opacity = $derived(property.endsWith("opacity"))
+  const unit = $derived(property === "stroke-width" ? "mm" : opacity ? "%" : "")
   const color = $derived(property.endsWith("color") && !schema.enum)
   const width = $derived(property === "stroke-width" && !schema.enum)
   const swatch = $derived(color && /^#[0-9a-fA-F]{6}$/.test(text))
-  const opacity = $derived(
-    property.endsWith("opacity") &&
+  const slider = $derived(
+    opacity &&
       !schema.enum &&
       text !== "" &&
       !error &&
@@ -54,6 +56,11 @@
   )
   const decrease = $derived(color || width ? step(entry, text, -1) : undefined)
   const increase = $derived(color || width ? step(entry, text, 1) : undefined)
+  function format(value: string | number, exact = false): string {
+    if (!opacity || value === "") return String(value)
+    const percentage = Number(value) * 100
+    return String(exact ? percentage : Number(percentage.toFixed(1)))
+  }
   const describedBy = $derived(
     [
       schema.description ? `${key}-description` : "",
@@ -83,6 +90,8 @@
 />
 
 {#snippet information()}
+  <!-- Escape closes information before its enclosing editor. -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <details
     class="details compact"
     bind:this={details}
@@ -91,6 +100,14 @@
       if (event.pointerType === "mouse") hovering = true
     }}
     onpointerleave={() => (hovering = false)}
+    onkeydown={(event) => {
+      if (event.key !== "Escape" || !(hovering || pinned)) return
+      event.preventDefault()
+      event.stopPropagation()
+      pinned = false
+      hovering = false
+      details.querySelector("summary")?.focus({ preventScroll: true })
+    }}
   >
     <summary
       aria-label={`Details for ${title}`}
@@ -101,21 +118,27 @@
         hovering = false
       }}><Icon name="info" /></summary
     >
-    <div>
+    <!-- Keyboard users need focus here to scroll long authored details. -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div tabindex="0" role="region" aria-label={`${title} information`}>
+      {#if schema.details?.trim()}<p class="parameter-details">{schema.details}</p>{/if}
       <code class="parameter-id">{id}</code>
       <p id={`${key}-state`}>
-        {#if entry.baseline.kind === "uniform"}Baseline: {entry.baseline.value}{unit ? ` ${unit}` : ""}
+        {#if entry.baseline.kind === "uniform"}Baseline: {format(entry.baseline.value, true)}{unit ? ` ${unit}` : ""}
         {:else if entry.baseline.kind === "mixed"}Mixed baseline · no single original value.
         {:else}Unrepresentable baseline: {entry.baseline.reason}{/if}
       </p>
       <p id={`${key}-scope`} class="scope">Input pages: {scope}</p>
       {#if coverage !== undefined}<p>{coverage} eligible Output pages</p>{/if}
       {#if schema.type === "number"}<p id={`${key}-constraints`} class="constraints">
-          {schema.minimum !== undefined ? `Minimum: ${schema.minimum}. ` : ""}
-          {schema.exclusiveMinimum !== undefined ? `Greater than ${schema.exclusiveMinimum}. ` : ""}
-          {schema.maximum !== undefined ? `Maximum: ${schema.maximum}. ` : ""}
-          {schema.exclusiveMaximum !== undefined ? `Less than ${schema.exclusiveMaximum}. ` : ""}Fractional values are
-          allowed.
+          {schema.minimum !== undefined ? `Minimum: ${format(schema.minimum, true)}${unit}. ` : ""}
+          {schema.exclusiveMinimum !== undefined
+            ? `Greater than ${format(schema.exclusiveMinimum, true)}${unit}. `
+            : ""}
+          {schema.maximum !== undefined ? `Maximum: ${format(schema.maximum, true)}${unit}. ` : ""}
+          {schema.exclusiveMaximum !== undefined
+            ? `Less than ${format(schema.exclusiveMaximum, true)}${unit}. `
+            : ""}Fractional values are allowed.
         </p>{/if}
     </div>
   </details>
@@ -190,13 +213,13 @@
           {#if text === ""}<option value="" disabled>Choose a value · {entry.baseline.kind} baseline</option>{/if}
           {#each schema.enum as option (option)}<option
               value={String(option)}
-              disabled={!!feedback(entry, String(option))}>{option}</option
+              disabled={!!feedback(entry, String(option))}>{format(option, true)}</option
             >{/each}
         </select>
         <Icon name="next" />
       </div>
     {:else if schema.type === "number"}
-      {#if opacity}
+      {#if slider}
         <input
           class="slider"
           type="range"
@@ -205,23 +228,31 @@
           max={Math.min(1, schema.maximum ?? 1)}
           step="any"
           value={Number(text)}
+          aria-valuetext={`${format(text)}%`}
           aria-describedby={describedBy}
           oninput={(event) => change(id, event.currentTarget.value)}
         />
       {/if}
       <input
         id={`${key}-input`}
-        class={{ exact: opacity }}
+        class={{ exact: slider }}
         type="number"
         step="any"
-        value={text}
-        min={schema.minimum}
-        max={schema.maximum}
+        value={opacity ? (editing ?? format(text, !!error)) : text}
+        title={opacity && text !== "" ? `${format(text, true)}%` : undefined}
+        min={opacity ? 100 * Math.max(0, schema.minimum ?? 0) : schema.minimum}
+        max={opacity ? 100 * Math.min(1, schema.maximum ?? 1) : schema.maximum}
         placeholder={entry.baseline.kind === "uniform" ? undefined : "No single value"}
         aria-describedby={describedBy}
         aria-invalid={!!error}
-        oninput={(event) => change(id, event.currentTarget.value)}
+        onblur={() => (editing = undefined)}
+        oninput={(event) => {
+          const value = event.currentTarget.value
+          if (opacity) editing = value
+          change(id, opacity && value !== "" ? String(Number(value) / 100) : value)
+        }}
       />
+      {#if opacity}<span class="unit" aria-hidden="true">%</span>{/if}
     {:else}
       <input
         id={`${key}-input`}
@@ -240,6 +271,7 @@
         type="button"
         class="step"
         aria-label={color ? `Darken ${title}` : `Decrease ${title}`}
+        title={color ? `Darken ${title}` : `Decrease ${title}`}
         disabled={decrease === undefined}
         onclick={() => change(id, decrease!)}>−</button
       >
@@ -247,6 +279,7 @@
         type="button"
         class="step"
         aria-label={color ? `Lighten ${title}` : `Increase ${title}`}
+        title={color ? `Lighten ${title}` : `Increase ${title}`}
         disabled={increase === undefined}
         onclick={() => change(id, increase!)}>+</button
       >

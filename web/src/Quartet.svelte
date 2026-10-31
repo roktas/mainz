@@ -6,6 +6,7 @@
 </script>
 
 <script lang="ts">
+  import { MediaQuery } from "svelte/reactivity"
   import type { Snippet } from "svelte"
   import { current, feedback } from "./styles.ts"
   import type { Entry, PaintDuo, Quartet } from "./styles.ts"
@@ -52,11 +53,19 @@
     { key: "visibility", label: "Visibility", icon: "eye", slots: [{ label: "Visibility", id: quartet.visibility }] },
   ])
   let root: HTMLElement
+  let panel = $state<HTMLDivElement>()
+  let trigger: HTMLButtonElement | undefined
+  const floating = new MediaQuery("(width > 55rem) and (hover: hover) and (pointer: fine)")
   let active = $state<Setting["key"] | null>(null)
   const selected = $derived(components.find((part) => part.key === active))
-  function toggleSetting(key: Setting["key"]) {
+  function toggleSetting(key: Setting["key"], button: HTMLButtonElement) {
+    trigger = button
     active = active === key ? null : key
   }
+  $effect(() => {
+    if (floating.current && selected && panel && trigger) panel.showPopover({ source: trigger })
+    else if (panel?.matches(":popover-open")) panel.hidePopover()
+  })
   function summary(id: string): Summary {
     const initial = entry(id)
     const draft = Object.hasOwn(drafts, id) ? drafts[id] : undefined
@@ -82,7 +91,7 @@
   function closeEditors(target?: EventTarget | null) {
     if (active && (!target || !root.contains(target as Node))) {
       if (!target && root.querySelector(".quartet-panel")?.contains(document.activeElement))
-        root.querySelector<HTMLButtonElement>('.quartet-trigger[aria-expanded="true"]')?.focus()
+        root.querySelector<HTMLButtonElement>('.quartet-trigger[aria-expanded="true"]')?.focus({ preventScroll: true })
       active = null
     }
   }
@@ -198,6 +207,12 @@
     <section aria-label={`${component.label}${component.slots.length === 2 ? " Paint duo" : ""} editor`}>
       <h4>
         <Icon name={component.icon} />{component.label}{component.slots.length === 2 ? " Paint" : ""}
+        <button
+          class="icon-button quartet-close"
+          aria-label="Close editor"
+          title="Close editor"
+          onclick={() => closeEditors()}><Icon name="close" /></button
+        >
       </h4>
       <div class={{ "paint-controls": component.slots.length === 2 }}>
         {#each component.slots as slot (slot.label)}
@@ -239,7 +254,7 @@
                   aria-label="Edit Visibility"
                   aria-expanded={selected?.key === part.key}
                   aria-controls={panelId}
-                  onclick={() => toggleSetting(part.key)}>{@render heading(part)}</button
+                  onclick={(event) => toggleSetting(part.key, event.currentTarget)}>{@render heading(part)}</button
                 >
                 {@render visibility(part.slots[0].id!)}
               </span>
@@ -249,13 +264,24 @@
                 aria-label={`Edit ${part.label}`}
                 aria-expanded={selected?.key === part.key}
                 aria-controls={panelId}
-                onclick={() => toggleSetting(part.key)}>{@render component(part)}</button
+                onclick={(event) => toggleSetting(part.key, event.currentTarget)}>{@render component(part)}</button
               >
             {/if}
           {:else}{@render component(part)}{/if}
         </div>
       {/each}
-      <div id={panelId} class="quartet-dock" hidden={!selected}>
+      <div
+        bind:this={panel}
+        id={panelId}
+        class="quartet-dock"
+        hidden={!selected}
+        popover={floating.current ? "auto" : undefined}
+        role={floating.current ? "dialog" : undefined}
+        aria-label={floating.current ? `${selected?.label ?? "Style"} editor` : undefined}
+        ontoggle={(event) => {
+          if (event.newState === "closed" && floating.current) active = null
+        }}
+      >
         {#if selected}{@render editor(selected)}{/if}
       </div>
     </div>

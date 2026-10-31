@@ -75,6 +75,9 @@ jobs:
           # The Azure mirror throttled package downloads in measured CI runs.
           sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt
           npm --prefix web exec -- playwright install --with-deps --only-shell chromium
+      - name: Install Chromium for native PDF printing
+        if: matrix.suite == 'workspace'
+        run: npm --prefix web exec -- playwright install --no-shell chromium
       - name: Install WebKit for Grid, Page, and Help regressions
         if: matrix.suite == 'grid' || matrix.suite == 'workspace' || matrix.suite == 'page'
         run: npm --prefix web exec -- playwright install --with-deps webkit

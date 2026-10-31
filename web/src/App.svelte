@@ -14,8 +14,10 @@
   import gridJob from "../test/fixtures/grid-job.json"
   import { Output } from "./output.svelte.ts"
   import { Preview } from "./preview.svelte.ts"
-  import Download from "./Download.svelte"
-  import type { Snapshot } from "./Download.svelte"
+  import Export from "./Export.svelte"
+  import Print from "./Print.svelte"
+  import Filename from "./Filename.svelte"
+  import type { Snapshot } from "./Export.svelte"
   import Landing from "./Landing.svelte"
   import Settings from "./Settings.svelte"
   import Examples from "./Examples.svelte"
@@ -51,7 +53,9 @@
   let openingStatus = $state("")
   let offlineStatus = $state("")
   let tour = $state<TourStep>()
-  let downloader = $state<ReturnType<typeof Download>>(null!)
+  let exporter = $state<ReturnType<typeof Export>>(null!)
+  let printer = $state<ReturnType<typeof Print>>(null!)
+  let filenameEditor = $state<ReturnType<typeof Filename>>(null!)
   let composer = $state<ReturnType<typeof Composer>>(null!)
   let examples = $state<ReturnType<typeof Examples>>(null!)
   let inputMenu = $state<HTMLDetailsElement>(null!)
@@ -384,12 +388,13 @@
     const source = sources.find((item) => item.id === id)
     if (source) source.preview.schedule(source, counts)
   }
-  function downloadSnapshot(): Snapshot {
+  function exportSnapshot(): Snapshot {
     if (downloadError) throw new Error(downloadError)
     const selection = output.parts,
       contributors = sources,
       recipe = job(selection, contributors)
     const pages = output.pages
+    const capturedName = output.filename
     const first = pages[0]?.content
     const contributor =
       first && "source" in first ? contributors.find((source) => source.id === first.source) : undefined
@@ -405,7 +410,7 @@
       prepared,
       inputs: downloadInputs(selection, contributors),
       expected: output.pages.length,
-      name: () => downloadName(selection, contributors),
+      name: () => capturedName || downloadName(selection, contributors),
       complete: () => {
         output.acknowledge(selection)
         sources = sources.map((source) => {
@@ -710,7 +715,10 @@
       sequence={active ? sequences[active.id] : undefined}
       {choose}
       change={composition}
-      download={() => void downloader.start()}
+      download={() => void exporter.start()}
+      print={() => void exporter.start("Print")}
+      filename={output.filename}
+      rename={(source) => filenameEditor.show(source)}
       {error}
       styling={sourceStyling}
       input={inputTools}
@@ -748,7 +756,15 @@
   >
 </footer>
 
-<Download bind:this={downloader} prepare={downloadSnapshot} blocked={outputProcessing || !!downloadError} {info} />
+<Export
+  bind:this={exporter}
+  prepare={exportSnapshot}
+  blocked={outputProcessing || !!downloadError}
+  {info}
+  print={(pdf) => printer.show(pdf)}
+/>
+<Print bind:this={printer} {info} />
+<Filename bind:this={filenameEditor} bind:value={output.filename} suggest={() => downloadName(parts, sources)} />
 
 <Examples bind:this={examples} navigate={example} workspace={!!active || parts.length > 0} />
 

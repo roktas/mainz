@@ -49,7 +49,9 @@ and wraps on narrower layouts. Narrow layouts retain a single-line purpose headi
 The spacing scale uses a 28 px workspace gutter and fluid control gaps of 12–16 px at normal text size. Narrow layouts
 reduce gutters before reducing usable control space. Standard controls use 4 px corners. The landing frame uses softer
 12 px corners. Primary buttons are at least 104 × 46 px. Interactive targets are at least 44 px. Compact headers and
-single-pane Grid pagination use the target sizes in [Grid and Page](#grid-and-page).
+single-pane Grid pagination use the target sizes in [Grid and Page](#grid-and-page). Peer buttons in the same visible
+group share width and height unless a specific rule defines different dimensions. Desktop Open PDF and Download share
+the same dimensions.
 
 The shared `--icon-size` token sets ordinary icons to 1.125 rem. Control-specific icon sizes use their own visual role.
 
@@ -113,8 +115,14 @@ touch layouts use two gutters above the frame and center it horizontally.
 
 Desktop Input and Output have equal widths and equal gutters around the center separator. Their headings, tabs, fields,
 hints, and content share row tracks. The filename chooser belongs to Input's heading and includes Remove Input below the
-open-PDF list. Open PDF and Download occupy corresponding positions. Output totals sit beside Download. Relevant
-processing disables Download without changing heading dimensions. Progress and Cancel belong to the app header.
+open-PDF list. At normal text size, desktop pane headings use 16 px text and 28 px document icons, scaling with text.
+Open PDF and Download occupy corresponding positions and have equal dimensions. A quiet Print icon sits immediately
+before Download. Its glyph is 24 px and its target is at least 46 × 46 px; both scale with text. This icon action is an
+explicit exception to equal peer-button widths. Output totals sit before these actions. Relevant processing disables
+Download and Print without changing heading dimensions. Progress and Cancel belong to the app header. The Output heading
+is a frameless button that opens the filename editor. It retains Input's heading typography and icon alignment. Hover
+and keyboard focus identify the action. Its panel uses the standard full-height entry and equal Use default and Save
+buttons. Error space appears only for an actual error.
 
 Each pane header, view toolbar, and selection bar stays on one control row at every supported width and text size.
 Controls never wrap or move to another row. Preserve usable gaps, full-size touch targets, and shared vertical
@@ -124,8 +132,10 @@ counts still do not fit, make them available through a clickable details control
 At enlarged text sizes, Open PDF and Download can use their icons with the same accessible names and touch targets.
 
 In single-pane layouts, the Input/Output switch and the pane header share two equal columns and the same gap. The Input
-selector and Open PDF align with the switch above them. The Output summary or details control and Download use those
-same columns. If enlarged text leaves insufficient room, keep the Input/Output switch labels and omit their icons.
+selector and Open PDF align with the switch above them. Download retains the Output switch button's width, height, and
+column. Print sits immediately before Download, within the first column. The summary or details control uses the
+remaining first-column space. At normal text size, Download retains its label on every mobile width. If enlarged text
+leaves insufficient room, keep the Input/Output switch labels and omit their icons.
 
 The header places the Home logo at the start and Help, Settings, and theme controls at the end. It states that
 processing stays on the device. Feedback occupies the center, as defined below. Header actions use all space after the
@@ -244,10 +254,10 @@ viewports; the application does not subtract the estimated browser controls agai
 | Galaxy A55     | 360 × 800    | 2 × 1 = 2  | 3 × 2 = 6  |
 
 Mobile has a persistent one-tap Input/Output switch and preserves pane state. Headings retain the chooser or totals
-beside Open PDF/Download on one row, including with enlarged text. Labels stay complete. Long filenames truncate, with
-their full text available through hover and the chooser. Remove Input remains available in the chooser at every width.
-Tabs and shared page fields remain usable in Page. Both densities fill complete rows within the available pane height.
-Input and Output do not use fixed thumbnail counts.
+beside Open PDF or the Print and Download actions on one row, including with enlarged text. Labels stay complete. Long
+filenames truncate, with their full text available through hover and the chooser. Remove Input remains available in the
+chooser at every width. Tabs and shared page fields remain usable in Page. Both densities fill complete rows within the
+available pane height. Input and Output do not use fixed thumbnail counts.
 
 ## Page fields
 
@@ -266,6 +276,11 @@ small size. Hints reserve space and wrap naturally, so errors, bold counts, and 
 images. Input and Output use the same control dimensions. Preserve usable field width and full-size touch targets.
 
 ## Grid and Page
+
+Review thumbnail sampling at the actual Normal and Compact image sizes. Fine guides must remain visible on guide-only
+pages while full and partial pattern pages remain distinguishable. Compare the cover, text, raster images, and authored
+colors with the same saved appearance. Sampling changes preserve card geometry, image proportions, and Page and lens
+detail views. A larger raster or a passing pixel assertion alone does not establish a useful visual improvement.
 
 ### Card proportions and spacing
 
@@ -526,17 +541,20 @@ explain meaning rather than repeat a label. Parameter IDs belong in information 
 override, mixed, and unrepresentable states remain distinguishable.
 
 Narrow Style color and width controls place their value above the adjustment buttons, including with enlarged text.
+Opacity value fields have a fixed width and a visible percent suffix. Sliders use the remaining width. Decimal precision
+does not change the field width or move adjacent controls.
 
 Profile selects appear above groups with the page field's height, borders, and corners. Their selected descriptions sit
 directly below. The first select aligns with Output's page field. A neutral divider separates profiles from individual
 controls. Style selects retain native selection behavior, use the shared inset chevron, and keep their full touch height
 on touch browsers.
 
-Profile information buttons sit beside the description, with their visible icons centered on its first text line. They
-retain a 44 px touch target without narrowing the select. Profile details use a floating panel anchored to the button,
-with the profile name above the longer text. If no anchored position fits, it centers within the viewport. The panel
-wraps text, scrolls within the viewport, and uses the shared surface, border, focus, and theme tokens. Opening it does
-not move the workspace or individual controls.
+Authored-guidance buttons sit beside their group's or Quartet's heading, or their profile/set description, with visible
+icons aligned to the first text line. They retain a 44 px touch target without narrowing the select. Missing, empty, or
+whitespace-only details create no guidance icon or reserved space. Shared guidance uses a floating panel anchored to the
+button, with its owner's name above the longer text. If no anchored position fits, it centers within the viewport. The
+panel wraps text, scrolls within the viewport, and uses the shared surface, border, focus, and theme tokens. Opening it
+does not move the workspace or individual controls.
 
 A Quartet presents Fill, Stroke, Width, and Visibility in equal components. Fill and Stroke summaries combine
 independent color and opacity rows. Color swatches show full color independently of opacity. A separate level marker
@@ -544,9 +562,11 @@ shows exact opacity. Width belongs visually to Stroke. Values use neutral ink, i
 icons stay together. Color codes and short value captions stay on one line.
 
 The Quartet's own width controls its layout. Wide Quartets show a strip. Narrow Quartets use two equal columns, then one
-column with enlarged text. Color fields receive no extra width. An expanded editor follows the selected component's row
-without stretching the summaries. Paint duo color and opacity share one frame and retain separate resets. Native
-disclosures and controls retain keyboard access.
+column with enlarged text. Color fields receive no extra width. On desktop with a fine pointer, an editor floats above
+the workspace without moving the summaries. It anchors to its trigger, flips or centers when necessary, and scrolls
+within the viewport. Its heading includes Close. Paint duo controls stack within this panel. Narrow or touch layouts
+retain an inline editor after the selected component's row. Paint duo color and opacity share one frame and retain
+separate resets. Native disclosures and controls retain keyboard access.
 
 Unavailable parameters use a muted hatch and prohibition icon while retaining their component's space. N/A appears only
 in hover help with an accessible explanation. Missing Visibility uses this treatment and preserves original display
@@ -644,9 +664,13 @@ use a separate row below the message. Feedback never introduces horizontal overf
 error lists scroll within a bounded area. Active feedback remains visible during document scrolling and respects the
 safe area.
 
-New Download preparation uses a compact native modal centered at the header. It shares the busy ring, message, and
-actions above. Progress needs one row without a separate title or Close button. Errors retain readable text, Cancel, and
-Retry. The modal backdrop distinguishes its locked workspace from ordinary header feedback.
+New Download or Print preparation uses a compact native modal centered at the header. It shares the busy ring, message,
+and actions above. Progress needs one row without a separate title or Close button. Errors retain readable text, Cancel,
+and Retry. The modal backdrop distinguishes its locked workspace from ordinary header feedback.
+
+Direct PDF printing opens the browser's print UI without an application PDF viewer or another panel behind it.
+Preparation and return preserve pane geometry, selections, view, zoom, and document scroll. Focus remains on Print.
+Browsers that need an explicit PDF handoff use a compact panel with Open PDF to print and Download PDF.
 
 The status row reserves its height below the workspace. The landing keeps it at the viewport bottom during scrolling.
 The workspace uses the document-flow rule above so that its last controls remain reachable. Completed operation feedback
@@ -826,20 +850,22 @@ The pane divider is a separator. It has no resize interaction, so its name is no
 
 #### Pane headers and status bar
 
-| English term                    | Turkish equivalent                  | UI element                                                                                     |
-| ------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Pane header                     | Bölme üst alanı                     | The section with the Input chooser and Open PDF, or the Output heading, summary, and Download. |
-| Pane heading                    | Bölme başlığı                       | The Input or Output title text.                                                                |
-| Input selector                  | Input seçicisi                      | The chooser that opens from the filename in the Input header.                                  |
-| Input list                      | Input listesi                       | The open-PDF list with numbers, filenames, and a checkmark for the active Input.               |
-| Count badge                     | Sayı rozeti                         | A small bordered count, such as the Input count or a Style group's object count.               |
-| Remove Input button             | Input kaldırma düğmesi              | The action below the open-PDF list that removes the active Input.                              |
-| File picker button              | Dosya seçme düğmesi                 | Open PDF or Choose a PDF. It opens the system file picker.                                     |
-| Output summary                  | Output özet bilgisi                 | Concise page and sheet counts, such as 6 pages, 3 sheets.                                      |
-| Output details button / popover | Output ayrıntıları düğmesi / paneli | The control that exposes the counts when the concise Output summary does not fit inline.       |
-| Download button                 | İndirme düğmesi                     | The primary action that downloads Output.                                                      |
-| Status bar / App footer         | Durum çubuğu / Uygulama alt alanı   | The bottom row with the filename, status message, and Build ID.                                |
-| Build ID                        | Derleme kimliği                     | The build value in the status bar and Settings.                                                |
+| English term                    | Turkish equivalent                  | UI element                                                                                            |
+| ------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Pane header                     | Bölme üst alanı                     | The section with the Input chooser and Open PDF, or the Output heading, summary, Print, and Download. |
+| Pane heading                    | Bölme başlığı                       | The Input or Output title text.                                                                       |
+| Input selector                  | Input seçicisi                      | The chooser that opens from the filename in the Input header.                                         |
+| Input list                      | Input listesi                       | The open-PDF list with numbers, filenames, and a checkmark for the active Input.                      |
+| Count badge                     | Sayı rozeti                         | A small bordered count, such as the Input count or a Style group's object count.                      |
+| Remove Input button             | Input kaldırma düğmesi              | The action below the open-PDF list that removes the active Input.                                     |
+| File picker button              | Dosya seçme düğmesi                 | Open PDF or Choose a PDF. It opens the system file picker.                                            |
+| Output summary                  | Output özet bilgisi                 | Concise page and sheet counts, such as 6 pages, 3 sheets.                                             |
+| Output details button / popover | Output ayrıntıları düğmesi / paneli | The control that exposes the counts when the concise Output summary does not fit inline.              |
+| Download button                 | İndirme düğmesi                     | The primary action that downloads Output.                                                             |
+| Print button                    | Yazdır düğmesi                      | The icon action before Download that prepares Output for PDF printing.                                |
+| Output filename button / panel  | Output dosya adı düğmesi / paneli   | The Output heading and its filename editor with Use default and Save.                                 |
+| Status bar / App footer         | Durum çubuğu / Uygulama alt alanı   | The bottom row with the filename, status message, and Build ID.                                       |
+| Build ID                        | Derleme kimliği                     | The build value in the status bar and Settings.                                                       |
 
 ### Views and tabs
 
@@ -969,41 +995,42 @@ inspected page. Movement arrows change the Output order.
 Style groups use the [disclosure pattern](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/). Group and object labels
 come from the PDF.
 
-| English term                   | Turkish equivalent                  | UI element                                                                              |
-| ------------------------------ | ----------------------------------- | --------------------------------------------------------------------------------------- |
-| Style profile selector         | Stil profili seçicisi               | The select above the Style groups, with profile choices such as Outlined and Filled.    |
-| Profile description            | Profil açıklaması                   | The description directly below the selected profile.                                    |
-| Profile details button / panel | Profil ayrıntıları düğmesi / paneli | The information button beside the description and its panel of longer profile guidance. |
-| Style group / Disclosure       | Stil grubu / Açılır-kapanır grup    | A PDF-authored group, such as Watermark, Patterns, or Guides.                           |
-| Group header                   | Grup üst alanı                      | The row with the disclosure indicator, group title, description, and object count.      |
-| Disclosure indicator           | Açılma-kapanma göstergesi           | The small arrow whose direction indicates the expanded or collapsed state.              |
-| Object count badge             | Nesne sayısı rozeti                 | The number of Style objects at the end of the group header.                             |
-| Group content                  | Grup içeriği                        | The objects and controls visible inside an expanded group.                              |
-| Style object                   | Stil nesnesi                        | The object associated with related Style controls, such as Watermark or Slants.         |
-| Object heading                 | Nesne başlığı                       | The object name and its description.                                                    |
+| English term             | Turkish equivalent               | UI element                                                                                              |
+| ------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Style profile selector   | Stil profili seçicisi            | The select above the Style groups, with profile choices such as Outlined and Filled.                    |
+| Profile description      | Profil açıklaması                | The description directly below the selected profile.                                                    |
+| Guidance button / panel  | Ayrıntılı bilgi düğmesi / paneli | The information button and longer authored guidance for a group, Style object, profile set, or profile. |
+| Style group / Disclosure | Stil grubu / Açılır-kapanır grup | A PDF-authored group, such as Watermark, Patterns, or Guides.                                           |
+| Group header             | Grup üst alanı                   | The row with the disclosure indicator, group title, description, and object count.                      |
+| Disclosure indicator     | Açılma-kapanma göstergesi        | The small arrow whose direction indicates the expanded or collapsed state.                              |
+| Object count badge       | Nesne sayısı rozeti              | The number of Style objects at the end of the group header.                                             |
+| Group content            | Grup içeriği                     | The objects and controls visible inside an expanded group.                                              |
+| Style object             | Stil nesnesi                     | The object associated with related Style controls, such as Watermark or Slants.                         |
+| Object heading           | Nesne başlığı                    | The object name and its description.                                                                    |
 
 #### Quartet and property editors
 
-| English term                  | Turkish equivalent                   | UI element                                                                                |
-| ----------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------- |
-| Quartet                       | Dörtlü denetim grubu                 | The complete Fill, Stroke, Width, and Visibility presentation for one Style object.       |
-| Property trigger              | Özellik düzenleyicisini açma düğmesi | The control that opens a Fill, Stroke, Width, or Visibility editor.                       |
-| Fill                          | Dolgu                                | The paint properties for an object's interior.                                            |
-| Stroke                        | Kontur                               | The paint properties for an object's lines or outline.                                    |
-| Stroke width                  | Kontur kalınlığı                     | The property that appears as Width in the Quartet.                                        |
-| Visibility                    | Görünürlük                           | The object display control.                                                               |
-| Paint duo                     | Renk ve opaklık ikilisi              | The combined color and opacity presentation within Fill or Stroke.                        |
-| Color swatch                  | Renk örneği                          | The small square that shows a color value.                                                |
-| Opacity indicator             | Opaklık göstergesi                   | The small visual indicator that represents opacity with a fill level.                     |
-| Value readout                 | Değer göstergesi                     | A displayed hex color, percentage, millimeter value, or value-state text.                 |
-| Visibility toggle             | Görünürlük anahtarı                  | The Show/Hide control in the Quartet. It is a checkbox with a switch appearance.          |
-| Inline editor                 | Satır içi düzenleyici                | The editor that expands below the selected Quartet property within the content flow.      |
-| Information button            | Bilgi düğmesi                        | The ⓘ control that opens parameter details.                                               |
-| Parameter information popover | Parametre bilgi paneli               | The panel with the parameter ID, baseline, Input scope, Output coverage, and constraints. |
-| Field reset button            | Alanı sıfırlama düğmesi              | The ↺ control that removes an explicit value for one parameter.                           |
-| Reset all styles button       | Bütün stilleri sıfırlama düğmesi     | The reset control in the Style toolbar.                                                   |
-| Value state indicator         | Değer durumu göstergesi              | Original state, Explicit override, Mixed, `—`, or Invalid information.                    |
-| Not-applicable indicator      | Uygulanamazlık göstergesi            | The hatching and prohibition symbol for a property without a declared parameter.          |
+| English term                  | Turkish equivalent                   | UI element                                                                                                         |
+| ----------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Quartet                       | Dörtlü denetim grubu                 | The complete Fill, Stroke, Width, and Visibility presentation for one Style object.                                |
+| Property trigger              | Özellik düzenleyicisini açma düğmesi | The control that opens a Fill, Stroke, Width, or Visibility editor.                                                |
+| Fill                          | Dolgu                                | The paint properties for an object's interior.                                                                     |
+| Stroke                        | Kontur                               | The paint properties for an object's lines or outline.                                                             |
+| Stroke width                  | Kontur kalınlığı                     | The property that appears as Width in the Quartet.                                                                 |
+| Visibility                    | Görünürlük                           | The object display control.                                                                                        |
+| Paint duo                     | Renk ve opaklık ikilisi              | The combined color and opacity presentation within Fill or Stroke.                                                 |
+| Color swatch                  | Renk örneği                          | The small square that shows a color value.                                                                         |
+| Opacity indicator             | Opaklık göstergesi                   | The small visual indicator that represents opacity with a fill level.                                              |
+| Value readout                 | Değer göstergesi                     | A displayed hex color, percentage, millimeter value, or value-state text.                                          |
+| Visibility toggle             | Görünürlük anahtarı                  | The Show/Hide control in the Quartet. It is a checkbox with a switch appearance.                                   |
+| Inline editor                 | Satır içi düzenleyici                | The editor that expands below the selected Quartet property within the content flow.                               |
+| Floating editor               | Açılır düzenleyici                   | The desktop Quartet editor above the workspace, anchored to its property button.                                   |
+| Information button            | Bilgi düğmesi                        | The ⓘ control that opens parameter details.                                                                        |
+| Parameter information popover | Parametre bilgi paneli               | The scrollable panel with authored details, parameter ID, baseline, Input scope, Output coverage, and constraints. |
+| Field reset button            | Alanı sıfırlama düğmesi              | The ↺ control that removes an explicit value for one parameter.                                                    |
+| Reset all styles button       | Bütün stilleri sıfırlama düğmesi     | The reset control in the Style toolbar.                                                                            |
+| Value state indicator         | Değer durumu göstergesi              | Original state, Explicit override, Mixed, `—`, or Invalid information.                                             |
+| Not-applicable indicator      | Uygulanamazlık göstergesi            | The hatching and prohibition symbol for a property without a declared parameter.                                   |
 
 Paint duo values and resets remain independent. Mixed describes different original values. `—` can represent an
 unrepresentable original value. Not applicable describes an absent parameter. Invalid describes a draft error.
@@ -1164,28 +1191,28 @@ than interchangeable visual effects.
 The location comes first, followed by the component and its part. The path column shows the same structure with English
 terms.
 
-| English example                                             | Turkish example                                            | Element path                                               |
-| ----------------------------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------- |
-| The hint below the Input selection bar.                     | Input seçim çubuğunun yardım metni.                        | Input selection bar → Selection hint                       |
-| The duplicate button in the Output card footer.             | Output kartının alt alanındaki çoğaltma düğmesi.           | Output page card → Card footer → Duplicate button          |
-| The background of the Page viewport.                        | Page viewport’unun arka planı.                             | Page view → Viewport background                            |
-| The hex color field in the Watermark Quartet's Fill editor. | Watermark Quartet’inin Fill düzenleyicisindeki renk alanı. | Watermark → Quartet → Fill inline editor → Hex color field |
+| English example                                             | Turkish example                                            | Element path                                        |
+| ----------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------- |
+| The hint below the Input selection bar.                     | Input seçim çubuğunun yardım metni.                        | Input selection bar → Selection hint                |
+| The duplicate button in the Output card footer.             | Output kartının alt alanındaki çoğaltma düğmesi.           | Output page card → Card footer → Duplicate button   |
+| The background of the Page viewport.                        | Page viewport’unun arka planı.                             | Page view → Viewport background                     |
+| The hex color field in the Watermark Quartet's Fill editor. | Watermark Quartet’inin Fill düzenleyicisindeki renk alanı. | Watermark → Quartet → Fill editor → Hex color field |
 
 ### References
 
 #### Project documents and components
 
-| Reference                                                                                                                                            | Responsibility                                                                   |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| [Web SPEC](SPEC.md) and [glossary](SPEC.md#glossary)                                                                                                 | Workspace behavior and product terminology.                                      |
-| [Design rules](#tokens-and-assets)                                                                                                                   | Visual rules and layout references.                                              |
-| [App](../src/App.svelte), [Landing](../src/Landing.svelte), and [Theme](../src/Theme.svelte)                                                         | Application shell, pane header controls, landing page, and theme control.        |
-| [Composer](../src/Composer.svelte), [Selection](../src/Selection.svelte), [Origin](../src/Origin.svelte), and [Repetition](../src/Repetition.svelte) | Panes, view controls, selection bars, page actions, and repetition.              |
-| [Grid](../src/Grid.svelte), [Page](../src/Page.svelte), [Counter](../src/Counter.svelte), [Pdf](../src/Pdf.svelte), and [Lens](../src/Lens.svelte)   | Thumbnail pagination, page viewer, page entry, page images, and magnifier.       |
-| [Style](../src/Style.svelte), [Quartet](../src/Quartet.svelte), and [Control](../src/Control.svelte)                                                 | Profiles, groups, Style objects, property summaries, and editors.                |
-| [Help](../src/Help.svelte), [Tour](../src/Tour.svelte), [Settings](../src/Settings.svelte), and [Examples](../src/Examples.svelte)                   | Help, welcome, Product tour, Settings, and examples.                             |
-| [Download](../src/Download.svelte)                                                                                                                   | Download preparation, inspection, cancellation, temporary resources, and dialog. |
-| [Offline](../src/Offline.svelte) and [drag](../src/drag.ts)                                                                                          | Offline/update status and drag images.                                           |
+| Reference                                                                                                                                            | Responsibility                                                                       |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| [Web SPEC](SPEC.md) and [glossary](SPEC.md#glossary)                                                                                                 | Workspace behavior and product terminology.                                          |
+| [Design rules](#tokens-and-assets)                                                                                                                   | Visual rules and layout references.                                                  |
+| [App](../src/App.svelte), [Landing](../src/Landing.svelte), and [Theme](../src/Theme.svelte)                                                         | Application shell, pane header controls, landing page, and theme control.            |
+| [Composer](../src/Composer.svelte), [Selection](../src/Selection.svelte), [Origin](../src/Origin.svelte), and [Repetition](../src/Repetition.svelte) | Panes, view controls, selection bars, page actions, and repetition.                  |
+| [Grid](../src/Grid.svelte), [Page](../src/Page.svelte), [Counter](../src/Counter.svelte), [Pdf](../src/Pdf.svelte), and [Lens](../src/Lens.svelte)   | Thumbnail pagination, page viewer, page entry, page images, and magnifier.           |
+| [Style](../src/Style.svelte), [Quartet](../src/Quartet.svelte), [Control](../src/Control.svelte), and [Guidance](../src/Guidance.svelte)             | Profiles, groups, Style objects, property summaries, editors, and authored guidance. |
+| [Help](../src/Help.svelte), [Tour](../src/Tour.svelte), [Settings](../src/Settings.svelte), and [Examples](../src/Examples.svelte)                   | Help, welcome, Product tour, Settings, and examples.                                 |
+| [Export](../src/Export.svelte), [Print](../src/Print.svelte), and [Filename](../src/Filename.svelte)                                                 | Shared Output preparation, download, native PDF printing, and filename editing.      |
+| [Offline](../src/Offline.svelte) and [drag](../src/drag.ts)                                                                                          | Offline/update status and drag images.                                               |
 
 #### Standard terminology
 

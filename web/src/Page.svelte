@@ -1,7 +1,7 @@
 <!-- Displays inspected pages and owns navigation, zoom gestures, panning, and viewport focus. -->
 
 <script module lang="ts">
-  export const zoomLevels = [50, 100, 150, 200, 300, 400]
+  export const zoomLevels = [50, 100, 150, 200, 300, 400, 800, 1600, 3200]
   export type Controls = "all" | "zoom" | "fit" | "menu"
   export const controlCapabilities = {
     all: { comparison: true, zoom: true, fit: true },
@@ -116,7 +116,10 @@
     const gutter = parseFloat(getComputedStyle(element.firstElementChild).paddingBlockStart)
     const available = Math.max(1, element.clientWidth - 2 * gutter)
     const width = (parseFloat(getComputedStyle(image).inlineSize) * 100) / level
-    return { width, zoom: Math.min(400, Math.max(50, Math.floor((100 * available) / width))) }
+    return {
+      width,
+      zoom: Math.min(zoomLevels.at(-1)!, Math.max(zoomLevels[0], Math.floor((100 * available) / width))),
+    }
   }
   export function fitWidth() {
     cancelZoom?.()

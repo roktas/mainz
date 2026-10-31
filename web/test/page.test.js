@@ -595,8 +595,9 @@ test("Page pinch zoom preserves its anchor and shares the button zoom range", { 
           assert.equal(await pane.locator("output").textContent(), "100%", "Cancellation retains the previous zoom")
           assert.equal(await canvas.evaluate((element) => element.style.transform), "")
           for (const [start, end, expected] of [
-            [80, 480, "400%"],
-            [400, 40, "50%"],
+            [80, 480, "600%"],
+            [10, 400, "3200%"],
+            [400, 4, "50%"],
           ]) {
             await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pointsAt(start) })
             await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: pointsAt(end) })

@@ -35,8 +35,21 @@
         background: transparent;
       }
     }
-    .download-action {
-      display: grid;
+    .output-actions {
+      display: flex;
+      align-items: stretch;
+      gap: 0.5em;
+      & > .print-action {
+        flex: none;
+        inline-size: var(--print-size);
+        min-inline-size: var(--print-size);
+        min-block-size: 46px;
+        border: 1px solid transparent;
+        & > svg {
+          inline-size: 1.5rem;
+          block-size: 1.5rem;
+        }
+      }
     }
     .count {
       display: inline-flex;
@@ -191,10 +204,17 @@
       & .reset {
         border-radius: 0 var(--radius) var(--radius) 0;
       }
-      & .exact {
-        flex: 0 0 5.5rem;
-        inline-size: 5.5rem;
+      & > input.exact {
+        flex: 0 0 calc(5ch + 12px);
+        inline-size: calc(5ch + 12px);
+        padding-inline: 6px;
+        font-variant-numeric: tabular-nums;
         text-align: end;
+      }
+      & > .unit {
+        flex: none;
+        padding-inline-end: 12px;
+        font-size: var(--body);
       }
       &:has(input:focus-visible, select:focus-visible) {
         border-color: var(--secondary);

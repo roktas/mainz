@@ -112,7 +112,7 @@
     }
     .page-zoom {
       --zoom-items: 4;
-      --control-size: max(44px, 4ch);
+      --control-size: max(44px, calc((var(--digits) + 1) * 1ch));
       --fit-content-size: var(--icon-size);
       display: block grid;
       grid-auto-flow: column;

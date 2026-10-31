@@ -1,4 +1,4 @@
-// Owns accepted Output composition, occurrence selection, inspection, and Download acknowledgment.
+// Owns Output composition, filename, occurrence selection, inspection, and Download acknowledgment.
 
 import { expand, positionAfterEdit } from "./model.ts"
 import type { Expanded, Part, Source } from "./model.ts"
@@ -24,6 +24,7 @@ type Destination = {
 }
 
 export class Output {
+  filename = $state("")
   #sources: () => readonly Source[]
   #composition = $state.raw<Projection>({ parts: [], pages: [], positions: new Map() })
   #downloaded = $state.raw<readonly Part[]>(this.#composition.parts)

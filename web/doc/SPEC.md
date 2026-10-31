@@ -3,7 +3,7 @@
 PDF Composer builds one Output from selected pages of local PDFs. Composition includes extraction, duplication,
 repetition, removal, and ordering across Inputs. Prepared PDFs also expose their declared Style controls. Ordinary PDFs
 support page composition. Input retains its opened appearance. Output shows the composition with completed Source
-styles. Download executes a Mainz Job.
+styles. Download and Print use the generated Output PDF.
 
 This document owns workspace behavior and the [product glossary](#glossary). [VIEW.md](VIEW.md) owns visual rules,
 layout reference cases, and the [UI glossary](VIEW.md#ui-glossary). The [library specification](../../lib/doc/SPEC.md)
@@ -13,8 +13,8 @@ validation commands belong in [AGENTS.md](../../AGENTS.md#web).
 ## Workspace
 
 One workspace supports several independent Inputs and one Output. The main flow is Input selection, addition to Output,
-optional Style changes, and Download. View changes preserve selections, Source styles, composition, and preview state.
-Ordinary PDFs support composition. Prepared PDFs also expose their declared Style controls.
+optional Style changes, and Download or Print. View changes preserve selections, Source styles, composition, and preview
+state. Ordinary PDFs support composition. Prepared PDFs also expose their declared Style controls.
 
 The landing distinguishes page composition for ordinary PDFs from Style support in prepared PDFs and links to the
 library specification. Its header logo replays the landing animation. In the workspace, that logo opens Home.
@@ -331,7 +331,8 @@ exist.
 
 Groups and parameters follow authored array order. A group's count represents distinct Style objects by exact binding
 target sets. Information panels expose baselines, page scope, Output coverage, constraints, and opaque parameter IDs.
-Hover opens them, click pins them, and outside click or Escape dismisses them.
+Hover opens them, click pins them, and outside click or Escape dismisses them. With focus inside parameter information,
+Escape returns focus to its information button and keeps the enclosing editor open.
 
 Related parameters combine only within their authored group and only with the same exact target set. Binding properties
 identify their roles. A complete set of several related parameters forms a Quartet at its first parameter's position. A
@@ -339,17 +340,28 @@ lone parameter retains its individual control. A Quartet has Fill, Stroke, Width
 description come from the display parameter when present, otherwise from its first authored parameter. Fill and Stroke
 each combine color and opacity in a Paint duo. Width belongs to Stroke. An available Visibility control affects the
 target set. Without a display parameter, Visibility is unavailable and original display states remain unchanged. The
-arrangement adds no processor schema or manifest field.
+arrangement adds no processor schema or manifest field. Quartet guidance uses the same representative parameter's
+annotations; there is no separate Quartet annotation record.
 
-Each setting opens its editor. A Paint duo opens color and opacity together, retaining independent values and resets.
-Outside click or Escape closes an editor. Escape returns focus to its trigger. Expanded editors retain descriptions,
+Each setting opens its editor. Desktop layouts with a fine pointer use a floating panel; narrow or touch layouts expand
+the editor inline. A Paint duo opens color and opacity together, retaining independent values and resets. Close, outside
+click, or Escape closes a floating editor. Escape returns focus to its trigger. Editors retain descriptions,
 information, constraints, and draft errors. Unavailable parameters create no assignment and imply nothing about the
 original paint. Mixed and unrepresentable values remain editable. Unassigned Visibility stays indeterminate, never
 implicitly Hide. Individual display controls use Show/Hide radio choices.
 
 Color supports a native picker, hex entry, and eight-level RGB steps. Width uses numeric entry and a 1.05 step factor.
-Opacity supports exact numeric entry and a slider. Out-of-range steps and enum choices are disabled. Invalid values are
-not rounded or silently corrected. Opening a picker assigns nothing.
+Opacity uses percentages for numeric entry, choices, and slider feedback. Unfocused numeric fields show at most one
+decimal place. Numeric entry accepts fractional percentages. Hover help exposes the full percentage. Display rounding
+and focus changes preserve stored values. Out-of-range steps and enum choices are disabled. Invalid values are not
+rounded or silently corrected. Opening a picker assigns nothing.
+
+Authored descriptions remain visible when supplied. Parameter details extend the description in the existing parameter
+information panel. Group, Quartet, profile-set, and profile details use a shared on-demand panel. Their information
+buttons appear only for nonempty details after trimming whitespace. Empty or missing details add no authored-guidance
+button. Existing parameter information still exposes baselines, scope, and constraints without authored guidance. Panels
+retain plain text and paragraph breaks. Close, Escape, or an outside click dismisses them. Escape returns focus to the
+information button. Opening group guidance does not toggle the group or change styles.
 
 ### Profiles and reset
 
@@ -357,11 +369,9 @@ A profile set appears only with several profiles and at least one parameter in t
 labels the select. The selected profile's description stays visible. Missing descriptions use a short description based
 on the profile name. The affected Input pages appear in hover help.
 
-When the selected profile has nonempty `details`, an information button beside the description opens its longer
-guidance. The panel shows the profile name and plain-text details, preserving paragraph breaks. It supports keyboard
-scrolling; its close button, Escape, or an outside click closes it. Escape returns focus to the information button.
-Changing the profile or Input closes the panel. Custom styles and profiles without details show no information button.
-Reading guidance does not change styles.
+Profile-set descriptions and guidance remain independent of the selected profile. A selected profile's details button
+sits beside its own description. Changing the profile or Input closes its panel. Custom styles and profiles without
+details show no profile guidance button. Reading guidance does not change styles.
 
 Choosing a profile replaces the Source's overrides throughout that set and clears its invalid drafts. Omitted parameters
 return to authored baselines. Other sets and Sources retain their choices. Matching override maps select the declared
@@ -395,14 +405,14 @@ replace newer choices.
 ## Page preview and comparison
 
 Page preserves physical proportions for PDF content, Blank, and Padding. Fit is 100%. The zoom steps are 50%, 100%,
-150%, 200%, 300%, and 400%. Pinching a Page image changes zoom continuously within 50–400%, around the midpoint of the
-two fingers, within the image's scroll bounds. An image that fits an axis stays centered on that axis. Zoom buttons and
-keyboard controls choose the next step from that value. Pinching preserves Selection and Output. Application zoom is
-independent of browser zoom. View changes, Input switches, selection changes, and resizing retain each pane's zoom and
-latest visible region.
+150%, 200%, 300%, 400%, 800%, 1600%, and 3200%. Pinching a Page image changes zoom continuously within 50–3200%, around
+the midpoint of the two fingers, within the image's scroll bounds. An image that fits an axis stays centered on that
+axis. Zoom buttons and keyboard controls choose the next step from that value. Pinching preserves Selection and Output.
+Application zoom is independent of browser zoom. View changes, Input switches, selection changes, and resizing retain
+each pane's zoom and latest visible region.
 
 The Page zoom reset button restores the complete page at 100% from any other zoom. At 100%, the same button fits the
-image to the available width, with equal image gutters and a maximum of 400%. It rounds down to a whole percentage to
+image to the available width, with equal image gutters and a maximum of 3200%. It rounds down to a whole percentage to
 prevent horizontal overflow. The button's name describes its current action: Reset zoom or Fit width. Keyboard 0 and Z
 always reset to 100%. Double activation of the image retains its separate 100%/200% behavior.
 
@@ -411,7 +421,7 @@ point stays in place within the image's scroll bounds. Above 100%, double activa
 preserve Selection, the inspected page, and Output.
 
 On every screen and input type, the first Page entry enlarges a fitted image narrower than 70% of its viewport. It uses
-the available width with equal image gutters, up to 400%. The percentage rounds down to prevent horizontal overflow.
+the available width with equal image gutters, up to 3200%. The percentage rounds down to prevent horizontal overflow.
 This initial choice runs once per Source and once for Output, after PDF opening completes. It uses the rendered image
 viewport and the page's physical ratio. An explicit zoom choice takes precedence, including Fit. Touch entry brings the
 Page frame into view. Keyboard entry keeps the focused control visible. Reset zoom restores 100% and shows the complete
@@ -456,11 +466,12 @@ the lens cancels that render and releases its acquired page and crop buffers.
 Settings shows the current lens magnification beside − and + buttons. Each step halves or doubles the magnification. The
 buttons disable at 2× and 128× respectively.
 
-## Download and recovery
+## Download, Print, and recovery
 
-Download is disabled for empty or invalid Output and for invalid drafts affecting its content. Unused invalid parameters
-do not block it. Relevant Source processing disables Download while the header reports progress. Full-document Style
-processing retains one completed composition per Source. Other combined Outputs need their own PDF preparation.
+Download and Print are disabled for empty or invalid Output and for invalid drafts affecting its content. Unused invalid
+parameters do not block them. Relevant Source processing disables both actions while the header reports progress.
+Full-document Style processing retains one completed composition per Source. Other combined Outputs need their own PDF
+preparation.
 
 Output also checks the referenced Inputs and Sources against the Download limits: 32 of each and 128 MiB of aggregate
 Input bytes. Each Input identity counts once. Unused open Inputs do not count. An actionable error appears beside
@@ -476,10 +487,22 @@ while locking workspace actions. It uses the same feedback presentation as other
 terminate processing and retain the workspace. Retry uses current choices. Obsolete results cannot download. The
 application compares completed page counts and inspects the PDF before the browser download.
 
-The filename is `<input-name>_YYYY-MMDD-HHmm-sscc.pdf`, using the first contributing Input's original filename without
-its `.pdf` extension. The timestamp uses local time at browser download. `ss` means seconds and `cc` hundredths. Unused
-Inputs do not affect the name. Blank-only Output uses `blank-pages`. Success retains the workspace and clears the
-downloaded choices' unsaved warning. Unused Source changes and invalid drafts retain their warning.
+The default filename is `<input-name>_YYYY-MMDD-HHmm-sscc.pdf`, using the first contributing Input's original filename
+without its `.pdf` extension. The timestamp uses local time when the PDF is ready. `ss` means seconds and `cc`
+hundredths. Unused Inputs do not affect the name. Blank-only Output uses `blank-pages`. The Output heading opens the
+filename editor; the Output page actions menu also provides it. A custom name applies to both Download and Print and
+remains in the workspace until Home. The editor rejects empty names, path separators, and control characters, and adds
+`.pdf` when needed. Use default restores automatic naming. The header does not display the filename beside its controls.
+
+Print captures the same Job and uses the same preparation, validation, inspection, and cancellation as Download. It
+hands the completed PDF bytes to the browser's PDF viewer, preserving the Output pages and styles. Eligible non-Apple
+desktop viewers receive a print request with the Output filename as the viewer document title, without an application
+viewer panel. Other browsers use a panel with Open PDF to print and Download PDF. A rejected or inaccessible print API
+also opens that panel. The browser can silently ignore a print request; Download remains available. Paper, scaling,
+printer selection, and the choice of system dialog belong to the browser or PDF application, which also controls the
+print-job name. A print request does not prove that printing completed and does not clear the unsaved warning.
+Downloading the prepared PDF clears the downloaded choices' warning. Unused Source changes and invalid drafts retain
+their warning.
 
 Opening, rendering, or processing failures retain the workspace and last completed Source bytes. Errors explain the next
 action and retain local retry controls. No partial or uninspected PDF downloads. Recoverable failures do not discard
@@ -608,25 +631,32 @@ releases its cached rasters. Input and Style comparison retain their shared PDFs
 canvas pixels; it excludes active renders, PDF.js memory, and browser overhead. It is not a total-memory guarantee.
 Persistent editable workspaces, printer control, and independent Part or occurrence styles are outside this version.
 
+Low-density thumbnails use a bounded temporary render and reduction to reduce exaggerated thin strokes at small sizes.
+This changes preview pixels without changing PDF bytes, Source styles, page proportions, or Page and lens detail
+rendering. Exact raster reuse distinguishes thumbnail sampling from direct Page rendering. Only final-sized rasters
+enter the retained cache. Temporary render canvases release after completion, cancellation, and failure.
+
 App coordinates Input opening and selects retained documents after view updates. Output owns the accepted composition,
-occurrence selection, inspection, and Download acknowledgment. Each Source's Preview owns style processing,
-cancellation, and displayed-document handoff. App and Preview ignore obsolete processing results. The PDF boundary owns
-loading-task and raster release, initial page geometry, and labels. Opening reads complete geometry in bounded batches
-and releases each acquired page after inspection. Cancellation discards incomplete geometry. Each preview render
-releases its own acquired page, including obsolete generations, and cancels superseded render tasks. Cancellation
-retains the last completed raster.
+occurrence selection, inspection, filename, and Download acknowledgment. Export owns shared Output preparation and
+inspection. Print owns the native viewer and its temporary URL; the filename editor owns only its draft. Each Source's
+Preview owns style processing, cancellation, and displayed-document handoff. App and Preview ignore obsolete processing
+results. The PDF boundary owns loading-task and raster release, initial page geometry, and labels. Opening reads
+complete geometry in bounded batches and releases each acquired page after inspection. Cancellation discards incomplete
+geometry. Each preview render releases its own acquired page, including obsolete generations, and cancels superseded
+render tasks. Cancellation retains the last completed raster.
 
 Page pinch anchoring belongs to the displayed PDF, physical page, and sequence position. Cancellation, a page-context
 change, a hidden pane, or teardown clears pending anchoring and its temporary transform. Reattaching the same Page
 during a zoom update preserves its pending anchor.
 
-| Stage             | Retained resources                                         | Cancellation or replacement                                  |
-| ----------------- | ---------------------------------------------------------- | ------------------------------------------------------------ |
-| Open and validate | Pending PDF loading task and validation worker             | Destroy the task and worker. Ignore late reads and labels.   |
-| Attach            | Immutable Input PDF and its Source                         | Retain the Input while any Source uses it.                   |
-| Style update      | Source preview, completed composition bytes, and processor | Cancel obsolete work. Keep the last completed preview.       |
-| Download          | Completed bytes or independent processing, temporary URL   | Release temporary resources. Keep selections and styles.     |
-| Remove or dispose | Documents retained by remaining Sources                    | Release documents and rasters after their last owner leaves. |
+| Stage             | Retained resources                                         | Cancellation or replacement                                                                       |
+| ----------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Open and validate | Pending PDF loading task and validation worker             | Destroy the task and worker. Ignore late reads and labels.                                        |
+| Attach            | Immutable Input PDF and its Source                         | Retain the Input while any Source uses it.                                                        |
+| Style update      | Source preview, completed composition bytes, and processor | Cancel obsolete work. Keep the last completed preview.                                            |
+| Download          | Completed bytes or independent processing, temporary URL   | Release temporary resources. Keep selections and styles.                                          |
+| Print             | One native-viewer frame and URL; snapshot during handoff   | Handoff or panel close releases the snapshot; replacement or disposal releases the frame and URL. |
+| Remove or dispose | Documents retained by remaining Sources                    | Release documents and rasters after their last owner leaves.                                      |
 
 ## Acceptance
 
