@@ -22,6 +22,9 @@ type Host = {
   release: () => void
 }
 
+// Serialize Source previews so batch profile choices do not multiply WASM memory.
+let processing = Promise.resolve()
+
 export class Preview {
   #input: Input
   #host: Host
@@ -104,7 +107,7 @@ export class Preview {
     const statusRevision = this.#host.info("Updating styles…")
     this.#timer = setTimeout(() => {
       this.#timer = undefined
-      void this.#run(revision, request, text ?? "Updated styles.", statusRevision)
+      processing = processing.then(() => this.#run(revision, request, text ?? "Updated styles.", statusRevision))
     }, 200)
   }
 
@@ -132,6 +135,7 @@ export class Preview {
   }
 
   async #run(revision: number, request: Render, text: string, statusRevision: number) {
+    if (this.#disposed || revision !== this.#revision) return
     const processor = (this.#processor ??= new Processor())
     const { overrides, pages } = request
     const ids = pages ? applicable(this.#input.description, pages) : []

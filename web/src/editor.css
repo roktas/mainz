@@ -120,6 +120,55 @@
         margin: 0;
       }
     }
+    .profile-choice {
+      display: block grid;
+      grid-template-columns: 46px minmax(0, 1fr);
+      gap: calc(var(--gap) / 2);
+      & > .icon-button {
+        padding: 3px;
+        min-block-size: 46px;
+      }
+      & > .select {
+        grid-column: 2;
+      }
+    }
+    .profile-options {
+      margin: 0;
+      inset-block: auto;
+      inset-inline: auto;
+      margin-block-start: calc(var(--gap) / 2);
+      position-area: block-end span-inline-end;
+      position-try-fallbacks:
+        flip-block,
+        flip-inline,
+        flip-block flip-inline;
+      inline-size: min(22rem, calc(100vi - 2 * var(--gutter)));
+      max-block-size: min(70dvb, 40rem);
+      padding: var(--gap);
+      overflow: auto;
+      overscroll-behavior: contain;
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      color: var(--ink);
+      background: var(--surface);
+      box-shadow: 0 4px 16px var(--shadow);
+      font-size: var(--body);
+      & label {
+        display: block flex;
+        align-items: center;
+        gap: 0.5em;
+        min-block-size: 44px;
+      }
+      & input {
+        flex: none;
+        inline-size: 1.2em;
+        block-size: 1.2em;
+        margin: 0;
+      }
+      & p {
+        margin-block: 0.5em 0;
+      }
+    }
     .profile-summary,
     .guidance > .guidance-heading,
     .style-object > h4:has(> .guidance-trigger) {

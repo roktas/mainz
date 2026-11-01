@@ -374,9 +374,18 @@ sits beside its own description. Changing the profile or Input closes its panel.
 details show no profile guidance button. Reading guidance does not change styles.
 
 Choosing a profile replaces the Source's overrides throughout that set and clears its invalid drafts. Omitted parameters
-return to authored baselines. Other sets and Sources retain their choices. Matching override maps select the declared
-profile. Other maps and invalid drafts show Custom. Profile choices remain individually editable. Names, descriptions,
-details, and values come from the producer and imply no application-defined printer behavior.
+return to authored baselines. Other sets on that Source retain their choices. By default, the choice also applies to
+each profile set on other open Sources that declares the same profile name. Names match exactly, regardless of set names
+or IDs. Each Source uses its own declared profile values. Sets without a matching name retain their choices.
+
+The first profile selector's options menu offers **Per-file profiles**, off by default. When on, subsequent profile
+choices affect only the active Source. The option remains in effect across Input switches for the current workspace.
+Changing the option does not change existing styles. Individual parameter edits and resets always affect only the active
+Source.
+
+Matching override maps select the declared profile. Other maps and invalid drafts show Custom. Profile choices remain
+individually editable. Names, descriptions, details, and values come from the producer and imply no application-defined
+printer behavior.
 
 Field reset removes one override. **Reset all styles** clears the Source's complete map, including hidden and saved
 overrides, and invalid drafts. Resets retain other Sources, selections, composition, and immutable bytes. Reset appears
@@ -388,6 +397,9 @@ Valid choices are retained immediately. Processing runs only for parameters affe
 choices do not show processing or block Download. Adding an affected page prepares deferred choices. Reordering or
 copying currently styled pages does not repeat processing. Removing the last affected page cancels unnecessary work
 while retaining choices. Cancel and Retry retain choices and the last completed preview.
+
+Source previews process one file at a time to bound WASM memory during cross-file profile changes. A profile choice
+schedules the active Source first. Queued requests that are replaced or cancelled do not start processing.
 
 The header reports active Style processing with the Source filename and Cancel. It favors the active Source, then the
 first pending Source. Cancel stops only that Source's work. A failed Source keeps its explanation and Retry in the

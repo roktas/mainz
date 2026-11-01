@@ -8,7 +8,7 @@
   import type { Input, Source } from "./model.ts"
   import type { Inspection } from "./Page.svelte"
   import type { Magnification } from "./Lens.svelte"
-  import { applicable, applyProfile, current, draftError, feedback, resolve, usage } from "./styles.ts"
+  import { applicable, applyProfile, current, draftError, feedback, matchingProfile, resolve, usage } from "./styles.ts"
   import { Documents, inspectPDF, openPDF } from "./pdf.ts"
   import { Processor } from "./processor.ts"
   import gridJob from "../test/fixtures/grid-job.json"
@@ -40,6 +40,7 @@
   const parts = $derived(output.parts)
   let sequences = $state.raw<Record<string, Sequence>>({})
   let activeId = $state("")
+  let perFileProfiles = $state(false)
   let logoReplay = $state(0)
   let magnification = $state<Magnification>(16)
   let message = $state("")
@@ -378,7 +379,23 @@
     const profile = set?.profiles.find((item) => item.id === profileId)
     if (!set || !profile) return
     failure = ""
-    choices({ ...active, ...applyProfile(set, profile, active) }, `Applied ${profile.name} profile.`)
+    const affected: Source[] = []
+    sources = sources.map((source) => {
+      if (perFileProfiles && source.id !== active.id) return source
+      let next = source
+      for (const candidate of source.id === active.id ? [set] : (source.input.description.profileSets ?? [])) {
+        const choice = source.id === active.id ? profile : candidate.profiles.find((item) => item.name === profile.name)
+        if (!choice || matchingProfile(candidate, next.overrides, next.drafts)?.id === choice.id) continue
+        next = { ...next, ...applyProfile(candidate, choice, next), modified: true }
+      }
+      if (next !== source) {
+        if (source.id === active.id) affected.unshift(next)
+        else affected.push(next)
+      }
+      return next
+    })
+    for (const source of affected) source.preview.schedule(source, counts)
+    info(`Applied ${profile.name} profile${affected.length > 1 ? ` to ${affected.length} files` : ""}.`)
   }
   function choices(source: Source, text?: string) {
     const next = { ...source, modified: true }
@@ -571,6 +588,7 @@
         {tour}
         style={changeStyle}
         profile={changeProfile}
+        bind:perFile={perFileProfiles}
         reset={resetStyle}
       />{/key}{/if}
 {/snippet}

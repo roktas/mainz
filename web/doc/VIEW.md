@@ -270,9 +270,10 @@ available pane height. Input and Output do not use fixed thumbnail counts.
 
 ## Page fields
 
-Selection fields and Style profiles span the pane width. Both page fields have the accessible name Page selection. The
-field, action-menu button, and all inline actions stay on one row, including with enlarged text and active selections.
-Action menus occupy the first position and open below the field's start edge. Menus share padding, corners, and viewport
+Selection fields and Style profiles span the pane width. Profile selectors share a left track for the first selector's
+options button, so all select edges align. Both page fields have the accessible name Page selection. The field,
+action-menu button, and all inline actions stay on one row, including with enlarged text and active selections. Action
+menus occupy the first position and open below the field's start edge. Menus share padding, corners, and viewport
 bounds. Output shows movement buttons in the field bar when the pane fits seven 44 px controls and a ten-character
 field. Narrower panes put movement before Blank insertion in the menu. This rule uses pane width and font metrics,
 including tablet and desktop layouts. Removal and duplication stay in the field bar. Individual page controls use

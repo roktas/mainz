@@ -15,6 +15,8 @@
 
 ### Changed
 
+- Profile choices apply matching names across open files by default, using each file's own values. A profile options
+  menu offers per-file choices.
 - Refreshed the Megic demo's profiles and guidance, with an unfilled Outlined default.
 - Extended Page zoom to 3200% for buttons, keyboard shortcuts, pinch, and width fitting.
 - Floating Quartet editors on desktop, retaining inline editors on narrow and touch layouts.

@@ -9,6 +9,214 @@ import { chromium, webkit } from "playwright"
 import { checkWorkspace } from "./workspace.js"
 import { tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
 
+test(
+  "Profile names apply each open file's own values unless per-file profiles are enabled",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    await mkdir("../.local/tmp/web/layout/profiles", { recursive: true })
+    for (const engine of [chromium, webkit]) {
+      const browser = await engine.launch()
+      try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.addInitScript(trackWorkers)
+        await page.addInitScript(() => {
+          window.styleJobs = 0
+          window.peakStyleJobs = 0
+          const Original = Worker
+          window.Worker = class extends Original {
+            busy = false
+            constructor(...args) {
+              super(...args)
+              this.addEventListener("message", () => this.finish())
+              this.addEventListener("error", () => this.finish())
+            }
+            finish() {
+              if (this.busy) window.styleJobs--
+              this.busy = false
+            }
+            postMessage(message, ...rest) {
+              if (message.changes || message.job) {
+                this.busy = true
+                window.peakStyleJobs = Math.max(window.peakStyleJobs, ++window.styleJobs)
+              }
+              return super.postMessage(message, ...rest)
+            }
+            terminate() {
+              this.finish()
+              super.terminate()
+            }
+          }
+        })
+        await page.goto(server.resolvedUrls.local[0])
+        const input = page.locator(".selection-panel")
+        for (const [name, id, profileName, value] of [
+          ["Alpha", "alpha", "Fine", 0.04],
+          ["Beta", "beta", "Fine", 0.08],
+          ["Gamma", "alpha", "Other", 0.12],
+        ]) {
+          await page
+            .locator("input[type=file]")
+            .first()
+            .setInputFiles({
+              name: `${name}.pdf`,
+              mimeType: "application/pdf",
+              buffer: fixture({
+                count: 3,
+                profileSets: [
+                  {
+                    id,
+                    name: `${name} choices`,
+                    parameters: ["guides-stroke-width"],
+                    profiles: [
+                      { id: "generic", name: "Generic", overrides: {} },
+                      { id: `${id}-fine`, name: profileName, overrides: { "guides-stroke-width": value } },
+                    ],
+                  },
+                ],
+              }),
+            })
+          await input
+            .locator(".input-current")
+            .filter({ hasText: `${name}.pdf` })
+            .waitFor()
+        }
+        const activate = async (name) => {
+          await input.locator(".input-picker > summary").click()
+          await input.getByRole("button", { name: new RegExp(`${name}\\.pdf`) }).click()
+        }
+        const options = input.getByRole("button", { name: "Profile options", exact: true })
+        const perFile = input.getByRole("checkbox", { name: "Per-file profiles", exact: true })
+        const profile = (name) => input.getByRole("combobox", { name: `${name} choices`, exact: true })
+        await activate("Alpha")
+        await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+        await tab(input, "Style")
+        for (const [width, size, colorScheme] of [
+          [1440, 100, "dark"],
+          [810, 100, "light"],
+          [390, 200, "dark"],
+        ]) {
+          await page.setViewportSize({ width, height: 1100 })
+          await page.evaluate((textSize) => (document.documentElement.style.fontSize = `${textSize}%`), size)
+          await page.emulateMedia({ colorScheme })
+          await options.click()
+          assert.equal(await perFile.isChecked(), false)
+          const panel = input.locator(".profile-options:popover-open")
+          const bounds = await panel.boundingBox()
+          assert.ok(
+            bounds.x >= 0 && bounds.x + bounds.width <= width + 1 && bounds.y >= 0 && bounds.y + bounds.height <= 1101,
+            `${engine.name()}, ${width}: options stay in the viewport`,
+          )
+          await panel.screenshot({ path: `../.local/tmp/web/layout/profiles/${engine.name()}-${width}.png` })
+          await page.keyboard.press("Escape")
+          await input
+            .locator(".style-profile")
+            .first()
+            .screenshot({ path: `../.local/tmp/web/layout/profiles/${engine.name()}-${width}-selector.png` })
+        }
+        await page.setViewportSize({ width: 1440, height: 1100 })
+        await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+        assert.equal(await options.evaluate((button) => button === document.activeElement), true)
+        const workers = await page.evaluate(
+          () => window.workers.filter(({ url }) => url.includes("processor.worker")).length,
+        )
+        await profile("Alpha").selectOption("alpha-fine")
+        await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
+        assert.equal(
+          await page.evaluate(() => window.workers.filter(({ url }) => url.includes("processor.worker")).length),
+          workers + 1,
+          "Unused files do not start processing",
+        )
+        await activate("Beta")
+        await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+        await tab(input, "Style")
+        assert.equal(await profile("Beta").inputValue(), "beta-fine", "Different IDs and set names still match")
+        assert.equal(
+          await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).inputValue(),
+          "0.08",
+        )
+        await options.click()
+        await perFile.check()
+        await page.keyboard.press("Escape")
+        await profile("Beta").selectOption("generic")
+        await activate("Alpha")
+        assert.equal(await profile("Alpha").inputValue(), "alpha-fine", "Per-file selection leaves other files intact")
+        await options.click()
+        assert.equal(await perFile.isChecked(), true, "Scope follows the workspace across Input switches")
+        await perFile.uncheck()
+        await page.keyboard.press("Escape")
+        await profile("Alpha").selectOption("generic")
+        await profile("Alpha").selectOption("alpha-fine")
+        await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).fill("0.06")
+        await activate("Beta")
+        assert.equal(await profile("Beta").inputValue(), "beta-fine", "Individual parameter edits stay per file")
+        assert.equal(
+          await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).inputValue(),
+          "0.08",
+        )
+        await activate("Gamma")
+        await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+        await tab(input, "Style")
+        assert.equal(
+          await profile("Gamma").inputValue(),
+          "generic",
+          "An identical ID cannot substitute for a different name",
+        )
+        await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
+        await profile("Gamma").selectOption("alpha-fine")
+        await profile("Gamma").selectOption("generic")
+        await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
+        assert.equal(
+          await page.evaluate(() => window.peakStyleJobs),
+          1,
+          "Cross-file previews process one file at a time",
+        )
+        await activate("Alpha")
+        await profile("Alpha").selectOption("alpha-fine")
+        await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
+        const unchanged = await page.evaluate(() => window.workers.length)
+        await profile("Alpha").selectOption("alpha-fine")
+        assert.equal(
+          await page.evaluate(() => window.workers.length),
+          unchanged,
+          "Matching choices reuse completed previews",
+        )
+        await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).fill("0.06")
+        await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
+        const completed = page.waitForEvent("download")
+        await page.locator(".composition-output").getByRole("button", { name: "Download", exact: true }).click()
+        const downloaded = await completed
+        const bytes = [...(await readFile(await downloaded.path()))]
+        const description = await page.evaluate(async (pdfBytes) => {
+          const { Processor } = await import("/src/processor.ts")
+          const processor = new Processor()
+          try {
+            return (await processor.run(new Uint8Array(pdfBytes), 1)).description
+          } finally {
+            processor.dispose()
+          }
+        }, bytes)
+        assert.equal(description.pageCount, 3)
+        for (const [name, expected] of [
+          ["Alpha", 0.06],
+          ["Beta", 0.08],
+          ["Gamma", undefined],
+        ]) {
+          const set = description.profileSets.find((candidate) => candidate.name === `${name} choices`)
+          assert.equal(
+            description.parameters[set.parameters[0]].parameter.value,
+            expected,
+            `${engine.name()}: ${name} Output styles`,
+          )
+        }
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
+
 test("Opaque profile-set IDs keep their annotations across Input switches", { timeout: 60000 }, async () => {
   const server = await serve()
   let browser
@@ -65,12 +273,17 @@ test("Opaque profile-set IDs keep their annotations across Input switches", { ti
         .waitFor()
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
       await tab(input, "Style")
+      if (!index) {
+        await input.getByRole("button", { name: "Profile options", exact: true }).click()
+        await input.getByRole("checkbox", { name: "Per-file profiles", exact: true }).check()
+        await page.keyboard.press("Escape")
+      }
       for (const set of sets) {
         const profile = input.getByRole("combobox", { name: set.name, exact: true })
         const group = input
           .locator(".style-profile")
           .filter({ has: page.getByRole("combobox", { name: set.name, exact: true }) })
-        assert.equal(await group.getByRole("button").count(), 0)
+        assert.equal(await group.getByRole("button", { name: /^Details for / }).count(), 0)
         assert.equal(
           await profile.evaluate((select) => {
             const ids = select.getAttribute("aria-describedby").split(/\s+/)
