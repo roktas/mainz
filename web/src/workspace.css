@@ -524,6 +524,12 @@
           display: none;
         }
       }
+      .composer .composition-output > .section-heading {
+        column-gap: clamp(4px, 1cqi, 8px);
+      }
+      .composer .output-actions {
+        gap: clamp(4px, 1cqi, 8px);
+      }
     }
     @container heading (width <= 16em) {
       .composer .input-heading .file-picker,

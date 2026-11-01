@@ -3,7 +3,7 @@
 PDF Composer builds one Output from selected pages of local PDFs. Composition includes extraction, duplication,
 repetition, removal, and ordering across Inputs. Prepared PDFs also expose their declared Style controls. Ordinary PDFs
 support page composition. Input retains its opened appearance. Output shows the composition with completed Source
-styles. Download and Print use the generated Output PDF.
+styles. Download, Share, and Print use the generated Output PDF.
 
 This document owns workspace behavior and the [product glossary](#glossary). [VIEW.md](VIEW.md) owns visual rules,
 layout reference cases, and the [UI glossary](VIEW.md#ui-glossary). The [library specification](../../lib/doc/SPEC.md)
@@ -487,10 +487,21 @@ while locking workspace actions. It uses the same feedback presentation as other
 terminate processing and retain the workspace. Retry uses current choices. Obsolete results cannot download. The
 application compares completed page counts and inspects the PDF before the browser download.
 
+On iOS and Android with native file sharing, Share replaces the primary Download action. Desktop browsers and browsers
+without these APIs retain Download. Share uses the same preparation, inspection, limits, and Output filename. The system
+panel offers file destinations and other sharing actions.
+
+When the browser requires a fresh gesture after preparation, a neutral PDF ready to share message offers Share and
+Download. Both actions reuse the inspected File without new processing. Cancellation retains the workspace and its
+unsaved warning. A successful share handoff acknowledges the captured choices. It does not prove a file write to disk.
+
+Preparation workers release before the system panel opens. Only the ready File and its acknowledgment remain until
+handoff, cancellation, or disposal.
+
 The default filename is `<input-name>_YYYY-MMDD-HHmm-sscc.pdf`, using the first contributing Input's original filename
 without its `.pdf` extension. The timestamp uses local time when the PDF is ready. `ss` means seconds and `cc`
 hundredths. Unused Inputs do not affect the name. Blank-only Output uses `blank-pages`. The Output heading opens the
-filename editor; the Output page actions menu also provides it. A custom name applies to both Download and Print and
+filename editor; the Output page actions menu also provides it. A custom name applies to Download, Share, and Print and
 remains in the workspace until Home. The editor rejects empty names, path separators, and control characters, and adds
 `.pdf` when needed. Use default restores automatic naming. The header does not display the filename beside its controls.
 
@@ -649,13 +660,14 @@ rendering. Exact raster reuse distinguishes thumbnail sampling from direct Page 
 enter the retained cache. Temporary render canvases release after completion, cancellation, and failure.
 
 App coordinates Input opening and selects retained documents after view updates. Output owns the accepted composition,
-occurrence selection, inspection, filename, and Download acknowledgment. Export owns shared Output preparation and
-inspection and the latest View URL. Print owns its native PDF frame or window and temporary URL. The filename editor
-owns only its draft. Each Source's Preview owns style processing, cancellation, and displayed-document handoff. App and
-Preview ignore obsolete processing results. The PDF boundary owns loading-task and raster release, initial page
-geometry, and labels. Opening reads complete geometry in bounded batches and releases each acquired page after
-inspection. Cancellation discards incomplete geometry. Each preview render releases its own acquired page, including
-obsolete generations, and cancels superseded render tasks. Cancellation retains the last completed raster.
+occurrence selection, inspection, filename, and Download and Share acknowledgment. Export owns shared Output preparation
+and inspection, the ready Share File, and the latest View URL. Print owns its native PDF frame or window and temporary
+URL. The filename editor owns only its draft. Each Source's Preview owns style processing, cancellation, and
+displayed-document handoff. App and Preview ignore obsolete processing results. The PDF boundary owns loading-task and
+raster release, initial page geometry, and labels. Opening reads complete geometry in bounded batches and releases each
+acquired page after inspection. Cancellation discards incomplete geometry. Each preview render releases its own acquired
+page, including obsolete generations, and cancels superseded render tasks. Cancellation retains the last completed
+raster.
 
 Page pinch anchoring belongs to the displayed PDF, physical page, and sequence position. Cancellation, a page-context
 change, a hidden pane, or teardown clears pending anchoring and its temporary transform. Reattaching the same Page
@@ -667,6 +679,7 @@ during a zoom update preserves its pending anchor.
 | Attach            | Immutable Input PDF and its Source                              | Retain the Input while any Source uses it.                                                                             |
 | Style update      | Source preview, completed composition bytes, and processor      | Cancel obsolete work. Keep the last completed preview.                                                                 |
 | Download          | Completed bytes or independent processing, temporary URL        | Release temporary resources. Keep selections and styles.                                                               |
+| Share             | One inspected File and acknowledgment                           | Keep the File for a fresh Share or Download action. Handoff, cancellation, or disposal releases it.                    |
 | Print             | One native PDF frame or window and URL; snapshot during handoff | Handoff, window close, or panel close releases the snapshot. Replacement or disposal releases the owned frame and URL. |
 | View              | Latest completed PDF URL                                        | The next completed View or disposal releases the URL.                                                                  |
 | Remove or dispose | Documents retained by remaining Sources                         | Release documents and rasters after their last owner leaves.                                                           |
@@ -712,6 +725,7 @@ The [library glossary](../../lib/doc/SPEC.md#glossary) owns PDF and painting ter
 | Product tour       | Contextual explanation of actual controls without changing document choices.                            |
 | Quartet            | Fill, Stroke, Width, and Visibility presentation for one Style object.                                  |
 | Selection          | Temporary ordered physical pages from one Source, including repeats, prepared for addition.             |
+| Share              | Mobile action that hands the completed Output File to the system sharing panel.                         |
 | Source             | Independent workspace entry using immutable Input bytes and owning its overrides and preparation.       |
 | Show original page | Opens an Output occurrence's original Input page and matches its visible region once.                   |
 | Style profile      | Named choice replacing one profile set's Source overrides.                                              |

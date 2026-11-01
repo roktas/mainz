@@ -156,7 +156,7 @@
       key: "download",
       title: "Save your PDF",
       text: [
-        "Inspect Output, then Download to build and check its order, copies, blanks, and styles. Original PDFs stay intact.",
+        "Inspect Output, then use Download or Share to prepare its order, copies, blanks, and styles. Original PDFs stay intact.",
         "The dialog shows preparation and validation. Cancel or an error keeps the workspace so you can adjust and retry.",
       ],
     },

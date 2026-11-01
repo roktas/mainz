@@ -139,6 +139,13 @@ and Download. These actions stay together at the end of the row with wider gaps.
 as Print and View, with a square primary-colored target and no text label. Desktop Download retains its labeled primary
 button. If enlarged text leaves insufficient room, keep the Input/Output switch labels and omit their icons.
 
+On iOS and Android with native file sharing, Share replaces Download at the same position and keeps the primary target.
+Its 28 px share glyph matches Print and View and scales with text. Its button, tooltip, and accessible name say Share.
+Desktop and unsupported environments keep Download. The ready-file panel names its actions Share and Download without
+the redundant PDF suffix. A required fresh gesture uses neutral feedback rather than a permission error.
+
+The decorative information icon yields space to the message in compact panels with three actions.
+
 The header places the Home logo at the start and Help, Settings, and theme controls at the end. It states that
 processing stays on the device. Feedback occupies the center, as defined below. Header actions use all space after the
 logo before wrapping. Help remains visible on coarse-pointer devices and on the landing page. Settings opens a right
@@ -869,6 +876,7 @@ The pane divider is a separator. It has no resize interaction, so its name is no
 | Output summary                  | Output özet bilgisi                 | Concise page and sheet counts, such as 6 pages, 3 sheets.                                             |
 | Output details button / popover | Output ayrıntıları düğmesi / paneli | The control that exposes the counts when the concise Output summary does not fit inline.              |
 | Download button                 | İndirme düğmesi                     | The primary action that downloads Output.                                                             |
+| Share button                    | Paylaşım düğmesi                    | The primary mobile action that opens system sharing for the completed Output PDF.                     |
 | Print button                    | Yazdır düğmesi                      | The icon action before Download that prepares Output for PDF printing.                                |
 | Output filename button / panel  | Output dosya adı düğmesi / paneli   | The Output heading and its filename editor with Use default and Save.                                 |
 | Status bar / App footer         | Durum çubuğu / Uygulama alt alanı   | The bottom row with the filename, status message, and Build ID.                                       |

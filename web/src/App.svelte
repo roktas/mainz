@@ -727,6 +727,7 @@
       {choose}
       change={composition}
       download={() => void exporter.start()}
+      sharing={exporter?.sharing ?? false}
       print={() => void exporter.start("Print")}
       viewPDF={() => void exporter.start("View")}
       filename={output.filename}

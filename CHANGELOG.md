@@ -10,6 +10,8 @@
 - Print for the generated Output PDF, with browser PDF viewing and download alternatives.
 - Editable Output filenames for Download and Print, with a way to restore automatic naming.
 - A separate View PDF action between Print and Download, with preparation feedback in the app header.
+- Native Share on iOS and Android, with named Output files, a share icon, and a ready-file step when the browser needs
+  another tap. Desktop and unsupported browsers retain Download.
 
 ### Changed
 

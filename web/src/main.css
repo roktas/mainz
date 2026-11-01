@@ -504,8 +504,20 @@
         & span {
           display: none;
         }
-        & :is(button, a) {
+        & > :is(button, a):not(.icon-button) {
           padding-inline: 0.25em;
+        }
+      }
+    }
+    .export-dialog .feedback:has(.feedback-actions > :nth-child(3)) {
+      @media (width <= 30em) {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: clamp(4px, 1cqi, 8px);
+        & > svg {
+          display: none;
+        }
+        & .feedback-actions {
+          gap: clamp(4px, 1cqi, 8px);
         }
       }
     }

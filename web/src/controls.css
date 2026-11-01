@@ -48,11 +48,11 @@
         min-block-size: 46px;
         border: 1px solid transparent;
         padding: 3px;
-        & > svg {
-          flex: none;
-          inline-size: var(--output-glyph-size);
-          block-size: var(--output-glyph-size);
-        }
+      }
+      & > :is(.icon-button, .share-action) > svg {
+        flex: none;
+        inline-size: var(--output-glyph-size);
+        block-size: var(--output-glyph-size);
       }
       & > .view-action {
         /* Match the visible gap between the icons at their 20/24 viewBox bounds. */

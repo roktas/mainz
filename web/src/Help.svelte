@@ -602,7 +602,7 @@
     </li>
     <li>
       <Icon name="down" /><span
-        ><strong>Check and download</strong><span>Preview the result, then save your PDF.</span></span
+        ><strong>Check and save</strong><span>Preview the result, then download or share your PDF.</span></span
       >
     </li>
   </ol>

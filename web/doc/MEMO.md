@@ -132,6 +132,12 @@ during the tap and loads the completed PDF after inspection. Closing it preserve
 in Chrome and Safari Home Screen on the physical iPad with iPadOS 26.6.2. Browser regressions cover Chrome opening
 without a download and Home Screen cancellation closing the reserved window.
 
+The user also reports working native Share on the physical iPad with iPadOS 26.6.2. Safari Home Screen opens the system
+panel directly. Chrome in a tab requires a fresh Share tap after preparation. Share and Download then use the same ready
+File. The user accepted this neutral ready-file step and the shorter button labels. Native Save to Files offered iCloud
+and Dropbox, and the user completed an iCloud save. Android has browser regression coverage with its user agent and a
+substitute for the native sharing API. No physical Android result is available.
+
 Grid browser scenarios supply their PDF through request routing. They do not require the manual
 `.local/tmp/web/grid/sample.pdf` fixture.
 

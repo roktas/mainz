@@ -37,6 +37,7 @@
     choose,
     change,
     download,
+    sharing,
     print,
     viewPDF,
     filename,
@@ -62,6 +63,7 @@
     choose: (id: string, sequence: Sequence) => void
     change: (text: string) => void
     download: () => void
+    sharing: boolean
     print: () => void
     viewPDF: () => void
     filename?: string
@@ -1909,12 +1911,13 @@
             onclick={viewPDF}><Icon name="eye" /></button
           >
           <button
-            class="primary"
-            aria-label="Download"
+            class={{ primary: true, "share-action": sharing }}
+            aria-label={sharing ? "Share" : "Download"}
             disabled={!output.pages.length || outputProcessing || !!downloadError}
-            title={downloadError ?? "Download"}
+            title={downloadError ?? (sharing ? "Share" : "Download")}
             aria-describedby={downloadError ? `${key}-download-error` : undefined}
-            onclick={download}><Icon name="down" /><span>Download</span></button
+            onclick={download}
+            ><Icon name={sharing ? "share" : "down"} /><span>{sharing ? "Share" : "Download"}</span></button
           >
         </div>
         {#if downloadError}<p id={`${key}-download-error`} class="download-error error" role="alert">
