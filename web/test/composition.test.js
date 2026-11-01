@@ -3,13 +3,89 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
-import { readFile } from "node:fs/promises"
-import { chromium } from "playwright"
+import { mkdir, readFile } from "node:fs/promises"
+import { chromium, webkit } from "playwright"
 import { zoom } from "./workspace.js"
 import { tab, fixture, image, pagePosition, gridPage } from "./browser.js"
 import { measure } from "./measure.js"
 
 const standard = process.env.MAINZ_TEST_MODE === "standard"
+
+test(
+  "Output menu actions share dimensions and consistent gaps at narrow and enlarged sizes",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    await mkdir("../.local/tmp/web/layout/actions", { recursive: true })
+    for (const engine of [chromium, webkit]) {
+      const browser = await engine.launch()
+      try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+        await page.locator(".composer[aria-busy=false]").waitFor()
+        const output = page.locator(".composition-output")
+        for (const [width, size, colorScheme] of [
+          [1440, 100, "dark"],
+          [810, 100, "light"],
+          [390, 200, "dark"],
+          [320, 200, "light"],
+        ]) {
+          await page.setViewportSize({ width, height: 1100 })
+          await page.evaluate((textSize) => (document.documentElement.style.fontSize = `${textSize}%`), size)
+          await page.emulateMedia({ colorScheme })
+          const outputTab = page.getByRole("button", { name: "Output", exact: true })
+          if (await outputTab.isVisible()) await outputTab.click()
+          await tab(output, "Page")
+          for (const selection of ["", "2-3"]) {
+            await output.getByLabel("Page selection", { exact: true }).fill(selection)
+            const menu = output.locator(".sequence-options")
+            if (!(await menu.evaluate((element) => element.open)))
+              await output.getByLabel("Output page actions", { exact: true }).click()
+            const actions = menu.locator(".selected-actions")
+            const bounds = await actions.getByRole("button").evaluateAll((buttons) =>
+              buttons
+                .filter((button) => button.getClientRects().length)
+                .map((button) => {
+                  const { x, y, width: buttonWidth, height } = button.getBoundingClientRect()
+                  const icon = button.querySelector("svg")
+                  const glyph = icon.getBBox()
+                  const center = new DOMPoint(glyph.x + glyph.width / 2, glyph.y + glyph.height / 2).matrixTransform(
+                    icon.getScreenCTM(),
+                  )
+                  return { x, y, width: buttonWidth, height, iconOffset: center.y - y - height / 2 }
+                }),
+            )
+            const label = `${engine.name()}, ${width}, ${size}%, ${colorScheme}, ${selection || "empty"}`
+            assert.ok(bounds.length >= 2, label)
+            const gap = bounds[1].y - bounds[0].y - bounds[0].height
+            assert.ok(gap >= 10, `${label}: controls have breathing room`)
+            for (const [index, box] of bounds.entries()) {
+              assert.ok(
+                Math.abs(box.x - bounds[0].x) < 1 && Math.abs(box.width - bounds[0].width) < 1,
+                `${label}: equal widths`,
+              )
+              assert.ok(Math.abs(box.height - bounds[0].height) < 1, `${label}: equal heights`)
+              assert.ok(Math.abs(box.iconOffset) < 1, `${label}: visible icons stay vertically centered`)
+              if (index)
+                assert.ok(
+                  Math.abs(box.y - bounds[index - 1].y - bounds[index - 1].height - gap) < 1,
+                  `${label}: equal gaps`,
+                )
+              assert.ok(box.x >= 0 && box.x + box.width <= width + 1, `${label}: inside viewport`)
+            }
+            await menu.locator(".menu-options").screenshot({
+              path: `../.local/tmp/web/layout/actions/${engine.name()}-${width}-${selection ? "selected" : "empty"}.png`,
+            })
+            await output.getByLabel("Output page actions", { exact: true }).click()
+          }
+        }
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
 
 test("Dense page edits keep layout work bounded while animating complete batches", { timeout: 60000 }, async () => {
   const server = await serve()

@@ -128,7 +128,8 @@
     .selected-actions {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
-      gap: 0.5em;
+      grid-auto-rows: 1fr;
+      gap: var(--gap);
       & button {
         justify-content: start;
         padding-inline: 0.5em;
@@ -156,6 +157,9 @@
           border-radius: var(--radius) 0 0 var(--radius);
         }
         & .menu-options {
+          display: block grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: var(--gap);
           position: absolute;
           z-index: 25;
           inset-inline-start: 0;

@@ -26,6 +26,7 @@
 
 ### Fixed
 
+- Equalized Output page-menu action dimensions and added consistent space between actions.
 - Prevented late offline asset requests from recreating retired application caches.
 - Kept Style opacity values readable as percentages and preserved slider space and stored precision.
 - Matched the desktop Open PDF and Download button dimensions.

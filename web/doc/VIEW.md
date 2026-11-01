@@ -50,8 +50,8 @@ The spacing scale uses a 28 px workspace gutter and fluid control gaps of 12–1
 reduce gutters before reducing usable control space. Standard controls use 4 px corners. The landing frame uses softer
 12 px corners. Primary buttons are at least 104 × 46 px. Interactive targets are at least 44 px. Compact headers and
 single-pane Grid pagination use the target sizes in [Grid and Page](#grid-and-page). Peer buttons in the same visible
-group share width and height unless a specific rule defines different dimensions. Desktop Open PDF and Download share
-the same dimensions.
+group share width and height, with equal gaps between peers, unless a specific rule defines different dimensions.
+Desktop Open PDF and Download share the same dimensions.
 
 The shared `--icon-size` token sets ordinary icons to 1.125 rem. Control-specific icon sizes use their own visual role.
 
@@ -274,12 +274,13 @@ Selection fields and Style profiles span the pane width. Profile selectors share
 options button, so all select edges align. Both page fields have the accessible name Page selection. The field,
 action-menu button, and all inline actions stay on one row, including with enlarged text and active selections. Action
 menus occupy the first position and open below the field's start edge. Menus share padding, corners, and viewport
-bounds. Output shows movement buttons in the field bar when the pane fits seven 44 px controls and a ten-character
-field. Narrower panes put movement before Blank insertion in the menu. This rule uses pane width and font metrics,
-including tablet and desktop layouts. Removal and duplication stay in the field bar. Individual page controls use
-transparent surfaces. Input + and Output duplicate + use the same primary treatment through the field's outer edge.
-Active Output removal uses a red surface and white minus. Invalid targets use the disabled treatment. The + remains
-legible while disabled. Empty fields show an `Example:` placeholder.
+bounds. Peer menu actions fill the same width, share row heights, and use the standard control gap between rows. Output
+shows movement buttons in the field bar when the pane fits seven 44 px controls and a ten-character field. Narrower
+panes put movement before Blank insertion in the menu. This rule uses pane width and font metrics, including tablet and
+desktop layouts. Removal and duplication stay in the field bar. Individual page controls use transparent surfaces.
+Input + and Output duplicate + use the same primary treatment through the field's outer edge. Active Output removal uses
+a red surface and white minus. Invalid targets use the disabled treatment. The + remains legible while disabled. Empty
+fields show an `Example:` placeholder.
 
 Hints align below the field. Selection counts use accent emphasis. Errors replace the hint with danger text at the same
 small size. Hints reserve space and wrap naturally, so errors, bold counts, and drag guidance do not move fitted page

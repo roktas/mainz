@@ -1531,24 +1531,31 @@
       ><Icon name="more" /></summary
     >
     <div class="menu-options">
-      {#if activeOutputTab === "page"}
-        {#if !controlCapabilities[outputControls].comparison}{@render comparisonControls(true)}{/if}
-        {#if !controlCapabilities[outputControls].zoom}
-          {@render zoomControls("Output", true)}
-          {#if !controlCapabilities[outputControls].fit}{@render zoomReset(
-              "Output",
-              () => outputPage?.fitWidth(),
-              true,
-            )}{/if}
-        {/if}
-      {/if}
       <div class="selected-actions">
+        {#if activeOutputTab === "page"}
+          {#if !controlCapabilities[outputControls].comparison}{@render comparisonControls(true)}{/if}
+          {#if !controlCapabilities[outputControls].zoom}
+            {@render zoomControls("Output", true)}
+            {#if !controlCapabilities[outputControls].fit}{@render zoomReset(
+                "Output",
+                () => outputPage?.fitWidth(),
+                true,
+              )}{/if}
+          {/if}
+        {/if}
         <div class="menu-moves">{@render outputMoves()}</div>
         {#if chosen.length}<button disabled={!!outputSelectionError} onclick={() => blank(positions[0])}
             ><Icon name="blank" />Blank before first selected page</button
           >{/if}
         <button disabled={!output.pages.length} onclick={() => blank(output.pages.length)}
           ><Icon name="blank" />Add blank page at end</button
+        >
+        <button
+          onclick={() => {
+            const source = outputMenu.querySelector<HTMLElement>("summary")!
+            outputMenu.open = false
+            rename(source)
+          }}><Icon name="page" />Set Output filename</button
         >
       </div>
       {#if chosen.length && adjacent}
@@ -1558,13 +1565,6 @@
             onclick={repeat}>Repeat selected pages</button
           >{/if}
       {:else if chosen.length}<p>Select consecutive pages to repeat a sequence.</p>{/if}
-      <button
-        onclick={() => {
-          const source = outputMenu.querySelector<HTMLElement>("summary")!
-          outputMenu.open = false
-          rename(source)
-        }}>Set Output filename</button
-      >
     </div>
   </details>
 {/snippet}
