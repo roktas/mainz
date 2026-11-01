@@ -116,19 +116,21 @@ Native Safari acceptance uses its normal UI. Safari controlled by WebDriver can 
 
 Native checks on 2026-10-31 cover the separate-window Print path. macOS 27.0.1 (26A434), Safari 27.0.1
 (22625.1.29.11.28), and an iPad (9th generation) simulator with iOS 27.0 (24A434) show all eight Output pages. The iOS
-27.0 Home Screen app opens the PDF but does not open the native print sheet. Home Screen printing remains unaccepted.
-The available iOS 27.1 runtime supports only iPhone Duo. Its fixture navigation failed before Print. That run supplies
-no printing result. The reported physical iPad (8th generation), iPadOS 26.6.2, and physical printer output remain
-untested. The user requested simulator-only validation for this follow-up.
+27.0 Home Screen app opens the PDF but does not open the native print sheet. Home Screen printing remains unaccepted on
+this runtime. The available iOS 27.1 runtime supports only iPhone Duo. Its fixture navigation failed before Print. That
+run supplies no printing result. On 2026-11-01, the user reports native print dialogs in Chrome and Safari Home Screen
+on a physical iPad (8th generation), iPadOS 26.6.2. Safari sometimes requests permission to print. This browser prompt
+is permitted. Physical printer output remains untested.
 
 Evidence is retained in `.local/var/printing/followup/`, including source changes, browser logs, native logs,
 screenshots, and the fixture digest. Keep native Safari and Home Screen results separate. A PDF tab alone does not prove
 that the system print sheet opened or that all pages reached it.
 
-The 2026-11-01 View follow-up uses the same iPad simulator and iOS 27.0 runtime. A native PDF link opens Safari's viewer
-inside the installed app. Closing it preserves a custom nine-page Output. `view7.log` and `View.swift` retain the
-successful native scenario. Physical iPad Chrome feedback established that Retry opens the PDF. The changed Chrome path
-has browser regression coverage with the iOS Chrome user agent, but no new physical-device run.
+The 2026-11-01 View follow-up uses the same iPad simulator and iOS 27.0 runtime. Home Screen Safari reserves its viewer
+during the tap and loads the completed PDF after inspection. Closing it preserves a custom nine-page Output.
+`view12.log` and `View12.swift` retain this native scenario. The user reports direct View without a second confirmation
+in Chrome and Safari Home Screen on the physical iPad with iPadOS 26.6.2. Browser regressions cover Chrome opening
+without a download and Home Screen cancellation closing the reserved window.
 
 Grid browser scenarios supply their PDF through request routing. They do not require the manual
 `.local/tmp/web/grid/sample.pdf` fixture.

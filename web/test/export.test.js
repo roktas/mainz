@@ -44,10 +44,6 @@ test(
       const pending = page.waitForEvent("popup")
       await page.evaluate(() => window.resumeExport())
       await progress.waitFor({ state: "hidden" })
-      const fresh = page
-        .getByRole("dialog", { name: "View", exact: true })
-        .getByRole("button", { name: "View PDF", exact: true })
-      if (await fresh.isVisible()) await fresh.click()
       const viewer = await pending
       await viewer.waitForLoadState()
       assert.ok(viewer.url().startsWith("blob:"))
@@ -84,7 +80,6 @@ test(
       await output.getByRole("button", { name: "View PDF", exact: true }).click()
       const failure = page.getByRole("dialog", { name: "View", exact: true })
       await failure.waitFor()
-      if (await fresh.isVisible()) await fresh.click()
       await failure.getByRole("button", { name: "Retry", exact: true }).waitFor()
       assert.match(await failure.innerText(), /Allow popups/)
       await page.evaluate(() => (window.open = window.originalOpen))
@@ -97,7 +92,7 @@ test(
   },
 )
 
-test("iOS Chrome View waits for a fresh tap before opening a PDF tab", { timeout: 30000 }, async () => {
+test("iPad Chrome View opens without another confirmation or download", { timeout: 30000 }, async () => {
   const server = await serve()
   const browser = await chromium.launch({ channel: "chromium" })
   try {
@@ -112,23 +107,22 @@ test("iOS Chrome View waits for a fresh tap before opening a PDF tab", { timeout
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
     await page.locator(".composer[aria-busy=false]").waitFor()
     await page.getByRole("button", { name: "Output", exact: true }).tap()
-    await page.locator(".composition-output").getByRole("button", { name: "View PDF", exact: true }).tap()
-    const ready = page.getByRole("dialog", { name: "View", exact: true })
-    await ready.getByText("PDF ready.", { exact: true }).waitFor()
-    assert.equal(page.context().pages().length, 1, "No failed or blank PDF tab before the fresh tap")
+    const downloads = []
+    page.on("download", (download) => downloads.push(download))
     const pending = page.waitForEvent("popup")
-    await ready.getByRole("button", { name: "View PDF", exact: true }).tap()
+    await page.locator(".composition-output").getByRole("button", { name: "View PDF", exact: true }).tap()
     const viewer = await pending
     await viewer.waitForLoadState()
     assert.ok(viewer.url().startsWith("blob:"))
-    assert.equal(await ready.isVisible(), false)
+    assert.equal(await page.getByRole("dialog", { name: "View", exact: true }).isVisible(), false)
+    assert.equal(downloads.length, 0)
     await viewer.close()
   } finally {
     await browser.close()
   }
 })
 
-test("Installed View uses a native PDF link without a scripted popup", { timeout: 30000 }, async () => {
+test("Installed View opens the native PDF viewer without another confirmation", { timeout: 30000 }, async () => {
   const server = await serve()
   const browser = await chromium.launch({ channel: "chromium" })
   try {
@@ -136,25 +130,32 @@ test("Installed View uses a native PDF link without a scripted popup", { timeout
     await page.addInitScript(() => {
       localStorage.setItem("mainz:onboarding", "19")
       Object.defineProperty(navigator, "standalone", { get: () => true })
-      window.open = () => {
-        throw new Error("Installed View must not request a popup")
+      const Original = Worker
+      window.Worker = class extends Original {
+        postMessage(message, ...rest) {
+          if (!window.holdExport || !message.job) super.postMessage(message, ...rest)
+        }
       }
     })
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
     await page.locator(".composer[aria-busy=false]").waitFor()
-    await page.locator(".composition-output").getByRole("button", { name: "View PDF", exact: true }).click()
-    const ready = page.getByRole("dialog", { name: "View", exact: true })
-    const link = ready.getByRole("link", { name: "View PDF", exact: true })
-    await link.waitFor()
-    assert.equal(await link.getAttribute("rel"), "noopener")
     const pending = page.waitForEvent("popup")
-    await link.click()
+    await page.locator(".composition-output").getByRole("button", { name: "View PDF", exact: true }).click()
     const viewer = await pending
-    await viewer.waitForLoadState()
+    await viewer.waitForURL(/^blob:/)
     assert.ok(viewer.url().startsWith("blob:"))
-    assert.equal(await ready.isVisible(), false)
+    assert.equal(await page.getByRole("dialog", { name: "View", exact: true }).isVisible(), false)
     assert.equal(await page.locator(".composition-output .composition-totals").innerText(), "8 pages, 4 sheets")
     await viewer.close()
+    await page.evaluate(() => (window.holdExport = true))
+    const cancelled = page.waitForEvent("popup")
+    await page.locator(".composition-output").getByRole("button", { name: "View PDF", exact: true }).click()
+    const waiting = await cancelled
+    assert.equal(waiting.url(), "about:blank")
+    const closed = waiting.waitForEvent("close")
+    await page.locator(".header-feedback").getByRole("button", { name: "Cancel", exact: true }).click()
+    await closed
+    assert.match(await page.locator(".footnote").innerText(), /View cancelled/)
   } finally {
     await browser.close()
   }

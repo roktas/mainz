@@ -506,11 +506,15 @@ which also controls the print-job name. A print request does not prove that prin
 unsaved warning. Downloading the prepared PDF clears the downloaded choices' warning. Unused Source changes and invalid
 drafts retain their warning.
 
-View captures and inspects the same Output PDF. Preparation and Cancel appear in the app header. A browser PDF tab opens
-only after preparation succeeds. When the browser needs a fresh user action, PDF ready offers View PDF without
-attempting an asynchronous popup. A blocked popup retains the completed PDF for Retry. Home Screen Safari uses a native
-PDF link to open its in-app viewer. Closing that viewer retains the workspace. Viewing does not clear the unsaved
-warning. The browser controls its PDF viewer's displayed name and download behavior.
+View captures and inspects the same Output PDF. Preparation and Cancel appear in the app header. View opens the
+completed PDF without a second application confirmation. iPad Chrome follows a native PDF link after preparation.
+
+Home Screen Safari reserves its viewer window during the tap and loads the PDF after inspection. Preparation can briefly
+show an empty viewer. Cancellation or preparation failure closes the reserved window. Closing the PDF viewer retains the
+workspace.
+
+A failed handoff retains the completed PDF for Retry. Viewing does not clear the unsaved warning. The browser controls
+its PDF viewer's displayed name and download behavior.
 
 Opening, rendering, or processing failures retain the workspace and last completed Source bytes. Errors explain the next
 action and retain local retry controls. No partial or uninspected PDF downloads. Recoverable failures do not discard

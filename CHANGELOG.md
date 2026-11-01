@@ -29,8 +29,7 @@
 - Reduced exaggerated thin strokes in Grid thumbnails with bounded sampling and separate thumbnail/Page raster reuse.
 - Kept narrow-screen header feedback within the existing header area without moving the workspace.
 - Used a separate PDF window for Safari printing to retain all Output pages instead of printing an embedded first page.
-- Kept View from attempting asynchronous PDF popups in iPad Chrome and used Safari's in-app PDF viewer for Home Screen
-  viewing.
+- Opened View without a second confirmation in iPad Chrome and Safari Home Screen apps, with their native PDF viewers.
 - Kept header messages compact, centered, and on one row, with reachable recovery actions and no persistent touch focus
   outlines on non-editable controls.
 

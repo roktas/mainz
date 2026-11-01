@@ -672,7 +672,8 @@ New Download or Print preparation uses a compact native modal centered at the he
 and actions above. Progress needs one row without a separate title or Close button. Errors retain readable text, Cancel,
 and Retry. The modal backdrop distinguishes its locked workspace from ordinary header feedback. View preparation uses
 ordinary header feedback and opens the PDF only when preparation succeeds. Compact Output dialogs use named icons for
-Cancel, Retry, and View PDF when text leaves insufficient room.
+Cancel and Retry when text leaves insufficient room. Home Screen Safari can show its reserved viewer before the
+completed PDF loads.
 
 Direct PDF printing opens the browser's print UI without an application PDF viewer or another panel behind it.
 Preparation and return preserve pane geometry, selections, view, zoom, and document scroll. Focus remains on Print.
