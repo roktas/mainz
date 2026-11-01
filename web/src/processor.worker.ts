@@ -1,4 +1,4 @@
-// Runs WASM requests, manages document handles, and bounds reusable page and style results.
+// Runs WASM requests, fingerprints Inputs, and bounds reusable page and style results.
 
 /// <reference lib="webworker" />
 import type { Failure, Request, Reply, Result, Report } from "./protocol.ts"
@@ -11,6 +11,7 @@ type Module = {
   _mainz_style(handle: number, pointer: number, size: number, resetPointer: number, resetSize: number): void
   _mainz_extract(handle: number, pointer: number, size: number): void
   _mainz_describe(handle: number): void
+  _mainz_fingerprint(handle: number): void
   _mainz_close(handle: number): void
   _mainz_input(idPointer: number, idSize: number, pdfPointer: number, pdfSize: number): void
   _mainz_clear_inputs(): void
@@ -160,10 +161,16 @@ async function run(job: Request): Promise<Result> {
     open()
     wasm["_mainz_describe"](handle)
     const description = JSON.parse(decoder.decode(result(wasm)))
+    let sha256: string | undefined
+    if ("bytes" in job && !job.changes) {
+      wasm["_mainz_fingerprint"](handle)
+      sha256 = decoder.decode(result(wasm))
+    }
     const reply: Result = {
       revision: job.revision,
       bytes: (bytes === extracted?.bytes ? bytes.slice() : bytes).buffer as ArrayBuffer,
       description,
+      sha256,
       report,
     }
     if (styleKey && styleInput) {

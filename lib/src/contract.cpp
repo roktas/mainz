@@ -5,6 +5,7 @@
 #include <cmath>
 #include <limits>
 #include <qpdf/BufferInputSource.hh>
+#include <qpdf/QPDFCryptoProvider.hh>
 #include <qpdf/QUtil.hh>
 
 namespace mainz {
@@ -24,6 +25,14 @@ Error::Error(
 }
 
 namespace mainz::detail {
+std::string sha256(std::string_view bytes)
+{
+    auto digest = QPDFCryptoProvider::getImpl();
+    digest->SHA2_init(256);
+    digest->SHA2_update(reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size());
+    digest->SHA2_finalize();
+    return QUtil::hex_encode(digest->SHA2_digest());
+}
 void require(bool ok, std::string_view message, std::string_view code)
 {
     if (!ok)

@@ -2,13 +2,282 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { readFile, mkdir, writeFile } from "node:fs/promises"
+import { readFile, mkdir, writeFile, mkdtemp, rm } from "node:fs/promises"
 import { createHash } from "node:crypto"
+import { execFileSync } from "node:child_process"
+import { join, resolve as resolvePath } from "node:path"
 import { chromium, webkit } from "playwright"
 import { serve } from "./server.ts"
 import { fixture, tab, trackWorkers } from "./browser.js"
 
 const inventory = JSON.parse(await readFile(new URL("./viewports.json", import.meta.url), "utf8"))
+
+function contents(path) {
+  const objects = JSON.parse(execFileSync("qpdf", ["--json", "--json-stream-data=inline", path])).qpdf[1]
+  delete objects.trailer.value["/ID"]
+  for (const object of Object.values(objects)) {
+    if (!object.stream) continue
+    for (const key of ["/Length", "/Filter", "/DecodeParms"]) delete object.stream.dict[key]
+  }
+  return objects
+}
+
+test(
+  "Recipe export keeps its toolbar and panel aligned across narrow layouts and enlarged text",
+  { timeout: 90000 },
+  async () => {
+    const server = await serve()
+    const screenshots = resolvePath("../.local/tmp/web/recipe-review")
+    await mkdir(screenshots, { recursive: true })
+    for (const engine of [chromium, webkit]) {
+      const browser = await engine.launch()
+      try {
+        for (const [width, height, text] of [
+          [1440, 1000, 1],
+          [810, 1080, 1],
+          [375, 812, 1],
+          [320, 812, 2],
+          [810, 1080, 2],
+        ]) {
+          const page = await browser.newPage({
+            viewport: { width, height },
+            hasTouch: width < 1000,
+            reducedMotion: "reduce",
+          })
+          await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+          await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+          await page.locator(".composer[aria-busy=false]").waitFor()
+          if (text === 2) await page.addStyleTag({ content: "html { font-size: 200%; }" })
+          const switcher = page.getByRole("button", { name: "Output", exact: true })
+          if (await switcher.isVisible()) await switcher.click()
+          const action = page.getByRole("button", { name: "Export recipe", exact: true })
+          const label = `${engine.name()}-${width}-${text}`
+          for (const colorScheme of ["light", "dark"]) {
+            await page.emulateMedia({ colorScheme })
+            const bounds = await action.evaluate((button) => {
+              const box = button.getBoundingClientRect(),
+                icon = button.querySelector("svg").getBoundingClientRect()
+              const toolbar = button.closest(".section-heading").getBoundingClientRect()
+              const peers = [...button.parentElement.querySelectorAll(".print-action svg, .view-action svg")].map(
+                (svg) => svg.getBoundingClientRect(),
+              )
+              return {
+                width: box.width,
+                height: box.height,
+                center: [
+                  icon.x + icon.width / 2 - box.x - box.width / 2,
+                  icon.y + icon.height / 2 - box.y - box.height / 2,
+                ],
+                row: icon.y >= toolbar.y && icon.bottom <= toolbar.bottom,
+                peers: peers.every(
+                  (peer) =>
+                    Math.abs(peer.width - icon.width) < 1 &&
+                    Math.abs(peer.height - icon.height) < 1 &&
+                    icon.right < peer.left,
+                ),
+                overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+              }
+            })
+            assert.ok(bounds.width >= 44 && bounds.height >= 44, label)
+            assert.ok(
+              bounds.center.every((axis) => Math.abs(axis) < 1),
+              label,
+            )
+            assert.ok(bounds.row && bounds.peers && bounds.overflow <= 1, `${label}: ${JSON.stringify(bounds)}`)
+            await action.click()
+            const panel = page.getByRole("dialog", { name: "Export recipe", exact: true })
+            const layout = await panel.evaluate((element) => {
+              const box = element.getBoundingClientRect()
+              const buttons = [...element.querySelectorAll(".recipe-actions button")].map((button) =>
+                button.getBoundingClientRect(),
+              )
+              const title = element.querySelector("h2").getBoundingClientRect()
+              const close = element.querySelector(".dialog-heading button svg").getBoundingClientRect()
+              return {
+                fits:
+                  box.x >= 0 &&
+                  box.right <= innerWidth + 1 &&
+                  box.y >= 0 &&
+                  box.bottom <= innerHeight + 1 &&
+                  element.scrollWidth <= element.clientWidth + 1,
+                peers:
+                  Math.abs(buttons[0].width - buttons[1].width) < 1 &&
+                  Math.abs(buttons[0].height - buttons[1].height) < 1,
+                gap: buttons[1].left - buttons[0].right,
+                headingCentered: Math.abs(title.y + title.height / 2 - close.y - close.height / 2) < 1,
+              }
+            })
+            assert.ok(
+              layout.fits && layout.peers && layout.headingCentered && layout.gap >= 8,
+              `${label}: ${JSON.stringify(layout)}`,
+            )
+            await page.screenshot({ path: join(screenshots, `${label}-${colorScheme}.png`), fullPage: true })
+            await page.keyboard.press("Escape")
+            assert.equal(await action.evaluate((element) => element === document.activeElement), true, label)
+          }
+          await page.close()
+        }
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
+
+test(
+  "Recipe export preserves profile edits and duplicate file bindings through CLI replay",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await chromium.launch({ channel: "chromium" })
+    const directory = await mkdtemp(resolvePath("../.local/tmp/web/recipe-"))
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(server.resolvedUrls.local[0])
+      const first = fixture({ grouped: true, profileCount: 2, family: "fixture", count: 3 })
+      const second = fixture({ grouped: true, profileCount: 2, family: "fixture", count: 2 })
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({ name: "same.pdf", mimeType: "application/pdf", buffer: first })
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output")
+      await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("1,2")
+      await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+      await tab(input, "Style")
+      await input.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("inkjet")
+      await input.getByRole("button", { name: "Edit Width", exact: true }).click()
+      await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).fill("0.06")
+      await output.getByRole("button", { name: "Export recipe", exact: true }).waitFor({ state: "visible" })
+      await input
+        .locator("input[type=file]")
+        .setInputFiles({ name: "same.pdf", mimeType: "application/pdf", buffer: second })
+      await page.locator(".input-picker .count").filter({ hasText: /^2$/ }).waitFor()
+      await tab(input, "Grid")
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+      await output.getByLabel("Output page actions", { exact: true }).click()
+      await output.getByRole("button", { name: "Add blank page at end", exact: true }).click()
+      const exportAction = output.getByRole("button", { name: "Export recipe", exact: true })
+      await exportAction.click()
+      const panel = page.getByRole("dialog", { name: "Export recipe", exact: true })
+      assert.equal(await panel.getByRole("button", { name: "Export", exact: true }).isDisabled(), true)
+      assert.deepEqual(await panel.getByRole("columnheader").allTextContents(), ["Index", "Path", "ID"])
+      for (const [index, id] of [
+        [1, "book"],
+        [2, "other"],
+      ]) {
+        await panel.getByRole("button", { name: `Edit ID ${index}`, exact: true }).click()
+        const field = panel.getByRole("textbox", { name: `ID ${index}`, exact: true })
+        const border = await field.evaluate((element) => {
+          const style = getComputedStyle(element)
+          return [style.borderBlockEndWidth, style.borderInlineEndWidth, style.boxShadow]
+        })
+        assert.deepEqual(border, ["0px", "0px", "none"])
+        await field.fill(`${id}.pdf`)
+        await field.press("Enter")
+        assert.equal(await panel.getByRole("button", { name: `Edit ID ${index}`, exact: true }).innerText(), id)
+      }
+      assert.deepEqual(await panel.locator(".recipe-path").allTextContents(), ["book.pdf", "other.pdf"])
+      assert.equal(await panel.locator(".recipe-path input").count(), 0)
+      await panel.getByRole("button", { name: "Edit ID 1", exact: true }).click()
+      const reverted = panel.getByRole("textbox", { name: "ID 1", exact: true })
+      await reverted.fill("temporary")
+      await reverted.press("Escape")
+      assert.equal(await panel.getByRole("button", { name: "Edit ID 1", exact: true }).innerText(), "book")
+      const pending = page.waitForEvent("download")
+      await panel.getByRole("button", { name: "Export", exact: true }).click()
+      const saved = await pending
+      assert.match(saved.suggestedFilename(), /^same_.*\.json$/)
+      const recordPath = join(directory, "recipe.json")
+      await saved.saveAs(recordPath)
+      const record = JSON.parse(await readFile(recordPath, "utf8"))
+      assert.equal(record.version, 1)
+      assert.deepEqual(Object.keys(record.inputs), ["book", "other"])
+      assert.deepEqual(
+        Object.values(record.sources).map((source) => source.input),
+        ["book", "other"],
+      )
+      assert.deepEqual(
+        Object.values(record.inputs).map((value) => value.sha256),
+        [createHash("sha256").update(first).digest("hex"), createHash("sha256").update(second).digest("hex")],
+      )
+      assert.deepEqual(
+        Object.values(record.sources).map((source) => source.profiles),
+        [[{ family: "fixture", name: "Inkjet" }], []],
+      )
+      assert.deepEqual(Object.values(record.sources)[0].overrides, [
+        { family: "fixture", key: "guides-stroke-width", value: 0.06 },
+      ])
+      await exportAction.click()
+      assert.equal(await panel.getByRole("button", { name: "Edit ID 1", exact: true }).innerText(), "book")
+      await panel.getByRole("button", { name: "Cancel", exact: true }).click()
+      const confirmation = page.waitForEvent("dialog").then(async (dialog) => {
+        assert.match(dialog.message(), /have not been downloaded/, "Recipe export retains the PDF unsaved warning")
+        await dialog.dismiss()
+      })
+      await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
+      await confirmation
+      const pdfPending = page.waitForEvent("download")
+      await output.getByRole("button", { name: "Download", exact: true }).click()
+      const pdf = await pdfPending
+      const expected = await readFile(await pdf.path())
+      await writeFile(join(directory, "source.pdf"), first)
+      await writeFile(join(directory, "other.pdf"), second)
+      // Native execution is enabled by the existing MAINZ_CLI setting; web-only CI uses the same WASM interpreter below.
+      if (process.env.MAINZ_CLI) {
+        const result = join(directory, "native.pdf")
+        const bindings = join(directory, "bindings.json")
+        await writeFile(
+          bindings,
+          JSON.stringify({ book: join(directory, "source.pdf"), other: join(directory, "other.pdf") }),
+        )
+        execFileSync(process.env.MAINZ_CLI, ["run", recordPath, "--inputs", bindings, "--output", result])
+        const browserPDF = join(directory, "browser.pdf")
+        await writeFile(browserPDF, expected)
+        assert.deepEqual(contents(result), contents(browserPDF))
+      }
+      const resolved = await page.evaluate(
+        async ({ savedRecord, inputs }) => {
+          const { default: create } = await import("/processor.mjs")
+          const wasm = await create()
+          const encoder = new TextEncoder(),
+            decoder = new TextDecoder()
+          const buffer = (bytes, call) => {
+            const pointer = wasm["_malloc"](bytes.length || 1)
+            try {
+              wasm.HEAPU8.set(bytes, pointer)
+              return call(pointer, bytes.length)
+            } finally {
+              wasm["_free"](pointer)
+            }
+          }
+          const result = () => {
+            const bytes = wasm.HEAPU8.slice(wasm["_mainz_result"](), wasm["_mainz_result"]() + wasm["_mainz_size"]())
+            if (wasm["_mainz_status"]()) throw new Error(decoder.decode(bytes))
+            return bytes
+          }
+          for (const id of Object.keys(savedRecord.inputs)) {
+            buffer(encoder.encode(id), (p, n) =>
+              buffer(new Uint8Array(inputs[id]), (bp, bn) => wasm["_mainz_input"](p, n, bp, bn)),
+            )
+            result()
+          }
+          buffer(encoder.encode(JSON.stringify(savedRecord)), (p, n) => wasm["_mainz_resolve_recipe"](p, n))
+          const resolution = JSON.parse(decoder.decode(result()))
+          buffer(encoder.encode(JSON.stringify(resolution.job)), (p, n) => wasm["_mainz_compose"](p, n))
+          return { warnings: resolution.warnings, bytes: [...result()] }
+        },
+        { savedRecord: record, inputs: { book: [...first], other: [...second] } },
+      )
+      assert.deepEqual(resolved.warnings, [])
+      assert.deepEqual(Buffer.from(resolved.bytes), expected)
+    } finally {
+      await browser.close()
+      await rm(directory, { recursive: true, force: true })
+    }
+  },
+)
 
 test(
   "View prepares before opening the Output PDF and retains cancellation and popup recovery",

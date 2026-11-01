@@ -1,26 +1,44 @@
 #include "command.hh"
 #include "recipe.hh"
-#include <filesystem>
+#include <algorithm>
+#include <cctype>
 #include <iostream>
 
 namespace mainz::cli {
 void run(const Arguments& args)
 {
-    args.validate({"--output"}, {"--root"});
-    if (args.input == "-" && !args.options.contains("--root"))
-        throw std::runtime_error("Reading a Recipe from stdin requires --root.");
+    args.validate({"--output"}, {"--root", "--inputs"});
+    const bool mapped = args.options.contains("--inputs");
+    if (mapped && args.options.contains("--root"))
+        throw std::runtime_error("Use --inputs for explicit bindings or --root for filename lookup.");
     auto recipe = read(args.input, json_limit);
-    auto bindings = detail::object(detail::parse(recipe_inputs(recipe), "request"));
-    auto root = args.options.contains("--root") ? std::filesystem::path(args.options.at("--root"))
-                                                : std::filesystem::path(args.input).parent_path();
-    if (root.empty())
-        root = ".";
+    auto definitions = detail::object(detail::parse(recipe_inputs(recipe), "request"));
+    std::map<std::string, std::string> paths;
+    if (mapped) {
+        paths = bindings(args.options.at("--inputs"));
+        detail::request_at("", [&] {
+            detail::require(paths.size() == definitions.size(), "Recipe Input bindings do not match.");
+            for (const auto& [id, path] : paths) {
+                (void)path;
+                detail::require(definitions.contains(id), "Unknown Recipe Input binding.");
+            }
+        });
+    }
+    auto root = args.options.contains("--root") ? args.options.at("--root") : ".";
     std::map<std::string, Document> inputs;
     std::size_t remaining = pdf_limit;
-    for (const auto& [id, definition] : bindings) {
-        auto file = detail::text(definition.getDictItem("file"));
+    for (const auto& [id, definition] : definitions) {
+        (void)definition;
+        auto file = mapped ? paths.at(id) : id;
+        if (!mapped) {
+            auto suffix = file.substr(file.size() >= 4 ? file.size() - 4 : 0);
+            std::transform(suffix.begin(), suffix.end(), suffix.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (suffix != ".pdf")
+                file += ".pdf";
+        }
         try {
-            auto bytes = read_at(root.string(), file, remaining);
+            auto bytes = mapped ? read(file, remaining) : read_at(root, file, remaining);
             remaining -= bytes.size();
             auto document = detail::request_at(
                 "/inputs/" + detail::pointer(id), [&] { return Document::read(std::move(bytes)); });

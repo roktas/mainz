@@ -2,18 +2,18 @@
 
 PDF Composer builds one Output from selected pages of local PDFs. Composition includes extraction, duplication,
 repetition, removal, and ordering across Inputs. Prepared PDFs also expose their declared Style controls. Ordinary PDFs
-support page composition. Input retains its opened appearance. Output shows the composition with completed Source
-styles. Download, Share, and Print use the generated Output PDF.
+support page composition. Input retains its opened appearance. Output shows the composition with completed Input styles.
+Download, Share, and Print use the generated Output PDF.
 
 This document owns workspace behavior and the [product glossary](#glossary). [VIEW.md](VIEW.md) owns visual rules,
 layout reference cases, and the [UI glossary](VIEW.md#ui-glossary). The [library specification](../../lib/doc/SPEC.md)
-owns PDF contracts, painting restrictions, and processor limits. Source files own implementation details. Build and
+owns PDF contracts, painting restrictions, and processor limits. Implementation details belong in code. Build and
 validation commands belong in [AGENTS.md](../../AGENTS.md#web).
 
 ## Workspace
 
 One workspace supports several independent Inputs and one Output. The main flow is Input selection, addition to Output,
-optional Style changes, and Download or Print. View changes preserve selections, Source styles, composition, and preview
+optional Style changes, and Download or Print. View changes preserve selections, Input styles, composition, and preview
 state. Ordinary PDFs support composition. Prepared PDFs also expose their declared Style controls.
 
 The landing distinguishes page composition for ordinary PDFs from Style support in prepared PDFs and links to the
@@ -21,24 +21,24 @@ library specification. Its header logo replays the landing animation. In the wor
 
 ### Inputs
 
-Opening a PDF creates an independent Source without changing Output. Equal bytes or filenames do not establish Source
-identity. Sources can share immutable Input bytes while keeping independent overrides and page preparation.
+Opening a PDF creates an independent Input without changing Output. Equal bytes or filenames do not establish Input
+identity. Inputs can share immutable Input bytes while keeping independent overrides and page preparation.
 
 The first opening shows progressively rendered pages after geometry becomes available. Editing stays blocked until
 processor validation succeeds. The header reports opening progress and provides Cancel once, on both the landing page
 and the workspace. Failure or cancellation discards the provisional Input. Opening another PDF retains the existing
-workspace until the new Source is ready. Errors identify the file, cause, and next action. Incompatible style
-information requires a newly prepared PDF.
+workspace until the new Input is ready. Errors identify the file, cause, and next action. Incompatible style information
+requires a newly prepared PDF.
 
 A multi-file selection opens each file in order. A file that fails does not prevent later files from opening. Errors
 appear after the batch completes. A short alert reports the failed count. Review file errors opens a scrollable list
 with every failed filename and diagnostic. Cancel stops the current opening and the remaining files.
 
-Opening the same PDF again creates an independent Source with the styles saved in that PDF and a new preparation. The
-Input chooser lists open Sources and offers Remove Input for the active Source. A Source cannot be removed while Output
-references it. Removing Sources never changes existing Blank dimensions.
+Opening the same PDF again creates an independent Input with the styles saved in that PDF and a new preparation. The
+Input chooser lists open Inputs and offers Remove Input for the active Input. An Input cannot be removed while Output
+references it. Removing Inputs never changes existing Blank dimensions.
 
-The Input chooser switches Sources. Each retains its view, inspected page, zoom, Grid density, and preparation. Home
+The Input chooser switches Inputs. Each retains its view, inspected page, zoom, Grid density, and preparation. Home
 requests confirmation before discarding undownloaded style or Output changes. Acceptance suppresses the browser exit
 warning for that navigation. Cancellation retains the workspace. Opening an Input or changing Selection alone does not
 mark Output as changed.
@@ -54,9 +54,9 @@ Grid interactions establish the page inspected in Page. Returning to Grid reveal
 follows occurrence identity through movement. Removal chooses the next surviving neighbor, or the previous neighbor at
 the end. Input switching does not move Output inspection.
 
-Both panes offer Normal and Compact density. Output starts in Normal. After opening completes, a Source's first visible
+Both panes offer Normal and Compact density. Output starts in Normal. After opening completes, an Input's first visible
 Input Grid measures Normal batch capacity. Above twice that capacity, it starts in Compact. Otherwise it starts in
-Normal. Each Source retains that choice, including manual changes. Resizing, browser zoom, Page, and Style do not
+Normal. Each Input retains that choice, including manual changes. Resizing, browser zoom, Page, and Style do not
 reevaluate it. Density changes preserve selections, inspection, and operations. Both densities use the remaining
 viewport height and show complete rows. Short viewports retain one complete row and usable controls through document
 scrolling. [VIEW.md](VIEW.md#workspace) defines capacity references and calibration limits.
@@ -68,10 +68,10 @@ In two-pane layout, Style groups scroll below the profile selectors while the wo
 Output controls remain visible. Switching Input to Style preserves Output's Grid capacity and Page frame. Single-pane
 Style uses document scrolling.
 
-When copies exist, Input page numbers open copy counts and Output positions. Output page numbers open the Source
-filename and original page number. Mappings distinguish independent Sources and follow edits. Compact details also
-provide a larger preview and individual actions. Outside click or Escape closes details. PDF labels supplement physical
-numbers. If a PDF label differs from its physical number, Page shows both.
+When copies exist, Input page numbers open copy counts and Output positions. Output page numbers open the Input filename
+and original page number. Mappings distinguish independent Inputs and follow edits. Compact details also provide a
+larger preview and individual actions. Outside click or Escape closes details. PDF labels supplement physical numbers.
+If a PDF label differs from its physical number, Page shows both.
 
 ### Demo
 
@@ -138,7 +138,7 @@ Sequences and expanded Output support at most 10,000 pages, including Padding. R
 ## Output composition
 
 Every Output occurrence is independently editable. Selection follows occurrence identity through edits. Other
-occurrences, Source pages, and styles remain intact. Page edits preserve expanded order, materialize existing Padding as
+occurrences, Input pages, and styles remain intact. Page edits preserve expanded order, materialize existing Padding as
 fixed removable Blanks, and discard internal Part boundaries.
 
 | Action               | Result                                                                                                      |
@@ -148,7 +148,7 @@ fixed removable Blanks, and discard internal Part boundaries.
 | Move earlier/later   | Shifts every selected occurrence one position, preserving order and gaps.                                   |
 | Drag selected Output | Moves the selection as one block in print order.                                                            |
 | Insert Blank         | Adds one fixed-size Blank before the first selected page or at the end, and selects it.                     |
-| Repeat sequence      | Repeats consecutive occurrences, including Sources and Blanks, in order.                                    |
+| Repeat sequence      | Repeats consecutive occurrences, including Inputs and Blanks, in order.                                     |
 
 Output offers movement actions in its selection bar, or in the page actions menu when space is limited. Both directions
 retain their positions while a selection exists. Each action is disabled at its boundary. A selection touching both
@@ -315,19 +315,18 @@ or Page. Touch dragging dismisses the keyboard and does not focus Selection on c
 If a focused header feedback action disappears, focus returns to Help without scrolling. Download retains native modal
 focus and returns focus to its trigger on close.
 
-## Source styles
+## Input styles
 
-A Source owns parameter definitions and overrides. New Sources retain saved overrides. Omitted assignments use authored
+An Input owns parameter definitions and overrides. New Inputs retain saved overrides. Omitted assignments use authored
 baselines. Mixed or unrepresentable baselines stay unassigned. Schema defaults do not create values or averages. A valid
 change affects every eligible record in its declared binding. Selections, Part boundaries, and inspection do not narrow
-that scope. Independent styling of the same physical page requires an independent Source.
+that scope. Independent styling of the same physical page requires an independent Input.
 
 ### Scope and controls
 
-Style controls appear only for parameters affecting Output pages from the active Source. Hidden controls retain
-overrides and drafts. A prepared Source without applicable Output has a disabled Style tab and an explanation. An
-ordinary PDF has no Style tab. Hidden or transparent prepared targets remain editable while their contract and geometry
-exist.
+Style controls appear only for parameters affecting Output pages from the active Input. Hidden controls retain overrides
+and drafts. A prepared Input without applicable Output has a disabled Style tab and an explanation. An ordinary PDF has
+no Style tab. Hidden or transparent prepared targets remain editable while their contract and geometry exist.
 
 Groups and parameters follow authored array order. A group's count represents distinct Style objects by exact binding
 target sets. Information panels expose baselines, page scope, Output coverage, constraints, and opaque parameter IDs.
@@ -375,45 +374,50 @@ description appears below its selector. A selected profile's details button sits
 the profile or Input closes its panel. Custom styles and profiles without details show no profile guidance button.
 Reading guidance does not change styles.
 
-Choosing a profile replaces the Source's overrides throughout that set and clears its invalid drafts. Omitted parameters
-return to authored baselines. Other sets on that Source retain their choices. By default, the choice also applies to
-each profile set on other open Sources that declares the same nonempty family and profile name. Families and names match
-exactly, regardless of set names or local IDs. Each Source uses its own declared profile values. Sets without this
+Choosing a profile replaces the Input's overrides throughout that set and clears its invalid drafts. Omitted parameters
+return to authored baselines. Other sets on that Input retain their choices. By default, the choice also applies to each
+profile set on other open Inputs that declares the same nonempty family and profile name. Families and names match
+exactly, regardless of set names or local IDs. Each Input uses its own declared profile values. Sets without this
 explicit match retain their choices. Missing family metadata never permits name-only propagation.
 
 The first profile selector's options menu offers **Apply only to this file**, off by default. When on, subsequent
-profile choices affect only the active Source. The option remains in effect across Input switches for the current
+profile choices affect only the active Input. The option remains in effect across Input switches for the current
 workspace. Changing the option does not change existing styles. The option also limits parameter edits and resets.
 
-With that option off, a valid parameter edit propagates only to parameters on other open Sources with equal explicit
+With that option off, a valid parameter edit propagates only to parameters on other open Inputs with equal explicit
 family and key, the same paint property, and the same pre-edit effective scalar value. Each destination must accept the
 new value under its own schema. Comparison uses numeric values and color components, never rounded UI text. An explicit
 override supplies the scalar; otherwise a uniform representable baseline supplies it. Mixed or unrepresentable effective
 values, invalid drafts, different values, and incompatible destinations remain intact. Invalid active drafts never
 propagate. A completed valid edit compares the last valid value retained beneath its draft. Matching metadata does not
-merge independent parameters within the active Source. Feedback reports skipped counterpart parameters when they prevent
+merge independent parameters within the active Input. Feedback reports skipped counterpart parameters when they prevent
 a complete cross-file edit.
 
 Custom is a derived UI state, not a stored profile. Family/key matching continues after overrides stop matching a
 profile. Parameter reset uses the same metadata and pre-edit value conditions and removes each destination's own
-override. It never copies the active Source's baseline. Reset all applies that rule independently to the active Source's
+override. It never copies the active Input's baseline. Reset all applies that rule independently to the active Input's
 changed parameters; unrelated destination parameters retain their choices. Invalid active drafts clear locally without
 propagation.
 
-The options button is disabled with only one open Source or no compatible operation on another Source. A compatible
-profile operation exists when any choice in the visible selectors has a family/name match on another Source. A
-compatible parameter operation exists when a visible parameter or a changed parameter eligible for reset has a
-family/key/property match with an equal, comparable current value and no invalid draft. Eligibility considers the
-available choices before activation, so users can select per-file scope before choosing a shared profile. Custom alone
-never disables the button. The button's disabled state does not reset the workspace preference. Opening and dismissing
-its menu changes no styles.
+The options button is disabled with only one open Input or no compatible operation on another Input. A compatible
+profile operation exists when any choice in the visible selectors has a family/name match on another Input. A compatible
+parameter operation exists when a visible parameter or a changed parameter eligible for reset has a family/key/property
+match with an equal, comparable current value and no invalid draft. Eligibility considers the available choices before
+activation, so users can select per-file scope before choosing a shared profile. Custom alone never disables the button.
+The button's disabled state does not reset the workspace preference. Opening and dismissing its menu changes no styles.
 
 Matching override maps select the declared profile. Other maps and invalid drafts show Custom. Profile choices remain
 individually editable. Names, descriptions, details, and values come from the producer and imply no application-defined
 printer behavior.
 
-Field reset removes one override. **Reset all styles** clears the active Source's complete map, including hidden and
-saved overrides, and invalid drafts. Other Sources follow only the eligible propagation above. Resets retain selections,
+Each Input retains its explicit profile choices for Recipe export. The visible selector still derives its current choice
+from the override map. A later manual edit can show Custom without removing the earlier explicit profile choice. The
+Input also retains the IDs of parameters edited after that choice, including edits equal to a profile value. Choosing
+another profile clears those edit IDs within its set. Field reset retains an explicit baseline reset. Reset all clears
+the active Input's profile intent and manual edit IDs together with its overrides and drafts.
+
+Field reset removes one override. **Reset all styles** clears the active Input's complete map, including hidden and
+saved overrides, and invalid drafts. Other Inputs follow only the eligible propagation above. Resets retain selections,
 composition, and immutable bytes. Reset appears only with overrides or invalid drafts. Keyboard activation returns focus
 to the Style tab before the control disappears.
 
@@ -424,20 +428,20 @@ choices do not show processing or block Download. Adding an affected page prepar
 copying currently styled pages does not repeat processing. Removing the last affected page cancels unnecessary work
 while retaining choices. Cancel and Retry retain choices and the last completed preview.
 
-Cross-file profile changes process Source previews one file at a time to bound WASM memory. A profile choice schedules
-the active Source first. Queued requests that are replaced or cancelled do not start processing. Individual Source edits
+Cross-file profile changes process Input previews one file at a time to bound WASM memory. A profile choice schedules
+the active Input first. Queued requests that are replaced or cancelled do not start processing. Individual Input edits
 keep independent processing and cancellation.
 
-The header reports active Style processing with the Source filename and Cancel. It favors the active Source, then the
-first pending Source. Cancel stops only that Source's work. A failed Source keeps its explanation and Retry in the
-header, including when another Input or view is active.
+The header reports active Style processing with the Input filename and Cancel. It favors the active Input, then the
+first pending Input. Cancel stops only that Input's work. A failed Input keeps its explanation and Retry in the header,
+including when another Input or view is active.
 
-Each Style request sends complete Source overrides in one processor operation. Full-document previews use a
-single-Source composition, so their completed bytes also support Download. Extracted previews combine resets and
-selected overrides. The processor writes and validates the final PDF once.
+Each Style request sends complete Input overrides in one processor operation. Full-document previews use a single-Input
+composition, so their completed bytes also support Download. Extracted previews combine resets and selected overrides.
+The processor writes and validates the final PDF once.
 
-Partial Source processing can use extracted pages, but controls, labels, preview, and Compare retain original physical
-identities. New Download processing uses complete immutable Inputs and complete Source overrides. Source errors offer
+Partial Input processing can use extracted pages, but controls, labels, preview, and Compare retain original physical
+identities. New Download processing uses complete immutable Inputs and complete Input overrides. Input errors offer
 Retry even with another Input or tab active. Invalid drafts never enter a Job. Obsolete processing results cannot
 replace newer choices.
 
@@ -461,7 +465,7 @@ preserve Selection, the inspected page, and Output.
 
 On every screen and input type, the first Page entry enlarges a fitted image narrower than 70% of its viewport. It uses
 the available width with equal image gutters, up to 3200%. The percentage rounds down to prevent horizontal overflow.
-This initial choice runs once per Source and once for Output, after PDF opening completes. It uses the rendered image
+This initial choice runs once per Input and once for Output, after PDF opening completes. It uses the rendered image
 viewport and the page's physical ratio. An explicit zoom choice takes precedence, including Fit. Touch entry brings the
 Page frame into view. Keyboard entry keeps the focused control visible. Reset zoom restores 100% and shows the complete
 page. [VIEW](VIEW.md#grid-and-page) defines fitting and spacing.
@@ -480,11 +484,11 @@ The gesture keeps its initial purpose until release. Short or vertical movements
 touch cancellation, window blur, resize, or visibility change cancels page navigation. Pinch zoom and lens holds retain
 their existing actions. Navigation stops at document boundaries and preserves Selection and Output.
 
-**Compare page** toggles the inspected occurrence between completed Source styles and immutable opened appearance. It
+**Compare page** toggles the inspected occurrence between completed Input styles and immutable opened appearance. It
 requires a completed relevant style difference. Composition alone does not enable it. Pending or invalid relevant drafts
 disable it. Reset can enable Compare by removing saved overrides. Input switching retains Output position and Compare.
 
-**Show original page** opens the occurrence's Source in Input Page at its original physical page, including extracted
+**Show original page** opens the occurrence's Input in Input Page at its original physical page, including extracted
 previews. It matches Output zoom and visible region once. Later navigation, zoom, and panning remain independent.
 Selections, styles, Output position, and Compare stay unchanged. On mobile it activates Input. Blank and Padding disable
 the action.
@@ -505,21 +509,58 @@ the lens cancels that render and releases its acquired page and crop buffers.
 Settings shows the current lens magnification beside − and + buttons. Each step halves or doubles the magnification. The
 buttons disable at 2× and 128× respectively.
 
+## Recipe export
+
+**Export recipe** in the Output header saves a portable JSON Recipe for the shared
+[Recipe contract](../../lib/doc/SPEC.md#65-portable-recipes). The CLI executes this file with `mainz run`. Web import is
+outside this version. Export requires a nonempty, valid Output and uses the existing contributing-Input and draft
+checks. Relevant pending Style work disables the action.
+
+The export panel assigns logical Input IDs through an Index, Path, ID table. Index shows a one-based row number. Path is
+muted, read-only text derived from the ID with `.pdf` appended. ID uses accent-colored editable cells. Activating a cell
+opens a text field. Enter or focus loss accepts the edit; Escape restores its prior value. Acceptance removes outer
+whitespace and a final `.pdf` suffix. The initial ID is the opened filename without that suffix. IDs must be nonempty
+and unique. Invalid IDs retain local explanations and disable Export. Editing an ID updates the Recipe's Input map and
+instance references without changing the workspace or actual files. Duplicate filenames require distinct IDs. The row
+index is presentation only. Blank-only Output requires no Input IDs.
+
+The Recipe contains no file-location fields. At execution, the host binds logical Input IDs to files or selected bytes.
+The CLI accepts an explicit ID-to-file map. Automatic lookup uses the ID as a relative path, adds `.pdf` when absent,
+and resolves from cwd or `--root`. The processor's `sources` entries retain independent style instances. Their page
+references use instance IDs, separate from logical Input bindings.
+
+Each accepted Input supplies its SHA-256 digest and optional publication declaration. Its validation worker computes the
+digest once from the retained original bytes. Recipe export does not reopen files, prepare another PDF, or render pages.
+The record contains no PDF bytes, browser resources, invalid drafts, or incidental UI state.
+
+Explicitly chosen profiles remain profile choices in the record. Later manual edits and baseline resets apply after
+those choices. Unique semantic family/name or family/key matches use semantic selectors. Ambiguous scopes use exact
+local IDs. Export never infers a profile from matching values. Inputs without explicit profile intent export their
+complete accepted override maps.
+
+The record preserves explicit physical pages, order, copies, front alignment, and Blanks. It never infers dynamic
+all-pages intent from a complete page list. It adds no hard page-count expectation. The shared library controls replay
+diagnostics and applicability against updated PDFs.
+
+The JSON filename uses the current Output filename stem with `.json`. Its default follows the existing dynamic Output
+name. The 1 MiB Recipe limit applies before download. Saving or cancelling retains composition, style choices,
+Selection, previews, and PDF Download/Share acknowledgment. Saving a Recipe does not clear the PDF unsaved warning.
+
 ## Download, Print, View, and recovery
 
 Download, Print, and View are disabled for empty or invalid Output and for invalid drafts affecting its content. Unused
-invalid parameters do not block them. Relevant Source processing disables these actions while the header reports
-progress. Full-document Style processing retains one completed composition per Source. Other combined Outputs need their
+invalid parameters do not block them. Relevant Input processing disables these actions while the header reports
+progress. Full-document Style processing retains one completed composition per Input. Other combined Outputs need their
 own PDF preparation.
 
-Output also checks the referenced Inputs and Sources against the Download limits: 32 of each and 128 MiB of aggregate
+Output also checks the referenced Inputs and Inputs against the Download limits: 32 of each and 128 MiB of aggregate
 Input bytes. Each Input identity counts once. Unused open Inputs do not count. An actionable error appears beside
 Download as soon as Output exceeds a limit. Removing the excess restores Download. Processor validation remains
 authoritative.
 
-Download captures the valid Job. If Output contains every page from one completed Source in physical order, Download
+Download captures the valid Job. If Output contains every page from one completed Input in physical order, Download
 reuses its validated and inspected composition. Current styles and page quantities must match. This path needs no new
-processing or inspection. Copies, Blanks, other page orders, and multiple Sources require a new composition.
+processing or inspection. Copies, Blanks, other page orders, and multiple Inputs require a new composition.
 
 New preparation supplies each referenced Input once. A compact modal at the header reports preparation and inspection
 while locking workspace actions. It uses the same feedback presentation as other header operations. Cancel and Escape
@@ -553,7 +594,7 @@ window. Browsers without native PDF viewing use a panel with Open PDF to print a
 inaccessible print API also opens that panel. The browser can silently ignore a print request; Download remains
 available. Paper, scaling, printer selection, and the choice of system dialog belong to the browser or PDF application,
 which also controls the print-job name. A print request does not prove that printing completed and does not clear the
-unsaved warning. Downloading the prepared PDF clears the downloaded choices' warning. Unused Source changes and invalid
+unsaved warning. Downloading the prepared PDF clears the downloaded choices' warning. Unused Input changes and invalid
 drafts retain their warning.
 
 View captures and inspects the same Output PDF. Preparation and Cancel appear in the app header. View opens the
@@ -566,7 +607,7 @@ workspace.
 A failed handoff retains the completed PDF for Retry. Viewing does not clear the unsaved warning. The browser controls
 its PDF viewer's displayed name and download behavior.
 
-Opening, rendering, or processing failures retain the workspace and last completed Source bytes. Errors explain the next
+Opening, rendering, or processing failures retain the workspace and last completed Input bytes. Errors explain the next
 action and retain local retry controls. No partial or uninspected PDF downloads. Recoverable failures do not discard
 Inputs.
 
@@ -580,9 +621,9 @@ offline application supports the same entrypoint. It adds no visible Settings co
 Help remains available on the landing page and in the workspace on all platforms. The landing shows App help. An open
 workspace adds Keyboard and Mouse for fine-pointer input, and Touch for coarse-pointer input. Hybrid input can expose
 both sets. Keyboard describes the current pane views. Left/right, Home, and End switch available topics and move focus.
-Dismissal restores prior focus. Start Tour appears only with a workspace. Settings appears with an open Source and
-offers lens magnification, software version, Build ID, and the repository link. Escape, close, or outside click
-dismisses Settings and restores focus. Theme choice persists locally with system fallback.
+Dismissal restores prior focus. Start Tour appears only with a workspace. Settings appears with an open Input and offers
+lens magnification, software version, Build ID, and the repository link. Escape, close, or outside click dismisses
+Settings and restores focus. Theme choice persists locally with system fallback.
 
 App installation help is separate from the welcome and Product tour. The first iPhone or iPad browser visit shows a
 dismissible introduction before a pending welcome. Continue in browser and Close permit normal PDF work. Standalone
@@ -625,7 +666,7 @@ Reduced motion keeps the instruction without animation.
 
 A new Notice replaces the old Notice and restarts its timer without replacing operation status. All Notices expire,
 including actionable guidance. Associated controls remain available. An Error clears the current Notice and operation
-status. The header presents Notices, active operations, general Errors, and Source recovery actions. The footer presents
+status. The header presents Notices, active operations, general Errors, and Input recovery actions. The footer presents
 completed results and cancellations. Active opening and Style progress do not repeat in the footer. Local errors retain
 their nearby explanation and retry action. Delayed completion cannot replace newer operation feedback. Temporary
 selection, navigation, and hover use local feedback.
@@ -653,10 +694,10 @@ An offline installation retains its build's ID.
 ## Processing boundaries
 
 The [Job contract](../../lib/doc/SPEC.md#63-job-and-composition) owns serialization and processor validation. PDF
-Composer sends only referenced Sources, with complete override maps, and binds Input IDs to immutable bytes separately.
-A Blank-only Job has no Sources or Inputs. Selections, labels, view state, invalid drafts, local paths, and PDF bytes
-stay outside the Job. The application supplies immediate field feedback. The processor remains authoritative for
-references, values, resource limits, repetition, and Padding.
+Composer sends only referenced Inputs, with complete override maps, and binds Input IDs to immutable bytes separately. A
+Blank-only Job needs no Input bindings. Selections, labels, view state, invalid drafts, local paths, and PDF bytes stay
+outside the Job. The application supplies immediate field feedback. The processor remains authoritative for references,
+values, resource limits, repetition, and Padding.
 
 Parameter IDs are opaque. Labels and descriptions are plain text. The application adds no painting engine, executable
 document markup, or authoritative contract validator. Downloaded prepared content remains editable without the original
@@ -675,7 +716,7 @@ instance and extracted-page cache before the next request. Cleanup errors fail s
 earlier operation error. The workspace retains at most one idle processing worker. Completing another job releases the
 previous idle worker. Active jobs keep independent cancellation. Ordinary Inputs release their validation worker after
 opening. Repeated Style requests for the same cached Input and page sequence reuse the extracted bytes without sending
-the complete PDF again. Failure or worker disposal clears that reuse state. Cancellation, replacement, or Source removal
+the complete PDF again. Failure or worker disposal clears that reuse state. Cancellation, replacement, or Input removal
 stops obsolete processing and preview work. Later jobs start usable workers. Input bytes remain available for retry.
 
 A worker retains at most four completed Style or single-Input composition results for one exact input buffer. The 16 MiB
@@ -694,19 +735,21 @@ canvas pixels; it excludes active renders, PDF.js memory, and browser overhead. 
 Persistent editable workspaces, printer control, and independent Part or occurrence styles are outside this version.
 
 Low-density thumbnails use a bounded temporary render and reduction to reduce exaggerated thin strokes at small sizes.
-This changes preview pixels without changing PDF bytes, Source styles, page proportions, or Page and lens detail
+This changes preview pixels without changing PDF bytes, Input styles, page proportions, or Page and lens detail
 rendering. Exact raster reuse distinguishes thumbnail sampling from direct Page rendering. Only final-sized rasters
 enter the retained cache. Temporary render canvases release after completion, cancellation, and failure.
 
 App coordinates Input opening and selects retained documents after view updates. Output owns the accepted composition,
 occurrence selection, inspection, filename, and Download and Share acknowledgment. Export owns shared Output preparation
 and inspection, the ready Share File, and the latest View URL. Print owns its native PDF frame or window and temporary
-URL. The filename editor owns only its draft. Each Source's Preview owns style processing, cancellation, and
+URL. The filename editor owns only its draft. Each Input's Preview owns style processing, cancellation, and
 displayed-document handoff. App and Preview ignore obsolete processing results. The PDF boundary owns loading-task and
 raster release, initial page geometry, and labels. Opening reads complete geometry in bounded batches and releases each
 acquired page after inspection. Cancellation discards incomplete geometry. Each preview render releases its own acquired
 page, including obsolete generations, and cancels superseded render tasks. Cancellation retains the last completed
 raster.
+
+Recipe owns its captured JSON, editable Input IDs, and temporary download URL. It changes no PDF-handoff owner.
 
 Page pinch anchoring belongs to the displayed PDF, physical page, and sequence position. Cancellation, a page-context
 change, a hidden pane, or teardown clears pending anchoring and its temporary transform. Reattaching the same Page
@@ -715,13 +758,13 @@ during a zoom update preserves its pending anchor.
 | Stage             | Retained resources                                              | Cancellation or replacement                                                                                            |
 | ----------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | Open and validate | Pending PDF loading task and validation worker                  | Destroy the task and worker. Ignore late reads and labels.                                                             |
-| Attach            | Immutable Input PDF and its Source                              | Retain the Input while any Source uses it.                                                                             |
-| Style update      | Source preview, completed composition bytes, and processor      | Cancel obsolete work. Keep the last completed preview.                                                                 |
+| Attach            | Immutable PDF bytes and an independent workspace Input          | Retain bytes while any open Input uses them.                                                                           |
+| Style update      | Input preview, completed composition bytes, and processor       | Cancel obsolete work. Keep the last completed preview.                                                                 |
 | Download          | Completed bytes or independent processing, temporary URL        | Release temporary resources. Keep selections and styles.                                                               |
 | Share             | One inspected File and acknowledgment                           | Keep the File for a fresh Share or Download action. Handoff, cancellation, or disposal releases it.                    |
 | Print             | One native PDF frame or window and URL; snapshot during handoff | Handoff, window close, or panel close releases the snapshot. Replacement or disposal releases the owned frame and URL. |
 | View              | Latest completed PDF URL                                        | The next completed View or disposal releases the URL.                                                                  |
-| Remove or dispose | Documents retained by remaining Sources                         | Release documents and rasters after their last owner leaves.                                                           |
+| Remove or dispose | Documents retained by remaining Inputs                          | Release documents and rasters after their last owner leaves.                                                           |
 
 ## Acceptance
 
@@ -739,20 +782,20 @@ The [library glossary](../../lib/doc/SPEC.md#glossary) owns PDF and painting ter
 | Blank              | A content-free page with defined physical dimensions. It can be explicit or generated as Padding.       |
 | Build ID           | Istanbul timestamp identifying an application build, separate from version and Git revision.            |
 | Compare            | Preview of the same Output occurrence with completed styles or its opened Input appearance.             |
-| Composition        | Ordered assembly of Source pages and Blanks into Output.                                                |
+| Composition        | Ordered assembly of Input pages and Blanks into Output.                                                 |
 | Copy count         | Number of repetitions of one complete Part.                                                             |
 | Error              | Failure message retained until dismissal or resolution.                                                 |
 | Grid               | Thumbnail view of Input or Output.                                                                      |
-| Grid density       | Normal or Compact layout chosen independently for each pane, and retained per Source in Input.          |
+| Grid density       | Normal or Compact layout chosen independently for each pane and retained for each open Input.           |
 | Help               | Dialog with App help, input-specific workspace instructions, and access to the Product tour.            |
 | Info               | Operation progress, result, or cancellation message.                                                    |
-| Input              | Immutable PDF bytes supplied separately from a Job. Also the UI label for the active Source.            |
+| Input              | Opened PDF with independent styles and page choices. Recipe IDs bind its immutable bytes.               |
 | Job                | Complete processor request for one Output, separate from PDF bytes and editable workspace state.        |
 | Keyboard shortcuts | Help instructions for the current pane views and selection fields.                                      |
 | Notice             | Temporary guidance or event message in the header.                                                      |
 | Onboarding         | First-opening welcome whose dismissal is remembered on the device.                                      |
-| Output             | One document assembled from ordered Parts with their Source styles, copies, and Blanks.                 |
-| Output preview     | Complete expanded composition, independent of active Source and Selection.                              |
+| Output             | One document assembled from ordered Parts with their Input styles, copies, and Blanks.                  |
+| Output preview     | Complete expanded composition, independent of active Input and Selection.                               |
 | Output occurrence  | One page in Output with independent identity, including a copy, Blank, or Padding.                      |
 | Output selection   | Temporary set of occurrences used for edits and Input insertion destinations.                           |
 | Page               | View of one large page, with navigation through the pane's complete sequence.                           |
@@ -762,10 +805,10 @@ The [library glossary](../../lib/doc/SPEC.md#glossary) owns PDF and painting ter
 | Part               | Internal flat page sequence with one Copy count and front-alignment choice, without independent styles. |
 | PDF Composer       | Local web application for page composition and declared styles in prepared PDFs.                        |
 | Product tour       | Contextual explanation of actual controls without changing document choices.                            |
+| Recipe             | Portable JSON processing record executed against bound Inputs.                                          |
 | Quartet            | Fill, Stroke, Width, and Visibility presentation for one Style object.                                  |
-| Selection          | Temporary ordered physical pages from one Source, including repeats, prepared for addition.             |
+| Selection          | Temporary ordered physical pages from one Input, including repeats, prepared for addition.              |
 | Share              | Mobile action that hands the completed Output File to the system sharing panel.                         |
-| Source             | Independent workspace entry using immutable Input bytes and owning its overrides and preparation.       |
 | Show original page | Opens an Output occurrence's original Input page and matches its visible region once.                   |
-| Style profile      | Named choice replacing one profile set's Source overrides.                                              |
+| Style profile      | Named choice replacing one profile set's Input overrides.                                               |
 | UI group           | Authored presentation section whose order does not alter bindings or assignment scope.                  |

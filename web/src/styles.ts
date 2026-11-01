@@ -1,4 +1,4 @@
-// Defines Source style schemas and resolves values, profiles, applicability, and preview requirements.
+// Defines Input style schemas and resolves values, profiles, applicability, and preview requirements.
 
 import type { Part } from "./model.ts"
 
@@ -63,6 +63,8 @@ type StyleState = {
   input: { description: Description }
   overrides: Record<string, Scalar>
   drafts: Record<string, string>
+  profiles?: Record<string, string>
+  edits?: readonly string[]
 }
 
 function effective(entry: Entry): Scalar | undefined {
@@ -118,9 +120,10 @@ export function propagate(
   for (const id of ids)
     if (Object.hasOwn(next.overrides, id) && !Object.hasOwn(next.drafts, id)) delete before.drafts[id]
   const matches = counterparts(before, target, ids)
-  if (!matches.pairs.length) return { overrides: target.overrides, changed: false, skipped: matches.skipped }
+  if (!matches.pairs.length) return { overrides: target.overrides, changed: false, skipped: matches.skipped, edits: [] }
   const overrides = new Map(Object.entries(target.overrides))
   let changed = false
+  const edits: string[] = []
   for (const [original, id] of matches.pairs) {
     const assigned = Object.hasOwn(next.overrides, original)
     const value = next.overrides[original]
@@ -131,12 +134,13 @@ export function propagate(
       matches.skipped++
       continue
     }
+    edits.push(id)
     if (assigned === overrides.has(id) && (!assigned || overrides.get(id) === value)) continue
     if (assigned) overrides.set(id, value)
     else overrides.delete(id)
     changed = true
   }
-  return { overrides: Object.fromEntries(overrides), changed, skipped: matches.skipped }
+  return { overrides: Object.fromEntries(overrides), changed, skipped: matches.skipped, edits }
 }
 
 export function sharedProfiles(set: ProfileSet, target: ProfileSet, name: string) {
@@ -161,7 +165,7 @@ export function matchingProfile(
 export function applyProfile(
   set: ProfileSet,
   profile: Profile,
-  state: { overrides: Record<string, Scalar>; drafts: Record<string, string> },
+  state: Pick<StyleState, "overrides" | "drafts" | "profiles" | "edits">,
 ) {
   const parameters = new Set(set.parameters)
   const outside = <T>(values: Record<string, T>) =>
@@ -169,6 +173,8 @@ export function applyProfile(
   return {
     overrides: { ...outside(state.overrides), ...profile.overrides },
     drafts: outside(state.drafts),
+    profiles: { ...state.profiles, [set.id]: profile.id },
+    edits: state.edits?.filter((id) => !parameters.has(id)) ?? [],
   }
 }
 

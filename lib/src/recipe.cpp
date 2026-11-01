@@ -1,10 +1,7 @@
 #include "recipe.hh"
 #include "contract.hh"
-#include <algorithm>
 #include <cmath>
 #include <new>
-#include <qpdf/QPDFCryptoProvider.hh>
-#include <qpdf/QUtil.hh>
 
 namespace mainz {
 namespace {
@@ -16,20 +13,6 @@ namespace {
         require(value >= 0 && value <= static_cast<double>(maximum) && std::floor(value) == value,
             "Expected an integer within its limit.");
         return static_cast<std::size_t>(value);
-    }
-    void portable_file(const std::string& file)
-    {
-        identifier(file);
-        require(file != "-" && file.find_first_of("\\:") == file.npos, "Input requires a portable relative file path.");
-        std::size_t start {0};
-        while (start <= file.size()) {
-            auto end = file.find('/', start);
-            auto component = file.substr(start, end == file.npos ? end : end - start);
-            require(!component.empty() && component != "." && component != "..", "Invalid Input path component.");
-            if (end == file.npos)
-                break;
-            start = end + 1;
-        }
     }
     void selector(JSON item, bool profile)
     {
@@ -80,8 +63,7 @@ namespace {
         for (const auto& [id, definition] : inputs)
             request_at("/inputs/" + pointer(id), [&] {
                 identifier(id);
-                auto present = fields(definition, {"file"}, {"sha256", "pageCount", "publication"});
-                portable_file(text(definition.getDictItem("file")));
+                auto present = fields(definition, {}, {"sha256", "pageCount", "publication"});
                 if (present.contains("publication"))
                     publication(definition.getDictItem("publication"));
                 if (present.contains("sha256")) {
@@ -298,12 +280,8 @@ static Resolution resolve(const std::string& recipe, const detail::Bindings& inp
                     {"message", JSON::makeString("Input has no compatible forward publication declaration.")},
                     {"expected", recorded_publication}, {"actual", current_publication}}));
             if (detail::object(definition).contains("sha256") && !compatible && !publication_changed) {
-                auto digest = QPDFCryptoProvider::getImpl();
-                digest->SHA2_init(256);
                 const auto& bytes = inputs.at(id).bytes;
-                digest->SHA2_update(reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size());
-                digest->SHA2_finalize();
-                auto actual = QUtil::hex_encode(digest->SHA2_digest());
+                auto actual = detail::sha256(bytes);
                 if (actual != detail::text(definition.getDictItem("sha256")))
                     warnings.addArrayElement(detail::dictionary({{"code", JSON::makeString("input-changed")},
                         {"input", JSON::makeString(id)}, {"location", JSON::makeString(location + "/sha256")},

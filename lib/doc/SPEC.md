@@ -308,7 +308,7 @@ group. Empty groups and an empty array are permitted.
 Groups are presentation hints, not targets or assignment scopes. A group can contain several Style objects or part of
 one. Bindings identify related controls. Applications choose widgets without introducing parameter types, coupled
 assignments, or placeholder PDF parameters. Workspace rendering belongs to the
-[Web SPEC](../../web/doc/SPEC.md#source-styles) and [VIEW](../../web/doc/VIEW.md#style-presentation).
+[Web SPEC](../../web/doc/SPEC.md#input-styles) and [VIEW](../../web/doc/VIEW.md#style-presentation).
 
 Group and parameter arrays preserve authored presentation order. Unlisted parameters use ID order. JSON object order
 never substitutes for these arrays. Description, extraction, and composition retain their order while pruning or
@@ -335,9 +335,9 @@ scope, overrides, or printer behavior.
 Opening preserves saved overrides without applying a profile. Choosing a profile replaces all overrides within its set.
 Omitted parameters return to their own baselines. Other parameters and sets retain their choices.
 
-Applications supply a complete Source map or combine the set's reset IDs and the profile's overrides in one `apply`
-call. There is no inheritance, cascade, saved active-profile field, or additional processor operation. Profile values
-and meanings belong to the author.
+Applications supply a complete Input instance map or combine the set's reset IDs and the profile's overrides in one
+`apply` call. There is no inheritance, cascade, saved active-profile field, or additional processor operation. Profile
+values and meanings belong to the author.
 
 Optional set `family` follows the Style-family string rules in Section 4.2 and applies to every profile in that set.
 Within a family-bearing set, profile names must be unique. The producer guarantees that the same family and profile name
@@ -351,9 +351,9 @@ The [CLI specification](../../cli/doc/SPEC.md#21-profile-selection) owns command
 diagnostics.
 
 Styling, reset, and description preserve all profile annotations. Extraction prunes missing parameter references and
-overrides, dropping sets with no retained parameters. Composition remaps set and parameter identities per Source.
-Extraction and composition retain names, descriptions, details, and authored order. Repeated pages share their Source's
-sets. Separate Sources keep independent sets even with the same Input.
+overrides, dropping sets with no retained parameters. Composition remaps set and parameter identities per Input
+instance. Extraction and composition retain names, descriptions, details, and authored order. Repeated pages share their
+Input instance's sets. Separate Input instances keep independent sets even with the same Input.
 
 ### 4.6 Complete JSON example
 
@@ -509,8 +509,8 @@ fields:
 `baselineRefs` maps every shared slot to an existing baseline, with no missing or unused slots. Regions can map the same
 slot to different baselines. Original baseline identities and numeric strings remain intact. Record-set and slot IDs
 identify syntax, not painting occurrences. Serialization can replace those IDs. Every locator resolves in its region's
-page, resource, invocation, and effective-paint context. Sharing never bypasses occurrence validation or merges Source
-baselines.
+page, resource, invocation, and effective-paint context. Sharing never bypasses occurrence validation or merges Input
+instance baselines.
 
 For example, these regions share syntax but keep separate baselines:
 
@@ -526,7 +526,7 @@ For example, these regions share syntax but keep separate baselines:
 
 This fragment requires the other manifest fields and matching PDF scopes. Producers can share equal locator arrays after
 assigning local slots. Resource isolation can separate arrays. Extraction removes unused arrays. Composition can share
-syntax while keeping Source baselines independent.
+syntax while keeping Input instance baselines independent.
 
 A Form step has exactly `resource` and nonnegative integer `occurrence`. Counting starts at zero and includes only `Do`
 operations using that resource. The first step counts within the page region. Later steps count within the entire
@@ -745,12 +745,12 @@ expansion. Exhaustion returns no successful output. Documents cannot raise limit
 | Referenced paint occurrences              | 500,000   |
 | Cumulative expanded locator text per call | 128 MiB   |
 
-Locator accounting counts each shared-array occurrence, including repeated Source and completed-result validation. For
-each occurrence, it counts UTF-8 region, page, target, and resolved baseline IDs, paint marker, fill capability, and
-Form-step resource names. Shared arrays and slots do not reduce the total. Limits apply before copied text and paths are
-stored. Other page, string, nesting, decoded-byte, and traversal ceilings remain enforced. Job limits appear in Section
-6.3 and producer limits in Section 7.1. Published ceilings depend on the released build. They measure neither peak
-memory nor device support.
+Locator accounting counts each shared-array occurrence, including repeated Input instance and completed-result
+validation. For each occurrence, it counts UTF-8 region, page, target, and resolved baseline IDs, paint marker, fill
+capability, and Form-step resource names. Shared arrays and slots do not reduce the total. Limits apply before copied
+text and paths are stored. Other page, string, nesting, decoded-byte, and traversal ceilings remain enforced. Job limits
+appear in Section 6.3 and producer limits in Section 7.1. Published ceilings depend on the released build. They measure
+neither peak memory nor device support.
 
 Processor errors require plain-text `code` and nonempty `message`. Codes are `pdf-syntax`, `missing-contract`,
 `unsupported-version`, `unsupported-context`, `invalid-contract`, `invalid-request`, or `limit-exceeded`. Optional
@@ -777,32 +777,32 @@ responsiveness, not a hard total-memory boundary. Processor allocation limits re
 
 ### 6.3 Job and composition
 
-A Job contains ordered occurrences, complete Source styles, repetition, and duplex alignment. It excludes bytes, paths,
-selections, UI labels, and preview state. Applications supply immutable Inputs separately. Input and Source IDs follow
-Section 4.1.
+A Job contains ordered occurrences, complete Input instance styles, repetition, and duplex alignment. It excludes bytes,
+paths, selections, UI labels, and preview state. Applications supply immutable Inputs separately. Input and Input
+instance IDs follow Section 4.1.
 
-| Record       | Fields                                                                                                  |
-| ------------ | ------------------------------------------------------------------------------------------------------- |
-| Job          | Required `version`, `sources`, `parts`                                                                  |
-| `version`    | Integer `1`                                                                                             |
-| `sources`    | Source-ID map, empty for Blank-only Jobs                                                                |
-| Source       | Required `input` ID and complete `overrides` object                                                     |
-| `parts`      | Nonempty ordered Part array                                                                             |
-| Part         | Required nonempty `pages`, optional `copies` and `front`                                                |
-| `copies`     | Positive integer, default `1`                                                                           |
-| `front`      | Boolean, default `false`                                                                                |
-| Content page | Exactly `source` and zero-based physical `page`                                                         |
-| Blank page   | Exactly `blank`, containing finite positive `width` and `height` in millimeters, each at most 1,000,000 |
+| Record         | Fields                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------- |
+| Job            | Required `version`, `sources`, `parts`                                                                  |
+| `version`      | Integer `1`                                                                                             |
+| `sources`      | Input instance-ID map, empty for Blank-only Jobs                                                        |
+| Input instance | Required `input` ID and complete `overrides` object                                                     |
+| `parts`        | Nonempty ordered Part array                                                                             |
+| Part           | Required nonempty `pages`, optional `copies` and `front`                                                |
+| `copies`       | Positive integer, default `1`                                                                           |
+| `front`        | Boolean, default `false`                                                                                |
+| Content page   | Exactly `source` and zero-based physical `page`                                                         |
+| Blank page     | Exactly `blank`, containing finite positive `width` and `height` in millimeters, each at most 1,000,000 |
 
-Every Source has a content reference. Every supplied Input serves a Source. Several Sources can share an Input. Pages
-can repeat within and across Parts. Unknown fields, duplicate keys, bad versions, missing references, and invalid
-indexes fail. Ordinary Sources require empty overrides. Prepared Sources validate every supplied value against their
-Input's definitions.
+Every Input instance has a content reference. Every supplied Input serves an Input instance. Several Input instances can
+share an Input. Pages can repeat within and across Parts. Unknown fields, duplicate keys, bad versions, missing
+references, and invalid indexes fail. Ordinary Input instances require empty overrides. Prepared Input instances
+validate every supplied value against their Input's definitions.
 
-Source overrides replace complete saved state rather than applying a patch. Omitted overrides return to authored
-baselines. Mixed and unrepresentable baselines remain unassigned. Source changes never alter Inputs or other Sources.
-All retained occurrences share their Source's parameter scope. Independent styles require independent Sources, even with
-the same Input and page.
+Input instance overrides replace complete saved state rather than applying a patch. Omitted overrides return to authored
+baselines. Mixed and unrepresentable baselines remain unassigned. Input instance changes never alter Inputs or other
+Input instances. All retained occurrences share their Input instance's parameter scope. Independent styles require
+independent Input instances, even with the same Input and page.
 
 Each Part repeats its complete sequence `copies` times. With `front: true`, copies start at even zero-based Output
 indexes and finish complete duplex sheets. An odd preceding length adds leading Padding. Odd sequences add trailing
@@ -812,14 +812,14 @@ Padding after every copy, including the last. Padding uses the preceding page's 
 
 Composition retains content streams, resources, boxes, rotation, and `UserUnit`. Each occurrence receives a distinct
 page object and manifest identity. Annotations and form fields are copied without sharing mutable annotations. Internal
-links resolve to the first retained occurrence in the same Source. Discarded destinations become null. Attachments copy
-once per Input, with collision-free Input prefixes for multiple Inputs. The new catalog does not merge document-wide
-outlines, actions, metadata, or logical structure.
+links resolve to the first retained occurrence in the same Input instance. Discarded destinations become null.
+Attachments copy once per Input, with collision-free Input prefixes for multiple Inputs. The new catalog does not merge
+document-wide outlines, actions, metadata, or logical structure.
 
-Sources retain independent parameter, target, and baseline identities. Definitions, overrides, and presentation survive,
-with bindings covering every eligible retained occurrence. Unused targets, parameters, baselines, and empty groups
-disappear. Without editable regions, Output is ordinary. Reset restores retained authored baselines without Inputs.
-Completion validates and reopens Output before success.
+Input instances retain independent parameter, target, and baseline identities. Definitions, overrides, and presentation
+survive, with bindings covering every eligible retained occurrence. Unused targets, parameters, baselines, and empty
+groups disappear. Without editable regions, Output is ordinary. Reset restores retained authored baselines without
+Inputs. Completion validates and reopens Output before success.
 
 The separate version 1 report has Output-ordered `pages`. Each record includes zero-based `part` and `copy`. Content
 records also name original `source` and physical `page`. Blank records give dimensions and Boolean `padding`. The
@@ -828,18 +828,19 @@ neither a PDF binding nor an extra Job field.
 
 Both adapters enforce these limits before Input retention or expansion:
 
-| Quantity              | Maximum |
-| --------------------- | ------- |
-| Inputs / Sources      | 32 each |
-| Aggregate Input bytes | 128 MiB |
-| Job JSON              | 1 MiB   |
-| Copies per Part       | 1,000   |
-| Expanded pages        | 10,000  |
+| Quantity                 | Maximum |
+| ------------------------ | ------- |
+| Inputs / Input instances | 32 each |
+| Aggregate Input bytes    | 128 MiB |
+| Job JSON                 | 1 MiB   |
+| Copies per Part          | 1,000   |
+| Expanded pages           | 10,000  |
 
 Other manifest, output, decoding, and traversal limits still apply. Failures preserve Inputs and return no successful
-PDF or partial report. Job field errors use `source: "request"` and pointers to their Source, Part, or page reference.
+PDF or partial report. Job field errors use `source: "request"` and pointers to their Input instance, Part, or page
+reference.
 
-This Job uses the prepared example from Section 4.6 as Input `book`, with two independently styled Sources:
+This Job uses the prepared example from Section 4.6 as Input `book`, with two independently styled Input instances:
 
 ```json
 {
@@ -870,17 +871,21 @@ The native executor accepts Job JSON and an Input-ID-to-owned-byte map. It retur
 without file access or scheduling. The [CLI](../../cli/doc/SPEC.md#2-requests) resolves file bindings before calling it.
 
 The optional `previous` document in native `compose` permits reuse of its input validation and parsed content. Reuse
-requires exact input bytes. Source edits stay independent. Composition applies Source styles in memory and validates the
-complete serialized Output once, without intermediate Source PDFs.
+requires exact input bytes. Input instance edits stay independent. Composition applies Input instance styles in memory
+and validates the complete serialized Output once, without intermediate Input instance PDFs.
 
 `compose_validated(job, inputs)` accepts an Input-ID-to-immutable-`Document` map. It reuses those exact Inputs' prior
 validation and parsed content without copying their PDF bytes into another binding map. The owners remain alive for the
-synchronous call. Independent Sources still receive separate editing graphs, and the completed Output still passes full
-validation. This entry point lets Recipe resolution and composition share the same validated Inputs.
+synchronous call. Independent Input instances still receive separate editing graphs, and the completed Output still
+passes full validation. This entry point lets Recipe resolution and composition share the same validated Inputs.
 
 The WASM module has one active immutable styling document. `mainz_read` opens it and `mainz_close` releases its handle.
 Applying styles, resetting, extracting, and composing do not replace that active document. A host closes it before
 opening another. Callers own input buffers, borrowed only during synchronous calls.
+
+`mainz_fingerprint(handle)` returns the active document's SHA-256 as 64 lowercase ASCII hexadecimal bytes through the
+result buffer. It hashes the retained original bytes without another PDF read and leaves the active document intact. The
+host can retain this value as Recipe provenance. This operation follows the same handle and result-buffer rules.
 
 WASM builds use native WebAssembly exception handling instead of JavaScript exception emulation. Hosts must support the
 pinned toolchain's legacy exception instructions. Processor and host failures retain the status and result records
@@ -912,18 +917,19 @@ versions are separate contracts. Encoding, unknown-field rejection, identifiers,
 
 | Record                  | Fields                                                                         |
 | ----------------------- | ------------------------------------------------------------------------------ |
-| Input                   | Required `file`; optional `sha256`, `pageCount`, `publication`                 |
-| Source                  | Required `input`; optional `profiles`, `overrides`, both arrays                |
+| Input                   | Optional `sha256`, `pageCount`, `publication`; an empty object is valid        |
+| Input instance          | Required `input`; optional `profiles`, `overrides`, both arrays                |
 | Local profile choice    | Exactly `set` and `id`, containing the Input's opaque set/profile IDs          |
 | Semantic profile choice | Required `family` and `name`; optional Boolean `all`, default `false`          |
 | Local override          | Exactly parameter `id` and `value`                                             |
 | Semantic override       | Required `family`, `key`, and `value`; optional Boolean `all`, default `false` |
 
-`inputs` and `sources` are ID maps, empty for Blank-only Recipes. Every Input serves a Source and every Source has a
-page reference. Multiple Sources can use one Input while retaining independent styles. An Input's `file` is a portable
-relative path, with `/` separators and no empty, `.` or `..` components. It cannot contain backslashes, colons, control
-characters, or use the literal `-`. It is not a URL or an instruction to fetch a resource. File references do not
-establish Source identity.
+`inputs` and `sources` are ID maps, empty for Blank-only Recipes. Every Input serves an Input instance and every Input
+instance has a page reference. Input IDs name logical PDF bindings; Input instance IDs name independent styled uses of
+those Inputs. Several Input instances can use one Input. Both kinds of ID are opaque under Section 4.1. The record has
+no file-location fields. The host binds each Input ID to actual PDF bytes at execution time. A filename without its
+`.pdf` suffix is a convenient initial ID, not a required filesystem location. Displayed one-based indexes identify rows
+only; they are not stored identities or references. JSON member order does not define an Input index.
 
 Optional `sha256` records byte provenance as 64 lowercase hexadecimal characters. A mismatch produces an `input-changed`
 warning and permits updated Inputs. The warning contains `input`, `location`, `message`, `expected`, and `actual`.
@@ -944,26 +950,26 @@ diagnostics apply. One Input produces at most one change warning. Without a reco
 assumes that a current publication version establishes compatibility with the reference.
 
 Style selector strings are exact and case-sensitive. Semantic family/name/key strings follow Section 4.2. A semantic
-selector without `all: true` requires exactly one match within its Source's Input. Zero matches and ambiguous matches
-fail. With `all: true`, the operation explicitly addresses every match and still requires at least one. Exact local
-selectors do not accept `all`. There is no fallback between local IDs and semantic fields.
+selector without `all: true` requires exactly one match within its Input instance's Input. Zero matches and ambiguous
+matches fail. With `all: true`, the operation explicitly addresses every match and still requires at least one. Exact
+local selectors do not accept `all`. There is no fallback between local IDs and semantic fields.
 
-A Source starts from authored baselines, following Job's complete-state semantics. Profiles apply first, using the
-current Input's own definitions. Two choices cannot address the same profile set. Explicit overrides apply afterward. A
-non-null `value` is a scalar validated under each matched parameter's schema and paint property. A null value removes
-that parameter's profile assignment, restoring its own baseline. It does not enter the resolved Job. Two explicit
-overrides cannot address the same parameter, including through overlapping selectors. Other Source styles never change
-implicitly. Saved Input overrides survive only when the Recipe explicitly retains them.
+An Input instance starts from authored baselines, following Job's complete-state semantics. Profiles apply first, using
+the current Input's own definitions. Two choices cannot address the same profile set. Explicit overrides apply
+afterward. A non-null `value` is a scalar validated under each matched parameter's schema and paint property. A null
+value removes that parameter's profile assignment, restoring its own baseline. It does not enter the resolved Job. Two
+explicit overrides cannot address the same parameter, including through overlapping selectors. Other Input instance
+styles never change implicitly. Saved Input overrides survive only when the Recipe explicitly retains them.
 
 Recipe Parts use Job's `copies`, `front`, explicit content pages, and explicit Blanks. A content page can instead be
-exactly `{ "source": "id", "pages": "all" }`. This expands every current physical page of that Source's Input in order,
-before repetition and duplex alignment. Fixed `page` indexes remain zero-based and must exist. Explicit complete lists
-never imply all-pages intent. Out-of-range pages fail; the interpreter never drops or clamps them.
+exactly `{ "source": "id", "pages": "all" }`. This expands every current physical page of that Input instance's Input in
+order, before repetition and duplex alignment. Fixed `page` indexes remain zero-based and must exist. Explicit complete
+lists never imply all-pages intent. Out-of-range pages fail; the interpreter never drops or clamps them.
 
 ```json
 {
   "version": 1,
-  "inputs": { "book": { "file": "book.pdf" } },
+  "inputs": { "book": {} },
   "sources": {
     "original": { "input": "book" },
     "styled": {
@@ -985,10 +991,10 @@ never imply all-pages intent. Out-of-range pages fail; the interpreter never dro
 ```
 
 The example's IDs must exist in the supplied Input; they are not built-in profile or parameter names. A web consumer can
-export its complete concrete Job by supplying file references, converting override-map entries to local override
-records, and retaining exact Parts. Replaying that record with the same Inputs uses the same composition engine and
-preserves the represented content, page order, copies, Blanks, and styles. Profile intent or dynamic selection requires
-its explicit Recipe representation; it cannot be inferred from an equivalent concrete snapshot.
+export its complete concrete Job by naming logical Inputs, converting override-map entries to local override records,
+and retaining exact Parts. Replaying that record with the same Inputs uses the same composition engine and preserves the
+represented content, page order, copies, Blanks, and styles. Profile intent or dynamic selection requires its explicit
+Recipe representation; it cannot be inferred from an equivalent concrete snapshot.
 
 `recipe_inputs(recipe)` validates the unbound record and returns its Input definitions as JSON. It reads no files.
 `resolve_recipe(recipe, inputs)` validates separately supplied Input bytes and returns `Resolution` with `job` and
@@ -1005,12 +1011,12 @@ resolves against the registered Inputs and returns `{ "job": ..., "warnings": [.
 `mainz_size`. These operations retain the active styling document and do not generate PDF bytes. The host copies the
 result before another operation, then can pass the returned Job to `mainz_compose` using the same registered bytes.
 
-Recipe JSON and the resolved Job each have a 1 MiB limit. Job's Input/Source, aggregate Input byte, copy, and expanded
-page limits apply during resolution. Parts and each unexpanded page-selector array contain at most 10000 entries.
-Retained description JSON has a 512 MiB aggregate byte budget. These byte budgets do not measure total peak memory.
-Checks precede page-list expansion. Existing PDF, manifest, decoding, and traversal limits still apply. Reproducibility
-covers the resolved operations and represented PDF content; it does not promise identical serialized bytes across
-processor or dependency versions. Output naming, printing, sharing, and UI state remain host concerns.
+Recipe JSON and the resolved Job each have a 1 MiB limit. Job's Input/Input instance, aggregate Input byte, copy, and
+expanded page limits apply during resolution. Parts and each unexpanded page-selector array contain at most 10000
+entries. Retained description JSON has a 512 MiB aggregate byte budget. These byte budgets do not measure total peak
+memory. Checks precede page-list expansion. Existing PDF, manifest, decoding, and traversal limits still apply.
+Reproducibility covers the resolved operations and represented PDF content; it does not promise identical serialized
+bytes across processor or dependency versions. Output naming, printing, sharing, and UI state remain host concerns.
 
 ## 7. Producer and consuming-application obligations
 
@@ -1096,9 +1102,11 @@ The [Web glossary](../../web/doc/SPEC.md#glossary) owns workspace terms.
 | Description              | Read-only processor record of pages, definitions, overrides, baseline summaries, groups, and profiles.        |
 | Effective style          | Paint state after baseline, overrides, and display combine. Hidden targets retain selected values.            |
 | Extraction               | Retaining unique pages in order and rebuilding bindings, without changing drawing content.                    |
-| Input                    | Immutable PDF bytes supplied separately under an opaque Input ID. Several Sources can share them.             |
-| Job                      | Versioned composition request with complete Source overrides, repetition, and duplex alignment.               |
-| Recipe                   | Portable versioned processing choices and relative file references resolved into a Job against bound Inputs.  |
+| Input                    | Immutable PDF bytes supplied separately under an opaque Input ID. Several Input instances can share them.     |
+| Input ID                 | Logical key for a PDF binding, independent of its file location.                                              |
+| Input index              | One-based display position within a host's current Input list, not a persisted identity.                      |
+| Job                      | Versioned composition request with complete Input instance overrides, repetition, and duplex alignment.       |
+| Recipe                   | Portable versioned processing choices and logical Input IDs resolved into a Job against bound PDF bytes.      |
 | Publication              | Producer-declared logical document identity and SemVer version carrying processing compatibility promises.    |
 | Mainz                    | Project, contract, processor, reference producer, CLI, and WASM boundary, consumed by PDF Composer.           |
 | Manifest                 | Embedded declaration of pages, regions, baselines, targets, parameters, overrides, and optional presentation. |
@@ -1116,7 +1124,7 @@ The [Web glossary](../../web/doc/SPEC.md#glossary) owns workspace terms.
 | Path geometry            | Path operators and coordinates, preserved by styling.                                                         |
 | Prepared PDF             | Materialized editable geometry, valid manifest, resolved bindings, and immutable baselines in one PDF.        |
 | Presentation group       | Ordered parameter references with title/description, without style identity or assignment scope.              |
-| PDF Composer             | Local web consumer for page composition and Source styling.                                                   |
+| PDF Composer             | Local web consumer for page composition and Input instance styling.                                           |
 | Processor                | Library applying the PDF contract and contract-aware page operations independently of producers.              |
 | Producer                 | Software publishing prepared geometry and declarations into the PDF contract.                                 |
 | Reference application    | Consumer exposing the common processor. File conformance does not depend on its widgets.                      |
@@ -1124,7 +1132,7 @@ The [Web glossary](../../web/doc/SPEC.md#glossary) owns workspace terms.
 | Region                   | Unique occurrence scope with ordered paint records, belonging to one target.                                  |
 | Schema                   | Restricted JSON Schema for one parameter's scalar values and annotations.                                     |
 | Selector                 | Producer-side source selection, resolved before processor input.                                              |
-| Source                   | One Input reference with complete independent overrides shared across retained occurrences.                   |
+| Input instance           | One Input reference with complete independent overrides shared across retained occurrences.                   |
 | Styling                  | Declared paint changes preserving geometry, protected content, and page structure.                            |
 | Style declaration        | Separate producer input with selectors, bindings, optional presentation, profiles, and overrides.             |
 | Style object             | Parameters bound to the same exact unordered target set.                                                      |

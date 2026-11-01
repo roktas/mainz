@@ -170,6 +170,11 @@ function wasm(instance) {
       if (failOperation) record({ code: "pdf-syntax", message: "Processing failed." }, 1)
       else record({ version: 1, pageCount: 1, pages: {}, parameters: {} })
     },
+    _mainz_fingerprint() {
+      heap.fill(48, 0, 64)
+      size = 64
+      status = 0
+    },
     _mainz_close() {
       if (instance === 1) record({ hostError: "Close failed." }, 2)
       else {
@@ -446,7 +451,7 @@ test("Composition reuse preserves bytes, reports, and exact Input bindings", { t
       const { Processor } = await import("/src/processor.ts")
       const processor = new Processor()
       const bytes = new Uint8Array(await (await fetch("/sample.pdf")).arrayBuffer())
-      const recipe = {
+      const request = {
         version: 1,
         sources: { book: { input: "input", overrides: { "guides-stroke-width": 0.04 } } },
         parts: [
@@ -460,7 +465,7 @@ test("Composition reuse preserves bytes, reports, and exact Input bindings", { t
           },
         ],
       }
-      const run = (id, buffer, revision) => processor.compose(recipe, [{ id, bytes: buffer }], revision)
+      const run = (id, buffer, revision) => processor.compose(request, [{ id, bytes: buffer }], revision)
       try {
         await processor.run(bytes, 0)
         const first = await run("input", bytes, 1)

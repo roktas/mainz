@@ -35,6 +35,7 @@ export type Result = {
   revision: number
   bytes: ArrayBuffer
   description: Description
+  sha256?: string
   report?: Report
 }
 export type Reply = Result | { revision: number; failure: Failure }

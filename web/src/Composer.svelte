@@ -40,6 +40,7 @@
     sharing,
     print,
     viewPDF,
+    recipe,
     filename,
     rename,
     error,
@@ -66,6 +67,7 @@
     sharing: boolean
     print: () => void
     viewPDF: () => void
+    recipe: () => void
     filename?: string
     rename: (source: HTMLElement) => void
     error: (message: string) => void
@@ -1896,6 +1898,13 @@
           >
         </div>
         <div class="output-actions" data-tour-target="download" data-tour-active={tour === "download"}>
+          <button
+            class="icon-button"
+            aria-label="Export recipe"
+            title={downloadError ?? "Export recipe"}
+            disabled={!output.pages.length || outputProcessing || !!downloadError}
+            onclick={recipe}><Icon name="recipe" /></button
+          >
           <button
             class="icon-button print-action"
             aria-label="Print"

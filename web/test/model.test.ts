@@ -69,7 +69,12 @@ test("Semantic edits preserve divergent values, drafts, ranges, and independent 
     ["ital-foo-bar", "limited"],
   ])
   const result = propagate(source, { overrides: { "ital-foo-bar": 0.25 }, drafts: {} }, target, ["ital-foo-bar"])
-  assert.deepEqual(result, { overrides: { different: 0.3, renamed: 0.25, repeated: 0.25 }, changed: true, skipped: 4 })
+  assert.deepEqual(result, {
+    overrides: { different: 0.3, renamed: 0.25, repeated: 0.25 },
+    changed: true,
+    skipped: 4,
+    edits: ["renamed", "repeated"],
+  })
   assert.deepEqual(target.overrides, { different: 0.3 })
   assert.deepEqual(target.drafts, { draft: "invalid" })
   const color: Entry = {
@@ -178,10 +183,17 @@ test("Profiles replace their complete scope and leave other styles independent",
   assert.deepEqual(inkjet, {
     overrides: { fill: "#A9A9A9", width: 0.04, other: 0.7 },
     drafts: { other: "draft" },
+    profiles: { print: "inkjet" },
+    edits: [],
   })
   assert.equal(matchingProfile(set, inkjet.overrides, inkjet.drafts)?.id, "inkjet")
   const generic = applyProfile(set, set.profiles[0], inkjet)
-  assert.deepEqual(generic, { overrides: { other: 0.7 }, drafts: { other: "draft" } })
+  assert.deepEqual(generic, {
+    overrides: { other: 0.7 },
+    drafts: { other: "draft" },
+    profiles: { print: "generic" },
+    edits: [],
+  })
   assert.equal(matchingProfile(set, generic.overrides, generic.drafts)?.id, "generic")
   assert.equal(state.overrides.fill, "#123456")
   assert.equal(state.drafts.width, "invalid")
@@ -354,8 +366,8 @@ test("Occurrence identities survive materialization, insertion, reordering, and 
 })
 
 test("Job includes only used Sources, full explicit overrides, and zero-based references", () => {
-  const recipe = job([part("practice", [1], 4)], sources)
-  assert.deepEqual(recipe, {
+  const request = job([part("practice", [1], 4)], sources)
+  assert.deepEqual(request, {
     version: 1,
     sources: { book: { input: "input", overrides: { color: "#777777" } } },
     parts: [{ pages: [{ source: "book", page: 1 }], copies: 4, front: false }],

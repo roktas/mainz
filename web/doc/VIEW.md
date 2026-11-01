@@ -146,6 +146,17 @@ the redundant PDF suffix. A required fresh gesture uses neutral feedback rather 
 
 The decorative information icon yields space to the message in compact panels with three actions.
 
+Export recipe uses an outward diagonal arrow in an open square, immediately before Print and View in the Output header.
+Its glyph and target match Print and View. It remains available in both views. Its centered panel uses an Index, Path,
+ID table and equal Cancel and Export buttons with the shared control gap. Index uses tabular numbers. Path is muted
+read-only text. ID cells use accent text, a light accent tint, and a dotted underline to show editing. Activating a cell
+replaces its button with a full-width text field. Long values wrap within their cells. The panel scrolls within the
+viewport and retains keyboard focus behavior in both themes.
+
+At constrained widths with enlarged text, all four Output action glyphs shrink together to fit their row. They retain a
+28 px minimum and full interaction targets. Counts retain their details control. Normal text keeps the shared 28 px
+document icon size.
+
 The header places the Home logo at the start and Help, Settings, and theme controls at the end. It states that
 processing stays on the device. Feedback occupies the center, as defined below. Header actions use all space after the
 logo before wrapping. Help remains visible on coarse-pointer devices and on the landing page. Settings opens a right
@@ -597,7 +608,7 @@ active Style tab row holds processing feedback and the danger-colored reset icon
 
 Visible grips and field hints identify drag sources. The pointer carries a proportionate image of the visible page, with
 slight tilt only under motion. Two pages show two sheets. Larger groups show three. Blank and Padding use plain bordered
-sheets. Source cards fade while Output gains an accent outline. Guidance distinguishes adding from moving and announces
+sheets. Input cards fade while Output gains an accent outline. Guidance distinguishes adding from moving and announces
 the exact destination. Touch Grid outlines only the card area, excluding pane headers, tabs, and Selection. The drag
 image follows the finger directly while neighboring cards ease into their prospective positions. Pressing a mouse drag
 source or touch grip immediately fades its card and applies the drag tilt and scale, before the movement threshold.
@@ -892,17 +903,18 @@ The pane divider is a separator. It has no resize interaction, so its name is no
 
 Tab, tab list, and tab panel follow the [W3C tabs terminology](https://www.w3.org/WAI/ARIA/apg/patterns/tabs/).
 
-| English term          | Turkish equivalent         | UI element                                                                     |
-| --------------------- | -------------------------- | ------------------------------------------------------------------------------ |
-| View toolbar          | Görünüm araç çubuğu        | The row with view tabs and the adjacent density controls or Style actions.     |
-| Tab list              | Sekme çubuğu               | The Grid, Page, and Style tabs as a group. Help has a Keyboard/Mouse tab list. |
-| Tab                   | Sekme                      | One Grid, Page, Style, Keyboard, or Mouse choice.                              |
-| Tab panel             | Sekme içerik paneli        | The content area associated with the active tab.                               |
-| Active tab indicator  | Etkin sekme göstergesi     | The accent underline beneath the active tab.                                   |
-| Grid density control  | Izgara yoğunluğu denetimi  | The Normal and Compact buttons.                                                |
-| View switcher         | Görünüm değiştirici        | The mobile Input/Output switch. Its buttons expose their pressed state.        |
-| Modified indicator    | Değişiklik göstergesi      | The small dot on the Style tab that indicates overrides or drafts.             |
-| Unavailable indicator | Kullanılamazlık göstergesi | The crossed-out brush and explanation for a visible but unavailable Style tab. |
+| English term                 | Turkish equivalent                   | UI element                                                                     |
+| ---------------------------- | ------------------------------------ | ------------------------------------------------------------------------------ |
+| View toolbar                 | Görünüm araç çubuğu                  | The row with view tabs and the adjacent density controls or Style actions.     |
+| Tab list                     | Sekme çubuğu                         | The Grid, Page, and Style tabs as a group. Help has a Keyboard/Mouse tab list. |
+| Tab                          | Sekme                                | One Grid, Page, Style, Keyboard, or Mouse choice.                              |
+| Tab panel                    | Sekme içerik paneli                  | The content area associated with the active tab.                               |
+| Active tab indicator         | Etkin sekme göstergesi               | The accent underline beneath the active tab.                                   |
+| Grid density control         | Izgara yoğunluğu denetimi            | The Normal and Compact buttons.                                                |
+| Export recipe button / panel | Recipe dışa aktarma düğmesi / paneli | The arrow-out-of-square icon and the panel for saving portable Recipe JSON.    |
+| View switcher                | Görünüm değiştirici                  | The mobile Input/Output switch. Its buttons expose their pressed state.        |
+| Modified indicator           | Değişiklik göstergesi                | The small dot on the Style tab that indicates overrides or drafts.             |
+| Unavailable indicator        | Kullanılamazlık göstergesi           | The crossed-out brush and explanation for a visible but unavailable Style tab. |
 
 Grid density controls sit outside the tab list. The mobile view switcher uses buttons rather than tab roles.
 
@@ -942,24 +954,24 @@ The bar is the complete bordered row. The field is only the text-entry area with
 
 #### Cards and previews
 
-| English term         | Turkish equivalent                | UI element                                                                                               |
-| -------------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Thumbnail grid       | Küçük resim ızgarası              | The area that arranges page cards in rows and columns.                                                   |
-| Page card            | Sayfa kartı                       | One complete card with its header, body, image, footer, and outer boundary.                              |
-| Card header          | Kart üst alanı                    | The upper section with the page number, drag handle, and page face indicator.                            |
-| Page number          | Sayfa numarası                    | The physical page position in the pane's sequence.                                                       |
-| Page label           | Sayfa etiketi                     | A PDF-authored label shown alongside a different physical page number.                                   |
-| Drag handle / Grip   | Sürükleme tutamacı                | The dotted handle in the card header. A click also selects or unselects the page.                        |
-| Page face indicator  | Sayfa yüzü göstergesi             | The corner indicator that identifies the front or back side.                                             |
-| Folded corner        | Katlanmış köşe                    | The curved corner that marks a back side.                                                                |
-| Card body            | Kart gövdesi                      | The main image section between the header and footer.                                                    |
-| Thumbnail frame      | Küçük resim çerçevesi             | The neutral area around the small page image.                                                            |
-| Page thumbnail       | Sayfa küçük resmi                 | The small rendered PDF page image inside the frame.                                                      |
-| Card footer          | Kart alt alanı                    | The section below the image that reserves space for card actions.                                        |
-| Card actions         | Kart işlemleri                    | Input addition or Output removal and duplication buttons.                                                |
-| Page details trigger | Sayfa ayrıntılarını açma denetimi | The interactive page number that opens page details.                                                     |
-| Page details popover | Sayfa ayrıntı paneli              | Source details or Output-copy information. Compact also includes a larger preview and available actions. |
-| Blank page preview   | Boş sayfa önizlemesi              | The content-free page appearance with a Blank or Padding label.                                          |
+| English term         | Turkish equivalent                | UI element                                                                                              |
+| -------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Thumbnail grid       | Küçük resim ızgarası              | The area that arranges page cards in rows and columns.                                                  |
+| Page card            | Sayfa kartı                       | One complete card with its header, body, image, footer, and outer boundary.                             |
+| Card header          | Kart üst alanı                    | The upper section with the page number, drag handle, and page face indicator.                           |
+| Page number          | Sayfa numarası                    | The physical page position in the pane's sequence.                                                      |
+| Page label           | Sayfa etiketi                     | A PDF-authored label shown alongside a different physical page number.                                  |
+| Drag handle / Grip   | Sürükleme tutamacı                | The dotted handle in the card header. A click also selects or unselects the page.                       |
+| Page face indicator  | Sayfa yüzü göstergesi             | The corner indicator that identifies the front or back side.                                            |
+| Folded corner        | Katlanmış köşe                    | The curved corner that marks a back side.                                                               |
+| Card body            | Kart gövdesi                      | The main image section between the header and footer.                                                   |
+| Thumbnail frame      | Küçük resim çerçevesi             | The neutral area around the small page image.                                                           |
+| Page thumbnail       | Sayfa küçük resmi                 | The small rendered PDF page image inside the frame.                                                     |
+| Card footer          | Kart alt alanı                    | The section below the image that reserves space for card actions.                                       |
+| Card actions         | Kart işlemleri                    | Input addition or Output removal and duplication buttons.                                               |
+| Page details trigger | Sayfa ayrıntılarını açma denetimi | The interactive page number that opens page details.                                                    |
+| Page details popover | Sayfa ayrıntı paneli              | Input details or Output-copy information. Compact also includes a larger preview and available actions. |
+| Blank page preview   | Boş sayfa önizlemesi              | The content-free page appearance with a Blank or Padding label.                                         |
 
 Grid is the view name. Input uses an HTML list, and Output uses an ordered list. The view name does not imply an ARIA
 `grid` role.
@@ -1166,13 +1178,13 @@ Their visual popover name does not require every panel to use the browser's Popo
 | --------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------- |
 | Notice                      | Geçici bildirim                       | Temporary guidance or an event message in the app header.                              |
 | Status message              | Durum iletisi                         | A result or cancellation in the status bar. SPEC calls this Info.                      |
-| Error message               | Hata iletisi                          | A persistent general or Source error in the header, with recovery actions.             |
+| Error message               | Hata iletisi                          | A persistent general or Input error in the header, with recovery actions.              |
 | Inline error message        | Alan içi hata iletisi                 | Local error text beside selection, Style, or page preview content.                     |
 | Dismiss button              | Bildirimi kapatma düğmesi             | The × control within a notice or error message.                                        |
 | Cancel processing button    | İşlem iptal düğmesi                   | The Cancel action for the operation named in header feedback or the Download dialog.   |
 | Loading indicator / Spinner | Yükleme göstergesi                    | The ring visible during PDF preview or processing.                                     |
 | Loading status              | Yükleme durum alanı                   | Header feedback with the opening filename and Cancel action.                           |
-| Processing status           | İşleme durum alanı                    | Header feedback with the Source filename, busy ring, and Cancel during Style work.     |
+| Processing status           | İşleme durum alanı                    | Header feedback with the Input filename, busy ring, and Cancel during Style work.      |
 | Empty state                 | Boş durum görünümü                    | Explanatory content such as “Your Output starts here.”                                 |
 | Operation highlight         | İşlem vurgusu                         | Temporary emphasis after addition, movement, or removal.                               |
 | Page transfer animation     | Sayfa aktarım animasyonu              | A page or stack moving toward Output after addition or during first-addition guidance. |

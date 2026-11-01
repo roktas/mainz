@@ -23,6 +23,7 @@ struct Arguments {
         std::initializer_list<std::string_view> required, std::initializer_list<std::string_view> optional = {}) const;
 };
 std::string read(const std::string&, std::size_t);
+std::map<std::string, std::string> bindings(const std::string&);
 std::string read_at(const std::string& root, const std::string& file, std::size_t);
 void check_interrupt();
 void signals();

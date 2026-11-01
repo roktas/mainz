@@ -31,6 +31,7 @@ assert.deepEqual(
 )
 
 const minimal = {
+  export: ["Recipe export preserves profile edits and duplicate file bindings through CLI replay"],
   processor: [
     "Processor failures remain recoverable in Chromium and WebKit",
     "Processor workers pin their module and recover from failed document cleanup",

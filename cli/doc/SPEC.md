@@ -6,18 +6,18 @@ producer semantics. [AGENTS.md](../../AGENTS.md) owns build and validation comma
 
 ## 1. Commands
 
-| Command                     | Required options                                          | Optional options               | Success on stdout                                           |
-| --------------------------- | --------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------- |
-| `mainz describe input.pdf`  | None                                                      | None                           | Processor description                                       |
-| `mainz profiles input.pdf`  | None                                                      | None                           | Ordered profile-set array                                   |
-| `mainz verify prepared.pdf` | None                                                      | None                           | `{"valid":true,"version":1}`                                |
-| `mainz apply input.pdf`     | `--output edited.pdf` and one of `--request`, `--profile` | `--set` with `--profile`       | `{"ok":true}`                                               |
-| `mainz reset input.pdf`     | `--output reset.pdf`                                      | `--ids parameters.json`        | `{"ok":true}`                                               |
-| `mainz extract input.pdf`   | `--pages pages.json --output selected.pdf`                | None                           | `{"ok":true}`                                               |
-| `mainz compose job.json`    | `--inputs inputs.json --output composed.pdf`              | None                           | Composition report                                          |
-| `mainz run recipe.json`     | `--output composed.pdf`                                   | `--root directory`             | Composition report                                          |
-| `mainz produce source.svg`  | `--declaration parameters.json --output prepared.pdf`     | `--width`, `--height`, `--dpi` | `{"ok":true}`                                               |
-| `mainz --version`           | None                                                      | None                           | Software version, contract version, and dependency versions |
+| Command                     | Required options                                          | Optional options                               | Success on stdout                                           |
+| --------------------------- | --------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------- |
+| `mainz describe input.pdf`  | None                                                      | None                                           | Processor description                                       |
+| `mainz profiles input.pdf`  | None                                                      | None                                           | Ordered profile-set array                                   |
+| `mainz verify prepared.pdf` | None                                                      | None                                           | `{"valid":true,"version":1}`                                |
+| `mainz apply input.pdf`     | `--output edited.pdf` and one of `--request`, `--profile` | `--set` with `--profile`                       | `{"ok":true}`                                               |
+| `mainz reset input.pdf`     | `--output reset.pdf`                                      | `--ids parameters.json`                        | `{"ok":true}`                                               |
+| `mainz extract input.pdf`   | `--pages pages.json --output selected.pdf`                | None                                           | `{"ok":true}`                                               |
+| `mainz compose job.json`    | `--inputs inputs.json --output composed.pdf`              | None                                           | Composition report                                          |
+| `mainz run recipe.json`     | `--output composed.pdf`                                   | `--inputs bindings.json` or `--root directory` | Composition report                                          |
+| `mainz produce source.svg`  | `--declaration parameters.json --output prepared.pdf`     | `--width`, `--height`, `--dpi`                 | `{"ok":true}`                                               |
+| `mainz --version`           | None                                                      | None                                           | Software version, contract version, and dependency versions |
 
 Options follow the positional input and each take one value. Missing, unknown, or duplicate options fail with exit
 code 2. Commands never request interactive input. PDF output always requires an explicit destination. `apply`, `reset`,
@@ -34,22 +34,23 @@ verification result.
 
 JSON uses the library's [encoding and identifier rules](../../lib/doc/SPEC.md#41-encoding-and-identifiers).
 
-| Request                 | Contents and effect                                                                                                                |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `apply --request`       | Parameter-ID-to-value object. Omitted IDs retain overrides. `{}` changes nothing.                                                  |
-| `apply --profile`       | Exact profile ID. Replaces all overrides in its set. Omitted parameters return to their baselines.                                 |
-| `reset --ids`           | Unique existing parameter IDs. Omission resets all. `[]` resets none.                                                              |
-| `extract --pages`       | Nonempty unique zero-based physical indexes in output order, for example `[0,2,3]`.                                                |
-| `compose job.json`      | Complete version 1 [Job](../../lib/doc/SPEC.md#63-job-and-composition). Source overrides replace saved state rather than patch it. |
-| `compose --inputs`      | Input-ID-to-PDF-path object, `{}` for a Blank-only Job.                                                                            |
-| `produce --declaration` | [SVG targets, scalar parameters, and optional presentation](../../lib/doc/SPEC.md#71-svg-declarations).                            |
+| Request                 | Contents and effect                                                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `apply --request`       | Parameter-ID-to-value object. Omitted IDs retain overrides. `{}` changes nothing.                                                          |
+| `apply --profile`       | Exact profile ID. Replaces all overrides in its set. Omitted parameters return to their baselines.                                         |
+| `reset --ids`           | Unique existing parameter IDs. Omission resets all. `[]` resets none.                                                                      |
+| `extract --pages`       | Nonempty unique zero-based physical indexes in output order, for example `[0,2,3]`.                                                        |
+| `compose job.json`      | Complete version 1 [Job](../../lib/doc/SPEC.md#63-job-and-composition). Input instance overrides replace saved state rather than patch it. |
+| `compose --inputs`      | Input-ID-to-PDF-path object, `{}` for a Blank-only Job.                                                                                    |
+| `run --inputs`          | Exact Recipe-Input-ID-to-PDF-path object, `{}` for a Blank-only Recipe.                                                                    |
+| `produce --declaration` | [SVG targets, scalar parameters, and optional presentation](../../lib/doc/SPEC.md#71-svg-declarations).                                    |
 
 The positional input and `--request`, `--ids`, `--pages`, `--inputs`, or `--declaration` accept `-` for stdin. At most
 one input can use stdin.
 
-Composition binds Inputs separately from the Job. Bound PDF paths cannot use stdin. Relative paths resolve from the
-current working directory, including paths inside `inputs.json`. Paths cannot contain null bytes. No path is resolved
-relative to its request file.
+Composition and explicit Recipe bindings supply Inputs separately from the record. Bound PDF paths cannot use stdin.
+Relative paths resolve from the current working directory, including paths inside `inputs.json`. Paths cannot contain
+null bytes. No path is resolved relative to its request file.
 
 ### 2.1 Profile selection
 
@@ -77,15 +78,24 @@ a new explicit file path.
 resets, and page selectors through the library, then executes the resulting Job through normal composition. It never
 requests interactive input. The same portable record can originate from a web consumer or be authored for the CLI.
 
-Without `--root`, relative Input file references resolve below the Recipe file's directory. An explicit `--root` selects
-another directory; relative root options resolve from the working directory. Root options can be absolute at invocation
-time, but absolute file references are never permitted in the record. Reading a Recipe from stdin requires `--root`.
-Existing `compose` and `inputs.json` working-directory resolution remain unchanged.
+The Recipe names logical Inputs and has no file-location fields. `--inputs bindings.json` explicitly maps every required
+Input ID to a PDF path. Missing or additional IDs fail before PDF reading. Paths follow the same rules as
+`compose --inputs`: absolute paths are permitted, relative paths resolve from the working directory, and symlinks follow
+the ordinary host file policy. The binding file, unlike the Recipe, is a local execution artifact.
 
-Every Input path component below the selected root must be free of symlinks. Bound Inputs must be regular files. The CLI
-does not search for matching basenames, expand shell syntax, or read URLs. It reads each binding once within the
-aggregate Input byte limit and supplies those same owned bytes for resolution and composition. Several Sources can use
-one binding without rereading its file.
+Without `--inputs`, automatic lookup treats each Input ID as a relative path. It appends `.pdf` only if the ID does not
+already end in that extension, matched without case. For example, `practice/italic` resolves to `practice/italic.pdf`.
+The default lookup root is the current working directory, independently of the Recipe file's location.
+`--root directory` selects another root; a relative root also resolves from the working directory.
+
+Lookup supports `/` for subdirectories. It rejects absolute paths, backslashes, colons, empty components, `.` and `..`
+components. It opens regular files without following symlinks below the chosen root or expanding shell syntax. Other
+opaque IDs remain valid in a Recipe and use explicit bindings. `--inputs` and `--root` are mutually exclusive.
+
+A Recipe can come from stdin with automatic lookup under the current directory. At most one JSON input can use stdin.
+File locations and root arguments never enter the Recipe. Each Input is read once within the aggregate byte limit.
+Resolution and composition share those same owned bytes; several Input instances can use one binding without rereading
+its file. Existing `compose` behavior stays unchanged.
 
 Changed SHA-256 provenance produces one warning JSON record per Input on stderr and does not require a force option.
 Recorded publication identity and a compatible forward SemVer version suppress that digest warning. Missing,

@@ -18,19 +18,24 @@ Each pane offers Normal and Compact Grid density. Selection actions use the shar
 buttons and Page actions use their own page. Help explains keyboard, mouse, and touch controls and opens the Product
 tour.
 
+Export recipe in the Output header saves page arrangements and style choices as JSON. The [CLI](../cli/README.md)
+replays that file against Input PDFs, including updated publications. The export panel lets you assign logical Input
+IDs. The CLI binds them to files separately. Saving a Recipe retains the PDF unsaved warning.
+
 Try [mainz.roktas.dev](https://mainz.roktas.dev/). The [specification and glossary](doc/SPEC.md) define the workspace.
 [VIEW.md](doc/VIEW.md) defines its appearance.
 
 ## Development
 
-| Entry point                                               | Responsibility                                         |
-| --------------------------------------------------------- | ------------------------------------------------------ |
-| [App.svelte](src/App.svelte)                              | Input opening, Source choices, and owner coordination. |
-| [Composer.svelte](src/Composer.svelte)                    | Pane views, Output edit interactions, and transfers.   |
-| [model.ts](src/model.ts) and [styles.ts](src/styles.ts)   | Composition and style rules shared by UI flows.        |
-| [output.svelte.ts](src/output.svelte.ts)                  | Accepted composition, selection, and inspection.       |
-| [preview.svelte.ts](src/preview.svelte.ts)                | Source preview processing, cancellation, and handoff.  |
-| [pdf.ts](src/pdf.ts) and [processor.ts](src/processor.ts) | PDF.js resources and cancellable processor workers.    |
+| Entry point                                                       | Responsibility                                        |
+| ----------------------------------------------------------------- | ----------------------------------------------------- |
+| [App.svelte](src/App.svelte)                                      | Input opening, Input choices, and owner coordination. |
+| [Composer.svelte](src/Composer.svelte)                            | Pane views, Output edit interactions, and transfers.  |
+| [model.ts](src/model.ts) and [styles.ts](src/styles.ts)           | Composition and style rules shared by UI flows.       |
+| [output.svelte.ts](src/output.svelte.ts)                          | Accepted composition, selection, and inspection.      |
+| [Recipe.svelte](src/Recipe.svelte) and [recipe.ts](src/recipe.ts) | Portable Recipe capture, Input IDs, and JSON export.  |
+| [preview.svelte.ts](src/preview.svelte.ts)                        | Input preview processing, cancellation, and handoff.  |
+| [pdf.ts](src/pdf.ts) and [processor.ts](src/processor.ts)         | PDF.js resources and cancellable processor workers.   |
 
 Use the Node.js version in [`.node-version`](../.node-version) and the
 [root build dependencies](../AGENTS.md#build-and-validation). Run from the repository root:

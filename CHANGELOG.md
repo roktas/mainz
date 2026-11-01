@@ -4,7 +4,9 @@
 
 ### Added
 
-- Portable JSON Recipes and noninteractive `mainz run`, with shared native/WASM resolution, relative Input references,
+- Recipe export from PDF Composer, with explicit profile intent, manual edits and baseline resets, Input fingerprints,
+  and editable logical Input IDs for CLI replay.
+- Portable JSON Recipes and noninteractive `mainz run`, with shared native/WASM resolution, separate file bindings,
   profile and override choices, baseline resets, dynamic all-pages selection, and changed-Input diagnostics.
 - Optional publication identity and SemVer metadata for warning-free replay across producer-declared compatible changes,
   with all PDF and operation checks retained.

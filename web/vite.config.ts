@@ -71,6 +71,7 @@ function prepare() {
     "_mainz_report",
     "_mainz_report_size",
     "_mainz_style",
+    "_mainz_fingerprint",
   ])
     if (!new RegExp(`\\b${name}\\b`).test(loader))
       throw new Error(`Mainz WASM package is missing ${name}. Rebuild the package.`)

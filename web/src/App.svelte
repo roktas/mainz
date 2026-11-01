@@ -1,4 +1,4 @@
-<!-- Coordinates Input opening, Source choices, and the Output and preview owners. -->
+<!-- Coordinates Input opening, style choices, and the Output and preview owners. -->
 
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte"
@@ -29,6 +29,7 @@
   import Export from "./Export.svelte"
   import Print from "./Print.svelte"
   import Filename from "./Filename.svelte"
+  import Recipe from "./Recipe.svelte"
   import type { Snapshot } from "./Export.svelte"
   import Landing from "./Landing.svelte"
   import Settings from "./Settings.svelte"
@@ -70,6 +71,7 @@
   let exporter = $state<ReturnType<typeof Export>>(null!)
   let printer = $state<ReturnType<typeof Print>>(null!)
   let filenameEditor = $state<ReturnType<typeof Filename>>(null!)
+  let recorder = $state<ReturnType<typeof Recipe>>(null!)
   let composer = $state<ReturnType<typeof Composer>>(null!)
   let examples = $state<ReturnType<typeof Examples>>(null!)
   let inputMenu = $state<HTMLDetailsElement>(null!)
@@ -263,7 +265,7 @@
       ])
       if (disposed || revision !== openRevision || !opened) return
       const pdf = opened.input.pdf
-      const input: Input = { ...opened.input, description: result.description }
+      const input: Input = { ...opened.input, description: result.description, sha256: result.sha256 }
       const overrides = Object.fromEntries(
         Object.entries(result.description.parameters)
           .filter(([, entry]) => Object.hasOwn(entry.parameter, "value"))
@@ -382,7 +384,7 @@
         : { ...active.overrides, [id]: entry.parameter.schema.type === "number" ? Number(text) : text }
     if (!invalid) delete drafts[id]
     choices(
-      { ...active, drafts, overrides },
+      { ...active, drafts, overrides, edits: invalid ? active.edits : [...new Set([...(active.edits ?? []), id])] },
       invalid ? undefined : `Updated ${entry.parameter.schema.title ?? id}.`,
       invalid ? [] : [id],
     )
@@ -402,7 +404,13 @@
       delete drafts[id]
     }
     choices(
-      { ...active, overrides: id ? overrides : {}, drafts: id ? drafts : {} },
+      {
+        ...active,
+        overrides: id ? overrides : {},
+        drafts: id ? drafts : {},
+        profiles: id ? active.profiles : undefined,
+        edits: id ? [...new Set([...(active.edits ?? []), id])] : undefined,
+      },
       id
         ? `Restored ${active.input.description.parameters[id].parameter.schema.title ?? id} to the original style.`
         : "Restored all original styles.",
@@ -426,8 +434,10 @@
             : sharedProfiles(set, candidate, profile.name)
               ? candidate.profiles.find((item) => item.name === profile.name)
               : undefined
-        if (!choice || matchingProfile(candidate, next.overrides, next.drafts)?.id === choice.id) continue
-        next = { ...next, ...applyProfile(candidate, choice, next), modified: true }
+        if (!choice) continue
+        const matches = matchingProfile(candidate, next.overrides, next.drafts)?.id === choice.id
+        if (matches && next.profiles?.[candidate.id] === choice.id) continue
+        next = { ...next, ...applyProfile(candidate, choice, next), modified: next.modified || !matches }
       }
       if (next !== source) {
         if (source.id === active.id) affected.unshift(next)
@@ -451,8 +461,13 @@
       if (perFileProfiles || !ids.length) return target
       const result = propagate(original, source, target, ids)
       skipped += result.skipped
-      if (!result.changed) return target
-      const next = { ...target, overrides: result.overrides, modified: true }
+      if (!result.edits.length) return target
+      const next = {
+        ...target,
+        overrides: result.overrides,
+        edits: [...new Set([...(target.edits ?? []), ...result.edits])],
+        modified: target.modified || result.changed,
+      }
       affected.push(next)
       return next
     })
@@ -470,7 +485,7 @@
     if (downloadError) throw new Error(downloadError)
     const selection = output.parts,
       contributors = sources,
-      recipe = job(selection, contributors)
+      request = job(selection, contributors)
     const pages = output.pages
     const capturedName = output.filename
     const first = pages[0]?.content
@@ -484,7 +499,7 @@
           )
         : undefined
     return {
-      recipe,
+      job: request,
       prepared,
       inputs: downloadInputs(selection, contributors),
       expected: output.pages.length,
@@ -493,7 +508,7 @@
         output.acknowledge(selection)
         sources = sources.map((source) => {
           const captured = contributors.find((item) => item.id === source.id)
-          return recipe.sources[source.id] &&
+          return request.sources[source.id] &&
             captured?.overrides === source.overrides &&
             captured.drafts === source.drafts &&
             !Object.keys(source.drafts).length
@@ -809,6 +824,7 @@
       sharing={exporter?.sharing ?? false}
       print={() => void exporter.start("Print")}
       viewPDF={() => void exporter.start("View")}
+      recipe={() => recorder.show()}
       filename={output.filename}
       rename={(source) => filenameEditor.show(source)}
       {error}
@@ -858,6 +874,7 @@
 />
 <Print bind:this={printer} {info} />
 <Filename bind:this={filenameEditor} bind:value={output.filename} suggest={() => downloadName(parts, sources)} />
+<Recipe bind:this={recorder} {output} {sources} {info} />
 
 <Examples bind:this={examples} navigate={example} workspace={!!active || parts.length > 0} />
 

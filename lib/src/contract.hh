@@ -39,6 +39,7 @@ JSON dictionary(std::initializer_list<std::pair<std::string, JSON>>);
 std::string encode(JSON, std::size_t limit, std::size_t& remaining);
 std::string encode(JSON, std::size_t limit);
 bool equal(JSON, JSON);
+std::string sha256(std::string_view);
 bool blank(const std::string&);
 void publication(JSON, const std::string& source = "manifest");
 bool compatible_publication(JSON recorded, JSON current);

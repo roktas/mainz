@@ -1,4 +1,4 @@
-// Defines workspace data, occurrence identities, page expansion, and composition job validation.
+// Defines workspace Inputs, style intent, occurrence identities, and composition Job validation.
 
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { Description, Scalar, Usage } from "./styles.ts"
@@ -13,6 +13,7 @@ export type Input = {
   bytes: Uint8Array
   pdf: PDFDocumentProxy
   description: Description
+  sha256?: string
   sizes: Size[]
   labels: string[]
 }
@@ -23,6 +24,8 @@ export type Source = {
   overrides: Record<string, Scalar>
   drafts: Record<string, string>
   modified: boolean
+  profiles?: Record<string, string>
+  edits?: readonly string[]
 }
 export type Preview = {
   readonly displayed: { readonly pdf: PDFDocumentProxy }

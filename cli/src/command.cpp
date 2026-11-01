@@ -11,7 +11,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <utility>
-#include <vector>
 
 namespace mainz::cli {
 volatile std::sig_atomic_t interrupted = 0;
@@ -60,27 +59,42 @@ namespace {
         int value;
     };
 }
+std::map<std::string, std::string> bindings(const std::string& path)
+{
+    auto definitions
+        = detail::request_at("", [&] { return detail::object(detail::parse(read(path, json_limit), "request")); });
+    detail::require(definitions.size() <= input_limit, "Inputs exceed 32.", "limit-exceeded");
+    std::map<std::string, std::string> result;
+    for (const auto& [id, value] : definitions) {
+        auto file = detail::request_at("/" + detail::pointer(id), [&] {
+            detail::identifier(id, "invalid-request");
+            return detail::text(value);
+        });
+        if (file == "-")
+            throw std::runtime_error("PDF bindings require file paths.");
+        result.emplace(id, std::move(file));
+    }
+    return result;
+}
 std::string read_at(const std::string& root, const std::string& file, std::size_t limit)
 {
     if (root.find('\0') != root.npos || file.find('\0') != file.npos)
         throw std::runtime_error("Input path contains a null byte.");
     auto path = std::filesystem::path(file);
-    if (path.empty() || path.is_absolute())
-        throw std::runtime_error("Recipe Inputs require relative paths.");
-    Descriptor directory(open(root.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC));
-    auto components = std::vector<std::string> {};
-    for (const auto& component : path) {
+    if (path.empty() || path.is_absolute() || file.find_first_of("\\:") != file.npos)
+        throw std::runtime_error("Input lookup requires a relative path ID. Use --inputs for this ID.");
+    auto directory_path = path.parent_path();
+    for (const auto& component : path)
         if (component.empty() || component == "." || component == "..")
-            throw std::runtime_error("Invalid recipe Input path component.");
-        components.push_back(component.string());
-    }
-    for (std::size_t i = 0; i + 1 < components.size(); ++i) {
-        Descriptor next(
-            openat(directory.value, components[i].c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC));
+            throw std::runtime_error("Input lookup rejects empty, . and .. path components. Use --inputs for this ID.");
+    if (file.find("//") != file.npos)
+        throw std::runtime_error("Input lookup rejects empty path components. Use --inputs for this ID.");
+    Descriptor directory(open(root.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC));
+    for (const auto& component : directory_path) {
+        Descriptor next(openat(directory.value, component.c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC));
         std::swap(directory.value, next.value);
     }
-    Descriptor input(
-        openat(directory.value, components.back().c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC));
+    Descriptor input(openat(directory.value, path.filename().c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC));
     struct stat info {};
     if (fstat(input.value, &info) != 0 || !S_ISREG(info.st_mode))
         throw std::runtime_error("Recipe Inputs must be regular files.");

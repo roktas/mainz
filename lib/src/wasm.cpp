@@ -107,6 +107,10 @@ void mainz_describe(std::uint32_t id)
 {
     boundary([&] { result = get(id).describe(); });
 }
+void mainz_fingerprint(std::uint32_t id)
+{
+    boundary([&] { result = mainz::detail::sha256(get(id).pdf()); });
+}
 void mainz_apply(std::uint32_t id, const char* data, std::size_t size)
 {
     boundary([&] { save(get(id).apply(bytes(data, size, mainz::json_limit))); });

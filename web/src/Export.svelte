@@ -4,7 +4,7 @@
   import type { Input, Job } from "./model.ts"
   export type Prepared = { bytes: ArrayBuffer; name: string; expected: number; complete: () => void }
   export type Snapshot = {
-    recipe: Job
+    job: Job
     inputs: Input[]
     expected: number
     prepared?: ArrayBuffer
@@ -164,7 +164,7 @@
     let loadingTask: PDFDocumentLoadingTask | undefined
     try {
       const snapshot = prepare()
-      const { recipe, inputs, expected } = snapshot
+      const { job, inputs, expected } = snapshot
       running = true
       if (
         (action === "Print" && navigator.pdfViewerEnabled && navigator.vendor.includes("Apple")) ||
@@ -181,7 +181,7 @@
         if (action === "View") progress = stage
         else if (!dialog.open) dialog.showModal()
         processor = worker
-        const result = await worker.compose(recipe, inputs, generation)
+        const result = await worker.compose(job, inputs, generation)
         if (disposed || generation !== revision) return
         if (result.description.pageCount !== expected || result.report?.pages.length !== expected)
           throw new Error("The completed PDF does not match the Output page count.")
