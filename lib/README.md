@@ -10,6 +10,7 @@ SVG producer creates these PDFs from SVG and separate JSON style declarations.
 | Entry point                                                       | Responsibility                                                                   |
 | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | [processor.hh](src/processor.hh) and [processor/](src/processor/) | PDF operations, validation, and composition.                                     |
+| [recipe.hh](src/recipe.hh)                                        | Portable record inspection and shared resolution to composition Jobs.            |
 | [producer.hh](src/producer.hh) and [producer/](src/producer/)     | SVG selection, rendering, and baseline capture.                                  |
 | [wasm.cpp](src/wasm.cpp)                                          | Synchronous WASM calls, document handles, registered Inputs, and result buffers. |
 | [test/](test/)                                                    | Contract, producer, native/WASM parity, and independent preservation tests.      |

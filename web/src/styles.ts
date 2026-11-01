@@ -51,6 +51,7 @@ export type ProfileSet = Annotations & {
 export type Group = Annotations & { title: string; parameters: string[] }
 export type Description = {
   version: 1
+  publication?: { id: string; version: string }
   pageCount: number
   pages: Record<string, { index: number; label?: string }>
   parameters: Record<string, Entry>

@@ -63,5 +63,6 @@ struct Composition {
 };
 Composition compose(
     const std::string& job, const std::map<std::string, std::string>& inputs, const Document* previous = nullptr);
+Composition compose_validated(const std::string& job, const std::map<std::string, Document>& inputs);
 }
 #endif

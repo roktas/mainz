@@ -6,6 +6,35 @@ load(File.expand_path("../../Rakefile", __dir__)) unless defined?(Mainz::ROOT)
 
 module Mainz
   class ParityTest < Minitest::Test
+    def test_web_recipe_reproduces_native_and_wasm_output
+      @directory = Mainz.workspace("tmp/test/lib")
+      cli = File.expand_path(ENV.fetch("MAINZ_CLI"))
+      wasm = File.expand_path(ENV.fetch("MAINZ_WASM", ROOT.join(".local/var/cpp/build/wasm/processor.mjs").to_s))
+      %w[
+        recipe-native.pdf
+        recipe-direct.pdf
+        recipe-wasm.pdf
+        recipe-publication.pdf
+        recipe-forward-native.pdf
+        recipe-forward-wasm.pdf
+      ]
+        .each do |name|
+          FileUtils.rm_f(file(name))
+        end
+
+      result = command(ROOT.join("lib/test/recipe.mjs"), cli, wasm, file("prepared.pdf"), @directory)
+      assert_equal({"pages" => 8, "independentSources" => 3, "fastForward" => true}, JSON.parse(result))
+      assert_equal(contents(file("recipe-direct.pdf")), contents(file("recipe-wasm.pdf")))
+      assert_equal(contents(file("recipe-forward-native.pdf")), contents(file("recipe-forward-wasm.pdf")))
+      [150, 300].each do |dpi|
+        %w[native wasm].each do |mode|
+          command("pdftoppm", "-r", dpi, "-png", file("recipe-forward-#{mode}.pdf"), file("recipe-#{mode}-#{dpi}"))
+        end
+
+        assert_equal(file("recipe-native-#{dpi}-1.png").binread, file("recipe-wasm-#{dpi}-1.png").binread)
+      end
+    end
+
     def test_wasm_matches_native_state_content_and_appearance
       @directory = Mainz.workspace("tmp/test/lib")
       native = File.expand_path(ENV.fetch("MAINZ_CLI"))

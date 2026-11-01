@@ -15,6 +15,7 @@ producer semantics. [AGENTS.md](../../AGENTS.md) owns build and validation comma
 | `mainz reset input.pdf`     | `--output reset.pdf`                                      | `--ids parameters.json`        | `{"ok":true}`                                               |
 | `mainz extract input.pdf`   | `--pages pages.json --output selected.pdf`                | None                           | `{"ok":true}`                                               |
 | `mainz compose job.json`    | `--inputs inputs.json --output composed.pdf`              | None                           | Composition report                                          |
+| `mainz run recipe.json`     | `--output composed.pdf`                                   | `--root directory`             | Composition report                                          |
 | `mainz produce source.svg`  | `--declaration parameters.json --output prepared.pdf`     | `--width`, `--height`, `--dpi` | `{"ok":true}`                                               |
 | `mainz --version`           | None                                                      | None                           | Software version, contract version, and dependency versions |
 
@@ -69,6 +70,31 @@ Other parameters and sets retain their saved overrides. The first profile's empt
 baselines. The processor writes and validates the final PDF once. Profile definitions remain unchanged and no
 active-profile field is stored. An unchanged final state retains the original bytes. Output installation still requires
 a new explicit file path.
+
+### 2.2 Recipe execution
+
+`run` consumes the shared [Recipe contract](../../lib/doc/SPEC.md#65-portable-recipes). It resolves profiles, overrides,
+resets, and page selectors through the library, then executes the resulting Job through normal composition. It never
+requests interactive input. The same portable record can originate from a web consumer or be authored for the CLI.
+
+Without `--root`, relative Input file references resolve below the Recipe file's directory. An explicit `--root` selects
+another directory; relative root options resolve from the working directory. Root options can be absolute at invocation
+time, but absolute file references are never permitted in the record. Reading a Recipe from stdin requires `--root`.
+Existing `compose` and `inputs.json` working-directory resolution remain unchanged.
+
+Every Input path component below the selected root must be free of symlinks. Bound Inputs must be regular files. The CLI
+does not search for matching basenames, expand shell syntax, or read URLs. It reads each binding once within the
+aggregate Input byte limit and supplies those same owned bytes for resolution and composition. Several Sources can use
+one binding without rereading its file.
+
+Changed SHA-256 provenance produces one warning JSON record per Input on stderr and does not require a force option.
+Recorded publication identity and a compatible forward SemVer version suppress that digest warning. Missing,
+incompatible, older, zero-major, or pre-release declarations do not establish a compatible forward change. The library's
+publication comparison and all validation still run; an actual page or style error terminates execution even when the
+producer claims compatibility. Explicit page-count expectations, missing pages, unknown or ambiguous styles, invalid
+values, and resource-limit failures remain errors. Warnings do not replace diagnostics for subsequent failures. Success
+stdout remains the ordinary composition report and follows atomic installation. Existing destinations and Inputs are
+never replaced.
 
 ## 3. SVG viewport
 

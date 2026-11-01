@@ -343,14 +343,17 @@ std::string Engine::describe()
     auto result
         = dictionary({{"version", JSON::makeInt(1)}, {"pageCount", JSON::makeInt(static_cast<long long>(pages.size()))},
             {"pages", described_pages}, {"parameters", described_parameters}});
-    for (const auto& field : {"groups", "profileSets"})
+    for (const auto& field : {"groups", "profileSets", "publication"})
         if (object(manifest).contains(field))
             result.addDictionaryMember(field, manifest.getDictItem(field));
     return encode(result, json_limit, budget.remaining);
 }
 JSON Engine::retained(const std::map<std::size_t, std::size_t>& indexes)
 {
-    auto next = manifest;
+    auto next = JSON::makeDictionary();
+    for (const auto& [key, item] : object(manifest))
+        if (key != "publication")
+            next.addDictionaryMember(key, item);
     auto kept_pages = JSON::makeDictionary();
     std::set<std::string> page_ids, region_ids, baseline_ids, target_ids, parameter_ids;
     for (const auto& [id, index] : object(manifest.getDictItem("pages"))) {

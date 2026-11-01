@@ -16,10 +16,10 @@ static int run(int argc, char* argv[])
         if (argc < 3)
             throw std::runtime_error(
                 "Usage: mainz COMMAND INPUT [--OPTION VALUE]; commands: describe, profiles, verify, "
-                "apply, reset, extract, compose, produce");
+                "apply, reset, extract, compose, run, produce");
         const std::map<std::string_view, void (*)(const Arguments&)> commands {{"describe", describe},
             {"profiles", profiles}, {"verify", mainz::cli::verify}, {"apply", apply}, {"reset", reset},
-            {"extract", extract}, {"compose", compose}, {"produce", produce}};
+            {"extract", extract}, {"compose", compose}, {"run", mainz::cli::run}, {"produce", produce}};
         auto command = commands.find(argv[1]);
         if (command == commands.end())
             throw std::runtime_error("Unknown command.");

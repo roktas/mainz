@@ -1186,6 +1186,24 @@ module Mainz
       assert_equal("limit-exceeded", failure_code(file("expanded-text-limit.pdf")))
     end
 
+    def test_publication_claims_do_not_follow_changed_page_sequences
+      publication = {"id" => "fixture/book", "version" => "1.2.3"}
+      source = file("publication.pdf")
+      fixture(source, -> (manifest) { manifest["publication"] = publication })
+      assert_equal(publication, describe(source)["publication"])
+      unchanged = extract(source, "publication-unchanged.pdf", [0, 1])
+      assert_equal(source.binread, unchanged.binread)
+      assert_equal(publication, describe(unchanged)["publication"])
+      reversed = extract(source, "publication-reversed.pdf", [1, 0])
+      refute(describe(reversed).key?("publication"))
+      pruned = extract(source, "publication-pruned.pdf", [0])
+      refute(describe(pruned).key?("publication"))
+      ["1.2", "1.2.03", "1.2.3-alpha.01", "1.2.3+bad..id"].each do |version|
+        fixture(source, -> (manifest) { manifest["publication"] = publication.merge("version" => version) })
+        assert_equal("invalid-contract", failure_code(source))
+      end
+    end
+
     def test_profiles_survive_styling_extraction_and_composition
       source = file("profiles.pdf")
       manifest = fixture(source, method(:profile_fixture), pdf_objects: method(:across_page_objects))

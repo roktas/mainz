@@ -1,4 +1,5 @@
 #include "contract.hh"
+#include "recipe.hh"
 #include <cstdint>
 #include <limits>
 #include <optional>
@@ -153,6 +154,19 @@ void mainz_compose(const char* data, std::size_t size)
         auto output = mainz::compose(bytes(data, size, mainz::json_limit), inputs, last_input ? &*last_input : nullptr);
         save(std::move(output.document));
         report = std::move(output.report);
+    });
+}
+void mainz_recipe_inputs(const char* data, std::size_t size)
+{
+    boundary([&] { result = mainz::recipe_inputs(bytes(data, size, mainz::json_limit)); });
+}
+void mainz_resolve_recipe(const char* data, std::size_t size)
+{
+    boundary([&] {
+        auto resolved = mainz::resolve_recipe(bytes(data, size, mainz::json_limit), inputs);
+        result = mainz::detail::encode(mainz::detail::dictionary({{"job", JSON::parse(resolved.job)},
+                                           {"warnings", JSON::parse(resolved.warnings)}}),
+            mainz::manifest_limit);
     });
 }
 void mainz_close(std::uint32_t id)

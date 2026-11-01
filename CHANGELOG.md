@@ -4,6 +4,10 @@
 
 ### Added
 
+- Portable JSON Recipes and noninteractive `mainz run`, with shared native/WASM resolution, relative Input references,
+  profile and override choices, baseline resets, dynamic all-pages selection, and changed-Input diagnostics.
+- Optional publication identity and SemVer metadata for warning-free replay across producer-declared compatible changes,
+  with all PDF and operation checks retained.
 - Optional Style families and semantic parameter keys, preserved through production, styling, extraction, and
   composition.
 - Optional plain-text `details` on parameter schemas, groups, profile sets, and profiles, requiring an accompanying

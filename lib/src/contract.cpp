@@ -286,7 +286,23 @@ void value(JSON item, JSON schema, const std::string& property)
             "Value is not in the schema enum.");
     }
 }
-static bool blank(const std::string& value)
+Bindings bind_inputs(const std::map<std::string, std::string>& inputs)
+{
+    require(inputs.size() <= input_limit, "Inputs exceed 32.", "limit-exceeded");
+    Bindings bindings;
+    for (const auto& [id, bytes] : inputs)
+        bindings.emplace(id, BoundInput {bytes});
+    return bindings;
+}
+Bindings bind_inputs(const std::map<std::string, Document>& inputs)
+{
+    require(inputs.size() <= input_limit, "Inputs exceed 32.", "limit-exceeded");
+    Bindings bindings;
+    for (const auto& [id, document] : inputs)
+        bindings.emplace(id, BoundInput {document.pdf(), &document});
+    return bindings;
+}
+bool blank(const std::string& value)
 {
     // Match the whitespace removed by ECMAScript String.trim() in annotation consumers.
     static constexpr std::u32string_view spaces = U"\t\n\v\f\r "
@@ -299,6 +315,94 @@ static bool blank(const std::string& value)
         require(!error, "Invalid Unicode.");
         if (spaces.find(static_cast<char32_t>(c)) == spaces.npos)
             return false;
+    }
+    return true;
+}
+namespace {
+    struct Version {
+        std::array<std::string, 3> core;
+        bool stable {true};
+    };
+    std::vector<std::string> version_parts(const std::string& value)
+    {
+        std::vector<std::string> parts;
+        std::size_t start {0};
+        for (;;) {
+            auto end = value.find('.', start);
+            auto part = value.substr(start, end == value.npos ? end : end - start);
+            require(!part.empty(), "Empty SemVer component.");
+            parts.push_back(part);
+            if (end == value.npos)
+                return parts;
+            start = end + 1;
+        }
+    }
+    bool digits(const std::string& value)
+    {
+        return !value.empty() && value.find_first_not_of("0123456789") == value.npos;
+    }
+    Version version(std::string value)
+    {
+        identifier(value);
+        auto identifiers = [](const std::string& suffix, bool prerelease) {
+            for (const auto& part : version_parts(suffix)) {
+                require(std::all_of(part.begin(), part.end(),
+                            [](unsigned char c) {
+                                return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+                                    || c == '-';
+                            }),
+                    "Invalid SemVer identifier.");
+                require(!prerelease || !digits(part) || part.size() == 1 || part.front() != '0',
+                    "Numeric pre-release identifiers cannot have leading zeroes.");
+            }
+        };
+        auto build = value.find('+');
+        if (build != value.npos) {
+            identifiers(value.substr(build + 1), false);
+            value.resize(build);
+        }
+        Version result;
+        auto prerelease = value.find('-');
+        if (prerelease != value.npos) {
+            identifiers(value.substr(prerelease + 1), true);
+            result.stable = false;
+            value.resize(prerelease);
+        }
+        auto core = version_parts(value);
+        require(core.size() == 3, "Publication version requires SemVer major.minor.patch.");
+        for (std::size_t i = 0; i < core.size(); ++i) {
+            require(digits(core[i]) && (core[i].size() == 1 || core[i].front() != '0'),
+                "SemVer core components require digits without leading zeroes.");
+            result.core[i] = core[i];
+        }
+        return result;
+    }
+}
+void publication(JSON item, const std::string& source)
+{
+    try {
+        fields(item, {"id", "version"});
+        auto id = text(item.getDictItem("id"));
+        identifier(id);
+        require(!blank(id), "Empty publication identity.");
+        version(text(item.getDictItem("version")));
+    } catch (const Error& error) {
+        throw Error(error.code(), error.what(), source, "/publication");
+    }
+}
+bool compatible_publication(JSON recorded, JSON current)
+{
+    if (!equal(recorded.getDictItem("id"), current.getDictItem("id")))
+        return false;
+    auto before = version(text(recorded.getDictItem("version")));
+    auto after = version(text(current.getDictItem("version")));
+    if (!before.stable || !after.stable || before.core[0] == "0" || before.core[0] != after.core[0])
+        return false;
+    for (std::size_t i = 1; i < before.core.size(); ++i) {
+        if (before.core[i] == after.core[i])
+            continue;
+        return after.core[i].size() == before.core[i].size() ? after.core[i] > before.core[i]
+                                                             : after.core[i].size() > before.core[i].size();
     }
     return true;
 }
@@ -491,8 +595,10 @@ void profile_sets(JSON sets, const std::map<std::string, JSON>& parameters)
 void manifest(JSON root, std::size_t page_count)
 {
     auto present = fields(root, {"version", "pages", "regions", "baselines", "targets", "parameters"},
-        {"groups", "recordSets", "profileSets"});
+        {"groups", "recordSets", "profileSets", "publication"});
     require(number(root.getDictItem("version")) == 1, "Unsupported contract version.", "unsupported-version");
+    if (present.contains("publication"))
+        publication(root.getDictItem("publication"));
     auto pages = object(root.getDictItem("pages"));
     auto regions = object(root.getDictItem("regions"));
     auto baselines = object(root.getDictItem("baselines"));

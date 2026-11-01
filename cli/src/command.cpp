@@ -3,12 +3,15 @@
 #include <cerrno>
 #include <csignal>
 #include <cstdlib>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <set>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <utility>
+#include <vector>
 
 namespace mainz::cli {
 volatile std::sig_atomic_t interrupted = 0;
@@ -40,6 +43,64 @@ std::string read(const std::string& path, std::size_t limit)
     check_interrupt();
     if (!input.eof())
         throw std::runtime_error("Cannot read input.");
+    return result;
+}
+namespace {
+    class Descriptor {
+    public:
+        explicit Descriptor(int value)
+            : value(value)
+        {
+            if (value < 0)
+                throw std::runtime_error("Cannot open recipe root or Input without following symlinks.");
+        }
+        Descriptor(const Descriptor&) = delete;
+        Descriptor& operator=(const Descriptor&) = delete;
+        ~Descriptor() { close(value); }
+        int value;
+    };
+}
+std::string read_at(const std::string& root, const std::string& file, std::size_t limit)
+{
+    if (root.find('\0') != root.npos || file.find('\0') != file.npos)
+        throw std::runtime_error("Input path contains a null byte.");
+    auto path = std::filesystem::path(file);
+    if (path.empty() || path.is_absolute())
+        throw std::runtime_error("Recipe Inputs require relative paths.");
+    Descriptor directory(open(root.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC));
+    auto components = std::vector<std::string> {};
+    for (const auto& component : path) {
+        if (component.empty() || component == "." || component == "..")
+            throw std::runtime_error("Invalid recipe Input path component.");
+        components.push_back(component.string());
+    }
+    for (std::size_t i = 0; i + 1 < components.size(); ++i) {
+        Descriptor next(
+            openat(directory.value, components[i].c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC));
+        std::swap(directory.value, next.value);
+    }
+    Descriptor input(
+        openat(directory.value, components.back().c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC));
+    struct stat info {};
+    if (fstat(input.value, &info) != 0 || !S_ISREG(info.st_mode))
+        throw std::runtime_error("Recipe Inputs must be regular files.");
+    std::string result;
+    std::array<char, 8192> buffer {};
+    for (;;) {
+        check_interrupt();
+        auto count = ::read(input.value, buffer.data(), buffer.size());
+        if (count < 0 && errno == EINTR)
+            continue;
+        if (count < 0)
+            throw std::runtime_error("Cannot read recipe Input.");
+        if (count == 0)
+            break;
+        auto size = static_cast<std::size_t>(count);
+        if (size > limit - result.size())
+            throw mainz::Error("limit-exceeded", "Input exceeds its byte limit.");
+        result.append(buffer.data(), size);
+    }
+    check_interrupt();
     return result;
 }
 // POSIX no-clobber installation: the result appears only after a complete write.

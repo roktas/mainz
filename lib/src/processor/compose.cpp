@@ -48,7 +48,7 @@ struct JobPage {
     std::size_t part {0}, copy {0};
     double width {0}, height {0};
 };
-Composition Engine::compose(JSON job, const std::map<std::string, std::string>& inputs, const Document* previous)
+Composition Engine::compose(JSON job, const Bindings& inputs, const Document* previous)
 {
     Budget budget;
     request_at("", [&] {
@@ -59,7 +59,8 @@ Composition Engine::compose(JSON job, const std::map<std::string, std::string>& 
     require(inputs.size() <= input_limit && definitions.size() <= input_limit, "Inputs or Sources exceed 32.",
         "limit-exceeded");
     std::size_t aggregate {0};
-    for (const auto& [id, bytes] : inputs) {
+    for (const auto& [id, binding] : inputs) {
+        const auto& bytes = binding.bytes;
         identifier(id, "invalid-request");
         require(bytes.size() <= pdf_limit - aggregate, "Aggregate Inputs exceed 128 MiB.", "limit-exceeded");
         aggregate += bytes.size();
@@ -84,9 +85,12 @@ Composition Engine::compose(JSON job, const std::map<std::string, std::string>& 
             source.input = input;
             source.prefix = "s" + std::to_string(sources.size() - 1) + ":";
             try {
-                const bool validated = previous && previous->bytes == inputs.at(input);
-                source.engine = std::make_unique<Engine>(inputs.at(input), &budget, validated,
-                    validated ? previous->index : std::shared_ptr<const Index> {});
+                const auto& binding = inputs.at(input);
+                const auto* validated = binding.document;
+                if (!validated && previous && previous->bytes == binding.bytes)
+                    validated = previous;
+                source.engine = std::make_unique<Engine>(binding.bytes, &budget, validated != nullptr,
+                    validated ? validated->index : std::shared_ptr<const Index> {});
             } catch (const Error& error) {
                 throw Error(error.code(), error.what(), "request", location + "/input");
             }
@@ -123,7 +127,7 @@ Composition Engine::compose(JSON job, const std::map<std::string, std::string>& 
                 // Validate the completed composition once, after every Source has been assembled.
                 original.update(next);
             }
-            auto size = inputs.at(input).size();
+            auto size = inputs.at(input).bytes.size();
             require(size <= pdf_limit - source_bytes, "Processed Sources exceed 128 MiB.", "limit-exceeded");
             source_bytes += size;
             QPDFPageDocumentHelper(source.engine->document).pushInheritedAttributesToPage();
@@ -465,7 +469,19 @@ using namespace detail;
 Composition compose(const std::string& job, const std::map<std::string, std::string>& inputs, const Document* previous)
 {
     try {
-        return Engine::compose(parse(job, "request"), inputs, previous);
+        return Engine::compose(parse(job, "request"), bind_inputs(inputs), previous);
+    } catch (const Error&) {
+        throw;
+    } catch (const std::bad_alloc&) {
+        throw Error("limit-exceeded", "Composition allocation failed.");
+    } catch (const std::exception& error) {
+        throw Error("pdf-syntax", error.what());
+    }
+}
+Composition compose_validated(const std::string& job, const std::map<std::string, Document>& inputs)
+{
+    try {
+        return Engine::compose(parse(job, "request"), bind_inputs(inputs), nullptr);
     } catch (const Error&) {
         throw;
     } catch (const std::bad_alloc&) {

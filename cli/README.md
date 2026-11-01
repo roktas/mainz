@@ -25,6 +25,7 @@ mainz apply input.pdf --set print --profile inkjet --output inkjet-print.pdf
 mainz reset input.pdf --output original.pdf
 mainz extract input.pdf --pages pages.json --output selected.pdf
 mainz compose job.json --inputs inputs.json --output composed.pdf
+mainz run recipe.json --root ./pdfs --output composed.pdf
 mainz produce source.svg --declaration parameters.json --output prepared.pdf
 mainz verify prepared.pdf
 mainz --version
@@ -33,6 +34,11 @@ mainz --version
 Use parameter IDs from `describe` in `changes.json`, such as `{"partial-opacity":0.4}` for the library's prepared
 example. An extraction request of `[0,2]` keeps the first and third physical pages, in that order. Composition uses a
 [Job and separate Input bindings](doc/SPEC.md#2-requests).
+
+`run` consumes a portable [Recipe](../lib/doc/SPEC.md#65-portable-recipes) containing relative Input file references,
+Source styles, and composition choices. Without `--root`, files resolve from the recipe's directory. This shared record
+can also represent a web consumer's Output. The [execution rules](doc/SPEC.md#22-recipe-execution) define changed-Input
+warnings, explicit page-count expectations, and path containment.
 
 `profiles` returns the embedded profile sets as JSON, or `[]` when none exist. Use the returned set and profile IDs. The
 examples above use `print` and `inkjet`; other PDFs can define different IDs. `--set` is optional when the profile ID

@@ -23,6 +23,7 @@ struct Arguments {
         std::initializer_list<std::string_view> required, std::initializer_list<std::string_view> optional = {}) const;
 };
 std::string read(const std::string&, std::size_t);
+std::string read_at(const std::string& root, const std::string& file, std::size_t);
 void check_interrupt();
 void signals();
 void install(const std::string&, const std::string&);
@@ -34,6 +35,7 @@ void apply(const Arguments&);
 void reset(const Arguments&);
 void extract(const Arguments&);
 void compose(const Arguments&);
+void run(const Arguments&);
 void produce(const Arguments&);
 void version();
 }

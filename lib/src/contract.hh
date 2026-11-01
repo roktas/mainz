@@ -13,6 +13,13 @@
 #include <vector>
 
 namespace mainz::detail {
+struct BoundInput {
+    const std::string& bytes;
+    const Document* document {nullptr};
+};
+using Bindings = std::map<std::string, BoundInput>;
+Bindings bind_inputs(const std::map<std::string, std::string>&);
+Bindings bind_inputs(const std::map<std::string, Document>&);
 using Matrix = std::array<double, 6>;
 inline constexpr Matrix identity {1, 0, 0, 1, 0, 0};
 void require(bool, std::string_view, std::string_view code = "invalid-contract");
@@ -32,6 +39,9 @@ JSON dictionary(std::initializer_list<std::pair<std::string, JSON>>);
 std::string encode(JSON, std::size_t limit, std::size_t& remaining);
 std::string encode(JSON, std::size_t limit);
 bool equal(JSON, JSON);
+bool blank(const std::string&);
+void publication(JSON, const std::string& source = "manifest");
+bool compatible_publication(JSON recorded, JSON current);
 template <class Function> auto request_at(const std::string& location, Function operation)
 {
     try {

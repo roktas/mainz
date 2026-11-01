@@ -163,10 +163,10 @@ operator. A stroke record duplicating a separate existing fill of the same geome
 
 ### 4.1 Encoding and identifiers
 
-JSON uses UTF-8 under [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259). Manifest, apply, and Job inputs are objects.
-Supplied reset and extraction requests are arrays. Duplicate member names after escape decoding, invalid Unicode, and
-byte-order marks are errors. Unknown fields fail at every defined object level. Object member order has no meaning.
-Arrays carry order only where specified.
+JSON uses UTF-8 under [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259). Manifest, apply, Job, and Recipe inputs are
+objects. Supplied reset and extraction requests are arrays. Duplicate member names after escape decoding, invalid
+Unicode, and byte-order marks are errors. Unknown fields fail at every defined object level. Object member order has no
+meaning. Arrays carry order only where specified.
 
 Target, parameter, page, region, baseline, record-set, and baseline-slot IDs are nonempty, case-sensitive strings
 without control characters. They obey published string limits and remain opaque rather than selectors, paths, or
@@ -207,14 +207,15 @@ owns the workspace interactions.
 | `recordSets`  | Optional nonempty map of record-set IDs to shared locator arrays                   |
 | `groups`      | Optional ordered presentation groups                                               |
 | `profileSets` | Optional ordered profile sets                                                      |
+| `publication` | Optional producer-declared stable document identity and semantic version           |
 
 A parameter requires `schema` and `binding`, with optional `value`, `family`, and `key`. A binding has exactly `targets`
 and `property`. Its nonempty target array references existing targets. Its property belongs to Section 1.2. Page indexes
 name actual PDF pages. Every region belongs to one target. Every target has at least one parameter binding. Every
 baseline has at least one record reference. Optional fields follow their full rules whenever present.
 
-Bindings contain resolved PDF regions, never source selectors or CSS. Producer identity, publication revision, and page
-labels are separate optional publication metadata. They add no manifest fields and do not select processor behavior.
+Bindings contain resolved PDF regions, never source selectors or CSS. Page labels remain separate from parameter and
+publication identity. Optional publication metadata follows the declaration below and never selects painting behavior.
 
 #### Style families and semantic keys
 
@@ -241,6 +242,32 @@ propagation under the Web SPEC; no processor operation couples files.
 The fields are optional additions to contract version 1. Updated readers continue to accept definitions without them.
 Older strict readers reject definitions containing these fields. Publication with semantic metadata requires updated
 consumers.
+
+#### Publication identity and version
+
+Optional `publication` contains exactly `id` and `version`. The ID is a stable, nonblank identifier for one logical
+document. Its namespace is producer-owned; consumers treat it as opaque and never derive it from a filename, product
+code, Style family, or PDF metadata. Different publications need different IDs even when their producer and version
+numbers match. The ID is a compatibility claim, not publisher authentication.
+
+The version is a string under [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html). It identifies that
+publication's processing interface, independently of the Mainz contract version, Recipe version, producer application
+version, or BUILDID. Major, minor, and patch components have no leading zeroes. Pre-release and build identifiers follow
+SemVer's grammar. Numeric components are compared without conversion through binary64 or fixed-width integers.
+
+For stable publications with major at least 1, a newer version under the same major promises that prior processing
+choices retain their meaning. Preserve physical page count, ordering, roles, dimensions, and orientation. Preserve the
+meaning, units, scope, and applicability of supported parameter and profile selectors and accept prior valid choices.
+Pattern artwork, compatible additions, baseline values, and profile values can change within those constraints. A
+breaking change requires a new major. The producer owns this promise and versions the final assembled publication.
+
+Read, describe, apply, reset, and SVG production preserve the declaration. Extraction that changes the page sequence
+removes it. No-op extraction retains the original bytes and declaration. Composition never inherits an Input's
+publication declaration: the producer must explicitly declare the identity and version of its final assembled output.
+Ordinary PDFs without prepared metadata have no such declaration and use the normal Recipe diagnostic path.
+
+Publication fields are optional additions to contract version 1. Definitions without them remain valid. Older strict
+consumers reject these fields; publication requires updated consumers.
 
 ### 4.3 Parameter schemas
 
@@ -652,12 +679,12 @@ the complete serialized result. It never treats shared syntax as shared painting
 
 ### 6.1 Description record
 
-Description has exactly `version`, `pageCount`, `pages`, `parameters`, and optional `groups` and `profileSets`. Version
-is `1`. Page count is positive within build limits and includes physical pages without editable regions. `pages` maps
-manifest IDs to objects with zero-based integer `index` and optional string PDF `label`. Indexes name actual pages.
-Missing labels fall back to one-based physical numbers. Prepared descriptions have nonempty page/parameter maps.
-Ordinary PDFs have empty maps and no `groups`. Profile sets include all profile annotations and are returned without
-selecting or changing them.
+Description has exactly `version`, `pageCount`, `pages`, `parameters`, and optional `groups`, `profileSets`, and
+`publication`. Version is `1`. Page count is positive within build limits and includes physical pages without editable
+regions. `pages` maps manifest IDs to objects with zero-based integer `index` and optional string PDF `label`. Indexes
+name actual pages. Missing labels fall back to one-based physical numbers. Prepared descriptions have nonempty
+page/parameter maps. Ordinary PDFs have empty maps and no `groups`. Profile sets include all profile annotations and are
+returned without selecting or changing them.
 
 Each parameter entry has exactly:
 
@@ -846,6 +873,11 @@ The optional `previous` document in native `compose` permits reuse of its input 
 requires exact input bytes. Source edits stay independent. Composition applies Source styles in memory and validates the
 complete serialized Output once, without intermediate Source PDFs.
 
+`compose_validated(job, inputs)` accepts an Input-ID-to-immutable-`Document` map. It reuses those exact Inputs' prior
+validation and parsed content without copying their PDF bytes into another binding map. The owners remain alive for the
+synchronous call. Independent Sources still receive separate editing graphs, and the completed Output still passes full
+validation. This entry point lets Recipe resolution and composition share the same validated Inputs.
+
 The WASM module has one active immutable styling document. `mainz_read` opens it and `mainz_close` releases its handle.
 Applying styles, resetting, extracting, and composing do not replace that active document. A host closes it before
 opening another. Callers own input buffers, borrowed only during synchronous calls.
@@ -868,6 +900,118 @@ to the module until the next operation. Both must be copied before another call,
 distinguishes success (`0`), structured processor failure (`1`), and host failure (`2`). The host owns worker
 scheduling, cancellation, Input recovery, and downloads.
 
+### 6.5 Portable Recipes
+
+A Recipe is a versioned JSON record for applying a composition to separately supplied Inputs, including updated PDFs. It
+resolves to the existing Job. It stores processing choices rather than UI events, preview state, or PDF bytes. Native
+and WASM consumers use the same interpreter. The CLI owns filesystem access under its
+[Recipe execution rules](../../cli/doc/SPEC.md#22-recipe-execution).
+
+Recipe version 1 requires exactly `version`, `inputs`, `sources`, and `parts`. Version is integer `1`. Recipe and Job
+versions are separate contracts. Encoding, unknown-field rejection, identifiers, and numeric rules follow Section 4.1.
+
+| Record                  | Fields                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| Input                   | Required `file`; optional `sha256`, `pageCount`, `publication`                 |
+| Source                  | Required `input`; optional `profiles`, `overrides`, both arrays                |
+| Local profile choice    | Exactly `set` and `id`, containing the Input's opaque set/profile IDs          |
+| Semantic profile choice | Required `family` and `name`; optional Boolean `all`, default `false`          |
+| Local override          | Exactly parameter `id` and `value`                                             |
+| Semantic override       | Required `family`, `key`, and `value`; optional Boolean `all`, default `false` |
+
+`inputs` and `sources` are ID maps, empty for Blank-only Recipes. Every Input serves a Source and every Source has a
+page reference. Multiple Sources can use one Input while retaining independent styles. An Input's `file` is a portable
+relative path, with `/` separators and no empty, `.` or `..` components. It cannot contain backslashes, colons, control
+characters, or use the literal `-`. It is not a URL or an instruction to fetch a resource. File references do not
+establish Source identity.
+
+Optional `sha256` records byte provenance as 64 lowercase hexadecimal characters. A mismatch produces an `input-changed`
+warning and permits updated Inputs. The warning contains `input`, `location`, `message`, `expected`, and `actual`.
+Optional `pageCount` is a positive integer at most 10000 and declares an exact-count expectation. A mismatch fails with
+`invalid-request` at `/inputs/<escaped-id>/pageCount`. Neither a matching digest nor a matching page count proves that
+physical positions still identify the intended content. The interpreter never detects semantic page identity by guessing
+from labels, local page IDs, or filenames.
+
+Optional Input `publication` records the producer declaration from the reference PDF. A bound PDF with the same ID and a
+stable SemVer version at least as new, under the same nonzero major, permits a compatible fast-forward. Build metadata
+does not affect version order. Zero-major versions and pre-releases do not establish this forward-compatibility promise.
+The consumer can suppress digest-change warnings on that path without computing a new byte digest.
+
+Fast-forward does not skip PDF validation, page-count expectations, references, selector resolution, schema checks,
+bounds, or resource limits. Any detected error still terminates the operation. A missing or incompatible changed
+declaration produces an `input-incompatible` warning with the recorded and current declarations. Otherwise normal digest
+diagnostics apply. One Input produces at most one change warning. Without a recorded declaration, a consumer never
+assumes that a current publication version establishes compatibility with the reference.
+
+Style selector strings are exact and case-sensitive. Semantic family/name/key strings follow Section 4.2. A semantic
+selector without `all: true` requires exactly one match within its Source's Input. Zero matches and ambiguous matches
+fail. With `all: true`, the operation explicitly addresses every match and still requires at least one. Exact local
+selectors do not accept `all`. There is no fallback between local IDs and semantic fields.
+
+A Source starts from authored baselines, following Job's complete-state semantics. Profiles apply first, using the
+current Input's own definitions. Two choices cannot address the same profile set. Explicit overrides apply afterward. A
+non-null `value` is a scalar validated under each matched parameter's schema and paint property. A null value removes
+that parameter's profile assignment, restoring its own baseline. It does not enter the resolved Job. Two explicit
+overrides cannot address the same parameter, including through overlapping selectors. Other Source styles never change
+implicitly. Saved Input overrides survive only when the Recipe explicitly retains them.
+
+Recipe Parts use Job's `copies`, `front`, explicit content pages, and explicit Blanks. A content page can instead be
+exactly `{ "source": "id", "pages": "all" }`. This expands every current physical page of that Source's Input in order,
+before repetition and duplex alignment. Fixed `page` indexes remain zero-based and must exist. Explicit complete lists
+never imply all-pages intent. Out-of-range pages fail; the interpreter never drops or clamps them.
+
+```json
+{
+  "version": 1,
+  "inputs": { "book": { "file": "book.pdf" } },
+  "sources": {
+    "original": { "input": "book" },
+    "styled": {
+      "input": "book",
+      "profiles": [{ "set": "print", "id": "inkjet" }],
+      "overrides": [{ "id": "partial-opacity", "value": 0.4 }]
+    }
+  },
+  "parts": [
+    {
+      "pages": [
+        { "source": "original", "page": 0 },
+        { "source": "styled", "pages": "all" }
+      ],
+      "front": true
+    }
+  ]
+}
+```
+
+The example's IDs must exist in the supplied Input; they are not built-in profile or parameter names. A web consumer can
+export its complete concrete Job by supplying file references, converting override-map entries to local override
+records, and retaining exact Parts. Replaying that record with the same Inputs uses the same composition engine and
+preserves the represented content, page order, copies, Blanks, and styles. Profile intent or dynamic selection requires
+its explicit Recipe representation; it cannot be inferred from an equivalent concrete snapshot.
+
+`recipe_inputs(recipe)` validates the unbound record and returns its Input definitions as JSON. It reads no files.
+`resolve_recipe(recipe, inputs)` validates separately supplied Input bytes and returns `Resolution` with `job` and
+`warnings` JSON strings. It generates no intermediate styled PDFs or final PDF. The resolved Job executes through
+`compose`. Missing or extra bindings fail. Validation reports original Recipe pointers and retains structured PDF
+errors. Failure returns no partial Job or warning result.
+
+The native `resolve_recipe` overload for immutable `Document` Inputs reuses their descriptions. The CLI reads and
+validates each binding once, then uses this overload and `compose_validated`. The byte-map overload remains available
+for hosts that supply bytes rather than retained validated documents. Both use the same resolver and validation rules.
+
+`mainz_recipe_inputs(pointer, size)` exposes unbound inspection through WASM. `mainz_resolve_recipe(pointer, size)`
+resolves against the registered Inputs and returns `{ "job": ..., "warnings": [...] }` through `mainz_result` and
+`mainz_size`. These operations retain the active styling document and do not generate PDF bytes. The host copies the
+result before another operation, then can pass the returned Job to `mainz_compose` using the same registered bytes.
+
+Recipe JSON and the resolved Job each have a 1 MiB limit. Job's Input/Source, aggregate Input byte, copy, and expanded
+page limits apply during resolution. Parts and each unexpanded page-selector array contain at most 10000 entries.
+Retained description JSON has a 512 MiB aggregate byte budget. These byte budgets do not measure total peak memory.
+Checks precede page-list expansion. Existing PDF, manifest, decoding, and traversal limits still apply. Reproducibility
+covers the resolved operations and represented PDF content; it does not promise identical serialized bytes across
+processor or dependency versions. Output naming, printing, sharing, and UI state remain host concerns.
+
 ## 7. Producer and consuming-application obligations
 
 A producer resolves source rules, selectors, render instances, paint order, and compositing before publication. It
@@ -887,10 +1031,11 @@ triggering inferred reconstruction. Ordinary page operations remain available un
 ### 7.1 SVG declarations
 
 The native producer accepts SVG and separate JSON declarations. Declarations require `targets` and `parameters`, with
-optional `groups` and `profileSets`. Each target has selectors and can declare `fill: true` for eligible closed paths or
-`display: "none"` for authored hidden state. Targets are disjoint, preserve paint order, and have at least one parameter
-binding. A target's display field records its original state without requiring an editable display parameter. Profiles
-follow Section 4.5 and do not apply automatically during export.
+optional `groups`, `profileSets`, and `publication`. Publication identity and version follow Section 4.2. Each target
+has selectors and can declare `fill: true` for eligible closed paths or `display: "none"` for authored hidden state.
+Targets are disjoint, preserve paint order, and have at least one parameter binding. A target's display field records
+its original state without requiring an editable display parameter. Profiles follow Section 4.5 and do not apply
+automatically during export.
 
 Declaration selectors support only `#id` and `#id > use.class`. Selector IDs/classes use `[A-Za-z_][A-Za-z0-9_-]*`. They
 select whole `g` elements or `use` placements, not content inside `defs` or `symbol`. Selected use placements need
@@ -953,6 +1098,8 @@ The [Web glossary](../../web/doc/SPEC.md#glossary) owns workspace terms.
 | Extraction               | Retaining unique pages in order and rebuilding bindings, without changing drawing content.                    |
 | Input                    | Immutable PDF bytes supplied separately under an opaque Input ID. Several Sources can share them.             |
 | Job                      | Versioned composition request with complete Source overrides, repetition, and duplex alignment.               |
+| Recipe                   | Portable versioned processing choices and relative file references resolved into a Job against bound Inputs.  |
+| Publication              | Producer-declared logical document identity and SemVer version carrying processing compatibility promises.    |
 | Mainz                    | Project, contract, processor, reference producer, CLI, and WASM boundary, consumed by PDF Composer.           |
 | Manifest                 | Embedded declaration of pages, regions, baselines, targets, parameters, overrides, and optional presentation. |
 | Locator                  | Ordered Form invocation path and paint marker resolving one record in a page region.                          |

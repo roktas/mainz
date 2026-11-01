@@ -17,7 +17,9 @@ namespace {
     JSON declaration(const std::string& bytes)
     {
         auto root = parse(bytes, "declaration");
-        auto present = fields(root, {"targets", "parameters"}, {"groups", "profileSets"});
+        auto present = fields(root, {"targets", "parameters"}, {"groups", "profileSets", "publication"});
+        if (present.contains("publication"))
+            publication(root.getDictItem("publication"), "declaration");
         auto targets = object(root.getDictItem("targets"));
         auto parameters = object(root.getDictItem("parameters"));
         require(!targets.empty() && !parameters.empty(), "Targets and parameters must not be empty.");
@@ -113,6 +115,8 @@ Document produce(const std::string& svg, const std::string& bytes, const Produce
             {"parameters", parameters}, {"groups", source.getDictItem("groups")}});
         if (!source.getDictItem("profileSets").isNull())
             root.addDictionaryMember("profileSets", source.getDictItem("profileSets"));
+        if (!source.getDictItem("publication").isNull())
+            root.addDictionaryMember("publication", source.getDictItem("publication"));
         QPDF document;
         document.emptyPDF();
         auto page = Object::newDictionary(), resources = Object::newDictionary(), objects = Object::newDictionary(),

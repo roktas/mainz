@@ -413,14 +413,14 @@ namespace(:test) do
   {
     contract: "lib/test/contract_test.rb",
     producer: "lib/test/producer_test.rb",
-    cli: "cli/test/cli_test.rb",
+    cli: "cli/test/{cli,recipe}_test.rb",
     inspector: "lib/test/preserve_test.rb",
     parity: "lib/test/parity_test.rb",
     package: "cli/test/package_test.rb",
     web: "web/test/setup_test.rb"
   }.each do |name, path|
     Rake::TestTask.new(name) do |test|
-      test.test_files = [Mainz::ROOT.join(path).to_s]
+      test.test_files = Mainz::ROOT.glob(path).map(&:to_s)
       test.warning = true
     end
   end

@@ -1,0 +1,419 @@
+# frozen_string_literal: true
+
+require "minitest/autorun"
+
+load(File.expand_path("../../Rakefile", __dir__)) unless defined?(Mainz::ROOT)
+
+module Mainz
+  class RecipeTest < Minitest::Test
+    def setup
+      @directory = Pathname(Dir.mktmpdir("recipe-", Mainz.workspace("tmp/test/cli").to_s))
+      @cli = File.expand_path(ENV.fetch("MAINZ_CLI"))
+      @source = prepare("source", "width", 0.1)
+      @other = prepare("other", "renamed", 0.15)
+      @output = @directory.join("result.pdf")
+    end
+
+    def teardown
+      FileUtils.remove_entry(@directory)
+    end
+
+    def test_run_matches_multi_input_job_and_independent_sources
+      recipe = record
+      recipe["inputs"]["other"] = {"file" => "other.pdf"}
+      recipe["sources"] = {
+        "original" => {"input" => "book"},
+        "fine" => {
+          "input" => "book",
+          "profiles" => [{"family" => "fixture", "name" => "Fine"}],
+          "overrides" => [{"id" => "color", "value" => nil}]
+        },
+        "other" => {
+          "input" => "other",
+          "profiles" => [{"set" => "print", "id" => "fine"}],
+          "overrides" => [{"family" => "fixture", "key" => "guide.width", "value" => 0.2}]
+        }
+      }
+      pages = [
+        {"source" => "original", "page" => 0},
+        {"source" => "fine", "page" => 0},
+        {"blank" => {"width" => 80, "height" => 100}},
+        {"source" => "other", "page" => 0}
+      ]
+      recipe["parts"] = [{"pages" => pages, "copies" => 2, "front" => true}]
+      expected = {
+        "version" => 1,
+        "sources" => {
+          "original" => {"input" => "book", "overrides" => {}},
+          "fine" => {"input" => "book", "overrides" => {"width" => 0.1}},
+          "other" => {"input" => "other", "overrides" => {"renamed" => 0.2, "color" => "#112233"}}
+        },
+        "parts" => recipe["parts"]
+      }
+      result = run_recipe(recipe)
+      direct = compose(expected, {"book" => @source, "other" => @other})
+      assert_equal(direct.stdout, result.stdout)
+      assert_equal(@directory.join("direct.pdf").binread, @output.binread)
+      assert_empty(result.stderr)
+      description = JSON.parse(command("describe", @output).stdout)
+      assert_equal(8, description["pageCount"])
+      assert_equal(
+        [0.1, 0.2],
+        description["parameters"]
+          .values
+          .filter_map { |entry|
+            entry.dig("parameter", "value") if entry.dig("parameter", "binding", "property") == "stroke-width"
+          }
+          .sort
+      )
+    end
+
+    def test_all_pages_uses_current_input_and_checks_exact_expectations
+      recipe = record
+      recipe["parts"][0] = {"pages" => [{"source" => "source", "pages" => "all"}], "copies" => 2, "front" => true}
+      run_recipe(recipe)
+      assert_equal(4, JSON.parse(command("describe", @output).stdout)["pageCount"])
+      @output.delete
+      enlarged = @directory.join("enlarged.pdf")
+      job = {
+        "version" => 1,
+        "sources" => {"source" => {"input" => "book", "overrides" => {}}},
+        "parts" => [{"pages" => Array.new(3) { {"source" => "source", "page" => 0} }}]
+      }
+      compose(job, {"book" => @source}, enlarged)
+      FileUtils.cp(enlarged, @source)
+      run_recipe(recipe)
+      assert_equal(8, JSON.parse(command("describe", @output).stdout)["pageCount"])
+      @output.delete
+      recipe["inputs"]["book"]["pageCount"] = 1
+      failure = run_recipe(recipe, status: 1)
+      assert_equal("/inputs/book/pageCount", JSON.parse(failure.stderr)["location"])
+      refute_path_exists(@output)
+    end
+
+    def test_changed_digest_warns_without_blocking_valid_replay
+      recipe = record
+      recipe["inputs"]["book"]["sha256"] = "0" * 64
+      result = run_recipe(recipe)
+      warning = JSON.parse(result.stderr)
+      assert_equal("input-changed", warning["code"])
+      assert_equal(Digest::SHA256.file(@source).hexdigest, warning["actual"])
+      assert_equal(1, JSON.parse(result.stdout)["pages"].size)
+      @output.delete
+      recipe["inputs"]["book"]["sha256"] = Digest::SHA256.file(@source).hexdigest
+      assert_empty(run_recipe(recipe).stderr)
+    end
+
+    def test_root_and_stdin_bindings_are_explicit
+      nested = @directory.join("config")
+      nested.mkpath
+      path = write("config/job.json", record)
+      command("run", path, "--output", @output, status: 2)
+      refute_path_exists(@output)
+      command("run", path, "--root", @directory, "--output", @output)
+      @output.delete
+      command("run", "-", "--output", @output, input: JSON.generate(record), status: 2)
+      command("run", "-", "--root", @directory, "--output", @output, input: JSON.generate(record))
+      @output.delete
+      # Default root is the record's directory, even from an unrelated working directory.
+      path = write("job.json", record)
+      command("run", path, "--output", @output, chdir: nested)
+    end
+
+    def test_portable_paths_and_regular_file_policy_are_enforced
+      [
+        "/source.pdf",
+        "../source.pdf",
+        "nested/../source.pdf",
+        "./source.pdf",
+        "nested//source.pdf",
+        "C:source.pdf",
+        "https://example.com/file.pdf",
+        "source\0.pdf",
+        "source\\file.pdf",
+        "-"
+      ].each do |file|
+        recipe = record
+        recipe["inputs"]["book"]["file"] = file
+        error = JSON.parse(run_recipe(recipe, status: 1).stderr)
+        assert_equal("invalid-request", error["code"], file)
+        assert_equal("/inputs/book", error["location"], file)
+        refute_path_exists(@output)
+      end
+
+      link = @directory.join("link.pdf")
+      File.symlink(@source, link)
+      recipe = record
+      recipe["inputs"]["book"]["file"] = "link.pdf"
+      run_recipe(recipe, status: 2)
+      link.delete
+      directory = @directory.join("linked")
+      File.symlink(@directory, directory)
+      recipe["inputs"]["book"]["file"] = "linked/source.pdf"
+      run_recipe(recipe, status: 2)
+      directory.delete
+      recipe["inputs"]["book"]["file"] = "folder"
+      @directory.join("folder").mkpath
+      run_recipe(recipe, status: 2)
+      refute_path_exists(@output)
+    end
+
+    def test_recipe_errors_preserve_input_and_existing_output
+      before = @source.binread
+      @output.binwrite("existing")
+      run_recipe(record, status: 2)
+      assert_equal("existing", @output.binread)
+      assert_equal(before, @source.binread)
+      assert_empty(@directory.glob(".mainz-*"))
+      @output.delete
+      [
+        -> (r) { r["version"] = 2 },
+        -> (r) { r["extra"] = true },
+        -> (r) { r["sources"]["source"]["input"] = "missing" },
+        -> (r) { r["parts"][0]["pages"][0]["page"] = 1 },
+        -> (r) { r["sources"]["source"]["profiles"] = [{"set" => "print", "id" => "unknown"}] },
+        -> (r) { r["sources"]["source"]["overrides"] = [{"id" => "width", "value" => 3}] },
+        -> (r) { r["sources"]["source"]["overrides"] = [{"id" => "missing", "value" => nil}] },
+        -> (r) {
+          r["sources"]["source"]["overrides"] = [
+            {"id" => "width", "value" => 0.1},
+            {"family" => "fixture", "key" => "guide.width", "value" => 0.2}
+          ]
+        },
+        -> (r) {
+          r["sources"]["source"]["profiles"] = [
+            {"set" => "print", "id" => "fine"},
+            {"family" => "fixture", "name" => "Fine"}
+          ]
+        },
+        -> (r) { r["parts"][0]["copies"] = 1001 },
+        -> (r) {
+          r["parts"][0]["pages"] = Array.new(11) { {"source" => "source", "pages" => "all"} }
+          r["parts"][0]["copies"] = 1000
+        }
+      ].each do |mutate|
+        recipe = record
+        mutate.call(recipe)
+        result = run_recipe(recipe, status: 1)
+        assert_empty(result.stdout)
+        assert_equal("request", JSON.parse(result.stderr)["source"])
+        assert_equal(before, @source.binread)
+        refute_path_exists(@output)
+      end
+
+      path = @directory.join("job.json")
+      path.write("{\"version\":1,\"version\":1,\"inputs\":{},\"sources\":{},\"parts\":[]}")
+      assert_equal("invalid-request", JSON.parse(command("run", path, "--output", @output, status: 1).stderr)["code"])
+    end
+
+    def test_semantic_all_requires_explicit_scope
+      composed = @directory.join("repeated.pdf")
+      job = {
+        "version" => 1,
+        "sources" => {"a" => {"input" => "book", "overrides" => {}}, "b" => {"input" => "book", "overrides" => {}}},
+        "parts" => [{"pages" => [{"source" => "a", "page" => 0}, {"source" => "b", "page" => 0}]}]
+      }
+      compose(job, {"book" => @source}, composed)
+      recipe = record
+      recipe["inputs"]["book"]["file"] = "repeated.pdf"
+      recipe["sources"]["source"]["profiles"] = [{"family" => "fixture", "name" => "Fine"}]
+      assert_includes(run_recipe(recipe, status: 1).stderr, "Ambiguous")
+      recipe["sources"]["source"]["profiles"][0]["all"] = true
+      recipe["sources"]["source"]["overrides"] = [{"family" => "fixture", "key" => "guide.width", "value" => 0.2}]
+      assert_includes(run_recipe(recipe, status: 1).stderr, "Ambiguous")
+      recipe["sources"]["source"]["overrides"][0]["all"] = true
+      recipe["parts"][0]["pages"] = [{"source" => "source", "pages" => "all"}]
+      result = run_recipe(recipe)
+      description = JSON.parse(command("describe", @output).stdout)
+      widths = JSON.parse(result.stdout)["parameters"].filter_map do |output_id, original|
+        description["parameters"][output_id]["parameter"]["value"] if original["parameter"].end_with?(":width")
+      end
+
+      assert_equal([0.2, 0.2], widths)
+    end
+
+    def test_saved_input_styles_are_not_implicit_recipe_assignments
+      apply = write("apply.json", {"width" => 0.2})
+      saved = @directory.join("saved.pdf")
+      command("apply", @source, "--request", apply, "--output", saved)
+      recipe = record
+      recipe["inputs"]["book"]["file"] = "saved.pdf"
+      run_recipe(recipe)
+      description = JSON.parse(command("describe", @output).stdout)
+      assert(description["parameters"].values.none? { |entry| entry["parameter"].key?("value") })
+    end
+
+    def test_blank_only_recipes_need_no_inputs
+      recipe = {
+        "version" => 1,
+        "inputs" => {},
+        "sources" => {},
+        "parts" => [{"pages" => [{"blank" => {"width" => 80, "height" => 100}}], "copies" => 3, "front" => true}]
+      }
+      result = run_recipe(recipe)
+      assert_equal(6, JSON.parse(result.stdout)["pages"].size)
+      assert_equal({}, JSON.parse(command("describe", @output).stdout)["parameters"])
+    end
+
+    def test_publication_fast_forward_keeps_validation_authoritative
+      publication = {"id" => "fixture/book", "version" => "1.9.9"}
+      actual = publication.merge("version" => "1.10.0+native.2")
+      input = prepare("published", "width", 0.12, publication: actual)
+      recipe = record
+      recipe["inputs"]["book"].merge!("file" => input.basename.to_s, "publication" => publication, "sha256" => "0" * 64)
+      recipe["sources"]["source"]["profiles"] = [{"family" => "fixture", "name" => "Fine"}]
+      result = run_recipe(recipe)
+      assert_empty(result.stderr)
+      description = JSON.parse(command("describe", @output).stdout)
+      width = description["parameters"].values.find { |entry| entry.dig("parameter", "key") == "guide.width" }
+      assert_equal(0.12, width["parameter"]["value"])
+      refute(description.key?("publication"), "Composition must not inherit a producer's publication claim")
+      @output.delete
+      recipe["inputs"]["book"]["pageCount"] = 2
+      failure = run_recipe(recipe, status: 1)
+      assert_equal("/inputs/book/pageCount", JSON.parse(failure.stderr)["location"])
+      refute_path_exists(@output)
+      recipe["inputs"]["book"].delete("pageCount")
+      recipe["sources"]["source"]["overrides"] = [{"id" => "width", "value" => 3}]
+      failure = run_recipe(recipe, status: 1)
+      assert_equal("/sources/source/overrides/0", JSON.parse(failure.stderr)["location"])
+      refute_path_exists(@output)
+    end
+
+    def test_publication_versions_compare_numerically_and_fail_closed
+      [
+        ["book", "1.9.9", "book", "1.10.0", nil],
+        ["book", "1.2.9", "book", "1.2.10", nil],
+        ["book", "1.2.3+one", "book", "1.2.3+two", nil],
+        ["book", "1.0.0", "other", "1.1.0", "input-incompatible"],
+        ["book", "1.2.3", "book", "2.0.0", "input-incompatible"],
+        ["book", "1.2.3", "book", "1.2.2", "input-incompatible"],
+        ["book", "1.2.3", "book", "1.3.0-rc.1", "input-incompatible"],
+        ["book", "0.1.0", "book", "0.1.0", "input-changed"],
+        ["book", "1.2.3-rc.1", "book", "1.2.3-rc.1", "input-changed"],
+        ["book", "999999999999999999999.9.0", "book", "999999999999999999999.10.0", nil]
+      ].each_with_index do |(old_id, old_version, id, version, warning), index|
+        input = prepare("version-#{index}", "width", 0.1, publication: {"id" => id, "version" => version})
+        recipe = record
+        recipe["inputs"]["book"].merge!(
+          "file" => input.basename.to_s,
+          "publication" => {"id" => old_id, "version" => old_version},
+          "sha256" => "0" * 64
+        )
+        result = run_recipe(recipe)
+        if warning
+          assert_equal(warning, JSON.parse(result.stderr)["code"])
+        else
+          assert_empty(result.stderr)
+        end
+
+        @output.delete
+      end
+
+      recipe = record
+      recipe["inputs"]["book"]["publication"] = {"id" => "book", "version" => "1.0.0"}
+      assert_equal("input-incompatible", JSON.parse(run_recipe(recipe).stderr)["code"])
+    end
+
+    def test_publication_metadata_is_validated_and_preserved_by_style
+      publication = {"id" => "fixture/book", "version" => "1.2.3-beta.2+build.01"}
+      input = prepare("published", "width", 0.1, publication: publication)
+      assert_equal(publication, JSON.parse(command("describe", input).stdout)["publication"])
+      styled = @directory.join("styled.pdf")
+      command("apply", input, "--profile", "fine", "--output", styled)
+      assert_equal(publication, JSON.parse(command("describe", styled).stdout)["publication"])
+      restored = @directory.join("restored.pdf")
+      command("reset", styled, "--output", restored)
+      assert_equal(publication, JSON.parse(command("describe", restored).stdout)["publication"])
+      declaration = JSON.parse(@directory.join("published.json").read)
+      ["1", "v1.2.3", "01.2.3", "1.2.3.4", "1.2.3-01", "1.2.3+", "1.2.3-", "1.2.3+bad..id", false].each do |version|
+        declaration["publication"]["version"] = version
+        failure = command(
+          "produce",
+          @directory.join("published.svg"),
+          "--declaration",
+          write("invalid.json", declaration),
+          "--output",
+          @output,
+          status: 1
+        )
+        assert_equal("/publication", JSON.parse(failure.stderr)["location"])
+        refute_path_exists(@output)
+      end
+    end
+
+    private
+
+    def prepare(name, id, width, publication: nil)
+      svg = @directory.join("#{name}.svg")
+      svg.write(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\"><g id=\"Ink\" fill=\"none\" stroke=\"black\"><rect x=\"20\" y=\"20\" width=\"40\" height=\"40\"/></g></svg>"
+      )
+      declaration = {
+        "targets" => {"ink" => {"selectors" => ["#Ink"]}},
+        "parameters" => {
+          id => {
+            "family" => "fixture",
+            "key" => "guide.width",
+            "schema" => {"type" => "number", "minimum" => 0, "maximum" => 2},
+            "binding" => {"targets" => ["ink"], "property" => "stroke-width"}
+          },
+          "color" => {
+            "schema" => {"type" => "string"},
+            "binding" => {"targets" => ["ink"], "property" => "stroke-color"}
+          }
+        },
+        "profileSets" => [
+          {
+            "id" => "print",
+            "family" => "fixture",
+            "name" => "Print",
+            "parameters" => [id, "color"],
+            "profiles" => [
+              {"id" => "original", "name" => "Original", "overrides" => {}},
+              {"id" => "fine", "name" => "Fine", "overrides" => {id => width, "color" => "#112233"}}
+            ]
+          }
+        ]
+      }
+      declaration["publication"] = publication if publication
+      pdf = @directory.join("#{name}.pdf")
+      command("produce", svg, "--declaration", write("#{name}.json", declaration), "--output", pdf)
+      pdf
+    end
+
+    def record
+      {
+        "version" => 1,
+        "inputs" => {"book" => {"file" => "source.pdf"}},
+        "sources" => {"source" => {"input" => "book"}},
+        "parts" => [{"pages" => [{"source" => "source", "page" => 0}]}]
+      }
+    end
+
+    def write(name, value)
+      @directory.join(name).tap { it.write(JSON.generate(value)) }
+    end
+
+    def run_recipe(recipe, status: 0)
+      command("run", write("job.json", recipe), "--output", @output, status: status)
+    end
+
+    def compose(job, inputs, output = @directory.join("direct.pdf"))
+      command(
+        "compose",
+        write("direct.json", job),
+        "--inputs",
+        write("inputs.json", inputs.transform_values(&:to_s)),
+        "--output",
+        output
+      )
+    end
+
+    def command(*arguments, status: 0, input: nil, chdir: ROOT)
+      result = Mainz.capture(@cli, *arguments, input: input, chdir: chdir)
+      assert_equal(status, result.status.exitstatus, "#{arguments.inspect}: #{result.stdout}#{result.stderr}")
+      result
+    end
+  end
+end
