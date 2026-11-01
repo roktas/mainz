@@ -563,12 +563,13 @@ directly below. The first select aligns with Output's page field. A neutral divi
 controls. Style selects retain native selection behavior, use the shared inset chevron, and keep their full touch height
 on touch browsers.
 
-Authored-guidance buttons sit beside their group's or Quartet's heading, or their profile/set description, with visible
-icons aligned to the first text line. They retain a 44 px touch target without narrowing the select. Missing, empty, or
-whitespace-only details create no guidance icon or reserved space. Shared guidance uses a floating panel anchored to the
-button, with its owner's name above the longer text. If no anchored position fits, it centers within the viewport. The
-panel wraps text, scrolls within the viewport, and uses the shared surface, border, focus, and theme tokens. Opening it
-does not move the workspace or individual controls.
+Authored-guidance buttons sit beside their group's or Quartet's heading, or their profile's description. Their visible
+icons align with the first text line. Set guidance occupies the selector's trailing track and shares its vertical
+center. All guidance buttons retain a 44 px touch target. Missing, empty, or whitespace-only details create no guidance
+icon or reserved space. Shared guidance uses a floating panel anchored to the button, with its owner's name above the
+longer text. If no anchored position fits, it centers within the viewport. The panel wraps text, scrolls within the
+viewport, and uses the shared surface, border, focus, and theme tokens. Opening it does not move the workspace or
+individual controls.
 
 A Quartet presents Fill, Stroke, Width, and Visibility in equal components. Fill and Stroke summaries combine
 independent color and opacity rows. Color swatches show full color independently of opacity. A separate level marker
