@@ -78,8 +78,10 @@ jobs:
       - name: Install Chromium for native PDF printing
         if: matrix.suite == 'workspace'
         run: npm --prefix web exec -- playwright install --no-shell chromium
-      - name: Install WebKit for Grid, Page, and Help regressions
-        if: matrix.suite == 'grid' || matrix.suite == 'workspace' || matrix.suite == 'page'
+      - name: Install WebKit for browser regressions
+        if:
+          matrix.suite == 'grid' || matrix.suite == 'workspace' || matrix.suite == 'page' || matrix.suite ==
+          'composition'
         run: npm --prefix web exec -- playwright install --with-deps webkit
       - name: Download WASM package
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
