@@ -42,7 +42,7 @@ namespace {
         std::set<std::string> used_targets;
         for (const auto& [id, parameter] : parameters) {
             identifier(id);
-            auto fields_present = fields(parameter, {"schema", "binding"}, {"value"});
+            auto fields_present = fields(parameter, {"schema", "binding"}, {"value", "family", "key"});
             auto binding = parameter.getDictItem("binding");
             fields(binding, {"targets", "property"});
             auto property = text(binding.getDictItem("property"));
@@ -63,6 +63,7 @@ namespace {
             }
         }
         require(used_targets.size() == targets.size(), "Every target requires a parameter binding.");
+        semantics(parameters, "declaration");
         if (present.contains("profileSets"))
             profile_sets(root.getDictItem("profileSets"), parameters);
         auto groups = present.contains("groups") ? root.getDictItem("groups") : JSON::makeArray();
@@ -100,6 +101,9 @@ Document produce(const std::string& svg, const std::string& bytes, const Produce
         for (const auto& [id, parameter] : object(source.getDictItem("parameters"))) {
             auto clean = dictionary(
                 {{"schema", parameter.getDictItem("schema")}, {"binding", parameter.getDictItem("binding")}});
+            for (const auto& field : {"family", "key"})
+                if (object(parameter).contains(field))
+                    clean.addDictionaryMember(field, parameter.getDictItem(field));
             parameters.addDictionaryMember(id, clean);
             if (object(parameter).contains("value"))
                 overrides.addDictionaryMember(id, parameter.getDictItem("value"));

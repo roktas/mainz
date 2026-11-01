@@ -46,6 +46,7 @@ std::string baseline_ref(JSON region, JSON locator);
 bool numeric_property(const std::string&);
 void value(JSON, JSON schema, const std::string& property);
 void schema(JSON, const std::string& property);
+void semantics(const std::map<std::string, JSON>& parameters, const std::string& source = "manifest");
 void profile_sets(JSON, const std::map<std::string, JSON>& parameters);
 void manifest(JSON, std::size_t pages);
 Matrix multiply(const Matrix&, const Matrix&);

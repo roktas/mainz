@@ -9,6 +9,71 @@ import { chromium, webkit } from "playwright"
 import { checkWorkspace } from "./workspace.js"
 import { tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
 
+test("Profile options require compatible peers and consider future profile choices", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await chromium.launch()
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    const input = page.locator(".selection-panel")
+    for (const [name, family, original] of [
+      ["First", "one", "Private"],
+      ["Foreign", "two", "Private"],
+      ["Peer", "one", "Other"],
+    ]) {
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({
+          name: `${name}.pdf`,
+          mimeType: "application/pdf",
+          buffer: fixture({
+            count: 3,
+            family,
+            profileSets: [
+              {
+                id: name,
+                name: "Choices",
+                parameters: ["guides-stroke-width"],
+                profiles: [
+                  { id: "original", name: original, overrides: {} },
+                  { id: "shared", name: "Shared", overrides: { "guides-stroke-width": 0.04 } },
+                ],
+              },
+            ],
+          }),
+        })
+      await input
+        .locator(".input-current")
+        .filter({ hasText: `${name}.pdf` })
+        .waitFor()
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+      await tab(input, "Style")
+      assert.equal(
+        await input.getByRole("button", { name: "Profile options", exact: true }).isDisabled(),
+        name !== "Peer",
+      )
+    }
+    await input.locator(".input-picker > summary").click()
+    await input.getByRole("button", { name: /First\.pdf/ }).click()
+    assert.equal(
+      await input.getByRole("button", { name: "Profile options", exact: true }).isEnabled(),
+      true,
+      "Scope can be changed before choosing Shared, even though Private has no peer",
+    )
+    await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).fill("0.06")
+    assert.equal(await input.getByRole("combobox", { name: "Choices", exact: true }).inputValue(), "")
+    assert.equal(
+      await input.getByRole("button", { name: "Profile options", exact: true }).isEnabled(),
+      true,
+      "Custom retains eligible operations",
+    )
+  } finally {
+    await browser.close()
+  }
+})
+
 test(
   "Profile names apply each open file's own values unless per-file profiles are enabled",
   { timeout: 60000 },
@@ -64,6 +129,7 @@ test(
               mimeType: "application/pdf",
               buffer: fixture({
                 count: 3,
+                family: "megic",
                 profileSets: [
                   {
                     id,
@@ -87,7 +153,7 @@ test(
           await input.getByRole("button", { name: new RegExp(`${name}\\.pdf`) }).click()
         }
         const options = input.getByRole("button", { name: "Profile options", exact: true })
-        const perFile = input.getByRole("checkbox", { name: "Per-file profiles", exact: true })
+        const perFile = input.getByRole("checkbox", { name: "Apply only to this file", exact: true })
         const profile = (name) => input.getByRole("combobox", { name: `${name} choices`, exact: true })
         await activate("Alpha")
         await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
@@ -100,6 +166,28 @@ test(
           await page.setViewportSize({ width, height: 1100 })
           await page.evaluate((textSize) => (document.documentElement.style.fontSize = `${textSize}%`), size)
           await page.emulateMedia({ colorScheme })
+          const frame = input.locator(".profile-choice").first()
+          const alignment = await frame.evaluate((element) => {
+            const box = element.getBoundingClientRect()
+            const button = element.querySelector("button").getBoundingClientRect()
+            const select = element.querySelector(".select").getBoundingClientRect()
+            const divider = getComputedStyle(element.querySelector(".select")).borderInlineStartColor
+            const reference = getComputedStyle(
+              document.querySelector(".composition-output .sequence-options > summary"),
+            ).borderInlineEndColor
+            return {
+              sameTone: divider === reference,
+              framed: getComputedStyle(element).borderTopWidth === "1px",
+              joined: Math.abs(button.right - select.left) < 1,
+              aligned: Math.abs(button.y - select.y) < 1 && Math.abs(button.height - select.height) < 1,
+              fills: Math.abs(button.x - box.x - 1) < 1 && Math.abs(select.right - box.right + 1) < 1,
+            }
+          })
+          assert.deepEqual(
+            alignment,
+            { sameTone: true, framed: true, joined: true, aligned: true, fills: true },
+            `${engine.name()}, ${width}: profile actions share one field frame`,
+          )
           await options.click()
           assert.equal(await perFile.isChecked(), false)
           const panel = input.locator(".profile-options:popover-open")
@@ -150,11 +238,34 @@ test(
         await profile("Alpha").selectOption("alpha-fine")
         await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).fill("0.06")
         await activate("Beta")
-        assert.equal(await profile("Beta").inputValue(), "beta-fine", "Individual parameter edits stay per file")
+        assert.equal(await profile("Beta").inputValue(), "beta-fine", "Different pre-edit values remain intact")
         assert.equal(
           await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).inputValue(),
           "0.08",
         )
+        await options.click()
+        await perFile.check()
+        await page.keyboard.press("Escape")
+        await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).fill("0.06")
+        await options.click()
+        await perFile.uncheck()
+        await page.keyboard.press("Escape")
+        await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).fill("0.07")
+        await activate("Alpha")
+        assert.equal(
+          await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).inputValue(),
+          "0.07",
+          "Custom edits propagate when pre-edit values match",
+        )
+        await input.getByRole("button", { name: "Reset Guide Width", exact: true }).click()
+        await activate("Beta")
+        assert.equal(
+          await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).inputValue(),
+          "0.07055555555555555",
+          "Reset removes the matching destination override",
+        )
+        await activate("Alpha")
+        await profile("Alpha").selectOption("alpha-fine")
         await activate("Gamma")
         await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
         await tab(input, "Style")
@@ -164,6 +275,7 @@ test(
           "An identical ID cannot substitute for a different name",
         )
         await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
+        await page.evaluate(() => (window.peakStyleJobs = 0))
         await profile("Gamma").selectOption("alpha-fine")
         await profile("Gamma").selectOption("generic")
         await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
@@ -273,11 +385,6 @@ test("Opaque profile-set IDs keep their annotations across Input switches", { ti
         .waitFor()
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
       await tab(input, "Style")
-      if (!index) {
-        await input.getByRole("button", { name: "Profile options", exact: true }).click()
-        await input.getByRole("checkbox", { name: "Per-file profiles", exact: true }).check()
-        await page.keyboard.press("Escape")
-      }
       for (const set of sets) {
         const profile = input.getByRole("combobox", { name: set.name, exact: true })
         const group = input
@@ -414,7 +521,8 @@ test("Authored details share one panel across Style owners and omit blank guidan
           await trigger.scrollIntoViewIfNeeded()
           const alignment = await trigger.evaluate((button) => {
             const target = button.getBoundingClientRect(),
-              reference = button.previousElementSibling,
+              previous = button.previousElementSibling,
+              reference = previous.matches(".select") ? previous.querySelector("select") : previous,
               box = reference.getBoundingClientRect(),
               style = getComputedStyle(reference),
               path = button.querySelector("path"),
@@ -426,7 +534,12 @@ test("Authored details share one panel across Style owners and omit blank guidan
               width: target.width,
               height: target.height,
               x: center.x - target.x - target.width / 2,
-              y: center.y - box.y - parseFloat(style.paddingBlockStart) - parseFloat(style.lineHeight) / 2,
+              y:
+                center.y -
+                box.y -
+                (reference.matches("select")
+                  ? box.height / 2
+                  : parseFloat(style.paddingBlockStart) + parseFloat(style.lineHeight) / 2),
             }
           })
           assert.ok(
@@ -1629,6 +1742,64 @@ test("Download reuses completed full-document styles and invalidates changed Out
     ])
   } finally {
     await browser?.close()
+  }
+})
+
+test("Cancelling a paused batch inspection releases the next Source", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await chromium.launch()
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    const input = page.locator(".selection-panel")
+    for (const name of ["First", "Second"]) {
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({
+          name: `${name}.pdf`,
+          mimeType: "application/pdf",
+          buffer: fixture({ count: 3, profileCount: 2, family: "queue" }),
+        })
+      await input
+        .locator(".input-current")
+        .filter({ hasText: `${name}.pdf` })
+        .waitFor()
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+    }
+    await tab(input, "Style")
+    await page.evaluate(async () => {
+      const { openPDF } = await import("/src/pdf.ts")
+      const task = await openPDF(new Uint8Array(await (await fetch("/demo.pdf")).arrayBuffer()))
+      const pdf = await task.promise
+      const prototype = Object.getPrototypeOf(await pdf.getPage(1))
+      const render = prototype.render
+      window.holdBatchInspection = true
+      prototype.render = function (...args) {
+        const drawing = render.apply(this, args)
+        drawing.onContinue = (proceed) => {
+          if (window.holdBatchInspection) window.batchInspectionPaused = true
+          else proceed()
+        }
+        return drawing
+      }
+      await task.destroy()
+    })
+    await input.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("inkjet")
+    await page.waitForFunction(() => window.batchInspectionPaused)
+    await page.evaluate(() => (window.holdBatchInspection = false))
+    await page.getByRole("button", { name: "Cancel style processing", exact: true }).click()
+    await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
+    await page.getByRole("button", { name: "Retry Input styles", exact: true }).click()
+    await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
+    assert.equal(
+      await page.locator(".composition-output").getByRole("button", { name: "Download", exact: true }).isEnabled(),
+      true,
+    )
+    assert.equal(await input.getByRole("combobox", { name: "Style profile", exact: true }).inputValue(), "inkjet")
+  } finally {
+    await browser.close()
   }
 })
 

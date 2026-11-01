@@ -7,6 +7,82 @@ import { createServer } from "vite"
 import { serve } from "./server.ts"
 import { fixture, trackWorkers } from "./browser.js"
 
+test(
+  "WASM rejects malformed semantic metadata and preserves demo families through composition",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await chromium.launch()
+    try {
+      const page = await browser.newPage()
+      await page.goto(server.resolvedUrls.local[0])
+      const result = await page.evaluate(
+        async (malformed) => {
+          const { Processor } = await import("/src/processor.ts")
+          const processor = new Processor()
+          try {
+            let failure
+            try {
+              await processor.run(new Uint8Array(malformed), 1)
+            } catch (error) {
+              failure = error.failure?.record?.code
+            }
+            const bytes = new Uint8Array(await (await fetch("/demo.pdf")).arrayBuffer())
+            const input = (await processor.run(bytes, 2)).description
+            const output = (
+              await processor.compose(
+                {
+                  version: 1,
+                  sources: { a: { input: "demo", overrides: {} }, b: { input: "demo", overrides: {} } },
+                  parts: [
+                    {
+                      copies: 1,
+                      front: false,
+                      pages: [
+                        { source: "a", page: 2 },
+                        { source: "b", page: 2 },
+                      ],
+                    },
+                  ],
+                },
+                [{ id: "demo", bytes }],
+                3,
+              )
+            ).description
+            return {
+              failure,
+              parameters: Object.values(input.parameters).map(({ parameter }) => [parameter.family, parameter.key]),
+              profiles: input.profileSets.map((set) => set.family),
+              output: Object.entries(output.parameters).map(([id, { parameter }]) => [
+                id,
+                parameter.family,
+                parameter.key,
+              ]),
+              sets: output.profileSets.map((set) => set.family),
+            }
+          } finally {
+            processor.dispose()
+          }
+        },
+        [...fixture({ family: ["invalid"] })],
+      )
+      assert.equal(result.failure, "invalid-contract")
+      assert.equal(result.parameters.length, 39)
+      assert.ok(result.parameters.every(([family, key]) => family === "megic" && typeof key === "string" && key.length))
+      assert.ok(result.profiles.every((family) => family === "megic"))
+      assert.ok(result.output.every(([id, family, key]) => family === "megic" && key !== id))
+      assert.equal(new Set(result.output.map(([id]) => id)).size, result.output.length)
+      assert.ok(
+        new Set(result.output.map(([, , key]) => key)).size < result.output.length,
+        "Independent parameters retain repeated semantic keys",
+      )
+      assert.deepEqual(result.sets, ["megic", "megic"])
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
 test("Processor failures remain recoverable in Chromium and WebKit", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {

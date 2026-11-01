@@ -41,9 +41,12 @@ module Mainz
           )
         end
 
+        data["parameters"].each { |id, parameter| parameter.merge!("family" => "producer", "key" => id) }
+
         data["profileSets"] = [
           {
             "id" => "print",
+            "family" => "producer",
             "name" => "Print",
             "description" => "Printing styles.",
             "details" => "Choose a complete set of property values.",
@@ -69,6 +72,11 @@ module Mainz
         assert_equal(data["parameters"].keys.sort, summary["parameters"].keys.sort, label)
         data["parameters"].each do |id, parameter|
           assert_equal(parameter["schema"], summary["parameters"][id]["parameter"]["schema"], label)
+          assert_equal(
+            parameter.slice("family", "key"),
+            summary["parameters"][id]["parameter"].slice("family", "key"),
+            label
+          )
         end
 
         assert_equal(data["profileSets"], summary["profileSets"], label)
@@ -280,6 +288,29 @@ module Mainz
 
       assert_operator(attachment.stream.bytesize, :>, 1024 * 1024)
       assert_operator(attachment.stream.bytesize, :<=, 16 * 1024 * 1024)
+    end
+
+    def test_semantic_declarations_reject_incomplete_keys
+      source = @directory.join("semantics.svg")
+      source.write(svg(SHAPE))
+      data = declaration({"guides" => "#Guides"})
+      data["parameters"]["guides.stroke-width"]["family"] = "producer"
+      output = @directory.join("invalid.pdf")
+      failure = command(
+        @cli,
+        "produce",
+        source,
+        "--declaration",
+        write("semantics.json", data),
+        "--output",
+        output,
+        ok: false
+      )
+      error = JSON.parse(failure.stderr)
+      assert_equal("invalid-contract", error["code"])
+      assert_equal("declaration", error["source"])
+      assert_equal("/parameters/guides.stroke-width", error["location"])
+      refute_path_exists(output)
     end
 
     def test_excessive_capture_metadata_is_rejected

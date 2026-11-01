@@ -178,11 +178,11 @@ property limits. Protected PDF numbers never pass through that representation.
 Parameter schemas, presentation groups, profile sets, and profiles share the following annotation semantics. Their
 existing `name` or `title` requirements remain unchanged.
 
-| Field             | Requirement                                                    | Purpose                                                     |
-| ----------------- | -------------------------------------------------------------- | ----------------------------------------------------------- |
-| `name` or `title` | Defined by the owning object                                   | The shortest display label.                                 |
-| `description`     | Optional                                                       | A concise explanation for persistent display when supplied. |
-| `details`         | Optional; requires a nonblank `description` on the same object | A longer explanation that expands that description.         |
+| Field             | Requirement                                                    | Purpose                                                |
+| ----------------- | -------------------------------------------------------------- | ------------------------------------------------------ |
+| `name` or `title` | Defined by the owning object                                   | The shortest display label.                            |
+| `description`     | Optional                                                       | A concise explanation displayed with its owning label. |
+| `details`         | Optional; requires a nonblank `description` on the same object | A longer explanation that expands that description.    |
 
 Details explain the same subject as their description. They do not replace it or introduce a separate assignment scope.
 A supplied `details` field without a description, or with an empty or whitespace-only description, is invalid.
@@ -208,13 +208,39 @@ owns the workspace interactions.
 | `groups`      | Optional ordered presentation groups                                               |
 | `profileSets` | Optional ordered profile sets                                                      |
 
-A parameter requires `schema` and `binding`, with optional `value`. A binding has exactly `targets` and `property`. Its
-nonempty target array references existing targets. Its property belongs to Section 1.2. Page indexes name actual PDF
-pages. Every region belongs to one target. Every target has at least one parameter binding. Every baseline has at least
-one record reference. Optional fields follow their full rules whenever present.
+A parameter requires `schema` and `binding`, with optional `value`, `family`, and `key`. A binding has exactly `targets`
+and `property`. Its nonempty target array references existing targets. Its property belongs to Section 1.2. Page indexes
+name actual PDF pages. Every region belongs to one target. Every target has at least one parameter binding. Every
+baseline has at least one record reference. Optional fields follow their full rules whenever present.
 
 Bindings contain resolved PDF regions, never source selectors or CSS. Producer identity, publication revision, and page
 labels are separate optional publication metadata. They add no manifest fields and do not select processor behavior.
+
+#### Style families and semantic keys
+
+Optional `family` and `key` occur together on a parameter, outside its schema and binding. Both use the identifier
+encoding and string limits from Section 4.1 and must contain non-whitespace text. Matching is exact and case-sensitive.
+Separators have no syntax. Consumers never derive these fields from local IDs, titles, filenames, publication metadata,
+or values. Missing fields permit local editing without cross-file matching.
+
+`family` names an authored Style compatibility family, for example `megic`. It is not proof of publisher identity. `key`
+names one stable parameter meaning within that family, for example `guides.stroke-width`. The producer guarantees that
+equal family/key pairs have the same meaning and paint property. The property defines units under Section 1.2. Local
+schemas can narrow valid values independently. A changed meaning requires a different key or family. No registry, remote
+lookup, or separate family version is required.
+
+Local parameter IDs remain document references. Equal semantic keys do not merge targets, bindings, baselines, or
+overrides. Several independent parameters can share a family/key pair, including after composition. Their paint property
+must agree within one manifest. Different schemas, baselines, and current values remain independent.
+
+Read and description retain these fields. Apply and reset never change them. Extraction retains them on surviving
+parameters. Composition retains them unchanged when it remaps local IDs. SVG declarations use the same fields and rules.
+The processor validates metadata and preserves independence. The consuming application owns cross-file choice
+propagation under the Web SPEC; no processor operation couples files.
+
+The fields are optional additions to contract version 1. Updated readers continue to accept definitions without them.
+Older strict readers reject definitions containing these fields. Publication with semantic metadata requires updated
+consumers.
 
 ### 4.3 Parameter schemas
 
@@ -265,9 +291,9 @@ remapping references. Presentation never changes scope, precedence, validation, 
 
 `profileSets` stores named override choices in the same manifest. It contains no CSS, geometry, printer detection, or
 executable rules. An empty array is permitted. Each set requires `id`, `name`, nonempty unique `parameters`, and
-`profiles`, with optional `description` and `details` under Section 4.1. Set IDs are unique within the manifest. Set and
-profile IDs follow Section 4.1. Names are nonempty plain text. Descriptions are plain text. A parameter belongs to at
-most one set. Unlisted parameters remain editable.
+`profiles`, with optional `family`, `description`, and `details` under Section 4.1. Set IDs are unique within the
+manifest. Set and profile IDs follow Section 4.1. Names are nonempty plain text. Descriptions are plain text. A
+parameter belongs to at most one set. Unlisted parameters remain editable.
 
 Each set has 1–32 ordered profiles. A profile requires `id`, `name`, and `overrides`, with optional `description` and
 `details`. IDs follow Section 4.1 and are unique within their set. Override keys belong to that set and hold valid
@@ -285,6 +311,14 @@ Omitted parameters return to their own baselines. Other parameters and sets reta
 Applications supply a complete Source map or combine the set's reset IDs and the profile's overrides in one `apply`
 call. There is no inheritance, cascade, saved active-profile field, or additional processor operation. Profile values
 and meanings belong to the author.
+
+Optional set `family` follows the Style-family string rules in Section 4.2 and applies to every profile in that set.
+Within a family-bearing set, profile names must be unique. The producer guarantees that the same family and profile name
+represent the same authored choice across files. Values and parameter scopes can differ; each file uses its own
+definition. Set IDs, set names, and profile IDs remain local and do not establish cross-file compatibility. Several
+independent sets can share a family and profile name. They remain independently editable. Without a set family, profile
+selection remains local. Parameter families are explicit and are not inherited from their set. Style operations,
+description, extraction, and composition retain set families alongside the other retained definition fields.
 
 The [CLI specification](../../cli/doc/SPEC.md#21-profile-selection) owns command-line ID lookup and ambiguity
 diagnostics.
@@ -930,6 +964,8 @@ The [Web glossary](../../web/doc/SPEC.md#glossary) owns workspace terms.
 | Paint record             | Declared path painting operation with immutable baseline and capabilities.                                    |
 | Painted extent           | Painted area within clipping, potentially changed without changing geometry.                                  |
 | Parameter                | Named scalar styling choice with constraints, presentation, and a binding.                                    |
+| Semantic key             | Producer-declared stable parameter meaning within a Style family, independent of document-local IDs.          |
+| Style family             | Authored compatibility namespace for profile names and parameter semantic keys.                               |
 | Path geometry            | Path operators and coordinates, preserved by styling.                                                         |
 | Prepared PDF             | Materialized editable geometry, valid manifest, resolved bindings, and immutable baselines in one PDF.        |
 | Presentation group       | Ordered parameter references with title/description, without style identity or assignment scope.              |

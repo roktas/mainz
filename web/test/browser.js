@@ -94,6 +94,7 @@ export function fixture({
   widthConstraints = {},
   count = prepared ? 7 : 1,
   profileSets,
+  family,
   annotations,
 } = {}) {
   const pages = Object.fromEntries(Array.from({ length: count }, (_, index) => [`page${index}`, index]))
@@ -205,6 +206,10 @@ export function fixture({
       },
     ]
   if (profileSets) manifest.profileSets = profileSets
+  if (family) {
+    for (const [id, definition] of Object.entries(manifest.parameters)) Object.assign(definition, { family, key: id })
+    for (const set of manifest.profileSets ?? []) set.family = family
+  }
   if (annotations) {
     Object.assign(manifest.groups[0], annotations.group)
     for (const [id, metadata] of Object.entries(annotations.parameters ?? {}))

@@ -15,6 +15,10 @@ profiles include short descriptions and longer `details` with printer guidance. 
 patterns. Filled uses 0.04 mm thin guides and soft blue (`#6B7F99`) Pattern and Repeats fills at 40% opacity. The Style
 groups appear in this order: Cover, Patterns, Guides, Margins, Watermark. Margins contains Header.
 
+Every parameter declares Style family `megic` and an explicit semantic key from the authored sample declaration. Profile
+sets also declare family `megic`. Publication can rename local parameter IDs while retaining those keys. The four-page
+sample supports contract-based profile selection and parameter edits across compatible open files.
+
 The Watermark Style object controls the small, distressed red SAMPLE stamp at the center of all four pages, including
 the cover. Its fill color and opacity remain editable. Visibility is unavailable. Its frame and letter outlines stay
 fixed and visible outside the editable targets. Megic maintains the vector source and declaration in

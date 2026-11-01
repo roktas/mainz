@@ -31,7 +31,7 @@ export type Preview = {
   appearance: (page: number) => { pdf: PDFDocumentProxy; page: number }
   download: (source: Source, pages: readonly number[]) => ArrayBuffer | undefined
   reconcile: (source: Source, counts: Usage) => void
-  schedule: (source: Source, counts: Usage, text?: string) => void
+  schedule: (source: Source, counts: Usage, text?: string, serial?: boolean) => void
   cancel: () => void
   dispose: () => void
 }

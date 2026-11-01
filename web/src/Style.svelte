@@ -17,6 +17,7 @@
     style,
     profile,
     perFile = $bindable(false),
+    shared,
     reset,
     toolbarOnly = false,
     tour,
@@ -27,6 +28,7 @@
     style: (id: string, text: string) => void
     profile: (setId: string, profileId: string) => void
     perFile?: boolean
+    shared: boolean
     reset: (id?: string) => void
     toolbarOnly?: boolean
     tour?: TourStep
@@ -139,9 +141,11 @@
             data-tour-target={set === profiles[0] ? "style-profile" : undefined}
             data-tour-active={tour === "style-profile" && set === profiles[0]}
           >
-            <div class="profile-choice">
+            {#if set.description}<span hidden id={`${key}-set-${index}`}>{set.description}</span>{/if}
+            <div class="entry profile-choice">
               {#if index === 0}<button
-                  class="icon-button"
+                  class="step"
+                  disabled={!shared}
                   popovertarget={`${key}-profile-options`}
                   aria-label="Profile options"
                   title="Profile options"><Icon name="more" /></button
@@ -153,15 +157,20 @@
                   role="group"
                   aria-label="Profile options"
                 >
-                  <label><input type="checkbox" bind:checked={perFile} />Per-file profiles</label>
-                  <p class="control-description">When off, matching profile names apply across open files.</p>
+                  <label><input type="checkbox" bind:checked={perFile} />Apply only to this file</label>
+                  <p class="control-description">
+                    When off, compatible profiles and edits apply across open files. Different values stay unchanged.
+                  </p>
+                  {#each profiles as group (group.id)}
+                    {#if group.description}<p class="control-description">{group.name}: {group.description}</p>{/if}
+                  {/each}
                 </div>{/if}
               <div class="select">
                 <select
                   aria-label={set.name}
                   value={selected?.id ?? ""}
-                  title={`${set.name}. Applies to Input pages: ${pages}.`}
-                  aria-describedby={`${key}-profile-${index}`}
+                  title={`${set.name}.${set.description ? ` ${set.description}` : ""} Applies to Input pages: ${pages}.`}
+                  aria-describedby={`${key}-profile-${index}${set.description ? ` ${key}-set-${index}` : ""}`}
                   onchange={(event) => profile(set.id, event.currentTarget.value)}
                 >
                   {#if !selected}<option value="" disabled>Custom</option>{/if}
@@ -169,13 +178,8 @@
                 </select>
                 <Icon name="next" />
               </div>
+              <Guidance title={set.name} details={set.details} />
             </div>
-            {#if set.description}
-              <div class="profile-summary">
-                <p class="control-description">{set.description}</p>
-                <Guidance title={set.name} details={set.details} />
-              </div>
-            {/if}
             <div class="profile-summary">
               <p id={`${key}-profile-${index}`} class="control-description">
                 {description}

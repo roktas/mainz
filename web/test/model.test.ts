@@ -6,6 +6,9 @@ import { pageRanges, parseSequence, toggleSequence } from "../src/pages.ts"
 import * as composition from "../src/composition.ts"
 import {
   applyProfile,
+  counterparts,
+  propagate,
+  sharedProfiles,
   available,
   bufferPages,
   draftError,
@@ -18,6 +21,137 @@ import {
   usage,
 } from "../src/styles.ts"
 import type { Description, Entry, ProfileSet } from "../src/styles.ts"
+
+function styleState(
+  parameters: Record<string, Entry>,
+  overrides: Record<string, number> = {},
+  drafts: Record<string, string> = {},
+) {
+  return {
+    input: { description: { version: 1 as const, pageCount: 1, pages: { page: { index: 0 } }, parameters } },
+    overrides,
+    drafts,
+  }
+}
+
+test("Semantic edits preserve divergent values, drafts, ranges, and independent bindings", () => {
+  const entry: Entry = {
+    parameter: {
+      family: "megic",
+      key: "guides.width",
+      schema: { type: "number" },
+      binding: { targets: ["guides"], property: "stroke-width" },
+    },
+    baseline: { kind: "uniform", value: 0.2 },
+    pages: ["page"],
+  }
+  const source = styleState({ "ital-foo-bar": entry })
+  const target = styleState(
+    {
+      renamed: entry,
+      repeated: {
+        ...entry,
+        parameter: { ...entry.parameter, binding: { ...entry.parameter.binding, targets: ["other"] } },
+      },
+      different: entry,
+      draft: entry,
+      limited: { ...entry, parameter: { ...entry.parameter, schema: { type: "number", maximum: 0.21 } } },
+      mixed: { ...entry, baseline: { kind: "mixed" } },
+      foreign: { ...entry, parameter: { ...entry.parameter, family: "another" } },
+      local: { ...entry, parameter: { schema: entry.parameter.schema, binding: entry.parameter.binding } },
+    },
+    { different: 0.3 },
+    { draft: "invalid" },
+  )
+  assert.deepEqual(counterparts(source, target, ["ital-foo-bar"]).pairs, [
+    ["ital-foo-bar", "renamed"],
+    ["ital-foo-bar", "repeated"],
+    ["ital-foo-bar", "limited"],
+  ])
+  const result = propagate(source, { overrides: { "ital-foo-bar": 0.25 }, drafts: {} }, target, ["ital-foo-bar"])
+  assert.deepEqual(result, { overrides: { different: 0.3, renamed: 0.25, repeated: 0.25 }, changed: true, skipped: 4 })
+  assert.deepEqual(target.overrides, { different: 0.3 })
+  assert.deepEqual(target.drafts, { draft: "invalid" })
+  const color: Entry = {
+    parameter: {
+      family: "megic",
+      key: "guides.color",
+      schema: { type: "string" },
+      binding: { targets: ["guides"], property: "stroke-color" },
+    },
+    baseline: { kind: "uniform", value: "#ABCDEF" },
+    pages: ["page"],
+  }
+  const colors = propagate(
+    styleState({ ink: color }),
+    { overrides: { ink: "#112233" }, drafts: {} },
+    styleState({ renamed: { ...color, baseline: { kind: "uniform", value: "#abcdef" } } }),
+    ["ink"],
+  )
+  assert.equal(
+    colors.overrides.renamed,
+    "#112233",
+    "Color comparison uses components instead of hexadecimal letter case",
+  )
+  assert.equal(
+    propagate(
+      { ...source, drafts: { "ital-foo-bar": "invalid" } },
+      { overrides: { "ital-foo-bar": 0.25 }, drafts: {} },
+      target,
+      ["ital-foo-bar"],
+    ).overrides.renamed,
+    0.25,
+    "Completing a valid edit uses the stored pre-draft value",
+  )
+  const reset = propagate(
+    styleState(source.input.description.parameters, { "ital-foo-bar": 0.25 }),
+    { overrides: {}, drafts: {} },
+    styleState({ renamed: { ...entry, baseline: { kind: "uniform", value: 0.4 } } }, { renamed: 0.25 }),
+    ["ital-foo-bar"],
+  )
+  assert.deepEqual(reset.overrides, {}, "Reset removes each destination override instead of copying a baseline")
+  assert.equal(
+    propagate({ ...source, drafts: { "ital-foo-bar": "invalid" } }, { overrides: {}, drafts: {} }, target, [
+      "ital-foo-bar",
+    ]).changed,
+    false,
+  )
+})
+
+test("Semantic propagation retains opaque local IDs", () => {
+  const entry: Entry = {
+    parameter: {
+      family: "megic",
+      key: "width",
+      schema: { type: "number" },
+      binding: { targets: ["guides"], property: "stroke-width" },
+    },
+    baseline: { kind: "uniform", value: 0.2 },
+    pages: ["page"],
+  }
+  const opaque = propagate(
+    styleState({ original: entry }),
+    { overrides: { original: 0.25 }, drafts: {} },
+    styleState(Object.fromEntries([["__proto__", entry]])),
+    ["original"],
+  )
+  assert.equal(Object.hasOwn(opaque.overrides, "__proto__"), true)
+  assert.equal(opaque.overrides["__proto__"], 0.25)
+})
+
+test("Profile matching requires explicit equal families and names", () => {
+  const set: ProfileSet = {
+    id: "first",
+    family: "megic",
+    name: "Choices",
+    parameters: ["width"],
+    profiles: [{ id: "local", name: "Fine", overrides: {} }],
+  }
+  assert.equal(sharedProfiles(set, { ...set, id: "second", name: "Different label" }, "Fine"), true)
+  assert.equal(sharedProfiles(set, { ...set, family: "other" }, "Fine"), false)
+  assert.equal(sharedProfiles({ ...set, family: undefined }, set, "Fine"), false)
+  assert.equal(sharedProfiles(set, set, "Other"), false)
+})
 
 test("Profiles replace their complete scope and leave other styles independent", () => {
   const set: ProfileSet = {

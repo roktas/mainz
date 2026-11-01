@@ -302,6 +302,27 @@ static bool blank(const std::string& value)
     }
     return true;
 }
+void semantics(const std::map<std::string, JSON>& parameters, const std::string& source)
+{
+    std::map<std::pair<std::string, std::string>, std::string> properties;
+    for (const auto& [id, parameter] : parameters) {
+        try {
+            auto present = object(parameter);
+            require(present.contains("family") == present.contains("key"), "Style family and key must occur together.");
+            if (!present.contains("family"))
+                continue;
+            auto family = text(parameter.getDictItem("family")), key = text(parameter.getDictItem("key"));
+            identifier(family);
+            identifier(key);
+            require(!blank(family) && !blank(key), "Empty Style family or key.");
+            auto property = text(parameter.getDictItem("binding").getDictItem("property"));
+            auto [item, added] = properties.emplace(std::make_pair(family, key), property);
+            require(added || item->second == property, "Semantic key has conflicting paint properties.");
+        } catch (const Error& error) {
+            throw Error(error.code(), error.what(), source, "/parameters/" + pointer(id));
+        }
+    }
+}
 void annotations(JSON item, const std::set<std::string>& present)
 {
     if (present.contains("description")) {
@@ -424,7 +445,12 @@ void profile_sets(JSON sets, const std::map<std::string, JSON>& parameters)
     auto items = array(sets);
     std::set<std::string> set_ids, owned;
     for (const auto& set : items) {
-        auto present = fields(set, {"id", "name", "parameters", "profiles"}, {"description", "details"});
+        auto present = fields(set, {"id", "name", "parameters", "profiles"}, {"family", "description", "details"});
+        if (present.contains("family")) {
+            auto family = text(set.getDictItem("family"));
+            identifier(family);
+            require(!blank(family), "Empty Style family.");
+        }
         auto id = text(set.getDictItem("id"));
         identifier(id);
         require(set_ids.insert(id).second, "Duplicate profile set ID.");
@@ -439,7 +465,7 @@ void profile_sets(JSON sets, const std::map<std::string, JSON>& parameters)
         }
         auto profiles = array(set.getDictItem("profiles"));
         require(!profiles.empty() && profiles.size() <= 32, "A profile set requires 1 to 32 profiles.");
-        std::set<std::string> profile_ids;
+        std::set<std::string> profile_ids, profile_names;
         for (const auto& profile : profiles) {
             auto fields_present = fields(profile, {"id", "name", "overrides"}, {"description", "details"});
             auto identity = text(profile.getDictItem("id"));
@@ -447,6 +473,9 @@ void profile_sets(JSON sets, const std::map<std::string, JSON>& parameters)
             require(profile_ids.insert(identity).second, "Duplicate profile ID.");
             require(text(profile.getDictItem("name")).find_first_not_of(" \t\r\n") != std::string::npos,
                 "Empty profile name.");
+            if (present.contains("family"))
+                require(profile_names.insert(text(profile.getDictItem("name"))).second,
+                    "Duplicate profile name in a Style family.");
             annotations(profile, fields_present);
             for (const auto& [parameter, choice] : object(profile.getDictItem("overrides"))) {
                 require(scope.contains(parameter), "Override is outside its profile set.");
@@ -581,7 +610,7 @@ void manifest(JSON root, std::size_t page_count)
     for (const auto& [id, parameter] : parameters) {
         try {
             unicode(id, true);
-            auto present = fields(parameter, {"schema", "binding"}, {"value"});
+            auto present = fields(parameter, {"schema", "binding"}, {"value", "family", "key"});
             auto binding = parameter.getDictItem("binding");
             fields(binding, {"targets", "property"});
             auto property = text(binding.getDictItem("property"));
@@ -619,6 +648,7 @@ void manifest(JSON root, std::size_t page_count)
         }
     }
     require(used_targets.size() == targets.size(), "Every target requires a parameter binding.");
+    semantics(parameters);
     if (present.contains("profileSets"))
         profile_sets(root.getDictItem("profileSets"), parameters);
     if (present.contains("groups")) {

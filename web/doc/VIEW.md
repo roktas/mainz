@@ -270,17 +270,20 @@ available pane height. Input and Output do not use fixed thumbnail counts.
 
 ## Page fields
 
-Selection fields and Style profiles span the pane width. Profile selectors share a left track for the first selector's
-options button, so all select edges align. Both page fields have the accessible name Page selection. The field,
-action-menu button, and all inline actions stay on one row, including with enlarged text and active selections. Action
-menus occupy the first position and open below the field's start edge. Menus share padding, corners, and viewport
-bounds. Peer menu actions fill the same width, share row heights, and use the standard control gap between rows. Output
-shows movement buttons in the field bar when the pane fits seven 44 px controls and a ten-character field. Narrower
-panes put movement before Blank insertion in the menu. This rule uses pane width and font metrics, including tablet and
-desktop layouts. Removal and duplication stay in the field bar. Individual page controls use transparent surfaces.
-Input + and Output duplicate + use the same primary treatment through the field's outer edge. Active Output removal uses
-a red surface and white minus. Invalid targets use the disabled treatment. The + remains legible while disabled. Empty
-fields show an `Example:` placeholder.
+Selection fields and Style profiles span the pane width. Profile selectors use the same continuous field frame and
+divided 44 px leading track as the page fields. The first selector's options button occupies that track; all select
+edges align. Options use the disabled treatment when the Web SPEC reports no compatible peer operation. The selected
+profile's description and its adjacent information button share one row below the selector. General guidance belongs in
+the options menu and selector help. Authored set details remain independently reachable. Both page fields have the
+accessible name Page selection. The field, action-menu button, and all inline actions stay on one row, including with
+enlarged text and active selections. Action menus occupy the first position and open below the field's start edge. Menus
+share padding, corners, and viewport bounds. Peer menu actions fill the same width, share row heights, and use the
+standard control gap between rows. Output shows movement buttons in the field bar when the pane fits seven 44 px
+controls and a ten-character field. Narrower panes put movement before Blank insertion in the menu. This rule uses pane
+width and font metrics, including tablet and desktop layouts. Removal and duplication stay in the field bar. Individual
+page controls use transparent surfaces. Input + and Output duplicate + use the same primary treatment through the
+field's outer edge. Active Output removal uses a red surface and white minus. Invalid targets use the disabled
+treatment. The + remains legible while disabled. Empty fields show an `Example:` placeholder.
 
 Hints align below the field. Selection counts use accent emphasis. Errors replace the hint with danger text at the same
 small size. Hints reserve space and wrap naturally, so errors, bold counts, and drag guidance do not move fitted page

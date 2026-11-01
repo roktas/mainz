@@ -1200,6 +1200,10 @@ module Mainz
       [source, changed, restored, pruned].each do |candidate|
         summary = describe(candidate)
         assert_equal(manifest["parameters"]["width"]["schema"], summary["parameters"]["width"]["parameter"]["schema"])
+        assert_equal(
+          {"family" => "fixture", "key" => "width"},
+          summary["parameters"]["width"]["parameter"].slice("family", "key")
+        )
         assert_equal(manifest["groups"][0].except("parameters"), summary["groups"][0].except("parameters"))
       end
 
@@ -1232,6 +1236,10 @@ module Mainz
         next unless original["parameter"] == "width"
 
         assert_equal(manifest["parameters"]["width"]["schema"], summary["parameters"][id]["parameter"]["schema"])
+        assert_equal(
+          {"family" => "fixture", "key" => "width"},
+          summary["parameters"][id]["parameter"].slice("family", "key")
+        )
       end
 
       assert_equal(
@@ -1248,6 +1256,29 @@ module Mainz
           set["profiles"].map { |choice| choice.except("overrides") }
         )
       end
+
+      foreign = file("foreign-family.pdf")
+      fixture(
+        foreign,
+        -> (data) {
+          profile_fixture(data)
+          data["parameters"].each_value { |parameter| parameter["family"] = "foreign" }
+          data["profileSets"][0]["family"] = "foreign"
+        },
+        pdf_objects: method(:across_page_objects)
+      )
+      write("inputs.json", {"input" => source.to_s, "foreign" => foreign.to_s})
+      request["sources"]["b"] = {"input" => "foreign", "overrides" => {"width" => 0.25}}
+      mixed, report = compose(request, "mixed-families.pdf")
+      description = describe(mixed)
+      assert_equal(%w[fixture foreign], description["profileSets"].map { |set| set["family"] })
+      JSON.parse(report.stdout)["parameters"].each do |id, original|
+        next unless original == {"source" => "b", "parameter" => "width"}
+
+        assert_equal("foreign", description["parameters"][id]["parameter"]["family"])
+        assert_equal("width", description["parameters"][id]["parameter"]["key"])
+        assert_equal(0.25, description["parameters"][id]["parameter"]["value"])
+      end
     end
 
     def test_profiles_require_valid_scopes_and_original_first_choice
@@ -1261,6 +1292,9 @@ module Mainz
         -> (s) { s[0]["profiles"][1]["id"] = "generic" },
         -> (s) { s[0]["profiles"][1]["name"] = "" },
         -> (s) { s[0]["profiles"][1]["description"] = false },
+        -> (s) { s[0]["family"] = " " },
+        -> (s) { s[0]["family"] = 1 },
+        -> (s) { s[0]["profiles"][1]["name"] = s[0]["profiles"][0]["name"] },
         -> (s) { s[0]["profiles"] *= 17 }
       ]
       mutations.each do |mutation|
@@ -1273,6 +1307,29 @@ module Mainz
           pdf_objects: method(:across_page_objects)
         )
         assert_equal("invalid-contract", failure_code(file("invalid-profiles.pdf")))
+      end
+    end
+
+    def test_semantic_keys_require_complete_consistent_metadata
+      mutations = [
+        -> (p) { p["width"].delete("family") },
+        -> (p) { p["width"].delete("key") },
+        -> (p) { p["width"]["family"] = "\u00a0" },
+        -> (p) { p["width"]["key"] = " " },
+        -> (p) { p["width"]["key"] = 1 },
+        -> (p) { p["width"]["family"] = "bad\nfamily" },
+        -> (p) { p["guide-color"]["key"] = "width" }
+      ]
+      mutations.each do |mutation|
+        fixture(
+          file("invalid-semantics.pdf"),
+          -> (manifest) {
+            profile_fixture(manifest)
+            mutation.call(manifest["parameters"])
+          },
+          pdf_objects: method(:across_page_objects)
+        )
+        assert_equal("invalid-contract", failure_code(file("invalid-semantics.pdf")))
       end
     end
 
@@ -1552,6 +1609,7 @@ module Mainz
 
     def profile_fixture(manifest)
       across_pages(manifest)
+      manifest["parameters"].each { |id, parameter| parameter.merge!("family" => "fixture", "key" => id) }
       manifest["parameters"]["width"]["schema"].merge!(
         "description" => "Outline thickness.",
         "details" => "Changes every eligible outline.\n\n<b>Width</b> is plain text."
@@ -1560,6 +1618,7 @@ module Mainz
       manifest["profileSets"] = [
         {
           "id" => "print",
+          "family" => "fixture",
           "name" => "Style profile",
           "description" => "Printer styles",
           "details" => "Choose one complete set of authored styles.",

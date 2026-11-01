@@ -8,7 +8,19 @@
   import type { Input, Source } from "./model.ts"
   import type { Inspection } from "./Page.svelte"
   import type { Magnification } from "./Lens.svelte"
-  import { applicable, applyProfile, current, draftError, feedback, matchingProfile, resolve, usage } from "./styles.ts"
+  import {
+    applicable,
+    applyProfile,
+    counterparts,
+    current,
+    draftError,
+    feedback,
+    matchingProfile,
+    propagate,
+    resolve,
+    sharedProfiles,
+    usage,
+  } from "./styles.ts"
   import { Documents, inspectPDF, openPDF } from "./pdf.ts"
   import { Processor } from "./processor.ts"
   import gridJob from "../test/fixtures/grid-job.json"
@@ -85,6 +97,28 @@
       (set) => set.profiles.length > 1 && set.parameters.some((id) => controls.includes(id)),
     ),
   )
+  const shareable = $derived.by(() => {
+    if (!active || sources.length < 2) return false
+    const ids = [...new Set([...controls, ...Object.keys(active.overrides)])]
+    const sets = (active.input.description.profileSets ?? []).filter(
+      (set) => set.profiles.length > 1 && set.parameters.some((id) => controls.includes(id)),
+    )
+    return sources.some((source) => {
+      if (source.id === active.id) return false
+      const families = new Map<string, Set<string>>()
+      for (const set of source.input.description.profileSets ?? []) {
+        if (!set.family) continue
+        const names = families.get(set.family) ?? new Set<string>()
+        for (const profile of set.profiles) names.add(profile.name)
+        families.set(set.family, names)
+      }
+      return (
+        sets.some(
+          (set) => set.family && set.profiles.some((profile) => families.get(set.family!)?.has(profile.name)),
+        ) || counterparts(active, source, ids).pairs.length > 0
+      )
+    })
+  })
   const outputProcessing = $derived(outputSources.some((source) => source.preview.status === "pending"))
   const processingSource = $derived(
     active?.preview.status === "pending" ? active : sources.find((source) => source.preview.status === "pending"),
@@ -141,9 +175,6 @@
     failure = text
     info("")
     notify("")
-  }
-  function update(source: Source) {
-    sources = sources.map((item) => (item.id === source.id ? source : item))
   }
   async function releaseUnused() {
     await tick()
@@ -350,7 +381,11 @@
         ? active.overrides
         : { ...active.overrides, [id]: entry.parameter.schema.type === "number" ? Number(text) : text }
     if (!invalid) delete drafts[id]
-    choices({ ...active, drafts, overrides }, invalid ? undefined : `Updated ${entry.parameter.schema.title ?? id}.`)
+    choices(
+      { ...active, drafts, overrides },
+      invalid ? undefined : `Updated ${entry.parameter.schema.title ?? id}.`,
+      invalid ? [] : [id],
+    )
     const title = entry.parameter.schema.title ?? id
     if (invalid) error(`Invalid value for ${title}. ${invalid}`)
     else {
@@ -371,6 +406,7 @@
       id
         ? `Restored ${active.input.description.parameters[id].parameter.schema.title ?? id} to the original style.`
         : "Restored all original styles.",
+      id ? [id] : [...new Set([...Object.keys(active.overrides), ...Object.keys(active.drafts)])],
     )
   }
   function changeProfile(setId: string, profileId: string) {
@@ -384,7 +420,12 @@
       if (perFileProfiles && source.id !== active.id) return source
       let next = source
       for (const candidate of source.id === active.id ? [set] : (source.input.description.profileSets ?? [])) {
-        const choice = source.id === active.id ? profile : candidate.profiles.find((item) => item.name === profile.name)
+        const choice =
+          source.id === active.id
+            ? profile
+            : sharedProfiles(set, candidate, profile.name)
+              ? candidate.profiles.find((item) => item.name === profile.name)
+              : undefined
         if (!choice || matchingProfile(candidate, next.overrides, next.drafts)?.id === choice.id) continue
         next = { ...next, ...applyProfile(candidate, choice, next), modified: true }
       }
@@ -394,13 +435,32 @@
       }
       return next
     })
-    for (const source of affected) source.preview.schedule(source, counts)
+    for (const source of affected) source.preview.schedule(source, counts, undefined, affected.length > 1)
     info(`Applied ${profile.name} profile${affected.length > 1 ? ` to ${affected.length} files` : ""}.`)
   }
-  function choices(source: Source, text?: string) {
-    const next = { ...source, modified: true }
-    update(next)
-    if (text) next.preview.schedule(next, counts, text)
+  function choices(source: Source, text?: string, ids: string[] = []) {
+    const original = active!
+    let skipped = 0
+    const affected: Source[] = []
+    sources = sources.map((target) => {
+      if (target.id === source.id) {
+        const next = { ...source, modified: true }
+        if (text) affected.unshift(next)
+        return next
+      }
+      if (perFileProfiles || !ids.length) return target
+      const result = propagate(original, source, target, ids)
+      skipped += result.skipped
+      if (!result.changed) return target
+      const next = { ...target, overrides: result.overrides, modified: true }
+      affected.push(next)
+      return next
+    })
+    for (const next of affected) next.preview.schedule(next, counts, undefined, affected.length > 1)
+    if (text)
+      info(
+        `${text}${skipped ? ` Kept ${skipped} incompatible or different parameter${skipped === 1 ? "" : "s"}.` : ""}`,
+      )
   }
   function schedule(id: string) {
     const source = sources.find((item) => item.id === id)
@@ -589,6 +649,7 @@
         style={changeStyle}
         profile={changeProfile}
         bind:perFile={perFileProfiles}
+        shared={shareable}
         reset={resetStyle}
       />{/key}{/if}
 {/snippet}

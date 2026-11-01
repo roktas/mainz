@@ -369,27 +369,53 @@ A profile set appears only with several profiles and at least one parameter in t
 labels the select. The selected profile's description stays visible. Missing descriptions use a short description based
 on the profile name. The affected Input pages appear in hover help.
 
-Profile-set descriptions and guidance remain independent of the selected profile. A selected profile's details button
-sits beside its own description. Changing the profile or Input closes its panel. Custom styles and profiles without
-details show no profile guidance button. Reading guidance does not change styles.
+Profile-set descriptions appear in selector hover help, accessible descriptions, and the options menu. Set details
+remain available beside the selector, including when the options button is disabled. Only the selected profile's
+description appears below its selector. A selected profile's details button sits beside its own description. Changing
+the profile or Input closes its panel. Custom styles and profiles without details show no profile guidance button.
+Reading guidance does not change styles.
 
 Choosing a profile replaces the Source's overrides throughout that set and clears its invalid drafts. Omitted parameters
 return to authored baselines. Other sets on that Source retain their choices. By default, the choice also applies to
-each profile set on other open Sources that declares the same profile name. Names match exactly, regardless of set names
-or IDs. Each Source uses its own declared profile values. Sets without a matching name retain their choices.
+each profile set on other open Sources that declares the same nonempty family and profile name. Families and names match
+exactly, regardless of set names or local IDs. Each Source uses its own declared profile values. Sets without this
+explicit match retain their choices. Missing family metadata never permits name-only propagation.
 
-The first profile selector's options menu offers **Per-file profiles**, off by default. When on, subsequent profile
-choices affect only the active Source. The option remains in effect across Input switches for the current workspace.
-Changing the option does not change existing styles. Individual parameter edits and resets always affect only the active
-Source.
+The first profile selector's options menu offers **Apply only to this file**, off by default. When on, subsequent
+profile choices affect only the active Source. The option remains in effect across Input switches for the current
+workspace. Changing the option does not change existing styles. The option also limits parameter edits and resets.
+
+With that option off, a valid parameter edit propagates only to parameters on other open Sources with equal explicit
+family and key, the same paint property, and the same pre-edit effective scalar value. Each destination must accept the
+new value under its own schema. Comparison uses numeric values and color components, never rounded UI text. An explicit
+override supplies the scalar; otherwise a uniform representable baseline supplies it. Mixed or unrepresentable effective
+values, invalid drafts, different values, and incompatible destinations remain intact. Invalid active drafts never
+propagate. A completed valid edit compares the last valid value retained beneath its draft. Matching metadata does not
+merge independent parameters within the active Source. Feedback reports skipped counterpart parameters when they prevent
+a complete cross-file edit.
+
+Custom is a derived UI state, not a stored profile. Family/key matching continues after overrides stop matching a
+profile. Parameter reset uses the same metadata and pre-edit value conditions and removes each destination's own
+override. It never copies the active Source's baseline. Reset all applies that rule independently to the active Source's
+changed parameters; unrelated destination parameters retain their choices. Invalid active drafts clear locally without
+propagation.
+
+The options button is disabled with only one open Source or no compatible operation on another Source. A compatible
+profile operation exists when any choice in the visible selectors has a family/name match on another Source. A
+compatible parameter operation exists when a visible parameter or a changed parameter eligible for reset has a
+family/key/property match with an equal, comparable current value and no invalid draft. Eligibility considers the
+available choices before activation, so users can select per-file scope before choosing a shared profile. Custom alone
+never disables the button. The button's disabled state does not reset the workspace preference. Opening and dismissing
+its menu changes no styles.
 
 Matching override maps select the declared profile. Other maps and invalid drafts show Custom. Profile choices remain
 individually editable. Names, descriptions, details, and values come from the producer and imply no application-defined
 printer behavior.
 
-Field reset removes one override. **Reset all styles** clears the Source's complete map, including hidden and saved
-overrides, and invalid drafts. Resets retain other Sources, selections, composition, and immutable bytes. Reset appears
-only with overrides or invalid drafts. Keyboard activation returns focus to the Style tab before the control disappears.
+Field reset removes one override. **Reset all styles** clears the active Source's complete map, including hidden and
+saved overrides, and invalid drafts. Other Sources follow only the eligible propagation above. Resets retain selections,
+composition, and immutable bytes. Reset appears only with overrides or invalid drafts. Keyboard activation returns focus
+to the Style tab before the control disappears.
 
 ### Processing
 
@@ -398,8 +424,9 @@ choices do not show processing or block Download. Adding an affected page prepar
 copying currently styled pages does not repeat processing. Removing the last affected page cancels unnecessary work
 while retaining choices. Cancel and Retry retain choices and the last completed preview.
 
-Source previews process one file at a time to bound WASM memory during cross-file profile changes. A profile choice
-schedules the active Source first. Queued requests that are replaced or cancelled do not start processing.
+Cross-file profile changes process Source previews one file at a time to bound WASM memory. A profile choice schedules
+the active Source first. Queued requests that are replaced or cancelled do not start processing. Individual Source edits
+keep independent processing and cancellation.
 
 The header reports active Style processing with the Source filename and Cancel. It favors the active Source, then the
 first pending Source. Cancel stops only that Source's work. A failed Source keeps its explanation and Retry in the

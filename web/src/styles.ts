@@ -27,6 +27,8 @@ export type Schema = Annotations & {
 }
 export type Entry = {
   parameter: {
+    family?: string
+    key?: string
     schema: Schema
     binding: { property: Property; targets: string[] }
     value?: Scalar
@@ -41,6 +43,7 @@ export type Profile = Annotations & {
 }
 export type ProfileSet = Annotations & {
   id: string
+  family?: string
   name: string
   parameters: string[]
   profiles: Profile[]
@@ -53,6 +56,90 @@ export type Description = {
   parameters: Record<string, Entry>
   groups?: Group[]
   profileSets?: ProfileSet[]
+}
+
+type StyleState = {
+  input: { description: Description }
+  overrides: Record<string, Scalar>
+  drafts: Record<string, string>
+}
+
+function effective(entry: Entry): Scalar | undefined {
+  return Object.hasOwn(entry.parameter, "value")
+    ? entry.parameter.value
+    : entry.baseline.kind === "uniform"
+      ? entry.baseline.value
+      : undefined
+}
+function semantic(entry: Entry): string | undefined {
+  const { family, key, binding } = entry.parameter
+  return family && key ? JSON.stringify([family, key, binding.property]) : undefined
+}
+function comparable(entry: Entry): Scalar | undefined {
+  const value = effective(entry)
+  return typeof value === "string" && entry.parameter.binding.property.endsWith("color") ? value.toLowerCase() : value
+}
+
+export function counterparts(source: StyleState, target: StyleState, ids: readonly string[]) {
+  const keys = new Map<string, Map<Scalar, string>>()
+  for (const id of ids) {
+    const entry = resolve(source.input.description.parameters[id], source.overrides, id)
+    const key = semantic(entry)
+    if (!key) continue
+    const values = keys.get(key) ?? new Map<Scalar, string>()
+    keys.set(key, values)
+    const value = comparable(entry)
+    if (value !== undefined && !Object.hasOwn(source.drafts, id)) values.set(value, id)
+  }
+  const pairs: [string, string][] = []
+  let skipped = 0
+  if (!keys.size) return { pairs, skipped }
+  for (const [id, definition] of Object.entries(target.input.description.parameters)) {
+    const key = semantic(definition)
+    const values = key && keys.get(key)
+    if (!values) continue
+    const value = comparable(resolve(definition, target.overrides, id))
+    const original = value === undefined ? undefined : values.get(value)
+    if (original !== undefined && !Object.hasOwn(target.drafts, id)) pairs.push([original, id])
+    else skipped++
+  }
+  return { pairs, skipped }
+}
+
+export function propagate(
+  source: StyleState,
+  next: Pick<StyleState, "overrides" | "drafts">,
+  target: StyleState,
+  ids: readonly string[],
+) {
+  // A completed edit compares with the last valid value retained beneath its draft.
+  const before = { ...source, drafts: { ...source.drafts } }
+  for (const id of ids)
+    if (Object.hasOwn(next.overrides, id) && !Object.hasOwn(next.drafts, id)) delete before.drafts[id]
+  const matches = counterparts(before, target, ids)
+  if (!matches.pairs.length) return { overrides: target.overrides, changed: false, skipped: matches.skipped }
+  const overrides = new Map(Object.entries(target.overrides))
+  let changed = false
+  for (const [original, id] of matches.pairs) {
+    const assigned = Object.hasOwn(next.overrides, original)
+    const value = next.overrides[original]
+    if (
+      Object.hasOwn(next.drafts, original) ||
+      (assigned && feedback(target.input.description.parameters[id], String(value)))
+    ) {
+      matches.skipped++
+      continue
+    }
+    if (assigned === overrides.has(id) && (!assigned || overrides.get(id) === value)) continue
+    if (assigned) overrides.set(id, value)
+    else overrides.delete(id)
+    changed = true
+  }
+  return { overrides: Object.fromEntries(overrides), changed, skipped: matches.skipped }
+}
+
+export function sharedProfiles(set: ProfileSet, target: ProfileSet, name: string) {
+  return !!set.family && set.family === target.family && target.profiles.some((profile) => profile.name === name)
 }
 
 export function matchingProfile(

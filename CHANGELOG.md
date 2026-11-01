@@ -4,6 +4,8 @@
 
 ### Added
 
+- Optional Style families and semantic parameter keys, preserved through production, styling, extraction, and
+  composition.
 - Optional plain-text `details` on parameter schemas, groups, profile sets, and profiles, requiring an accompanying
   description and preserved through PDF operations.
 - On-demand authored guidance in Style, with no information button for missing or blank details.
@@ -15,8 +17,9 @@
 
 ### Changed
 
-- Profile choices apply matching names across open files by default, using each file's own values. A profile options
-  menu offers per-file choices.
+- Cross-file Style choices use explicit families. Profiles match by family and name; parameter edits and resets require
+  matching semantic keys and equal previous values. The profile menu offers per-file scope and disables without
+  compatible peers.
 - Refreshed the Megic demo's profiles and guidance, with an unfilled Outlined default.
 - Extended Page zoom to 3200% for buttons, keyboard shortcuts, pinch, and width fitting.
 - Floating Quartet editors on desktop, retaining inline editors on narrow and touch layouts.

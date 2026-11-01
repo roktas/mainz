@@ -22,7 +22,7 @@ type Host = {
   release: () => void
 }
 
-// Serialize Source previews so batch profile choices do not multiply WASM memory.
+// Serialize batch previews so cross-file profile choices do not multiply WASM memory.
 let processing = Promise.resolve()
 
 export class Preview {
@@ -36,6 +36,7 @@ export class Preview {
   #timer: ReturnType<typeof setTimeout> | undefined
   #task: PDFDocumentLoadingTask | undefined
   #revision = 0
+  #advance: (() => void) | undefined
   #disposed = false
 
   constructor(input: Input, overrides: Record<string, Scalar>, host: Host, processor?: Processor) {
@@ -87,7 +88,7 @@ export class Preview {
       this.schedule(source, counts)
   }
 
-  schedule(source: Source, counts: Usage, text?: string) {
+  schedule(source: Source, counts: Usage, text?: string, serial = false) {
     if (this.#disposed) return
     this.#counts = counts
     const needed = needsRender(source, counts, this.#render())
@@ -107,12 +108,18 @@ export class Preview {
     const statusRevision = this.#host.info("Updating styles…")
     this.#timer = setTimeout(() => {
       this.#timer = undefined
-      processing = processing.then(() => this.#run(revision, request, text ?? "Updated styles.", statusRevision))
+      const run = () => this.#run(revision, request, text ?? "Updated styles.", statusRevision)
+      if (serial) {
+        const cancelled = new Promise<void>((resolve) => (this.#advance = resolve))
+        processing = processing.then(() => Promise.race([run(), cancelled]))
+      } else void run()
     }, 200)
   }
 
   #cancel() {
     this.#revision++
+    this.#advance?.()
+    this.#advance = undefined
     clearTimeout(this.#timer)
     this.#timer = undefined
     this.#processor?.cancel()

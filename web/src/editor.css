@@ -101,36 +101,35 @@
       padding-block-end: var(--gap);
       margin-block: var(--gap);
       border-block-end: 1px solid var(--border);
-      & select {
-        inline-size: 100%;
-        min-inline-size: 0;
-        min-block-size: 46px;
-        @media (hover: hover) and (pointer: fine) {
-          &:hover {
-            border-color: var(--accent);
-            background: var(--tint);
-          }
-        }
-        &:focus-visible {
-          border-color: var(--secondary);
-          outline: 2px solid transparent;
-        }
-      }
       & .control-description {
         margin: 0;
       }
     }
-    .profile-choice {
+    .profile-choice.entry {
       display: block grid;
-      grid-template-columns: 46px minmax(0, 1fr);
-      gap: calc(var(--gap) / 2);
-      & > .icon-button {
-        padding: 3px;
-        min-block-size: 46px;
+      grid-template-columns: 44px minmax(0, 1fr) auto;
+      & > .step {
+        border: 0;
+        border-radius: var(--radius) 0 0 var(--radius);
+        align-self: stretch;
       }
       & > .select {
         grid-column: 2;
+        border-inline-start: 1px solid light-dark(var(--border), color-mix(in oklch, var(--border) 65%, var(--edge)));
+        & > select {
+          border-radius: 0 var(--radius) var(--radius) 0;
+        }
       }
+      & > .guidance-trigger {
+        grid-column: 3;
+        align-self: stretch;
+        border-inline-start: 1px solid light-dark(var(--border), color-mix(in oklch, var(--border) 65%, var(--edge)));
+        border-radius: 0 var(--radius) var(--radius) 0;
+      }
+    }
+    .style-profile > .profile-summary {
+      grid-template-columns: minmax(0, max-content) auto;
+      justify-content: start;
     }
     .profile-options {
       margin: 0;
