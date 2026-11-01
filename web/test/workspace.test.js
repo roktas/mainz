@@ -2133,6 +2133,7 @@ test("Style selectors retain touch height and inset arrows across workspace widt
           await chooser.evaluate((select) => select.scrollIntoView({ block: "center" }))
           const geometry = await chooser.evaluate((select) => {
             const field = select.getBoundingClientRect()
+            const frame = select.closest(".entry").getBoundingClientRect()
             const svg = select.nextElementSibling
             const path = svg.querySelector("path")
             const bounds = path.getBBox(),
@@ -2144,6 +2145,7 @@ test("Style selectors retain touch height and inset arrows across workspace widt
             const inset = parseFloat(getComputedStyle(svg).insetInlineEnd)
             return {
               height: field.height,
+              frameHeight: frame.height,
               x: center.x - (field.right - inset - icon.width / 2),
               y: center.y - (field.y + field.height / 2),
               inset: field.right - icon.right,
@@ -2151,7 +2153,8 @@ test("Style selectors retain touch height and inset arrows across workspace widt
               overflow: document.documentElement.scrollWidth > innerWidth,
             }
           })
-          assert.ok(geometry.height >= 46, `${label}: full-height profile field`)
+          assert.ok(geometry.height >= 44, `${label}: full-height select target`)
+          assert.ok(geometry.frameHeight >= 46, `${label}: full-height profile field`)
           assert.ok(Math.abs(geometry.x) < 1 && Math.abs(geometry.y) < 1, `${label}: visible arrow center`)
           assert.ok(geometry.inset >= 12, `${label}: inset arrow`)
           assert.equal(geometry.target, true, `${label}: the arrow retains the native select target`)
@@ -2159,7 +2162,7 @@ test("Style selectors retain touch height and inset arrows across workspace widt
           const output = page.locator(".composition-output .sequence-entry > .entry")
           if (await output.isVisible()) {
             const reference = await output.boundingBox(),
-              field = await chooser.boundingBox()
+              field = await page.locator(".profile-choice").first().boundingBox()
             assert.ok(Math.abs(field.y - reference.y) < 1, `${label}: profile and Output field share a row`)
             assert.ok(
               Math.abs(field.height - reference.height) < 1,
@@ -2540,7 +2543,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     await input.getByRole("tab", { name: "Style", exact: true }).click()
     const chooser = input.getByRole("combobox", { name: "Style profile", exact: true })
     assert.equal(await chooser.inputValue(), "generic")
-    const profileBox = await chooser.boundingBox()
+    const profileBox = await input.locator(".profile-choice").first().boundingBox()
     const selectionBox = await output.locator(".sequence-entry > .entry").boundingBox()
     assert.ok(Math.abs(profileBox.y - selectionBox.y) < 1, `Profile ${profileBox.y}, Output ${selectionBox.y}`)
     assert.ok(Math.abs(profileBox.height - selectionBox.height) < 1)
