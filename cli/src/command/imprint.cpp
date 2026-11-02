@@ -19,7 +19,7 @@ namespace {
 void imprint(const Arguments& args)
 {
     RendererCaches caches;
-    args.validate({"--declaration", "--output"}, {"--width", "--height", "--dpi"});
+    args.validate({"--declaration", "--output"}, {"--width", "--height", "--dpi", "--preview"});
     ImprintOptions options;
     auto dimension = [&](const std::string& key) {
         const auto& bytes = args.options.at(key);
@@ -35,6 +35,8 @@ void imprint(const Arguments& args)
         options.height = dimension("--height");
     if (args.options.contains("--dpi"))
         options.dpi = dimension("--dpi");
+    if (args.options.contains("--preview"))
+        options.preview = read(args.options.at("--preview"), pdf_limit);
     auto result
         = mainz::imprint(read(args.input, pdf_limit), read(args.options.at("--declaration"), json_limit), options);
     changed(args, result);

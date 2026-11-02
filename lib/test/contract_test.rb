@@ -72,6 +72,242 @@ module Mainz
       command(@cli, "verify", file("opaque-id.pdf"))
     end
 
+    def test_page_annotations_survive_page_operations
+      source = file("annotated.pdf")
+      pages = [
+        {"name" => "Practice", "tags" => ["Guides", "guides"], "triviality" => 0},
+        {"name" => "Practice", "tags" => [], "triviality" => 1}
+      ]
+      fixture(source, -> (manifest) { manifest["pages"] = pages })
+      command(@cli, "verify", source)
+      assert_equal(pages, describe(source)["pages"])
+      edited = operation(source, "annotated-edited.pdf", {"opacity" => 0.65})
+      assert_equal(pages, describe(edited)["pages"])
+      selected = extract(edited, "annotated-reversed.pdf", [1, 0])
+      assert_equal(pages.reverse, describe(selected)["pages"])
+      assert_equal([1], describe(selected)["parameters"]["opacity"]["pages"])
+      assert_equal(Preservation.read(source).reverse, Preservation.read(selected))
+      write("inputs.json", {"input" => source.to_s})
+      composed, = compose(
+        {
+          "version" => 1,
+          "sources" => {"original" => {"input" => "input", "overrides" => {}}},
+          "parts" => [
+            {"pages" => [1, 0].map { {"source" => "original", "page" => it} }, "copies" => 2},
+            {"pages" => [{"blank" => {"width" => 100, "height" => 100}}]}
+          ]
+        },
+        "annotated-composed.pdf"
+      )
+      assert_equal(pages.reverse * 2 + [{}], describe(composed)["pages"].map { it.except("label") })
+    end
+
+    def test_metadata_only_supports_page_operations
+      source = file("metadata-only.pdf")
+      annotation = {"name" => "Reference", "tags" => ["notes"], "triviality" => 1}
+      fixture(
+        source,
+        -> (manifest) {
+          manifest["pages"] = [{}, annotation]
+          %w[regions baselines targets parameters].each { manifest[it] = {} }
+          manifest.delete("groups")
+        }
+      )
+      assert(JSON.parse(command(@cli, "verify", source).stdout)["valid"])
+      assert_equal({}, describe(source)["parameters"])
+      request = write("metadata-overrides.json", {})
+      failure = command(
+        @cli,
+        "style",
+        source,
+        "--overrides",
+        request,
+        "--output",
+        file("metadata-styled.pdf"),
+        ok: false
+      )
+      assert_equal("missing-contract", JSON.parse(failure.stderr)["code"])
+      failure = command(
+        @cli,
+        "style",
+        source,
+        "--profile",
+        "original",
+        "--output",
+        file("metadata-profile.pdf"),
+        ok: false
+      )
+      error = JSON.parse(failure.stderr)
+      assert_equal("missing-contract", error["code"])
+      assert_equal("PDF has no editable Mainz paint.", error["message"])
+      selected = extract(source, "metadata-retained.pdf", [1])
+      assert_equal([annotation], describe(selected)["pages"])
+      command(@cli, "verify", selected)
+      ordinary = extract(source, "metadata-removed.pdf", [0])
+      assert_equal("missing-contract", failure_code(ordinary))
+      assert_equal([{}], describe(ordinary)["pages"])
+      assert_equal([page_snapshot(source, 1)], [page_snapshot(selected, 0)])
+    end
+
+    def test_page_metadata_rejects_invalid_values
+      invalids = [
+        [],
+        [{}],
+        [{}, {}, {}],
+        [nil, {}],
+        [{"name" => ""}, {}],
+        [{"name" => "\u00a0"}, {}],
+        [{"name" => "bad\nname"}, {}],
+        [{"tags" => ["detail", "detail"]}, {}],
+        [{"tags" => [" "]}, {}],
+        [{"tags" => [1]}, {}],
+        [{"triviality" => -1}, {}],
+        [{"triviality" => 0.5}, {}],
+        [{"triviality" => 9_007_199_254_740_992}, {}],
+        [{"triviality" => nil}, {}],
+        [{"unknown" => true}, {}]
+      ]
+      invalids.each_with_index do |pages, index|
+        source = file("invalid-pages-#{index}.pdf")
+        fixture(source, -> (manifest) { manifest["pages"] = pages })
+        assert_equal("invalid-contract", failure_code(source), pages.inspect)
+      end
+
+      [-1, 0.5, 2, nil, "0"].each_with_index do |page, index|
+        source = file("invalid-region-page-#{index}.pdf")
+        fixture(source, -> (manifest) { manifest["regions"]["rows"]["page"] = page })
+        assert_equal("invalid-contract", failure_code(source))
+      end
+    end
+
+    def test_document_xmp_survives_style_and_extraction_without_composition_inheritance
+      source = file("xmp.pdf")
+      fixture(source)
+      xml = "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">Practice</rdf:li></rdf:Alt></dc:title></rdf:Description></rdf:RDF></x:xmpmeta>"
+      document = HexaPDF::Document.open(source)
+      document.catalog[:Metadata] = document.add({Type: :Metadata, Subtype: :XML}, stream: xml)
+      document.write(source.to_s, update_fields: false)
+      changed = operation(source, "xmp-styled.pdf", {"opacity" => 0.4})
+      selected = extract(changed, "xmp-selected.pdf", [0])
+      [changed, selected].each { |path| assert_equal(xml, HexaPDF::Document.open(path).catalog[:Metadata].stream) }
+      write("inputs.json", {"input" => source.to_s})
+      result, = compose(
+        {
+          "version" => 1,
+          "sources" => {"source" => {"input" => "input", "overrides" => {}}},
+          "parts" => [{"pages" => [{"source" => "source", "page" => 0}]}]
+        },
+        "xmp-composed.pdf"
+      )
+      assert_nil(HexaPDF::Document.open(result).catalog[:Metadata])
+    end
+
+    def test_previews_survive_shared_pages_and_independent_sources
+      source = file("preview.pdf")
+      preview_fixture(source)
+      assert_equal({"file" => "page.png", "width" => 1, "height" => 1}, describe(source)["pages"][0]["preview"])
+      assert_equal(preview_png, command("qpdf", "--show-attachment=page.png", source).stdout)
+      unchanged = operation(source, "preview-unchanged.pdf", {"opacity" => 0.15})
+      assert_equal(source.binread, unchanged.binread)
+      changed = operation(source, "preview-changed.pdf", {"opacity" => 0.4})
+      refute(describe(changed)["pages"][0].key?("preview"))
+      assert(describe(changed)["pages"][1].key?("preview"))
+      assert_equal(preview_png, command("qpdf", "--show-attachment=page.png", changed).stdout)
+      discarded = extract(changed, "preview-discarded.pdf", [0])
+      refute_includes(command("qpdf", "--list-attachments", discarded).stdout, "page.png")
+      retained = extract(source, "preview-retained.pdf", [1])
+      assert_equal({}, describe(retained)["parameters"])
+      assert_equal(preview_png, command("qpdf", "--show-attachment=page.png", retained).stdout)
+      command(@cli, "verify", retained)
+      write("inputs.json", {"input" => source.to_s})
+      request = {
+        "version" => 1,
+        "sources" => {
+          "changed" => {"input" => "input", "overrides" => {}},
+          "saved" => {"input" => "input", "overrides" => {"opacity" => 0.15}}
+        },
+        "parts" => [{"pages" => %w[changed saved].map { {"source" => it, "page" => 0} }}]
+      }
+      composed, = compose(request, "preview-composed.pdf")
+      pages = describe(composed)["pages"]
+      refute(pages[0].key?("preview"))
+      assert_equal("page.png", pages[1]["preview"]["file"])
+      request["sources"]["saved"]["input"] = "other"
+      write("inputs.json", {"input" => source.to_s, "other" => source.to_s})
+      composed, = compose(request, "preview-multiple-inputs.pdf")
+      image = describe(composed)["pages"][1]["preview"]["file"]
+      assert_equal("i1:page.png", image)
+      assert_equal(preview_png, command("qpdf", "--show-attachment=#{image}", composed).stdout)
+    end
+
+    def test_preview_invalidation_follows_parameter_scope
+      source = file("preview-scope.pdf")
+      fixture(
+        source,
+        -> (manifest) {
+          manifest["pages"] = Array.new(2) { {"preview" => "page.png"} }
+          manifest["regions"]["filled"]["page"] = 1
+          manifest["targets"]["pattern"] << "filled"
+          manifest["targets"].delete("filled")
+          manifest["parameters"].delete("fill-display")
+          %w[fill-opacity fill-color].each { manifest["parameters"][it]["binding"]["targets"] = ["pattern"] }
+        },
+        pdf_objects: -> (objects, stream) {
+          fill = objects[4].slice!(%r{/Figure /Fills BDC.*?EMC EMC}m)
+          objects[3] = objects[2].sub("/Contents 5", "/Contents 12")
+          objects[11] = stream.call("", fill)
+        }
+      )
+      document = HexaPDF::Document.open(source)
+      document.files.add(StringIO.new(preview_png), name: "page.png", mime_type: "image/png")
+      document.write(source.to_s)
+      assert_equal([0], describe(source)["parameters"]["opacity"]["pages"])
+      edited = operation(source, "preview-scope-edited.pdf", {"opacity" => 0.4})
+      assert_equal([false, true], describe(edited)["pages"].map { it.key?("preview") })
+      reset = operation(source, "preview-scope-reset.pdf", ["opacity"], reset: true)
+      assert_equal([false, true], describe(reset)["pages"].map { it.key?("preview") })
+      write("inputs.json", {"input" => source.to_s})
+      composed, = compose(
+        {
+          "version" => 1,
+          "sources" => {"source" => {"input" => "input", "overrides" => {}}},
+          "parts" => [{"pages" => [0, 1].map { {"source" => "source", "page" => it} }}]
+        },
+        "preview-scope-composed.pdf"
+      )
+      assert_equal([false, true], describe(composed)["pages"].map { it.key?("preview") })
+    end
+
+    def test_preview_cleanup_preserves_other_pdf_references
+      source = file("preview-associated.pdf")
+      preview_fixture(source) do |document|
+        document.catalog[:AF] = [document.catalog[:Names][:EmbeddedFiles].each_entry.to_h.fetch("page.png")]
+      end
+
+      changed = operation(source, "preview-associated-changed.pdf", {"opacity" => 0.4})
+      discarded = extract(changed, "preview-associated-retained.pdf", [0])
+      refute(describe(discarded)["pages"][0].key?("preview"))
+      assert_equal(preview_png, command("qpdf", "--show-attachment=page.png", discarded).stdout)
+    end
+
+    def test_preview_references_validate_attachment_identity
+      [
+        -> (document) { document.catalog[:Names][:EmbeddedFiles].each_entry.to_h.fetch("page.png")[:UF] = "other.png" },
+        -> (document) {
+          document.catalog[:Names][:EmbeddedFiles].each_entry.to_h.fetch("page.png")[:EF][:F][:Subtype] = :Image
+        },
+        -> (document) { document.catalog[:Names][:EmbeddedFiles].each_entry.to_h.fetch("page.png")[:EF][:UF] = nil }
+      ].each_with_index do |mutation, index|
+        source = file("preview-invalid-reference-#{index}.pdf")
+        preview_fixture(source, &mutation)
+        assert_equal("invalid-contract", failure_code(source))
+      end
+
+      source = file("preview-missing-reference.pdf")
+      fixture(source, -> (manifest) { manifest["pages"][0] = {"preview" => "missing.png"} })
+      assert_equal("invalid-contract", failure_code(source))
+    end
+
     def test_optional_display_preserves_original_visibility
       source = file("fixed-visibility.pdf")
       original = fixture(
@@ -369,12 +605,11 @@ module Mainz
             "recordSet" => "set#{suffix}",
             "baselineRefs" => %w[dark dim].to_h { [it + suffix, it + suffix] }
           )
-          %w[pages regions baselines targets parameters].each do |field|
+          %w[regions baselines targets parameters].each do |field|
             manifest[field].transform_keys! { it + suffix }
           end
 
           manifest["regions"].each_value do |region|
-            region["page"] += suffix
             region.fetch("records", []).each { it["baseline"] += suffix }
           end
 
@@ -383,7 +618,7 @@ module Mainz
           manifest["groups"].each { it["parameters"].map! { |id| id + suffix } }
         }
       )
-      assert_equal(0, describe(source)["pages"].fetch("practice#{suffix}")["index"])
+      assert_equal(2, describe(source)["pages"].length)
       edited = operation(source, "opaque-edited.pdf", {opacity => 0.65})
       assert_equal(0.65, describe(edited)["parameters"].fetch(opacity)["parameter"]["value"])
       selected = extract(edited, "opaque-extracted.pdf", [0])
@@ -619,7 +854,9 @@ module Mainz
       pristine = extract(@source, "extracted-pristine.pdf", [0])
       command(@cli, "verify", one)
       assert_equal(1, describe(one)["pageCount"])
-      assert_equal(snapshot(styled)[0], snapshot(one)[0])
+      expected_manifest = snapshot(styled)[0]
+      expected_manifest["pages"] = [expected_manifest["pages"][0]]
+      assert_equal(expected_manifest, snapshot(one)[0])
       assert_equal(page_snapshot(styled, 0), page_snapshot(one, 0))
       one_reset = operation(one, "extracted-reset.pdf", reset: true)
       reset = operation(styled, "reset.pdf", reset: true)
@@ -629,7 +866,7 @@ module Mainz
       assert_equal(expected, Preservation.read(one_reset))
       assert_equal(@source.binread, extract(@source, "extracted-all.pdf", [0, 1]).binread)
       reverse = extract(@source, "extracted-reverse.pdf", [1, 0])
-      assert_equal(1, describe(reverse)["pages"]["practice"]["index"])
+      assert_equal([1], describe(reverse)["parameters"]["opacity"]["pages"])
       assert_equal(page_snapshot(@source, 1), page_snapshot(reverse, 0))
       assert_equal(page_snapshot(@source, 0), page_snapshot(reverse, 1))
       cover = extract(@source, "extracted-ordinary.pdf", [1])
@@ -638,7 +875,7 @@ module Mainz
       assert_equal("missing-contract", failure_code(cover))
       refute_includes(command("qpdf", "--list-attachments", cover).stdout, "mainz.json")
       assert_equal("Unrelated attachment.\n", command("qpdf", "--show-attachment=notes.txt", cover).stdout)
-      assert_equal({"version" => 1, "pageCount" => 1, "pages" => {}, "parameters" => {}}, describe(cover))
+      assert_equal({"version" => 1, "pageCount" => 1, "pages" => [{}], "parameters" => {}}, describe(cover))
       assert_equal(cover.binread, extract(cover, "ordinary-all.pdf", [0]).binread)
       ordinary_request = write("ordinary-request.json", {})
       [["style", ["--overrides", ordinary_request]], ["reset", []]].each do |operation, options|
@@ -724,9 +961,9 @@ module Mainz
       source = file("extraction-pages.pdf")
       manifest = fixture(source, method(:across_pages), pdf_objects: method(:across_page_objects))
       command(@cli, "verify", source)
-      assert_equal("Practice-i", describe(source)["pages"]["practice"]["label"])
+      assert_equal("Practice-i", describe(source)["pages"][0]["label"])
       pruned = extract(source, "extracted-pruned.pdf", [0])
-      assert_equal("Practice-i", describe(pruned)["pages"]["practice"]["label"])
+      assert_equal("Practice-i", describe(pruned)["pages"][0]["label"])
       actual = snapshot(pruned)[0]
       assert_equal(%w[filled rows], actual["regions"].keys.sort)
       assert_equal(%w[dark dim filled], actual["baselines"].keys.sort)
@@ -736,7 +973,7 @@ module Mainz
       assert_equal([manifest["groups"].first], actual["groups"])
       assert_equal(page_snapshot(source, 0), page_snapshot(pruned, 0))
       notes = extract(source, "extracted-notes.pdf", [1])
-      assert_equal({"notes" => {"index" => 0, "label" => "Practice-7"}}, describe(notes)["pages"])
+      assert_equal([{"label" => "Practice-7"}], describe(notes)["pages"])
       assert_equal(page_snapshot(source, 1), page_snapshot(notes, 0))
       command(@cli, "verify", operation(notes, "extracted-notes-reset.pdf", reset: true))
     end
@@ -864,8 +1101,8 @@ module Mainz
       assert_equal(%w[p0:guides p1:rows p2:guides p3:guides p4:rows p5:guides], wire["targets"]["s0:pattern"])
       assert_equal(%w[p1:filled p4:filled], wire["targets"]["s0:filled"])
       description = describe(output)
-      assert_equal(%w[p0 p1 p2 p3 p4 p5], description["parameters"]["s0:width"]["pages"])
-      assert_equal(%w[p0 p2 p3 p5], description["parameters"]["s0:guide-color"]["pages"])
+      assert_equal([0, 1, 2, 3, 4, 5], description["parameters"]["s0:width"]["pages"])
+      assert_equal([0, 2, 3, 5], description["parameters"]["s0:guide-color"]["pages"])
       reset = operation(output, "indexed-reset.pdf", reset: true)
       original = Mainz::Preservation.read(source)
       restored = Mainz::Preservation.read(reset)
@@ -903,7 +1140,9 @@ module Mainz
         plan.merge("extra" => true),
         plan.merge("parts" => [{"pages" => [{"source" => "baseline", "page" => 99}]}]),
         plan.merge("parts" => [{"pages" => [{"source" => "baseline", "page" => 0}], "copies" => 1001}]),
-        plan.merge("sources" => plan["sources"].merge("edited" => {"input" => "input", "overrides" => {"opacity" => 2}})),
+        plan.merge(
+          "sources" => plan["sources"].merge("edited" => {"input" => "input", "overrides" => {"opacity" => 2}})
+        ),
         {"version" => 1, "sources" => {}, "parts" => [{"pages" => [{"blank" => {"width" => 0, "height" => 10}}]}]}
       ]
       invalids.each do |invalid|
@@ -1412,9 +1651,28 @@ module Mainz
 
     private
 
+    def preview_png
+      Base64.decode64("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgYGAAAAAEAAH2FzhVAAAAAElFTkSuQmCC")
+    end
+
+    def preview_fixture(path)
+      fixture(
+        path,
+        -> (manifest) {
+          manifest["pages"] = [
+            {"name" => "Practice", "preview" => "page.png"},
+            {"preview" => "page.png", "triviality" => 1}
+          ]
+        }
+      )
+      document = HexaPDF::Document.open(path)
+      document.files.add(StringIO.new(preview_png), name: "page.png", mime_type: "image/png")
+      yield document if block_given?
+      document.write(path.to_s)
+    end
+
     def across_pages(manifest)
-      manifest["pages"]["notes"] = 1
-      manifest["regions"]["guides"]["page"] = "notes"
+      manifest["regions"]["guides"]["page"] = 1
       manifest["targets"]["pattern"] << "guides"
       manifest["targets"].delete("guides")
       manifest["parameters"].delete("guide-display")
@@ -1449,10 +1707,10 @@ module Mainz
       }
       manifest = {
         "version" => 1,
-        "pages" => {"practice" => 0},
+        "pages" => [{}, {}],
         "regions" => {
           "rows" => {
-            "page" => "practice",
+            "page" => 0,
             "marker" => "Rows",
             "records" => %w[dark dim].each_with_index.map do |baseline, index|
               {
@@ -1464,14 +1722,14 @@ module Mainz
             end
           },
           "guides" => {
-            "page" => "practice",
+            "page" => 0,
             "marker" => "Guides",
             "records" => [
               {"path" => [], "marker" => "GuidePaint", "baseline" => "hidden", "fill" => "latent"}
             ]
           },
           "filled" => {
-            "page" => "practice",
+            "page" => 0,
             "marker" => "Fills",
             "records" => [
               {"path" => [], "marker" => "FillPaint", "baseline" => "filled", "fill" => "existing"}
@@ -1674,7 +1932,7 @@ module Mainz
       }
       manifest["regions"]["rows"].merge!("recordSet" => "row", "baselineRefs" => {"first" => "dark", "second" => "dim"})
       manifest["regions"]["other-rows"] = {
-        "page" => "practice",
+        "page" => 0,
         "marker" => "Rows2",
         "recordSet" => "row",
         "baselineRefs" => {"first" => "other-dark", "second" => "other-dim"}

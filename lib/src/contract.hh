@@ -59,6 +59,8 @@ void value(JSON, JSON schema, const std::string& property);
 void schema(JSON, const std::string& property);
 void semantics(const std::map<std::string, JSON>& parameters, const std::string& source = "manifest");
 void profile_sets(JSON, const std::map<std::string, JSON>& parameters);
+void page_metadata(JSON);
+bool annotated(JSON pages);
 void manifest(JSON, std::size_t pages);
 Matrix multiply(const Matrix&, const Matrix&);
 double uniform_scale(const Matrix&);

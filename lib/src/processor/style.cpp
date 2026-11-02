@@ -307,8 +307,8 @@ Object Engine::styled_form(Object original, const std::string& data, Object reso
     }
     return result;
 }
-std::string Engine::owner(const std::string& data, Object resources, State state, const std::string& page,
-    std::string region, const std::vector<Step>& path, double unit, bool editing, std::size_t depth)
+std::string Engine::owner(const std::string& data, Object resources, State state, std::size_t page, std::string region,
+    const std::vector<Step>& path, double unit, bool editing, std::size_t depth)
 {
     require(depth <= 16 && ++budget.visits <= 65536, "Form traversal exceeds limit.", "limit-exceeded");
     auto content = parsed(data);
@@ -532,12 +532,8 @@ void Engine::traverse(bool editing)
     paths.clear();
     for (auto& record : records)
         record.found = 0;
-    auto page_ids = object(manifest.getDictItem("pages"));
-    std::map<std::size_t, std::string> ids;
-    for (const auto& [id, index] : page_ids)
-        ids[static_cast<std::size_t>(number(index))] = id;
     for (std::size_t p = 0; p < pages.size(); ++p) {
-        if (editing && (!ids.contains(p) || !changed_pages.contains(ids.at(p))))
+        if (editing && !changed_pages.contains(p))
             continue;
         paths.clear();
         auto page = pages[p];
@@ -559,7 +555,7 @@ void Engine::traverse(bool editing)
         auto resources = checked_resources(page.getAttribute("/Resources", false), editing);
         State state;
         state.groups = group_supported(owner_object);
-        auto rewritten = owner(data, resources, state, ids.contains(p) ? ids.at(p) : "", "", {}, unit, editing, 0);
+        auto rewritten = owner(data, resources, state, p, "", {}, unit, editing, 0);
         std::unordered_set<std::string_view> fills;
         for (const auto& [geometry, latent] : paths)
             if (!latent)
@@ -690,11 +686,15 @@ void Engine::update(JSON next)
     changed_pages.clear();
     changed_paths.clear();
     choices.clear();
+    std::set<std::size_t> invalidated;
     for (const auto& [id, parameter] : object(next.getDictItem("parameters"))) {
         auto previous = parameters.at(id);
         bool saved = object(previous).contains("value"), supplied = object(parameter).contains("value");
         bool changed = saved != supplied
             || (saved && supplied && !equal(previous.getDictItem("value"), parameter.getDictItem("value")));
+        if (changed)
+            for (auto index : parameter_records.at(id))
+                invalidated.insert(records.at(index).page);
         auto binding = parameter.getDictItem("binding");
         for (const auto& target : array(binding.getDictItem("targets"))) {
             auto name = text(target);
@@ -724,6 +724,16 @@ void Engine::update(JSON next)
         updated_regions.addDictionaryMember(id, region);
     }
     next.addDictionaryMember("regions", updated_regions);
+    auto annotations = JSON::makeArray();
+    auto pages = array(next.getDictItem("pages"));
+    for (std::size_t index = 0; index < pages.size(); ++index) {
+        auto page = JSON::makeDictionary();
+        for (const auto& [key, value] : object(pages[index]))
+            if (key != "preview" || !invalidated.contains(index))
+                page.addDictionaryMember(key, value);
+        annotations.addArrayElement(page);
+    }
+    next.addDictionaryMember("pages", annotations);
     manifest = std::move(next);
     parameters = object(manifest.getDictItem("parameters"));
 }

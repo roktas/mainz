@@ -1,5 +1,6 @@
 #include "contract.hh"
 #include "recipe.hh"
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <optional>
@@ -126,6 +127,16 @@ void mainz_reset(std::uint32_t id, const char* data, std::size_t size, int suppl
 void mainz_extract(std::uint32_t id, const char* data, std::size_t size)
 {
     boundary([&] { save(get(id).extract(bytes(data, size, mainz::json_limit))); });
+}
+void mainz_preview(std::uint32_t id, double page)
+{
+    boundary([&] {
+        const auto& document = get(id);
+        if (!std::isfinite(page) || page < 0 || page > static_cast<double>(mainz::page_limit)
+            || std::floor(page) != page)
+            throw mainz::Error("invalid-request", "Preview page must be a physical page index.", "request", "");
+        result = document.preview(static_cast<std::size_t>(page));
+    });
 }
 void mainz_input(const char* id_data, std::size_t id_size, const char* pdf_data, std::size_t pdf_size)
 {

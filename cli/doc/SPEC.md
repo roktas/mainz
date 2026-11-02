@@ -4,13 +4,12 @@
 files, diagnostics, cancellation, and output installation. The [library SPEC](../../lib/doc/SPEC.md) owns PDF and
 processing contracts. [AGENTS.md](../../AGENTS.md) owns build and validation commands.
 
-The `--preview` option, SVG page annotations, and verification of manifests without editable paint below are pending
-requirements. The current CLI does not implement these extensions. `verify` currently requires a prepared PDF. See the
+The CLI uses the shared physical-page array and numeric page references. `verify` accepts a valid metadata-only
+manifest. `imprint` accepts page annotations and an optional `--preview` PNG. See the
 [library implementation status](../../lib/doc/SPEC.md#implementation-status).
 
-`resolve` and successful global `--help` below are pending implementation. The command changes are breaking changes from
-released version 1.0.0 and require the next major software release. PDF, Recipe, Plan, and Provenance contract versions
-remain independent and unchanged.
+The command changes are breaking changes from released version 1.0.0 and require the next major software release. PDF,
+Recipe, Plan, and Provenance contract versions remain independent and unchanged.
 
 ## 1. Commands
 
@@ -63,6 +62,11 @@ stdin. At most one input can use stdin.
 `imprint --preview image.png` reads the PNG through the ordinary input file policy. The CLI passes owned image bytes to
 the native Imprinter. The declaration contains no image filesystem path or URL. The library owns PNG structure, size
 limits, and embedded-file references under its [preview contract](../../lib/doc/SPEC.md#preview-images).
+
+SVG declaration `page` can supply independent `name`, `tags`, and `triviality`. Triviality is an optional nonnegative
+safe integer whose absence means zero, the highest display priority. It does not alter CLI page selection or PDF output.
+The Imprinter writes page annotations into the emitted page's array entry. Document-wide title, description, author, and
+copyright belong in standard PDF XMP metadata supplied by the producing application, not a duplicate Mainz JSON record.
 
 Composition and explicit Recipe bindings supply Inputs separately from the record. Bound PDF paths cannot use stdin.
 Relative paths resolve from the current working directory, including paths inside `inputs.json`. Paths cannot contain

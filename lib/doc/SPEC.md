@@ -7,8 +7,8 @@ its declared colors, line widths, opacity, or visibility while keeping text, lay
 remains editable and resettable without its drawing source or producer. Ordinary viewers render its saved appearance.
 Ordinary PDFs support page composition but have no Mainz Style controls.
 
-Page names, tags, and thumbnail images are optional page metadata. They can accompany ordinary or prepared PDFs. Page
-metadata does not create Style controls or change the printed page.
+Page names, tags, triviality, and thumbnail images are optional page metadata. They can accompany ordinary or prepared
+PDFs. Page metadata does not create Style controls or change the printed page.
 
 This document owns the version 1 PDF/JSON contract, processor behavior, native/WASM boundaries, and SVG production. The
 [CLI SPEC](../../cli/doc/SPEC.md) owns commands and file policy. The [Web SPEC](../../web/doc/SPEC.md) owns workspace
@@ -17,9 +17,9 @@ terms.
 
 ## Implementation status
 
-Page metadata, manifests without editable paint, PNG previews, preview access, and SVG page annotations below are
-pending requirements. The current processor rejects `pageMetadata` and requires nonempty paint maps. Native and WASM
-preview access and Imprinter PNG input are not implemented.
+The native and WASM processor implement the version 1 physical-page array, numeric region references, independent page
+metadata, and manifests without editable paint. Description includes PNG descriptors; preview access returns image
+bytes. The native Imprinter accepts page annotations and separate PNG bytes. Pixel decoding belongs to the host.
 
 ## 1. The styling boundary
 
@@ -77,8 +77,8 @@ Object numbers, compression, stream packaging, and cross-reference structures ca
 rounded. Only declared painting state and painting operations change within page content. The processor never
 regenerates drawing content from SVG, CSS, or rasters.
 
-Styling can remove managed preview references and unused preview assets under Section 6. Page names and tags remain
-intact.
+Styling can remove managed preview references and unused preview assets under Section 6. Page names, tags, and
+triviality remain intact.
 
 ### 1.4 Supported painting contexts
 
@@ -180,10 +180,10 @@ are objects. Supplied reset and extraction requests are arrays. Duplicate member
 Unicode, and byte-order marks are errors. Unknown fields fail at every defined object level. Object member order has no
 meaning. Arrays carry order only where specified.
 
-Target, parameter, page, region, baseline, record-set, and baseline-slot IDs are nonempty, case-sensitive strings
-without control characters. They obey published string limits and remain opaque rather than selectors, paths, or
-delimiter-based commands. ID collections contain no duplicates. Style numbers must fit finite binary64 values within
-property limits. Protected PDF numbers never pass through that representation.
+Target, parameter, region, baseline, record-set, and baseline-slot IDs are nonempty, case-sensitive strings without
+control characters. They obey published string limits and remain opaque rather than selectors, paths, or delimiter-based
+commands. ID collections contain no duplicates. Style numbers must fit finite binary64 values within property limits.
+Protected PDF numbers never pass through that representation.
 
 #### Presentation annotations
 
@@ -208,74 +208,92 @@ owns the workspace interactions.
 
 ### 4.2 Manifest fields
 
-| Field          | Requirement                                                                        |
-| -------------- | ---------------------------------------------------------------------------------- |
-| `version`      | Required integer `1`                                                               |
-| `pages`        | Required nonempty map of page IDs to unique current zero-based integer PDF indexes |
-| `regions`      | Required map of region IDs to occurrence records from Section 5.2                  |
-| `baselines`    | Required map of baseline IDs to immutable records from Section 5.2                 |
-| `targets`      | Required map of target IDs to nonempty region-ID arrays                            |
-| `parameters`   | Required parameter-ID map                                                          |
-| `pageMetadata` | Optional nonempty map of page IDs to page metadata records                         |
-| `recordSets`   | Optional nonempty map of record-set IDs to shared locator arrays                   |
-| `groups`       | Optional ordered presentation groups                                               |
-| `profileSets`  | Optional ordered profile sets                                                      |
-| `publication`  | Optional producer-declared stable document identity and semantic version           |
+| Field         | Requirement                                                                         |
+| ------------- | ----------------------------------------------------------------------------------- |
+| `version`     | Required integer `1`                                                                |
+| `pages`       | Required nonempty array with exactly one object per physical PDF page, in PDF order |
+| `regions`     | Required map of region IDs to occurrence records from Section 5.2                   |
+| `baselines`   | Required map of baseline IDs to immutable records from Section 5.2                  |
+| `targets`     | Required map of target IDs to nonempty region-ID arrays                             |
+| `parameters`  | Required parameter-ID map                                                           |
+| `recordSets`  | Optional nonempty map of record-set IDs to shared locator arrays                    |
+| `groups`      | Optional ordered presentation groups                                                |
+| `profileSets` | Optional ordered profile sets                                                       |
+| `publication` | Optional producer-declared stable document identity and semantic version            |
 
 A parameter requires `schema` and `binding`, with optional `value`, `family`, and `key`. A binding has exactly `targets`
 and `property`. Its nonempty target array references existing targets. Its property belongs to Section 1.2. Page indexes
 name actual PDF pages. Every region belongs to one target. Every target has at least one parameter binding. Every
 baseline has at least one record reference. Optional fields follow their full rules whenever present.
 
-The four paint maps are nonempty together or empty together. Empty paint maps require `pageMetadata`. Such a document
-has no editable paint and remains ordinary for Style operations. The manifest still carries its page metadata. Empty
-paint maps also require omission of `recordSets`, `groups`, and `profileSets`.
+The four paint maps are nonempty together or empty together. Empty paint maps require at least one page metadata field.
+Such a document has no editable paint and remains ordinary for Style operations. The manifest still carries its page
+metadata. Empty paint maps also require omission of `recordSets`, `groups`, and `profileSets`.
 
 Bindings contain resolved PDF regions, never source selectors or CSS. Page labels remain separate from parameter and
 publication identity. Optional publication metadata follows the declaration below and never selects painting behavior.
 
 #### Page metadata
 
-`pageMetadata` has existing page IDs as keys. Each record has one or more of the following fields. Each field is
-independent and optional. Pages without a record have no authored page metadata. Operations remove a record after its
-last field disappears. They omit `pageMetadata` after its last record disappears.
+`pages` is an array in physical PDF order. Its length equals the PDF page count. The array index is the page identity
+inside this Document. Each element is an object containing only the optional fields below. `{}` represents a page
+without authored metadata and retains its position.
 
-| Field     | Value                                                       | Meaning                              |
-| --------- | ----------------------------------------------------------- | ------------------------------------ |
-| `name`    | Nonblank plain-text string without control characters       | Authored display name for the page.  |
-| `tags`    | Array of unique nonblank strings without control characters | Unordered labels for page selection. |
-| `preview` | Nonempty embedded-file name                                 | PNG thumbnail under Section 5.1.     |
+| Field        | Value                                                       | Meaning                              |
+| ------------ | ----------------------------------------------------------- | ------------------------------------ |
+| `name`       | Nonblank plain-text string without control characters       | Authored display name for the page.  |
+| `tags`       | Array of unique nonblank strings without control characters | Unordered labels for page selection. |
+| `preview`    | Nonempty embedded-file name                                 | PNG thumbnail under Section 5.1.     |
+| `triviality` | Nonnegative safe integer, at most 9,007,199,254,740,991     | Display priority, highest at zero.   |
 
 Names can repeat, including after composition. Names are display text, not page identities. Tags use exact,
 case-sensitive string equality. Their order has no meaning, and an empty array is valid. The processor does not trim,
 case-fold, normalize, split, or interpret these strings. Existing string and JSON limits apply. Nonblank follows the
-whitespace rule in Section 4.1.
+whitespace rule in Section 4.1. `triviality` is independent of tags and defaults to `0` when absent. Larger triviality
+values mean lower display priority: zero means most important, and importance decreases as the value increases. Equal
+triviality values are permitted. Explicit `0` is valid and remains an authored field. Triviality does not change
+physical page order, Selection, painting, printing, or composition. Consumers choose visibility thresholds; the default
+Input Grid and List show `triviality < 1` when different values make filtering useful; otherwise they show every page.
+No tag implicitly assigns triviality or conceals a page.
 
-The existing `pages` map remains the source of current physical indexes. Page metadata has one stored record per page
-ID. Consumers can derive name-to-page and tag-to-page indexes in memory. The PDF stores no reverse lookup tables.
-Consumers resolve named choices and tag predicates to physical page indexes before the existing Plan or Recipe path.
-This version defines no query grammar, Boolean-expression field, or dynamic name/tag selector in those records.
+Consumers can derive name-to-page and tag-to-page indexes in memory. A name can resolve to several physical indexes. The
+PDF stores no reverse lookup tables. Consumers resolve named choices and tag predicates to physical page indexes before
+the existing Plan or Recipe path. This version defines no query grammar, Boolean-expression field, or dynamic name/tag
+selector in those records.
 
 Page names and tags remain separate from PDF page labels, outlines, and named destinations. The processor neither infers
 them from navigation structures nor generates a TOC from them. Existing navigation preservation and composition rules
 remain in effect.
 
-This fragment supplements the example's existing `practice` page entry:
+This fragment describes two physical pages; only the first has annotations:
 
 ```json
 {
-  "pageMetadata": {
-    "practice": {
+  "pages": [
+    {
       "name": "Cross strokes",
       "tags": ["practice", "cross-strokes"],
-      "preview": "practice.png"
-    }
-  }
+      "preview": "practice.png",
+      "triviality": 1
+    },
+    {}
+  ]
 }
 ```
 
 The PDF must contain the referenced PNG attachment. The attachment name has no filesystem or URL semantics. Page
-metadata is an optional version 1 addition. Older strict readers reject the new field and require updated consumers.
+metadata belongs to version 1.
+
+#### Document metadata
+
+Document-wide title, description, authorship, and copyright belong in standard PDF XMP metadata, not in the Mainz
+manifest. Their standard properties are `dc:title`, `dc:description`, `dc:creator`, and `dc:rights`. The producer owns
+these values and their encoding. If it also writes equivalent legacy Info entries, it keeps them consistent with XMP.
+The manifest's `publication` record remains a separate processing-compatibility claim.
+
+Styling and extraction retain existing document metadata. Composition creates a new Document and does not choose or
+merge Input titles, authors, or rights declarations. The producing application supplies the final publication's XMP.
+This contract adds no duplicate JSON metadata record or general metadata editor.
 
 #### Style families and semantic keys
 
@@ -294,7 +312,7 @@ Local parameter IDs remain document references. Equal semantic keys do not merge
 overrides. Several independent parameters can share a family/key pair, including after composition. Their paint property
 must agree within one manifest. Different schemas, baselines, and current values remain independent.
 
-Read and description retain these fields. Apply and reset never change them. Extraction retains them on surviving
+Read and description retain these fields. Style and reset never change them. Extraction retains them on surviving
 parameters. Composition retains them unchanged when it remaps local IDs. SVG declarations use the same fields and rules.
 The processor validates metadata and preserves independence. The consuming application owns cross-file choice
 propagation under the Web SPEC; no processor operation couples files.
@@ -424,15 +442,15 @@ parameters. A corresponding PDF must supply the scopes and resources from Sectio
 ```json
 {
   "version": 1,
-  "pages": { "practice": 0 },
+  "pages": [{}],
   "regions": {
     "practice:r2": {
-      "page": "practice",
+      "page": 0,
       "marker": "Rows2",
       "records": [{ "path": [], "marker": "Paint2", "baseline": "dark", "fill": "latent" }]
     },
     "practice:r3": {
-      "page": "practice",
+      "page": 0,
       "marker": "Rows3",
       "records": [{ "path": [], "marker": "Paint3", "baseline": "dim", "fill": "latent" }]
     }
@@ -573,9 +591,12 @@ errors. An image decoder failure does not change valid PDF content or produce a 
 ### 5.2 Identity and baseline records
 
 An inline region has exactly `page`, `marker`, and `records`. A shared region has exactly `page`, `marker`, `recordSet`,
-and `baselineRefs`. Both forms can coexist. Page IDs reference the manifest. Region markers name resources in their
-page's effective `Properties` dictionary. Exactly one `/Figure /marker BDC ... EMC` sequence identifies each region.
-Regions contain complete graphics objects and balanced scopes, without nesting or overlap.
+and `baselineRefs`. Both forms can coexist. `page` is a nonnegative integer less than the PDF page count and indexes the
+manifest's `pages` array. Region markers name resources in their page's effective `Properties` dictionary. Exactly one
+`/Figure /marker BDC ... EMC` sequence identifies each region. Regions contain complete graphics objects and balanced
+scopes, without nesting or overlap.
+
+Extraction remaps region page indexes. Composition assigns every retained occurrence its new physical page index.
 
 Inline `records` is a nonempty ordered locator array. Shared `recordSet` references a nonempty array in root
 `recordSets` and excludes inline `records`. Every shared array has a region reference. Locators have exactly these
@@ -600,8 +621,8 @@ For example, these regions share syntax but keep separate baselines:
 {
   "recordSets": { "row": [{ "path": [], "marker": "Paint", "baseline": "ink", "fill": "none" }] },
   "regions": {
-    "first": { "page": "practice", "marker": "Rows1", "recordSet": "row", "baselineRefs": { "ink": "dark" } },
-    "second": { "page": "practice", "marker": "Rows2", "recordSet": "row", "baselineRefs": { "ink": "dim" } }
+    "first": { "page": 0, "marker": "Rows1", "recordSet": "row", "baselineRefs": { "ink": "dark" } },
+    "second": { "page": 0, "marker": "Rows2", "recordSet": "row", "baselineRefs": { "ink": "dim" } }
   }
 }
 ```
@@ -733,9 +754,10 @@ Native `Document::style(overrides, reset)` combines a patch with a reset-ID arra
 in both inputs. Both inputs must be valid before any change. The processor writes and validates the final state once.
 Unchanged final overrides return original bytes.
 
-Apply and reset retain page names and tags. A changed stored assignment removes the preview reference from every page in
-that parameter's scope. Other pages retain their preview references. No-op operations retain the images and original
-bytes. Reset does not recreate a removed preview. The host uses PDF rendering until a producer supplies another image.
+Style and reset retain page names, tags, and triviality. A changed stored assignment removes the preview reference from
+every page in that parameter's scope. Other pages retain their preview references. No-op operations retain the images
+and original bytes. Reset does not recreate a removed preview. The host uses PDF rendering until a producer supplies
+another image.
 
 Extraction accepts a nonempty unique array of integer zero-based physical indexes, including pages without editable
 regions. It neither duplicates, scales, rotates, imposes, nor repaints pages. All pages in original order returns
@@ -749,12 +771,12 @@ references. Bindings retain only targets with eligible records for their propert
 disappear. Targets without surviving bindings leave the contract without changing their paint. Retained identities,
 definitions, baselines, and overrides stay unchanged. Results are validated and reopened. Without editable regions, the
 paint maps are empty. Retained page metadata still keeps the manifest and its Associated File reference. Extraction
-remaps page metadata through the retained page IDs and removes records for discarded pages. Without editable regions or
-page metadata, the manifest and its Associated File reference disappear. Restoring excluded pages requires the full
-Input, not the extraction result.
+rebuilds the page array in extraction order and removes discarded page entries. Without editable regions or page
+metadata, the manifest and its Associated File reference disappear. Restoring excluded pages requires the full Input,
+not the extraction result.
 
 Read, description, extraction, and composition accept ordinary PDFs under the same limits and encryption/signature
-restrictions. An invalid manifest is always an error. Apply and reset require a prepared PDF and report
+restrictions. An invalid manifest is always an error. Style and reset require a prepared PDF and report
 `missing-contract` otherwise. The [CLI SPEC](../../cli/doc/SPEC.md#1-commands) defines verification.
 
 Preview access accepts a valid zero-based physical index and returns owned PNG bytes without changing the document. A
@@ -775,13 +797,14 @@ the complete serialized result. It never treats shared syntax as shared painting
 
 Description has exactly `version`, `pageCount`, `pages`, `parameters`, and optional `groups`, `profileSets`, and
 `publication`. Version is `1`. Page count is positive within build limits and includes physical pages without editable
-regions. `pages` maps manifest IDs to objects with zero-based integer `index` and optional string PDF `label`. Each
-entry also retains supplied `name` and `tags`. An available `preview` descriptor has exactly `file`, `width`, and
-`height`. `file` is the embedded-file name. Width and height are positive integer pixels from the PNG header.
-Description contains no image bytes or base64 payloads. Indexes name actual pages. Missing labels fall back to one-based
-physical numbers. Prepared descriptions have nonempty page/parameter maps. Documents without a manifest have empty maps
-and no `groups`. Documents with page metadata and no paint have nonempty page maps and empty parameter maps. Profile
-sets include all profile annotations and are returned without selecting or changing them.
+regions. `pages` is an array in physical order with exactly `pageCount` objects, including pages without a manifest.
+Each entry has an optional string PDF `label` and retains supplied `name`, `tags`, and `triviality`. An available
+`preview` descriptor has exactly `file`, `width`, and `height`. `file` is the embedded-file name. Width and height are
+positive integer pixels from the PNG header. Description contains no image bytes or base64 payloads. Indexes name actual
+pages. Missing labels fall back to one-based physical numbers. Prepared descriptions have nonempty parameter maps.
+Documents without a manifest have empty parameter maps and no `groups`. Documents with page metadata and no paint also
+have empty parameter maps. Profile sets include all profile annotations and are returned without selecting or changing
+them.
 
 Each parameter entry has exactly:
 
@@ -789,7 +812,7 @@ Each parameter entry has exactly:
 | ----------- | --------------------------------------------------------------------- |
 | `parameter` | Complete manifest parameter record, with `value` only for an override |
 | `baseline`  | Summary independent of current overrides                              |
-| `pages`     | Nonempty unique page-ID array in current physical order               |
+| `pages`     | Nonempty unique zero-based physical page-index array in current order |
 
 Groups retain their descriptions and details. Parameter schemas and profile sets retain the same annotations. Width uses
 millimeters, alpha a unitless ratio, and color/display no numeric unit. Description contains no widget names or
@@ -812,7 +835,7 @@ physical width. Summaries never assign overrides. For Section 4.6, `partial-opac
     "value": 0.15
   },
   "baseline": { "kind": "mixed" },
-  "pages": ["practice"]
+  "pages": [0]
 }
 ```
 
@@ -912,7 +935,7 @@ Padding after every copy, including the last. Padding uses the preceding page's 
 `TrimBox`. Explicit Blanks retain declared dimensions. Alignment does not configure a printer.
 
 Composition retains content streams, resources, boxes, rotation, and `UserUnit`. Each occurrence receives a distinct
-page object and manifest identity. Annotations and form fields are copied without sharing mutable annotations. Internal
+page object and array position. Annotations and form fields are copied without sharing mutable annotations. Internal
 links resolve to the first retained occurrence in the same Input instance. Discarded destinations become null. Unrelated
 attachments copy once per Input, with collision-free Input prefixes for multiple Inputs. The new catalog does not merge
 document-wide outlines, actions, metadata, or logical structure.
@@ -922,11 +945,12 @@ survive, with bindings covering every eligible retained occurrence. Unused targe
 groups disappear. Without editable regions, the composed Document has no editable paint. Reset restores retained
 authored baselines without Inputs. Completion validates and reopens the Document before success.
 
-Each retained occurrence copies its source page's name and tags under its new page ID. Unchanged saved assignments
-permit reuse of its PNG preview. Changed assignments follow the invalidation rule in Section 6. Attachment names and
-preview references change together after collisions. Shared payloads copy once per Input. Blank and Padding pages have
-no authored name, tags, or preview. The processor does not infer metadata from neighboring pages. Page metadata survives
-without editable regions. The manifest disappears only when neither paint bindings nor page metadata remain.
+Each retained occurrence copies its source page's name, tags, and triviality at its new array position. Unchanged saved
+assignments permit reuse of its PNG preview. Changed assignments follow the invalidation rule in Section 6. Attachment
+names and preview references change together after collisions. Shared payloads copy once per Input. Blank and Padding
+pages have an empty page object, without authored name, tags, triviality, or preview. The processor does not infer
+metadata from neighboring pages. Page metadata survives without editable regions. The manifest disappears only when
+neither paint bindings nor page metadata remain.
 
 The separate version 1 Provenance record has `pages` in composed Document order. Each record includes zero-based `part`
 and `copy`. Content records also name original `source` and physical `page`. Blank records give dimensions and Boolean
@@ -1055,7 +1079,7 @@ Optional `sha256` records the reference PDF's digest as 64 lowercase hexadecimal
 `actual`. Optional `pageCount` is a positive integer at most 10000 and declares an exact-count expectation. A mismatch
 fails with `invalid-request` at `/inputs/<escaped-id>/pageCount`. Neither a matching digest nor a matching page count
 proves that physical positions still identify the intended content. The interpreter never detects semantic page identity
-by guessing from labels, local page IDs, or filenames.
+by guessing from labels, page names, or filenames.
 
 Optional Input `publication` records the producer declaration from the reference PDF. A bound PDF with the same ID and a
 stable SemVer version at least as new, under the same nonzero major, permits a compatible fast-forward. Build metadata
@@ -1157,15 +1181,15 @@ triggering inferred reconstruction. Ordinary page operations remain available un
 
 The native `imprint` function accepts SVG and a separate SVG declaration and returns a Document. Declarations require
 `targets` and `parameters`, with optional `groups`, `profileSets`, `publication`, and `page`. Publication identity and
-version follow Section 4.2. `page` contains optional `name` and `tags` under the page metadata rules. At least one field
-must be present. The producer assigns these fields to its emitted page ID. The producer also accepts separate optional
-PNG bytes. It embeds the image and records the resulting attachment reference in page metadata. The host supplies bytes,
-not paths or URLs inside the declaration. Preview production does not change the SVG used for PDF content. Declarations
-with page metadata or a supplied preview can have empty `targets` and `parameters` together. Each target has selectors
-and can declare `fill: true` for eligible closed paths or `display: "none"` for authored hidden state. Targets are
-disjoint, preserve paint order, and have at least one parameter binding. A target's display field records its original
-state without requiring an editable display parameter. Profiles follow Section 4.5 and do not apply automatically during
-export.
+version follow Section 4.2. `page` contains optional `name`, `tags`, and `triviality` under the page metadata rules. At
+least one field must be present. The producer assigns these fields to its single emitted page object. The producer also
+accepts separate optional PNG bytes. It embeds the image and records the resulting attachment reference in page
+metadata. The host supplies bytes, not paths or URLs inside the declaration. Preview production does not change the SVG
+used for PDF content. Declarations with page metadata or a supplied preview can have empty `targets` and `parameters`
+together. Each target has selectors and can declare `fill: true` for eligible closed paths or `display: "none"` for
+authored hidden state. Targets are disjoint, preserve paint order, and have at least one parameter binding. A target's
+display field records its original state without requiring an editable display parameter. Profiles follow Section 4.5
+and do not apply automatically during export.
 
 The producer captures baselines and applies authored `value` overrides before it attaches the supplied PNG. The image
 represents that final saved appearance. The producer validates the completed PDF, including its preview, before success.
@@ -1239,15 +1263,16 @@ The [Web glossary](../../web/doc/SPEC.md#glossary) owns workspace terms.
 | Provenance               | Versioned record of page origins, Part and copy positions, and source mappings for parameter identities.                         |
 | Publication              | Producer-declared logical document identity and SemVer version carrying processing compatibility promises.                       |
 | Mainz                    | Project, contract, processor, reference Imprinter, CLI, and WASM boundary, consumed by PDF Composer.                             |
-| Manifest                 | Embedded declaration of page identities, optional page metadata, and any editable paint and presentation.                        |
+| Manifest                 | Embedded declaration of the ordered page array, optional page metadata, and any editable paint and presentation.                 |
 | Locator                  | Ordered Form invocation path and paint marker resolving one record in a page region.                                             |
 | Marker                   | Local empty PDF property resource identifying one balanced Figure sequence.                                                      |
 | Mixed baseline           | Different original values across one parameter's eligible records.                                                               |
 | Occurrence               | One use of content in its page/resource context, independent of shared geometry storage.                                         |
 | Override                 | Explicit parameter `value`. Reset removes it rather than assigning a new default.                                                |
-| Page metadata            | Optional name, tags, and PNG preview reference attached to one manifest page ID.                                                 |
+| Page metadata            | Optional name, tags, triviality, and PNG preview reference in one physical page's array entry.                                   |
 | Page name                | Authored display text for a page, independent of physical number, PDF label, and navigation titles.                              |
 | Page tag                 | One exact string in a page's unordered tag set, available to consumers for page selection.                                       |
+| Triviality               | Optional nonnegative integer display priority, highest at zero and independent of tags and physical page order.                  |
 | Paint property           | Supported PDF painting attribute, distinct from a parameter or JSON Schema's properties keyword.                                 |
 | Paint record             | Declared path painting operation with immutable baseline and capabilities.                                                       |
 | Painted extent           | Painted area within clipping, potentially changed without changing geometry.                                                     |
@@ -1284,6 +1309,8 @@ The [Web glossary](../../web/doc/SPEC.md#glossary) owns workspace terms.
   PDF objects, painting, units, transparency, marked content, and attachments.
 - [PDF 2.0 specification and errata](https://pdfa.org/resource/pdf-specification-archive/): PDF 2.0 inputs.
 - [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259): JSON interchange.
+- [Adobe XMP](https://developer.adobe.com/xmp/docs/): standard document title, description, authorship, and rights
+  metadata.
 - [JSON Schema 2020-12](https://json-schema.org/draft/2020-12): constraint and annotation semantics.
 - [QPDF structural checks](https://qpdf.readthedocs.io/en/stable/cli.html#option-check): syntax is not proof of full
   conformance or preservation.

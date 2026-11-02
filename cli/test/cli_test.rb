@@ -45,6 +45,12 @@ module Mainz
       assert(JSON.parse(command("verify", @prepared).stdout)["valid"])
     end
 
+    def test_global_help_needs_no_input
+      result = command("--help")
+      assert_empty(result.stderr)
+      %w[Usage: describe style apply resolve imprint].each { |word| assert_includes(result.stdout, word) }
+    end
+
     def test_stdout_failures_return_host_errors
       [["--version"], ["describe", @prepared], ["profiles", @prepared], ["verify", @prepared], ["verify", @source]].each do |
           arguments

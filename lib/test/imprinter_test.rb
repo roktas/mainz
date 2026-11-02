@@ -18,6 +18,134 @@ module Mainz
       FileUtils.remove_entry(@directory)
     end
 
+    def test_preview_supports_metadata_only_documents
+      source = @directory.join("source.svg")
+      source.write(svg(SHAPE))
+      image = @directory.join("preview.png")
+      image.binwrite(png)
+      data = {"targets" => {}, "parameters" => {}, "page" => {"name" => "Practice", "tags" => ["guides"], "triviality" => 1}}
+      output = pdf("imprint", "metadata.pdf", source, "--declaration", write("metadata.json", data), "--preview", image)
+      summary = JSON.parse(command(@cli, "describe", output).stdout)
+      assert_equal({}, summary["parameters"])
+      assert_equal(
+        [
+          {
+            "name" => "Practice",
+            "tags" => ["guides"],
+            "triviality" => 1,
+            "preview" => {"file" => "preview.png", "width" => 1, "height" => 1}
+          }
+        ],
+        summary["pages"]
+      )
+      assert(JSON.parse(command(@cli, "verify", output).stdout)["valid"])
+      assert_equal(png, command("qpdf", "--show-attachment=preview.png", output).stdout)
+      reference = @directory.join("reference.pdf")
+      command("rsvg-convert", "--format=pdf", "--output", reference, source)
+      appearance(reference, output, "metadata-only")
+      data.delete("page")
+      preview_only = pdf(
+        "imprint",
+        "preview-only.pdf",
+        source,
+        "--declaration",
+        write("preview-only.json", data),
+        "--preview",
+        image
+      )
+      assert_equal(
+        {"file" => "preview.png", "width" => 1, "height" => 1},
+        JSON.parse(command(@cli, "describe", preview_only).stdout)["pages"][0]["preview"]
+      )
+    end
+
+    def test_preview_follows_authored_styles_and_invalidation
+      source = @directory.join("source.svg")
+      source.write(svg(SHAPE))
+      image = @directory.join("preview.png")
+      image.binwrite(png)
+      data = declaration({"guides" => "#Guides"})
+      data["parameters"]["guides.stroke-opacity"]["value"] = 0.4
+      declared = write("declaration.json", data)
+      output = pdf("imprint", "prepared.pdf", source, "--declaration", declared, "--preview", image)
+      summary = JSON.parse(command(@cli, "describe", output).stdout)
+      assert_equal(0.4, summary["parameters"]["guides.stroke-opacity"]["parameter"]["value"])
+      assert_equal("preview.png", summary["pages"][0]["preview"]["file"])
+      ordinary_preview = pdf("imprint", "without-preview.pdf", source, "--declaration", declared)
+      appearance(ordinary_preview, output, "preview-pixels")
+      repeated = pdf(
+        "style",
+        "unchanged.pdf",
+        output,
+        "--overrides",
+        write("same.json", {"guides.stroke-opacity" => 0.4})
+      )
+      assert_equal(output.binread, repeated.binread)
+      changed = pdf(
+        "style",
+        "changed.pdf",
+        output,
+        "--overrides",
+        write("changed.json", {"guides.stroke-opacity" => 0.5})
+      )
+      refute(JSON.parse(command(@cli, "describe", changed).stdout)["pages"][0].key?("preview"))
+      refute_includes(command("qpdf", "--list-attachments", changed).stdout, "preview.png")
+      reset = pdf("reset", "reset.pdf", output)
+      refute(JSON.parse(command(@cli, "describe", reset).stdout)["pages"][0].key?("preview"))
+    end
+
+    def test_preview_rejects_invalid_pngs_without_output
+      source = @directory.join("source.svg")
+      source.write(svg(SHAPE))
+      declared = write("metadata.json", {"targets" => {}, "parameters" => {}})
+      image = @directory.join("invalid.png")
+      signature = "\x89PNG\r\n\x1a\n".b
+      invalids = [
+        "",
+        "not png",
+        png.byteslice(0, 20),
+        png.sub("IDAT", "JDAT"),
+        png.sub(png_chunk("IEND", ""), png_chunk("acTL", [1, 0].pack("NN")) + png_chunk("IEND", "")),
+        signature + png_chunk("IHDR", [0, 1, 8, 2, 0, 0, 0].pack("NNCCCCC")),
+        signature + png_chunk("IHDR", [4097, 4097, 8, 2, 0, 0, 0].pack("NNCCCCC"))
+      ]
+      invalids.each_with_index do |bytes, index|
+        image.binwrite(bytes)
+        output = @directory.join("invalid-#{index}.pdf")
+        result = command(
+          @cli,
+          "imprint",
+          source,
+          "--declaration",
+          declared,
+          "--preview",
+          image,
+          "--output",
+          output,
+          ok: false
+        )
+        assert_equal(1, result.status.exitstatus)
+        assert_includes(%w[invalid-contract limit-exceeded], JSON.parse(result.stderr)["code"])
+        refute_path_exists(output)
+      end
+
+      image.binwrite(png)
+      result = command(
+        @cli,
+        "imprint",
+        "-",
+        "--declaration",
+        declared,
+        "--preview",
+        "-",
+        "--output",
+        @directory.join("stdin.pdf"),
+        ok: false
+      )
+      assert_equal(2, result.status.exitstatus)
+      assert_includes(result.stderr, "Only one input can use stdin")
+    end
+
     def test_production_preserves_rendering_and_declared_styles
       cases.each do |label, source, data, options|
         if label == "hidden"
@@ -362,6 +490,17 @@ module Mainz
     end
 
     private
+
+    def png_chunk(type, bytes)
+      [bytes.bytesize].pack("N") + type.b + bytes.b + [Zlib.crc32(type.b + bytes.b)].pack("N")
+    end
+
+    def png
+      "\x89PNG\r\n\x1a\n".b +
+        png_chunk("IHDR", [1, 1, 8, 2, 0, 0, 0].pack("NNCCCCC")) +
+        png_chunk("IDAT", Zlib::Deflate.deflate("\0\0\0\0".b)) +
+        png_chunk("IEND", "")
+    end
 
     def appearance(left, right, label)
       [150, 300].each do |dpi|

@@ -3,23 +3,29 @@
 #include <map>
 #include <string_view>
 
+static constexpr std::string_view usage
+    = "Usage: mainz COMMAND INPUT [--OPTION VALUE]; commands: describe, profiles, verify, "
+      "style, reset, extract, compose, apply, resolve, imprint";
+
 static int run(int argc, char* argv[])
 {
     bool verify = argc > 1 && std::string_view(argv[1]) == "verify";
     try {
         using namespace mainz::cli;
         signals();
+        if (argc == 2 && std::string_view(argv[1]) == "--help") {
+            std::cout << usage << "\n";
+            return 0;
+        }
         if (argc == 2 && std::string_view(argv[1]) == "--version") {
             version();
             return 0;
         }
         if (argc < 3)
-            throw std::runtime_error(
-                "Usage: mainz COMMAND INPUT [--OPTION VALUE]; commands: describe, profiles, verify, "
-                "style, reset, extract, compose, apply, imprint");
+            throw std::runtime_error(std::string(usage));
         const std::map<std::string_view, void (*)(const Arguments&)> commands {{"describe", describe},
             {"profiles", profiles}, {"verify", mainz::cli::verify}, {"apply", apply}, {"reset", reset},
-            {"extract", extract}, {"compose", compose}, {"style", style}, {"imprint", imprint}};
+            {"extract", extract}, {"compose", compose}, {"resolve", resolve}, {"style", style}, {"imprint", imprint}};
         auto command = commands.find(argv[1]);
         if (command == commands.end())
             throw std::runtime_error("Unknown command.");

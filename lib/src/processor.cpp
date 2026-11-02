@@ -5,10 +5,12 @@
 
 namespace mainz {
 using namespace detail;
-Document::Document(std::string input, std::string description, bool prepared, std::shared_ptr<const Index> index)
+Document::Document(
+    std::string input, std::string description, bool manifest, bool prepared, std::shared_ptr<const Index> index)
     : bytes(std::move(input))
     , description(std::move(description))
-    , has_contract(prepared)
+    , has_contract(manifest)
+    , has_paint(prepared)
     , index(std::move(index))
 {
 }
@@ -16,7 +18,8 @@ Document Document::read(std::string input)
 {
     try {
         Engine engine(input);
-        return Document(std::move(input), engine.describe(), !object(engine.manifest).empty(), engine.take_index());
+        return Document(std::move(input), engine.describe(), !object(engine.manifest).empty(), engine.prepared(),
+            engine.take_index());
     } catch (const Error&) {
         throw;
     } catch (const std::bad_alloc&) {
@@ -28,7 +31,7 @@ Document Document::read(std::string input)
 Document Document::change(const std::string& input, Change operation, const std::string& reset) const
 {
     try {
-        require(has_contract, "PDF has no mainz.json attachment.", "missing-contract");
+        require(has_paint, "PDF has no editable Mainz paint.", "missing-contract");
         auto request = operation == Change::reset_all ? JSON::makeArray() : parse(input, "request");
         auto resets = operation == Change::style ? parse(reset, "request") : request;
         auto current = object(JSON::parse(description).getDictItem("parameters"));
@@ -95,7 +98,7 @@ Document Document::change(const std::string& input, Change operation, const std:
         }();
         // Release the editing graph before allocating the independently validated output graph.
         Engine reopened(output, &budget, false, syntax);
-        return Document(std::move(output), reopened.describe(), true, reopened.take_index());
+        return Document(std::move(output), reopened.describe(), true, true, reopened.take_index());
     } catch (const Error&) {
         throw;
     } catch (const std::bad_alloc&) {
@@ -124,12 +127,25 @@ Document Document::extract(const std::string& pages) const
         if (output == bytes)
             return *this;
         Engine reopened(output, &budget, false, index);
-        return Document(
-            std::move(output), reopened.describe(), !object(reopened.manifest).empty(), reopened.take_index());
+        return Document(std::move(output), reopened.describe(), !object(reopened.manifest).empty(), reopened.prepared(),
+            reopened.take_index());
     } catch (const Error&) {
         throw;
     } catch (const std::bad_alloc&) {
         throw Error("limit-exceeded", "Processor allocation failed.");
+    } catch (const std::exception& error) {
+        throw Error("pdf-syntax", error.what());
+    }
+}
+std::string Document::preview(std::size_t page) const
+{
+    try {
+        Engine engine(bytes, nullptr, true, index);
+        return engine.preview(page);
+    } catch (const Error&) {
+        throw;
+    } catch (const std::bad_alloc&) {
+        throw Error("limit-exceeded", "Preview allocation failed.");
     } catch (const std::exception& error) {
         throw Error("pdf-syntax", error.what());
     }

@@ -187,7 +187,8 @@ void Arguments::validate(
 {
     std::set<std::string_view> allowed(required);
     allowed.insert(optional);
-    const std::set<std::string_view> files {"--overrides", "--ids", "--pages", "--inputs", "--declaration"};
+    const std::set<std::string_view> files {
+        "--overrides", "--ids", "--pages", "--inputs", "--declaration", "--preview"};
     std::size_t stdin_count = input == "-" ? 1 : 0;
     for (const auto& key : required)
         if (!options.contains(std::string(key)))

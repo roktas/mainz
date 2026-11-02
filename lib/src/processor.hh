@@ -40,20 +40,23 @@ public:
     static Document read(std::string bytes);
     const std::string& pdf() const { return bytes; }
     const std::string& describe() const { return description; }
-    bool prepared() const { return has_contract; }
+    bool prepared() const { return has_paint; }
+    bool has_manifest() const { return has_contract; }
     Document style(const std::string& overrides) const;
     Document style(const std::string& overrides, const std::string& reset) const;
     Document reset(const std::optional<std::string>& ids = std::nullopt) const;
     Document extract(const std::string& pages) const;
+    std::string preview(std::size_t page) const;
 
 private:
     friend class detail::Engine;
     enum class Change : unsigned char { style, reset, reset_all };
-    Document(std::string bytes, std::string description, bool prepared, std::shared_ptr<const detail::Index> index);
+    Document(std::string bytes, std::string description, bool manifest, bool prepared,
+        std::shared_ptr<const detail::Index> index);
     Document change(const std::string& request, Change, const std::string& reset = "[]") const;
     std::string bytes;
     std::string description;
-    bool has_contract;
+    bool has_contract, has_paint;
     std::shared_ptr<const detail::Index> index;
 };
 

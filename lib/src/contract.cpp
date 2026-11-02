@@ -601,6 +601,36 @@ void profile_sets(JSON sets, const std::map<std::string, JSON>& parameters)
             "The first profile must restore original styles.");
     }
 }
+void page_metadata(JSON page)
+{
+    auto present = fields(page, {}, {"name", "tags", "preview", "triviality"});
+    for (const auto& key : {"name", "preview"})
+        if (present.contains(key)) {
+            auto string = text(page.getDictItem(key));
+            unicode(string, true);
+            require(!blank(string), "Page text must contain non-whitespace characters.");
+        }
+    if (present.contains("tags")) {
+        std::set<std::string> seen;
+        for (const auto& tag : array(page.getDictItem("tags"))) {
+            auto string = text(tag);
+            unicode(string, true);
+            require(!blank(string) && seen.insert(string).second, "Page tags must be nonblank and unique.");
+        }
+    }
+    if (present.contains("triviality")) {
+        auto triviality = number(page.getDictItem("triviality"));
+        require(triviality >= 0 && triviality <= 9007199254740991.0 && std::floor(triviality) == triviality,
+            "Page triviality must be a nonnegative safe integer.");
+    }
+}
+bool annotated(JSON pages)
+{
+    for (const auto& page : array(pages))
+        if (!object(page).empty())
+            return true;
+    return false;
+}
 void manifest(JSON root, std::size_t page_count)
 {
     auto present = fields(root, {"version", "pages", "regions", "baselines", "targets", "parameters"},
@@ -608,21 +638,26 @@ void manifest(JSON root, std::size_t page_count)
     require(number(root.getDictItem("version")) == 1, "Unsupported contract version.", "unsupported-version");
     if (present.contains("publication"))
         publication(root.getDictItem("publication"));
-    auto pages = object(root.getDictItem("pages"));
+    auto pages = array(root.getDictItem("pages"));
     auto regions = object(root.getDictItem("regions"));
     auto baselines = object(root.getDictItem("baselines"));
     auto targets = object(root.getDictItem("targets"));
     auto parameters = object(root.getDictItem("parameters"));
-    require(!pages.empty() && !regions.empty() && !baselines.empty() && !targets.empty() && !parameters.empty(),
-        "Empty manifest map.");
-    std::set<double> indexes;
-    for (const auto& [id, item] : pages) {
-        unicode(id, true);
-        double index = number(item);
-        require(index >= 0 && index < static_cast<double>(page_count) && std::floor(index) == index
-                && indexes.insert(index).second,
-            "Invalid or duplicate page index.");
+    require(!pages.empty() && pages.size() == page_count, "Page array must match the PDF page count.");
+    for (std::size_t index = 0; index < pages.size(); ++index) {
+        try {
+            page_metadata(pages[index]);
+        } catch (const Error& error) {
+            throw Error(error.code(), error.what(), "manifest", "/pages/" + std::to_string(index));
+        }
     }
+    auto paint = !parameters.empty();
+    require(!regions.empty() == paint && !baselines.empty() == paint && !targets.empty() == paint,
+        "Paint maps must be nonempty together or empty together.");
+    require(paint || annotated(root.getDictItem("pages")), "Manifest has no paint or page metadata.");
+    require(
+        paint || (!present.contains("recordSets") && !present.contains("groups") && !present.contains("profileSets")),
+        "Metadata-only manifests cannot contain paint presentation or record sets.");
     std::set<std::string> used_baselines;
     for (const auto& [id, item] : baselines) {
         unicode(id, true);
@@ -655,7 +690,9 @@ void manifest(JSON root, std::size_t page_count)
             fields(item, {"page", "marker", "recordSet", "baselineRefs"});
         else
             fields(item, {"page", "marker", "records"});
-        require(pages.contains(text(item.getDictItem("page"))), "Unknown region page.");
+        auto page = number(item.getDictItem("page"));
+        require(page >= 0 && page < static_cast<double>(page_count) && std::floor(page) == page,
+            "Region page must be a physical page index.");
         resource(item.getDictItem("marker"));
         std::string set_id;
         std::map<std::string, JSON> refs;

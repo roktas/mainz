@@ -45,7 +45,9 @@ struct Step {
     auto operator<=>(const Step&) const = default;
 };
 struct Record {
-    std::string region, page, target, marker, fill;
+    std::string region;
+    std::size_t page {0};
+    std::string target, marker, fill;
     std::size_t baseline_key {0};
     std::vector<Step> path;
     JSON locator, baseline;
@@ -65,11 +67,14 @@ void compress(Object, const std::string&, Budget&);
 JSON copy_object(JSON);
 JSON mapped_profiles(JSON, const std::map<std::string, std::string>&, const std::string& prefix = {});
 JSON share_records(JSON);
+void prune_previews(QPDF&, const std::set<std::string>& managed, JSON pages, Budget&);
 class Engine {
 public:
     explicit Engine(const std::string& input, Budget* shared_budget = nullptr, bool validated = false,
         std::shared_ptr<const Index> previous = {});
     std::string describe();
+    std::string preview(std::size_t page);
+    bool prepared() const { return !parameters.empty(); }
     void update(JSON next);
     std::string write(JSON next);
     std::string extract(JSON request, const std::string& input);
@@ -82,20 +87,23 @@ private:
     Budget owned_budget;
     Budget& budget;
     Object payload;
+    std::map<std::string, Object> files;
+    std::set<std::string> managed_previews;
+    std::map<std::string, JSON> images;
     std::vector<QPDFPageObjectHelper> pages;
     std::vector<Record> records;
     std::map<std::tuple<std::string, std::vector<Step>, std::string>, std::size_t> record_index;
     std::map<std::string, std::size_t> regions_found;
     std::map<std::string, std::vector<std::size_t>> record_order;
     std::map<std::string, std::vector<std::size_t>> region_records;
-    std::map<std::pair<std::string, std::string>, std::string> page_markers;
+    std::map<std::pair<std::size_t, std::string>, std::string> page_markers;
     std::map<std::string, JSON> parameters;
     std::map<std::string, std::map<std::string, std::string>> bindings;
     std::map<std::string, std::map<std::string, JSON>> choices, original_choices;
     std::set<QPDFObjGen> ancestors;
     std::vector<std::pair<std::string, bool>> paths;
-    std::set<std::string> latent_pages;
-    std::set<std::string> changed_targets, changed_pages;
+    std::set<std::size_t> latent_pages, changed_pages;
+    std::set<std::string> changed_targets;
     std::map<std::string, std::set<std::vector<Step>>> changed_paths;
     std::map<std::string, std::vector<std::size_t>> parameter_records;
     std::map<std::tuple<std::string, std::size_t, std::string, double, double, bool>, Style> styles;
@@ -107,8 +115,10 @@ private:
     std::shared_ptr<const Content> parsed(const std::string&);
     Object styled_form(Object, const std::string&, Object);
     void attachments(Object, std::set<QPDFObjGen>&, std::set<std::string>&, std::vector<Object>&, std::size_t);
+    void load_previews(bool validate);
+    JSON image(const std::string& file);
     void traverse(bool editing);
-    std::string owner(const std::string&, Object, State, const std::string& page, std::string region,
+    std::string owner(const std::string&, Object, State, std::size_t page, std::string region,
         const std::vector<Step>& path, double unit, bool editing, std::size_t depth);
     const Style& paint_style(const Record&, bool editing);
     std::string inspect(Record&, const std::vector<Operation>&, std::size_t begin, std::size_t end, Object,

@@ -17,7 +17,7 @@ void style(const Arguments& args)
         return;
     }
     if (!document.prepared())
-        throw Error("missing-contract", "PDF has no mainz.json attachment.");
+        throw Error("missing-contract", "PDF has no editable Mainz paint.");
     auto sets = JSON::parse(document.describe()).getDictItem("profileSets");
     auto available = JSON::makeArray();
     std::vector<std::pair<JSON, JSON>> matches;

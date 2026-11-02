@@ -30,7 +30,7 @@ static Object destination(Object value, QPDF& document)
 struct PlanSource {
     std::unique_ptr<Engine> engine;
     JSON manifest = JSON::makeDictionary();
-    std::set<std::size_t> pages;
+    std::map<std::size_t, JSON> pages;
     std::map<std::size_t, std::vector<std::pair<std::string, JSON>>> regions;
     std::map<std::string, std::string> targets;
     std::string prefix;
@@ -253,7 +253,8 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
     auto expanded = expand();
     auto assemble = [&] {
         auto next = dictionary({{"version", JSON::makeInt(1)}});
-        for (const auto& key : {"pages", "regions", "baselines", "targets", "parameters"})
+        next.addDictionaryMember("pages", JSON::makeArray());
+        for (const auto& key : {"regions", "baselines", "targets", "parameters"})
             next.addDictionaryMember(key, JSON::makeDictionary());
         auto groups = JSON::makeArray();
         auto profile_sets = JSON::makeArray();
@@ -266,15 +267,18 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             for (const auto& page : expanded)
                 if (auto content = std::get_if<SourcePage>(&page.content); content && content->source == id)
                     selected.emplace(content->page, content->page);
-            source.manifest = source.engine->retained(selected);
-            auto authored_pages = object(source.manifest.getDictItem("pages"));
-            for (const auto& [id, physical] : authored_pages) {
-                (void)id;
-                source.pages.insert(static_cast<std::size_t>(number(physical)));
+            std::vector<std::size_t> original_pages;
+            for (auto& [physical, retained] : selected) {
+                retained = original_pages.size();
+                original_pages.push_back(physical);
             }
+            source.manifest = source.engine->retained(selected);
+            auto authored_pages = array(source.manifest.getDictItem("pages"));
+            for (const auto& [physical, retained] : selected)
+                source.pages.emplace(physical, authored_pages.at(retained));
             for (const auto& [id, region] : object(source.manifest.getDictItem("regions"))) {
-                auto physical = authored_pages.at(text(region.getDictItem("page")));
-                source.regions[static_cast<std::size_t>(number(physical))].emplace_back(id, region);
+                auto retained = static_cast<std::size_t>(number(region.getDictItem("page")));
+                source.regions[original_pages.at(retained)].emplace_back(id, region);
             }
             for (const auto& [baseline, record] : object(source.manifest.getDictItem("baselines")))
                 next.getDictItem("baselines").addDictionaryMember(source.prefix + baseline, record);
@@ -322,6 +326,23 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
         QPDFEmbeddedFileDocumentHelper files(output);
         std::set<QPDFObjGen> inserted_pages;
         std::set<std::string> attached_inputs;
+        std::set<std::string> managed_previews;
+        std::map<std::string, std::map<std::string, std::string>> attachment_names;
+        std::map<std::string, std::string> attachment_prefixes;
+        std::set<std::string> reserved_names;
+        for (auto& [id, source] : sources) {
+            (void)id;
+            if (attachment_prefixes.contains(source.input))
+                continue;
+            auto prefix = inputs.size() == 1 ? "" : "i" + std::to_string(attachment_prefixes.size()) + ":";
+            attachment_prefixes.emplace(source.input, prefix);
+            QPDFEmbeddedFileDocumentHelper original_files(source.engine->document);
+            for (const auto& [name, spec] : original_files.getEmbeddedFiles()) {
+                (void)spec;
+                if (name != "mainz.json")
+                    reserved_names.insert(prefix + name);
+            }
+        }
         for (auto& [id, source] : sources) {
             (void)id;
             if (!attached_inputs.insert(source.input).second)
@@ -330,14 +351,31 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             for (const auto& [name, spec] : original_files.getEmbeddedFiles()) {
                 if (name == "mainz.json")
                     continue;
-                auto key = inputs.size() == 1 ? name : "i" + std::to_string(attached_inputs.size() - 1) + ":" + name;
-                files.replaceEmbeddedFile(
-                    key, QPDFFileSpecObjectHelper(output.copyForeignObject(spec->getObjectHandle())));
+                auto key = attachment_prefixes.at(source.input) + name;
+                auto copied = output.copyForeignObject(spec->getObjectHandle());
+                if (source.engine->managed_previews.contains(name)) {
+                    if (key.size() > 4096) {
+                        std::size_t suffix = 0;
+                        do {
+                            require(
+                                ++budget.visits <= 65536, "Preview attachment names exceed limit.", "limit-exceeded");
+                            key = "preview" + std::to_string(suffix++) + ".png";
+                        } while (reserved_names.contains(key));
+                        reserved_names.insert(key);
+                    }
+                    copied = output.makeIndirectObject(copied.shallowCopy());
+                    copied.replaceKey("/F", Object::newUnicodeString(key));
+                    copied.replaceKey("/UF", Object::newUnicodeString(key));
+                    managed_previews.insert(key);
+                }
+                attachment_names[source.input].emplace(name, key);
+                files.replaceEmbeddedFile(key, QPDFFileSpecObjectHelper(copied));
             }
         }
         std::vector<Object> labels;
         for (std::size_t index = 0; index < expanded.size(); ++index) {
             const auto& page = expanded[index];
+            auto annotation = JSON::makeDictionary();
             auto mapping = dictionary({{"part", JSON::makeInt(static_cast<long long>(page.part))},
                 {"copy", JSON::makeInt(static_cast<long long>(page.copy))}});
             if (auto blank_page = std::get_if<BlankPage>(&page.content)) {
@@ -380,9 +418,10 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
                 mapping.addDictionaryMember("page", JSON::makeInt(static_cast<long long>(content.page)));
                 if (!object(source.manifest).empty()) {
                     auto page_id = "p" + std::to_string(index);
-                    if (source.pages.contains(content.page))
-                        next.getDictItem("pages").addDictionaryMember(
-                            page_id, JSON::makeInt(static_cast<long long>(index)));
+                    annotation = copy_object(source.pages.at(content.page));
+                    if (auto preview = annotation.getDictItem("preview"); !preview.isNull())
+                        annotation.addDictionaryMember(
+                            "preview", JSON::makeString(attachment_names.at(source.input).at(text(preview))));
                     for (const auto& [id, region] : source.regions[content.page]) {
                         auto region_id = page_id + ":";
                         region_id += id;
@@ -395,17 +434,19 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
                         auto updated = dictionary(
                             {{"page", region.getDictItem("page")}, {"marker", region.getDictItem("marker")},
                                 {"records", locators_copy}, {"baselineRefs", refs}});
-                        updated.addDictionaryMember("page", JSON::makeString(page_id));
+                        updated.addDictionaryMember("page", JSON::makeInt(static_cast<long long>(index)));
                         next.getDictItem("regions").addDictionaryMember(region_id, updated);
                         member(next.getDictItem("targets"), source.prefix + source.targets.at(id))
                             .addArrayElement(JSON::makeString(region_id));
                     }
                 }
             }
+            next.getDictItem("pages").addArrayElement(annotation);
             provenance.addArrayElement(mapping);
         }
         if (!labels.empty())
             output.getRoot().replaceKey("/PageLabels", Object::newDictionary({{"/Nums", Object::newArray(labels)}}));
+        prune_previews(output, managed_previews, next.getDictItem("pages"), budget);
         for (const auto& item : output.getAllObjects()) {
             require(++budget.visits <= 65536, "Plan traversal exceeds 65536 visits.", "limit-exceeded");
             if (!item.isDictionary())
@@ -420,7 +461,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
                     value.setArrayItem(0, Object::newNull());
             }
         }
-        if (!object(next.getDictItem("regions")).empty()) {
+        if (!object(next.getDictItem("regions")).empty() || annotated(next.getDictItem("pages"))) {
             if (!array(groups).empty())
                 next.addDictionaryMember("groups", groups);
             if (!array(profile_sets).empty())
@@ -457,7 +498,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             = encode(dictionary({{"version", JSON::makeInt(1)}, {"pages", provenance}, {"parameters", parameter_map}}),
                 json_limit, budget.remaining);
         return Artifact {Document(std::move(saved.bytes), std::move(description), !object(reopened.manifest).empty(),
-                             reopened.take_index()),
+                             reopened.prepared(), reopened.take_index()),
             std::move(mapping)};
     };
     return assemble();

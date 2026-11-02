@@ -104,6 +104,33 @@ module Mainz
       assert_empty(run_recipe(recipe).stderr)
     end
 
+    def test_resolve_shares_bindings_warnings_and_plan_execution
+      recipe = record
+      recipe["inputs"]["book"]["sha256"] = "0" * 64
+      recipe["parts"][0]["pages"][0] = {"source" => "source", "pages" => "all"}
+      path = write("recipe.json", recipe)
+      resolved = command("resolve", path, chdir: @directory)
+      refute_path_exists(@output)
+      plan = JSON.parse(resolved.stdout)
+      assert_equal("input-changed", JSON.parse(resolved.stderr)["code"])
+      mappings = write("resolve-inputs.json", {"book" => @source.to_s})
+      explicit = command("resolve", "-", "--inputs", mappings, input: JSON.generate(recipe))
+      rooted = command("resolve", path, "--root", @directory)
+      assert_equal(resolved.stdout, explicit.stdout)
+      assert_equal(resolved.stdout, rooted.stdout)
+      applied = run_recipe(recipe)
+      direct = compose(plan, {"book" => @source})
+      assert_equal(applied.stdout, direct.stdout)
+      assert_equal(@output.binread, @directory.join("direct.pdf").binread)
+      assert_equal(applied.stderr, resolved.stderr)
+      command("resolve", path, "--output", @output, status: 2)
+      command("resolve", "-", "--inputs", "-", input: JSON.generate(recipe), status: 2)
+      recipe["parts"][0]["pages"] = [{"source" => "source", "page" => 10}]
+      failure = command("resolve", write("invalid.json", recipe), "--root", @directory, status: 1)
+      assert_equal("invalid-request", JSON.parse(failure.stderr)["code"])
+      assert_empty(failure.stdout)
+    end
+
     def test_recipe_lookup_uses_cwd_or_root_and_preserves_pdf_suffixes
       nested = @directory.join("config")
       nested.mkpath
@@ -130,7 +157,15 @@ module Mainz
       end
 
       bindings = write("bindings.json", {"book" => "book.pdf"})
-      command("apply", path = write("recipe.json", record), "--inputs", bindings, "--output", @output, chdir: @directory)
+      command(
+        "apply",
+        path = write("recipe.json", record),
+        "--inputs",
+        bindings,
+        "--output",
+        @output,
+        chdir: @directory
+      )
       @output.delete
       command("apply", path, "--inputs", bindings, "--output", @output, chdir: nested, status: 2)
       bindings = write("bindings.json", {"book" => @source.to_s})

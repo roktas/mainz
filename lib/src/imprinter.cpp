@@ -2,6 +2,7 @@
 #include "imprinter/internal.hh"
 #include "pipeline.hh"
 #include <algorithm>
+#include <qpdf/Buffer.hh>
 #include <qpdf/Pipeline.hh>
 #include <qpdf/QPDFEFStreamObjectHelper.hh>
 #include <qpdf/QPDFEmbeddedFileDocumentHelper.hh>
@@ -14,15 +15,24 @@ namespace mainz {
 namespace {
     using namespace detail;
     using Object = QPDFObjectHandle;
-    JSON declaration(const std::string& bytes)
+    JSON declaration(const std::string& bytes, bool preview)
     {
         auto root = parse(bytes, "declaration");
-        auto present = fields(root, {"targets", "parameters"}, {"groups", "profileSets", "publication"});
+        auto present = fields(root, {"targets", "parameters"}, {"groups", "profileSets", "publication", "page"});
         if (present.contains("publication"))
             publication(root.getDictItem("publication"), "declaration");
         auto targets = object(root.getDictItem("targets"));
         auto parameters = object(root.getDictItem("parameters"));
-        require(!targets.empty() && !parameters.empty(), "Targets and parameters must not be empty.");
+        require(targets.empty() == parameters.empty(), "Targets and parameters must be empty together.");
+        if (present.contains("page")) {
+            auto page = root.getDictItem("page");
+            auto supplied = fields(page, {}, {"name", "tags", "triviality"});
+            require(!supplied.empty(), "Page annotations must not be empty.");
+            page_metadata(page);
+        }
+        require(!targets.empty() || present.contains("page") || preview, "Declaration has no paint or page metadata.");
+        require(!targets.empty() || (!present.contains("groups") && !present.contains("profileSets")),
+            "Metadata-only declarations cannot contain paint presentation.");
         for (const auto& [id, target] : targets) {
             identifier(id);
             auto fields_present = fields(target, {"selectors"}, {"fill", "display"});
@@ -87,14 +97,37 @@ namespace {
         if (!array(remaining).empty())
             groups.addArrayElement(
                 dictionary({{"title", JSON::makeString("Other controls")}, {"parameters", remaining}}));
-        root.addDictionaryMember("groups", groups);
+        if (!parameters.empty())
+            root.addDictionaryMember("groups", groups);
         return root;
+    }
+    void embed(QPDF& document, JSON root)
+    {
+        manifest(root, 1);
+        auto payload = detail::encode(root, manifest_limit);
+        auto attachment = QPDFEFStreamObjectHelper::createEFStream(document, payload);
+        attachment.setSubtype("application/json");
+        QPDFEmbeddedFileDocumentHelper(document).replaceEmbeddedFile(
+            "mainz.json", QPDFFileSpecObjectHelper::createFileSpec(document, "mainz.json", attachment));
+    }
+    Document finish(QPDF& document)
+    {
+        std::size_t remaining = pdf_limit;
+        Buffer output(pdf_limit, remaining);
+        QPDFWriter writer(document);
+        writer.setOutputPipeline(&output);
+        writer.setMinimumPDFVersion("1.7");
+        writer.setDeterministicID(true);
+        writer.write();
+        require(document.getWarnings().empty(), "Produced PDF contains warnings.", "pdf-syntax");
+        return Document::read(std::move(output.bytes));
     }
 }
 Document imprint(const std::string& svg, const std::string& bytes, const ImprintOptions& options)
 {
     try {
-        auto source = declaration(bytes);
+        require(!options.preview || options.preview->size() <= pdf_limit, "Preview exceeds 128 MiB.", "limit-exceeded");
+        auto source = declaration(bytes, options.preview.has_value());
         auto targets = JSON::makeDictionary(), parameters = JSON::makeDictionary(), overrides = JSON::makeDictionary();
         for (const auto& [id, definition] : object(source.getDictItem("targets"))) {
             (void)definition;
@@ -110,9 +143,14 @@ Document imprint(const std::string& svg, const std::string& bytes, const Imprint
             if (object(parameter).contains("value"))
                 overrides.addDictionaryMember(id, parameter.getDictItem("value"));
         }
-        auto root = dictionary({{"version", JSON::makeInt(1)}, {"pages", dictionary({{"page", JSON::makeInt(0)}})},
-            {"regions", JSON::makeDictionary()}, {"baselines", JSON::makeDictionary()}, {"targets", targets},
-            {"parameters", parameters}, {"groups", source.getDictItem("groups")}});
+        auto annotations = JSON::makeArray();
+        annotations.addArrayElement(
+            source.getDictItem("page").isNull() ? JSON::makeDictionary() : source.getDictItem("page"));
+        auto root
+            = dictionary({{"version", JSON::makeInt(1)}, {"pages", annotations}, {"regions", JSON::makeDictionary()},
+                {"baselines", JSON::makeDictionary()}, {"targets", targets}, {"parameters", parameters}});
+        if (!source.getDictItem("groups").isNull())
+            root.addDictionaryMember("groups", source.getDictItem("groups"));
         if (!source.getDictItem("profileSets").isNull())
             root.addDictionaryMember("profileSets", source.getDictItem("profileSets"));
         if (!source.getDictItem("publication").isNull())
@@ -155,8 +193,8 @@ Document imprint(const std::string& svg, const std::string& bytes, const Imprint
             if (!target.empty()) {
                 auto records = JSON::makeArray();
                 root.getDictItem("regions").addDictionaryMember(region,
-                    dictionary({{"page", JSON::makeString("page")}, {"marker", JSON::makeString(region)},
-                        {"records", records}}));
+                    dictionary(
+                        {{"page", JSON::makeInt(0)}, {"marker", JSON::makeString(region)}, {"records", records}}));
                 member(targets, target).addArrayElement(JSON::makeString(region));
                 properties.replaceKey("/" + region, Object::newDictionary());
                 imprinter::annotate(document, form, root, member(source.getDictItem("targets"), target), target, region,
@@ -171,24 +209,32 @@ Document imprint(const std::string& svg, const std::string& bytes, const Imprint
         });
         page.replaceKey("/Contents", document.newStream(content));
         QPDFPageDocumentHelper(document).addPage(QPDFPageObjectHelper(document.makeIndirectObject(page)), false);
-        manifest(root, 1);
-        auto payload = detail::encode(root, manifest_limit);
-        auto attachment = QPDFEFStreamObjectHelper::createEFStream(document, payload);
-        attachment.setSubtype("application/json");
-        QPDFEmbeddedFileDocumentHelper(document).replaceEmbeddedFile(
-            "mainz.json", QPDFFileSpecObjectHelper::createFileSpec(document, "mainz.json", attachment));
-        std::size_t remaining = pdf_limit;
-        Buffer output(pdf_limit, remaining);
-        QPDFWriter writer(document);
-        writer.setOutputPipeline(&output);
-        writer.setMinimumPDFVersion("1.7");
-        writer.setDeterministicID(true);
-        writer.write();
-        require(document.getWarnings().empty(), "Produced PDF contains warnings.", "pdf-syntax");
-        auto prepared = Document::read(std::move(output.bytes));
-        if (object(overrides).empty())
+        if (!object(parameters).empty() || annotated(root.getDictItem("pages")))
+            embed(document, root);
+        auto prepared = finish(document);
+        if (!object(overrides).empty())
+            prepared = prepared.style(overrides.unparse());
+        if (!options.preview)
             return prepared;
-        return prepared.style(overrides.unparse());
+        QPDF final;
+        final.setSuppressWarnings(true);
+        final.setAttemptRecovery(false);
+        final.processMemoryFile("Mainz preview production", prepared.pdf().data(), prepared.pdf().size());
+        QPDFEmbeddedFileDocumentHelper files(final);
+        if (auto manifest = files.getEmbeddedFile("mainz.json")) {
+            auto stream = manifest->getObjectHandle().getKey("/EF").getKey("/F").getStreamData();
+            root = JSON::parse(std::string(reinterpret_cast<const char*>(stream->getBuffer()), stream->getSize()));
+        }
+        auto annotation = array(root.getDictItem("pages")).at(0);
+        annotation.addDictionaryMember("preview", JSON::makeString("preview.png"));
+        annotations = JSON::makeArray();
+        annotations.addArrayElement(annotation);
+        root.addDictionaryMember("pages", annotations);
+        auto image = QPDFEFStreamObjectHelper::createEFStream(final, *options.preview);
+        image.setSubtype("image/png");
+        files.replaceEmbeddedFile("preview.png", QPDFFileSpecObjectHelper::createFileSpec(final, "preview.png", image));
+        embed(final, root);
+        return finish(final);
     } catch (const Error&) {
         throw;
     } catch (const std::exception& error) {

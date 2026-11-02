@@ -44,7 +44,7 @@ else()
 endif()
 
 set(processor_sources lib/src/contract.cpp lib/src/content.cpp lib/src/processor.cpp lib/src/recipe.cpp
-  lib/src/processor/document.cpp lib/src/processor/style.cpp lib/src/processor/compose.cpp)
+  lib/src/processor/document.cpp lib/src/processor/style.cpp lib/src/processor/compose.cpp lib/src/processor/preview.cpp)
 add_library(processor ${processor_sources})
 target_compile_features(processor PUBLIC cxx_std_20)
 target_include_directories(processor PUBLIC lib/src)
@@ -82,7 +82,7 @@ if(EMSCRIPTEN)
     -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=1073741824 -sSTACK_SIZE=1048576
     -sMODULARIZE=1 -sEXPORT_ES6=1 -sENVIRONMENT=web,worker,node -sFILESYSTEM=0
     -sEXPORTED_RUNTIME_METHODS=HEAPU8
-    "-sEXPORTED_FUNCTIONS=[\"_malloc\",\"_free\",\"_mainz_read\",\"_mainz_describe\",\"_mainz_fingerprint\",\"_mainz_style\",\"_mainz_reset\",\"_mainz_extract\",\"_mainz_close\",\"_mainz_result\",\"_mainz_size\",\"_mainz_status\",\"_mainz_input\",\"_mainz_clear_inputs\",\"_mainz_compose\",\"_mainz_recipe_inputs\",\"_mainz_resolve_recipe\",\"_mainz_provenance\",\"_mainz_provenance_size\"]")
+    "-sEXPORTED_FUNCTIONS=[\"_malloc\",\"_free\",\"_mainz_read\",\"_mainz_describe\",\"_mainz_fingerprint\",\"_mainz_style\",\"_mainz_reset\",\"_mainz_extract\",\"_mainz_preview\",\"_mainz_close\",\"_mainz_result\",\"_mainz_size\",\"_mainz_status\",\"_mainz_input\",\"_mainz_clear_inputs\",\"_mainz_compose\",\"_mainz_recipe_inputs\",\"_mainz_resolve_recipe\",\"_mainz_provenance\",\"_mainz_provenance_size\"]")
 else()
   # SVG discovery stays available when QPDF uses explicit dependency archive paths.
   find_program(SVG_PKG_CONFIG_EXECUTABLE pkg-config REQUIRED)

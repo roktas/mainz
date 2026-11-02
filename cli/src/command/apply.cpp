@@ -5,9 +5,12 @@
 #include <iostream>
 
 namespace mainz::cli {
-void apply(const Arguments& args)
+static void recipe(const Arguments& args, bool produce)
 {
-    args.validate({"--output"}, {"--root", "--inputs"});
+    if (produce)
+        args.validate({"--output"}, {"--root", "--inputs"});
+    else
+        args.validate({}, {"--root", "--inputs"});
     const bool mapped = args.options.contains("--inputs");
     if (mapped && args.options.contains("--root"))
         throw std::runtime_error("Use --inputs for explicit bindings or --root for filename lookup.");
@@ -54,8 +57,14 @@ void apply(const Arguments& args)
     for (const auto& warning : detail::array(JSON::parse(resolved.warnings)))
         std::cerr << warning.unparse() << "\n";
     check_interrupt();
+    if (!produce) {
+        std::cout << resolved.plan << "\n";
+        return;
+    }
     auto result = mainz::compose_validated(resolved.plan, inputs);
     install(args.options.at("--output"), result.document.pdf());
     std::cout << result.provenance << "\n";
 }
+void apply(const Arguments& args) { recipe(args, true); }
+void resolve(const Arguments& args) { recipe(args, false); }
 }

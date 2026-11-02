@@ -3,8 +3,9 @@
 `mainz` runs PDF operations and prepares editable PDFs from SVG. It returns JSON results and writes each PDF to an
 explicit destination without replacing an existing file.
 
-Ordinary PDFs support `describe`, `profiles`, `extract`, and `compose`. Styling, reset, and verification currently
-require prepared PDFs. The [specification](doc/SPEC.md) also defines pending page metadata and PNG preview extensions.
+Ordinary PDFs support `describe`, `profiles`, `extract`, and `compose`. Styling and reset require editable paint.
+Verification requires a valid Mainz manifest, including metadata-only manifests. Page metadata and PNG previews also
+work without editable paint; the [specification](doc/SPEC.md) defines their shared contract.
 
 ## Install
 

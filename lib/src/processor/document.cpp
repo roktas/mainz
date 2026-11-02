@@ -110,7 +110,8 @@ JSON share_records(JSON root)
                 {"recordSet", JSON::makeString(set_id)}, {"baselineRefs", refs}}));
     }
     result.addDictionaryMember("regions", regions);
-    result.addDictionaryMember("recordSets", sets);
+    if (!object(sets).empty())
+        result.addDictionaryMember("recordSets", sets);
     return result;
 }
 void Engine::attachments(Object tree, std::set<QPDFObjGen>& seen, std::set<std::string>& names,
@@ -131,6 +132,7 @@ void Engine::attachments(Object tree, std::set<QPDFObjGen>& seen, std::set<std::
             require(names.insert(filename).second, "Duplicate attachment name.");
             auto spec = entries.getArrayItem(i + 1);
             require(spec.isDictionary(), "Invalid attachment Filespec.");
+            files.emplace(filename, spec);
             bool named = filename == "mainz.json";
             bool referenced = spec.getKey("/F").isString() && spec.getKey("/F").getUTF8Value() == "mainz.json";
             referenced
@@ -202,6 +204,7 @@ Engine::Engine(const std::string& input, Budget* shared_budget, bool validated, 
             throw;
         throw Error(error.code(), error.what(), "manifest", "");
     }
+    load_previews(!validated);
     parameters = object(manifest.getDictItem("parameters"));
     for (const auto& [id, parameter] : parameters) {
         auto binding = parameter.getDictItem("binding");
@@ -225,7 +228,7 @@ Engine::Engine(const std::string& input, Budget* shared_budget, bool validated, 
         for (const auto& region_id : array(region_ids)) {
             auto id = text(region_id);
             const auto& region = regions.at(id);
-            auto page = text(region.getDictItem("page"));
+            auto page = static_cast<std::size_t>(number(region.getDictItem("page")));
             auto marker = text(region.getDictItem("marker"));
             auto page_key = std::make_pair(page, marker);
             require(page_markers.emplace(page_key, id).second, "Ambiguous page region marker.");
@@ -234,8 +237,7 @@ Engine::Engine(const std::string& input, Budget* shared_budget, bool validated, 
                 auto baseline_id = baseline_ref(region, locator);
                 auto paint_marker = text(locator.getDictItem("marker"));
                 auto fill = text(locator.getDictItem("fill"));
-                consume_locator(
-                    id.size() + page.size() + target.size() + paint_marker.size() + fill.size() + baseline_id.size());
+                consume_locator(id.size() + target.size() + paint_marker.size() + fill.size() + baseline_id.size());
                 const auto& [baseline_key, original] = baselines.at(baseline_id);
                 Record record {id, page, target, std::move(paint_marker), std::move(fill), baseline_key, {}, locator,
                     original, 1, 1, 0};
@@ -263,7 +265,7 @@ Engine::Engine(const std::string& input, Budget* shared_budget, bool validated, 
         }
     // Editing and composition pass validated=true only for exact bytes accepted by read().
     // Editing checks changed occurrences; callers fully validate the serialized output.
-    if (!validated) {
+    if (!validated && !parameters.empty()) {
         traverse(false);
         for (const auto& [id, parameter] : parameters) {
             if (object(parameter.getDictItem("schema")).contains("default")) {
@@ -311,32 +313,28 @@ static std::string label(Object record)
 }
 std::string Engine::describe()
 {
-    if (parameters.empty())
-        return dictionary(
-            {{"version", JSON::makeInt(1)}, {"pageCount", JSON::makeInt(static_cast<long long>(pages.size()))},
-                {"pages", JSON::makeDictionary()}, {"parameters", JSON::makeDictionary()}})
-            .unparse();
-    auto described_pages = JSON::makeDictionary();
+    auto described_pages = JSON::makeArray();
+    auto metadata = object(manifest).empty() ? std::vector<JSON> {} : array(manifest.getDictItem("pages"));
     QPDFPageLabelDocumentHelper labels(document);
-    for (const auto& [id, index] : object(manifest.getDictItem("pages"))) {
-        auto page = dictionary({{"index", index}});
+    for (std::size_t index = 0; index < pages.size(); ++index) {
+        auto page = metadata.empty() ? JSON::makeDictionary() : copy_object(metadata.at(index));
+        if (auto preview = page.getDictItem("preview"); !preview.isNull())
+            page.addDictionaryMember("preview", image(text(preview)));
         if (labels.hasPageLabels())
             page.addDictionaryMember(
-                "label", JSON::makeString(label(labels.getLabelForPage(static_cast<long long>(number(index))))));
-        described_pages.addDictionaryMember(id, page);
+                "label", JSON::makeString(label(labels.getLabelForPage(static_cast<long long>(index)))));
+        described_pages.addArrayElement(page);
     }
     auto described_parameters = JSON::makeDictionary();
     for (const auto& [id, parameter] : parameters) {
-        std::map<double, std::string> affected;
+        std::set<std::size_t> affected;
         for (const auto& index : parameter_records.at(id)) {
             const auto& record = records.at(index);
-            affected[number(member(manifest.getDictItem("pages"), record.page))] = record.page;
+            affected.insert(record.page);
         }
         auto ids = JSON::makeArray();
-        for (const auto& [index, page] : affected) {
-            (void)index;
-            ids.addArrayElement(JSON::makeString(page));
-        }
+        for (auto page : affected)
+            ids.addArrayElement(JSON::makeInt(static_cast<long long>(page)));
         described_parameters.addDictionaryMember(
             id, dictionary({{"parameter", parameter}, {"baseline", summary(id, parameter)}, {"pages", ids}}));
     }
@@ -352,22 +350,21 @@ JSON Engine::retained(const std::map<std::size_t, std::size_t>& indexes)
 {
     auto next = JSON::makeDictionary();
     for (const auto& [key, item] : object(manifest))
-        if (key != "publication")
+        if (key != "publication" && key != "groups" && key != "profileSets")
             next.addDictionaryMember(key, item);
-    auto kept_pages = JSON::makeDictionary();
-    std::set<std::string> page_ids, region_ids, baseline_ids, target_ids, parameter_ids;
-    for (const auto& [id, index] : object(manifest.getDictItem("pages"))) {
-        auto old_index = static_cast<std::size_t>(number(index));
-        if (indexes.contains(old_index)) {
-            kept_pages.addDictionaryMember(id, JSON::makeInt(static_cast<long long>(indexes.at(old_index))));
-            page_ids.insert(id);
-        }
-    }
+    auto kept_pages = JSON::makeArray();
+    auto authored = array(manifest.getDictItem("pages"));
+    std::vector<JSON> ordered(indexes.size());
+    for (const auto& [old_index, new_index] : indexes)
+        ordered.at(new_index) = authored.at(old_index);
+    for (const auto& page : ordered)
+        kept_pages.addArrayElement(page);
+    std::set<std::string> region_ids, baseline_ids, target_ids, parameter_ids;
     auto kept_parameters = JSON::makeDictionary();
     for (auto [id, parameter] : parameters) {
         std::set<std::string> eligible;
         for (const auto& index : parameter_records.at(id))
-            if (page_ids.contains(records.at(index).page))
+            if (indexes.contains(records.at(index).page))
                 eligible.insert(records.at(index).target);
         auto binding = parameter.getDictItem("binding");
         auto targets = JSON::makeArray();
@@ -389,7 +386,8 @@ JSON Engine::retained(const std::map<std::size_t, std::size_t>& indexes)
             continue;
         auto kept = JSON::makeArray();
         for (const auto& region : array(regions))
-            if (page_ids.contains(text(member(manifest.getDictItem("regions"), text(region)).getDictItem("page")))) {
+            if (indexes.contains(static_cast<std::size_t>(
+                    number(member(manifest.getDictItem("regions"), text(region)).getDictItem("page"))))) {
                 kept.addArrayElement(region);
                 region_ids.insert(text(region));
             }
@@ -399,7 +397,10 @@ JSON Engine::retained(const std::map<std::size_t, std::size_t>& indexes)
     for (const auto& [id, region] : object(manifest.getDictItem("regions"))) {
         if (!region_ids.contains(id))
             continue;
-        kept_regions.addDictionaryMember(id, region);
+        auto kept = copy_object(region);
+        auto page = static_cast<std::size_t>(number(region.getDictItem("page")));
+        kept.addDictionaryMember("page", JSON::makeInt(static_cast<long long>(indexes.at(page))));
+        kept_regions.addDictionaryMember(id, kept);
         for (const auto& record : locators(manifest, region))
             baseline_ids.insert(baseline_ref(region, record));
     }
@@ -412,9 +413,9 @@ JSON Engine::retained(const std::map<std::size_t, std::size_t>& indexes)
     next.addDictionaryMember("baselines", kept_baselines);
     next.addDictionaryMember("targets", kept_targets);
     next.addDictionaryMember("parameters", kept_parameters);
-    if (object(next).contains("groups")) {
+    if (!parameter_ids.empty() && object(manifest).contains("groups")) {
         auto groups = JSON::makeArray();
-        for (auto group : array(next.getDictItem("groups"))) {
+        for (auto group : array(manifest.getDictItem("groups"))) {
             auto ids = JSON::makeArray();
             for (const auto& id : array(group.getDictItem("parameters")))
                 if (parameter_ids.contains(text(id)))
@@ -426,7 +427,7 @@ JSON Engine::retained(const std::map<std::size_t, std::size_t>& indexes)
         }
         next.addDictionaryMember("groups", groups);
     }
-    if (object(manifest).contains("profileSets")) {
+    if (!parameter_ids.empty() && object(manifest).contains("profileSets")) {
         std::map<std::string, std::string> identities;
         for (const auto& id : parameter_ids)
             identities.emplace(id, id);
@@ -460,7 +461,7 @@ std::string Engine::extract(JSON request, const std::string& input)
     }
     if (selected.size() == pages.size() && std::is_sorted(selected.begin(), selected.end()))
         return input;
-    auto next = parameters.empty() ? JSON::makeDictionary() : retained(indexes);
+    auto next = object(manifest).empty() ? JSON::makeDictionary() : retained(indexes);
     QPDFPageDocumentHelper page_tree(document);
     page_tree.pushInheritedAttributesToPage();
     QPDFPageLabelDocumentHelper labels(document);
@@ -524,9 +525,9 @@ std::string Engine::extract(JSON request, const std::string& input)
             }
         }
     }
-    if (parameters.empty())
+    if (object(manifest).empty())
         return save(std::nullopt);
-    if (!object(next.getDictItem("regions")).empty())
+    if (!object(next.getDictItem("regions")).empty() || annotated(next.getDictItem("pages")))
         return save(next);
     QPDFEmbeddedFileDocumentHelper files(document);
     auto spec = files.getEmbeddedFile("mainz.json")->getObjectHandle();
@@ -546,6 +547,7 @@ std::string Engine::extract(JSON request, const std::string& input)
 }
 std::string Engine::save(std::optional<JSON> next)
 {
+    prune_previews(document, managed_previews, next ? next->getDictItem("pages") : JSON::makeArray(), budget);
     if (next)
         compress(payload, encode(share_records(*next), manifest_limit, budget.remaining), budget);
     Buffer output(pdf_limit, budget.remaining);
