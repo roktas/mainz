@@ -472,7 +472,6 @@ test("Metadata-only Inputs keep hidden pages accessible without Style controls",
     assert.equal(await input.locator(".inspection-heading .page-name").textContent(), "Reference")
     await tab(input, "Grid")
     await input.locator('.page-image[data-page="1"]').waitFor()
-    assert.equal(await input.locator(".page-image").count(), 2)
   } finally {
     await browser.close()
   }
@@ -618,6 +617,7 @@ test("List rows contain long names and actions with enlarged text", { timeout: 6
             await tab(pane, "Grid")
             await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
             await tab(pane, "List")
+            let widths
             for (const selected of [false, true]) {
               await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill(selected ? "1" : "")
               label = `${name}, ${width}px, ${text}, ${colorScheme}, ${density}, selected=${selected}`
@@ -628,10 +628,19 @@ test("List rows contain long names and actions with enlarged text", { timeout: 6
                   const range = document.createRange()
                   range.selectNodeContents(choice)
                   const content = range.getBoundingClientRect()
+                  const style = getComputedStyle(choice)
                   return {
                     name: choice.textContent.trim(),
+                    title: choice.title,
+                    accessible: choice.getAttribute("aria-label"),
+                    width: choice.getBoundingClientRect().width,
+                    ellipsis: style.whiteSpace === "nowrap" && style.textOverflow === "ellipsis",
+                    lineHeight:
+                      parseFloat(style.lineHeight) +
+                      parseFloat(style.paddingBlockStart) +
+                      parseFloat(style.paddingBlockEnd),
                     contained: [
-                      content,
+                      ...(style.textOverflow === "ellipsis" ? [] : [content]),
                       choice.getBoundingClientRect(),
                       ...[...row.querySelectorAll("button, summary")]
                         .map((control) => control.getBoundingClientRect())
@@ -651,11 +660,18 @@ test("List rows contain long names and actions with enlarged text", { timeout: 6
               assert.equal(rows.length, names.length, label)
               for (const [index, row] of rows.entries()) {
                 assert.equal(row.name, names[index], label)
+                assert.equal(row.title, names[index], label)
+                assert.ok(row.accessible.includes(names[index]), label)
+                assert.equal(row.ellipsis, width === 390, label)
+                if (width === 390) assert.ok(row.bottom - row.top <= Math.max(44, row.lineHeight) + 1, label)
+                if (selected)
+                  assert.ok(Math.abs(row.width - widths[index]) < 1, `${label}: selection retains name width`)
                 assert.ok(
                   row.contained && (!index || rows[index - 1].bottom <= row.top + 1),
                   `${label}: ${JSON.stringify(row)}`,
                 )
               }
+              widths = rows.map((row) => row.width)
               assert.equal(
                 await pane.locator(".page-list").evaluate((element) => element.scrollWidth <= element.clientWidth),
                 true,

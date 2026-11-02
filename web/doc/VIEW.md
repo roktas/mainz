@@ -312,8 +312,10 @@ images. Input and Output use the same control dimensions. Preserve usable field 
 ## List
 
 List rows align page numbers, supplied names, and page actions in stable columns. Keep number and action columns visible
-in narrow panes. Names wrap in the remaining space without horizontal scrolling. Unnamed pages reserve no empty name
-line. Repeated names retain separate numbered rows. Selected rows use the primary surface and its contrasting text
+in narrow panes. Names wrap in the remaining space without horizontal scrolling. Narrow rows truncate names on one line
+with an ellipsis; the full name remains in the control's accessible text and hover title, and in the page preview. The
+selection tick reserves only one action target when the row uses a compact action menu. Unnamed pages reserve no empty
+name line. Repeated names retain separate numbered rows. Selected rows use the primary surface and its contrasting text
 color, without a selection contour. Numbers, names, and ticks keep this contrast on hover and keyboard focus. Unselected
 row text and actions use an 80% mix of the text color over the page background. A tick replaces the row's Add or
 Duplicate action without moving its position. Keyboard focus remains visible independently of selection. Output groups

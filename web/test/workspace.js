@@ -914,7 +914,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await output.getByRole("button", { name: "Remove Output page 4", exact: true }).click()
   await output.getByRole("button", { name: "Duplicate Output page 1", exact: true }).click()
   assert.ok((await total()) === "7 pages", "Output plus adds an adjacent copy")
-  await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
+  assert.equal(await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "")
   await output.getByRole("button", { name: "Remove Output page 1", exact: true }).press("Space")
   assert.ok((await total()) === "6 pages", "Output minus removes only that occurrence")
   assert.ok(
@@ -1340,28 +1340,39 @@ export async function checkWorkspace(page, prepared, ordinary) {
           viewBox.x + viewBox.width < downloadBox.x,
         "Mobile Output keeps totals, Print, View, and Download on one row",
       )
-      await first.locator(".occurrence-actions").evaluate((element) => element.scrollIntoView({ block: "center" }))
+      const footer = first.locator(":scope > .occurrence-actions")
+      await footer.evaluate((element) => element.scrollIntoView({ block: "center" }))
+      const actionMenu = footer.getByRole("button", { name: "Actions for Output page 1", exact: true })
+      const menu = await actionMenu.isVisible()
+      if (menu) await actionMenu.click()
+      else await footer.hover()
+      const actions = menu
+        ? first.locator(".occurrence-menu:popover-open").getByRole("button")
+        : footer.locator(".card-inline-actions").getByRole("button")
       assert.ok(
-        await first.locator(".occurrence-actions button").evaluateAll((buttons) => {
+        await actions.evaluateAll((buttons, inMenu) => {
           const boxes = buttons.map((button) => button.getBoundingClientRect())
           return boxes.every(
             (box, index) =>
               Math.abs(box.y - boxes[0].y) < 1 &&
-              [
-                [0, -21],
-                [0, 21],
-                [-21, 0],
-                [21, 0],
-              ].every(
-                ([x, y]) =>
-                  document
-                    .elementFromPoint(box.x + box.width / 2 + x, box.y + box.height / 2 + y)
-                    ?.closest("button") === buttons[index],
-              ),
+              box.width >= (inMenu ? 44 : 32) &&
+              (buttons[index].disabled ||
+                [
+                  [0, -21],
+                  [0, 21],
+                  [inMenu ? -21 : -15, 0],
+                  [inMenu ? 21 : 15, 0],
+                ].every(
+                  ([x, y]) =>
+                    document
+                      .elementFromPoint(box.x + box.width / 2 + x, box.y + box.height / 2 + y)
+                      ?.closest("button") === buttons[index],
+                )),
           )
-        }),
+        }, menu),
         `Output actions retain one row and touch targets (${width}px, ${scale}%)`,
       )
+      if (menu) await page.keyboard.press("Escape")
       // Page 1 is Blank; page 2 supplies Source provenance.
       await gridPage(output, 2)
       await output.getByLabel("Details for Output page 2", { exact: true }).click()

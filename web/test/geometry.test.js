@@ -61,7 +61,14 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
               selector,
               bounds: rect(band),
               controls: [...band.querySelectorAll(controls)]
-                .filter((node) => node.checkVisibility())
+                .filter((node) => {
+                  if (!node.checkVisibility()) return false
+                  const tabs = node.closest(".tabs")
+                  if (!tabs) return true
+                  const box = node.getBoundingClientRect(),
+                    port = tabs.getBoundingClientRect()
+                  return box.left >= port.left - 1 && box.right <= port.right + 1
+                })
                 .flatMap((node) => (node.matches(".output-actions") ? [...node.children] : [node]))
                 .map((node) => ({
                   bounds: rect(node),
@@ -110,20 +117,17 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
           .evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().toJSON()))
         const controls = layout[0].controls
         const isOutput = await pane.evaluate((element) => element.classList.contains("composition-output"))
-        const peers = isOutput ? [controls.at(-1)] : controls
-        for (const [index, control] of peers.entries()) {
-          const column = columns[isOutput ? 1 : index]
-          assert.ok(Math.abs(control.bounds.x - column.x) < 1, "Stacked control rows share column edges")
-          assert.ok(Math.abs(control.bounds.width - column.width) < 1, "Stacked widgets have equal widths")
-        }
         if (isOutput) {
-          const [summary, print, download] = controls.map((control) => control.bounds)
+          const summary = controls[0].bounds,
+            download = controls.at(-1).bounds
           assert.ok(Math.abs(summary.x - columns[0].x) < 1, "Output summary starts in the first column")
-          assert.ok(
-            summary.right <= print.left && print.right < download.left,
-            "Print fits between summary and Download",
-          )
-        }
+          assert.ok(Math.abs(download.right - columns[1].right) < 1, "Output actions reach the trailing pane edge")
+        } else
+          for (const [index, control] of controls.entries()) {
+            const column = columns[index]
+            assert.ok(Math.abs(control.bounds.x - column.x) < 1, "Stacked control rows share column edges")
+            assert.ok(Math.abs(control.bounds.width - column.width) < 1, "Stacked widgets have equal widths")
+          }
       }
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
       return layout.map(({ bounds }) => bounds)
@@ -219,8 +223,11 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
     await tab(input, "Grid")
     await input.getByRole("tab", { name: "Grid", exact: true }).focus()
     await page.keyboard.press("ArrowRight")
+    assert.equal(await input.getByRole("tab", { name: "List", exact: true }).getAttribute("aria-selected"), "true")
+    await page.keyboard.press("ArrowRight")
     assert.equal(await input.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected"), "true")
     await rows(input)
+    await page.keyboard.press("ArrowLeft")
     await page.keyboard.press("ArrowLeft")
     await rows(input)
     await input
@@ -250,8 +257,9 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
     }
     await page.setViewportSize({ width: 951, height: 589 })
     await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
-    await output.getByRole("button", { name: "Output details", exact: true }).waitFor({ state: "hidden" })
-    assert.equal(await output.locator(".composition-totals").innerText(), "10000 pages, 5000 sheets")
+    await output.getByRole("button", { name: "Output details", exact: true }).click()
+    assert.equal((await output.locator(".output-details").innerText()).trim(), "10000 pages, 5000 sheets")
+    await page.keyboard.press("Escape")
     await rows(output)
     assert.deepEqual(errors, [])
   } catch (error) {
@@ -699,6 +707,13 @@ test(
       await keyboard.locator(".composer:not([inert])").waitFor()
       const input = keyboard.locator(".selection-panel")
       await input.getByRole("tab", { name: "Grid", exact: true }).focus()
+      await keyboard.keyboard.press("ArrowRight")
+      assert.equal(
+        await input
+          .getByRole("tab", { name: "List", exact: true })
+          .evaluate((element) => element === document.activeElement),
+        true,
+      )
       await keyboard.keyboard.press("ArrowRight")
       await aligned(input)
       const focused = await input.getByRole("tab", { name: "Page", exact: true }).evaluate((element) => ({

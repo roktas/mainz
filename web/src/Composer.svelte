@@ -2153,6 +2153,7 @@
                         class="list-choice"
                         data-page={page}
                         aria-label={`Select Input page ${page + 1}${metadata.name ? `: ${metadata.name}` : ""}`}
+                        title={metadata.name}
                         aria-pressed={inputSelected.has(page)}
                         onfocus={() => inspectInput({ position: page })}
                         draggable="true"
@@ -2620,7 +2621,8 @@
                   <button
                     class="list-choice"
                     data-page={index}
-                    aria-label={`Select Output page ${index + 1}`}
+                    aria-label={`Select Output page ${index + 1}${pageName(page.content) ? `: ${pageName(page.content)}` : ""}`}
+                    title={pageName(page.content)}
                     aria-pressed={selectedIds.has(page.id)}
                     onfocus={() => (output.position = index)}
                     draggable="true"

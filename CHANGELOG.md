@@ -65,6 +65,7 @@
 
 - Corrected profile-styling diagnostics for metadata-only PDFs.
 - Kept narrow Normal card grips centered when the paired footer and selection contour are present.
+- Kept narrow List selections from reserving hidden action columns and shortened long row names with an ellipsis.
 - Applied the shared worker cleanup and error recovery to PNG preview access.
 - Cleared List entrance feedback when motion preferences change during an edit.
 - Kept page-name tooltips inside the viewport, preventing horizontal overflow and blocked touch targets on narrow

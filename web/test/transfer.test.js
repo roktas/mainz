@@ -31,7 +31,9 @@ test("Native page drags survive platform focus changes and cards respond on pres
           to = await output.locator(".composition-empty").boundingBox()
         await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
         await page.mouse.down()
-        await card.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)))
+        await card.evaluate((element) =>
+          Promise.allSettled(element.getAnimations().map((animation) => animation.finished)),
+        )
         assert.deepEqual(
           await card.evaluate((element) => {
             const style = getComputedStyle(element)
@@ -84,7 +86,9 @@ test("Touch grip press previews the card without editing and cancellation clears
         grip = card.locator(".page-grip")
       const selection = await input.getByLabel("Page selection", { exact: true }).inputValue()
       await grip.dispatchEvent("pointerdown", { pointerType: "touch", pointerId: 7, isPrimary: true, button: 0 })
-      await card.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)))
+      await card.evaluate((element) =>
+        Promise.allSettled(element.getAnimations().map((animation) => animation.finished)),
+      )
       assert.deepEqual(
         await card.evaluate((element) => {
           const style = getComputedStyle(element)
@@ -96,7 +100,9 @@ test("Touch grip press previews the card without editing and cancellation clears
       assert.equal(await page.locator(".composer[data-drag]").count(), 0, "Pressing alone does not start a transfer")
       await page.evaluate(() => window.dispatchEvent(new Event("blur")))
       assert.equal(await input.locator("[data-press]").count(), 0, "Touch blur still cancels a pending press")
-      await card.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)))
+      await card.evaluate((element) =>
+        Promise.allSettled(element.getAnimations().map((animation) => animation.finished)),
+      )
       assert.equal(await card.evaluate((element) => getComputedStyle(element).opacity), "1")
       await page.close()
     }
