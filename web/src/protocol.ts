@@ -23,6 +23,7 @@ export type Operation =
       }
     }
   | { plan: Plan; inputs: Record<string, ArrayBuffer> }
+  | { preview: { bytes: ArrayBuffer; page: number } }
 export type Request = Operation & {
   revision: number
 }
@@ -38,4 +39,5 @@ export type Result = {
   sha256?: string
   provenance?: Provenance
 }
-export type Reply = Result | { revision: number; failure: Failure }
+export type Image = { revision: number; image: ArrayBuffer }
+export type Reply = Result | Image | { revision: number; failure: Failure }

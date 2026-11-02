@@ -55,6 +55,17 @@
       border-radius: var(--radius);
       background: var(--soft);
       @media (hover: hover) and (pointer: fine) {
+        & > :is(.input-footer, .occurrence-actions) button {
+          opacity: 0;
+          &:hover:not(:disabled) {
+            color: var(--accent);
+            background: transparent;
+            box-shadow: none;
+          }
+        }
+        &:is(:hover, :focus-within) > :is(.input-footer, .occurrence-actions) button {
+          opacity: 1;
+        }
         &:has(.page-grip:hover) {
           box-shadow: 0 6px 16px var(--shadow);
         }
@@ -72,7 +83,7 @@
         }
       }
       &[data-dragging] {
-        opacity: 0.3;
+        opacity: 0.6;
       }
       &[data-drop] {
         --page-border: var(--accent);
@@ -220,9 +231,37 @@
         & > .occurrence-actions {
           z-index: 1;
           margin-block-start: 0;
-          grid-template-columns: repeat(2, 44px);
+          min-inline-size: 0;
+          grid-template-columns: repeat(2, 64px);
           justify-content: center;
-          column-gap: var(--gap);
+          column-gap: 6px;
+          margin-inline: calc(-1 * var(--card-inset));
+          & .card-inline-actions {
+            display: contents;
+          }
+          & .card-menu {
+            display: none;
+            grid-column: 1 / -1;
+          }
+          & :is(.occurrence-moves, .occurrence-copies) {
+            display: grid;
+            grid-template-columns: repeat(2, 32px);
+            & button::after {
+              inset-inline: 0;
+            }
+            & svg {
+              inline-size: 16px;
+              block-size: 16px;
+            }
+          }
+          @media (hover: none), (pointer: coarse) {
+            & .card-inline-actions {
+              display: none;
+            }
+            & .card-menu {
+              display: inline flex;
+            }
+          }
         }
         & :is(.page-grip, .occurrence-actions button, .input-footer button, .page-origin > summary) {
           position: relative;
@@ -279,10 +318,18 @@
         }
       }
       & .page-origin-info {
-        position: absolute;
+        position: fixed;
         z-index: 6;
-        inset-inline: 0.35rem;
-        inset-block-start: 44px;
+        inset: auto;
+        position-anchor: --page-name;
+        position-area: block-end span-inline-end;
+        position-try-fallbacks:
+          flip-inline,
+          flip-block,
+          flip-block flip-inline;
+        margin-block-start: 4px;
+        inline-size: max-content;
+        max-inline-size: min(28rem, calc(100vi - 2 * var(--gutter)));
         display: grid;
         gap: 0.4em;
         padding: var(--gap);
@@ -424,13 +471,14 @@
       margin: 0;
       inset-block: auto;
       inset-inline: auto;
-      margin-block-start: calc(var(--gap) / 2);
+      margin-block-start: 4px;
       position-area: block-end span-inline-end;
       position-try-fallbacks:
         flip-block,
         flip-inline,
         flip-block flip-inline;
-      inline-size: min(17rem, calc(100vi - 2 * var(--gutter)));
+      inline-size: max-content;
+      max-inline-size: min(28rem, calc(100vi - 2 * var(--gutter)));
       max-block-size: min(70dvb, 38rem);
       padding: var(--gap);
       overflow: auto;
@@ -441,6 +489,9 @@
       background: var(--surface);
       box-shadow: 0 4px 16px var(--shadow);
       font-size: var(--body);
+      &[data-preview] {
+        min-inline-size: min(12rem, calc(100vi - 2 * var(--gutter)));
+      }
 
       &:popover-open {
         display: block grid;
@@ -486,9 +537,11 @@
       }
 
       @container composer (width <= 55em) {
-        position-area: none;
-        inset: 0;
-        margin: auto;
+        &:not(.page-list *) {
+          position-area: none;
+          inset: 0;
+          margin: auto;
+        }
       }
     }
   }

@@ -20,6 +20,10 @@ type Session = {
   kind: "active"
   value: Payload
   inspected: string | undefined
+  quantity: number
+  front: boolean
+  padding: number
+  offset: number
   image: ReturnType<typeof createDragImage>
 } & ({ pointer: "native" } | { pointer: "touch"; contact: Contact })
 type Interaction = { kind: "idle" } | { kind: "pending"; contact: Contact } | Session
@@ -46,6 +50,12 @@ export class Transfer {
   #frame: number | undefined
   #consumeClick = false
   #dwell: ReturnType<typeof setTimeout> | undefined
+  #scrollFrame: number | undefined
+  #scrollArea: HTMLElement | undefined
+  #scrollPoint: { x: number; y: number } | undefined
+  #nativeMove: ((event: DragEvent) => void) | undefined
+  #pressed: ReturnType<typeof createDragImage>
+  #pressEvents: AbortController | undefined
   #moving = $derived(new Set(this.value?.kind === "output" ? this.value.ids : []))
   #prefix = $derived.by(() => {
     const pages = this.#workspace.pages
@@ -103,6 +113,47 @@ export class Transfer {
   get touching() {
     return this.#active?.pointer === "touch"
   }
+  get quantity() {
+    return this.#active?.quantity ?? 1
+  }
+  get destination() {
+    const at = this.#at
+    if (!this.value || !this.inside || this.blocked || at === undefined) return
+    return this.#prefix[Math.min(at, this.#workspace.pages.length)] + this.#leading
+  }
+  get #leading() {
+    return this.#active?.front ? (this.#at ?? 0) % 2 : 0
+  }
+  moving(id: string) {
+    return this.#moving.has(id)
+  }
+  number(index: number) {
+    const destination = this.destination
+    if (destination === undefined) return index + 1
+    const before = this.#prefix[index]
+    return this.#moving.has(this.#workspace.pages[index].id)
+      ? destination + index - before + 1
+      : before + 1 + (before >= destination - this.#leading ? this.quantity + this.#active!.padding + this.#leading : 0)
+  }
+  #numberImage() {
+    const active = this.#active
+    if (!active?.image) return
+    const index = active.value.kind === "output" ? this.#workspace.positions.get(active.value.ids[0]) : undefined
+    const number =
+      index === undefined
+        ? this.destination === undefined
+          ? undefined
+          : this.destination + active.offset
+        : this.number(index) - 1
+    const label = number === undefined ? active.image.original : String(number + 1)
+    if (active.image.number.textContent !== label) active.image.number.textContent = label
+  }
+  get stripHeight() {
+    return this.#active?.image?.image.hasAttribute("data-strip") ? this.#active.image.height : 44
+  }
+  get pressing() {
+    return !!this.#pressed || this.#interaction.kind === "pending"
+  }
   get target(): Readonly<Target> {
     return this.#target
   }
@@ -132,6 +183,7 @@ export class Transfer {
   #place(index?: number, after = false) {
     if (index === undefined) {
       if (this.#target.kind !== "append") this.#target = { kind: "append" }
+      this.#numberImage()
       return
     }
     const page = this.#workspace.pages[index]
@@ -141,11 +193,22 @@ export class Transfer {
     }
     if (this.#target.kind !== "page" || this.#target.id !== page.id || this.#target.after !== after)
       this.#target = { kind: "page", id: page.id, after }
+    this.#numberImage()
   }
 
-  begin(event: DragEvent | PointerEvent, value: Payload, quantity: number, control: HTMLElement, size?: Size) {
+  begin(
+    event: DragEvent | PointerEvent,
+    value: Payload,
+    quantity: number,
+    control: HTMLElement,
+    size?: Size,
+    front = false,
+    padding = 0,
+    offset = 0,
+  ) {
     const contact = this.#contact
     if (!("dataTransfer" in event) && !contact) return
+    this.#clearPress()
     this.#target = { kind: "outside" }
     this.#active?.image?.image.remove()
     const image = createDragImage(control, quantity, size)
@@ -153,6 +216,10 @@ export class Transfer {
       kind: "active",
       value,
       inspected: this.#workspace.inspected,
+      quantity,
+      front,
+      padding,
+      offset,
       image,
       ...("dataTransfer" in event ? { pointer: "native" } : { pointer: "touch", contact: contact! }),
     }
@@ -160,18 +227,32 @@ export class Transfer {
       event.dataTransfer.setData("text/plain", "PDF Composer pages")
       event.dataTransfer.effectAllowed = value.kind === "source" ? "copy" : "move"
       if (image) {
-        event.dataTransfer.setDragImage(image.image, image.image.width / 2, 12)
-        // Keep the canvas visible until the browser captures its native drag image.
-        requestAnimationFrame(() => (image.image.style.visibility = "hidden"))
+        const empty = document.createElement("canvas")
+        empty.width = empty.height = 1
+        empty.style.cssText = "position:fixed;inset:0;pointer-events:none"
+        const paint = empty.getContext("2d")!
+        paint.fillStyle = "rgba(0,0,0,0.01)"
+        paint.fillRect(0, 0, 1, 1)
+        document.body.append(empty)
+        event.dataTransfer.setDragImage(empty, 0, 0)
+        requestAnimationFrame(() => empty.remove())
+        this.#nativeMove = (next) => this.#placeImage(next.clientX, next.clientY)
+        document.addEventListener("dragover", this.#nativeMove, true)
+        this.#placeImage(event.clientX, event.clientY)
       }
     }
   }
 
   end(completed = false) {
+    const pressed = !!this.#pressed
+    this.#clearPress()
+    if (this.#nativeMove) document.removeEventListener("dragover", this.#nativeMove, true)
+    this.#nativeMove = undefined
     const active = this.#active
     const contact = this.#contact
     this.leave()
-    if (this.touching) this.#consumeClick = true
+    this.#stopScroll()
+    if (this.touching || pressed) this.#consumeClick = true
     cancelAnimationFrame(this.#frame ?? 0)
     this.#frame = undefined
     this.#point = undefined
@@ -185,6 +266,7 @@ export class Transfer {
     this.grid = undefined
   }
   cancelInput() {
+    this.#clearPress()
     if (this.value?.kind === "source" || this.#contact?.value.kind === "source") this.end()
   }
   blur = () => {
@@ -218,6 +300,50 @@ export class Transfer {
       this.#place(this.#workspace.position, offset > 0)
     }, 450)
   }
+  #stopScroll() {
+    cancelAnimationFrame(this.#scrollFrame ?? 0)
+    this.#scrollFrame = undefined
+    this.#scrollArea = undefined
+    this.#scrollPoint = undefined
+  }
+  #scrollList(area: HTMLElement, event: DragEvent | PointerEvent) {
+    this.#scrollArea = area
+    this.#scrollPoint = { x: event.clientX, y: event.clientY }
+    if (this.#scrollFrame !== undefined) return
+    const scroll = () => {
+      this.#scrollFrame = undefined
+      const list = this.#scrollArea,
+        point = this.#scrollPoint
+      if (!this.value || !list?.isConnected || !point) return
+      const bounds = list.getBoundingClientRect(),
+        top = Math.max(0, bounds.top),
+        bottom = Math.min(innerHeight, bounds.bottom)
+      const delta =
+        point.y < top + 36 ? (point.y - top - 36) / 4 : point.y > bottom - 36 ? (point.y - bottom + 36) / 4 : 0
+      if (!delta) return
+      const before = list.scrollTop
+      list.scrollBy({ top: delta, behavior: "instant" })
+      if (list.scrollTop === before) return
+      const row = this.#rowAt(list, point.y)
+      if (row) {
+        const box = row.querySelector<HTMLElement>(".list-choice")!.getBoundingClientRect()
+        this.#place(Number(row.dataset.index), point.y >= box.top + box.height / 2)
+      }
+      this.#scrollFrame = requestAnimationFrame(scroll)
+    }
+    this.#scrollFrame = requestAnimationFrame(scroll)
+  }
+  #rowAt(list: HTMLElement, y: number) {
+    const rows = list.querySelectorAll<HTMLElement>(":scope > .list-row:not(.removing):not([data-dragging])")
+    let first = 0,
+      last = rows.length
+    while (first < last) {
+      const middle = Math.floor((first + last) / 2)
+      if (rows[middle].getBoundingClientRect().bottom < y) first = middle + 1
+      else last = middle
+    }
+    return rows[first]
+  }
   over = (event: DragEvent | PointerEvent, index?: number, element?: HTMLElement) => {
     const value = this.value
     if (!value) return
@@ -226,6 +352,20 @@ export class Transfer {
     const transfer = "dataTransfer" in event ? event.dataTransfer : null
     if (transfer) transfer.dropEffect = value.kind === "source" ? "copy" : "move"
     const hit = element ?? (event.target instanceof Element ? event.target : null)
+    const list = hit?.closest<HTMLElement>(".composition-output .page-list")
+    if (list) {
+      this.grid = undefined
+      const row = this.#rowAt(list, event.clientY)
+      if (row) {
+        const bounds = row.querySelector<HTMLElement>(".list-choice")!.getBoundingClientRect()
+        this.#place(Number(row.dataset.index), event.clientY >= bounds.top + bounds.height / 2)
+      } else this.#place()
+      this.#scrollList(list, event)
+      if (this.#active?.image?.image.hasAttribute("data-strip")) this.#placeImage(event.clientX, event.clientY)
+      if (this.blocked && transfer) transfer.dropEffect = "none"
+      return
+    }
+    this.#stopScroll()
     const grid = hit?.closest<HTMLOListElement>(".output-pages")
     if (grid) {
       const cards = grid.querySelectorAll<HTMLElement>(":scope > .composition-card:not(.removing)")
@@ -252,6 +392,7 @@ export class Transfer {
           const fraction = (x - column * (layout.width + layout.columnGap)) / layout.width
           if (this.#target.kind === "page" && (this.#target.after ? fraction < 0.3 : fraction > 0.7))
             this.#target = { ...this.#target, after: !this.#target.after }
+          this.#numberImage()
           return
         }
         const entry = this.preview
@@ -291,7 +432,9 @@ export class Transfer {
       event.clientY > bounds.bottom
     ) {
       this.leave()
+      this.#stopScroll()
       this.#target = { kind: "outside" }
+      this.#numberImage()
     }
   }
   drop = (event: DragEvent | PointerEvent) => {
@@ -306,17 +449,22 @@ export class Transfer {
   }
 
   press(event: PointerEvent, value: Payload) {
-    if (event.pointerType === "mouse" || !event.isPrimary || event.button !== 0) return
+    if (!event.isPrimary || event.button !== 0) return
+    const control = event.currentTarget as HTMLElement
+    if (event.pointerType === "mouse" && !control.closest(".list-row")) return
     this.end()
-    const contact = {
-      id: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      control: event.currentTarget as HTMLElement,
-      value,
+    if (event.pointerType !== "mouse") {
+      const contact = { id: event.pointerId, x: event.clientX, y: event.clientY, control, value }
+      this.#interaction = { kind: "pending", contact }
+      control.setAttribute("data-press", "")
     }
-    this.#interaction = { kind: "pending", contact }
-    contact.control.setAttribute("data-press", "")
+    if (control.closest(".list-row")) {
+      this.#pressed = createDragImage(control, 1)
+      this.#placeImage(event.clientX, event.clientY)
+      this.#pressEvents = new AbortController()
+      for (const name of ["pointerup", "pointercancel", "blur"])
+        window.addEventListener(name, () => this.#clearPress(), { once: true, signal: this.#pressEvents.signal })
+    }
   }
   #updateTouch = () => {
     this.#frame = undefined
@@ -325,17 +473,18 @@ export class Transfer {
     const event = this.#point
     const hit = document.elementFromPoint(event.clientX, event.clientY)
     const pane = hit?.closest<HTMLElement>(
-      ".composition-output :is(.composition-grid, .composition-empty, .inspection-target)",
+      ".composition-output :is(.composition-grid, .page-list, .composition-empty, .inspection-target)",
     )
     const button = this.#workspace.outputTarget
     if (button?.contains(hit ?? null) && this.#workspace.input) {
       this.leave()
+      this.#stopScroll()
       const insertion = this.#workspace.insertion
       this.#place(insertion === undefined ? undefined : Math.max(0, insertion - 1), insertion !== 0)
       this.grid = undefined
     } else if (pane) {
       const navigation = hit?.closest<HTMLButtonElement>(".composition-output .page-navigation button[data-step]")
-      const card = hit?.closest<HTMLElement>(".composition-card")
+      const card = hit?.closest<HTMLElement>(".composition-card, .list-row")
       const page = hit?.closest<HTMLElement>(".inspection-target")
       if (navigation) this.navigate(event, Number(navigation.dataset.step), navigation)
       else {
@@ -345,6 +494,7 @@ export class Transfer {
       }
     } else {
       this.leave()
+      this.#stopScroll()
       this.#target = { kind: "outside" }
       this.grid = undefined
     }
@@ -353,7 +503,7 @@ export class Transfer {
         value.kind === "source" &&
         this.#workspace.input &&
         button?.offsetWidth &&
-        hit?.closest(".selection-panel :is(.composition-grid, .page-view)")
+        hit?.closest(".selection-panel :is(.composition-grid, .page-list, .page-view)")
       if (invalid) {
         const bounds = button.getBoundingClientRect()
         const distance = Math.hypot(
@@ -377,11 +527,10 @@ export class Transfer {
         this.warning = false
       }
     }
-    const image = this.#active?.image?.image
-    if (image)
-      image.style.translate = `${Math.max(0, Math.min(innerWidth - image.width, event.clientX - image.width / 2))}px ${Math.max(0, event.clientY - image.height - 20)}px`
-    const scroll =
-      event.clientY < 56
+    this.#placeImage(event.clientX, event.clientY)
+    const scroll = hit?.closest(".page-list")
+      ? 0
+      : event.clientY < 56
         ? (event.clientY - 56) / 4
         : event.clientY > innerHeight - 56
           ? (event.clientY - innerHeight + 56) / 4
@@ -422,6 +571,31 @@ export class Transfer {
   }
   cancelTouch = () => {
     if (this.#contact) this.end()
+  }
+  #placeImage(x: number, y: number) {
+    const drag = this.#active?.image ?? this.#pressed
+    if (!drag) return
+    const image = drag.image
+    this.#numberImage()
+    if (!image.hasAttribute("data-strip")) {
+      image.style.translate = `${Math.max(4, Math.min(innerWidth - drag.width - 4, x - drag.width / 2))}px ${Math.max(4, Math.min(innerHeight - drag.height - 4, y - 12))}px`
+      return
+    }
+    const hit = document.elementFromPoint(x, y),
+      list = hit?.closest<HTMLElement>(".composition-output .page-list")
+    const element = list ? this.#rowAt(list, y) : hit?.closest(".list-row")
+    const row = element?.querySelector(".list-choice")?.getBoundingClientRect(),
+      bounds = element?.getBoundingClientRect()
+    const left = Math.max(4, Math.min((bounds?.left ?? x) - 8, innerWidth - drag.width - 4)),
+      top = Math.max(4, Math.min((row?.bottom ?? y) - 12, innerHeight - drag.height - 4))
+    image.style.translate = `${left}px ${top}px`
+  }
+
+  #clearPress() {
+    this.#pressEvents?.abort()
+    this.#pressEvents = undefined
+    this.#pressed?.image.remove()
+    this.#pressed = undefined
   }
   #stopTouchClick = (event: TouchEvent) => {
     if (!this.#consumeClick) return

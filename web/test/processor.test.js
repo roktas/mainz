@@ -168,7 +168,15 @@ function wasm(instance) {
     },
     _mainz_describe() {
       if (failOperation) record({ code: "pdf-syntax", message: "Processing failed." }, 1)
-      else record({ version: 1, pageCount: 1, pages: {}, parameters: {} })
+      else record({ version: 1, pageCount: 1, pages: [{}], parameters: {} })
+    },
+    _mainz_preview() {
+      if (failOperation) record({ code: "pdf-syntax", message: "Processing failed." }, 1)
+      else {
+        heap[0] = 7
+        size = 1
+        status = 0
+      }
     },
     _mainz_fingerprint() {
       heap.fill(48, 0, 64)
@@ -222,15 +230,19 @@ test("Processor workers pin their module and recover from failed document cleanu
     const results = await page.evaluate(async () => {
       const { Processor } = await import("/src/processor.ts")
       const replies = []
-      for (const [flag, path] of [
+      for (const [flag, path, preview] of [
         [0, "processor.mjs"],
         [1, "processor.mjs"],
         [0, "unexpected.mjs"],
+        [0, "processor.mjs", true],
+        [1, "processor.mjs", true],
+        [0, "unexpected.mjs", true],
       ]) {
         window.workerModuleUrl = new URL(path, location.href).href
         const processor = new Processor()
         const run = async (value, revision) => {
           try {
+            if (preview) return { image: [...new Uint8Array(await processor.preview(Uint8Array.of(value), 0))] }
             const result = await processor.run(Uint8Array.of(value), revision)
             return { bytes: [...new Uint8Array(result.bytes)], description: result.description }
           } catch (error) {
@@ -238,7 +250,7 @@ test("Processor workers pin their module and recover from failed document cleanu
           }
         }
         try {
-          replies.push({ flag, first: await run(flag, 1), retry: await run(0, 2) })
+          replies.push({ flag, preview, first: await run(flag, 1), retry: await run(0, 2) })
         } finally {
           processor.dispose()
         }
@@ -246,16 +258,18 @@ test("Processor workers pin their module and recover from failed document cleanu
       return replies
     })
     assert.equal(unexpected, false, "Request data cannot select the processor module")
-    for (const { flag, first, retry } of results) {
+    for (const { flag, preview, first, retry } of results) {
       assert.deepEqual(first, {
         failure: flag
           ? { kind: "processor", record: { code: "pdf-syntax", message: "Processing failed." } }
           : { kind: "host", message: "Close failed." },
       })
-      assert.deepEqual(retry, {
-        bytes: [0],
-        description: { version: 1, pageCount: 1, pages: {}, parameters: {} },
-      })
+      assert.deepEqual(
+        retry,
+        preview
+          ? { image: [7] }
+          : { bytes: [0], description: { version: 1, pageCount: 1, pages: [{}], parameters: {} } },
+      )
     }
   } finally {
     await browser?.close()

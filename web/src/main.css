@@ -28,9 +28,75 @@
       pointer-events: none;
     }
   }
+  @scope (.drag-image[data-strip]) {
+    :scope {
+      display: grid;
+      align-items: center;
+      border: 1px solid;
+      border-radius: var(--radius);
+      box-shadow: 0 4px 12px var(--shadow);
+      @media (prefers-reduced-motion: no-preference) {
+        rotate: -1.5deg;
+        animation: strip-lift 160ms var(--ease-out);
+      }
+      & .drag-number {
+        grid-column: 1;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+      & .drag-title {
+        grid-column: 3;
+        min-inline-size: 0;
+        padding-inline: 0.5em;
+        white-space: nowrap;
+        overflow: clip;
+        text-overflow: ellipsis;
+      }
+      & > span:last-child:not(.drag-title) {
+        grid-column: 4;
+        padding-inline: 14px;
+      }
+    }
+  }
+  @scope (.drag-image[data-card]) {
+    :scope {
+      padding-block-start: 22px;
+      border-radius: var(--radius);
+      color: var(--ink);
+      background: var(--surface);
+      box-shadow: 0 4px 12px var(--shadow);
+      font-size: var(--small);
+      @media (prefers-reduced-motion: no-preference) {
+        rotate: -3deg;
+      }
+      & .drag-number,
+      & .drag-count {
+        position: absolute;
+        inset-block-start: 0;
+        block-size: 22px;
+        display: grid;
+        place-items: center;
+        font-variant-numeric: tabular-nums;
+      }
+      & .drag-number {
+        inset-inline-start: 8px;
+      }
+      & .drag-count {
+        inset-inline-end: 8px;
+      }
+    }
+  }
+  @keyframes strip-lift {
+    from {
+      scale: 0.98;
+    }
+    to {
+      scale: 1;
+    }
+  }
   @scope (.addition-preview, .removal-preview) {
     :scope {
-      opacity: 0.95;
+      opacity: 1;
       background: oklch(100% 0 none);
       box-shadow: 0 4px 12px var(--shadow);
       outline: 1px solid var(--accent);

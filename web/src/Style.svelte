@@ -63,7 +63,7 @@
 </script>
 
 {#snippet field(id: string, caption?: string, compact = false)}
-  {@const pages = definition.parameters[id].pages.map((page) => definition.pages[page].index)}
+  {@const pages = definition.parameters[id].pages}
   {@const coverage = pages.reduce((total, page) => total + (counts.get(page) ?? 0), 0)}
   <Control
     {id}
@@ -132,9 +132,7 @@
             selected?.description ||
             (selected ? `Styles from ${selected.name}.` : "Custom styles. Choose a profile to apply its values.")}
           {@const pages = pageRanges(
-            [...new Set(set.parameters.flatMap((id) => definition.parameters[id].pages))]
-              .map((page) => definition.pages[page].index)
-              .toSorted((a, b) => a - b),
+            [...new Set(set.parameters.flatMap((id) => definition.parameters[id].pages))].toSorted((a, b) => a - b),
           )}
           <div
             class="style-profile"

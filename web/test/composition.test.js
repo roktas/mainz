@@ -701,8 +701,12 @@ test("Addition previews use their target image or the action area", { timeout: 9
               (element) => element.getAttribute("aria-busy") === "false",
             ),
           )
-          if (action === "card" && density === "Compact")
-            await output.getByRole("button", { name: "Details for Output page 2", exact: true }).click()
+          if (action === "card") {
+            const menu = output.getByRole("button", { name: "Actions for Output page 2", exact: true })
+            if (await menu.isVisible()) await menu.click()
+            else if (density === "Compact")
+              await output.getByRole("button", { name: "Details for Output page 2", exact: true }).click()
+          }
           if (action !== "card") await output.getByLabel("Page selection", { exact: true }).fill("2")
           const control =
             action === "card"
@@ -1041,7 +1045,9 @@ test(
           const clear = output.getByRole("button", { name: "Clear Output selection", exact: true })
           if (await clear.isVisible()) await clear.click()
           const details = async () => {
-            if (density === "Compact")
+            const menu = output.getByRole("button", { name: "Actions for Output page 1", exact: true })
+            if (await menu.isVisible()) await menu.click()
+            else if (density === "Compact")
               await output.getByRole("button", { name: "Details for Output page 1", exact: true }).click()
           }
           const allActions = width === 1440 && density === "Normal"
@@ -1071,7 +1077,8 @@ test(
               await addition(() => output.getByRole("button", { name: label, exact: true }).click(), 1, true)
             }
           }
-          await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
+          const clearAfterCopy = output.getByRole("button", { name: "Clear Output selection", exact: true })
+          if (await clearAfterCopy.isVisible()) await clearAfterCopy.click()
           await output.locator(".page-image").first().press("Home")
           await page.mouse.move(1, 1)
           await details()

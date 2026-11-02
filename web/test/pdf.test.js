@@ -4,7 +4,107 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { chromium, webkit } from "playwright"
-import { fixture, tab } from "./browser.js"
+import { fixture, tab, pixel } from "./browser.js"
+
+test("The maintained demo declares its book title and physical page names", { timeout: 30000 }, async () => {
+  const server = await serve()
+  const browser = await chromium.launch()
+  try {
+    const page = await browser.newPage()
+    await page.goto(server.resolvedUrls.local[0])
+    const record = await page.evaluate(async () => {
+      const { openPDF } = await import("/src/pdf.ts")
+      const { Processor } = await import("/src/processor.ts")
+      const bytes = new Uint8Array(await (await fetch("/demo.pdf")).arrayBuffer())
+      const processor = new Processor(),
+        task = await openPDF(bytes),
+        pdf = await task.promise
+      try {
+        const { info, metadata } = await pdf.getMetadata()
+        const result = await processor.run(bytes, 1)
+        return { title: metadata.get("dc:title"), infoTitle: info.Title, pages: result.description.pages }
+      } finally {
+        processor.dispose()
+        await task.destroy()
+      }
+    })
+    assert.deepEqual(record, {
+      title: "Italic Strokes",
+      infoTitle: "Italic Strokes",
+      pages: [
+        { name: "Cover" },
+        { name: "ITAL-GUID-79A4-WXGX" },
+        { name: "ITAL-CROS-79A4-WXGF" },
+        { name: "ITAL-CROS-79A4-WXGR" },
+      ],
+    })
+  } finally {
+    await browser.close()
+  }
+})
+
+test(
+  "Shared PNG thumbnails decode once and keep Page pixels and decoder fallback independent",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgYGAAAAAEAAH2FzhVAAAAAElFTkSuQmCC",
+      "base64",
+    )
+    try {
+      for (const failure of [false, true]) {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+        await page.addInitScript((reject) => {
+          localStorage.setItem("mainz:onboarding", "19")
+          window.previewDecodes = 0
+          const decode = window.createImageBitmap
+          window.createImageBitmap = (...arguments_) => {
+            window.previewDecodes++
+            return reject ? Promise.reject(new Error("Image decoder unavailable")) : decode(...arguments_)
+          }
+        }, failure)
+        await page.route("**/grid.pdf", (route) =>
+          route.fulfill({
+            contentType: "application/pdf",
+            body: fixture({
+              count: 4,
+              metadata: Array.from({ length: 4 }, () => ({ preview: "preview.png" })),
+              preview: png,
+            }),
+          }),
+        )
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+        await page.locator(".composer[aria-busy=false]").waitFor()
+        await page.waitForFunction(
+          () =>
+            document.querySelectorAll(".thumbnail canvas").length > 1 &&
+            !document.querySelector('.thumbnail[aria-busy="true"]'),
+        )
+        assert.equal(await page.evaluate(() => window.previewDecodes), 1, await page.locator("body").innerText())
+        const input = page.locator(".selection-panel")
+        const thumbnail = input.locator(".thumbnail canvas").first()
+        assert.ok(
+          (await pixel(thumbnail, 0.5)).slice(0, 3).every((channel) => (failure ? channel > 240 : channel < 20)),
+        )
+        await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
+        await page.waitForFunction(() => !document.querySelector('.thumbnail[aria-busy="true"]'))
+        assert.equal(await page.evaluate(() => window.previewDecodes), 1)
+        await tab(input, "Page")
+        await page.waitForFunction(
+          () => document.querySelector('.selection-panel .pdf-viewport[aria-busy="false"] canvas')?.width > 0,
+        )
+        assert.ok(
+          (await pixel(input.locator(".page-scroll canvas"), 0.5)).slice(0, 3).every((channel) => channel > 240),
+        )
+        await page.close()
+      }
+    } finally {
+      await browser.close()
+    }
+  },
+)
 
 test("Overlapping preview generations release their own pages and never paint stale results", async () => {
   const server = await serve()

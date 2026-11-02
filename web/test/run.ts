@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url"
 
 const groups: Record<string, string[]> = {
   alignment: ["alignment"],
-  grid: ["grid", "pdf", "lens", "processor"],
+  grid: ["grid", "list", "pdf", "lens", "processor"],
   geometry: ["geometry"],
   composition: ["composition", "transfer"],
   selection: ["selection"],

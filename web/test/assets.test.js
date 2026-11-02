@@ -63,7 +63,7 @@ test("Vite verifies Mainz packages and publishes complete asset revisions", () =
     result = build()
     assert.notEqual(result.status, 0)
     assert.match(result.stderr, /missing _mainz_fingerprint/)
-    const loader = `${jobs} _mainz_style _mainz_fingerprint`
+    const loader = `${jobs} _mainz_style _mainz_fingerprint _mainz_preview`
     writePackage(loader)
     const alternate = `${packagePath}-alternate`
     cpSync(packagePath, alternate, { recursive: true })

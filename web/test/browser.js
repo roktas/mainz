@@ -96,8 +96,11 @@ export function fixture({
   profileSets,
   family,
   annotations,
+  metadata,
+  preview,
 } = {}) {
-  const pages = Object.fromEntries(Array.from({ length: count }, (_, index) => [`page${index}`, index]))
+  const pages = Array.from({ length: count }, (_, index) => metadata?.[index] ?? {})
+  const contract = prepared || !!preview || pages.some((page) => Object.keys(page).length > 0)
   const baseline = {
     paint: "S",
     width: "0.2",
@@ -109,10 +112,10 @@ export function fixture({
     fillRule: "nonzero",
   }
   const regions = Object.fromEntries(
-    Object.keys(pages).map((page, index) => [
-      page,
+    pages.map((_, index) => [
+      `page${index}`,
       {
-        page,
+        page: index,
         marker: "Guides",
         records: [
           {
@@ -212,11 +215,16 @@ export function fixture({
   }
   if (annotations) {
     Object.assign(manifest.groups[0], annotations.group)
-    for (const [id, metadata] of Object.entries(annotations.parameters ?? {}))
-      Object.assign(manifest.parameters[id].schema, metadata)
+    for (const [id, presentation] of Object.entries(annotations.parameters ?? {}))
+      Object.assign(manifest.parameters[id].schema, presentation)
+  }
+  if (!prepared) {
+    for (const key of ["regions", "baselines", "targets", "parameters"]) manifest[key] = {}
+    delete manifest.groups
+    delete manifest.profileSets
   }
   const objects = [
-    `<< /Type /Catalog /Pages 2 0 R ${prepared ? "/Names << /EmbeddedFiles << /Names [(mainz.json) 4 0 R] >> >>" : ""} >>`,
+    `<< /Type /Catalog /Pages 2 0 R ${contract ? `/Names << /EmbeddedFiles << /Names [(mainz.json) 4 0 R${preview ? ` (preview.png) ${6 + count * 2} 0 R` : ""}] >> >>` : ""} >>`,
     `<< /Type /Pages /Kids [${Array.from({ length: count }, (_, index) => `${5 + index * 2} 0 R`).join(" ")}] /Count ${count} /MediaBox [0 0 595.2756 841.8898] >>`,
     stream("/Type /EmbeddedFile /Subtype /application#2Fjson", JSON.stringify(manifest)),
     "<< /Type /Filespec /F (mainz.json) /UF (mainz.json) /EF << /F 3 0 R /UF 3 0 R >> >>",
@@ -233,6 +241,11 @@ export function fixture({
     )
   }
   let pdf = "%PDF-1.7\n"
+  if (preview)
+    objects.push(
+      stream("/Type /EmbeddedFile /Subtype /image#2Fpng /Filter /ASCIIHexDecode", preview.toString("hex") + ">"),
+      `<< /Type /Filespec /F (preview.png) /UF (preview.png) /EF << /F ${5 + count * 2} 0 R /UF ${5 + count * 2} 0 R >> >>`,
+    )
   const offsets = [0]
   objects.forEach((object, index) => {
     offsets.push(Buffer.byteLength(pdf))
@@ -266,7 +279,7 @@ export async function checkGrips(pane, label) {
       )
       assert.ok(
         offsets.every((axes) => axes.every((offset) => Math.abs(offset) < 1)),
-        `${label}, ${colorScheme}`,
+        `${label}, ${colorScheme}: grip offsets ${JSON.stringify(offsets)}`,
       )
     }
   }

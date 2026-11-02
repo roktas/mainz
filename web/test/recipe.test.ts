@@ -13,13 +13,13 @@ function source(): Source {
       binding: { property: "stroke-width", targets: ["guides"] },
     },
     baseline: { kind: "uniform", value: 0.2 },
-    pages: ["page"],
+    pages: [0],
   }
   const description: Description = {
     version: 1,
     publication: { id: "fixture/book", version: "1.2.3" },
     pageCount: 1,
-    pages: { page: { index: 0 } },
+    pages: [{}],
     parameters: {
       width,
       opacity: {

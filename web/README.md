@@ -11,12 +11,17 @@ The application's offline-ready notice confirms that the assets are available.
 PDF Composer uses modern browser features. Older systems, including iOS 16, can show a broken layout or fail to open
 PDFs. We do not claim a tested minimum OS or browser version.
 
-Grid shows thumbnails, and Page shows one large page. Both views share selections and page operations. Input shows the
-PDF as opened. Style changes applicable Output pages from the active Input.
+Grid shows thumbnails, List shows page names and numbers, and Page shows one large page. These views share selections
+and page operations. Input shows the PDF as opened. Style changes applicable Output pages from the active Input.
 
-Each pane offers Normal and Compact Grid density. Selection actions use the shared bar. Without a selection, card
-buttons and Page actions use their own page. Help explains keyboard, mouse, and touch controls and opens the Product
-tour.
+Each pane offers Normal and Compact Grid density. Selection actions use the shared bar. Without a selection, Output card
+buttons, List actions, and Page actions use their own page. Grid headers reveal page names on hover or focus. Help
+explains keyboard, mouse, and touch controls and opens the Product tour.
+
+Named pages, List, supplied PNG thumbnails, and shared Input Grid/List triviality visibility follow the
+[workspace specification](doc/SPEC.md#implementation-status). Page metadata comes from the shared physical-page array.
+Tags classify content; the independent optional triviality defaults to zero, the highest display priority. Triviality
+visibility remains a workspace view preference and preserves Selection and Output.
 
 Export recipe in the Output header saves page arrangements and style choices as JSON. The [CLI](../cli/README.md)
 replays that file against Input PDFs, including updated publications. The export panel lets you assign logical Input

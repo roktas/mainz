@@ -48,6 +48,7 @@ test("Profile options require compatible peers and consider future profile choic
         .locator(".input-current")
         .filter({ hasText: `${name}.pdf` })
         .waitFor()
+      await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
       await tab(input, "Style")
       assert.equal(
@@ -156,6 +157,7 @@ test(
         const perFile = input.getByRole("checkbox", { name: "Apply only to this file", exact: true })
         const profile = (name) => input.getByRole("combobox", { name: `${name} choices`, exact: true })
         await activate("Alpha")
+        await tab(input, "List")
         await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
         await tab(input, "Style")
         for (const [width, size, colorScheme] of [
@@ -217,6 +219,7 @@ test(
           "Unused files do not start processing",
         )
         await activate("Beta")
+        await tab(input, "List")
         await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
         await tab(input, "Style")
         assert.equal(await profile("Beta").inputValue(), "beta-fine", "Different IDs and set names still match")
@@ -267,6 +270,7 @@ test(
         await activate("Alpha")
         await profile("Alpha").selectOption("alpha-fine")
         await activate("Gamma")
+        await tab(input, "List")
         await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
         await tab(input, "Style")
         assert.equal(
@@ -383,6 +387,7 @@ test("Opaque profile-set IDs keep their annotations across Input switches", { ti
         .locator(".input-current")
         .filter({ hasText: `Profiles-${index}.pdf` })
         .waitFor()
+      await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
       await tab(input, "Style")
       for (const set of sets) {
@@ -500,6 +505,7 @@ test("Authored details share one panel across Style owners and omit blank guidan
           mimeType: "application/pdf",
           buffer: fixture({ count: 3, grouped: true, annotations, profileSets: [set] }),
         })
+      await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
       await tab(input, "Style")
       assert.equal(await input.locator(".guidance-trigger").count(), 3)
@@ -630,6 +636,7 @@ test("Authored details share one panel across Style owners and omit blank guidan
           }),
         })
       await input.locator(".input-current").filter({ hasText: "Blank-guidance.pdf" }).waitFor()
+      await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
       await tab(input, "Style")
       assert.equal(await input.locator(".guidance-trigger").count(), 0)
@@ -978,13 +985,18 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
         }
         if (name === "Output") await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill("2")
         let reference
-        for (const view of name === "Input" ? ["Page", "Grid", "Style"] : ["Page", "Grid"]) {
+        for (const view of name === "Input" ? ["Page", "Grid", "List", "Style"] : ["Page", "Grid", "List"]) {
           await tab(pane, view)
           const bounds = await pane.locator(".tabs").evaluate((tabs) => {
             const origin = tabs.getBoundingClientRect()
             return [...tabs.children].map((element) => {
               const rect = element.getBoundingClientRect()
-              return { x: rect.x - origin.x, y: rect.y - origin.y, width: rect.width, height: rect.height }
+              return {
+                x: rect.x - origin.x + tabs.scrollLeft,
+                y: rect.y - origin.y,
+                width: rect.width,
+                height: rect.height,
+              }
             })
           })
           reference ??= bounds
@@ -1296,6 +1308,7 @@ test(
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
       const download = output.getByRole("button", { name: "Download", exact: true })
+      await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
       await tab(input, "Style")
       const color = input.getByRole("textbox", { name: "Guide Color", exact: true })
@@ -1319,7 +1332,7 @@ test(
       assert.equal(await (await pending).failure(), null)
       await input.locator(".input-picker > summary").click()
       await input.locator(".input-list button[data-source]").first().click()
-      await tab(input, "Grid")
+      await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
       assert.equal(await download.isDisabled(), true, "Adding an affected page restores the draft error")
       await tab(input, "Style")
@@ -1358,6 +1371,7 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
     await selection.fill("")
     for (const [inputMode, outputMode] of [
       ["Grid", "Grid"],
+      ["List", "List"],
       ["Page", "Grid"],
       ["Grid", "Page"],
       ["Page", "Page"],
@@ -1430,11 +1444,11 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
         await inputHelp.innerText(),
         inputMode === "Style"
           ? /move between Style controls/
-          : inputMode === "Grid"
+          : inputMode === "Grid" || inputMode === "List"
             ? /Select or unselect page/
             : /Add the current page to Output/,
       )
-      assert.match(await outputHelp.innerText(), outputMode === "Grid" ? /Remove page/ : /Zoom in \/ out/)
+      assert.match(await outputHelp.innerText(), outputMode !== "Page" ? /Remove page/ : /Zoom in \/ out/)
       if (inputMode === "Grid")
         assert.match(await inputHelp.innerText(), /Shift\s+\+\s+←\s+\/\s+→\s+Select \/ unselect pages/)
       if (outputMode === "Grid") {
@@ -1458,7 +1472,7 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
       assert.deepEqual(await helpDialog.boundingBox(), dimensions, "Help retains its largest tab's dimensions")
       const mouseHelp = helpDialog.getByRole("tabpanel", { name: "Mouse", exact: true })
       assert.equal(await mouseHelp.isVisible(), true)
-      assert.match(await mouseHelp.innerText(), /Switch the current page between Grid and Page/)
+      assert.match(await mouseHelp.innerText(), /Open Page or return to Grid or List/)
       assert.match(await mouseHelp.innerText(), /Select or unselect a page/)
       assert.match(await mouseHelp.innerText(), /Click a Page counter\s+Enter a page number/)
       await helpDialog.getByRole("tab", { name: "Mouse", exact: true }).press("Home")
@@ -1766,6 +1780,7 @@ test("Cancelling a paused batch inspection releases the next Source", { timeout:
         .locator(".input-current")
         .filter({ hasText: `${name}.pdf` })
         .waitFor()
+      await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
     }
     await tab(input, "Style")
@@ -2507,6 +2522,7 @@ test("Demo Cover is first and its fill survives Download and reopening", { timeo
       .first()
       .setInputFiles({ name: "Cover.pdf", mimeType: "application/pdf", buffer })
     await input.locator(".input-current").filter({ hasText: "Cover.pdf" }).waitFor()
+    await tab(input, "List")
     await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
     await tab(input, "Style")
     assert.equal(await input.getByRole("textbox", { name: "Cover", exact: true }).inputValue(), "#21478E")
@@ -2881,6 +2897,7 @@ test("Opacity percentages preserve precision and leave room for their sliders", 
           }),
         })
       const input = page.locator(".selection-panel")
+      await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
       await tab(input, "Style")
       const profile = input.getByRole("combobox", { name: "Opacity profile", exact: true })
@@ -2986,6 +3003,7 @@ test("Opaque parameter IDs retain style edits, draft errors, and downloaded valu
       })
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
+    await tab(input, "List")
     await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
     await tab(input, "Style")
     assert.equal(await input.getByRole("button", { name: "Edit Stroke", exact: true }).count(), 1)

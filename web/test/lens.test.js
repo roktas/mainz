@@ -2,8 +2,9 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { chromium } from "playwright"
-import { createServer } from "./browser.js"
+import { chromium, webkit } from "playwright"
+import { createServer, tab } from "./browser.js"
+import { serve } from "./server.ts"
 
 const harness = {
   name: "lens-fixture",
@@ -19,63 +20,171 @@ const harness = {
       : undefined,
 }
 
-async function fixture(page, url, delayed = false) {
+async function fixture(page, url, delayed = false, name) {
   await page.goto(url)
   await page.addScriptTag({ type: "module", url: `${url}lens-fixture.js` })
   await page.waitForFunction(() => !!window.mountLens)
-  await page.evaluate((waitForPage) => {
-    const canvas = document.createElement("canvas")
-    canvas.width = canvas.height = 200
-    canvas.style.cssText = "position: fixed; left: 20px; top: 100px; width: 200px; height: 200px"
-    canvas.id = "lens-source"
-    document.getElementById("app").append(canvas)
-    canvas.getContext("2d").fillRect(0, 0, 200, 200)
-    window.lensPDF = { acquired: 0, cleaned: 0, started: 0, active: 0, peak: 0, cancelled: 0 }
-    const sheet = {
-      cleanup: () => window.lensPDF.cleaned++,
-      getViewport: ({ scale }) => ({ width: 200 * scale, height: 200 * scale }),
-      render: ({ canvas: raster, viewport, transform }) => {
-        const state = window.lensPDF
-        state.started++
-        state.peak = Math.max(state.peak, ++state.active)
-        let timer, reject
-        const promise = new Promise((resolve, fail) => {
-          reject = fail
-          if (!window.holdLensRender)
-            timer = setTimeout(() => {
-              const context = raster.getContext("2d")
-              context.fillStyle = "#0000ff"
-              context.fillRect(0, 0, raster.width, raster.height)
-              context.fillStyle = "#ff0000"
-              context.fillRect(viewport.width * 0.35 + transform[4], 0, viewport.width * 0.01, raster.height)
-              resolve()
-            }, 60)
-        }).finally(() => state.active--)
-        return {
-          promise,
-          cancel: () => {
-            state.cancelled++
-            clearTimeout(timer)
-            reject(new Error("Cancelled"))
-          },
-        }
-      },
-    }
-    window.mountLens({
-      canvas,
-      page: 1,
-      rendering: false,
-      pdf: {
-        getPage: () => {
-          window.lensPDF.acquired++
-          return waitForPage
-            ? new Promise((resolve) => (window.releaseLensPage = () => resolve(sheet)))
-            : Promise.resolve(sheet)
+  await page.evaluate(
+    ({ waitForPage, caption }) => {
+      const canvas = document.createElement("canvas")
+      canvas.width = canvas.height = 200
+      canvas.style.cssText = "position: fixed; left: 20px; top: 100px; width: 200px; height: 200px"
+      canvas.id = "lens-source"
+      document.getElementById("app").append(canvas)
+      canvas.getContext("2d").fillRect(0, 0, 200, 200)
+      window.lensPDF = { acquired: 0, cleaned: 0, started: 0, active: 0, peak: 0, cancelled: 0 }
+      const sheet = {
+        cleanup: () => window.lensPDF.cleaned++,
+        getViewport: ({ scale }) => ({ width: 200 * scale, height: 200 * scale }),
+        render: ({ canvas: raster, viewport, transform }) => {
+          const state = window.lensPDF
+          state.started++
+          state.peak = Math.max(state.peak, ++state.active)
+          let timer, reject
+          const promise = new Promise((resolve, fail) => {
+            reject = fail
+            if (!window.holdLensRender)
+              timer = setTimeout(() => {
+                const context = raster.getContext("2d")
+                context.fillStyle = "#0000ff"
+                context.fillRect(0, 0, raster.width, raster.height)
+                context.fillStyle = "#ff0000"
+                context.fillRect(viewport.width * 0.35 + transform[4], 0, viewport.width * 0.01, raster.height)
+                resolve()
+              }, 60)
+          }).finally(() => state.active--)
+          return {
+            promise,
+            cancel: () => {
+              state.cancelled++
+              clearTimeout(timer)
+              reject(new Error("Cancelled"))
+            },
+          }
         },
-      },
-    })
-  }, delayed)
+      }
+      window.mountLens({
+        canvas,
+        page: 1,
+        pageNumber: 7,
+        name: caption,
+        rendering: false,
+        pdf: {
+          getPage: (number) => {
+            window.lensPDF.page = number
+            window.lensPDF.acquired++
+            return waitForPage
+              ? new Promise((resolve) => (window.releaseLensPage = () => resolve(sheet)))
+              : Promise.resolve(sheet)
+          },
+        },
+      })
+    },
+    { waitForPage: delayed, caption: name },
+  )
 }
+
+test("Lens names stay centered and truncate within short viewports and enlarged text", { timeout: 60000 }, async () => {
+  const server = await createServer({ plugins: [harness], server: { port: 0, host: "127.0.0.1" } })
+  try {
+    await server.listen()
+    for (const engine of [chromium, webkit]) {
+      const browser = await engine.launch()
+      try {
+        for (const hasTouch of [false, true]) {
+          const page = await browser.newPage({ viewport: { width: 667, height: 250 }, hasTouch, isMobile: hasTouch })
+          const name = "ITAL-" + "Very long physical page name ".repeat(12)
+          await fixture(page, server.resolvedUrls.local[0], false, name)
+          await page.locator("#lens-source").evaluate((canvas) => (canvas.style.zIndex = "49"))
+          for (const theme of ["light", "dark"]) {
+            await page.evaluate((choice) => {
+              document.documentElement.dataset.theme = choice
+              document.documentElement.style.fontSize = "200%"
+            }, theme)
+            if (hasTouch)
+              await page
+                .locator("#lens-source")
+                .dispatchEvent("touchstart", { touches: [{ identifier: 1, clientX: 100, clientY: 150 }] })
+            else await page.mouse.move(100, 150)
+            await page.locator('.lens[aria-busy="false"]').waitFor()
+            assert.equal(await page.locator(".lens").getAttribute("aria-label"), "Magnified page 7 at 16×")
+            assert.equal(await page.evaluate(() => window.lensPDF.page), 1)
+            assert.equal(await page.locator(".lens-name").innerText(), name.trim())
+            const geometry = await page.locator(".lens").evaluate((lens) => {
+              const box = lens.getBoundingClientRect(),
+                canvas = lens.querySelector("canvas").getBoundingClientRect(),
+                label = lens.querySelector("p"),
+                text = label.getBoundingClientRect(),
+                style = getComputedStyle(label)
+              return {
+                bounded:
+                  box.left >= 12 && box.top >= 12 && box.right <= innerWidth - 12 && box.bottom <= innerHeight - 12,
+                separate: canvas.bottom <= text.top && canvas.height > 100,
+                centered:
+                  Math.abs(text.left + text.width / 2 - box.left - box.width / 2) < 1 && style.textAlign === "center",
+                truncated: label.scrollWidth > label.clientWidth && style.textOverflow === "ellipsis",
+              }
+            })
+            assert.deepEqual(geometry, { bounded: true, separate: true, centered: true, truncated: true })
+            if (hasTouch) await page.locator("#lens-source").dispatchEvent("touchend", { touches: [] })
+            else {
+              await page.keyboard.press("Escape")
+              await page.mouse.move(0, 0)
+            }
+          }
+          await page.close()
+        }
+      } finally {
+        await browser.close()
+      }
+    }
+  } finally {
+    await server.close()
+  }
+})
+
+test(
+  "Input and Output lenses retain physical page names in both Grid densities and Page",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await chromium.launch()
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.locator('.composer[aria-busy="false"]').waitFor()
+      for (const [pane, name] of [
+        [page.locator(".selection-panel"), "Input"],
+        [page.locator(".composition-output"), "Output"],
+      ]) {
+        for (const density of ["Normal", "Compact"]) {
+          await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+          const canvas = pane.locator('.page-image[data-page="1"] canvas')
+          await page.waitForFunction(() => !document.querySelector('.composer [aria-busy="true"]'))
+          await page.mouse.move(0, 0)
+          await canvas.hover()
+          await page.locator('.lens[aria-busy="false"]').waitFor()
+          assert.equal(await page.locator(".lens-name").innerText(), "ITAL-GUID-79A4-WXGX")
+          await page.keyboard.press("Escape")
+        }
+        await pane.locator('.page-image[data-page="1"]').click()
+        await tab(pane, "Page")
+        const canvas = pane.locator('.pdf-viewport[aria-busy="false"] canvas')
+        await canvas.scrollIntoViewIfNeeded()
+        await page.waitForFunction(() => !document.querySelector('.composer [aria-busy="true"]'))
+        await page.mouse.move(0, 0)
+        await canvas.hover({ position: { x: 10, y: 10 } })
+        await page.locator('.lens[aria-busy="false"]').waitFor()
+        assert.equal(await page.locator(".lens-name").innerText(), "ITAL-GUID-79A4-WXGX")
+        await page.keyboard.press("Escape")
+        await tab(pane, "Grid")
+      }
+    } finally {
+      await browser.close()
+    }
+  },
+)
 
 test("Lens fits short viewports at every edge for mouse and touch", { timeout: 60000 }, async () => {
   const server = await createServer({ plugins: [harness], server: { port: 0, host: "127.0.0.1" } })

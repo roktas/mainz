@@ -25,7 +25,7 @@
     hasOutput: boolean
     styleable: boolean
     hasProfiles: boolean
-    views: () => { input: "grid" | "page" | "style"; output: "grid" | "page" }
+    views: () => { input: "grid" | "list" | "page" | "style"; output: "grid" | "list" | "page" }
     onboarding?: boolean
     change: (step?: TourStep) => void
     hint: (show: boolean) => void
@@ -275,7 +275,7 @@
   onclick={showHelp}><Icon name="help" /></button
 >
 
-{#snippet shortcutList(mode: "grid" | "page", pane: "Input" | "Output")}
+{#snippet shortcutList(mode: "grid" | "list" | "page", pane: "Input" | "Output")}
   <dl class="shortcut-list">
     {#if mode === "grid"}<div>
         <dt><kbd>←</kbd> / <kbd>→</kbd></dt>
@@ -283,45 +283,50 @@
       </div>{/if}
     <div>
       <dt><kbd>V</kbd></dt>
-      <dd>Switch Grid / Page</dd>
+      <dd>
+        {mode === "list" ? "Switch List / Page" : mode === "page" ? "Return to Grid or List" : "Switch Grid / Page"}
+      </dd>
     </div>
     <div>
       <dt>
         <kbd>↑</kbd> <kbd>↓</kbd>{#if mode === "grid"}
           <kbd>←</kbd> <kbd>→</kbd>{/if}
       </dt>
-      <dd>{mode === "grid" ? "Move focus between pages" : "Scroll the image vertically"}</dd>
+      <dd>{mode !== "page" ? "Move focus between pages" : "Scroll the image vertically"}</dd>
     </div>
     <div>
       <dt><kbd>N</kbd> / <kbd>P</kbd></dt>
-      <dd>{mode === "grid" ? "Focus next / previous page" : "Show next / previous page"}</dd>
+      <dd>{mode !== "page" ? "Focus next / previous page" : "Show next / previous page"}</dd>
     </div>
     <div>
       <dt><kbd class="named">Home</kbd> / <kbd class="named">End</kbd></dt>
-      <dd>{mode === "grid" ? "Focus first / last page" : "Show first / last page"}</dd>
+      <dd>{mode !== "page" ? "Focus first / last page" : "Show first / last page"}</dd>
     </div>
     <div>
       <dt><kbd class="named">Space</kbd></dt>
       <dd>
-        {mode === "grid"
+        {mode !== "page"
           ? "Select or unselect page"
           : pane === "Input"
             ? "Add the current page to Output"
             : "Duplicate the current page"}
       </dd>
     </div>
-    {#if mode === "grid"}
+    {#if mode !== "page"}
       <div>
         <dt><kbd class="named">PgUp</kbd> / <kbd class="named">PgDn</kbd></dt>
-        <dd>Previous / next thumbnail group</dd>
+        <dd>{mode === "list" ? "Move one screen of rows" : "Previous / next thumbnail group"}</dd>
       </div>
       <div>
-        <dt><kbd class="named">Shift</kbd> + <kbd>←</kbd> / <kbd>→</kbd></dt>
+        <dt>
+          <kbd class="named">Shift</kbd> + <kbd>{mode === "list" ? "↑" : "←"}</kbd> /
+          <kbd>{mode === "list" ? "↓" : "→"}</kbd>
+        </dt>
         <dd>Select / unselect pages</dd>
       </div>
       <div>
         <dt>
-          <kbd class="named">Enter</kbd>{#if pane === "Output"}
+          <kbd class="named">Enter</kbd>{#if pane === "Output" || mode === "list"}
             / <kbd>+</kbd>{/if}
         </dt>
         <dd>{pane === "Input" ? "Add pages to Output" : "Duplicate pages"}</dd>
@@ -330,10 +335,6 @@
         <div>
           <dt><kbd class="named">Del</kbd> / <kbd>−</kbd></dt>
           <dd>Remove pages</dd>
-        </div>
-        <div>
-          <dt><kbd class="named">Ctrl</kbd> + <kbd>←</kbd> / <kbd>→</kbd></dt>
-          <dd>Move pages earlier / later</dd>
         </div>
       {/if}
     {:else}
@@ -356,6 +357,15 @@
       <div>
         <dt><kbd>0</kbd> or <kbd>Z</kbd></dt>
         <dd>Reset zoom (100%)</dd>
+      </div>
+    {/if}
+    {#if pane === "Output"}
+      <div>
+        <dt>
+          <kbd class="named">Ctrl/⌘</kbd> + <kbd>{mode === "list" ? "↑" : "←"}</kbd> /
+          <kbd>{mode === "list" ? "↓" : "→"}</kbd>
+        </dt>
+        <dd>Move pages earlier / later</dd>
       </div>
     {/if}
   </dl>
@@ -400,7 +410,15 @@
               </p>
               <div class="shortcut-views">
                 {#if hasInput}<section aria-label={`Input ${modes.input}`}>
-                    <h3>Input {modes.input === "grid" ? "Grid" : modes.input === "page" ? "Page" : "Style"}</h3>
+                    <h3>
+                      Input {modes.input === "grid"
+                        ? "Grid"
+                        : modes.input === "list"
+                          ? "List"
+                          : modes.input === "page"
+                            ? "Page"
+                            : "Style"}
+                    </h3>
                     <div class="help-body">
                       {#if modes.input === "style"}
                         <p>
@@ -421,7 +439,7 @@
                     </div>
                   </section>{/if}
                 <section aria-label={`Output ${modes.output}`}>
-                  <h3>Output {modes.output === "grid" ? "Grid" : "Page"}</h3>
+                  <h3>Output {modes.output === "grid" ? "Grid" : modes.output === "list" ? "List" : "Page"}</h3>
                   <div class="help-body">
                     {#if hasOutput}
                       <h4>View</h4>
@@ -436,7 +454,7 @@
                     {:else}
                       <p>
                         Add Input pages to use Output page actions.
-                        {#if modes.output === "page"}Press <kbd>V</kbd> to return to Grid.{/if}
+                        {#if modes.output === "page"}Press <kbd>V</kbd> to return to Grid or List.{/if}
                       </p>
                     {/if}
                   </div>
@@ -461,10 +479,6 @@
                     <div>
                       <dt><kbd class="named">Del</kbd></dt>
                       <dd>Remove Output selection</dd>
-                    </div>
-                    <div>
-                      <dt><kbd class="named">Ctrl</kbd> + <kbd>←</kbd> / <kbd>→</kbd></dt>
-                      <dd>Move Output selection</dd>
                     </div>
                   </dl>
                   <p>Fields and open menus keep their keys. Selection actions use the bar.</p>
@@ -501,7 +515,7 @@
                 </div>
                 <div>
                   <dt><kbd class="named">Ctrl</kbd> / <kbd>⌘</kbd> + click</dt>
-                  <dd>Switch the current page between Grid and Page</dd>
+                  <dd>Open Page or return to Grid or List</dd>
                 </div>
                 <div>
                   <dt>Double-click a Page image</dt>
@@ -521,7 +535,7 @@
                 <div>
                   <dt>Drag a grip or Grid image</dt>
                   <dd>
-                    Input adds pages to Output. Output Grid moves pages. Starting a drag preserves selection and
+                    Input adds pages to Output. Output Grid and List move pages. Starting a drag preserves selection and
                     keyboard focus.
                   </dd>
                 </div>

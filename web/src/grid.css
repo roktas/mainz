@@ -1,14 +1,7 @@
-/* Styles thumbnail pagination, density controls, and the Grid viewport. */
+/* Styles Grid and List frames, page captions, and view controls. */
 
 @layer views {
   @scope (.composer) {
-    @container composer (width > 55em) {
-      .composition-panels {
-        /* Enlarged captions can exceed the ordinary bottom gutter. */
-        padding-block-end: max(0px, calc(1.5 * var(--small) + 4px - var(--gutter)));
-      }
-    }
-
     .grid-view {
       display: grid;
       grid-template-rows: minmax(0, 1fr) minmax(var(--grid-pager-height), auto);
@@ -20,6 +13,498 @@
       grid-auto-rows: var(--card-height);
       align-content: start;
       min-block-size: 0;
+    }
+
+    .page-visibility {
+      position: relative;
+      flex: none;
+      & summary {
+        list-style: none;
+      }
+      & summary::-webkit-details-marker {
+        display: none;
+      }
+      & summary:active {
+        background: var(--tint);
+      }
+      & .visibility-options {
+        position: absolute;
+        z-index: 20;
+        inset-block-start: 100%;
+        inset-inline-end: 0;
+        inline-size: max-content;
+        max-inline-size: min(22rem, 80vi);
+        max-block-size: 60dvb;
+        overflow: auto;
+        display: grid;
+        gap: 0.25em;
+        padding: 0.5em;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        box-shadow: 0 4px 12px var(--shadow);
+        & span {
+          padding: 0.5em;
+          color: var(--muted);
+          font-size: var(--small);
+        }
+        & button {
+          min-block-size: 44px;
+          text-align: start;
+        }
+      }
+    }
+
+    .page-name {
+      margin: 0;
+      padding: 0.35em 0.25em;
+      min-inline-size: 0;
+      overflow-wrap: anywhere;
+      font-size: var(--small);
+      line-height: 1.35;
+      color: var(--ink);
+      text-align: center;
+    }
+    .composition-card .page-label {
+      position: relative;
+    }
+    .composition-card:has(.page-origin:hover, .page-origin:focus-within, .page-number:hover) {
+      z-index: 2;
+    }
+    .page-origin,
+    .page-number {
+      anchor-scope: --page-name;
+      & > :is(button, summary, strong) {
+        anchor-name: --page-name;
+      }
+    }
+    :is(.page-origin, .page-number) > .page-name,
+    .page-origin > summary > .page-name {
+      position: fixed;
+      z-index: 5;
+      inset: auto;
+      position-anchor: --page-name;
+      position-area: block-end span-inline-end;
+      position-try-fallbacks: flip-inline;
+      inline-size: max-content;
+      max-inline-size: calc(100vi - 2 * var(--gutter));
+      padding: 0.5em 0.75em;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 4px 12px var(--shadow);
+      text-align: start;
+      white-space: nowrap;
+      overflow: clip;
+      text-overflow: ellipsis;
+      pointer-events: none;
+      display: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      :is(.page-origin, .page-number):hover > .page-name,
+      .page-origin:hover > summary > .page-name {
+        display: block;
+      }
+    }
+    :is(.page-origin, .page-number):focus-within > .page-name,
+    .page-origin:focus-within > summary > .page-name {
+      display: block;
+    }
+    .page-view .inspection-heading {
+      overflow: visible;
+    }
+    .detail-name {
+      margin: 0;
+      padding-block-end: 0.6em;
+      margin-block-end: 0.35em;
+      border-block-end: 1px solid var(--border);
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: clip;
+      text-overflow: ellipsis;
+    }
+    :is(.list-row-menu, .occurrence-menu)[popover] {
+      inline-size: max-content;
+      & .occurrence-actions {
+        grid-template-columns: repeat(2, 88px);
+        gap: 8px;
+      }
+      & :is(.occurrence-moves, .occurrence-copies) {
+        grid-template-columns: repeat(2, 44px);
+      }
+      & button {
+        inline-size: 44px;
+        min-inline-size: 44px;
+        block-size: 44px;
+        min-block-size: 44px;
+        padding: 0;
+      }
+    }
+    .page-list .card-menu-options:not(.list-row-menu) .page-context {
+      display: block;
+      margin-block-start: 0.35em;
+    }
+
+    .page-content:has(> .page-list) {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+      min-block-size: 20rem;
+    }
+    .page-list {
+      position: relative;
+      container: list / inline-size;
+      --list-action-size: 44px;
+      display: grid;
+      grid-template-columns: minmax(44px, max-content) var(--list-action-size) minmax(0, 1fr) max-content;
+      grid-auto-rows: max-content;
+      align-content: start;
+      min-block-size: 0;
+      overflow: auto;
+      overscroll-behavior: contain;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      color: color-mix(in oklch, var(--ink) 80%, var(--paper));
+      @media (hover: hover) and (pointer: fine) {
+        --list-action-size: 32px;
+      }
+      & > li {
+        position: relative;
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+        align-items: center;
+        min-block-size: 44px;
+        border-block-end: 1px solid var(--border);
+        &:has(:focus-visible) {
+          outline: 1px solid var(--secondary);
+          outline-offset: -1px;
+          @media (forced-colors: active) {
+            outline-color: Highlight;
+          }
+        }
+        & :is(.list-choice, .page-grip, .page-origin > button, .list-actions button):focus-visible {
+          outline-color: transparent;
+        }
+        &[data-dragging] {
+          opacity: 0.6;
+        }
+        & > :not(.list-drop-preview) {
+          grid-row: 1;
+        }
+        &[data-drop="before"] > :not(.list-drop-preview) {
+          grid-row: 2;
+        }
+        & .list-drop-preview {
+          font-size: var(--body);
+          font-weight: 600;
+          line-height: 1.5;
+          block-size: var(--drop-height);
+          display: grid;
+          grid-column: 1 / -1;
+          grid-row: 1;
+          grid-template-columns: subgrid;
+          align-items: center;
+          background: color-mix(in oklch, var(--accent) 8%, var(--paper));
+          color: var(--ink);
+          opacity: 0.45;
+          pointer-events: none;
+          & .drop-number {
+            grid-column: 1;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+          }
+          & .drop-name {
+            grid-column: 3;
+            min-inline-size: 0;
+            padding-inline: 0.5em;
+            overflow: clip;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+          }
+          & > span:last-child:not(.drop-name) {
+            grid-column: 4;
+            padding-inline: 14px;
+          }
+        }
+        &[data-drop="after"] .list-drop-preview {
+          grid-row: 2;
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          & .list-drop-preview {
+            transition: block-size 180ms var(--ease-out);
+            @starting-style {
+              block-size: 0;
+            }
+          }
+        }
+        &.removing {
+          min-block-size: 0;
+          overflow: clip;
+          pointer-events: none;
+        }
+        &[data-drop]::after {
+          content: "";
+          position: absolute;
+          inset-inline: 0;
+          inset-block-start: 0;
+          border-block-start: 2px solid var(--accent);
+          pointer-events: none;
+        }
+        &[data-drop="after"]::after {
+          inset-block-start: auto;
+          inset-block-end: 0;
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          &[data-arriving] {
+            animation: row-enter 220ms var(--ease-out);
+          }
+        }
+        &.selected {
+          background: var(--accent);
+          color: var(--on-accent);
+          & :is(.list-choice, .page-grip, .page-origin > button, [aria-pressed="true"]) {
+            color: inherit;
+            transition: none;
+          }
+          & .list-number .page-context {
+            color: inherit;
+          }
+          & .page-origin > button strong > span:first-child {
+            text-decoration-color: currentColor;
+          }
+          & .list-choice:active {
+            background: transparent;
+          }
+          @media (forced-colors: active) {
+            background: Highlight;
+            color: HighlightText;
+          }
+        }
+      }
+      & .list-number {
+        max-inline-size: 8ch;
+        font-variant-numeric: tabular-nums;
+        text-align: end;
+        overflow-wrap: anywhere;
+      }
+      & > li > .page-grip {
+        inline-size: var(--list-action-size);
+        min-inline-size: var(--list-action-size);
+        block-size: 44px;
+        padding: 0;
+        color: inherit;
+        cursor: grab;
+        &:active {
+          cursor: grabbing;
+        }
+        & svg {
+          inline-size: 16px;
+          block-size: 16px;
+        }
+      }
+      & .page-origin > button {
+        color: inherit;
+        transition: none;
+        & strong > span:first-child {
+          text-decoration: underline dotted var(--muted);
+          text-underline-offset: 0.2em;
+        }
+      }
+      & .card-menu-options[popover] {
+        inline-size: max-content;
+        max-inline-size: min(22rem, calc(100vi - 2 * var(--gutter)));
+        text-align: start;
+        font-size: var(--small);
+      }
+      & .list-choice {
+        display: block;
+        min-block-size: 44px;
+        min-inline-size: 0;
+        padding: 0.5em;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        color: inherit;
+        text-align: start;
+        overflow-wrap: anywhere;
+        transition: none;
+        &:active {
+          background: transparent;
+          filter: none;
+        }
+      }
+      & .list-actions {
+        display: flex;
+        align-items: center;
+        min-inline-size: var(--list-action-size);
+        & button {
+          &:not(:disabled) {
+            color: inherit;
+          }
+          inline-size: var(--list-action-size);
+          min-inline-size: var(--list-action-size);
+          block-size: var(--list-action-size);
+          min-block-size: var(--list-action-size);
+          padding: 0;
+        }
+        & svg {
+          inline-size: 16px;
+          block-size: 16px;
+        }
+      }
+      & .list-inline-actions {
+        display: block;
+      }
+      & .list-menu {
+        display: none;
+      }
+      & .occurrence-actions {
+        grid-template-columns: repeat(2, calc(2 * var(--list-action-size)));
+        column-gap: 6px;
+        margin: 0;
+        border: 0;
+        & > [aria-pressed="true"] {
+          grid-column: 2;
+          justify-self: end;
+          color: var(--accent);
+        }
+      }
+      & :is(.occurrence-moves, .occurrence-copies) {
+        display: grid;
+        grid-template-columns: repeat(2, var(--list-action-size));
+      }
+      @media (hover: hover) and (pointer: fine) {
+        & .list-inline-actions button:hover:not(:disabled) {
+          color: var(--accent);
+          background: transparent;
+          box-shadow: none;
+        }
+        & .list-inline-actions {
+          opacity: 0;
+        }
+        & > li:hover .list-inline-actions {
+          opacity: 1;
+        }
+      }
+      & > li:focus-within .list-inline-actions {
+        opacity: 1;
+      }
+      & .list-actions > [aria-pressed="true"] {
+        color: var(--accent);
+      }
+    }
+    @media (hover: none), (pointer: coarse) {
+      .composition-output .page-list .list-inline-actions {
+        display: none;
+      }
+      .page-list .list-actions .list-menu {
+        display: inline flex;
+      }
+    }
+    @container list (width <= 22rem) {
+      .composition-output .page-list .list-inline-actions {
+        display: none;
+      }
+      .page-list .list-actions .list-menu {
+        display: inline flex;
+      }
+    }
+    @keyframes row-enter {
+      from {
+        opacity: 0;
+        translate: -12px 0;
+      }
+      to {
+        opacity: 1;
+        translate: 0 0;
+      }
+    }
+    .composition-card > .occurrence-actions > .card-inline-actions button::after {
+      inset-inline: 0;
+    }
+    .composition-card {
+      --return-surface: var(--soft);
+    }
+    .page-list > li {
+      --return-surface: var(--paper);
+      &.selected {
+        --return-surface: var(--accent);
+      }
+    }
+    .composition-card[data-returning],
+    .page-list > li[data-returning] {
+      background: color-mix(in oklch, var(--secondary) 18%, var(--return-surface));
+      box-shadow: inset 4px 0 var(--secondary);
+      @media (prefers-reduced-motion: no-preference) {
+        animation: view-return 900ms var(--ease-out);
+      }
+      @media (forced-colors: active) {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+      }
+    }
+    @keyframes view-return {
+      0%,
+      55% {
+        background: color-mix(in oklch, var(--secondary) 18%, var(--return-surface));
+        box-shadow: inset 4px 0 var(--secondary);
+      }
+      to {
+        background: var(--return-surface);
+        box-shadow: inset 4px 0 transparent;
+      }
+    }
+
+    .list-peek {
+      display: inline flex;
+      anchor-scope: --peek;
+      & > button {
+        anchor-name: --peek;
+      }
+      & .page-peek {
+        margin: 0;
+        position-anchor: --peek;
+        position-area: inline-end center;
+        position-try-fallbacks:
+          flip-inline,
+          flip-block,
+          flip-inline flip-block;
+        inline-size: min(28rem, calc((80dvb - 3rem) * var(--ratio)), calc(100vi - 24px));
+        max-block-size: calc(100dvb - 24px);
+        padding: 0;
+        border: 1px solid var(--edge);
+        border-radius: var(--radius);
+        background: var(--surface);
+        color: var(--ink);
+        box-shadow: 0 8px 32px var(--shadow);
+        pointer-events: none;
+        & .peek-image {
+          aspect-ratio: var(--ratio);
+        }
+        & .thumbnail {
+          inline-size: 100%;
+          block-size: 100%;
+          padding: 0;
+        }
+        & .composition-blank {
+          inline-size: 100%;
+          block-size: 100%;
+        }
+        & p {
+          margin: 0;
+          padding: 0.5em 0.75em;
+          font-size: var(--small);
+          text-align: center;
+          white-space: nowrap;
+          overflow: clip;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+    .composition-output:has(.page-list) :is(.move, .inline-moves, .menu-moves) svg {
+      rotate: 90deg;
     }
 
     .page-batches {

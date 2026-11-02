@@ -1,4 +1,4 @@
-// Defines Input style schemas and resolves values, profiles, applicability, and preview requirements.
+// Defines Input page metadata and style schemas, values, profiles, applicability, and preview requirements.
 
 import type { Part } from "./model.ts"
 
@@ -34,7 +34,7 @@ export type Entry = {
     value?: Scalar
   }
   baseline: { kind: "uniform"; value: Scalar } | { kind: "mixed" } | { kind: "unrepresentable"; reason: string }
-  pages: string[]
+  pages: number[]
 }
 export type Profile = Annotations & {
   id: string
@@ -53,7 +53,13 @@ export type Description = {
   version: 1
   publication?: { id: string; version: string }
   pageCount: number
-  pages: Record<string, { index: number; label?: string }>
+  pages: {
+    label?: string
+    name?: string
+    tags?: string[]
+    triviality?: number
+    preview?: { file: string; width: number; height: number }
+  }[]
   parameters: Record<string, Entry>
   groups?: Group[]
   profileSets?: ProfileSet[]
@@ -238,7 +244,7 @@ export function applicable(description: Description, pages: Iterable<number>): s
   const scope = new Set(pages)
   return groups(description)
     .flatMap((group) => group.parameters)
-    .filter((id) => description.parameters[id].pages.some((page) => scope.has(description.pages[page].index)))
+    .filter((id) => description.parameters[id].pages.some((page) => scope.has(page)))
 }
 
 export function available(source: { id: string; input: { description: Description } }, counts: Usage): string[] {

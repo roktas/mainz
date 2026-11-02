@@ -41,7 +41,7 @@
       .composition-card:has(> .page-image[data-press], .page-label > .page-grip[data-press]):not([data-dragging]) {
       box-shadow: none;
       translate: 0;
-      opacity: 0.3;
+      opacity: 0.6;
       @media (prefers-reduced-motion: no-preference) {
         rotate: -2deg;
         scale: 0.98;
@@ -63,7 +63,7 @@
       block-size: 100%;
       min-block-size: 0;
       object-fit: contain;
-      opacity: 0.25;
+      opacity: 0.45;
     }
     .composition-empty > .drop-placeholder {
       position: relative;
@@ -72,12 +72,27 @@
     }
     .output-pages > .drop-placeholder {
       inset-inline-start: var(--grid-column-gap);
+      & > .drop-number {
+        position: absolute;
+        inset-block-start: 0;
+        inset-inline-start: 8px;
+        block-size: var(--card-tools-height);
+        display: grid;
+        place-items: center;
+        color: var(--ink);
+        font-size: var(--small);
+        font-variant-numeric: tabular-nums;
+        opacity: 0.45;
+      }
     }
     .input-drop-hint {
       display: none;
     }
     .composer {
       &[data-drag] {
+        & .composition-output .page-list > li:not([data-dragging]) {
+          pointer-events: none;
+        }
         & .composition-card {
           box-shadow: none;
           translate: 0;
@@ -91,13 +106,13 @@
           }
         }
         &:not([data-touch-drag]) .composition-output,
-        &[data-touch-drag] .composition-output :is(.composition-grid, .composition-empty) {
+        &[data-touch-drag] .composition-output :is(.composition-grid, .page-list, .composition-empty) {
           outline: 1px dashed var(--accent);
           outline-offset: 6px;
           border-radius: var(--radius);
         }
         &:not([data-touch-drag]) .composition-output[data-drop="end"],
-        &[data-touch-drag] .composition-output[data-drop="end"] :is(.composition-grid, .composition-empty) {
+        &[data-touch-drag] .composition-output[data-drop="end"] :is(.composition-grid, .page-list, .composition-empty) {
           outline-style: solid;
           background: color-mix(in oklch, var(--accent) 5%, var(--paper));
         }
@@ -137,7 +152,7 @@
         & .selection-panel .page-content {
           position: relative;
         }
-        & .selection-panel:has(.input-drop-hint) :is(.composition-grid, .page-view) {
+        & .selection-panel:has(.input-drop-hint) :is(.composition-grid, .page-list, .page-view) {
           outline: 1px dashed var(--danger);
           outline-offset: 6px;
           border-radius: var(--radius);
@@ -173,6 +188,16 @@
 
 @layer views {
   @scope (.composer) {
+    .composition-output :is(.composition-card, .list-row)[data-dragging] {
+      opacity: 0;
+    }
+    .composition-output[data-preview] .page-list > .list-row[data-dragging] {
+      position: absolute;
+      inset-block-start: 0;
+      inset-inline: 0;
+      block-size: var(--drop-height);
+      overflow: clip;
+    }
     :is(.selection-panel, .composition-output)[data-density="compact"] {
       .drop-placeholder {
         padding-block: calc(var(--card-tools-height) - 1px + var(--thumbnail-padding))

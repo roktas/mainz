@@ -11,6 +11,8 @@
   let {
     pdf,
     page,
+    pageNumber,
+    name,
     canvas,
     rendering,
     magnification = 16,
@@ -18,6 +20,8 @@
   }: {
     pdf?: PDFDocumentProxy
     page: number
+    pageNumber?: number
+    name?: string
     canvas?: HTMLCanvasElement
     rendering: boolean
     magnification?: Magnification
@@ -261,13 +265,15 @@
   <div
     class="lens"
     role="region"
-    aria-label={`Magnified page ${page} at ${magnification}×`}
+    aria-label={`Magnified page ${pageNumber ?? page} at ${magnification}×`}
     aria-busy={refining}
     style:inset-inline-start={`${point.left}px`}
     style:inset-block-start={`${point.top}px`}
     style:inline-size={`${point.size}px`}
+    style:block-size={`${point.size}px`}
     {@attach float}
   >
     <canvas {@attach refine} width="0" height="0"></canvas>
+    {#if name}<p class="lens-name">{name}</p>{/if}
   </div>
 {/if}

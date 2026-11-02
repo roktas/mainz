@@ -5,8 +5,7 @@ workspace behavior and product terminology. [Stylesheets](../src/main.css) and t
 CSS values, breakpoints, and animation keyframes. The rules below retain deliberate visual constraints without
 duplicating the implementation or the interaction specification.
 
-List and page-name captions below are pending requirements under the
-[workspace implementation status](SPEC.md#implementation-status).
+The [workspace specification](SPEC.md#implementation-status) defines the implemented views and metadata behavior.
 
 ## Contents
 
@@ -15,6 +14,8 @@ List and page-name captions below are pending requirements under the
 - [Focus, selection, and motion](#focus-selection-and-motion)
 - [Workspace](#workspace)
 - [Page fields](#page-fields)
+- [List](#list)
+- [Triviality visibility](#triviality-visibility)
 - [Grid and Page](#grid-and-page)
 - [Style presentation](#style-presentation)
 - [Drag and drop](#drag-and-drop)
@@ -97,6 +98,11 @@ Page uses a 1 px contour, increased inward to 2 px for selection. Its heading re
 viewport stays neutral. Border, header, footer, and padding compensation prevent selected cards from moving or resizing
 their images. Keyboard focus on the Page viewport uses the complete frame's secondary contour. Pointer zoom focuses the
 viewport for navigation without showing that contour or a clipped inner outline.
+
+Returning through view tabs or Grid density controls briefly marks the inspected item with a secondary tint and a 4 px
+inner start-edge bar. Keep the cue for 900 ms; reduced motion uses the same static cue without fading. The active tab or
+density control retains focus. Keyboard content returns focus the inspected item without this cue. The cue does not
+select the item or reopen its preview.
 
 Motion follows reduced-motion preferences. Hover lifts, drag tilt, parallax, fades, and animated movement disappear
 under reduced motion. Static selection and operation highlights remain. Loading indicators retain a visible busy state
@@ -307,18 +313,57 @@ images. Input and Output use the same control dimensions. Preserve usable field 
 
 List rows align page numbers, supplied names, and page actions in stable columns. Keep number and action columns visible
 in narrow panes. Names wrap in the remaining space without horizontal scrolling. Unnamed pages reserve no empty name
-line. Repeated names retain separate numbered rows. Selection and keyboard cursor use the same focus and selected-state
-tokens as Grid. Row actions retain the existing minimum targets and visible focus indicators in both themes. List has no
-Grid density control. Switching views retains the toolbar height and content-frame position.
+line. Repeated names retain separate numbered rows. Selected rows use the primary surface and its contrasting text
+color, without a selection contour. Numbers, names, and ticks keep this contrast on hover and keyboard focus. Unselected
+row text and actions use an 80% mix of the text color over the page background. A tick replaces the row's Add or
+Duplicate action without moving its position. Keyboard focus remains visible independently of selection. Output groups
+its up/down controls and removal/duplication into two contiguous pairs, with 6 px between the pairs and no divider. On a
+fine pointer, Input Add and the Output pairs appear on row hover or focus. Hover changes the icon color without boxes or
+glow. Eye and the selection tick remain visible. Row actions use 32 px targets with a fine pointer and 44 px targets for
+touch, in both themes. Coarse pointers keep Input Add visible. Output uses a row-menu button for coarse pointers and
+narrow panes. Page details use a compact, start-aligned popover beside the number, including in narrow panes. List has
+no Grid density control. Switching views retains the toolbar height and content-frame position.
+
+Each row has a grip beside its number and a View icon at the trailing edge. View hover or keyboard focus shows a large
+full-page preview beside the row. Keep the preview within the viewport and preserve the page's aspect ratio. It does not
+receive pointer input. Its caption appears only for a supplied page name. Narrow Output rows group their operations in a
+separate action menu. Number details show the supplied name and provenance.
+
+Keyboard focus draws one secondary contour around the complete row, including its number, name, and trailing controls.
+Individual row controls do not draw additional contours. Focus remains distinct from the primary selection surface. List
+additions slide in briefly; removed rows collapse and fade; surviving rows move into place. Use a lighter, vertical
+movement than Grid and respect reduced motion. The insertion marker lies across the row's top or bottom edge.
+
+## Triviality visibility
+
+Input Grid and List place triviality visibility last in the view toolbar, at the same trailing edge. Show it only when
+the Input contains different effective triviality values. Keep its accessible name Page visibility and retain a
+full-size target at narrow widths and enlarged text. Its compact presentation may use the existing view-menu pattern; it
+must not wrap the toolbar or reduce page-selection field width. The current threshold and All pages choice remain
+reachable by keyboard and touch. Show visible and total counts without implying that concealed pages were removed. Keep
+a selected concealed-page count in the existing Selection hint.
+
+An Input with no visible pages keeps its toolbar and visibility control in place. Its empty-state guidance offers All
+pages. Filtered cards use the same geometry, focus, motion, caption, and thumbnail rules as other Grid cards. Changing
+the threshold does not move peer control centers. Validate the control with both themes, both densities, no visible
+pages, all pages, long names, and enlarged text. Grid and List share the threshold. Page retains the full Input
+sequence.
 
 ## Grid and Page
 
-Place a supplied page name below the Grid image in both densities, or below the image frame in Page. Keep captions
-outside PDF pixels and image zoom. Missing names reserve no empty caption. Long names and enlarged text must not overlap
-images, controls, or adjacent cards. Include caption space in frame sizing so Grid retains complete rows. Captions wrap
-at word boundaries and break unbroken names within the card width. Both Grid densities and Page retain complete captions
-with enlarged text and narrow panes. Caption height participates in row sizing; captions never overlay the PDF or page
-actions.
+Normal Grid footer actions appear on card hover or keyboard focus with a fine pointer. Their layout space remains
+reserved. Hover emphasizes the icon without button boxes or glow. On touch, Input Add stays visible; Output provides the
+same paired actions through a visible footer menu. Page numbers and grips remain visible. Compact Grid retains its
+detail menu.
+
+Normal and Compact Grid show the name in a tooltip when the page number receives hover or keyboard focus. The tooltip
+uses one horizontal line outside the number cell and reserves no caption row. Anchor it to the number and flip it inside
+the viewport at its edges. Long names truncate at the viewport limit. Hidden names must not add horizontal scrolling.
+Page uses the same number tooltip and leaves its footer for navigation and page actions. List also uses number tooltips.
+Clicking replaces the name tooltip with one detail panel directly below the number. A supplied name becomes its first
+row, separated from the details by a light divider. Prepare the panel before opening it so the transition has no empty
+frame. Missing names add no caption. Both themes, narrow panes, and enlarged text retain usable controls and complete
+PDF images. Normal Input footers retain their centered Add action when no pages are selected.
 
 Review thumbnail sampling at the actual Normal and Compact image sizes. Fine guides must remain visible on guide-only
 pages while full and partial pattern pages remain distinguishable. Compare the cover, text, raster images, and authored
@@ -393,10 +438,11 @@ silhouette, balanced margins, image legibility, and control sizes. If another ro
 permitted. Shared layouts prioritize readable images, stable spacing, and reachable pagination on unknown screens. They
 do not need to find the greatest possible card count.
 
-Matching Input and Output cards have equal dimensions at the same density, including sparse rows. Normal cards place
-numbers at the start, grips in the center, and face information at the upper-right corner. Back uses a curved folded
-corner. Front retains its normal corner. The fold continues the current contour without leaving a rectangular border
-behind it. Accessible labels and hover help identify both faces. Page corners do not intercept tool interactions.
+Matching Input and Output cards use equal base image and control geometry at the same density, including sparse rows.
+Names do not change card dimensions. Normal cards place numbers at the start, grips in the center, and face information
+at the upper-right corner. Back uses a curved folded corner. Front retains its normal corner. The fold continues the
+current contour without leaving a rectangular border behind it. Accessible labels and hover help identify both faces.
+Page corners do not intercept tool interactions.
 
 Normal headers reserve three separate 44 px cells around the centered grip, with 1 px gaps to guard native
 touch-coordinate rounding. Expanded targets can cover the contour while remaining inside the card's outer bounds. Their
@@ -493,8 +539,9 @@ Keep every action accessible; do not clip controls, overlap targets, or introduc
 headings, view toolbars, and pagination captions outside cards follow their own layout rules.
 
 Selection hides individual actions without moving the image or changing card dimensions. Normal footers keep their
-height and separator. Input centers addition. Output places removal left of duplication with one control gap. Page
-places navigation chevrons at the outer edges around these actions. Movement actions use stemmed arrows, distinct from
+height and separator. Input centers addition. Output uses the same 32 px controls and paired spacing as List on a fine
+pointer, with left/right movement before removal/duplication. Touch uses a visible menu with 44 px actions. Page places
+navigation chevrons at the outer edges around these actions. Movement actions use stemmed arrows, distinct from
 navigation chevrons. All action targets remain usable with keyboard and touch.
 
 PDF content, Blank, and Padding keep physical proportions and the same fit rules. Neutral image frames distinguish white
@@ -559,7 +606,9 @@ viewport. Pagination stays clear of the status bar within the shared bottom gutt
 targets; the slider retains a 44 px height. Reserve one caption line below it; wrapped captions can increase the row
 height. Page totals stay beside the current number. The page-entry field does not cover another control.
 
-The square lens fits both viewport dimensions with 12 px margins, including its border.
+The square lens fits both viewport dimensions with 12 px margins, including its border and optional name caption. The
+caption sits below the crop with centered text and padding. It uses one line and an ellipsis for long names. The crop
+uses the remaining height, so enlarged text does not push the lens outside the viewport.
 [SPEC](SPEC.md#page-preview-and-comparison) owns lens dismissal and interaction.
 
 The lens overlays the image without receiving input. Its magnifier cursor remains visible over light and dark page
@@ -632,6 +681,17 @@ image follows the finger directly while neighboring cards ease into their prospe
 source or touch grip immediately fades its card and applies the drag tilt and scale, before the movement threshold.
 Touch grips also receive an accent highlight. Pressing alone does not change selection. Release or cancellation clears
 the press feedback. Reduced motion keeps the fade and highlight without tilt or scaling.
+
+List drags use a horizontal strip at the row's height, with its number and name aligned to the row's columns. The strip
+appears on press and sits just below the row, offset 8 px toward its start and 12 px above its bottom edge. Its slight
+tilt and short entrance animation follow motion preferences. Multiple pages add a count. Do not put a page raster in
+this strip. The insertion slot holds one faint strip in the same columns and text size. Keep the moving strip opaque.
+Grid drag images and other moving page images use sharp rasters at device density, with a minimum density of two. Grid
+images stay attached to the pointer at their heading instead of above the card.
+
+During Grid and List transfers, the moving image, placeholder, and neighboring pages show prospective Output numbers.
+Output moves hide the original card or row and close its old slot. Input copying retains its source. Grid folds use the
+same number as their card. Number changes update text and frame decoration without rendering the PDF again.
 
 During a narrow touch transfer, Output's workspace button gains a dashed accent border that becomes solid under the
 finger. Input's forbidden-drop marker appears only after a pause away from the valid target. Movement toward Output
@@ -939,7 +999,7 @@ Grid density controls sit outside the tab list. The mobile view switcher uses bu
 | English term      | Turkish equivalent   | UI element                                                                              |
 | ----------------- | -------------------- | --------------------------------------------------------------------------------------- |
 | List view         | Liste görünümü       | The row view of Input pages or Output occurrences with page numbers and supplied names. |
-| Page name caption | Sayfa adı açıklaması | The supplied page name below a Grid image or the Page image frame.                      |
+| Page name caption | Sayfa adı açıklaması | The supplied page name below the Page image frame, or in a Grid header tooltip.         |
 
 ### Page selection
 
@@ -977,24 +1037,25 @@ The bar is the complete bordered row. The field is only the text-entry area with
 
 #### Cards and previews
 
-| English term         | Turkish equivalent                | UI element                                                                                              |
-| -------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Thumbnail grid       | Küçük resim ızgarası              | The area that arranges page cards in rows and columns.                                                  |
-| Page card            | Sayfa kartı                       | One complete card with its header, body, image, footer, and outer boundary.                             |
-| Card header          | Kart üst alanı                    | The upper section with the page number, drag handle, and page face indicator.                           |
-| Page number          | Sayfa numarası                    | The physical page position in the pane's sequence.                                                      |
-| Page label           | Sayfa etiketi                     | A PDF-authored label shown alongside a different physical page number.                                  |
-| Drag handle / Grip   | Sürükleme tutamacı                | The dotted handle in the card header. A click also selects or unselects the page.                       |
-| Page face indicator  | Sayfa yüzü göstergesi             | The corner indicator that identifies the front or back side.                                            |
-| Folded corner        | Katlanmış köşe                    | The curved corner that marks a back side.                                                               |
-| Card body            | Kart gövdesi                      | The main image section between the header and footer.                                                   |
-| Thumbnail frame      | Küçük resim çerçevesi             | The neutral area around the small page image.                                                           |
-| Page thumbnail       | Sayfa küçük resmi                 | The small page image inside the frame, from a producer PNG or PDF rendering.                            |
-| Card footer          | Kart alt alanı                    | The section below the image that reserves space for card actions.                                       |
-| Card actions         | Kart işlemleri                    | Input addition or Output removal and duplication buttons.                                               |
-| Page details trigger | Sayfa ayrıntılarını açma denetimi | The interactive page number that opens page details.                                                    |
-| Page details popover | Sayfa ayrıntı paneli              | Input details or Output-copy information. Compact also includes a larger preview and available actions. |
-| Blank page preview   | Boş sayfa önizlemesi              | The content-free page appearance with a Blank or Padding label.                                         |
+| English term            | Turkish equivalent                | UI element                                                                                              |
+| ----------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Thumbnail grid          | Küçük resim ızgarası              | The area that arranges page cards in rows and columns.                                                  |
+| Page card               | Sayfa kartı                       | One complete card with its header, body, image, footer, and outer boundary.                             |
+| Card header             | Kart üst alanı                    | The upper section with the page number, drag handle, and page face indicator.                           |
+| Page number             | Sayfa numarası                    | The physical page position in the pane's sequence.                                                      |
+| Page label              | Sayfa etiketi                     | A PDF-authored label shown alongside a different physical page number.                                  |
+| Drag handle / Grip      | Sürükleme tutamacı                | The dotted handle in the card header. A click also selects or unselects the page.                       |
+| Page face indicator     | Sayfa yüzü göstergesi             | The corner indicator that identifies the front or back side.                                            |
+| Folded corner           | Katlanmış köşe                    | The curved corner that marks a back side.                                                               |
+| Card body               | Kart gövdesi                      | The main image section between the header and footer.                                                   |
+| Thumbnail frame         | Küçük resim çerçevesi             | The neutral area around the small page image.                                                           |
+| Page thumbnail          | Sayfa küçük resmi                 | The small page image inside the frame, from a producer PNG or PDF rendering.                            |
+| Card footer             | Kart alt alanı                    | The section below the image that reserves space for card actions.                                       |
+| Card actions            | Kart işlemleri                    | Input addition or Output movement, removal, and duplication controls.                                   |
+| Page details trigger    | Sayfa ayrıntılarını açma denetimi | The interactive page number that opens page details.                                                    |
+| Page details popover    | Sayfa ayrıntı paneli              | Input details or Output-copy information. Compact also includes a larger preview and available actions. |
+| Page visibility control | Sayfa görünürlüğü denetimi        | The shared Input Grid/List control that selects the highest visible triviality or All pages.            |
+| Blank page preview      | Boş sayfa önizlemesi              | The content-free page appearance with a Blank or Padding label.                                         |
 
 Grid is the view name. Input uses an HTML list, and Output uses an ordered list. The view name does not imply an ARIA
 `grid` role.

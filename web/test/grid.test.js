@@ -9,6 +9,672 @@ import { measure } from "./measure.js"
 import inventory from "./viewports.json" with { type: "json" }
 import { bounds as gridBounds, quality } from "./quality.ts"
 
+test("List keyboard ranges and inspection preserve their pane, selection, and focus", { timeout: 60000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output")
+      const inputSelection = input.getByRole("textbox", { name: "Page selection", exact: true }),
+        outputSelection = output.getByRole("textbox", { name: "Page selection", exact: true })
+      await tab(input, "List")
+      await tab(output, "Page")
+      await inputSelection.fill("")
+      await input.locator('.list-choice[data-page="0"]').focus()
+      await page.keyboard.press("Shift+N")
+      const navigation = {
+        output: (await output.locator(".page-position").innerText()).replace(/\s/g, ""),
+        input: await input.locator(".list-choice:focus").getAttribute("data-page"),
+      }
+      await inputSelection.fill("")
+      await input.locator('.list-choice[data-page="0"]').focus()
+      await page.keyboard.press("Shift+ArrowDown")
+      const inputRange = await inputSelection.inputValue()
+      await tab(output, "List")
+      await outputSelection.fill("")
+      await output.locator('.list-choice[data-page="0"]').focus()
+      await page.keyboard.press("Shift+ArrowDown")
+      const outputRange = await outputSelection.inputValue()
+      await inputSelection.fill("1,4")
+      await input.locator('.list-choice[data-page="1"]').dblclick()
+      const inspected = {
+        selection: await inputSelection.inputValue(),
+        page: (await input.locator(".page-position").innerText()).replace(/\s/g, ""),
+      }
+      await tab(input, "List")
+      const focus = []
+      for (const [pane, selection, name] of [
+        [input, inputSelection, "Input"],
+        [output, outputSelection, "Output"],
+      ]) {
+        await selection.fill("1,2")
+        await pane.getByRole("button", { name: `Unselect ${name} page 1`, exact: true }).press("Enter")
+        focus.push(
+          await pane.locator('.list-choice[data-page="0"]').evaluate((element) => element === document.activeElement),
+        )
+      }
+      assert.deepEqual(
+        { navigation, inputRange, outputRange, inspected, focus },
+        {
+          navigation: { output: "1/8", input: "1" },
+          inputRange: "1-2",
+          outputRange: "1-2",
+          inspected: { selection: "1,4", page: "2/4" },
+          focus: [true, true],
+        },
+      )
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
+test("List row actions preserve selection and move individual occurrences", { timeout: 60000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output")
+      await tab(input, "List")
+      await tab(output, "List")
+      const selection = input.getByRole("textbox", { name: "Page selection", exact: true })
+      await selection.fill("")
+      const add = input.getByRole("button", { name: "Add Input page 2 to Output", exact: true })
+      const before = await add.boundingBox()
+      await selection.fill("2, 4")
+      assert.equal(await add.count(), 0)
+      const tick = input.getByRole("button", { name: "Unselect Input page 2", exact: true })
+      assert.deepEqual(await tick.boundingBox(), before, "The tick replaces Add without shifting the row")
+      await tick.click()
+      assert.equal(await selection.inputValue(), "4")
+      await add.click()
+      assert.equal(await selection.inputValue(), "4", "Adding one row retains the other selected pages")
+      assert.equal(await output.locator(".page-list > li").count(), 9)
+      const outputSelection = output.getByRole("textbox", { name: "Page selection", exact: true })
+      await outputSelection.fill("")
+
+      const rows = output.locator(".page-list > li")
+      assert.equal(
+        await rows
+          .first()
+          .locator(".occurrence-actions:visible")
+          .evaluate((element) => element.getBoundingClientRect().width),
+        134,
+      )
+      const ids = await rows.evaluateAll((elements) => elements.map((element) => element.id))
+      assert.equal(
+        await output.getByRole("button", { name: "Move Output page 1 earlier", exact: true }).isDisabled(),
+        true,
+      )
+      assert.equal(
+        await output.getByRole("button", { name: "Move Output page 9 later", exact: true }).isDisabled(),
+        true,
+      )
+      await output.getByRole("button", { name: "Move Output page 2 earlier", exact: true }).click()
+      assert.deepEqual(await rows.evaluateAll((elements) => elements.map((element) => element.id)), [
+        ids[1],
+        ids[0],
+        ...ids.slice(2),
+      ])
+      assert.equal(
+        await rows
+          .first()
+          .locator(".list-choice")
+          .evaluate((element) => element === document.activeElement),
+        true,
+      )
+      await output.getByRole("button", { name: "Move Output page 1 later", exact: true }).click()
+      assert.deepEqual(await rows.evaluateAll((elements) => elements.map((element) => element.id)), ids)
+
+      await outputSelection.fill("2, 4")
+      assert.equal(await output.getByRole("button", { name: "Duplicate Output page 2", exact: true }).count(), 0)
+      await output.getByRole("button", { name: "Unselect Output page 2", exact: true }).click()
+      assert.equal(await outputSelection.inputValue(), "4")
+      await output.getByRole("button", { name: "Move Output page 2 earlier", exact: true }).click()
+      assert.equal(await outputSelection.inputValue(), "4", "Moving an unselected row retains the selection")
+      await output.getByRole("button", { name: "Move selected pages later", exact: true }).click()
+      assert.equal(await outputSelection.inputValue(), "5")
+      assert.equal(await output.getByRole("button", { name: "Unselect Output page 5", exact: true }).count(), 1)
+      for (const pane of [input, output]) {
+        await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill("")
+        const choice = pane.locator(".list-choice").first()
+        await choice.hover()
+        await page.mouse.down()
+        assert.deepEqual(
+          await choice.evaluate((element) => {
+            const style = getComputedStyle(element)
+            return { background: style.backgroundColor, filter: style.filter, transition: style.transitionDuration }
+          }),
+          { background: "rgba(0, 0, 0, 0)", filter: "none", transition: "0s" },
+        )
+        await page.mouse.up()
+        assert.equal(await choice.getAttribute("aria-pressed"), "true")
+        assert.equal(await choice.evaluate((element) => getComputedStyle(element).backgroundColor), "rgba(0, 0, 0, 0)")
+      }
+      const touch = await browser.newPage({
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+        isMobile: true,
+        reducedMotion: "reduce",
+      })
+      await touch.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await touch.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await touch.locator(".composer[aria-busy=false]").waitFor()
+      await touch
+        .getByRole("navigation", { name: "Workspace view", exact: true })
+        .getByRole("button", { name: "Output", exact: true })
+        .tap()
+      const touchOutput = touch.locator(".composition-output")
+      await tab(touchOutput, "List")
+      assert.equal(
+        await touchOutput.locator(".list-actions button:visible").evaluateAll((elements) =>
+          elements.every((element) => {
+            const box = element.getBoundingClientRect()
+            return box.width >= 44 && box.height >= 44
+          }),
+        ),
+        true,
+      )
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
+test("List details stay anchored and row highlights remain flat", { timeout: 90000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    let page
+    try {
+      page = await browser.newPage({ reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      for (const [width, text] of [
+        [1440, "100%"],
+        [768, "100%"],
+        [390, "200%"],
+        [320, "100%"],
+      ]) {
+        await page.setViewportSize({ width, height: 1100 })
+        await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+        for (const colorScheme of ["light", "dark"]) {
+          await page.emulateMedia({ colorScheme })
+          for (const name of ["Input", "Output"]) {
+            const switcher = page
+              .getByRole("navigation", { name: "Workspace view", exact: true })
+              .getByRole("button", { name, exact: true })
+            if (await switcher.isVisible()) await switcher.click()
+            const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+            await tab(pane, "List")
+            await pane.locator("[data-returning]").waitFor({ state: "detached" })
+            const choice = pane.locator(".list-choice").first()
+            for (const selection of ["", "1, 3"]) {
+              await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill(selection)
+              await choice.hover()
+              assert.equal(await choice.evaluate((element) => getComputedStyle(element).boxShadow), "none")
+              assert.equal(
+                await pane
+                  .locator(".page-list > li")
+                  .first()
+                  .evaluate((element) => getComputedStyle(element).boxShadow),
+                "none",
+              )
+              if (selection) {
+                const colors = await choice.evaluate((element) => {
+                  const row = element.closest("li"),
+                    probe = document.createElement("span")
+                  probe.style.cssText = "background:var(--accent);color:var(--on-accent)"
+                  row.append(probe)
+                  const expected = getComputedStyle(probe),
+                    background = expected.backgroundColor,
+                    foreground = expected.color
+                  const result = {
+                    primary: getComputedStyle(row).backgroundColor === background,
+                    contrast: [
+                      element,
+                      row.querySelector(".page-origin > button"),
+                      row.querySelector('.list-actions [aria-pressed="true"]'),
+                    ].every((control) => getComputedStyle(control).color === foreground),
+                  }
+                  probe.remove()
+                  return result
+                })
+                assert.deepEqual(colors, { primary: true, contrast: true })
+              }
+            }
+            const number = pane.getByRole("button", { name: `Details for ${name} page 1`, exact: true })
+            await number.click()
+            const details = pane.locator(".card-menu-options:popover-open")
+            await details.waitFor()
+            const panel = await details.boundingBox(),
+              trigger = await number.boundingBox()
+            assert.ok(panel.width < 400 && panel.x >= 0 && panel.x + panel.width <= width + 1)
+            assert.equal(await details.locator(".detail-name").innerText(), "Cover")
+            assert.ok(
+              Math.min(Math.abs(panel.y - trigger.y - trigger.height), Math.abs(trigger.y - panel.y - panel.height)) <
+                40,
+            )
+            assert.equal(await details.evaluate((element) => getComputedStyle(element).textAlign), "start")
+            assert.match(
+              await details.innerText(),
+              name === "Input" ? /Copies in Output: 1/ : /demo.pdf\s+Input page 1/,
+            )
+            await page.keyboard.press("Escape")
+            assert.equal(await details.count(), 0)
+            assert.equal(await number.evaluate((element) => element === document.activeElement), true)
+            await choice.focus()
+            await page.keyboard.press("ArrowDown")
+            assert.equal(
+              await pane
+                .locator('.list-choice[data-page="1"]')
+                .evaluate(
+                  (element) => element === document.activeElement && getComputedStyle(element).outlineStyle !== "none",
+                ),
+              true,
+            )
+            assert.equal(
+              await pane.locator(".page-list").evaluate((element) => element.scrollWidth <= element.clientWidth),
+              true,
+            )
+          }
+        }
+      }
+    } catch (error) {
+      if (page) await captureLayout(page, `list-details-${engine.name()}`, { error: error.message })
+      throw error
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
+test(
+  "Page metadata retains physical selection through visibility, List, and captions",
+  { timeout: 90000 },
+  async () => {
+    const server = await serve()
+    const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    let page
+    try {
+      page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      const metadata = [
+        { name: "Practice", triviality: 0 },
+        { name: "Details", triviality: 1 },
+        { name: "Practice" },
+        { name: "An extended page name with unbrokenwords".repeat(3), triviality: 2 },
+        {},
+        { triviality: 1 },
+      ]
+      await page.route("**/grid.pdf", (route) =>
+        route.fulfill({ contentType: "application/pdf", body: fixture({ count: 6, metadata }) }),
+      )
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output")
+      const selection = input.getByRole("textbox", { name: "Page selection", exact: true })
+      await input.locator('.page-image[data-page="4"]').waitFor()
+      assert.deepEqual(
+        await input.locator(".page-image").evaluateAll((nodes) => nodes.map((node) => Number(node.dataset.page))),
+        [0, 2, 4],
+      )
+      await selection.fill("1-6")
+      assert.match(await input.locator(".sequence-help").innerText(), /3 concealed/)
+      await input.locator(".page-visibility > summary").click()
+      await input.getByRole("button", { name: "All pages", exact: true }).click()
+      await input.getByRole("button", { name: "Triviality ≤ 0 · Important", exact: true }).click()
+      assert.equal(await selection.inputValue(), "1-6")
+      await page.keyboard.press("Escape")
+      assert.equal(await input.locator(".page-visibility").getAttribute("open"), null)
+      await selection.fill("")
+      await input.locator('.page-image[data-page="0"]').click()
+      await input.locator('.page-image[data-page="4"]').click({ modifiers: ["Shift"] })
+      assert.equal(await selection.inputValue(), "1, 3, 5")
+      await tab(input, "List")
+      assert.deepEqual(
+        await input.locator(".list-choice").evaluateAll((nodes) => nodes.map((node) => Number(node.dataset.page))),
+        [0, 2, 4],
+      )
+      const visibility = input.locator(".page-visibility")
+      assert.equal(await visibility.evaluate((element) => element === element.parentElement.lastElementChild), true)
+      const listEdge = (await visibility.boundingBox()).x + (await visibility.boundingBox()).width
+      await visibility.locator("summary").click()
+      await input.getByRole("button", { name: "All pages", exact: true }).click()
+      await page.keyboard.press("Escape")
+      assert.equal(await input.locator(".page-list > li").count(), 6)
+      await input.locator('.list-choice[data-page="1"]').focus()
+      await page.keyboard.press("v")
+      assert.equal(await input.locator(".inspection-heading .page-name").textContent(), "Details")
+      await tab(input, "Grid")
+      const gridBox = await visibility.boundingBox()
+      assert.ok(Math.abs(gridBox.x + gridBox.width - listEdge) < 1)
+      await visibility.locator("summary").click()
+      await input.getByRole("button", { name: "Triviality ≤ 0 · Important", exact: true }).click()
+      await page.keyboard.press("Escape")
+      assert.equal(await input.locator('.page-image[data-page="1"]').count(), 0)
+      await tab(output, "List")
+      assert.equal(await output.locator(".page-list > li").count(), 6)
+      await tab(input, "List")
+      await input.locator('.list-choice[data-page="2"]').focus()
+      await page.keyboard.press("ArrowDown")
+      assert.equal(
+        await input.locator('.list-choice[data-page="4"]').evaluate((element) => element === document.activeElement),
+        true,
+      )
+      await tab(input, "Grid")
+      await input.locator(".page-visibility > summary").click()
+      await input.getByRole("button", { name: "All pages", exact: true }).click()
+      await page.keyboard.press("Escape")
+      await page.setViewportSize({ width: 390, height: 1100 })
+      await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
+      const overflow = await page.evaluate(() =>
+        [...document.querySelectorAll(".selection-panel *, .composition-output *")]
+          .filter(
+            (element) =>
+              element.getBoundingClientRect().right > innerWidth + 1 && element.getBoundingClientRect().width > 0,
+          )
+          .map((element) => [element.className, element.getBoundingClientRect().width])
+          .slice(0, 15),
+      )
+      await captureLayout(page, "page-metadata", { visibility: "triviality 0", overflow })
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+        true,
+        JSON.stringify(overflow),
+      )
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test("Uniform page triviality keeps every page visible without a visibility control", { timeout: 30000 }, async () => {
+  const server = await serve()
+  const browser = await chromium.launch()
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    for (const metadata of [
+      [{}, {}],
+      [{ triviality: 2 }, { triviality: 2 }],
+      [{ triviality: 0 }, {}],
+    ]) {
+      await page.route("**/grid.pdf", (route) =>
+        route.fulfill({ contentType: "application/pdf", body: fixture({ count: 2, metadata }) }),
+      )
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const input = page.locator(".selection-panel")
+      for (const view of ["Grid", "List"]) {
+        await tab(input, view)
+        assert.equal(await input.locator(".page-visibility").count(), 0)
+        assert.equal(await input.locator(view === "Grid" ? ".page-image" : ".list-choice").count(), 2)
+        assert.equal(
+          await input.locator(".tabs").evaluate((element) => parseFloat(getComputedStyle(element).columnGap) >= 4),
+          true,
+        )
+      }
+      await page.unroute("**/grid.pdf")
+    }
+  } finally {
+    await browser.close()
+  }
+})
+
+test("Metadata-only Inputs keep hidden pages accessible without Style controls", { timeout: 30000 }, async () => {
+  const server = await serve()
+  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  try {
+    const page = await browser.newPage({
+      viewport: { width: 390, height: 1000 },
+      hasTouch: true,
+      isMobile: true,
+      reducedMotion: "reduce",
+    })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.route("**/demo.pdf", (route) =>
+      route.fulfill({
+        contentType: "application/pdf",
+        body: fixture({
+          prepared: false,
+          count: 2,
+          metadata: [
+            { name: "Detail", triviality: 1 },
+            { name: "Reference", triviality: 2 },
+          ],
+        }),
+      }),
+    )
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=empty`)
+    await page.locator(".composer[aria-busy=false]").waitFor()
+    const input = page.locator(".selection-panel")
+    assert.equal(await input.getByRole("tab", { name: "Style", exact: true }).count(), 0)
+    assert.match(await input.locator(".composition-empty").innerText(), /No pages at this visibility/)
+    await tab(input, "List")
+    assert.match(await input.locator(".composition-empty").innerText(), /No pages at this visibility/)
+    await input.getByRole("button", { name: "All pages", exact: true }).tap()
+    assert.equal(await input.locator(".page-list > li").count(), 2)
+    await input.locator('.list-choice[data-page="1"]').focus()
+    await page.keyboard.press("v")
+    assert.equal(await input.locator(".inspection-heading .page-name").textContent(), "Reference")
+    await tab(input, "Grid")
+    await input.locator('.page-image[data-page="1"]').waitFor()
+    assert.equal(await input.locator(".page-image").count(), 2)
+  } finally {
+    await browser.close()
+  }
+})
+
+test("Grid headers reveal page names without changing card geometry", { timeout: 60000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.route("**/grid.pdf", (route) =>
+        route.fulfill({
+          contentType: "application/pdf",
+          body: fixture({
+            count: 4,
+            metadata: [{ name: "Cover" }, { name: "ITAL-GUID-79A4-WXGX" }, { name: "ITAL-CROS-79A4-WXGF" }, {}],
+          }),
+        }),
+      )
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      for (const colorScheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme })
+        for (const name of ["Input", "Output"]) {
+          const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+          for (const density of ["Normal", "Compact"]) {
+            await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+            await page.mouse.move(1, 1)
+            const card = pane.locator(".composition-card").nth(1),
+              heading = card.locator(".page-label > .page-origin, .page-label > .page-number"),
+              caption = heading.locator(".page-name")
+            await measure(pane)
+            const before = await card.boundingBox()
+            const unnamed = await pane.locator(".composition-card").nth(3).boundingBox()
+            assert.equal(before.height, unnamed.height, "Names keep the same card height")
+            assert.equal(await caption.isVisible(), false)
+            assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+            await heading.hover()
+            assert.equal(await caption.innerText(), "ITAL-GUID-79A4-WXGX")
+            assert.equal(await caption.isVisible(), true)
+            const tooltip = await caption.boundingBox()
+            assert.ok(tooltip.x >= 0 && tooltip.x + tooltip.width <= 1440 && tooltip.height < 44)
+            assert.deepEqual(await card.boundingBox(), before)
+            await page.mouse.move(1, 1)
+            assert.equal(await caption.isVisible(), false)
+          }
+        }
+      }
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output")
+      await input.getByRole("button", { name: "Normal Input grid", exact: true }).click()
+      await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("")
+      await input
+        .locator(".input-footer")
+        .nth(1)
+        .getByRole("button", { name: "Add Input page 2 to Output", exact: true })
+        .click()
+      assert.match(await output.locator(".composition-totals").innerText(), /^5 pages/)
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
+test("List bounds long sequences and restores the surviving Output row", { timeout: 30000 }, async () => {
+  const server = await serve()
+  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.route("**/grid.pdf", (route) =>
+      route.fulfill({ contentType: "application/pdf", body: fixture({ count: 240 }) }),
+    )
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    await page.locator(".composer[aria-busy=false]").waitFor()
+    const input = page.locator(".selection-panel"),
+      output = page.locator(".composition-output")
+    await tab(input, "List")
+    assert.equal(await input.locator(".page-list > li").count(), 240)
+    assert.equal(
+      await input
+        .locator(".page-list")
+        .evaluate((element) => element.clientHeight < element.scrollHeight && element.clientHeight > 0),
+      true,
+    )
+    await input.locator('.list-choice[data-page="0"]').focus()
+    await page.keyboard.press("End")
+    assert.equal(
+      await input.locator('.list-choice[data-page="239"]').evaluate((element) => element === document.activeElement),
+      true,
+    )
+    await tab(input, "Grid")
+    await input.locator('.page-image[data-page="239"]').waitFor()
+    await tab(output, "List")
+    await output.getByRole("button", { name: "Remove Output page 1", exact: true }).press("Enter")
+    await page.waitForFunction(() => document.activeElement?.matches('.composition-output .list-choice[data-page="0"]'))
+    assert.equal(await output.locator(".page-list > li").count(), 239)
+  } finally {
+    await browser.close()
+  }
+})
+
+test("List rows contain long names and actions with enlarged text", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  let page, label
+  try {
+    page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    const names = [
+      "ITAL-ARCH-60A4-WXGF",
+      "ITAL-ARCH-60A4-WXGF",
+      "UNBROKEN".repeat(8),
+      "MONO-SCUH-05A4-GXGC",
+      "Details",
+      "Reference",
+    ]
+    await page.route("**/grid.pdf", (route) =>
+      route.fulfill({
+        contentType: "application/pdf",
+        body: fixture({ count: names.length, metadata: names.map((name) => ({ name })) }),
+      }),
+    )
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    await page.locator(".composer[aria-busy=false]").waitFor()
+    for (const [width, text] of [
+      [1440, "100%"],
+      [390, "200%"],
+    ]) {
+      await page.setViewportSize({ width, height: 1100 })
+      await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+      for (const colorScheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme })
+        for (const name of ["Input", "Output"]) {
+          const switcher = page
+            .getByRole("navigation", { name: "Workspace view", exact: true })
+            .getByRole("button", { name, exact: true })
+          if (await switcher.isVisible()) await switcher.click()
+          const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+          for (const density of ["Normal", "Compact"]) {
+            await tab(pane, "Grid")
+            await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+            await tab(pane, "List")
+            for (const selected of [false, true]) {
+              await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill(selected ? "1" : "")
+              label = `${name}, ${width}px, ${text}, ${colorScheme}, ${density}, selected=${selected}`
+              const rows = await pane.locator(".page-list > li").evaluateAll((elements) =>
+                elements.map((row) => {
+                  const bounds = row.getBoundingClientRect(),
+                    choice = row.querySelector(".list-choice")
+                  const range = document.createRange()
+                  range.selectNodeContents(choice)
+                  const content = range.getBoundingClientRect()
+                  return {
+                    name: choice.textContent.trim(),
+                    contained: [
+                      content,
+                      choice.getBoundingClientRect(),
+                      ...[...row.querySelectorAll("button, summary")]
+                        .map((control) => control.getBoundingClientRect())
+                        .filter((box) => box.width && box.height),
+                    ].every(
+                      (box) =>
+                        box.left >= bounds.left - 1 &&
+                        box.right <= bounds.right + 1 &&
+                        box.top >= bounds.top - 1 &&
+                        box.bottom <= bounds.bottom + 1,
+                    ),
+                    top: bounds.top,
+                    bottom: bounds.bottom,
+                  }
+                }),
+              )
+              assert.equal(rows.length, names.length, label)
+              for (const [index, row] of rows.entries()) {
+                assert.equal(row.name, names[index], label)
+                assert.ok(
+                  row.contained && (!index || rows[index - 1].bottom <= row.top + 1),
+                  `${label}: ${JSON.stringify(row)}`,
+                )
+              }
+              assert.equal(
+                await pane.locator(".page-list").evaluate((element) => element.scrollWidth <= element.clientWidth),
+                true,
+                label,
+              )
+            }
+          }
+          await captureLayout(page, `page-list-${name.toLowerCase()}-${width}-${colorScheme}`, { label })
+        }
+      }
+    }
+  } catch (error) {
+    if (page) await captureLayout(page, "page-list-names", { label, error: error.message })
+    throw error
+  } finally {
+    await browser.close()
+  }
+})
+
 test("Normal card targets stay separate through phone pane and text transitions", { timeout: 90000 }, async () => {
   const server = await serve()
   let browser, page, label
@@ -42,24 +708,26 @@ test("Normal card targets stay separate through phone pane and text transitions"
             const targets = await card.evaluate((element) =>
               [
                 ...element.querySelectorAll(
-                  ":scope > .page-label summary, :scope > .page-label .page-grip, :scope > .input-footer button, :scope > .occurrence-actions button",
+                  ":scope > .page-label summary, :scope > .page-label .page-grip, :scope > .occurrence-actions button",
                 ),
-              ].map((button) => {
-                const rect = button.getBoundingClientRect(),
-                  after = getComputedStyle(button, "::after")
-                const left = rect.left + parseFloat(after.left),
-                  right = rect.right - parseFloat(after.right)
-                const top = rect.top + parseFloat(after.top),
-                  bottom = rect.bottom - parseFloat(after.bottom)
-                const points = [left + 1, (left + right) / 2, right - 1].flatMap((x) =>
-                  [top + 1, (top + bottom) / 2, bottom - 1].map((y) => ({
-                    x,
-                    y,
-                    hits: document.elementFromPoint(x, y)?.closest("button, summary") === button,
-                  })),
-                )
-                return { label: button.getAttribute("aria-label"), left, right, top, bottom, points }
-              }),
+              ]
+                .filter((button) => button.getClientRects().length && getComputedStyle(button).visibility !== "hidden")
+                .map((button) => {
+                  const rect = button.getBoundingClientRect(),
+                    after = getComputedStyle(button, "::after")
+                  const left = rect.left + parseFloat(after.left),
+                    right = rect.right - parseFloat(after.right)
+                  const top = rect.top + parseFloat(after.top),
+                    bottom = rect.bottom - parseFloat(after.bottom)
+                  const points = [left + 1, (left + right) / 2, right - 1].flatMap((x) =>
+                    [top + 1, (top + bottom) / 2, bottom - 1].map((y) => ({
+                      x,
+                      y,
+                      hits: document.elementFromPoint(x, y)?.closest("button, summary") === button,
+                    })),
+                  )
+                  return { label: button.getAttribute("aria-label"), left, right, top, bottom, points }
+                }),
             )
             assert.ok(targets.length >= 2, label)
             for (const target of targets) {
@@ -131,7 +799,7 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
           const lower = grid.matrix[0] + 1
           for (const selected of [false, true]) {
             const selection = selected ? `1,${lower}` : ""
-            const actions = selected ? [] : name === "Input" ? ["Add"] : ["Remove", "Duplicate"]
+            const actions = selected || name === "Input" ? [] : ["Remove", "Duplicate"]
             for (const action of [...actions, "Select or drag"]) {
               label = `${width}px, ${text}, ${name}, selected=${selected}, ${action}`
               await field.fill(selection)
@@ -143,29 +811,33 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
               targets = await pane.evaluate((element, column) => {
                 const cards = element.querySelectorAll(".composition-card")
                 return [
-                  ...cards[0].querySelectorAll(":scope > .input-footer button, :scope > .occurrence-actions button"),
+                  ...cards[0].querySelectorAll(":scope > .occurrence-actions button"),
                   cards[column].querySelector(".page-grip"),
-                ].map((button) => {
-                  const rect = button.getBoundingClientRect(),
-                    after = getComputedStyle(button, "::after")
-                  const left = rect.left + parseFloat(after.left),
-                    right = rect.right - parseFloat(after.right)
-                  const top = rect.top + parseFloat(after.top),
-                    bottom = rect.bottom - parseFloat(after.bottom)
-                  const y = button.classList.contains("page-grip") ? top + 1 : bottom - 1
-                  return {
-                    label: button.getAttribute("aria-label"),
-                    left,
-                    right,
-                    top,
-                    bottom,
-                    points: [left + 1, (left + right) / 2, right - 1].map((x) => ({
-                      x,
-                      y,
-                      hits: document.elementFromPoint(x, y)?.closest("button, summary") === button,
-                    })),
-                  }
-                })
+                ]
+                  .filter(
+                    (button) => button.getClientRects().length && getComputedStyle(button).visibility !== "hidden",
+                  )
+                  .map((button) => {
+                    const rect = button.getBoundingClientRect(),
+                      after = getComputedStyle(button, "::after")
+                    const left = rect.left + parseFloat(after.left),
+                      right = rect.right - parseFloat(after.right)
+                    const top = rect.top + parseFloat(after.top),
+                      bottom = rect.bottom - parseFloat(after.bottom)
+                    const y = button.classList.contains("page-grip") ? top + 1 : bottom - 1
+                    return {
+                      label: button.getAttribute("aria-label"),
+                      left,
+                      right,
+                      top,
+                      bottom,
+                      points: [left + 1, (left + right) / 2, right - 1].map((x) => ({
+                        x,
+                        y,
+                        hits: document.elementFromPoint(x, y)?.closest("button, summary") === button,
+                      })),
+                    }
+                  })
               }, grid.matrix[0])
               for (const target of targets) {
                 assert.ok(target.right - target.left >= 44 && target.bottom - target.top >= 44, label)
@@ -175,7 +847,9 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
                 )
                 if (target !== targets.at(-1)) assert.ok(target.bottom <= targets.at(-1).top, label)
               }
-              const target = targets.find((entry) => entry.label.startsWith(action))
+              const target =
+                targets.find((entry) => entry.label.startsWith(action)) ??
+                targets.find((entry) => entry.label.startsWith("Actions"))
               assert.ok(target, label)
               const before = parseInt(await page.locator(".composition-totals strong").textContent())
               await page.touchscreen.tap(target.points[1].x, target.points[1].y)
@@ -183,6 +857,13 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
                 assert.equal(await field.inputValue(), selected ? "1" : String(lower), label)
                 assert.equal(parseInt(await page.locator(".composition-totals strong").textContent()), before, label)
               } else {
+                if (target.label.startsWith("Actions")) {
+                  const menu = pane.locator(".occurrence-menu:popover-open")
+                  const button = menu.getByRole("button", { name: new RegExp(`^${action} Output page`) })
+                  const box = await button.boundingBox()
+                  assert.ok(box.width >= 44 && box.height >= 44, label)
+                  await button.tap()
+                }
                 const expected = before + (action === "Remove" ? -1 : 1)
                 await page.waitForFunction(
                   (count) => document.querySelector(".composition-totals strong")?.textContent === `${count} pages`,
@@ -1286,7 +1967,7 @@ test("Grid density retains inspection and compact page commands", { timeout: 600
       await page.waitForFunction(
         () => document.querySelector(".composition-totals strong")?.textContent === "241 pages",
       )
-      await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
+      assert.equal(await output.getByLabel("Page selection", { exact: true }).inputValue(), "")
       await opener.click()
       await menu.getByRole("button", { name: "Remove Output page 1", exact: true }).click()
       await page.waitForFunction(

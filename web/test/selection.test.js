@@ -352,6 +352,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
           await pane.elementHandle(),
         )
         // Native touch dispatch does not avoid the sticky status bar.
+        await measure(pane)
         await target.evaluate((element) => element.scrollIntoView({ block: "center" }))
         await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
         const bounds = await target.boundingBox()
@@ -665,18 +666,19 @@ test("Dragging opens stable page slots, previews density, and commits only on dr
         const target = cards.nth(3)
         const point = { clientX: bounds[3].left + bounds[3].width / 4, clientY: bounds[3].top + bounds[3].height / 2 }
         await source.dispatchEvent("dragstart", { dataTransfer: transfer })
-        const raster = await transfer.evaluate((data) => {
-          const canvas = data.image,
+        assert.equal(
+          await transfer.evaluate((data) => data.image.width),
+          1,
+          "Native drag image is suppressed in favor of the live numbered overlay",
+        )
+        const raster = await page.locator(".drag-image[data-card]").evaluate((image) => {
+          const canvas = image.querySelector("canvas"),
             context = canvas.getContext("2d")
-          const edge = (fraction) => {
-            const pixels = context.getImageData(0, Math.floor(canvas.height * fraction), canvas.width, 1).data
-            return Array.from({ length: canvas.width }, (_, x) => x).find((x) => pixels[x * 4 + 3] > 128)
-          }
           return {
-            width: canvas.width,
-            height: canvas.height,
-            top: edge(0.25),
-            bottom: edge(0.75),
+            width: parseFloat(canvas.style.inlineSize),
+            height: parseFloat(canvas.style.blockSize),
+            density: canvas.width / parseFloat(canvas.style.inlineSize),
+            rotate: getComputedStyle(image).rotate,
             color: Array.from(
               context.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height * 0.7), 1, 1).data,
             ),
@@ -684,11 +686,10 @@ test("Dragging opens stable page slots, previews density, and commits only on dr
         })
         assert.ok(raster.width <= (density === "Compact" ? 84 : 120))
         assert.ok(raster.height <= (density === "Compact" ? 116 : 160))
+        assert.ok(raster.density >= 2)
         assert.ok(raster.color[0] < 64, "The visible page supplies the preview, including in Compact")
         assert.ok(raster.color[3] > 150)
-        if (reducedMotion === "reduce")
-          assert.equal(raster.top, raster.bottom, "Reduced motion keeps the sheet straight")
-        else assert.ok(raster.bottom > raster.top, "The carried page has a slight tilt")
+        assert.equal(raster.rotate, reducedMotion === "reduce" ? "none" : "-3deg")
         if (density === "Normal") sizes.set(reducedMotion, raster.width * raster.height)
         else assert.ok(raster.width * raster.height < sizes.get(reducedMotion) * 0.75)
         await target.dispatchEvent("dragover", { dataTransfer: transfer, ...point })
@@ -987,14 +988,14 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
         const selection = panel.getByLabel("Page selection", { exact: true })
         const cards = panel.locator("button.page-image")
         const cursor = async (number) => {
-          const footers = panel.locator(".composition-card > .input-footer, .composition-card > .occurrence-actions")
-          assert.equal(
-            await footers
-              .locator("button")
-              .evaluateAll((buttons) => buttons.every((button) => getComputedStyle(button).visibility === "visible")),
-            true,
-            "Keyboard navigation keeps individual footer controls visible",
-          )
+          if (name === "Output")
+            assert.equal(
+              await panel
+                .locator(".composition-card > .occurrence-actions button")
+                .evaluateAll((buttons) => buttons.every((button) => getComputedStyle(button).visibility === "visible")),
+              true,
+              "Keyboard navigation keeps individual footer controls visible",
+            )
           if (!number || number === 15) {
             await page.waitForFunction(() => document.activeElement?.matches(".composition-grid"))
             assert.equal(
@@ -1164,11 +1165,14 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(server.resolvedUrls.local[0])
-    await page.locator("input[type=file]").first().setInputFiles({
-      name: "Selection.pdf",
-      mimeType: "application/pdf",
-      buffer: fixture(),
-    })
+    await page
+      .locator("input[type=file]")
+      .first()
+      .setInputFiles({
+        name: "Selection.pdf",
+        mimeType: "application/pdf",
+        buffer: fixture({ metadata: Array.from({ length: 7 }, (_, index) => ({ name: `Sheet ${index + 1}` })) }),
+      })
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     const prepared = input.getByLabel("Page selection", { exact: true })
@@ -1181,7 +1185,7 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     assert.equal(await output.locator(".sequence-entry button, .sequence-options").count(), 0)
     assert.equal(await inputClear.count(), 0)
     assert.equal(await add.count(), 0)
-    assert.equal(await input.locator(".input-footer button").count(), 7)
+    assert.equal(await input.locator(".page-label .page-name").count(), 7)
     assert.equal(
       await input.locator(".sequence-entry > .entry > :first-child").getAttribute("class"),
       "sequence-options input-options",
@@ -1204,7 +1208,7 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     ]) {
       await prepared.fill(text)
       assert.equal(await inputAll.count(), all, text)
-      assert.equal(await input.locator(".input-footer button").count(), 0, text)
+      assert.equal(await input.locator(".page-label .page-name").count(), 7, text)
       assert.match(await input.locator(".sequence-help").innerText(), new RegExp(`${copies} pages? selected`))
     }
     await prepared.fill("2,")
@@ -1221,7 +1225,7 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     await add.click()
     assert.equal(await prepared.evaluate((element) => element === document.activeElement), true)
     assert.equal(await inputClear.count(), 0)
-    assert.equal(await input.locator(".input-footer button").count(), 7)
+    assert.equal(await input.locator(".page-label .page-name").count(), 7)
     assert.equal(
       await output.locator(".sequence-entry > .entry > :first-child").getAttribute("class"),
       "sequence-options output-options",
@@ -1287,7 +1291,7 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
         )
       }
       await page.keyboard.press("Escape")
-      assert.equal(await output.locator(".occurrence-actions button").count(), text ? 0 : 14, text)
+      assert.equal(await output.locator(".occurrence-actions").getByRole("button").count(), text ? 0 : 28, text)
       assert.equal(
         await output.getByRole("button", { name: "Clear Output selection", exact: true }).count(),
         text ? 1 : 0,
@@ -1380,7 +1384,8 @@ test("Output separates page controls from group actions for keyboard and mouse",
         await input.getByRole("button", { name: "Select Input page 1", exact: true }).press("Space")
         await page.keyboard.press("Enter")
       } else {
-        await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+        await prepared.fill("1")
+        await input.getByRole("button", { name: "Add to Output", exact: true }).click()
       }
       await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
       if (interaction === "keyboard") {
@@ -1606,6 +1611,8 @@ test(
                 if (outputSelection) expected = ["p. 1", "p. 3"]
               } else if (outputSelection && key === "Control+ArrowLeft") {
                 expected = ["p. 2", "p. 1", "p. 4", "p. 3"]
+              } else if (pane === "Output" && !outputSelection && key === "Control+ArrowRight") {
+                expected = ["p. 2", "p. 1", "p. 3", "p. 4"]
               }
               const scenario = `${pane} ${key}; Input selection=${inputSelection}, Output selection=${outputSelection}`
               assert.deepEqual(await contents(), expected, scenario)
@@ -1755,20 +1762,21 @@ test(
       }
       await page.emulateMedia({ reducedMotion: "reduce" })
       await page.mouse.move(0, 0)
+      await tab(input, "List")
       assert.equal(
         await input.getByRole("button", { name: "Add Input page 4 to Output", exact: true }).isVisible(),
         true,
-        "Returning to the mouse restores individual controls after keyboard navigation",
+        "List retains individual actions after Grid keyboard navigation",
       )
       await input.getByRole("button", { name: "Add Input page 4 to Output", exact: true }).click()
       assert.equal(
         await input
-          .getByRole("button", { name: "Select Input page 4", exact: true })
+          .getByRole("button", { name: "Add Input page 4 to Output", exact: true })
           .evaluate((element) => element === document.activeElement),
         true,
       )
       await tab(input, "Page")
-      assert.match(await pagePosition(input), /4\s*\/ 7/, "A card addition updates the page opened for inspection")
+      assert.match(await pagePosition(input), /4\s*\/ 7/, "A List addition updates the page opened for inspection")
       await input.getByRole("button", { name: "Add Input page 4 to Output", exact: true }).click()
       assert.equal(
         await input
@@ -1778,7 +1786,7 @@ test(
         "Input Page addition keeps normal focus in Input",
       )
       await tab(output, "Page")
-      await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
+      assert.equal(await selected.inputValue(), "", "Individual Input additions keep Output unselected")
       await output.getByRole("button", { name: "Duplicate Output page 1", exact: true }).click()
       assert.equal(
         await output
@@ -2061,6 +2069,7 @@ test("Selection and view shortcuts target the mouse pane and preserve native key
     assert.equal(await prepared.inputValue(), "2,4")
     assert.equal(await selected.inputValue(), "3,5")
     await input.getByRole("button", { name: "Clear page sequence", exact: true }).click()
+    await tab(input, "List")
     const action = input.getByRole("button", { name: "Add Input page 1 to Output", exact: true })
     await action.focus()
     await page.mouse.move(8, 20)
@@ -2068,7 +2077,7 @@ test("Selection and view shortcuts target the mouse pane and preserve native key
     assert.equal(
       await prepared.evaluate((element) => element === document.activeElement),
       true,
-      "When selection removes the focused footer action, focus returns to the field",
+      "When selection removes the focused List action, focus returns to the field",
     )
     await page.setViewportSize({ width: 390, height: 1000 })
     await page.evaluate(() => {
@@ -2501,7 +2510,22 @@ test("Output movement keeps direction buttons fixed at selection boundaries", { 
           await page.mouse.click(blocked.x + blocked.width / 2, blocked.y + blocked.height / 2)
           assert.equal(await selected.inputValue(), "8", "A disabled direction leaves the selection unchanged")
           await page.keyboard.press("Escape")
-          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+          const overflow = await page.evaluate(() => ({
+            width: innerWidth,
+            scroll: document.documentElement.scrollWidth,
+            elements: [...document.querySelectorAll(".composer *")]
+              .map((element) => ({
+                tag: element.tagName,
+                class: element.className,
+                right: element.getBoundingClientRect().right,
+              }))
+              .filter((element) => element.right > innerWidth + 1),
+          }))
+          assert.equal(
+            overflow.scroll <= overflow.width,
+            true,
+            JSON.stringify({ colorScheme, width, text, density, overflow }),
+          )
         }
       }
       await page.close()

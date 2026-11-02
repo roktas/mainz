@@ -248,7 +248,12 @@
             pdf,
             sizes,
             labels,
-            description: { version: 1, pageCount: pdf.numPages, pages: {}, parameters: {} },
+            description: {
+              version: 1,
+              pageCount: pdf.numPages,
+              pages: Array.from({ length: pdf.numPages }, () => ({})),
+              parameters: {},
+            },
           }
           const id = uid()
           preview = {
@@ -279,7 +284,7 @@
         overrides,
         preview: previewFor(opened.id, input, overrides, editable ? processor : undefined),
       }
-      documents.add(pdf, loadingTask!)
+      documents.add(pdf, loadingTask!, { bytes: input.bytes, description: input.description })
       choose(source.id, {
         text: pdf.numPages === 1 ? "1" : "",
         pages: pdf.numPages === 1 ? [0] : [],

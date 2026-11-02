@@ -12,9 +12,10 @@ validation commands belong in [AGENTS.md](../../AGENTS.md#web).
 
 ## Implementation status
 
-List, authored page-name captions, and producer PNG thumbnails below are pending requirements. The current application
-offers Grid, Page, and Style, and renders thumbnails from PDF content. These extensions depend on the
-[pending library requirements](../../lib/doc/SPEC.md#implementation-status).
+The application implements Grid, List, Page, Style, authored page-name captions, and Input triviality visibility.
+Thumbnails use eligible producer PNGs with PDF rendering as the host-decoder fallback. Page, lens, Compare, and
+generated PDFs use PDF content. The [library contract](../../lib/doc/SPEC.md#implementation-status) owns page metadata
+and preview validation.
 
 ## Workspace
 
@@ -60,6 +61,12 @@ Grid and List interactions establish the page inspected in Page. Returning to Gr
 List reveals the inspected row. Output inspection follows occurrence identity through movement. Removal chooses the next
 surviving neighbor, or the previous neighbor at the end. Input switching does not move Output inspection.
 
+View changes and Grid density changes reveal the inspected item. Page navigation updates the item revealed on return. A
+tab or density control retains focus and briefly marks that item with secondary emphasis. Content gestures return focus
+to the corresponding item. Keyboard returns use its focus contour without the temporary pointer cue. These returns
+preserve selection. If Input visibility conceals the inspected page, Grid and List reveal the nearest visible physical
+page. Page retains the originating Grid or List for V and modified-click return gestures.
+
 Both panes offer Normal and Compact density for Grid. Output starts in Normal. After opening completes, an Input's first
 visible Input Grid measures Normal batch capacity. Above twice that capacity, it starts in Compact. Otherwise it starts
 in Normal. Each Input retains that choice, including manual changes. Resizing, browser zoom, List, Page, and Style do
@@ -81,10 +88,15 @@ If a PDF label differs from its physical number, Page shows both.
 
 ### Named pages and List
 
-List shows one row per physical Input page or expanded Output occurrence, in the same order as the pane's page sequence.
-Each row retains its physical number or Output position, optional PDF label, and supplied page name. Pages without names
-remain available by number. Repeated names do not merge rows or occurrences. Blank and Padding rows retain their
-existing product identities without invented authored names.
+The shared Description page array follows physical PDF order. Each entry can supply independent `name`, `tags`,
+`triviality`, and preview metadata. There is no page-ID lookup. Page names can repeat; consumers derive any name/tag
+reverse indexes in memory. Document title, description, authorship, and copyright remain standard PDF XMP metadata
+rather than page or workspace fields.
+
+List shows one row per visible physical Input page or expanded Output occurrence, in the same order as the pane's page
+sequence. Each row retains its physical number or Output position, optional PDF label, and supplied page name. Pages
+without names remain available by number. Repeated names do not merge rows or occurrences. Blank and Padding rows retain
+their existing product identities without invented authored names.
 
 List choices use the existing Selection and page-action model. They resolve to physical indexes or Output occurrence
 identities. List does not own another selection state or change the numeric Selection grammar. View changes retain the
@@ -92,25 +104,65 @@ selection, inspection, Output, styles, and each pane's Grid density. The numeric
 behavior.
 
 List uses one keyboard cursor per pane, shared with Grid and Page inspection. Arrow Up/Down moves one row; Home/End
-moves to the first/last row. Cursor movement scrolls the complete row into view. Space toggles the cursor's selection.
-Shift with cursor movement extends selection with Grid's existing range rules. Enter opens the inspected row in Page.
-These keys act only while the List content owns focus. The numeric Selection field retains its Enter action and does not
-intercept List navigation.
+moves to the first/last row. Cursor movement scrolls the complete row into view. Shift with cursor movement extends
+selection. Space toggles the row and advances the cursor. Page Up/Down moves one screen of rows. Enter adds the Input
+preparation or duplicates Output, following Grid. Plus offers the same action; minus and Delete remove Output pages. V
+and the View button open Page. Modified Enter/Space preserve native shortcuts. These keys act only while the List
+content owns focus. The numeric Selection field retains its Enter action and does not intercept List navigation.
 
-Clicking a row's selection area uses the shared selection model. Page numbers retain their details action. Selected rows
-use the pane's shared page-action bar; unselected rows expose their existing individual page actions. Action controls
-keep accessible names and keyboard focus. Removing a focused occurrence focuses the surviving neighbor. Switching views
-reveals the inspected item and transfers content focus to its equivalent only when content had focus. Tab activation
-keeps focus on the tab. List scrolls within the same pane content frame as Grid. Input switching restores its inspected
-item and reveals that row without changing Output.
+The trailing View button opens the row in Page without changing selection. On a fine pointer, a 220 ms hover over this
+button shows a full-page preview. Keyboard focus provides the same preview. Leaving, scrolling, Escape, or a transfer
+closes it. Only one row preview opens at a time. Input uses the original PDF; Output uses its completed appearance. In
+Page, V returns to the originating List or Grid. Returning to List restores focus and scrolling at the inspected row.
 
-Grid and Page show supplied page names as captions. Missing names add no empty caption. Names supplement physical
-numbers and PDF labels. They do not replace navigation identities. [VIEW](VIEW.md#grid-and-page) owns caption placement
-and layout.
+Clicking a row's selection area uses the shared selection model. Page numbers open anchored details beside the number.
+Individual Add and Duplicate actions in Grid and List preserve selection; new occurrences remain unselected. Selected
+rows replace their Add or Duplicate button with a tick that unselects that row. Their page operations use the pane's
+shared page-action bar. Unselected Input rows retain Add even when other rows are selected. Unselected Output rows
+retain individual movement, removal, and duplication, without applying those actions to another selection. On a fine
+pointer, Input Add and Output row actions appear on hover or focus. Output uses two button pairs. Eye and selected ticks
+remain visible. Touch keeps Input Add visible. Output uses an action menu for touch and narrow panes. Output movement
+steps one occurrence up or down and preserves its identity. Action controls keep accessible names and keyboard focus.
+Removing a focused occurrence focuses the surviving neighbor. Switching views reveals the inspected item and transfers
+content focus to its equivalent only when content had focus. Tab activation keeps focus on the tab. List scrolls within
+the same pane content frame as Grid. Input switching restores its inspected item and reveals that row without changing
+Output. List edits use immediate document updates with addition, removal, and movement feedback. Reduced motion disables
+this feedback. Animation does not delay actions or leave outgoing rows interactive.
+
+Grid, List, and Page show supplied names when their page number receives hover or focus. Names stay horizontal on one
+line and truncate only at the viewport limit. Clicking replaces the name tooltip with one detail panel, with the name as
+its first row. The panel opens immediately below the number. Page has no name below the image. Missing names add no
+empty caption or invented name tooltip. Names supplement physical numbers and PDF labels. They do not replace navigation
+identities. [VIEW](VIEW.md#grid-and-page) owns caption placement and layout. Normal Input Grid footers retain Add when
+no pages are selected. Selection and page actions retain their addition behavior.
 
 The shared library owns page names and tags under its [page metadata contract](../../lib/doc/SPEC.md#page-metadata).
 Tags remain available as data for future page selection. This version defines no tag-query control, expression grammar,
 or dynamic Recipe lookup.
+
+### Input triviality visibility
+
+Page triviality is authored display importance: zero means most important. Missing triviality means zero. Larger values
+have lower priority; several pages can have the same triviality. Tags have no reserved concealment meaning. Input Grid
+and List share a threshold and start with pages whose triviality is less than one. Their view controls offer the
+distinct triviality values present in the Input as inclusive thresholds and an All pages choice. Selecting triviality
+one shows triviality values zero and one. A missing or explicit zero triviality has the same visibility. When every page
+has the same effective triviality, including an Input without any supplied triviality, the control is absent and every
+page is visible.
+
+Each Input retains its chosen threshold as workspace view state. Changing the threshold does not edit the manifest,
+Selection, preparation, styles, Output, or Recipe. Page retains every physical page, and Output retains every
+occurrence. Numeric Selection and page entry continue to use original physical numbers. Grid batches, List rows, counts,
+cursor movement, and image navigation use the filtered sequence while retaining physical page identities. Its visible
+count distinguishes visible pages from the Input's total. An empty visible sequence still offers the visibility control.
+
+Existing selected pages remain selected when the threshold conceals them. Selection feedback includes their concealed
+count. Explicit numeric selection, Select all, and preparation continue to use the full physical sequence. A range
+created by visible Grid or List gestures follows visible page order. Concealing a focused Grid or List page moves the
+cursor to its nearest visible neighbor, or to the visibility control when no visible page survives. Returning from Page
+reveals the inspected page when visible; otherwise it retains that inspection without silently changing the threshold.
+View and threshold controls keep keyboard focus on activation. Triviality visibility never hides a page in the actual
+PDF.
 
 ### Demo
 
@@ -163,9 +215,9 @@ On touch screens, Selection requests the numeric keyboard. Grid content does not
 callouts. Double-tapping a Grid image opens that page in Page without changing Selection or Output.
 
 Input additions follow the last selected Output occurrence, or append without an Output selection. The Input hint
-identifies this destination. Adding a preparation clears it and selects the new Output block after success. Grid and
-individual + additions select their new occurrences. Space in Page preserves the Input preparation and selected Output
-occurrences. Failure or cancellation preserves preparation.
+identifies this destination. Adding a preparation clears it and selects the new Output block after success. Individual
+Grid/List + additions preserve the current selection and keep new occurrences unselected. Space in Page preserves the
+Input preparation and selected Output occurrences. Failure or cancellation preserves preparation.
 
 Any selection hides that pane's individual card and Page action controls. The shared bar edits one or several selected
 pages. Clearing selection restores individual controls. Grid editing shortcuts require selection. Navigation and zoom
@@ -231,6 +283,18 @@ advances the inspected drop target after a hover dwell. Cancellation or rejectio
 Output unchanged. A completed move follows the moved occurrence. Drop, cancellation, and leaving Output clear temporary
 feedback. Native drag support depends on the browser and input device. Buttons support keyboard and touch alternatives.
 
+List supports the same preparations and occurrence identities. Its row name supports native dragging, and its grip
+supports native and touch dragging. The top/bottom row halves insert before/after the row. A line marks the target; the
+list scrolls near its top and bottom edges. Cancellation preserves selection, order, and inspection. A List drag uses a
+strip with its page number and name, plus a count for multiple pages. Its target placeholder uses the same columns and
+text size as the rows. Cross-view drops retain each destination view's insertion rules.
+
+Grid and List show prospective Output numbers during a transfer. The moving image, target placeholder, and affected
+pages use the numbers they receive after drop. During Output moves, the source row or card leaves the visual sequence;
+only the moving image and insertion preview remain. Multiple Output pages retain print order. Input preparations include
+repetition and front-alignment padding in these numbers. The page images do not render again for number changes. Grid
+folds follow the prospective page's front/back side. Leaving Output or cancelling restores current numbers.
+
 Touch dragging starts from a grip when the finger moves. It uses the same selections and insertion rules as mouse
 dragging. In Grid, only the card area accepts and highlights drops. On narrow layouts, Input rejects drops and
 highlights the Output workspace tab as the target. Dropping there adds the pages at the prepared destination and then
@@ -265,23 +329,23 @@ and Space do not activate Grid images or grips. Held view-switch, addition, and 
 V, Ctrl/Command+A, and Escape target the mouse's screen half. Before mouse use, they target the focused pane. A hidden
 or absent pane falls back to the visible pane. Page shortcuts use the same routing, but require a visible, nonempty
 Page. If the target pane has none, the other visible Page receives them. Conflicting focused Grid or control keys keep
-their targets. Without a suitable Page, Page shortcuts do not change focus or scroll. V also switches an empty Page to
-Grid.
+their targets. Without a suitable Page, Page shortcuts do not change focus or scroll. V also returns from an empty Page
+to its originating view.
 
 | Workspace key                 | Action                                                                                                                 |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| V or Ctrl/Command-click image | Switches Grid/Page, preserving selections, inspection, and zoom.                                                       |
+| V or Ctrl/Command-click image | Switches Grid or List with Page, preserving selection, inspection, and zoom.                                           |
 | Ctrl/Command+A                | Selects every page in the target pane once, preserving the other selection, preparation configuration, and inspection. |
 | Escape                        | First dismisses an interaction or cancels a drag. Otherwise clears only the target pane's selection and configuration. |
 | Delete                        | Removes the Output selection from either pane.                                                                         |
-| Ctrl+left/right               | Moves the Output selection earlier/later from either pane.                                                             |
+| Ctrl/Command+left/right       | Moves Output earlier/later in Grid or Page. In List, Ctrl/Command+up/down moves rows.                                  |
 | ?                             | Opens Help outside fields and other open dialogs or popovers.                                                          |
 
-Without an Output selection, Delete and Ctrl+left/right have no action. Input Selection stays unchanged. Escape
-otherwise preserves Output, inspection, zoom, and page scroll, then focuses the target view tab and ends Grid
-navigation. With no target selection, configuration, or Grid cursor, it has no action. Held Escape cannot clear
-selection after dismissing another interaction. A shorter selection bar cannot move window scroll outside document
-bounds.
+Without an Output selection, Delete has no action. A move uses the focused Output card or row when selection is empty.
+Input Selection stays unchanged. Escape otherwise preserves Output, inspection, zoom, and page scroll, then focuses the
+target view tab and ends Grid navigation. With no target selection, configuration, or Grid cursor, it has no action.
+Held Escape cannot clear selection after dismissing another interaction. A shorter selection bar cannot move window
+scroll outside document bounds.
 
 ### Grid
 
@@ -538,6 +602,9 @@ Settings' 2×–128× magnification, initially 16×. The pane's thumbnail define
 compensate for their size difference to retain the same crop scale. The lens does not change layout or intercept mouse
 input. On touch screens, holding an image opens the lens. Moving the held finger changes the crop. Release,
 cancellation, a second finger, or scrolling dismisses it. A hold does not select, add, duplicate, or move pages.
+
+For a named physical page, the lens shows its name below the crop in Input and Output, including Compare. Pages without
+a name have no lens caption. Its accessible page number uses the original physical page, including extracted previews.
 
 Resizing dismisses the lens. [VIEW](VIEW.md#grid-and-page) owns its shape and viewport margins.
 

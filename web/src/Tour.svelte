@@ -74,7 +74,7 @@
       title: "Choose a Grid density",
       text: [
         "Normal gives each page more space. Compact fits more thumbnails so you can scan and arrange a larger set.",
-        "Use the two buttons beside Grid and Page. Input and Output keep separate density choices; changing density keeps page order and selection.",
+        "Use Normal or Compact beside the view tabs. Input and Output keep separate density choices; changing density keeps page order and selection.",
       ],
     },
     ...(hasInput

@@ -34,6 +34,7 @@
     pane = "Output",
     count,
     sheet,
+    name,
     position = $bindable(0),
     comparing = $bindable(false),
     zoom = $bindable(100),
@@ -55,6 +56,7 @@
     pane?: "Input" | "Output"
     count: number
     sheet?: Inspection
+    name?: string
     position?: number
     comparing?: boolean
     zoom?: number
@@ -571,6 +573,7 @@
         pdf={document}
         page={renderedPage!}
         pageNumber={physicalPage! + 1}
+        {name}
         {zoom}
         {thumbnailWidth}
         {magnification}

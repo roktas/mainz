@@ -33,15 +33,18 @@
 
 <script lang="ts">
   import { onDestroy } from "svelte"
-  import { cachedRaster, cacheRaster, loadRenderer } from "./pdf.ts"
+  import { cachedRaster, cacheRaster, loadRenderer, thumbnail as suppliedThumbnail } from "./pdf.ts"
   import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist"
+  import type { Description } from "./styles.ts"
   import Lens from "./Lens.svelte"
   import type { Magnification } from "./Lens.svelte"
   let {
     pdf,
     page,
     pageNumber,
+    name,
     thumbnail = false,
+    preview,
     zoom = 100,
     thumbnailWidth = 0,
     magnification = 16,
@@ -50,7 +53,9 @@
     pdf: PDFDocumentProxy
     page: number
     pageNumber?: number
+    name?: string
     thumbnail?: boolean
+    preview?: Description["pages"][number]["preview"]
     zoom?: number
     thumbnailWidth?: number
     magnification?: Magnification
@@ -67,18 +72,21 @@
   const renderedThumbnail = $derived(thumbnail)
   const renderedZoom = $derived(zoom)
   const renderedThumbnailWidth = $derived(thumbnailWidth)
+  const renderedPreview = $derived(preview)
 
   function render(target: HTMLCanvasElement) {
     const document = renderedPDF,
       number = renderedPage,
       small = renderedThumbnail,
       level = renderedZoom,
-      reference = renderedThumbnailWidth
+      reference = renderedThumbnailWidth,
+      descriptor = renderedPreview,
+      rasterPage = small && descriptor ? `image:${number}` : number
     const parent = target.parentElement!
     const retained = previous?.pdf === document && previous.page === number && target.width > 0
     painted = retained
     if (!retained) {
-      const raster = small ? cachedRaster(document, number) : undefined
+      const raster = small ? cachedRaster(document, rasterPage) : undefined
       target.width = raster?.width ?? 0
       target.height = raster?.height ?? 0
       if (raster) {
@@ -143,7 +151,19 @@
         completed = undefined
         rendering = true
         failure = ""
-        let raster = cachedRaster(document, number, scale, sampling)
+        let raster = cachedRaster(document, rasterPage, scale, sampling)
+        if (!raster && small && descriptor) {
+          const image = await suppliedThumbnail(document, number)
+          if (disposed || current !== generation) return
+          if (image?.width) {
+            raster = parent.ownerDocument.createElement("canvas")
+            transient = raster
+            raster.width = Math.ceil(size.width * scale)
+            raster.height = Math.ceil(size.height * scale)
+            raster.getContext("2d")!.drawImage(image, 0, 0, raster.width, raster.height)
+            if (cacheRaster(document, rasterPage, scale, raster, sampling)) transient = undefined
+          }
+        }
         if (!raster) {
           raster = parent.ownerDocument.createElement("canvas")
           transient = raster
@@ -164,7 +184,7 @@
             context.imageSmoothingQuality = "high"
             context.drawImage(sample, 0, 0, raster.width, raster.height)
           }
-          if (cacheRaster(document, number, scale, raster, sampling)) transient = undefined
+          if (cacheRaster(document, rasterPage, scale, raster, sampling)) transient = undefined
         }
         target.width = raster.width
         target.height = raster.height
@@ -218,4 +238,4 @@
       aria-hidden="true"
     ></span>{/if}
 </div>
-<Lens {pdf} page={page + 1} {canvas} {rendering} {magnification} ratio={lensScale} />
+<Lens {pdf} page={page + 1} {pageNumber} {name} {canvas} {rendering} {magnification} ratio={lensScale} />

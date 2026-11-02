@@ -4,6 +4,13 @@
 
 ### Added
 
+- Optional page names, tags, triviality, and embedded PNG previews in the version 1 physical-page array, including
+  metadata-only PDFs, numeric page scopes, native/WASM preview access, and `imprint --preview`.
+- List view, page-name captions, and adjustable Input Grid/List visibility based on triviality, with complete Selection
+  and Output retained. Thumbnails reuse supplied PNGs and fall back to PDF rendering after host image-decoder failures.
+- List full-page previews, direct Page inspection with return to List, animated edits, and native/touch drag and drop.
+- Matching Grid/List editing shortcuts and Ctrl/Command-arrow movement for selected or focused Output pages.
+- `mainz resolve` emits a resolved Plan without producing a PDF. Global `mainz --help` succeeds without an input.
 - Recipe export from PDF Composer, with explicit profile intent, manual edits and baseline resets, Input fingerprints,
   and editable logical Input IDs for CLI replay.
 - Portable JSON Recipes and noninteractive `mainz apply`, with shared native/WASM resolution, separate file bindings,
@@ -27,7 +34,23 @@
   and SVG production uses `imprint`. Update callers from `apply --request`, `run`, and `produce`, respectively.
 - Aligned library and web names around Plan, Artifact, Provenance, and Imprinter. WASM Recipe resolution returns `plan`;
   composition metadata uses `mainz_provenance` exports. PDF styling uses the combined `mainz_style` boundary.
-
+- Grid, List, and Page show supplied names on page-number hover or focus. Clicking merges the name into one detail panel
+  immediately below the number. The demo names its cover and practice sheets and stores `Italic Strokes` in standard XMP
+  title metadata.
+- View and Grid density changes reveal the inspected page, with a brief secondary cue for tab returns and preserved
+  keyboard focus for content returns.
+- Grid and List transfers preview resulting page numbers, including moving images and placeholders. Grid folds follow
+  the resulting front/back side. List strips retain row typography and column alignment.
+- Named pages show a centered lens caption, with long names truncated within the viewport.
+- Normal Grid footers and List row actions appear on hover or focus with a fine pointer. Touch retains visible Input
+  addition and uses an Output menu in List and Normal Grid.
+- Normal Output cards share List's paired movement and remove/duplicate controls. Individual Grid/List plus actions
+  preserve selection and keep new occurrences unselected.
+- List selections use the primary background with contrasting text and replace row Add/Duplicate actions with an
+  unselect tick. Output rows reveal paired move and remove/duplicate actions on hover or focus, with a visible menu for
+  touch and narrow panes. Page details stay beside their number.
+- Grid and List share the Input visibility threshold and show its trailing toolbar control only for differing triviality
+  values.
 - Cross-file Style choices use explicit families. Profiles match by family and name; parameter edits and resets require
   matching semantic keys and equal previous values. The profile menu offers per-file scope and disables without
   compatible peers.
@@ -40,6 +63,16 @@
 
 ### Fixed
 
+- Corrected profile-styling diagnostics for metadata-only PDFs.
+- Kept narrow Normal card grips centered when the paired footer and selection contour are present.
+- Applied the shared worker cleanup and error recovery to PNG preview access.
+- Cleared List entrance feedback when motion preferences change during an edit.
+- Kept page-name tooltips inside the viewport, preventing horizontal overflow and blocked touch targets on narrow
+  screens.
+- Kept the lens's accessible physical page number when previews use extracted PDFs.
+- Kept PNG previews outside changed parameters' page scopes during styling, reset, and composition.
+- Kept List keyboard navigation in its pane, included the first row in Shift ranges, preserved Input selection when
+  opening Page by double-click, and retained row focus after unselecting its tick.
 - Equalized Output page-menu action dimensions and added consistent space between actions.
 - Prevented late offline asset requests from recreating retired application caches.
 - Kept Style opacity values readable as percentages and preserved slider space and stored precision.

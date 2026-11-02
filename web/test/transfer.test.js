@@ -37,7 +37,7 @@ test("Native page drags survive platform focus changes and cards respond on pres
             const style = getComputedStyle(element)
             return [style.rotate, style.scale, style.opacity]
           }),
-          ["-2deg", "0.98", "0.3"],
+          ["-2deg", "0.98", "0.6"],
         )
         assert.equal(await selected.inputValue(), selection, "Pressing does not change selection")
         assert.equal(await output.locator(".composition-totals strong").textContent(), "0 pages")
@@ -90,7 +90,7 @@ test("Touch grip press previews the card without editing and cancellation clears
           const style = getComputedStyle(element)
           return [style.rotate, style.scale, style.opacity]
         }),
-        reducedMotion === "reduce" ? ["none", "none", "0.3"] : ["-2deg", "0.98", "0.3"],
+        reducedMotion === "reduce" ? ["none", "none", "0.6"] : ["-2deg", "0.98", "0.6"],
       )
       assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), selection)
       assert.equal(await page.locator(".composer[data-drag]").count(), 0, "Pressing alone does not start a transfer")

@@ -123,7 +123,7 @@ test("Long Page counters keep enlarged text and reachable zoom actions", { timeo
       browser = undefined
     }
   } catch (error) {
-    if (page) await captureLayout(page, "page-counter", { error: error.message })
+    if (page && !page.isClosed()) await captureLayout(page, "page-counter", { error: error.message })
     throw error
   } finally {
     await browser?.close()
@@ -203,11 +203,11 @@ test("Arrows enter Grid without selection and Page keys change thumbnail groups"
           assert.equal(await field.inputValue(), "", "Starting navigation leaves Selection empty")
           assert.equal(await pane.locator(".batch-slider input").inputValue(), "1", "Entry retains the current group")
           await page.waitForFunction(hasCursor)
-          if (density === "Normal")
+          if (density === "Normal" && name === "Output")
             assert.equal(
               await pane
                 .getByRole("button", {
-                  name: name === "Input" ? `Add Input page ${expected} to Output` : `Duplicate Output page ${expected}`,
+                  name: `Duplicate Output page ${expected}`,
                   exact: true,
                 })
                 .isVisible(),
@@ -838,7 +838,7 @@ test(
       await select.fill("7,2,2")
       await input.getByRole("button", { name: "Next Input page", exact: true }).click()
       assert.equal(await select.inputValue(), "7,2,2")
-      await tab(input, "Grid")
+      await tab(input, "List")
       await input.getByRole("button", { name: "Clear page sequence", exact: true }).click()
       await input.getByRole("button", { name: "Add Input page 2 to Output", exact: true }).press("Space")
       assert.equal(await select.inputValue(), "")
@@ -889,24 +889,27 @@ test(
           return dataTransfer
         })
         await control.dispatchEvent("dragstart", { dataTransfer: feedbackData })
-        const feedback = await feedbackData.evaluate((data) => ({
-          width: data.image.width,
-          height: data.image.height,
-          pointer: data.pointer,
-          rendered: data.rendered,
-          color: Array.from(
-            data.image
-              .getContext("2d")
-              .getImageData(Math.floor(data.image.width / 2), Math.floor(data.image.height * 0.7), 1, 1).data,
-          ),
-          lowerLeft: data.image.getContext("2d").getImageData(0, data.image.height - 3, 1, 1).data[3],
-          lowerRight: data.image.getContext("2d").getImageData(data.image.width - 3, data.image.height - 3, 1, 1)
-            .data[3],
-          edges: [2, 8, 14].map((y) => {
-            const row = data.image.getContext("2d").getImageData(0, y, data.image.width, 1).data
-            for (let x = data.image.width - 1; x >= 0; x--) if (row[x * 4 + 3]) return x
-          }),
-        }))
+        const feedback = await page.locator(".drag-image[data-card]").evaluate((preview) => {
+          const canvas = preview.querySelector("canvas"),
+            paint = canvas.getContext("2d"),
+            width = parseFloat(canvas.style.inlineSize),
+            height = parseFloat(canvas.style.blockSize),
+            density = canvas.width / width
+          const sample = (x, y) =>
+            Array.from(paint.getImageData(Math.floor(x * density), Math.floor(y * density), 1, 1).data)
+          return {
+            width,
+            height,
+            density,
+            rendered: preview.isConnected && getComputedStyle(preview).visibility === "visible",
+            color: sample(width / 2, height * 0.7),
+            lowerLeft: sample(0, height - 3)[3],
+            lowerRight: sample(width - 3, height - 3)[3],
+            edges: [2, 8, 14].map((y) => {
+              for (let x = Math.floor(width) - 1; x >= 0; x--) if (sample(x, y)[3]) return x
+            }),
+          }
+        })
         assert.ok(feedback.width > 44 && feedback.width <= 120)
         assert.ok(feedback.height > 44 && feedback.height <= 160)
         const offset = (layers - 1) * 6
@@ -919,7 +922,12 @@ test(
           "The drag image shows the correct number of stacked sheets",
         )
         assert.deepEqual(feedback.color, expected)
-        assert.deepEqual(feedback.pointer, [feedback.width / 2, 12])
+        assert.ok(feedback.density >= 2)
+        assert.deepEqual(await feedbackData.evaluate((data) => [data.image.width, data.image.height, data.pointer]), [
+          1,
+          1,
+          [0, 0],
+        ])
         assert.equal(feedback.rendered, true)
         await control.dispatchEvent("dragend", { dataTransfer: feedbackData })
         assert.equal(await page.locator(".composer[data-drag]").count(), 0)
@@ -1890,10 +1898,25 @@ test("Output Page keeps original PDF labels through composition and Input change
       assert.match(await pagePosition(output), new RegExp(`^${position}\\s*/ ${count}$`))
       assert.deepEqual(await labels.allTextContents(), label ? [label] : [])
     }
+    await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
+    await tab(input, "List")
+    assert.deepEqual(await input.locator(".list-number .page-number > .page-context").allTextContents(), [
+      "i",
+      "ii",
+      long,
+    ])
     await tab(input, "Page")
     assert.equal(await input.locator(".inspection-heading .page-context").innerText(), "i")
     await input.getByLabel("Page selection", { exact: true }).fill("2,1,2,3,4")
     await input.getByLabel("Page selection", { exact: true }).press("Enter")
+    await tab(output, "List")
+    assert.deepEqual(await output.locator(".list-number .page-origin > button > .page-context").allTextContents(), [
+      "ii",
+      "i",
+      "ii",
+      "3",
+      long,
+    ])
     await tab(output, "Page")
     await jump(1, "ii")
     await jump(2, "i")
@@ -2040,12 +2063,12 @@ test("Grid and Page switches preserve selections, zoom, and the inspected page",
     await modifiedClick(inputImage)
     await ready()
     assert.match(await pagePosition(input), /16\s*\/ 17/)
-    assert.equal(await pageFocused(), false, "Mouse view switching leaves page focus to normal navigation")
+    assert.equal(await pageFocused(), true, "Content view switching focuses the inspected page")
     await zoom(input, "Zoom in")
     await ready()
     await image(input).click({ modifiers: ["ControlOrMeta"], position: { x: 100, y: 100 } })
     assert.equal(await inputImage.isVisible(), true, "Grid returns to the inspected thumbnail batch")
-    assert.equal(await pageFocused(), false)
+    assert.equal(await pageFocused(), true)
     await inputImage.click({ modifiers: ["Meta"] })
     await ready()
     assert.match(await pagePosition(input), /16\s*\/ 17/)
@@ -2079,10 +2102,10 @@ test("Grid and Page switches preserve selections, zoom, and the inspected page",
     await modifiedClick(outputImage)
     await ready()
     assert.match(await pagePosition(output), /15\s*\/ 17/)
-    assert.equal(await pageFocused(), false)
+    assert.equal(await pageFocused(), true)
     await image(output).click({ modifiers: ["ControlOrMeta"] })
     assert.equal(await outputImage.isVisible(), true)
-    assert.equal(await pageFocused(), false)
+    assert.equal(await pageFocused(), true)
     await outputImage.focus()
     await page.keyboard.press("v")
     await ready()
@@ -2097,6 +2120,7 @@ test("Grid and Page switches preserve selections, zoom, and the inspected page",
     await page.keyboard.press("Control+ArrowRight")
     assert.equal(await pageFocused(), true, "Keyboard movement retains page focus")
     await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
+    await output.getByRole("button", { name: "Actions for Output page 17", exact: true }).click()
     await output.getByRole("button", { name: "Remove Output page 17", exact: true }).click()
     assert.equal(await pageFocused(), true, "Mouse removal focuses a surviving thumbnail")
   } finally {
@@ -2264,15 +2288,11 @@ test("Unused and modified Grid keys preserve pointer controls and native shortcu
         await page.keyboard.press(key)
         assert.equal(await thumbnail.evaluate((element) => element === document.activeElement), true)
         assert.equal(await thumbnail.evaluate(hasCursor), false, `${name}: ${key} does not create a page cursor`)
-        assert.equal(
-          await pane
-            .getByRole("button", {
-              name: name === "Input" ? "Add Input page 1 to Output" : "Duplicate Output page 1",
-              exact: true,
-            })
-            .isVisible(),
-          true,
-        )
+        if (name === "Output")
+          assert.equal(
+            await pane.getByRole("button", { name: "Duplicate Output page 1", exact: true }).isVisible(),
+            true,
+          )
       }
       await thumbnail.dispatchEvent("keydown", { key: "Dead" })
       await thumbnail.dispatchEvent("keydown", { key: "ArrowRight", isComposing: true })
@@ -2303,11 +2323,13 @@ test("Unused and modified Grid keys preserve pointer controls and native shortcu
     }
     await tab(output, "Page")
     await input.getByRole("button", { name: "Select Input page 1", exact: true }).focus()
+    await page.waitForFunction(() => !document.querySelector('.composer [aria-busy="true"]'))
+    const currentZoom = await output.getByLabel("Output page zoom", { exact: true }).innerText()
     for (const key of ["+", "=", "-"]) {
       await page.keyboard.press(key)
       assert.equal(
         await output.getByLabel("Output page zoom", { exact: true }).innerText(),
-        "100%",
+        currentZoom,
         "Input Grid zoom keys do not change a Page in the other pane",
       )
     }

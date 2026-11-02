@@ -24,8 +24,8 @@ function snapshot(
   crop?: { left: number; top: number; width: number; height: number },
 ) {
   const image = document.createElement("canvas")
-  image.width = Math.ceil(width * Math.min(devicePixelRatio, 2))
-  image.height = Math.ceil(height * Math.min(devicePixelRatio, 2))
+  image.width = Math.ceil(width * Math.min(Math.max(devicePixelRatio, 2), 3))
+  image.height = Math.ceil(height * Math.min(Math.max(devicePixelRatio, 2), 3))
   const paint = image.getContext("2d")
   if (!paint) return
   if (sheet instanceof HTMLCanvasElement && sheet.width && sheet.height) {
@@ -219,7 +219,7 @@ export function animateOrder(grid: HTMLElement, duration = moveDuration) {
   if (!motion.matches) return
   const start = grid.getBoundingClientRect()
   const positions = new Map(
-    [...grid.querySelectorAll<HTMLElement>(":scope > .composition-card")].map((card) => {
+    [...grid.querySelectorAll<HTMLElement>(":scope > :is(.composition-card, .list-row)")].map((card) => {
       const bounds = card.getBoundingClientRect()
       return [card.id, { left: bounds.left - start.left, top: bounds.top - start.top }]
     }),
@@ -243,10 +243,12 @@ export function animateOrder(grid: HTMLElement, duration = moveDuration) {
     frame = requestAnimationFrame(() => {
       const end = grid.getBoundingClientRect()
       // Read every destination before animations invalidate styles for the next card.
-      const cards = [...grid.querySelectorAll<HTMLElement>(":scope > .composition-card")].map((card) => ({
-        card,
-        bounds: card.getBoundingClientRect(),
-      }))
+      const cards = [...grid.querySelectorAll<HTMLElement>(":scope > :is(.composition-card, .list-row)")].map(
+        (card) => ({
+          card,
+          bounds: card.getBoundingClientRect(),
+        }),
+      )
       for (const { card, bounds: to } of cards) {
         const from = positions.get(card.id)
         if (!from) continue

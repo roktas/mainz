@@ -78,14 +78,19 @@
       align-items: center;
 
       & > .tabs {
-        flex: 1 0 auto;
+        flex: 1 1 0;
         min-inline-size: 0;
         max-inline-size: 100%;
         margin-inline-end: 0;
+        overflow: auto;
+        scrollbar-width: none;
+        & > button {
+          flex: none;
+        }
       }
     }
     @container composer (width > 55em) {
-      .page-content:has(.grid-view, .page-view) {
+      .page-content:has(.grid-view, .page-list, .page-view) {
         min-block-size: 0;
       }
       .composition-panels {
@@ -121,7 +126,7 @@
           min-inline-size: 0;
           container: catalog / inline-size;
 
-          &:has(.grid-view, .page-view) {
+          &:has(.grid-view, .page-list, .page-view) {
             align-self: stretch;
           }
         }
@@ -143,7 +148,7 @@
       grid-template-rows: auto auto auto minmax(0, 1fr);
     }
 
-    .page-content:has(.grid-view, .page-view) {
+    .page-content:has(.grid-view, .page-list, .page-view) {
       display: grid;
       grid-template-rows: minmax(0, 1fr);
       container-type: size;

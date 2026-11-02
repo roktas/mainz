@@ -31,7 +31,11 @@ export type Preview = {
   readonly displayed: { readonly pdf: PDFDocumentProxy }
   readonly status: "ready" | "pending" | "error"
   readonly error: string | undefined
-  appearance: (page: number) => { pdf: PDFDocumentProxy; page: number }
+  appearance: (page: number) => {
+    pdf: PDFDocumentProxy
+    page: number
+    preview?: Description["pages"][number]["preview"]
+  }
   download: (source: Source, pages: readonly number[]) => ArrayBuffer | undefined
   reconcile: (source: Source, counts: Usage) => void
   schedule: (source: Source, counts: Usage, text?: string, serial?: boolean) => void

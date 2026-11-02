@@ -28,6 +28,7 @@ test("Browser modes retain critical regressions and reserve calibration matrices
   assert.deepEqual(select("standard", "grid").files, [
     "test/grid.test.js",
     "test/lens.test.js",
+    "test/list.test.js",
     "test/pdf.test.js",
     "test/processor.test.js",
   ])

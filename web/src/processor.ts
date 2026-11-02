@@ -1,6 +1,6 @@
 // Runs cancellable processor requests and owns their worker lifetime.
 
-import type { Failure, Operation, Reply, Result } from "./protocol.ts"
+import type { Failure, Image, Operation, Reply, Result } from "./protocol.ts"
 import type { Plan } from "./model.ts"
 import type { Scalar } from "./styles.ts"
 
@@ -31,7 +31,7 @@ export class Processor {
   private active?: {
     revision: number
     buffer?: string
-    resolve: (result: Result) => void
+    resolve: (result: Result | Image) => void
     reject: (error: Error) => void
   }
 
@@ -47,16 +47,30 @@ export class Processor {
     if (this.active) return Promise.reject(new Error("A processing operation is already active."))
     const buffer = changes?.buffer && JSON.stringify(changes.buffer)
     const input = buffer && buffer === this.buffer ? new ArrayBuffer(0) : bytes.slice().buffer
-    return this.send({ bytes: input, changes }, revision, [input], buffer)
+    return this.send({ bytes: input, changes }, revision, [input], buffer).then(document)
   }
 
   compose(plan: Plan, inputs: { id: string; bytes: Uint8Array }[], revision: number): Promise<Result> {
     if (this.active) return Promise.reject(new Error("A processing operation is already active."))
     const bindings = Object.fromEntries(inputs.map((input) => [input.id, input.bytes.slice().buffer]))
-    return this.send({ plan, inputs: bindings }, revision, Object.values(bindings))
+    return this.send({ plan, inputs: bindings }, revision, Object.values(bindings)).then(document)
   }
 
-  private send(operation: Operation, revision: number, transfers: ArrayBuffer[], buffer?: string): Promise<Result> {
+  preview(bytes: Uint8Array, page: number): Promise<ArrayBuffer> {
+    if (this.active) return Promise.reject(new Error("A processing operation is already active."))
+    const input = bytes.slice().buffer
+    return this.send({ preview: { bytes: input, page } }, 0, [input]).then((result) => {
+      if (!("image" in result)) throw new Error("The processor returned no preview result.")
+      return result.image
+    })
+  }
+
+  private send(
+    operation: Operation,
+    revision: number,
+    transfers: ArrayBuffer[],
+    buffer?: string,
+  ): Promise<Result | Image> {
     idle.delete(this)
     if (!this.worker) {
       this.worker = new Worker(new URL("./processor.worker.ts", import.meta.url), {
@@ -112,4 +126,9 @@ export class Processor {
     this.active = undefined
     active?.reject(error)
   }
+}
+
+function document(result: Result | Image): Result {
+  if (!("description" in result)) throw new Error("The processor returned no document result.")
+  return result
 }

@@ -45,13 +45,13 @@ performance benefit of this reuse remains unmeasured.
 A batch contract needs explicit rules for memory limits, failures, cancellation, and output installation. Each result
 PDF still needs normal production validation. Scheduling and filesystem policy belong in the CLI.
 
-### 2. Inspect Plans before PDF production
+### 2. Summarize resolved Plans
 
-The library's [Recipe resolver](lib/doc/SPEC.md#65-portable-recipes) already returns a Plan and warnings without PDF
-production. The CLI CLI exposes execution through `apply`, which requires an output path.
+The library's [Recipe resolver](lib/doc/SPEC.md#65-portable-recipes) returns a Plan and warnings without PDF production.
+The CLI exposes this operation through `resolve`, without an output path.
 
-A CLI inspection mode can expose the Plan and warnings before production. A concise summary can show bound Inputs,
-expanded physical pages, copies, Blanks, and alignment. A future summary can also identify the matched profiles.
+A future concise summary can show bound Inputs, expanded physical pages, copies, Blanks, and alignment. A future summary
+can also identify the matched profiles.
 
 This summary can help authors review zero-based page indexes and style choices before an expensive production run.
 
@@ -75,8 +75,7 @@ separate guarantees.
 
 ## SPEC guidance
 
-No contract contradiction emerged from this workflow. A short table in the CLI SPEC can clarify the guarantees of
-production and subsequent inspection:
+The CLI SPEC distinguishes the guarantees of production and subsequent inspection:
 
 | Operation              | Guarantee                                                               |
 | ---------------------- | ----------------------------------------------------------------------- |
@@ -84,8 +83,7 @@ production and subsequent inspection:
 | `mainz verify`         | Contract and supported-context assessment of one PDF                    |
 | Independent comparison | Content, geometry, or appearance comparison against reference material  |
 
-A subsequent `verify` call does not establish independent preservation against an earlier PDF. The CLI guidance can make
-this distinction explicit beside Recipe execution.
+A subsequent `verify` call does not establish independent preservation against an earlier PDF.
 
 Recipe `profiles` and `overrides` arrays are already optional under the
 [Recipe contract](lib/doc/SPEC.md#65-portable-recipes). Omission of empty arrays is an export-format choice and needs no

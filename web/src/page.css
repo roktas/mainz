@@ -472,11 +472,25 @@
       overflow: clip;
       background: var(--surface);
       box-shadow: 0 8px 32px var(--shadow);
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
       & canvas {
         display: block;
         inline-size: 100%;
-        aspect-ratio: 1;
+        block-size: 100%;
+        min-block-size: 0;
         background: oklch(100% 0 none);
+      }
+      & .lens-name {
+        margin: 0;
+        padding: 0.5em 0.75em;
+        border-block-start: 1px solid var(--border);
+        font-size: var(--small);
+        line-height: 1.35;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     }
   }

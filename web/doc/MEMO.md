@@ -89,9 +89,9 @@ content, geometry, or interaction requirements.
 `npm run test:browser -- full grid`. Append Node test flags after the group, for example
 `npm run test:browser -- standard grid --test-name-pattern='pagination'`. The runner checks that every browser file
 belongs to exactly one group. Add new files to `test/run.ts`. Tests keep separate servers, browser contexts, and storage
-between files. The `grid` group also runs PDF ownership, processor-worker recovery, and lens tests. The `composition`
-group also runs transfer tests. The `startup` group also runs installation and asset publication tests. The `workspace`
-group runs workspace, header feedback, and Output export tests.
+between files. The `grid` group also runs List interactions, PDF ownership, processor-worker recovery, and lens tests.
+The `composition` group also runs transfer tests. The `startup` group also runs installation and asset publication
+tests. The `workspace` group runs workspace, header feedback, and Output export tests.
 
 `npm test` selects the fast `.test.ts` files. The browser runner selects `.test.js` integration files, including asset
 verification. Minimal mode omits the asset case; standard and full include it. Both runners use Node's test runner. The

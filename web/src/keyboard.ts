@@ -4,7 +4,7 @@ export const fields = "input, textarea, select, [contenteditable]:not([contented
 
 function blocked() {
   return !!document.querySelector(
-    "dialog[open], [popover]:popover-open, .sequence-options[open], .input-picker[open], .page-origin[open], .quartet-panel, .control details[open], .composer[data-drag]",
+    "dialog[open], [popover]:popover-open:not(.page-peek), .sequence-options[open], .page-visibility[open], .input-picker[open], .page-origin[open], .quartet-panel, .control details[open], .composer[data-drag]",
   )
 }
 
@@ -17,7 +17,7 @@ export type ShortcutContext = {
   overlay: boolean
   repeat: boolean
   pane?: "Input" | "Output"
-  view?: "grid" | "page" | "style"
+  view?: "grid" | "list" | "page" | "style"
 }
 export type Shortcut =
   | "all"
@@ -56,7 +56,7 @@ export function shortcutContext(
     field: !!target?.closest(fields),
     native: !!target?.closest("button, summary, a[href]"),
     tab: !!target?.matches('[role="tab"]'),
-    pageControl: !!target?.matches(".page-image, .page-grip"),
+    pageControl: !!target?.matches(".page-image, .page-grip, .list-choice"),
     pagination: !!target?.matches('.page-batches input[type="range"]'),
     overlay: context.overlay ?? blocked(),
     repeat: event.repeat,
@@ -68,21 +68,28 @@ export function shortcutContext(
 export function shortcut(
   event: KeyboardEvent,
   context: ShortcutContext,
-  scope: "workspace" | "grid" | "help" | "output" | "escape",
+  scope: "workspace" | "grid" | "list" | "help" | "output" | "escape",
 ): Shortcut | undefined {
   const key = event.key.toLowerCase()
   const modified = event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
-  if (scope === "grid" && context.pageControl && [" ", "enter"].includes(key) && (modified || context.overlay))
+  if (
+    (scope === "grid" || scope === "list") &&
+    context.pageControl &&
+    [" ", "enter"].includes(key) &&
+    (modified || context.overlay)
+  )
     return "suppress"
   if (event.defaultPrevented || event.isComposing || event.altKey || context.overlay) return
   if (scope === "escape") return key === "escape" && !modified && !context.repeat ? "clear" : undefined
   if (context.field && !(scope === "grid" && context.pagination && ["pageup", "pagedown"].includes(key))) return
   if (scope === "help") return key === "?" && !event.ctrlKey && !event.metaKey && !context.repeat ? "help" : undefined
   if (scope === "output") {
-    if (event.metaKey || event.shiftKey) return
-    if (key === "delete" && !event.ctrlKey) return "remove"
-    if (event.ctrlKey && key === "arrowleft") return "earlier"
-    if (event.ctrlKey && key === "arrowright") return "later"
+    if (event.shiftKey) return
+    if (key === "delete" && !event.ctrlKey && !event.metaKey) return "remove"
+    if (event.ctrlKey || event.metaKey) {
+      if (key === (context.view === "list" ? "arrowup" : "arrowleft")) return "earlier"
+      if (key === (context.view === "list" ? "arrowdown" : "arrowright")) return "later"
+    }
     return
   }
   const all = key === "a" && (event.ctrlKey || event.metaKey)
@@ -98,12 +105,19 @@ export function shortcut(
     if (key === "0" || key === "z") return "resetZoom"
     if (key === "g") return "entry"
   } else {
-    const extending = event.shiftKey && ["arrowleft", "arrowright"].includes(key)
-    if (event.shiftKey && !extending && !["shift", "n", "p", "+"].includes(key)) return
+    const extending =
+      event.shiftKey &&
+      (scope === "list"
+        ? ["arrowup", "arrowdown", "home", "end", "pageup", "pagedown"]
+        : ["arrowleft", "arrowright"]
+      ).includes(key)
+    if (event.shiftKey && !extending && !["shift", "n", "p", "+"].includes(key) && !(scope === "list" && key === "="))
+      return
     if (key === "shift") return "extend"
     if (key === "enter") return context.pane === "Input" ? "add" : "duplicate"
-    if (key === "+") return "duplicate"
-    if (key === "-") return "remove"
+    if (key === "+" || (scope === "list" && key === "="))
+      return context.pane === "Input" && scope === "list" ? "add" : "duplicate"
+    if (key === "-") return scope === "list" && context.pane === "Input" ? undefined : "remove"
   }
   if (key === "arrowleft") return "left"
   if (key === "arrowright") return "right"
@@ -113,7 +127,7 @@ export function shortcut(
   if (key === "n") return "next"
   if (key === "home") return "first"
   if (key === "end") return "last"
-  if (key === "pageup") return scope === "grid" ? "batchPrevious" : "previous"
-  if (key === "pagedown") return scope === "grid" ? "batchNext" : "next"
+  if (key === "pageup") return scope === "grid" || scope === "list" ? "batchPrevious" : "previous"
+  if (key === "pagedown") return scope === "grid" || scope === "list" ? "batchNext" : "next"
   if (key === " ") return "copy"
 }

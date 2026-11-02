@@ -80,8 +80,8 @@ export class Output {
     this.#anchor = anchor && this.positions.has(anchor) ? anchor : undefined
   }
 
-  toggle(id: string, range: boolean) {
-    const next = select(this.pages, this.selection, id, range ? this.#anchor : undefined)
+  toggle(id: string, range: boolean, anchor?: string) {
+    const next = select(this.pages, this.selection, id, range ? (this.#anchor ?? anchor) : undefined)
     this.select(next.selected, id)
     return next
   }

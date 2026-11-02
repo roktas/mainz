@@ -154,7 +154,7 @@ test(
         .locator("input[type=file]")
         .setInputFiles({ name: "same.pdf", mimeType: "application/pdf", buffer: second })
       await page.locator(".input-picker .count").filter({ hasText: /^2$/ }).waitFor()
-      await tab(input, "Grid")
+      await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
       await output.getByLabel("Output page actions", { exact: true }).click()
       await output.getByRole("button", { name: "Add blank page at end", exact: true }).click()
@@ -681,7 +681,7 @@ test("Output actions stay reachable with enlarged text", { timeout: 30000 }, asy
         assert.equal(print.height, view.height)
         assert.ok(print.x + print.width < view.x && view.x + view.width < download.x)
         const glyphs = await output
-          .locator(".output-actions > button svg")
+          .locator('.output-actions > :is(.print-action, .view-action, [aria-label="Download"]) svg')
           .evaluateAll((icons) => icons.map((icon) => icon.getBoundingClientRect().width))
         assert.equal(glyphs[0], glyphs[1])
         assert.ok(glyphs[0] >= 28)
@@ -694,16 +694,18 @@ test("Output actions stay reachable with enlarged text", { timeout: 30000 }, asy
             false,
           )
         }
-        const ink = await output.locator(".output-actions > button path").evaluateAll((paths) =>
-          paths.map((path) => {
-            const box = path.getBBox()
-            const matrix = path.getScreenCTM()
-            return {
-              left: new DOMPoint(box.x, box.y).matrixTransform(matrix).x,
-              right: new DOMPoint(box.x + box.width, box.y).matrixTransform(matrix).x,
-            }
-          }),
-        )
+        const ink = await output
+          .locator(".output-actions > :is(.print-action, .view-action) path")
+          .evaluateAll((paths) =>
+            paths.map((path) => {
+              const box = path.getBBox()
+              const matrix = path.getScreenCTM()
+              return {
+                left: new DOMPoint(box.x, box.y).matrixTransform(matrix).x,
+                right: new DOMPoint(box.x + box.width, box.y).matrixTransform(matrix).x,
+              }
+            }),
+          )
         assert.ok(
           Math.abs(ink[1].left - ink[0].right - (download.x - ink[1].right)) < 1,
           "Visible Print–View and View–Download gaps match",
@@ -776,20 +778,25 @@ test("Mobile Output keeps Print, View, and Download on one row", { timeout: 9000
           const button = await download.boundingBox()
           const print = await output.getByRole("button", { name: "Print", exact: true }).boundingBox()
           const view = await output.getByRole("button", { name: "View PDF", exact: true }).boundingBox()
+          const recipe = await output.getByRole("button", { name: "Export recipe", exact: true }).boundingBox()
           const state = await output.locator(".output-state").boundingBox()
-          const diagnostic = JSON.stringify({ engine: engine.name(), id, size, button, print, view, state })
+          const diagnostic = JSON.stringify({ engine: engine.name(), id, size, button, recipe, print, view, state })
           const totals = output.locator(".composition-totals")
           if (await totals.isVisible()) {
             const counts = await totals.boundingBox()
             assert.ok(Math.abs(counts.x + counts.width - state.x - state.width) < 1, diagnostic)
-            const gap = print.x - counts.x - counts.width
-            assert.ok(gap >= 12 && gap <= print.width, "Counts stay close to the icons with a readable gap")
+            const gap = recipe.x - counts.x - counts.width
+            assert.ok(gap >= 12 && gap <= recipe.width, "Counts stay close to the icons with a readable gap")
           }
           assert.equal(print.width, view.width, diagnostic)
           assert.equal(print.height, view.height, diagnostic)
+          assert.equal(recipe.width, print.width, diagnostic)
+          assert.equal(recipe.height, print.height, diagnostic)
+          assert.ok(recipe.x + recipe.width < print.x, diagnostic)
           assert.ok(print.x + print.width < view.x && view.x + view.width < button.x, diagnostic)
           assert.ok(print.width >= 44 && print.height >= 44 && state.width >= 44, diagnostic)
-          assert.ok(state.x + state.width <= print.x && print.x + print.width < button.x, diagnostic)
+          assert.ok(state.x + state.width <= recipe.x && print.x + print.width < button.x, diagnostic)
+          assert.ok(Math.abs(recipe.y + recipe.height / 2 - button.y - button.height / 2) < 1, diagnostic)
           assert.ok(Math.abs(print.y + print.height / 2 - button.y - button.height / 2) < 1, diagnostic)
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), diagnostic)
           if (width === 375 && height === 667)

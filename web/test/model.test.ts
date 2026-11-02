@@ -28,7 +28,7 @@ function styleState(
   drafts: Record<string, string> = {},
 ) {
   return {
-    input: { description: { version: 1 as const, pageCount: 1, pages: { page: { index: 0 } }, parameters } },
+    input: { description: { version: 1 as const, pageCount: 1, pages: [{}], parameters } },
     overrides,
     drafts,
   }
@@ -43,7 +43,7 @@ test("Semantic edits preserve divergent values, drafts, ranges, and independent 
       binding: { targets: ["guides"], property: "stroke-width" },
     },
     baseline: { kind: "uniform", value: 0.2 },
-    pages: ["page"],
+    pages: [0],
   }
   const source = styleState({ "ital-foo-bar": entry })
   const target = styleState(
@@ -85,7 +85,7 @@ test("Semantic edits preserve divergent values, drafts, ranges, and independent 
       binding: { targets: ["guides"], property: "stroke-color" },
     },
     baseline: { kind: "uniform", value: "#ABCDEF" },
-    pages: ["page"],
+    pages: [0],
   }
   const colors = propagate(
     styleState({ ink: color }),
@@ -132,7 +132,7 @@ test("Semantic propagation retains opaque local IDs", () => {
       binding: { targets: ["guides"], property: "stroke-width" },
     },
     baseline: { kind: "uniform", value: 0.2 },
-    pages: ["page"],
+    pages: [0],
   }
   const opaque = propagate(
     styleState({ original: entry }),
@@ -431,10 +431,10 @@ test("Available styles follow only applicable Output pages from the same Source"
       description: {
         version: 1,
         pageCount: 3,
-        pages: { first: { index: 0 }, middle: { index: 1 }, last: { index: 2 } },
+        pages: [{}, {}, {}],
         parameters: {
-          first: { ...entry, pages: ["first"] },
-          last: { ...entry, pages: ["last"] },
+          first: { ...entry, pages: [0] },
+          last: { ...entry, pages: [2] },
         },
       } satisfies Description,
     },
@@ -481,10 +481,10 @@ test("Preview processing follows changed Output parameters and retains deferred 
       description: {
         version: 1,
         pageCount: 3,
-        pages: { first: { index: 0 }, last: { index: 2 } },
+        pages: [{}, {}, {}],
         parameters: {
-          first: { ...entry, pages: ["first"] },
-          last: { ...entry, pages: ["last"] },
+          first: { ...entry, pages: [0] },
+          last: { ...entry, pages: [2] },
         },
       } satisfies Description,
     },
@@ -513,7 +513,7 @@ test("Invalid style drafts block only their Source's eligible Output pages", () 
   const entry: Entry = {
     parameter: { binding: { property: "stroke-color", targets: [] }, schema: { type: "string", title: "Ink" } },
     baseline: { kind: "mixed" },
-    pages: ["last"],
+    pages: [2],
   }
   const source = {
     id: "book",
@@ -523,7 +523,7 @@ test("Invalid style drafts block only their Source's eligible Output pages", () 
       description: {
         version: 1,
         pageCount: 3,
-        pages: { last: { index: 2 } },
+        pages: [{}, {}, {}],
         parameters: { ink: entry },
       } satisfies Description,
     },
@@ -611,7 +611,7 @@ test("Parameter groups use Title Case and preserve authored array order", () => 
   const description: Description = {
     version: 1,
     pageCount: 1,
-    pages: {},
+    pages: [{}],
     parameters,
     groups: [
       {
@@ -674,7 +674,7 @@ test("Quartets use complete Style objects at their first parameter's position", 
       pages: [],
     },
   }
-  const description: Description = { version: 1, pageCount: 1, pages: {}, parameters }
+  const description: Description = { version: 1, pageCount: 1, pages: [{}], parameters }
   const groupObjects = objects(description)
   const ids = ["shade", "alpha", "weight", "show", "separate"]
   assert.deepEqual(groupObjects(ids), [

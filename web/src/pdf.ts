@@ -3,6 +3,8 @@
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist"
 import { maxPages } from "./model.ts"
 import type { Size } from "./model.ts"
+import type { Description } from "./styles.ts"
+import { Processor } from "./processor.ts"
 
 const assets = new URL(`${import.meta.env.BASE_URL}pdfjs/`, location.href).href
 let renderer: Promise<typeof import("pdfjs-dist")> | undefined
@@ -12,12 +14,26 @@ const rasters = new WeakMap<PDFDocumentProxy, Map<string, Raster>>()
 const recent = new Set<Raster>()
 const rasterLimit = 32 * 1024 * 1024 // Retained canvas pixels only; excludes active renders and PDF.js memory.
 let rasterBytes = 0
+const images = new WeakMap<
+  PDFDocumentProxy,
+  {
+    bytes: Uint8Array
+    description: Description
+    pending: Map<string, Promise<HTMLCanvasElement | undefined>>
+    unavailable: Set<string>
+  }
+>()
+const imageProcessor = new Processor()
+let imageWork = Promise.resolve()
+let imageDocument: PDFDocumentProxy | undefined
 
 export class Documents {
   #tasks = new Map<PDFDocumentProxy, PDFDocumentLoadingTask>()
 
-  add(pdf: PDFDocumentProxy, task: PDFDocumentLoadingTask) {
+  add(pdf: PDFDocumentProxy, task: PDFDocumentLoadingTask, preview?: { bytes: Uint8Array; description: Description }) {
     this.#tasks.set(pdf, task)
+    if (preview?.description.pages.some((page) => page.preview))
+      images.set(pdf, { ...preview, pending: new Map(), unavailable: new Set() })
   }
   retain(pdfs: PDFDocumentProxy[]) {
     const used = new Set(pdfs)
@@ -41,13 +57,15 @@ function discard(raster: Raster) {
 }
 
 export function releaseRasters(pdf: PDFDocumentProxy) {
+  images.delete(pdf)
+  if (imageDocument === pdf) imageProcessor.cancel()
   const pages = rasters.get(pdf)
   if (!pages) return
   for (const raster of pages.values()) discard(raster)
   rasters.delete(pdf)
 }
 
-export function cachedRaster(pdf: PDFDocumentProxy, page: number, scale?: number, sampling = scale) {
+export function cachedRaster(pdf: PDFDocumentProxy, page: number | string, scale?: number, sampling = scale) {
   const pages = rasters.get(pdf)
   let raster = scale === undefined ? undefined : pages?.get(`${page}:${scale}:${sampling}`)
   if (scale === undefined)
@@ -65,7 +83,7 @@ export function cachedRaster(pdf: PDFDocumentProxy, page: number, scale?: number
 // Takes ownership on success; rejected canvases remain the caller's responsibility.
 export function cacheRaster(
   pdf: PDFDocumentProxy,
-  page: number,
+  page: number | string,
   scale: number,
   canvas: HTMLCanvasElement,
   sampling = scale,
@@ -81,6 +99,57 @@ export function cacheRaster(
   recent.add(raster)
   rasterBytes += bytes
   return true
+}
+
+export function thumbnail(pdf: PDFDocumentProxy, page: number): Promise<HTMLCanvasElement | undefined> {
+  const source = images.get(pdf)
+  const descriptor = source?.description.pages[page]?.preview
+  if (!source || !descriptor) return Promise.resolve(undefined)
+  const key = `preview:${descriptor.file}`
+  if (source.unavailable.has(key)) return Promise.resolve(undefined)
+  const cached = cachedRaster(pdf, key, 1)
+  if (cached) return Promise.resolve(cached)
+  const pending = source.pending.get(key)
+  if (pending) return pending
+  const work = imageWork.then(async () => {
+    if (images.get(pdf) !== source) return
+    imageDocument = pdf
+    try {
+      const bytes = await imageProcessor.preview(source.bytes, page)
+      if (images.get(pdf) !== source || !bytes.byteLength) return
+      let bitmap: ImageBitmap
+      try {
+        bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }))
+      } catch {
+        source.unavailable.add(key)
+        return // A host decoder failure falls back to PDF rendering.
+      }
+      try {
+        if (images.get(pdf) !== source) return
+        const canvas = document.createElement("canvas")
+        const scale = Math.min(1, 1024 / bitmap.width, 1024 / bitmap.height)
+        canvas.width = Math.ceil(bitmap.width * scale)
+        canvas.height = Math.ceil(bitmap.height * scale)
+        const context = canvas.getContext("2d")!
+        context.fillStyle = "white"
+        context.fillRect(0, 0, canvas.width, canvas.height)
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+        cacheRaster(pdf, key, 1, canvas)
+        return canvas
+      } finally {
+        bitmap.close()
+      }
+    } finally {
+      imageDocument = undefined
+      source.pending.delete(key)
+    }
+  })
+  source.pending.set(key, work)
+  imageWork = work.then(
+    () => {},
+    () => {},
+  )
+  return work
 }
 
 export function loadRenderer() {

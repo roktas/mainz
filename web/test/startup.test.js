@@ -1517,6 +1517,7 @@ test("Concurrent Source previews isolate resets and ignore obsolete worker repli
           buffer: fixture({ grouped: true, fillOnly: true }),
         })
       await input.locator(".input-current").filter({ hasText: name }).waitFor()
+      await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
     }
     const choose = async (index) => {
@@ -1568,7 +1569,7 @@ test("Concurrent Source previews isolate resets and ignore obsolete worker repli
       window.holdReplies = false
       for (const reply of window.pendingReplies.splice(0)) reply()
     })
-    await tab(input, "Grid")
+    await tab(input, "List")
     await input.getByRole("button", { name: "Add Input page 2 to Output", exact: true }).click()
     await page.waitForFunction(() => {
       const images = [...document.querySelectorAll(".composition-output .composition-card .thumbnail canvas")]

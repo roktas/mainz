@@ -3,8 +3,8 @@
 <script lang="ts">
   import { onDestroy, tick } from "svelte"
   import { MediaQuery } from "svelte/reactivity"
-  import { scale } from "svelte/transition"
-  import { quadIn } from "svelte/easing"
+  import { scale, slide } from "svelte/transition"
+  import { quadIn, quadOut } from "svelte/easing"
   import type { Snippet } from "svelte"
   import { copyError, parseCopies, sizeOf, uid } from "./model.ts"
   import type { Content, Expanded, Page, Part, Source } from "./model.ts"
@@ -22,6 +22,8 @@
   import Selection from "./Selection.svelte"
   import Origin from "./Origin.svelte"
   import Grid from "./Grid.svelte"
+  import List from "./List.svelte"
+  import Peek from "./Peek.svelte"
   import PageView, { controlCapabilities, zoomLevels } from "./Page.svelte"
   import type { Inspection, Region, Controls } from "./Page.svelte"
   import type { Magnification } from "./Lens.svelte"
@@ -105,24 +107,28 @@
   const motion = new MediaQuery("(prefers-reduced-motion: no-preference)")
   $effect(() => {
     if (motion.current) return
+    arriving = new Set()
     document
       .getElementById(`${key}-output-panel`)
-      ?.querySelectorAll(".composition-card")
+      ?.querySelectorAll(".composition-card, .list-row")
       .forEach((card) => {
         for (const animation of card.getAnimations()) animation.finish()
       })
   })
   type InputView = {
-    tab: "grid" | "page" | "style"
+    returnTo: "grid" | "list"
+    tab: "grid" | "list" | "page" | "style"
     density?: "normal" | "compact"
     position: number
     zoom: number
     pageInitialized?: boolean
     offset: number
+    triviality?: number
     region: Region
     alignment?: Region
   }
   const initialView: InputView = {
+    returnTo: "grid",
     tab:
       import.meta.env.DEV &&
       new URLSearchParams(location.search).has("demo") &&
@@ -151,7 +157,7 @@
   let outputText = $state<string>()
   let repetitions = $state("2")
   let front = $state(false)
-  let outputTab = $state<"grid" | "page">(
+  let outputTab = $state<"grid" | "list" | "page">(
     import.meta.env.DEV && new URLSearchParams(location.search).get("output") === "page" ? "page" : "grid",
   )
   let outputRegion = $state<Region>({ x: 0, y: 0 })
@@ -163,11 +169,17 @@
   let inputCounter: ReturnType<typeof Counter> | undefined
   let outputCounter: ReturnType<typeof Counter> | undefined
   let originOpen = $state<string>()
+  let outputReturn = $state<"grid" | "list">("grid")
+  let peeking = $state<string>()
+  let returning = $state<{ kind: "source"; source: string; page: number } | { kind: "output"; id: string }>()
+  let returnTimeout: ReturnType<typeof setTimeout> | undefined
   let inputMenu = $state<HTMLDetailsElement>(null!)
   let outputMenu = $state<HTMLDetailsElement>(null!)
+  let visibilityMenu = $state<HTMLDetailsElement>()
   let outputTarget = $state<HTMLButtonElement>()
   let sourceAnchor: { source: string; page: number } | undefined
   let inputClick: { source: string; page: number; sequence: Sequence; anchor: typeof sourceAnchor } | undefined
+  let outputClick: { id: string; selected: readonly string[]; anchor?: string; text?: string } | undefined
   let highlight = $state<
     | { kind: "source"; source: string; first: number; last: number }
     | { kind: "output"; ids: readonly string[]; removing?: boolean }
@@ -184,12 +196,23 @@
   })
   let cancelAddition: (() => void) | undefined
   let pendingAddition = $state.raw(new Set<string>())
+  let arriving = $state.raw(new Set<string>())
   let removing = $state.raw(new Set<string>())
   let removalTransitions = new WeakMap<Element, ReturnType<typeof scale>>()
   let cancelRemoval: (() => void) | undefined
   let cancelMove: (() => void) | undefined
   let removingPage = $state(false)
   const count = $derived(source?.input.pdf.numPages ?? 0)
+  const thresholds = $derived(
+    [...new Set(source?.input.description.pages.map((page) => page.triviality ?? 0) ?? [])].toSorted((a, b) => a - b),
+  )
+  const filtering = $derived(thresholds.length > 1)
+  const visible = $derived(
+    Array.from({ length: count }, (_, page) => page).filter(
+      (page) => !filtering || (source?.input.description.pages[page]?.triviality ?? 0) <= (inputView.triviality ?? 0),
+    ),
+  )
+  const visibleSet = $derived(new Set(visible))
   const hasStyles = $derived(!!source && Object.keys(source.input.description.parameters).length > 0)
   const activeTab = $derived(
     tour?.startsWith("style") && styleable
@@ -226,6 +249,7 @@
   )
   const inputText = $derived(draft.text)
   const inputPages = $derived(draft.pages)
+  const concealed = $derived(draft.pages.filter((page) => !visibleSet.has(page)).length)
   const parsed = $derived(parseSequence(inputText, count))
   const allInput = $derived(
     !parsed.error && parsed.pages.length === count && parsed.pages.every((page, index) => page === index),
@@ -309,20 +333,104 @@
     cancelMotion()
     if (pane === "Input") inspectInput({ density: value })
     else outputDensity = value
+    void reveal(pane)
   }
   function initializeDensity(capacity: number) {
     if (inputView.density === undefined) inspectInput({ density: count > 2 * capacity ? "compact" : "normal" })
   }
-  function inputTab(tab: InputView["tab"]) {
+  function inputTab(tab: InputView["tab"], event?: MouseEvent | KeyboardEvent) {
+    const changed = tab !== activeTab
+    cancelMotion()
+    const position =
+      (tab === "grid" || tab === "list") && visible.length && !visibleSet.has(inputView.position)
+        ? visible.reduce((best, page) =>
+            Math.abs(page - inputView.position) < Math.abs(best - inputView.position) ? page : best,
+          )
+        : inputView.position
     inspectInput({
       tab,
-      ...(tab === "grid" ? { offset: inputView.position } : {}),
+      position,
+      ...(tab === "page" && activeTab !== "page" ? { returnTo: activeTab === "list" ? "list" : "grid" } : {}),
+      ...(tab === "grid" ? { offset: Math.max(0, visible.indexOf(position)) } : {}),
     })
+    if (changed) void reveal("Input", event)
   }
-  function setOutputTab(tab: typeof outputTab) {
+  function pageName(content: Content) {
+    return "source" in content ? provenance(content)?.input.description.pages[content.page]?.name : undefined
+  }
+  function transferName() {
+    const value = transfer.value
+    if (!value) return ""
+    if (value.kind === "source") {
+      const page = value.choice.kind === "page" ? value.choice.page : parsed.pages[0]
+      return sources.find((item) => item.id === value.source)?.input.description.pages[page]?.name ?? `Page ${page + 1}`
+    }
+    const page = output.pages.find((item) => item.id === value.ids[0])
+    return page
+      ? (pageName(page.content) ??
+          ("page" in page.content ? `Page ${page.content.page + 1}` : page.padding ? "Padding" : "Blank"))
+      : ""
+  }
+  async function visibility(value: number) {
     cancelMotion()
+    const pages = Array.from({ length: count }, (_, page) => page).filter(
+      (page) => (source?.input.description.pages[page]?.triviality ?? 0) <= value,
+    )
+    const focused =
+      document.activeElement instanceof HTMLElement &&
+      !!document.activeElement.closest(".selection-panel :is(.composition-grid, .page-list)")
+    const hidden = !pages.includes(inputPosition)
+    const nearest = pages.reduce(
+      (best, page) => (Math.abs(page - inputPosition) < Math.abs(best - inputPosition) ? page : best),
+      pages[0],
+    )
+    inspectInput({
+      triviality: value,
+      offset: 0,
+      ...(focused && hidden && nearest !== undefined ? { position: nearest } : {}),
+    })
+    await tick()
+    if (focused && hidden)
+      (
+        document.querySelector<HTMLElement>(
+          `.selection-panel :is(.page-image, .list-choice)[data-page="${nearest}"]`,
+        ) ?? document.querySelector<HTMLElement>(".page-visibility summary")
+      )?.focus()
+  }
+  function setOutputTab(tab: typeof outputTab, event?: MouseEvent | KeyboardEvent) {
+    const changed = tab !== activeOutputTab
+    cancelMotion()
+    if (tab === "page" && activeOutputTab !== "page") outputReturn = activeOutputTab === "list" ? "list" : "grid"
     outputTab = tab
     if (tab === "grid") outputOffset = output.position
+    if (changed) void reveal("Output", event)
+  }
+  async function reveal(pane: "Input" | "Output", event?: MouseEvent | KeyboardEvent) {
+    const tab = pane === "Input" ? activeTab : activeOutputTab
+    const expectedSource = source?.id
+    if (tab === "style") return
+    await tick()
+    if (tab !== (pane === "Input" ? activeTab : activeOutputTab) || (pane === "Input" && expectedSource !== source?.id))
+      return
+    const position = pane === "Input" ? inputPosition : output.position,
+      panel = document.getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`),
+      control =
+        tab === "page"
+          ? panel?.querySelector<HTMLElement>(".page-scroll")
+          : panel?.querySelector<HTMLElement>(
+              `.${tab === "list" ? "list-choice" : "page-image"}[data-page="${position}"]`,
+            )
+    control?.scrollIntoView({ block: "nearest" })
+    if (event) control?.focus({ preventScroll: true })
+    if (!control || tab === "page" || event instanceof KeyboardEvent || event?.detail === 0) return
+    clearTimeout(returnTimeout)
+    returning =
+      pane === "Input" && source
+        ? { kind: "source", source: source.id, page: position }
+        : output.pages[position]
+          ? { kind: "output", id: output.pages[position].id }
+          : undefined
+    returnTimeout = setTimeout(() => (returning = undefined), 900)
   }
   function focusPage(control: HTMLElement) {
     const page = control
@@ -330,32 +438,23 @@
       ?.querySelector<HTMLElement>(".page-image, .page-scroll")
     page?.focus({ preventScroll: true })
   }
+  function focusRow(control: HTMLElement) {
+    control.closest(".page-list > li")?.querySelector<HTMLElement>(".list-choice")?.focus({ preventScroll: true })
+  }
   function focusAfterSelection(pane: "Input" | "Output", event?: MouseEvent) {
     const control =
       touchPointer && event?.detail !== 0
         ? document
             .getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`)
-            ?.querySelector<HTMLElement>(".composition-grid, .page-scroll")
+            ?.querySelector<HTMLElement>(".composition-grid, .page-list, .page-scroll")
         : document.getElementById(`${key}-${pane === "Input" ? "input" : "output"}-selection`)
     control?.focus({ preventScroll: true })
   }
-  async function toggleView(pane: "Input" | "Output", event: MouseEvent | KeyboardEvent) {
-    const keyboard = event instanceof KeyboardEvent || event.detail === 0
-    const tab = (pane === "Input" ? activeTab : activeOutputTab) === "page" ? "grid" : "page"
-    const position = pane === "Input" ? inputPosition : output.position
-    if (pane === "Input") inputTab(tab)
-    else setOutputTab(tab)
-    await tick()
-    const panel = document.getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`)
-    const control =
-      tab === "page"
-        ? panel?.querySelector<HTMLElement>(".page-scroll")
-        : panel?.querySelector<HTMLElement>(`.page-image[data-page="${position}"]`)
-    control?.scrollIntoView({ block: "nearest" })
-    if (keyboard)
-      (control ?? document.getElementById(`${key}-${pane === "Output" ? "output-" : ""}${tab}`))?.focus({
-        preventScroll: true,
-      })
+  function toggleView(pane: "Input" | "Output", event: MouseEvent | KeyboardEvent) {
+    const previous = pane === "Input" ? activeTab : activeOutputTab
+    const tab = previous === "page" ? (pane === "Input" ? inputView.returnTo : outputReturn) : "page"
+    if (pane === "Input") inputTab(tab, event)
+    else setOutputTab(tab, event)
   }
   function setZoom(pane: "Input" | "Output", zoom: number) {
     if (pane === "Input") inspectInput({ zoom, pageInitialized: true, alignment: undefined })
@@ -431,7 +530,23 @@
           ?.querySelector(".grid-view")) ||
       (focused?.closest(".composition-grid") &&
         ["left", "right", "up", "down", "first", "last", "next", "previous", "copy"].includes(action)) ||
-      (focused?.closest(".composition-grid") && ["zoomIn", "zoomOut"].includes(action))
+      (focused?.closest(".composition-grid") && ["zoomIn", "zoomOut"].includes(action)) ||
+      (focused?.closest(".page-list") &&
+        [
+          "left",
+          "right",
+          "up",
+          "down",
+          "first",
+          "last",
+          "next",
+          "previous",
+          "copy",
+          "zoomIn",
+          "zoomOut",
+          "resetZoom",
+          "entry",
+        ].includes(action))
     )
       return false
     event.preventDefault()
@@ -595,10 +710,15 @@
     highlight = next
     if (next) highlightTimeout = setTimeout(() => (highlight = undefined), 700)
   }
-  function toggle(page: number, range: boolean) {
+  function toggle(page: number, range: boolean, origin?: number) {
     if (!source) return
-    const anchor = sourceAnchor?.source === source.id ? sourceAnchor.page : undefined
-    const { pages, first, last, adding } = toggleSequence(draft.pages, page, range ? anchor : undefined)
+    const anchor = sourceAnchor?.source === source.id ? sourceAnchor.page : origin
+    const { pages, first, last, adding } = toggleSequence(
+      draft.pages,
+      page,
+      range ? anchor : undefined,
+      activeTab === "grid" || activeTab === "list" ? visible : undefined,
+    )
     numbers(pageRanges(pages))
     sourceAnchor = { source: source.id, page }
     highlightRange(adding && range && first < last ? { kind: "source", source: source.id, first, last } : undefined)
@@ -616,11 +736,22 @@
     toggle(page, event.shiftKey)
     if (event.detail) (event.currentTarget as HTMLElement).focus({ preventScroll: true })
   }
+  function restoreInput(page: number) {
+    if (!source || inputClick?.source !== source.id || inputClick.page !== page) return
+    choose(source.id, inputClick.sequence)
+    sourceAnchor = inputClick.anchor
+    highlightRange()
+    inputClick = undefined
+  }
   function removal(node: Element, id: string) {
     if (!motion.current || !removing.has(id)) return { duration: 0 }
     return removalTransitions.get(node) ?? { duration: 0 }
   }
   function cancelMotion() {
+    clearTimeout(returnTimeout)
+    returning = undefined
+    peeking = undefined
+    arriving = new Set()
     removing = new Set()
     cancelAddition?.()
     cancelAddition = undefined
@@ -631,7 +762,7 @@
     // Outgoing cards must leave before another edit or transfer uses the Grid's slots.
     for (const card of document
       .getElementById(`${key}-output-panel`)
-      ?.querySelectorAll<HTMLElement>(".composition-card.removing") ?? []) {
+      ?.querySelectorAll<HTMLElement>(".composition-card.removing, .list-row.removing") ?? []) {
       for (const animation of card.getAnimations()) animation.finish()
       card.style.display = "none"
     }
@@ -661,8 +792,20 @@
     if (motion.current)
       for (const id of edit.removed) {
         const card = document.getElementById(`${key}-${id}`)
-        if (card) removalTransitions.set(card, scale(card, { duration: removalDuration, start: 0.86, easing: quadIn }))
+        if (card)
+          removalTransitions.set(
+            card,
+            card.classList.contains("list-row")
+              ? slide(card, { duration: 220, easing: quadOut })
+              : scale(card, { duration: removalDuration, start: 0.86, easing: quadIn }),
+          )
       }
+    if (activeOutputTab === "list") {
+      arriving = motion.current ? new Set(edit.added) : new Set()
+      const list = panel?.querySelector<HTMLElement>(".page-list")
+      if (list) cancelMove = animateOrder(list, 240)
+      return
+    }
     if (added.length && !transfer.value) {
       const sheet = origin ?? additionOrigin("blank" in added[0].content ? undefined : chosen[0]?.id)
       if (sheet) {
@@ -712,7 +855,7 @@
   }
   function captureEditFocus(selecting: boolean) {
     const focused = document.activeElement as HTMLElement | null
-    const card = focused?.closest<HTMLElement>(".output-pages .composition-card")
+    const card = focused?.closest<HTMLElement>(".output-pages .composition-card, .composition-output .page-list > li")
     const grid = focused?.matches(".output-pages")
     const pageAction = focused?.closest(".composition-output .page-actions")
     const selectionAction = focused?.closest(".composition-output .sequence-entry") ?? grid
@@ -752,7 +895,7 @@
           void tick().then(() => {
             if (
               !selecting &&
-              focused?.classList.contains("page-image") &&
+              focused?.matches(".page-image, .list-choice") &&
               focused?.isConnected &&
               !focused.matches(":disabled") &&
               (!card || expanded.some((page) => `${key}-${page.id}` === card.id))
@@ -769,7 +912,7 @@
             ;(
               (page && pendingAddition.has(page.id)
                 ? document.getElementById(`${key}-output-panel`)?.querySelector<HTMLElement>(".composition-grid")
-                : neighbor?.querySelector<HTMLButtonElement>(".page-image")) ??
+                : neighbor?.querySelector<HTMLButtonElement>(".page-image, .list-choice")) ??
               viewport ??
               document.getElementById(`${key}-output-${activeOutputTab}`)
             )?.focus({ preventScroll: !!pageAction || pendingAddition.size > 0 })
@@ -866,9 +1009,9 @@
     }
     return completed
   }
-  function selectOutput(id: string, range: boolean) {
+  function selectOutput(id: string, range: boolean, anchor?: string) {
     outputText = undefined
-    const next = output.toggle(id, range)
+    const next = output.toggle(id, range, anchor)
     const { index, ids, adding } = next
     if (activeOutputTab === "grid") output.position = index
     highlightRange(adding && range && ids.length > 1 ? { kind: "output", ids } : undefined)
@@ -984,7 +1127,24 @@
         : value.choice.kind === "preparation"
           ? parsed.pages.length * parseCopies(draft.repeat)!
           : 1
-    transfer.begin(event, value, quantity, control, source?.input.sizes[parsed.pages[0]])
+    const size =
+      value.kind === "source"
+        ? source?.input.sizes[value.choice.kind === "page" ? value.choice.page : parsed.pages[0]]
+        : output.pages.find((page) => value.kind === "output" && value.ids.includes(page.id))?.content
+    const preparation = value.kind === "source" && value.choice.kind === "preparation"
+    const draggingPage = Number(
+      control.closest(".list-row, .composition-card")?.querySelector<HTMLElement>("[data-page]")?.dataset.page,
+    )
+    transfer.begin(
+      event,
+      value,
+      quantity,
+      control,
+      size && "width" in size ? size : size ? sizeOf(size, sources) : undefined,
+      preparation && draft.front,
+      preparation && draft.front ? (parsed.pages.length % 2) * parseCopies(draft.repeat)! : 0,
+      preparation ? Math.max(0, parsed.pages.indexOf(draggingPage)) : 0,
+    )
     if (value.kind === "source" && value.choice.kind === "page" && activeTab === "grid")
       inspectInput({ position: value.choice.page })
     if (value.kind === "output" && activeOutputTab === "grid")
@@ -1023,7 +1183,7 @@
     if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
     event.preventDefault()
-    const tabs: InputView["tab"][] = styleable ? ["grid", "page", "style"] : ["grid", "page"]
+    const tabs: InputView["tab"][] = styleable ? ["grid", "list", "page", "style"] : ["grid", "list", "page"]
     const index = tabs.indexOf(activeTab)
     const tab =
       event.key === "Home"
@@ -1038,7 +1198,15 @@
     if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
     event.preventDefault()
-    setOutputTab(event.key === "Home" ? "grid" : event.key === "End" ? "page" : outputTab === "grid" ? "page" : "grid")
+    const tabs: (typeof outputTab)[] = ["grid", "list", "page"]
+    const index = tabs.indexOf(outputTab)
+    setOutputTab(
+      event.key === "Home"
+        ? "grid"
+        : event.key === "End"
+          ? "page"
+          : tabs[(index + (event.key === "ArrowRight" ? 1 : 2)) % 3],
+    )
     document.getElementById(`${key}-output-${outputTab}`)?.focus()
   }
 </script>
@@ -1054,6 +1222,44 @@
   onkeydowncapture={(event) => {
     touchTap = undefined
     touchPointer = false
+    if (event.key === "Escape" && (transfer.value || transfer.pressing)) {
+      transfer.end()
+      event.preventDefault()
+      event.stopPropagation()
+      return
+    }
+    if (peeking) {
+      peeking = undefined
+      if (event.key === "Escape") {
+        event.preventDefault()
+        event.stopPropagation()
+        return
+      }
+    }
+    if (
+      !event.ctrlKey &&
+      !event.metaKey &&
+      event.target instanceof Element &&
+      event.target.closest(".page-list") &&
+      [
+        "arrowup",
+        "arrowdown",
+        "arrowleft",
+        "arrowright",
+        "pageup",
+        "pagedown",
+        "home",
+        "end",
+        " ",
+        "enter",
+        "n",
+        "p",
+        "+",
+        "=",
+        "-",
+      ].includes(event.key.toLowerCase())
+    )
+      return
     if (opening || (event.target instanceof Element && event.target.closest(".file-errors"))) return
     if (event.key === "Escape" && event.target instanceof HTMLElement && event.target.closest(".page-jump")) return
     if (shortcuts(event)) return
@@ -1073,9 +1279,17 @@
     })
     if (shortcut(event, context, "escape") !== "clear") return
     const dismissing =
-      !!transfer.value || !!document.querySelector(".page-origin[open]") || inputMenu?.open || outputMenu?.open
+      !!transfer.value ||
+      !!document.querySelector(".page-origin[open]") ||
+      inputMenu?.open ||
+      outputMenu?.open ||
+      visibilityMenu?.open
     transfer.end()
     originOpen = undefined
+    if (visibilityMenu?.open) {
+      visibilityMenu.open = false
+      visibilityMenu.querySelector("summary")?.focus()
+    }
     if (inputMenu?.open) {
       inputMenu.open = false
       inputMenu.querySelector("summary")?.focus()
@@ -1102,7 +1316,7 @@
   }}
   onkeydown={(event) => {
     if (opening) return
-    const action = shortcut(event, shortcutContext(event), "output")
+    const action = shortcut(event, shortcutContext(event, { view: activeOutputTab }), "output")
     if (!action) return
     const control = event.target
     if (
@@ -1111,7 +1325,10 @@
       control.closest("details[open]")
     )
       return
-    const ids = outputTargets()
+    const row = control.closest(".composition-output .composition-card, .composition-output .list-row")
+    const focusedId = row && output.pages.find((page) => `${key}-${page.id}` === row.id)?.id
+    const ids =
+      chosen.length || action === "remove" ? outputTargets() : !outputSelectionError && focusedId ? [focusedId] : []
     if (!ids.length) return
     event.preventDefault()
     usingKeyboard = true
@@ -1141,6 +1358,7 @@
     if (!(event.target as Element).closest(".page-origin")) originOpen = undefined
     if (inputMenu && !inputMenu.contains(event.target as Node)) inputMenu.open = false
     if (outputMenu && !outputMenu.contains(event.target as Node)) outputMenu.open = false
+    if (visibilityMenu && !visibilityMenu.contains(event.target as Node)) visibilityMenu.open = false
   }}
 />
 
@@ -1245,6 +1463,9 @@
       bind:position={() => inputView.position, (position) => inspectInput({ position, alignment: undefined })}
       {count}
     />
+    {#if source?.input.description.pages[inputPosition]?.name}<p class="page-name">
+        {source.input.description.pages[inputPosition].name}
+      </p>{/if}
     {#if source?.input.labels[inputPosition] && source.input.labels[inputPosition] !== String(inputPosition + 1)}<span
         class="page-context"
         title={source.input.labels[inputPosition]}>{source.input.labels[inputPosition]}</span
@@ -1276,7 +1497,7 @@
     title="Add one copy"
     onclick={(event) => {
       event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
-      if (add(undefined, [page])) {
+      if (add(undefined, [page], "keep")) {
         inspectInput({ position: page })
         focusPage(event.currentTarget)
       }
@@ -1296,13 +1517,23 @@
       pane="Input"
       number={page + 1}
       label={source.input.labels[page]}
-      compact={inputCompact}
+      name={source.input.description.pages[page]?.name}
+      mode={activeTab === "list" ? "list" : inputCompact ? "compact" : "normal"}
       bind:opened={originOpen}
       details={destinations.length ? details : undefined}
     >
       {#snippet children()}
         <div class="card-preview">
-          <Pdf pdf={source.input.pdf} {page} pageNumber={page + 1} thumbnail {magnification} {error} />
+          <Pdf
+            pdf={source.input.pdf}
+            {page}
+            pageNumber={page + 1}
+            name={source.input.description.pages[page]?.name}
+            preview={source.input.description.pages[page]?.preview}
+            thumbnail
+            {magnification}
+            {error}
+          />
         </div>
         <p class="page-context">{source.input.name} · {page % 2 ? "Back" : "Front"} side</p>
         {#if destinations.length}<p class="page-context">
@@ -1321,15 +1552,19 @@
   <Origin
     id={`${key}-output-menu-${page.id}`}
     pane="Output"
-    number={index + 1}
-    compact={outputCompact}
+    number={transfer.number(index)}
+    name={pageName(page.content)}
+    label={activeOutputTab === "list" && origin && "page" in page.content
+      ? origin.input.labels[page.content.page]
+      : undefined}
+    mode={activeOutputTab === "list" ? "list" : outputCompact ? "compact" : "normal"}
     bind:opened={originOpen}
   >
     {#snippet details()}
       <strong>{origin?.input.name ?? (page.padding ? "Padding" : "Blank")}</strong>
       <span class="page-context"
         >{"page" in page.content
-          ? `p. ${page.content.page + 1}`
+          ? `${activeOutputTab === "list" ? "Input page" : "p."} ${page.content.page + 1}`
           : `${sizeOf(page.content, sources).width.toFixed(1)} × ${sizeOf(page.content, sources).height.toFixed(1)} mm`}</span
       >
     {/snippet}
@@ -1338,6 +1573,7 @@
         {#if origin && "page" in page.content}<Pdf
             {...origin.preview.appearance(page.content.page)}
             pageNumber={page.content.page + 1}
+            name={pageName(page.content)}
             thumbnail
             {magnification}
             {error}
@@ -1383,6 +1619,51 @@
   </div>
 {/snippet}
 
+{#snippet inputPeek(page: number)}
+  {#if source}
+    {#key source.id}
+      <Peek
+        id={`${key}-peek-input-${page}`}
+        pane="Input"
+        number={page + 1}
+        name={source.input.description.pages[page]?.name}
+        size={source.input.sizes[page]}
+        enabled={!transfer.value && !originOpen}
+        bind:opened={peeking}
+        open={(event) => {
+          inspectInput({ position: page })
+          void toggleView("Input", event)
+        }}
+      >
+        <Pdf pdf={source.input.pdf} {page} pageNumber={page + 1} thumbnail {error} />
+      </Peek>
+    {/key}
+  {/if}
+{/snippet}
+
+{#snippet outputPeek(page: Expanded, index: number)}
+  {@const origin = provenance(page.content)}
+  <Peek
+    id={`${key}-peek-output-${page.id}`}
+    pane="Output"
+    number={index + 1}
+    name={pageName(page.content) ?? ("blank" in page.content ? (page.padding ? "Padding" : "Blank") : undefined)}
+    size={sizeOf(page.content, sources)}
+    enabled={!transfer.value && !originOpen}
+    bind:opened={peeking}
+    open={(event) => {
+      output.position = index
+      void toggleView("Output", event)
+    }}
+  >
+    {#if origin && "page" in page.content}
+      <Pdf {...origin.preview.appearance(page.content.page)} pageNumber={page.content.page + 1} thumbnail {error} />
+    {:else}<div class="composition-blank">
+        <Icon name="blank" /><span>{page.padding ? "Padding" : "Blank"}</span>
+      </div>{/if}
+  </Peek>
+{/snippet}
+
 {#snippet outputSummary()}
   <strong>{output.pages.length} {output.pages.length === 1 ? "page" : "pages"}</strong>, {Math.ceil(
     output.pages.length / 2,
@@ -1409,50 +1690,69 @@
   >
     <Icon name="reorder" />
   </button>
-  {@render pageFace(index)}
+  {@render pageFace(transfer.number(index) - 1)}
 {/snippet}
 
 {#snippet occurrenceActions(page: Expanded, index: number, controls: boolean)}
-  {@const ids = outputTargets(page.id)}
+  {@const ids = activeOutputTab === "list" && !outputSelectionError ? [page.id] : outputTargets(page.id)}
+  {#snippet move(offset: -1 | 1)}
+    <button
+      class="icon-button move"
+      aria-label={`Move Output page ${index + 1} ${offset < 0 ? "earlier" : "later"}`}
+      title={`Move page ${activeOutputTab === "list" ? (offset < 0 ? "up" : "down") : offset < 0 ? "earlier" : "later"}`}
+      disabled={!ids.length || (offset < 0 ? index === 0 : index === output.pages.length - 1)}
+      onclick={(event) => {
+        event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
+        order(offset, ids)
+      }}><Icon name={offset < 0 ? "earlier" : "later"} /></button
+    >
+  {/snippet}
+  {#snippet copies()}
+    <button
+      class="icon-button"
+      aria-label={`Remove Output page ${index + 1}`}
+      title="Remove this page"
+      disabled={!ids.length}
+      onclick={(event) => {
+        event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
+        remove(ids)
+      }}><Icon name="remove" /></button
+    ><button
+      class="icon-button"
+      aria-label={`Duplicate Output page ${index + 1}`}
+      title="Add one adjacent copy"
+      disabled={!ids.length}
+      onclick={(event) => {
+        event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
+        duplicate(ids, "keep")
+      }}><Icon name="add" /></button
+    >
+  {/snippet}
+  {#snippet pairs()}
+    <div class="occurrence-moves" role="group" aria-label={`Move Output page ${index + 1}`}>
+      {@render move(-1)}{@render move(1)}
+    </div>
+    <div class="occurrence-copies" role="group" aria-label={`Remove or duplicate Output page ${index + 1}`}>
+      {@render copies()}
+    </div>
+  {/snippet}
   <div class="occurrence-actions">
     {#if controls}
-      {#if outputCompact}<button
-          class="icon-button move"
-          aria-label={`Move Output page ${index + 1} earlier`}
-          title="Move page earlier"
-          disabled={!ids.length || index === 0}
-          onclick={(event) => {
-            event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
-            order(-1, ids)
-          }}><Icon name="earlier" /></button
-        >{/if}<button
-        class="icon-button"
-        aria-label={`Remove Output page ${index + 1}`}
-        title="Remove this page"
-        disabled={!ids.length}
-        onclick={(event) => {
-          event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
-          remove(ids)
-        }}><Icon name="remove" /></button
-      ><button
-        class="icon-button"
-        aria-label={`Duplicate Output page ${index + 1}`}
-        title="Add one adjacent copy"
-        disabled={!ids.length}
-        onclick={(event) => {
-          event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
-          duplicate(ids)
-        }}><Icon name="add" /></button
-      >{#if outputCompact}<button
-          class="icon-button move"
-          aria-label={`Move Output page ${index + 1} later`}
-          title="Move page later"
-          disabled={!ids.length || index === output.pages.length - 1}
-          onclick={(event) => {
-            event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
-            order(1, ids)
-          }}><Icon name="later" /></button
-        >{/if}
+      {#if activeOutputTab === "list"}
+        {@render pairs()}
+      {:else if !outputCompact}
+        <span class="card-inline-actions">{@render pairs()}</span>
+        <button
+          class="icon-button card-menu"
+          popovertarget={`${key}-card-actions-${page.id}`}
+          aria-label={`Actions for Output page ${index + 1}`}><Icon name="more" /></button
+        >
+        <div id={`${key}-card-actions-${page.id}`} class="card-menu-options occurrence-menu" popover="auto">
+          <div class="occurrence-actions">{@render pairs()}</div>
+        </div>
+      {:else}
+        {@render move(-1)}{@render copies()}{@render move(1)}
+      {/if}
     {/if}
   </div>
 {/snippet}
@@ -1462,6 +1762,7 @@
   {@const label = inspected && "page" in inspected.content ? origin?.input.labels[inspected.content.page] : undefined}
   <span class="page-number">
     <Counter pane="Output" bind:this={outputCounter} bind:position={output.position} count={output.pages.length} />
+    {#if inspected && pageName(inspected.content)}<p class="page-name">{pageName(inspected.content)}</p>{/if}
     {#if label && label !== String(output.position + 1)}<span class="page-context" title={label}>{label}</span>{/if}
   </span>
   {@render pageTools("Output", fitWidth)}
@@ -1512,7 +1813,7 @@
   {#if chosen.length || tour === "output-selection"}<button
       class={inline ? "step" : undefined}
       aria-label="Move selected pages earlier"
-      title="Move selected pages earlier · Ctrl+←"
+      title={`Move selected pages earlier · Ctrl/⌘+${activeOutputTab === "list" ? "↑" : "←"}`}
       disabled={!chosen.length || !!outputSelectionError || positions[0] === 0}
       onclick={() => order(-1)}
       ><Icon name="earlier" />{#if !inline}Move selected pages earlier{/if}</button
@@ -1520,7 +1821,7 @@
     <button
       class={inline ? "step" : undefined}
       aria-label="Move selected pages later"
-      title="Move selected pages later · Ctrl+→"
+      title={`Move selected pages later · Ctrl/⌘+${activeOutputTab === "list" ? "↓" : "→"}`}
       disabled={!chosen.length || !!outputSelectionError || positions.at(-1) === output.pages.length - 1}
       onclick={() => order(1)}
       ><Icon name="later" />{#if !inline}Move selected pages later{/if}</button
@@ -1631,6 +1932,17 @@
               data-tour-active={tour === "input-grid"}><Icon name="grid" /><span>Grid</span></button
             >
             <button
+              id={`${key}-list`}
+              role="tab"
+              aria-label="List"
+              aria-selected={activeTab === "list"}
+              aria-controls={`${key}-source-panel`}
+              tabindex={activeTab === "list" ? 0 : -1}
+              onkeydown={tabKey}
+              onclick={() => inputTab("list")}
+              title="List view"><Icon name="list" /><span>List</span></button
+            >
+            <button
               id={`${key}-page`}
               role="tab"
               aria-label="Page"
@@ -1665,6 +1977,24 @@
               >{/if}
           </div>
           {#if activeTab === "grid"}{@render gridDensity("Input", inputCompact)}{/if}
+          {#if (activeTab === "grid" || activeTab === "list") && filtering}
+            <details class="page-visibility" bind:this={visibilityMenu}>
+              <summary class="icon-button" aria-label="Page visibility" title="Page visibility"
+                ><Icon name="eye" /></summary
+              >
+              <div class="visibility-options" role="group" aria-label="Page visibility">
+                <span>{visible.length} of {count} pages visible</span>
+                {#each [...new Set([0, ...thresholds])] as level (level)}
+                  <button aria-pressed={(inputView.triviality ?? 0) === level} onclick={() => visibility(level)}
+                    >Triviality ≤ {level}{level === 0 ? " · Important" : ""}</button
+                  >
+                {/each}
+                <button aria-pressed={inputView.triviality === Infinity} onclick={() => visibility(Infinity)}
+                  >All pages</button
+                >
+              </div>
+            </details>
+          {/if}
           {#if activeTab === "style" && styling}{@render styling(true)}{/if}
         </div>
 
@@ -1728,6 +2058,11 @@
                     >{draft.pages.length} {draft.pages.length === 1 ? "page" : "pages"} selected</strong
                   > ·
                 {/if}
+                {#if (activeTab === "grid" || activeTab === "list") && visible.length < count}{visible.length} / {count} visible
+                  ·
+                {/if}
+                {#if (activeTab === "grid" || activeTab === "list") && concealed}{concealed} concealed ·
+                {/if}
                 {draft.pages.length
                   ? insertion === undefined
                     ? "Append to Output."
@@ -1750,6 +2085,7 @@
                     bind:this={inputPage}
                     {count}
                     sheet={inputInspection}
+                    name={source.input.description.pages[inputPosition]?.name}
                     bind:headingHeight={inputHeadingHeight}
                     bind:controls={inputControls}
                     initialize={!opening && !inputView.pageInitialized ? (zoom) => setZoom("Input", zoom) : undefined}
@@ -1766,12 +2102,100 @@
                     {error}
                     {magnification}
                   />{/key}
+              {:else if !visible.length}
+                <div class="composition-empty">
+                  <p>No pages at this visibility level.</p>
+                  <button onclick={() => visibility(Infinity)}>All pages</button>
+                </div>
+              {:else if activeTab === "list"}
+                <List
+                  pane="Input"
+                  count={visible.length}
+                  pages={visible}
+                  bind:position={() => inputPosition, (position) => inspectInput({ position })}
+                  select={toggle}
+                  edit={(action, page) => action === "add" && !!add(undefined, inputTargets(page))}
+                >
+                  {#each visible as page (page)}
+                    {@const metadata = source.input.description.pages[page]}
+                    <li
+                      class="list-row"
+                      data-returning={(returning?.kind === "source" &&
+                        returning.source === source.id &&
+                        returning.page === page) ||
+                        undefined}
+                      class:selected={inputSelected.has(page)}
+                      data-dragging={(transfer.value?.kind === "source" &&
+                        transfer.value.source === source.id &&
+                        (transfer.value.choice.kind === "preparation"
+                          ? inputSelected.has(page)
+                          : transfer.value.choice.page === page)) ||
+                        undefined}
+                    >
+                      <div class="list-number">{@render inputOrigin(page, `${key}-list-input-${page}`)}</div>
+                      <button
+                        class="page-grip icon-button"
+                        aria-label={`Select or drag Input page ${page + 1} to Output`}
+                        aria-pressed={inputSelected.has(page)}
+                        title="Drag to Output"
+                        draggable="true"
+                        onmousedown={retainFocus}
+                        onclick={(event) => {
+                          inspectInput({ position: page })
+                          toggle(page, event.shiftKey)
+                          focusRow(event.currentTarget)
+                        }}
+                        ondragstart={(event) => start(event, inputPayload(page))}
+                        onpointerdown={(event) => transfer.press(event, inputPayload(page))}
+                        ondragend={() => transfer.end()}><Icon name="reorder" /></button
+                      >
+                      <button
+                        class="list-choice"
+                        data-page={page}
+                        aria-label={`Select Input page ${page + 1}${metadata.name ? `: ${metadata.name}` : ""}`}
+                        aria-pressed={inputSelected.has(page)}
+                        onfocus={() => inspectInput({ position: page })}
+                        draggable="true"
+                        onmousedown={retainFocus}
+                        onpointerdown={(event) => {
+                          if (event.pointerType === "mouse") transfer.press(event, inputPayload(page))
+                        }}
+                        ondragstart={(event) => start(event, inputPayload(page))}
+                        ondragend={() => transfer.end()}
+                        onclick={(event) => selectInput(page, event)}
+                        ondblclick={(event) => {
+                          if (touchPointer || event.ctrlKey || event.metaKey) return
+                          restoreInput(page)
+                          void toggleView("Input", event)
+                        }}>{metadata.name ?? `Page ${page + 1}`}</button
+                      >
+                      <div class="list-actions">
+                        {#if inputSelected.has(page)}
+                          <button
+                            class="icon-button"
+                            aria-label={`Unselect Input page ${page + 1}`}
+                            aria-pressed="true"
+                            title="Unselect this page"
+                            onclick={(event) => {
+                              toggle(page, false)
+                              focusRow(event.currentTarget)
+                            }}><Icon name="select" /></button
+                          >
+                        {:else}
+                          <span class="list-inline-actions">{@render inputPageActions(page)}</span>
+                        {/if}
+                        {@render inputPeek(page)}
+                      </div>
+                    </li>
+                  {/each}
+                </List>
               {:else}
                 <Grid
                   pane="Input"
                   active={() => shortcutPane() === "Input"}
                   compact={inputCompact}
-                  {count}
+                  count={visible.length}
+                  pages={visible}
                   initialize={!opening && inputView.density === undefined ? initializeDensity : undefined}
                   bind:position={() => inputView.position, (position) => inspectInput({ position })}
                   bind:offset={() => inputView.offset, (offset) => inspectInput({ offset })}
@@ -1781,12 +2205,16 @@
                   edit={(action) => action === "add" && !!add()}
                 >
                   {#snippet children(from, to)}
-                    {#each Array.from({ length: to - from }, (_, index) => from + index) as page (page)}
-                      {@const first = page === from}
+                    {#each visible.slice(from, to) as page, index (page)}
+                      {@const first = index === 0}
                       {@const destinations = outputPositions.get(page) ?? []}
                       {@const detail = `${key}-input-${source.id}-${page}`}
                       <li
                         class={["composition-card", { selected: inputSelected.has(page) }]}
+                        data-returning={(returning?.kind === "source" &&
+                          returning.source === source.id &&
+                          returning.page === page) ||
+                          undefined}
                         class:range-highlight={highlight?.kind === "source" &&
                           highlight.source === source.id &&
                           page >= highlight.first &&
@@ -1826,7 +2254,7 @@
                           aria-pressed={inputSelected.has(page)}
                           aria-describedby={!inputCompact && destinations.length ? detail : undefined}
                           title="Select pages for Output."
-                          aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Home End N P V Control+A Meta+A Escape Control+ArrowLeft Control+ArrowRight Space Enter Delete"
+                          aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Home End N P V Control+A Meta+A Escape Control+ArrowLeft Control+ArrowRight Meta+ArrowLeft Meta+ArrowRight Space Enter Delete"
                           draggable="true"
                           onmousedown={retainFocus}
                           onclick={(event) => selectInput(page, event)}
@@ -1840,16 +2268,22 @@
                               inputClick.page !== page
                             )
                               return
-                            choose(source.id, inputClick.sequence)
-                            sourceAnchor = inputClick.anchor
-                            highlightRange()
-                            inputClick = undefined
+                            restoreInput(page)
                             add(undefined, inputTargets(page))
                           }}
                           ondragstart={(event) => start(event, inputPayload(page))}
                           ondragend={() => transfer.end()}
                         >
-                          <Pdf pdf={source.input.pdf} {page} pageNumber={page + 1} thumbnail {magnification} {error} />
+                          <Pdf
+                            pdf={source.input.pdf}
+                            {page}
+                            pageNumber={page + 1}
+                            name={source.input.description.pages[page]?.name}
+                            preview={source.input.description.pages[page]?.preview}
+                            thumbnail
+                            {magnification}
+                            {error}
+                          />
                         </button>
                         <div class="input-footer">
                           {#if !draft.pages.length}{@render inputPageActions(page)}{/if}
@@ -1869,7 +2303,9 @@
       class="composition-output"
       style:--grid-digits={String(output.pages.length).length}
       data-density={outputDensity}
-      data-preview={transfer.preview ? true : undefined}
+      data-preview={transfer.preview || (activeOutputTab === "list" && transfer.destination !== undefined)
+        ? true
+        : undefined}
       aria-labelledby={`${key}-output`}
       data-drop={transfer.value && transfer.target.kind === "append" ? "end" : undefined}
       ondragover={(event) => transfer.over(event)}
@@ -1950,6 +2386,17 @@
             title="Grid view"
             data-tour-tab="output-grid"
             data-tour-active={tour === "output-grid"}><Icon name="grid" /><span>Grid</span></button
+          >
+          <button
+            id={`${key}-output-list`}
+            role="tab"
+            aria-label="List"
+            aria-selected={activeOutputTab === "list"}
+            aria-controls={`${key}-output-panel`}
+            tabindex={activeOutputTab === "list" ? 0 : -1}
+            onkeydown={outputKey}
+            onclick={() => setOutputTab("list")}
+            title="List view"><Icon name="list" /><span>List</span></button
           >
           <button
             id={`${key}-output-page`}
@@ -2077,6 +2524,7 @@
                 bind:this={outputPage}
                 count={output.pages.length}
                 sheet={inspection}
+                name={inspected ? pageName(inspected.content) : undefined}
                 bind:headingHeight={outputHeadingHeight}
                 bind:controls={outputControls}
                 initialize={!opening && !outputPageInitialized ? (zoom) => setZoom("Output", zoom) : undefined}
@@ -2100,6 +2548,152 @@
                 </div>
               {/if}
             </div>
+          {:else if activeOutputTab === "list" && output.pages.length}
+            <List
+              pane="Output"
+              count={output.pages.length}
+              bind:position={output.position}
+              select={(index, range, anchor) =>
+                selectOutput(output.pages[index].id, range, anchor === undefined ? undefined : output.pages[anchor].id)}
+              edit={(action, index) => {
+                const ids = outputSelectionError ? [] : chosen.length ? outputTargets() : [output.pages[index].id]
+                return !!(action === "remove" ? remove(ids) : duplicate(ids))
+              }}
+            >
+              {#each output.pages as page, index (page.id)}
+                {@const dropHere =
+                  !transfer.blocked &&
+                  transfer.inside &&
+                  (transfer.targetIndex === index ||
+                    (transfer.target.kind === "append" && index === output.pages.length - 1))}
+                {@const dropAfter = transfer.targetAfter || transfer.target.kind === "append"}
+                <li
+                  id={`${key}-${page.id}`}
+                  class="list-row"
+                  data-returning={(returning?.kind === "output" && returning.id === page.id) || undefined}
+                  data-index={index}
+                  class:selected={selectedIds.has(page.id)}
+                  data-dragging={transfer.moving(page.id) || undefined}
+                  data-drop={dropHere ? (dropAfter ? "after" : "before") : undefined}
+                  data-arriving={arriving.has(page.id) || undefined}
+                  style:--drop-height={`${transfer.stripHeight}px`}
+                  onanimationend={(event) => {
+                    if (event.target === event.currentTarget && event.animationName === "row-enter")
+                      arriving = new Set([...arriving].filter((id) => id !== page.id))
+                  }}
+                  out:removal|global={page.id}
+                  onoutrostart={(event) => {
+                    if (removing.has(page.id)) {
+                      event.currentTarget.inert = true
+                      event.currentTarget.setAttribute("aria-hidden", "true")
+                      event.currentTarget.classList.add("removing")
+                    }
+                  }}
+                  ondragover={(event) => transfer.over(event, index)}
+                  ondrop={(event) => transfer.drop(event)}
+                >
+                  {#if dropHere}
+                    <div class="list-drop-preview" aria-hidden="true">
+                      <strong class="drop-number">{transfer.destination! + 1}</strong>
+                      <span class="drop-name">{transferName()}</span>{#if transfer.quantity > 1}<span
+                          >×{transfer.quantity}</span
+                        >{/if}
+                    </div>
+                  {/if}
+                  <div class="list-number">{@render outputOrigin(page, index)}</div>
+                  <button
+                    class="page-grip icon-button"
+                    aria-label={`Select or drag Output page ${index + 1}`}
+                    aria-pressed={selectedIds.has(page.id)}
+                    title="Drag to move"
+                    draggable="true"
+                    onmousedown={retainFocus}
+                    onclick={(event) => {
+                      output.position = index
+                      selectOutput(page.id, event.shiftKey)
+                      focusRow(event.currentTarget)
+                    }}
+                    ondragstart={(event) => start(event, { kind: "output", ids: [page.id] })}
+                    onpointerdown={(event) => transfer.press(event, { kind: "output", ids: [page.id] })}
+                    ondragend={() => transfer.end()}><Icon name="reorder" /></button
+                  >
+                  <button
+                    class="list-choice"
+                    data-page={index}
+                    aria-label={`Select Output page ${index + 1}`}
+                    aria-pressed={selectedIds.has(page.id)}
+                    onfocus={() => (output.position = index)}
+                    draggable="true"
+                    onmousedown={retainFocus}
+                    onpointerdown={(event) => {
+                      if (event.pointerType === "mouse") transfer.press(event, { kind: "output", ids: [page.id] })
+                    }}
+                    ondragstart={(event) => start(event, { kind: "output", ids: [page.id] })}
+                    ondragend={() => transfer.end()}
+                    onclick={(event) => {
+                      output.position = index
+                      if (touchPage("Output", event)) return
+                      if (event.ctrlKey || event.metaKey) {
+                        void toggleView("Output", event)
+                        return
+                      }
+                      if (event.detail === 1)
+                        outputClick = {
+                          id: page.id,
+                          selected: [...output.selection],
+                          anchor: output.anchor,
+                          text: outputText,
+                        }
+                      if (event.detail <= 1) selectOutput(page.id, event.shiftKey)
+                      if (event.detail) event.currentTarget.focus({ preventScroll: true })
+                    }}
+                    ondblclick={(event) => {
+                      if (touchPointer || event.ctrlKey || event.metaKey) return
+                      if (outputClick?.id === page.id) {
+                        output.select(outputClick.selected, outputClick.anchor)
+                        outputText = outputClick.text
+                        outputClick = undefined
+                        highlightRange()
+                      }
+                      void toggleView("Output", event)
+                    }}
+                    >{pageName(page.content) ??
+                      ("blank" in page.content
+                        ? page.padding
+                          ? "Padding"
+                          : "Blank"
+                        : `Page ${page.content.page + 1}`)}</button
+                  >
+                  <div class="list-actions">
+                    {#if selectedIds.has(page.id)}
+                      <div class="occurrence-actions">
+                        <button
+                          class="icon-button"
+                          aria-label={`Unselect Output page ${index + 1}`}
+                          aria-pressed="true"
+                          title="Unselect this page"
+                          onclick={(event) => {
+                            selectOutput(page.id, false)
+                            focusRow(event.currentTarget)
+                          }}><Icon name="select" /></button
+                        >
+                      </div>
+                    {:else}
+                      <span class="list-inline-actions">{@render occurrenceActions(page, index, true)}</span>
+                      <button
+                        class="icon-button list-menu"
+                        popovertarget={`${key}-row-actions-${page.id}`}
+                        aria-label={`Actions for Output page ${index + 1}`}><Icon name="more" /></button
+                      >
+                      <div id={`${key}-row-actions-${page.id}`} class="card-menu-options list-row-menu" popover="auto">
+                        {@render occurrenceActions(page, index, true)}
+                      </div>
+                    {/if}
+                    {@render outputPeek(page, index)}
+                  </div>
+                </li>
+              {/each}
+            </List>
           {:else}
             {#if output.pages.length}
               <Grid
@@ -2124,6 +2718,7 @@
                       data-adding={pendingAddition.has(page.id) || undefined}
                       inert={pendingAddition.has(page.id)}
                       class={["composition-card", { selected: selectedIds.has(page.id) }]}
+                      data-returning={(returning?.kind === "output" && returning.id === page.id) || undefined}
                       class:range-highlight={highlight?.kind === "output" && highlight.ids.includes(page.id)}
                       out:removal|global={page.id}
                       onoutrostart={(event) => {
@@ -2137,10 +2732,8 @@
                         const grid = event.currentTarget.parentElement
                         if (grid && removing.has(page.id) && !cancelMove) cancelMove = animateOrder(grid, 350)
                       }}
-                      data-face={index % 2 === 0 ? "front" : "back"}
-                      data-dragging={transfer.value?.kind === "output" && transfer.value.ids.includes(page.id)
-                        ? true
-                        : undefined}
+                      data-face={transfer.number(index) % 2 === 1 ? "front" : "back"}
+                      data-dragging={transfer.moving(page.id) || undefined}
                       data-preview-hidden={transfer.preview && (place === undefined || place >= transfer.grid!.limit)
                         ? true
                         : undefined}
@@ -2153,14 +2746,16 @@
                       ondragover={(event) => transfer.over(event, index)}
                       ondrop={(event) => transfer.drop(event)}
                     >
-                      <div class="page-label">{@render outputGridHeading(page, index)}</div>
+                      <div class="page-label">
+                        {@render outputGridHeading(page, index)}
+                      </div>
                       <button
                         class="page-image"
                         data-page={index}
                         aria-label={`Select Output page ${index + 1}`}
                         aria-pressed={selectedIds.has(page.id)}
                         title="Select pages to edit Output."
-                        aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Home End N P V Control+A Meta+A Escape Control+ArrowLeft Control+ArrowRight Space Enter Plus - Delete"
+                        aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Home End N P V Control+A Meta+A Escape Control+ArrowLeft Control+ArrowRight Meta+ArrowLeft Meta+ArrowRight Space Enter Plus - Delete"
                         draggable="true"
                         onmousedown={retainFocus}
                         onclick={(event) => {
@@ -2179,6 +2774,7 @@
                         {#if origin && "page" in page.content}<Pdf
                             {...origin.preview.appearance(page.content.page)}
                             pageNumber={page.content.page + 1}
+                            name={pageName(page.content)}
                             thumbnail
                             {magnification}
                             {error}
@@ -2203,6 +2799,7 @@
                       style:block-size={`${transfer.grid.height}px`}
                       style:translate={transfer.displacement(transfer.preview.slot)}
                     >
+                      <strong class="drop-number">{transfer.destination! + 1}</strong>
                       <canvas width="0" height="0" {@attach transfer.ghost}></canvas>
                     </li>
                   {/if}

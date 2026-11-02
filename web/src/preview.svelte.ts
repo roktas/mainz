@@ -3,11 +3,11 @@
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist"
 import type { Input, Source } from "./model.ts"
 import { applicable, bufferPages, needsRender } from "./styles.ts"
-import type { Render, Scalar, Usage } from "./styles.ts"
+import type { Description, Render, Scalar, Usage } from "./styles.ts"
 import { Documents, openPDF, verifyPDF } from "./pdf.ts"
 import { Processor } from "./processor.ts"
 
-type Displayed = { pdf: PDFDocumentProxy; overrides: Record<string, Scalar> } & (
+type Displayed = { pdf: PDFDocumentProxy; description: Description; overrides: Record<string, Scalar> } & (
   | { kind: "full" }
   | { kind: "subset"; pages: readonly number[]; positions: ReadonlyMap<number, number> }
 )
@@ -43,7 +43,7 @@ export class Preview {
     this.#input = input
     this.#host = host
     this.#processor = processor
-    this.#displayed = { kind: "full", pdf: input.pdf, overrides: { ...overrides } }
+    this.#displayed = { kind: "full", pdf: input.pdf, description: input.description, overrides: { ...overrides } }
   }
 
   get displayed(): Displayed {
@@ -62,7 +62,9 @@ export class Preview {
   appearance(page: number) {
     const displayed = this.displayed
     const index = displayed.kind === "full" ? page : displayed.positions.get(page)
-    return index === undefined ? { pdf: this.#input.pdf, page } : { pdf: displayed.pdf, page: index }
+    return index === undefined
+      ? { pdf: this.#input.pdf, page, preview: this.#input.description.pages[page]?.preview }
+      : { pdf: displayed.pdf, page: index, preview: displayed.description.pages[index]?.preview }
   }
 
   download(source: Source, pages: readonly number[]): ArrayBuffer | undefined {
@@ -187,11 +189,18 @@ export class Preview {
         throw new Error("The styled PDF could not be inspected with the expected page count.")
       await verifyPDF(pdf)
       if (this.#disposed || revision !== this.#revision) return
-      this.#host.documents.add(pdf, task)
+      this.#host.documents.add(pdf, task, { bytes: new Uint8Array(result.bytes), description: result.description })
       this.#completed = pages ? undefined : result.bytes
       this.#displayed = pages
-        ? { kind: "subset", pdf, overrides, pages, positions: new Map(pages.map((page, index) => [page, index])) }
-        : { kind: "full", pdf, overrides }
+        ? {
+            kind: "subset",
+            pdf,
+            description: result.description,
+            overrides,
+            pages,
+            positions: new Map(pages.map((page, index) => [page, index])),
+          }
+        : { kind: "full", pdf, description: result.description, overrides }
       this.#work = { kind: "idle" }
       this.#task = undefined
       this.#host.complete(text, statusRevision)

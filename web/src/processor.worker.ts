@@ -1,7 +1,7 @@
 // Runs WASM requests, fingerprints Inputs, and bounds reusable page and style results.
 
 /// <reference lib="webworker" />
-import type { Failure, Request, Reply, Result, Provenance } from "./protocol.ts"
+import type { Failure, Image, Request, Reply, Result, Provenance } from "./protocol.ts"
 
 type Module = {
   HEAPU8: Uint8Array
@@ -10,6 +10,7 @@ type Module = {
   _mainz_read(pointer: number, size: number): number
   _mainz_style(handle: number, pointer: number, size: number, resetPointer: number, resetSize: number): void
   _mainz_extract(handle: number, pointer: number, size: number): void
+  _mainz_preview(handle: number, page: number): void
   _mainz_describe(handle: number): void
   _mainz_fingerprint(handle: number): void
   _mainz_close(handle: number): void
@@ -63,14 +64,19 @@ function input<T>(wasm: Module, bytes: Uint8Array, call: (pointer: number, size:
   }
 }
 
-async function run(request: Request): Promise<Result> {
+async function run(request: Request): Promise<Result | Image> {
   if (!module) {
     const moduleUrl = new URL(/* @vite-ignore */ "../processor.mjs", import.meta.url).href
     const { default: create } = await import(/* @vite-ignore */ moduleUrl)
     module = await create({ locateFile: (name: string) => new URL(name, moduleUrl).href })
   }
   const wasm = module!
-  let bytes = "bytes" in request ? new Uint8Array(request.bytes) : new Uint8Array(0)
+  let bytes =
+    "preview" in request
+      ? new Uint8Array(request.preview.bytes)
+      : "bytes" in request
+        ? new Uint8Array(request.bytes)
+        : new Uint8Array(0)
   const selection = "bytes" in request ? request.changes?.buffer : undefined
   const pages = selection ? JSON.stringify(selection.pages) : ""
   const cached = selection && extracted?.input === selection.input && extracted.pages === pages
@@ -106,6 +112,11 @@ async function run(request: Request): Promise<Result> {
     open()
   }
   try {
+    if ("preview" in request) {
+      open()
+      wasm["_mainz_preview"](handle, request.preview.page)
+      return { revision: request.revision, image: result(wasm).buffer }
+    }
     if ("plan" in request) {
       const inputs = Object.values(request.inputs)
       if (inputs.length === 1) {
@@ -246,5 +257,5 @@ self.addEventListener("message", async (event: MessageEvent<Request>) => {
   } finally {
     busy = false
   }
-  self.postMessage(reply, "bytes" in reply ? [reply.bytes] : [])
+  self.postMessage(reply, "bytes" in reply ? [reply.bytes] : "image" in reply ? [reply.image] : [])
 })

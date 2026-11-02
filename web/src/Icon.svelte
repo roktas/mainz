@@ -4,6 +4,7 @@
   const paths = {
     input: "M5 17H3V2h8l4 4v1M11 2v4h4M8 7h9l4 4v11H8V7Zm9 0v4h4",
     grid: "M3 2h7v9H3V2Zm11 0h7v9h-7V2ZM3 14h7v9H3v-9Zm11 0h7v9h-7v-9Z",
+    list: "M4 6h.01M8 6h12M4 12h.01M8 12h12M4 18h.01M8 18h12",
     normal: "M3 4h7v16H3ZM14 4h7v16h-7Z",
     compact: "M3 2h7v8H3ZM14 2h7v8h-7ZM3 14h7v8H3ZM14 14h7v8h-7Z",
     page: "M5 2h14v20H5V2Zm4 6h6m-6 4h6m-6 4h4",
