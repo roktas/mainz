@@ -3,8 +3,8 @@
 `mainz` runs PDF operations and prepares editable PDFs from SVG. It returns JSON results and writes each PDF to an
 explicit destination without replacing an existing file.
 
-Ordinary PDFs support `describe`, `profiles`, `extract`, and `compose`. Styling, reset, and verification require
-prepared PDFs.
+Ordinary PDFs support `describe`, `profiles`, `extract`, and `compose`. Styling, reset, and verification currently
+require prepared PDFs. The [specification](doc/SPEC.md) also defines pending page metadata and PNG preview extensions.
 
 ## Install
 
@@ -24,7 +24,7 @@ mainz apply input.pdf --profile inkjet --output inkjet.pdf
 mainz apply input.pdf --set print --profile inkjet --output inkjet-print.pdf
 mainz reset input.pdf --output original.pdf
 mainz extract input.pdf --pages pages.json --output selected.pdf
-mainz compose job.json --inputs inputs.json --output composed.pdf
+mainz compose plan.json --inputs inputs.json --output composed.pdf
 mainz run recipe.json --root ./pdfs --output composed.pdf
 mainz run recipe.json --inputs bindings.json --output composed.pdf
 mainz produce source.svg --declaration parameters.json --output prepared.pdf
@@ -34,7 +34,10 @@ mainz --version
 
 Use parameter IDs from `describe` in `changes.json`, such as `{"partial-opacity":0.4}` for the library's prepared
 example. An extraction request of `[0,2]` keeps the first and third physical pages, in that order. Composition uses a
-[Job and separate Input bindings](doc/SPEC.md#2-requests).
+[Plan and separate Input bindings](doc/SPEC.md#2-requests).
+
+`compose` and `run` write the composed PDF to `--output` and return its Provenance JSON on stdout. Provenance maps the
+result's pages and parameters to their sources. Recipe change warnings use stderr.
 
 `run` consumes a portable [Recipe](../lib/doc/SPEC.md#65-portable-recipes) containing logical Input IDs, Input instance
 styles, and composition choices. Use `--inputs bindings.json` to map IDs to PDF paths, such as

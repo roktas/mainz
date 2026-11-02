@@ -31,8 +31,8 @@ Try [mainz.roktas.dev](https://mainz.roktas.dev/). The [specification and glossa
 | ----------------------------------------------------------------- | ----------------------------------------------------- |
 | [App.svelte](src/App.svelte)                                      | Input opening, Input choices, and owner coordination. |
 | [Composer.svelte](src/Composer.svelte)                            | Pane views, Output edit interactions, and transfers.  |
-| [model.ts](src/model.ts) and [styles.ts](src/styles.ts)           | Composition and style rules shared by UI flows.       |
-| [output.svelte.ts](src/output.svelte.ts)                          | Accepted composition, selection, and inspection.      |
+| [model.ts](src/model.ts) and [styles.ts](src/styles.ts)           | Output structure, Plan validation, and style rules.   |
+| [output.svelte.ts](src/output.svelte.ts)                          | Accepted Parts, selection, and inspection.            |
 | [Recipe.svelte](src/Recipe.svelte) and [recipe.ts](src/recipe.ts) | Portable Recipe capture, Input IDs, and JSON export.  |
 | [preview.svelte.ts](src/preview.svelte.ts)                        | Input preview processing, cancellation, and handoff.  |
 | [pdf.ts](src/pdf.ts) and [processor.ts](src/processor.ts)         | PDF.js resources and cancellable processor workers.   |

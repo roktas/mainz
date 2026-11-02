@@ -1,21 +1,24 @@
 # Library
 
 One C++20/QPDF processor serves native and WebAssembly applications. It reads PDFs, changes declared styles, restores
-original styles, extracts pages, and executes composition Jobs. Operations return new validated documents and leave
-Input bytes unchanged.
+original styles, extracts pages, and executes Plans. Input bytes remain unchanged.
 
 Ordinary PDFs support page operations. Styling and reset require a prepared PDF with a valid Mainz contract. The native
-SVG producer creates these PDFs from SVG and separate JSON style declarations.
+SVG producer creates these PDFs from SVG and separate JSON declarations.
+
+Recipe resolution returns a Plan and warnings. Composition returns Composed, containing a Document and its Provenance.
+SVG production returns a Document. The specification lists
+[pending adapter renames, page metadata, and PNG preview requirements](doc/SPEC.md#implementation-status).
 
 | Entry point                                                       | Responsibility                                                                   |
 | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | [processor.hh](src/processor.hh) and [processor/](src/processor/) | PDF operations, validation, and composition.                                     |
-| [recipe.hh](src/recipe.hh)                                        | Portable record inspection and shared resolution to composition Jobs.            |
+| [recipe.hh](src/recipe.hh)                                        | Portable record inspection and shared resolution to Plans.                       |
 | [producer.hh](src/producer.hh) and [producer/](src/producer/)     | SVG selection, rendering, and baseline capture.                                  |
 | [wasm.cpp](src/wasm.cpp)                                          | Synchronous WASM calls, document handles, registered Inputs, and result buffers. |
 | [test/](test/)                                                    | Contract, producer, native/WASM parity, and independent preservation tests.      |
 
-The processor imports no producer or application code. Applications supply immutable Inputs separately from their Jobs.
+The processor imports no producer or application code. Applications supply immutable Inputs separately from their Plans.
 The [specification and glossary](doc/SPEC.md) define the file contract, operation semantics, limits, and buffer
 ownership.
 

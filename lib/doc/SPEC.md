@@ -7,10 +7,33 @@ its declared colors, line widths, opacity, or visibility while keeping text, lay
 remains editable and resettable without its drawing source or producer. Ordinary viewers render its saved appearance.
 Ordinary PDFs support page composition but have no Mainz Style controls.
 
+Page names, tags, and thumbnail images are optional page metadata. They can accompany ordinary or prepared PDFs. Page
+metadata does not create Style controls or change the printed page.
+
 This document owns the version 1 PDF/JSON contract, processor behavior, native/WASM boundaries, and SVG production. The
 [CLI SPEC](../../cli/doc/SPEC.md) owns commands and file policy. The [Web SPEC](../../web/doc/SPEC.md) owns workspace
 behavior. [AGENTS.md](../../AGENTS.md) owns build and validation procedures. The [glossary](#glossary) defines contract
 terms.
+
+## Implementation status
+
+Page metadata, manifests without editable paint, PNG previews, preview access, and SVG page annotations below are
+pending requirements. The current processor rejects `pageMetadata` and requires nonempty paint maps. Native and WASM
+preview access and producer PNG input are not implemented.
+
+Plan, Provenance, and Composed are the canonical terms in the [glossary](#glossary). A Plan is a concrete composition
+request. Composed contains the resulting Document and its Provenance, the source mapping for composed pages and
+parameters. The Plan and Provenance JSON records retain their fields and versions. Adapter identifier changes are
+pending:
+
+| Canonical identifier                                    | Current implementation                                |
+| ------------------------------------------------------- | ----------------------------------------------------- |
+| Native `Resolution::plan` and WASM result member `plan` | Native `Resolution::job` and WASM result member `job` |
+| Native `Composed`                                       | Native `Composition`                                  |
+| `Composed::provenance`                                  | `Composition::report`                                 |
+| `mainz_provenance`, `mainz_provenance_size`             | `mainz_report`, `mainz_report_size`                   |
+
+The adapter descriptions below use canonical identifiers. Current callers use the implementation names in this table.
 
 ## 1. The styling boundary
 
@@ -62,11 +85,14 @@ Styling preserves:
 - Transformations, clipping, Form bounds, and placement order.
 - Page count, order, boxes, rotation, and `UserUnit`.
 - Text operators, content, font resources, and embedded font bytes.
-- Unselected painting, images, navigation, labels, attachments, and unrelated metadata.
+- Unselected painting, images in page content, navigation, PDF labels, unrelated attachments, and unrelated metadata.
 
 Object numbers, compression, stream packaging, and cross-reference structures can change. Protected numbers cannot be
-rounded. Only declared painting state and painting operations change. The processor never regenerates drawing content
-from SVG, CSS, or rasters.
+rounded. Only declared painting state and painting operations change within page content. The processor never
+regenerates drawing content from SVG, CSS, or rasters.
+
+Styling can remove managed preview references and unused preview assets under Section 6. Page names and tags remain
+intact.
 
 ### 1.4 Supported painting contexts
 
@@ -99,7 +125,7 @@ claim.
 | Consuming application | Parameter meaning, publication defaults, page choices, repetition policy, layout, and imposition. |
 
 Native and WASM share one processor. It imports no producer or application code and requires no producer installation.
-Other producers use the same file contract. Applications supply Jobs and immutable Inputs separately from workspace
+Other producers use the same file contract. Applications supply Plans and immutable Inputs separately from workspace
 state. An application promising an editable result must preserve a valid contract through its page operations.
 
 The file contract and CLI commands are public surfaces. Processor adapters and application widgets are internal. Version
@@ -115,7 +141,7 @@ path-painting operation and immutable baseline. Region IDs are document-unique a
 page order. Repeated placements need distinct occurrence scopes even with shared record storage.
 
 A target is a named nonempty region set. Every editable region belongs to exactly one target. Targets neither overlap
-nor form visibility hierarchies. IDs are opaque. Names, colors, positions, Page codes, and source classes never identify
+nor form visibility hierarchies. IDs are opaque. Names, colors, positions, page codes, and source classes never identify
 targets implicitly.
 
 A binding connects a parameter to one property on existing targets. Its eligible records must be explicit and nonempty.
@@ -163,7 +189,7 @@ operator. A stroke record duplicating a separate existing fill of the same geome
 
 ### 4.1 Encoding and identifiers
 
-JSON uses UTF-8 under [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259). Manifest, apply, Job, and Recipe inputs are
+JSON uses UTF-8 under [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259). Manifest, apply, Plan, and Recipe inputs are
 objects. Supplied reset and extraction requests are arrays. Duplicate member names after escape decoding, invalid
 Unicode, and byte-order marks are errors. Unknown fields fail at every defined object level. Object member order has no
 meaning. Arrays carry order only where specified.
@@ -196,26 +222,74 @@ owns the workspace interactions.
 
 ### 4.2 Manifest fields
 
-| Field         | Requirement                                                                        |
-| ------------- | ---------------------------------------------------------------------------------- |
-| `version`     | Required integer `1`                                                               |
-| `pages`       | Required nonempty map of page IDs to unique current zero-based integer PDF indexes |
-| `regions`     | Required nonempty map of region IDs to occurrence records from Section 5.2         |
-| `baselines`   | Required nonempty map of baseline IDs to immutable records from Section 5.2        |
-| `targets`     | Required nonempty map of target IDs to nonempty region-ID arrays                   |
-| `parameters`  | Required nonempty parameter-ID map                                                 |
-| `recordSets`  | Optional nonempty map of record-set IDs to shared locator arrays                   |
-| `groups`      | Optional ordered presentation groups                                               |
-| `profileSets` | Optional ordered profile sets                                                      |
-| `publication` | Optional producer-declared stable document identity and semantic version           |
+| Field          | Requirement                                                                        |
+| -------------- | ---------------------------------------------------------------------------------- |
+| `version`      | Required integer `1`                                                               |
+| `pages`        | Required nonempty map of page IDs to unique current zero-based integer PDF indexes |
+| `regions`      | Required map of region IDs to occurrence records from Section 5.2                  |
+| `baselines`    | Required map of baseline IDs to immutable records from Section 5.2                 |
+| `targets`      | Required map of target IDs to nonempty region-ID arrays                            |
+| `parameters`   | Required parameter-ID map                                                          |
+| `pageMetadata` | Optional nonempty map of page IDs to page metadata records                         |
+| `recordSets`   | Optional nonempty map of record-set IDs to shared locator arrays                   |
+| `groups`       | Optional ordered presentation groups                                               |
+| `profileSets`  | Optional ordered profile sets                                                      |
+| `publication`  | Optional producer-declared stable document identity and semantic version           |
 
 A parameter requires `schema` and `binding`, with optional `value`, `family`, and `key`. A binding has exactly `targets`
 and `property`. Its nonempty target array references existing targets. Its property belongs to Section 1.2. Page indexes
 name actual PDF pages. Every region belongs to one target. Every target has at least one parameter binding. Every
 baseline has at least one record reference. Optional fields follow their full rules whenever present.
 
+The four paint maps are nonempty together or empty together. Empty paint maps require `pageMetadata`. Such a document
+has no editable paint and remains ordinary for Style operations. The manifest still carries its page metadata. Empty
+paint maps also require omission of `recordSets`, `groups`, and `profileSets`.
+
 Bindings contain resolved PDF regions, never source selectors or CSS. Page labels remain separate from parameter and
 publication identity. Optional publication metadata follows the declaration below and never selects painting behavior.
+
+#### Page metadata
+
+`pageMetadata` has existing page IDs as keys. Each record has one or more of the following fields. Each field is
+independent and optional. Pages without a record have no authored page metadata. Operations remove a record after its
+last field disappears. They omit `pageMetadata` after its last record disappears.
+
+| Field     | Value                                                       | Meaning                              |
+| --------- | ----------------------------------------------------------- | ------------------------------------ |
+| `name`    | Nonblank plain-text string without control characters       | Authored display name for the page.  |
+| `tags`    | Array of unique nonblank strings without control characters | Unordered labels for page selection. |
+| `preview` | Nonempty embedded-file name                                 | PNG thumbnail under Section 5.1.     |
+
+Names can repeat, including after composition. Names are display text, not page identities. Tags use exact,
+case-sensitive string equality. Their order has no meaning, and an empty array is valid. The processor does not trim,
+case-fold, normalize, split, or interpret these strings. Existing string and JSON limits apply. Nonblank follows the
+whitespace rule in Section 4.1.
+
+The existing `pages` map remains the source of current physical indexes. Page metadata has one stored record per page
+ID. Consumers can derive name-to-page and tag-to-page indexes in memory. The PDF stores no reverse lookup tables.
+Consumers resolve named choices and tag predicates to physical page indexes before the existing Plan or Recipe path.
+This version defines no query grammar, Boolean-expression field, or dynamic name/tag selector in those records.
+
+Page names and tags remain separate from PDF page labels, outlines, and named destinations. The processor neither infers
+them from navigation structures nor generates a TOC from them. Existing navigation preservation and composition rules
+remain in effect.
+
+This fragment supplements the example's existing `practice` page entry:
+
+```json
+{
+  "pageMetadata": {
+    "practice": {
+      "name": "Cross strokes",
+      "tags": ["practice", "cross-strokes"],
+      "preview": "practice.png"
+    }
+  }
+}
+```
+
+The PDF must contain the referenced PNG attachment. The attachment name has no filesystem or URL semantics. Page
+metadata is an optional version 1 addition. Older strict readers reject the new field and require updated consumers.
 
 #### Style families and semantic keys
 
@@ -264,7 +338,7 @@ breaking change requires a new major. The producer owns this promise and version
 Read, describe, apply, reset, and SVG production preserve the declaration. Extraction that changes the page sequence
 removes it. No-op extraction retains the original bytes and declaration. Composition never inherits an Input's
 publication declaration: the producer must explicitly declare the identity and version of its final assembled output.
-Ordinary PDFs without prepared metadata have no such declaration and use the normal Recipe diagnostic path.
+PDFs without a Mainz manifest have no such declaration and use the normal Recipe diagnostic path.
 
 Publication fields are optional additions to contract version 1. Definitions without them remain valid. Older strict
 consumers reject these fields; publication requires updated consumers.
@@ -481,12 +555,34 @@ PDF 2.0 can associate that same Filespec and payload through an Associated File 
 of truth and requires no PDF-version conversion. Unsupported PDF extensions affecting editable scopes fail. Standard
 `Metadata` contains XMP, never raw JSON.
 
-All Mainz-specific data belongs in embedded JSON. PDF scopes use the standard `Figure` tag and local `Properties`,
-`XObject`, and `ExtGState` names. Marker property dictionaries are empty, without private keys, actions, optional
-content, or structure identifiers. Resource names belong to their owning dictionaries. This encoding needs no private
-tag, key, or developer prefix. It asserts no Tagged PDF conformance and preserves foreign logical structure outside
-paint records. Later private extensions must follow
+All Mainz-specific declarations belong in embedded JSON. Preview PNG bytes belong in separate embedded files. PDF scopes
+use the standard `Figure` tag and local `Properties`, `XObject`, and `ExtGState` names. Marker property dictionaries are
+empty, without private keys, actions, optional content, or structure identifiers. Resource names belong to their owning
+dictionaries. This encoding needs no private tag, key, or developer prefix. It asserts no Tagged PDF conformance and
+preserves foreign logical structure outside paint records. Later private extensions must follow
 [Annex E name rules](https://pdf-issues.pdfa.org/32000-2-2020/clauseAnnexE.html).
+
+#### Preview images
+
+A page's `preview` names exactly one entry in the same `EmbeddedFiles` name tree. Its Filespec `F` and `UF` match that
+name. Both `EF` entries reference one embedded stream with subtype `/image#2Fpng`. The reference cannot resolve to
+`mainz.json`, an external file, or a network resource. Several pages can reference the same image. The producer stores
+that payload once.
+
+The payload is a single-image PNG. The processor examines its signature, header, chunk bounds, and pixel dimensions
+before use. Animated PNG control chunks are unsupported. Image bytes count toward the existing PDF and processor byte
+budgets. Pixel-count arithmetic must not overflow. The reference-build ceiling is 16,777,216 pixels per image. The
+processor neither decodes image pixels nor imports a source renderer for preview access.
+
+A preview represents the saved page appearance at thumbnail size. Producers can simplify guides and strengthen strokes
+for that purpose. The image retains the visible page proportions and displayed orientation, with integer pixel rounding.
+Consumers fit the complete image without cropping or stretching it. Pixel equality with the full PDF rendering is not
+required. The producer owns image resolution. The file contract imposes no fixed 256, 288, or 512 px target.
+
+Consumers use the image only for thumbnails. Detailed page viewing, magnification, comparison, printing, and PDF output
+use the actual PDF. If an image is absent, exceeds host decode limits, or fails pixel decoding, the consumer uses its
+PDF rendering path. Invalid manifest references, malformed PNG structure, and processor limit failures remain contract
+errors. An image decoder failure does not change valid PDF content or produce a replacement image in the saved PDF.
 
 ### 5.2 Identity and baseline records
 
@@ -631,14 +727,15 @@ instead of becoming hairlines or clamped values.
 Operations return results without modifying input bytes or document handles. Adapters own handles, buffers, lifetime,
 and error conversion, without exposing QPDF object graphs.
 
-| Operation  | Request and result                                                                     |
-| ---------- | -------------------------------------------------------------------------------------- |
-| `read`     | Validates PDF and any contract, returning an immutable document handle.                |
-| `describe` | Returns definitions, overrides, baseline summaries, page scope, and presentation.      |
-| `apply`    | Applies a parameter-ID-to-value patch and returns PDF bytes.                           |
-| `reset`    | Removes selected overrides, or all with omitted IDs, and returns PDF bytes.            |
-| `extract`  | Retains unique physical pages in requested order and rebuilds the contract.            |
-| `compose`  | Executes a Job against separately supplied Inputs, returning PDF bytes and provenance. |
+| Operation  | Request and result                                                                                     |
+| ---------- | ------------------------------------------------------------------------------------------------------ |
+| `read`     | Validates PDF and any contract, returning an immutable document handle.                                |
+| `describe` | Returns definitions, overrides, baseline summaries, page scope, and presentation.                      |
+| `preview`  | Returns PNG bytes for a physical page, or no image when that page has no preview.                      |
+| `apply`    | Applies a parameter-ID-to-value patch and returns PDF bytes.                                           |
+| `reset`    | Removes selected overrides, or all with omitted IDs, and returns PDF bytes.                            |
+| `extract`  | Retains unique physical pages in requested order and rebuilds the contract.                            |
+| `compose`  | Executes a Plan against separately supplied Inputs, returning Composed with a Document and Provenance. |
 
 `apply` validates the complete request first. Unknown IDs, invalid values, unsupported properties, and malformed
 definitions fail. `{}` is valid. Omitted IDs retain overrides. Requests cannot replace schemas, bindings, baselines, or
@@ -649,6 +746,10 @@ explicit baseline value still creates an override. Unchanged stored state from v
 Native `Document::apply(request, reset)` combines a patch with a reset-ID array. Patch values take precedence for IDs in
 both inputs. Both inputs must be valid before any change. The processor writes and validates the final state once.
 Unchanged final overrides return original bytes.
+
+Apply and reset retain page names and tags. A changed stored assignment removes the preview reference from every page in
+that parameter's scope. Other pages retain their preview references. No-op operations retain the images and original
+bytes. Reset does not recreate a removed preview. The host uses PDF rendering until a producer supplies another image.
 
 Extraction accepts a nonempty unique array of integer zero-based physical indexes, including pages without editable
 regions. It neither duplicates, scales, rotates, imposes, nor repaints pages. All pages in original order returns
@@ -661,12 +762,19 @@ Extraction remaps page indexes and prunes discarded regions, record sets, baseli
 references. Bindings retain only targets with eligible records for their property. Unbound parameters and empty groups
 disappear. Targets without surviving bindings leave the contract without changing their paint. Retained identities,
 definitions, baselines, and overrides stay unchanged. Results are validated and reopened. Without editable regions, the
-manifest and its Associated File reference disappear, producing an ordinary PDF. Restoring excluded pages requires the
-full Input, not the extraction result.
+paint maps are empty. Retained page metadata still keeps the manifest and its Associated File reference. Extraction
+remaps page metadata through the retained page IDs and removes records for discarded pages. Without editable regions or
+page metadata, the manifest and its Associated File reference disappear. Restoring excluded pages requires the full
+Input, not the extraction result.
 
 Read, description, extraction, and composition accept ordinary PDFs under the same limits and encryption/signature
 restrictions. An invalid manifest is always an error. Apply and reset require a prepared PDF and report
 `missing-contract` otherwise. The [CLI SPEC](../../cli/doc/SPEC.md#1-commands) defines verification.
+
+Preview access accepts a valid zero-based physical index and returns owned PNG bytes without changing the document. A
+valid page without a preview returns no bytes. An out-of-range index fails with `invalid-request`. Description and
+preview access also work with page metadata that has no editable regions. Operations remove unused managed preview
+attachments only when no other surviving PDF use requires them. Unrelated attachments retain their existing protection.
 
 Effective styles regenerate from baselines plus overrides. Hiding never deletes paths, paints white, or uses zero stroke
 width. All resulting contracts and PDF structures are validated before success. Identical inputs, operation, and
@@ -681,10 +789,13 @@ the complete serialized result. It never treats shared syntax as shared painting
 
 Description has exactly `version`, `pageCount`, `pages`, `parameters`, and optional `groups`, `profileSets`, and
 `publication`. Version is `1`. Page count is positive within build limits and includes physical pages without editable
-regions. `pages` maps manifest IDs to objects with zero-based integer `index` and optional string PDF `label`. Indexes
-name actual pages. Missing labels fall back to one-based physical numbers. Prepared descriptions have nonempty
-page/parameter maps. Ordinary PDFs have empty maps and no `groups`. Profile sets include all profile annotations and are
-returned without selecting or changing them.
+regions. `pages` maps manifest IDs to objects with zero-based integer `index` and optional string PDF `label`. Each
+entry also retains supplied `name` and `tags`. An available `preview` descriptor has exactly `file`, `width`, and
+`height`. `file` is the embedded-file name. Width and height are positive integer pixels from the PNG header.
+Description contains no image bytes or base64 payloads. Indexes name actual pages. Missing labels fall back to one-based
+physical numbers. Prepared descriptions have nonempty page/parameter maps. Documents without a manifest have empty maps
+and no `groups`. Documents with page metadata and no paint have nonempty page maps and empty parameter maps. Profile
+sets include all profile annotations and are returned without selecting or changing them.
 
 Each parameter entry has exactly:
 
@@ -734,23 +845,24 @@ Its saved override does not make its baseline uniform. Other baseline summaries 
 PDF bytes, JSON, and referenced records are untrusted. Limits apply before unbounded allocation, decoding, retention, or
 expansion. Exhaustion returns no successful output. Documents cannot raise limits. Reference-build ceilings include:
 
-| Scope                                     | Ceiling   |
-| ----------------------------------------- | --------- |
-| PDF input/output bytes                    | 128 MiB   |
-| Shared processor pipeline bytes per call  | 512 MiB   |
-| Embedded manifest                         | 16 MiB    |
-| Apply/reset/extraction request JSON       | 1 MiB     |
-| Manifest JSON items                       | 2,000,000 |
-| Other JSON items per input                | 50,000    |
-| Referenced paint occurrences              | 500,000   |
-| Cumulative expanded locator text per call | 128 MiB   |
+| Scope                                     | Ceiling    |
+| ----------------------------------------- | ---------- |
+| PDF input/output bytes                    | 128 MiB    |
+| Shared processor pipeline bytes per call  | 512 MiB    |
+| Embedded manifest                         | 16 MiB     |
+| Pixels per preview image                  | 16,777,216 |
+| Apply/reset/extraction request JSON       | 1 MiB      |
+| Manifest JSON items                       | 2,000,000  |
+| Other JSON items per input                | 50,000     |
+| Referenced paint occurrences              | 500,000    |
+| Cumulative expanded locator text per call | 128 MiB    |
 
 Locator accounting counts each shared-array occurrence, including repeated Input instance and completed-result
 validation. For each occurrence, it counts UTF-8 region, page, target, and resolved baseline IDs, paint marker, fill
 capability, and Form-step resource names. Shared arrays and slots do not reduce the total. Limits apply before copied
-text and paths are stored. Other page, string, nesting, decoded-byte, and traversal ceilings remain enforced. Job limits
-appear in Section 6.3 and producer limits in Section 7.1. Published ceilings depend on the released build. They measure
-neither peak memory nor device support.
+text and paths are stored. Other page, string, nesting, decoded-byte, and traversal ceilings remain enforced. Plan
+limits appear in Section 6.3 and producer limits in Section 7.1. Published ceilings depend on the released build. They
+measure neither peak memory nor device support.
 
 Processor errors require plain-text `code` and nonempty `message`. Codes are `pdf-syntax`, `missing-contract`,
 `unsupported-version`, `unsupported-context`, `invalid-contract`, `invalid-request`, or `limit-exceeded`. Optional
@@ -775,17 +887,20 @@ or cancelled work never counts as a successful PDF result. The host owns access,
 and installation. It never implicitly overwrites Inputs or publishes partial results. Browser workers preserve
 responsiveness, not a hard total-memory boundary. Processor allocation limits remain necessary.
 
-### 6.3 Job and composition
+### 6.3 Plans and composition
 
-A Job contains ordered occurrences, complete Input instance styles, repetition, and duplex alignment. It excludes bytes,
-paths, selections, UI labels, and preview state. Applications supply immutable Inputs separately. Input and Input
+A Plan is a concrete versioned request for composition. A host can resolve it from a Recipe or build it directly from
+accepted workspace choices. Composition still applies full request and Input validation.
+
+The record contains ordered occurrences, complete Input instance styles, repetition, and duplex alignment. It excludes
+bytes, paths, selections, UI labels, and preview state. Applications supply immutable Inputs separately. Input and Input
 instance IDs follow Section 4.1.
 
 | Record         | Fields                                                                                                  |
 | -------------- | ------------------------------------------------------------------------------------------------------- |
-| Job            | Required `version`, `sources`, `parts`                                                                  |
+| Plan           | Required `version`, `sources`, `parts`                                                                  |
 | `version`      | Integer `1`                                                                                             |
-| `sources`      | Input instance-ID map, empty for Blank-only Jobs                                                        |
+| `sources`      | Input instance-ID map, empty for Blank-only Plans                                                       |
 | Input instance | Required `input` ID and complete `overrides` object                                                     |
 | `parts`        | Nonempty ordered Part array                                                                             |
 | Part           | Required nonempty `pages`, optional `copies` and `front`                                                |
@@ -804,7 +919,7 @@ baselines. Mixed and unrepresentable baselines remain unassigned. Input instance
 Input instances. All retained occurrences share their Input instance's parameter scope. Independent styles require
 independent Input instances, even with the same Input and page.
 
-Each Part repeats its complete sequence `copies` times. With `front: true`, copies start at even zero-based Output
+Each Part repeats its complete sequence `copies` times. With `front: true`, copies start at even zero-based result
 indexes and finish complete duplex sheets. An odd preceding length adds leading Padding. Odd sequences add trailing
 Padding after every copy, including the last. Padding uses the preceding page's visible box: `CropBox` intersected with
 `MediaBox`, falling back to `MediaBox` for an empty intersection. Dimensions include rotation and `UserUnit`, never
@@ -812,19 +927,26 @@ Padding after every copy, including the last. Padding uses the preceding page's 
 
 Composition retains content streams, resources, boxes, rotation, and `UserUnit`. Each occurrence receives a distinct
 page object and manifest identity. Annotations and form fields are copied without sharing mutable annotations. Internal
-links resolve to the first retained occurrence in the same Input instance. Discarded destinations become null.
-Attachments copy once per Input, with collision-free Input prefixes for multiple Inputs. The new catalog does not merge
+links resolve to the first retained occurrence in the same Input instance. Discarded destinations become null. Unrelated
+attachments copy once per Input, with collision-free Input prefixes for multiple Inputs. The new catalog does not merge
 document-wide outlines, actions, metadata, or logical structure.
 
 Input instances retain independent parameter, target, and baseline identities. Definitions, overrides, and presentation
 survive, with bindings covering every eligible retained occurrence. Unused targets, parameters, baselines, and empty
-groups disappear. Without editable regions, Output is ordinary. Reset restores retained authored baselines without
-Inputs. Completion validates and reopens Output before success.
+groups disappear. Without editable regions, the composed Document has no editable paint. Reset restores retained
+authored baselines without Inputs. Completion validates and reopens the Document before success.
 
-The separate version 1 report has Output-ordered `pages`. Each record includes zero-based `part` and `copy`. Content
-records also name original `source` and physical `page`. Blank records give dimensions and Boolean `padding`. The
-report's `parameters` map relates generated IDs to original `source` and `parameter` IDs. Provenance is result metadata,
-neither a PDF binding nor an extra Job field.
+Each retained occurrence copies its source page's name and tags under its new page ID. Unchanged saved assignments
+permit reuse of its PNG preview. Changed assignments follow the invalidation rule in Section 6. Attachment names and
+preview references change together after collisions. Shared payloads copy once per Input. Blank and Padding pages have
+no authored name, tags, or preview. The processor does not infer metadata from neighboring pages. Page metadata survives
+without editable regions. The manifest disappears only when neither paint bindings nor page metadata remain.
+
+The separate version 1 Provenance record has `pages` in composed Document order. Each record includes zero-based `part`
+and `copy`. Content records also name original `source` and physical `page`. Blank records give dimensions and Boolean
+`padding`. Its `parameters` map relates generated IDs to original `source` and `parameter` IDs. Provenance is result
+metadata, neither a PDF binding nor an extra Plan field. Input digests and Recipe change warnings remain separate from
+this record.
 
 Both adapters enforce these limits before Input retention or expansion:
 
@@ -832,15 +954,15 @@ Both adapters enforce these limits before Input retention or expansion:
 | ------------------------ | ------- |
 | Inputs / Input instances | 32 each |
 | Aggregate Input bytes    | 128 MiB |
-| Job JSON                 | 1 MiB   |
+| Plan JSON                | 1 MiB   |
 | Copies per Part          | 1,000   |
 | Expanded pages           | 10,000  |
 
 Other manifest, output, decoding, and traversal limits still apply. Failures preserve Inputs and return no successful
-PDF or partial report. Job field errors use `source: "request"` and pointers to their Input instance, Part, or page
+PDF or partial Provenance. Plan field errors use `source: "request"` and pointers to their Input instance, Part, or page
 reference.
 
-This Job uses the prepared example from Section 4.6 as Input `book`, with two independently styled Input instances:
+This Plan uses the prepared example from Section 4.6 as Input `book`, with two independently styled Input instances:
 
 ```json
 {
@@ -865,18 +987,20 @@ This Job uses the prepared example from Section 4.6 as Input `book`, with two in
 It produces four content pages without Padding because the sequence length is even. Both maps omit `partial-opacity`,
 restoring its original per-record baselines instead of retaining the saved 0.15 override.
 
-### 6.4 Job adapters
+### 6.4 Composition adapters
 
-The native executor accepts Job JSON and an Input-ID-to-owned-byte map. It returns owned PDF bytes and report JSON,
-without file access or scheduling. The [CLI](../../cli/doc/SPEC.md#2-requests) resolves file bindings before calling it.
+The native executor accepts Plan JSON and an Input-ID-to-owned-byte map. It returns Composed with `document` and
+`provenance`, without file access or scheduling. The Document owns the validated PDF. Provenance is a separate JSON
+record under Section 6.3. Composed is an adapter result, not another serialized record or a field in the PDF manifest.
+The [CLI](../../cli/doc/SPEC.md#2-requests) resolves file bindings before calling it.
 
 The optional `previous` document in native `compose` permits reuse of its input validation and parsed content. Reuse
 requires exact input bytes. Input instance edits stay independent. Composition applies Input instance styles in memory
-and validates the complete serialized Output once, without intermediate Input instance PDFs.
+and validates the complete serialized Document once, without intermediate Input instance PDFs.
 
-`compose_validated(job, inputs)` accepts an Input-ID-to-immutable-`Document` map. It reuses those exact Inputs' prior
+`compose_validated(plan, inputs)` accepts an Input-ID-to-immutable-`Document` map. It reuses those exact Inputs' prior
 validation and parsed content without copying their PDF bytes into another binding map. The owners remain alive for the
-synchronous call. Independent Input instances still receive separate editing graphs, and the completed Output still
+synchronous call. Independent Input instances still receive separate editing graphs, and the completed Document still
 passes full validation. This entry point lets Recipe resolution and composition share the same validated Inputs.
 
 The WASM module has one active immutable styling document. `mainz_read` opens it and `mainz_close` releases its handle.
@@ -885,7 +1009,12 @@ opening another. Callers own input buffers, borrowed only during synchronous cal
 
 `mainz_fingerprint(handle)` returns the active document's SHA-256 as 64 lowercase ASCII hexadecimal bytes through the
 result buffer. It hashes the retained original bytes without another PDF read and leaves the active document intact. The
-host can retain this value as Recipe provenance. This operation follows the same handle and result-buffer rules.
+host can retain this value in the Recipe Input's `sha256` field. This operation follows the same handle and
+result-buffer rules.
+
+`mainz_preview(handle, page)` returns PNG bytes for a zero-based physical page through `mainz_result` and `mainz_size`.
+Success without an image has size zero. Invalid indexes use the existing structured request error. The call retains the
+active document. The host copies the bytes before another operation and owns image decoding and disposal.
 
 WASM builds use native WebAssembly exception handling instead of JavaScript exception emulation. Hosts must support the
 pinned toolchain's legacy exception instructions. Processor and host failures retain the status and result records
@@ -896,24 +1025,28 @@ Both buffers contain JSON and each has the 1 MiB request limit. Patch values tak
 
 `mainz_input(idPointer, idSize, pdfPointer, pdfSize)` copies valid UTF-8 IDs and PDF bytes into a separate registry.
 Duplicate IDs fail. `mainz_clear_inputs()` releases registered bytes. They otherwise persist until cleared or worker
-termination. `mainz_compose(jobPointer, jobSize)` uses the native interpreter against that registry. The module can
+termination. `mainz_compose(planPointer, planSize)` uses the native interpreter against that registry. The module can
 retain one previously validated Input for exact-byte reuse across Style and composition calls. Failure clears this
 retained Input. Clearing the registry releases its registered bytes independently.
 
-PDF bytes use `mainz_result` and `mainz_size`. Report JSON uses `mainz_report` and `mainz_report_size`. Results belong
-to the module until the next operation. Both must be copied before another call, including cleanup. `mainz_status()`
-distinguishes success (`0`), structured processor failure (`1`), and host failure (`2`). The host owns worker
-scheduling, cancellation, Input recovery, and downloads.
+PDF and preview bytes use `mainz_result` and `mainz_size`. Provenance JSON uses `mainz_provenance` and
+`mainz_provenance_size`. Results belong to the module until the next operation. Both must be copied before another call,
+including cleanup. `mainz_status()` distinguishes success (`0`), structured processor failure (`1`), and host failure
+(`2`). The host owns worker scheduling, cancellation, Input recovery, and downloads.
 
 ### 6.5 Portable Recipes
 
 A Recipe is a versioned JSON record for applying a composition to separately supplied Inputs, including updated PDFs. It
-resolves to the existing Job. It stores processing choices rather than UI events, preview state, or PDF bytes. Native
-and WASM consumers use the same interpreter. The CLI owns filesystem access under its
+resolves to a Plan. It stores processing choices rather than UI events, preview state, or PDF bytes. Native and WASM
+consumers use the same interpreter. The CLI owns filesystem access under its
 [Recipe execution rules](../../cli/doc/SPEC.md#22-recipe-execution).
 
-Recipe version 1 requires exactly `version`, `inputs`, `sources`, and `parts`. Version is integer `1`. Recipe and Job
+Recipe version 1 requires exactly `version`, `inputs`, `sources`, and `parts`. Version is integer `1`. Recipe and Plan
 versions are separate contracts. Encoding, unknown-field rejection, identifiers, and numeric rules follow Section 4.1.
+
+Names and tag predicates can help a host construct a selection. The host records their resolved physical indexes as
+concrete page references. Replay does not repeat that name or tag lookup. Existing explicit `pages: "all"` selection
+retains its separate dynamic meaning.
 
 | Record                  | Fields                                                                         |
 | ----------------------- | ------------------------------------------------------------------------------ |
@@ -929,14 +1062,14 @@ instance has a page reference. Input IDs name logical PDF bindings; Input instan
 those Inputs. Several Input instances can use one Input. Both kinds of ID are opaque under Section 4.1. The record has
 no file-location fields. The host binds each Input ID to actual PDF bytes at execution time. A filename without its
 `.pdf` suffix is a convenient initial ID, not a required filesystem location. Displayed one-based indexes identify rows
-only; they are not stored identities or references. JSON member order does not define an Input index.
+only; they are not stored identities or references. JSON member order does not define a host's display order.
 
-Optional `sha256` records byte provenance as 64 lowercase hexadecimal characters. A mismatch produces an `input-changed`
-warning and permits updated Inputs. The warning contains `input`, `location`, `message`, `expected`, and `actual`.
-Optional `pageCount` is a positive integer at most 10000 and declares an exact-count expectation. A mismatch fails with
-`invalid-request` at `/inputs/<escaped-id>/pageCount`. Neither a matching digest nor a matching page count proves that
-physical positions still identify the intended content. The interpreter never detects semantic page identity by guessing
-from labels, local page IDs, or filenames.
+Optional `sha256` records the reference PDF's digest as 64 lowercase hexadecimal characters. A mismatch produces an
+`input-changed` warning and permits updated Inputs. The warning contains `input`, `location`, `message`, `expected`, and
+`actual`. Optional `pageCount` is a positive integer at most 10000 and declares an exact-count expectation. A mismatch
+fails with `invalid-request` at `/inputs/<escaped-id>/pageCount`. Neither a matching digest nor a matching page count
+proves that physical positions still identify the intended content. The interpreter never detects semantic page identity
+by guessing from labels, local page IDs, or filenames.
 
 Optional Input `publication` records the producer declaration from the reference PDF. A bound PDF with the same ID and a
 stable SemVer version at least as new, under the same nonzero major, permits a compatible fast-forward. Build metadata
@@ -954,17 +1087,17 @@ selector without `all: true` requires exactly one match within its Input instanc
 matches fail. With `all: true`, the operation explicitly addresses every match and still requires at least one. Exact
 local selectors do not accept `all`. There is no fallback between local IDs and semantic fields.
 
-An Input instance starts from authored baselines, following Job's complete-state semantics. Profiles apply first, using
-the current Input's own definitions. Two choices cannot address the same profile set. Explicit overrides apply
+An Input instance starts from authored baselines, following the Plan's complete-state semantics. Profiles apply first,
+using the current Input's own definitions. Two choices cannot address the same profile set. Explicit overrides apply
 afterward. A non-null `value` is a scalar validated under each matched parameter's schema and paint property. A null
-value removes that parameter's profile assignment, restoring its own baseline. It does not enter the resolved Job. Two
-explicit overrides cannot address the same parameter, including through overlapping selectors. Other Input instance
-styles never change implicitly. Saved Input overrides survive only when the Recipe explicitly retains them.
+value removes that parameter's profile assignment, restoring its own baseline. It does not enter the Plan. Two explicit
+overrides cannot address the same parameter, including through overlapping selectors. Other Input instance styles never
+change implicitly. Saved Input overrides survive only when the Recipe explicitly retains them.
 
-Recipe Parts use Job's `copies`, `front`, explicit content pages, and explicit Blanks. A content page can instead be
-exactly `{ "source": "id", "pages": "all" }`. This expands every current physical page of that Input instance's Input in
-order, before repetition and duplex alignment. Fixed `page` indexes remain zero-based and must exist. Explicit complete
-lists never imply all-pages intent. Out-of-range pages fail; the interpreter never drops or clamps them.
+Recipe Parts use the Plan's `copies`, `front`, explicit content pages, and explicit Blanks. A content page can instead
+be exactly `{ "source": "id", "pages": "all" }`. This expands every current physical page of that Input instance's Input
+in order, before repetition and duplex alignment. Fixed `page` indexes remain zero-based and must exist. Explicit
+complete lists never imply all-pages intent. Out-of-range pages fail; the interpreter never drops or clamps them.
 
 ```json
 {
@@ -991,39 +1124,39 @@ lists never imply all-pages intent. Out-of-range pages fail; the interpreter nev
 ```
 
 The example's IDs must exist in the supplied Input; they are not built-in profile or parameter names. A web consumer can
-export its complete concrete Job by naming logical Inputs, converting override-map entries to local override records,
-and retaining exact Parts. Replaying that record with the same Inputs uses the same composition engine and preserves the
-represented content, page order, copies, Blanks, and styles. Profile intent or dynamic selection requires its explicit
-Recipe representation; it cannot be inferred from an equivalent concrete snapshot.
+export its complete accepted composition as a Recipe. It names logical Inputs, converts override-map entries to local
+override records, and retains exact Parts. Replaying that record with the same Inputs uses the same composition engine
+and preserves the represented content, page order, copies, Blanks, and styles. Profile intent or dynamic selection
+requires its explicit Recipe representation; it cannot be inferred from an equivalent concrete snapshot.
 
 `recipe_inputs(recipe)` validates the unbound record and returns its Input definitions as JSON. It reads no files.
-`resolve_recipe(recipe, inputs)` validates separately supplied Input bytes and returns `Resolution` with `job` and
-`warnings` JSON strings. It generates no intermediate styled PDFs or final PDF. The resolved Job executes through
-`compose`. Missing or extra bindings fail. Validation reports original Recipe pointers and retains structured PDF
-errors. Failure returns no partial Job or warning result.
+`resolve_recipe(recipe, inputs)` validates separately supplied Input bytes and returns `Resolution` with `plan` and
+`warnings` JSON strings. The `plan` member contains the Plan. Resolution generates no intermediate styled PDFs or final
+PDF. The Plan executes through `compose`. Missing or extra bindings fail. Validation reports original Recipe pointers
+and retains structured PDF errors. Failure returns no partial Plan or warning result.
 
 The native `resolve_recipe` overload for immutable `Document` Inputs reuses their descriptions. The CLI reads and
 validates each binding once, then uses this overload and `compose_validated`. The byte-map overload remains available
 for hosts that supply bytes rather than retained validated documents. Both use the same resolver and validation rules.
 
 `mainz_recipe_inputs(pointer, size)` exposes unbound inspection through WASM. `mainz_resolve_recipe(pointer, size)`
-resolves against the registered Inputs and returns `{ "job": ..., "warnings": [...] }` through `mainz_result` and
+resolves against the registered Inputs and returns `{ "plan": ..., "warnings": [...] }` through `mainz_result` and
 `mainz_size`. These operations retain the active styling document and do not generate PDF bytes. The host copies the
-result before another operation, then can pass the returned Job to `mainz_compose` using the same registered bytes.
+result before another operation, then can pass the returned Plan to `mainz_compose` using the same registered bytes.
 
-Recipe JSON and the resolved Job each have a 1 MiB limit. Job's Input/Input instance, aggregate Input byte, copy, and
+Recipe JSON and Plan JSON each have a 1 MiB limit. The Plan's Input/Input instance, aggregate Input byte, copy, and
 expanded page limits apply during resolution. Parts and each unexpanded page-selector array contain at most 10000
 entries. Retained description JSON has a 512 MiB aggregate byte budget. These byte budgets do not measure total peak
 memory. Checks precede page-list expansion. Existing PDF, manifest, decoding, and traversal limits still apply.
 Reproducibility covers the resolved operations and represented PDF content; it does not promise identical serialized
-bytes across processor or dependency versions. Output naming, printing, sharing, and UI state remain host concerns.
+bytes across processor or dependency versions. File naming, printing, sharing, and UI state remain host concerns.
 
 ## 7. Producer and consuming-application obligations
 
-A producer resolves source rules, selectors, render instances, paint order, and compositing before publication. It
-supplies resolved bindings and original baselines, never source rules for the processor to evaluate. It retains editable
-occurrences and rejects selections requiring reordered paint or unsupported compositing. Baselines precede authored
-`value` overrides. Publication applies those overrides through the processor.
+A producer that exposes Style resolves source rules, selectors, render instances, paint order, and compositing before
+publication. It supplies resolved bindings and original baselines, never source rules for the processor to evaluate. It
+retains editable occurrences and rejects selections requiring reordered paint or unsupported compositing. Baselines
+precede authored `value` overrides. Publication applies those overrides through the processor.
 
 Contract-aware page operations read the original manifest, retain applicable definitions/state, and rebuild resulting
 bindings. Missing targets, unbound parameters, and invalid presentation references cannot survive. Independently
@@ -1036,12 +1169,20 @@ triggering inferred reconstruction. Ordinary page operations remain available un
 
 ### 7.1 SVG declarations
 
-The native producer accepts SVG and separate JSON declarations. Declarations require `targets` and `parameters`, with
-optional `groups`, `profileSets`, and `publication`. Publication identity and version follow Section 4.2. Each target
-has selectors and can declare `fill: true` for eligible closed paths or `display: "none"` for authored hidden state.
-Targets are disjoint, preserve paint order, and have at least one parameter binding. A target's display field records
-its original state without requiring an editable display parameter. Profiles follow Section 4.5 and do not apply
-automatically during export.
+The native `produce` function accepts SVG and a separate SVG declaration and returns a Document. Declarations require
+`targets` and `parameters`, with optional `groups`, `profileSets`, `publication`, and `page`. Publication identity and
+version follow Section 4.2. `page` contains optional `name` and `tags` under the page metadata rules. At least one field
+must be present. The producer assigns these fields to its emitted page ID. The producer also accepts separate optional
+PNG bytes. It embeds the image and records the resulting attachment reference in page metadata. The host supplies bytes,
+not paths or URLs inside the declaration. Preview production does not change the SVG used for PDF content. Declarations
+with page metadata or a supplied preview can have empty `targets` and `parameters` together. Each target has selectors
+and can declare `fill: true` for eligible closed paths or `display: "none"` for authored hidden state. Targets are
+disjoint, preserve paint order, and have at least one parameter binding. A target's display field records its original
+state without requiring an editable display parameter. Profiles follow Section 4.5 and do not apply automatically during
+export.
+
+The producer captures baselines and applies authored `value` overrides before it attaches the supplied PNG. The image
+represents that final saved appearance. The producer validates the completed PDF, including its preview, before success.
 
 Declaration selectors support only `#id` and `#id > use.class`. Selector IDs/classes use `[A-Za-z_][A-Za-z0-9_-]*`. They
 select whole `g` elements or `use` placements, not content inside `defs` or `symbol`. Selected use placements need
@@ -1093,55 +1234,63 @@ to the publication. One profile is not promised for every printer. Physical prin
 
 The [Web glossary](../../web/doc/SPEC.md#glossary) owns workspace terms.
 
-| Term                     | Meaning                                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| Baseline                 | Immutable original state of one paint record before overrides.                                                |
-| Baseline slot            | Shared locator's local reference mapped to a region's own baseline.                                           |
-| Binding                  | One parameter's connection to one property on eligible records in declared targets.                           |
-| Composition              | Ordered assembly of pages and blanks, preserving retained content and rebuilding the prepared contract.       |
-| Description              | Read-only processor record of pages, definitions, overrides, baseline summaries, groups, and profiles.        |
-| Effective style          | Paint state after baseline, overrides, and display combine. Hidden targets retain selected values.            |
-| Extraction               | Retaining unique pages in order and rebuilding bindings, without changing drawing content.                    |
-| Input                    | Immutable PDF bytes supplied separately under an opaque Input ID. Several Input instances can share them.     |
-| Input ID                 | Logical key for a PDF binding, independent of its file location.                                              |
-| Input index              | One-based display position within a host's current Input list, not a persisted identity.                      |
-| Job                      | Versioned composition request with complete Input instance overrides, repetition, and duplex alignment.       |
-| Recipe                   | Portable versioned processing choices and logical Input IDs resolved into a Job against bound PDF bytes.      |
-| Publication              | Producer-declared logical document identity and SemVer version carrying processing compatibility promises.    |
-| Mainz                    | Project, contract, processor, reference producer, CLI, and WASM boundary, consumed by PDF Composer.           |
-| Manifest                 | Embedded declaration of pages, regions, baselines, targets, parameters, overrides, and optional presentation. |
-| Locator                  | Ordered Form invocation path and paint marker resolving one record in a page region.                          |
-| Marker                   | Local empty PDF property resource identifying one balanced Figure sequence.                                   |
-| Mixed baseline           | Different original values across one parameter's eligible records.                                            |
-| Occurrence               | One use of content in its page/resource context, independent of shared geometry storage.                      |
-| Override                 | Explicit parameter `value`. Reset removes it rather than assigning a new default.                             |
-| Paint property           | Supported PDF painting attribute, distinct from a parameter or JSON Schema's properties keyword.              |
-| Paint record             | Declared path painting operation with immutable baseline and capabilities.                                    |
-| Painted extent           | Painted area within clipping, potentially changed without changing geometry.                                  |
-| Parameter                | Named scalar styling choice with constraints, presentation, and a binding.                                    |
-| Semantic key             | Producer-declared stable parameter meaning within a Style family, independent of document-local IDs.          |
-| Style family             | Authored compatibility namespace for profile names and parameter semantic keys.                               |
-| Path geometry            | Path operators and coordinates, preserved by styling.                                                         |
-| Prepared PDF             | Materialized editable geometry, valid manifest, resolved bindings, and immutable baselines in one PDF.        |
-| Presentation group       | Ordered parameter references with title/description, without style identity or assignment scope.              |
-| PDF Composer             | Local web consumer for page composition and Input instance styling.                                           |
-| Processor                | Library applying the PDF contract and contract-aware page operations independently of producers.              |
-| Producer                 | Software publishing prepared geometry and declarations into the PDF contract.                                 |
-| Reference application    | Consumer exposing the common processor. File conformance does not depend on its widgets.                      |
-| Record set               | Shared ordered locator syntax retaining separate occurrences and baseline identities.                         |
-| Region                   | Unique occurrence scope with ordered paint records, belonging to one target.                                  |
-| Schema                   | Restricted JSON Schema for one parameter's scalar values and annotations.                                     |
-| Selector                 | Producer-side source selection, resolved before processor input.                                              |
-| Input instance           | One Input reference with complete independent overrides shared across retained occurrences.                   |
-| Styling                  | Declared paint changes preserving geometry, protected content, and page structure.                            |
-| Style declaration        | Separate producer input with selectors, bindings, optional presentation, profiles, and overrides.             |
-| Style object             | Parameters bound to the same exact unordered target set.                                                      |
-| Style scope              | Balanced marker sequence containing local state, complete path, paint, and state restoration.                 |
-| Style profile            | Named overrides replacing their set's assignments, with omitted parameters restored to baseline.              |
-| Profile set              | Ordered profiles over one independent parameter scope, beginning with original styles.                        |
-| Target                   | Named nonempty region set receiving declared style changes.                                                   |
-| Unrepresentable baseline | One original state without a valid scalar override, such as a hairline for positive width.                    |
-| Verification             | Assessment of one prepared PDF. Preservation requires independent input/output comparison.                    |
+| Term                     | Meaning                                                                                                                          |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| Baseline                 | Immutable original state of one paint record before overrides.                                                                   |
+| Baseline slot            | Shared locator's local reference mapped to a region's own baseline.                                                              |
+| Binding                  | One parameter's connection to one property on eligible records in declared targets.                                              |
+| Composed                 | Composition result containing a Document and its Provenance.                                                                     |
+| Composition              | Operation that executes a Plan against separately supplied Inputs and returns Composed.                                          |
+| Description              | Read-only processor record of pages, definitions, overrides, baseline summaries, groups, and profiles.                           |
+| Document                 | Validated immutable PDF, usable as an Input or operation result.                                                                 |
+| Effective style          | Paint state after baseline, overrides, and display combine. Hidden targets retain selected values.                               |
+| Extraction               | Retaining unique pages in order and rebuilding bindings, without changing drawing content.                                       |
+| Input                    | Immutable PDF bytes supplied separately under an opaque Input ID. Several Input instances can share them.                        |
+| Input ID                 | Logical key for a PDF binding, independent of its file location.                                                                 |
+| Recipe                   | Portable choices and logical Input IDs that resolve against bound PDFs into a Plan.                                              |
+| Resolution               | Recipe resolution result containing a Plan and change warnings, without a produced Document.                                     |
+| Plan                     | Concrete composition request with physical page references, Blanks, complete Input instance overrides, copies, and alignment.    |
+| Provenance               | Versioned record of page origins, Part and copy positions, and source mappings for parameter identities.                         |
+| Publication              | Producer-declared logical document identity and SemVer version carrying processing compatibility promises.                       |
+| Mainz                    | Project, contract, processor, reference producer, CLI, and WASM boundary, consumed by PDF Composer.                              |
+| Manifest                 | Embedded declaration of page identities, optional page metadata, and any editable paint and presentation.                        |
+| Locator                  | Ordered Form invocation path and paint marker resolving one record in a page region.                                             |
+| Marker                   | Local empty PDF property resource identifying one balanced Figure sequence.                                                      |
+| Mixed baseline           | Different original values across one parameter's eligible records.                                                               |
+| Occurrence               | One use of content in its page/resource context, independent of shared geometry storage.                                         |
+| Override                 | Explicit parameter `value`. Reset removes it rather than assigning a new default.                                                |
+| Page metadata            | Optional name, tags, and PNG preview reference attached to one manifest page ID.                                                 |
+| Page name                | Authored display text for a page, independent of physical number, PDF label, and navigation titles.                              |
+| Page tag                 | One exact string in a page's unordered tag set, available to consumers for page selection.                                       |
+| Paint property           | Supported PDF painting attribute, distinct from a parameter or JSON Schema's properties keyword.                                 |
+| Paint record             | Declared path painting operation with immutable baseline and capabilities.                                                       |
+| Painted extent           | Painted area within clipping, potentially changed without changing geometry.                                                     |
+| Parameter                | Named scalar styling choice with constraints, presentation, and a binding.                                                       |
+| Part                     | Nonempty ordered sequence of content pages and Blanks with one copy count and front-alignment choice.                            |
+| Semantic key             | Producer-declared stable parameter meaning within a Style family, independent of document-local IDs.                             |
+| Style family             | Authored compatibility namespace for profile names and parameter semantic keys.                                                  |
+| Path geometry            | Path operators and coordinates, preserved by styling.                                                                            |
+| Prepared PDF             | Materialized editable geometry, valid manifest, resolved bindings, and immutable baselines in one PDF.                           |
+| Preview image            | Producer-supplied PNG representing the saved page at thumbnail size.                                                             |
+| Presentation group       | Ordered parameter references with title/description, without style identity or assignment scope.                                 |
+| PDF Composer             | Local web consumer for page composition and Input instance styling.                                                              |
+| Processor                | Library applying the PDF contract and contract-aware page operations independently of producers.                                 |
+| Producer                 | Software publishing PDFs with Mainz declarations for editable paint or page metadata.                                            |
+| Reference application    | Consumer exposing the common processor. File conformance does not depend on its widgets.                                         |
+| Record set               | Shared ordered locator syntax retaining separate occurrences and baseline identities.                                            |
+| Region                   | Unique occurrence scope with ordered paint records, belonging to one target.                                                     |
+| Schema                   | Restricted JSON Schema for one parameter's scalar values and annotations.                                                        |
+| Selector                 | Producer-side source selection, resolved before processor input.                                                                 |
+| Input instance           | One Input reference with complete independent overrides shared across retained occurrences.                                      |
+| Styling                  | Declared paint changes preserving geometry, protected content, and page structure.                                               |
+| SVG declaration          | Separate producer JSON for targets, parameters, and optional presentation, profiles, publication identity, and page annotations. |
+| Style object             | Parameters bound to the same exact unordered target set.                                                                         |
+| Style scope              | Balanced marker sequence containing local state, complete path, paint, and state restoration.                                    |
+| Style profile            | Named overrides replacing their set's assignments, with omitted parameters restored to baseline.                                 |
+| Profile set              | Ordered profiles over one independent parameter scope, beginning with original styles.                                           |
+| Target                   | Named nonempty region set receiving declared style changes.                                                                      |
+| Unrepresentable baseline | One original state without a valid scalar override, such as a hairline for positive width.                                       |
+| Verification             | Assessment of one PDF's Mainz contract. Preservation requires independent input/output comparison.                               |
 
 ## References
 

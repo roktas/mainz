@@ -1,29 +1,34 @@
 # Mainz CLI Specification
 
 `mainz` is the batch interface for PDF operations and native SVG production. This document owns command syntax, request
-files, diagnostics, cancellation, and output installation. The [library SPEC](../../lib/doc/SPEC.md) owns PDF, Job, and
-producer semantics. [AGENTS.md](../../AGENTS.md) owns build and validation commands.
+files, diagnostics, cancellation, and output installation. The [library SPEC](../../lib/doc/SPEC.md) owns PDF and
+processing contracts. [AGENTS.md](../../AGENTS.md) owns build and validation commands.
+
+The `--preview` option, SVG page annotations, and verification of manifests without editable paint below are pending
+requirements. The current CLI does not implement these extensions. `verify` currently requires a prepared PDF. See the
+[library implementation status](../../lib/doc/SPEC.md#implementation-status).
 
 ## 1. Commands
 
-| Command                     | Required options                                          | Optional options                               | Success on stdout                                           |
-| --------------------------- | --------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------- |
-| `mainz describe input.pdf`  | None                                                      | None                                           | Processor description                                       |
-| `mainz profiles input.pdf`  | None                                                      | None                                           | Ordered profile-set array                                   |
-| `mainz verify prepared.pdf` | None                                                      | None                                           | `{"valid":true,"version":1}`                                |
-| `mainz apply input.pdf`     | `--output edited.pdf` and one of `--request`, `--profile` | `--set` with `--profile`                       | `{"ok":true}`                                               |
-| `mainz reset input.pdf`     | `--output reset.pdf`                                      | `--ids parameters.json`                        | `{"ok":true}`                                               |
-| `mainz extract input.pdf`   | `--pages pages.json --output selected.pdf`                | None                                           | `{"ok":true}`                                               |
-| `mainz compose job.json`    | `--inputs inputs.json --output composed.pdf`              | None                                           | Composition report                                          |
-| `mainz run recipe.json`     | `--output composed.pdf`                                   | `--inputs bindings.json` or `--root directory` | Composition report                                          |
-| `mainz produce source.svg`  | `--declaration parameters.json --output prepared.pdf`     | `--width`, `--height`, `--dpi`                 | `{"ok":true}`                                               |
-| `mainz --version`           | None                                                      | None                                           | Software version, contract version, and dependency versions |
+| Command                    | Required options                                          | Optional options                               | Success on stdout                                           |
+| -------------------------- | --------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------- |
+| `mainz describe input.pdf` | None                                                      | None                                           | Processor description                                       |
+| `mainz profiles input.pdf` | None                                                      | None                                           | Ordered profile-set array                                   |
+| `mainz verify input.pdf`   | None                                                      | None                                           | `{"valid":true,"version":1}`                                |
+| `mainz apply input.pdf`    | `--output edited.pdf` and one of `--request`, `--profile` | `--set` with `--profile`                       | `{"ok":true}`                                               |
+| `mainz reset input.pdf`    | `--output reset.pdf`                                      | `--ids parameters.json`                        | `{"ok":true}`                                               |
+| `mainz extract input.pdf`  | `--pages pages.json --output selected.pdf`                | None                                           | `{"ok":true}`                                               |
+| `mainz compose plan.json`  | `--inputs inputs.json --output composed.pdf`              | None                                           | Provenance                                                  |
+| `mainz run recipe.json`    | `--output composed.pdf`                                   | `--inputs bindings.json` or `--root directory` | Provenance                                                  |
+| `mainz produce source.svg` | `--declaration parameters.json --output prepared.pdf`     | `--width`, `--height`, `--dpi`, `--preview`    | `{"ok":true}`                                               |
+| `mainz --version`          | None                                                      | None                                           | Software version, contract version, and dependency versions |
 
 Options follow the positional input and each take one value. Missing, unknown, or duplicate options fail with exit
-code 2. Commands never request interactive input. PDF output always requires an explicit destination. `apply`, `reset`,
-and `verify` require prepared PDFs. `describe`, `profiles`, `extract`, and `compose` also accept ordinary PDFs. An
-invalid embedded contract remains an error. It does not become an ordinary-PDF fallback. Version output uses software
-`version`, integer `contract`, and dependency version fields.
+code 2. Commands never request interactive input. PDF output always requires an explicit destination. `apply` and
+`reset` require prepared PDFs with editable paint. `verify` requires a Mainz manifest and also accepts page metadata
+without editable paint. `describe`, `profiles`, `extract`, and `compose` also accept ordinary PDFs. An invalid embedded
+contract remains an error. It does not become an ordinary-PDF fallback. Version output uses software `version`, integer
+`contract`, and dependency version fields.
 
 `verify` assesses one PDF's contract and supported contexts without changing it. It does not establish preservation
 against an earlier PDF. Independent input/output comparisons establish preservation. A processor failure produces
@@ -34,19 +39,24 @@ verification result.
 
 JSON uses the library's [encoding and identifier rules](../../lib/doc/SPEC.md#41-encoding-and-identifiers).
 
-| Request                 | Contents and effect                                                                                                                        |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `apply --request`       | Parameter-ID-to-value object. Omitted IDs retain overrides. `{}` changes nothing.                                                          |
-| `apply --profile`       | Exact profile ID. Replaces all overrides in its set. Omitted parameters return to their baselines.                                         |
-| `reset --ids`           | Unique existing parameter IDs. Omission resets all. `[]` resets none.                                                                      |
-| `extract --pages`       | Nonempty unique zero-based physical indexes in output order, for example `[0,2,3]`.                                                        |
-| `compose job.json`      | Complete version 1 [Job](../../lib/doc/SPEC.md#63-job-and-composition). Input instance overrides replace saved state rather than patch it. |
-| `compose --inputs`      | Input-ID-to-PDF-path object, `{}` for a Blank-only Job.                                                                                    |
-| `run --inputs`          | Exact Recipe-Input-ID-to-PDF-path object, `{}` for a Blank-only Recipe.                                                                    |
-| `produce --declaration` | [SVG targets, scalar parameters, and optional presentation](../../lib/doc/SPEC.md#71-svg-declarations).                                    |
+| Request                 | Contents and effect                                                                                                                           |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apply --request`       | Parameter-ID-to-value object. Omitted IDs retain overrides. `{}` changes nothing.                                                             |
+| `apply --profile`       | Exact profile ID. Replaces all overrides in its set. Omitted parameters return to their baselines.                                            |
+| `reset --ids`           | Unique existing parameter IDs. Omission resets all. `[]` resets none.                                                                         |
+| `extract --pages`       | Nonempty unique zero-based physical indexes in output order, for example `[0,2,3]`.                                                           |
+| `compose plan.json`     | Complete version 1 [Plan](../../lib/doc/SPEC.md#63-plans-and-composition). Input instance overrides replace saved state rather than patch it. |
+| `compose --inputs`      | Input-ID-to-PDF-path object, `{}` for a Blank-only Plan.                                                                                      |
+| `run --inputs`          | Exact Recipe-Input-ID-to-PDF-path object, `{}` for a Blank-only Recipe.                                                                       |
+| `produce --declaration` | [SVG targets, scalar parameters, page annotations, and optional presentation](../../lib/doc/SPEC.md#71-svg-declarations).                     |
+| `produce --preview`     | PNG file whose bytes become the produced page's optional thumbnail.                                                                           |
 
-The positional input and `--request`, `--ids`, `--pages`, `--inputs`, or `--declaration` accept `-` for stdin. At most
-one input can use stdin.
+The positional input and `--request`, `--ids`, `--pages`, `--inputs`, `--declaration`, or `--preview` accept `-` for
+stdin. At most one input can use stdin.
+
+`produce --preview image.png` reads the PNG through the ordinary input file policy. The CLI passes owned image bytes to
+the native producer. The declaration contains no image filesystem path or URL. The library owns PNG structure, size
+limits, and embedded-file references under its [preview contract](../../lib/doc/SPEC.md#preview-images).
 
 Composition and explicit Recipe bindings supply Inputs separately from the record. Bound PDF paths cannot use stdin.
 Relative paths resolve from the current working directory, including paths inside `inputs.json`. Paths cannot contain
@@ -75,7 +85,7 @@ a new explicit file path.
 ### 2.2 Recipe execution
 
 `run` consumes the shared [Recipe contract](../../lib/doc/SPEC.md#65-portable-recipes). It resolves profiles, overrides,
-resets, and page selectors through the library, then executes the resulting Job through normal composition. It never
+resets, and page selectors through the library, then executes the resulting Plan through normal composition. It never
 requests interactive input. The same portable record can originate from a web consumer or be authored for the CLI.
 
 The Recipe names logical Inputs and has no file-location fields. `--inputs bindings.json` explicitly maps every required
@@ -97,14 +107,13 @@ File locations and root arguments never enter the Recipe. Each Input is read onc
 Resolution and composition share those same owned bytes; several Input instances can use one binding without rereading
 its file. Existing `compose` behavior stays unchanged.
 
-Changed SHA-256 provenance produces one warning JSON record per Input on stderr and does not require a force option.
-Recorded publication identity and a compatible forward SemVer version suppress that digest warning. Missing,
-incompatible, older, zero-major, or pre-release declarations do not establish a compatible forward change. The library's
-publication comparison and all validation still run; an actual page or style error terminates execution even when the
-producer claims compatibility. Explicit page-count expectations, missing pages, unknown or ambiguous styles, invalid
-values, and resource-limit failures remain errors. Warnings do not replace diagnostics for subsequent failures. Success
-stdout remains the ordinary composition report and follows atomic installation. Existing destinations and Inputs are
-never replaced.
+A SHA-256 mismatch produces one warning JSON record per Input on stderr and does not require a force option. Recorded
+publication identity and a compatible forward SemVer version suppress that digest warning. Missing, incompatible, older,
+zero-major, or pre-release declarations do not establish a compatible forward change. The library's publication
+comparison and all validation still run; an actual page or style error terminates execution even when the producer
+claims compatibility. Explicit page-count expectations, missing pages, unknown or ambiguous styles, invalid values, and
+resource-limit failures remain errors. Warnings do not replace diagnostics for subsequent failures. Success stdout
+remains the Provenance JSON and follows atomic installation. Existing destinations and Inputs are never replaced.
 
 ## 3. SVG viewport
 
@@ -114,6 +123,10 @@ units resolve at 96 DPI. Invalid dimension arguments fail with exit code 2 befor
 [producer contract](../../lib/doc/SPEC.md#71-svg-declarations) owns selection, eligibility, and resource limits.
 
 ## 4. Results and files
+
+`compose` and `run` write the composed Document to the output file and emit its Provenance JSON on stdout. The CLI does
+not serialize the library's Composed return package. Recipe change warnings use stderr and remain separate from
+Provenance.
 
 `description` and `details` remain plain-text JSON strings. `describe` retains them on parameter schemas, groups,
 profile sets, and profiles; `profiles` retains both set and profile annotations. Details require their owner's own

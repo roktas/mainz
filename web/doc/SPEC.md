@@ -1,19 +1,28 @@
 # PDF Composer Specification
 
-PDF Composer builds one Output from selected pages of local PDFs. Composition includes extraction, duplication,
+PDF Composer builds one Output from selected pages of local PDFs. The workspace supports extraction, duplication,
 repetition, removal, and ordering across Inputs. Prepared PDFs also expose their declared Style controls. Ordinary PDFs
-support page composition. Input retains its opened appearance. Output shows the composition with completed Input styles.
-Download, Share, and Print use the generated Output PDF.
+support page composition. Input retains its opened appearance. Output shows the arranged pages with completed Input
+styles. Download, Share, and Print use the generated Output PDF.
 
 This document owns workspace behavior and the [product glossary](#glossary). [VIEW.md](VIEW.md) owns visual rules,
 layout reference cases, and the [UI glossary](VIEW.md#ui-glossary). The [library specification](../../lib/doc/SPEC.md)
 owns PDF contracts, painting restrictions, and processor limits. Implementation details belong in code. Build and
 validation commands belong in [AGENTS.md](../../AGENTS.md#web).
 
+## Implementation status
+
+List, authored page-name captions, and producer PNG thumbnails below are pending requirements. The current application
+offers Grid, Page, and Style, and renders thumbnails from PDF content. These extensions depend on the
+[pending library requirements](../../lib/doc/SPEC.md#implementation-status).
+
+Plan and Provenance use the canonical library terms. Web code currently uses `Job`/`job` and `Report`/`report` for these
+records. These identifier changes remain pending alongside the library adapter renames.
+
 ## Workspace
 
 One workspace supports several independent Inputs and one Output. The main flow is Input selection, addition to Output,
-optional Style changes, and Download or Print. View changes preserve selections, Input styles, composition, and preview
+optional Style changes, and Download or Print. View changes preserve selections, Input styles, Output, and preview
 state. Ordinary PDFs support composition. Prepared PDFs also expose their declared Style controls.
 
 The landing distinguishes page composition for ordinary PDFs from Style support in prepared PDFs and links to the
@@ -45,19 +54,19 @@ mark Output as changed.
 
 ### Views and density
 
-Input has Grid and Page, plus Style for prepared PDFs. Output has Grid and Page. Grid and Page share selection and page
-operations. Input Page browses every original physical page once, regardless of Selection. Output browses every expanded
-occurrence, including Blank and Padding. Navigation does not change selection. Selection does not move the inspected
-page or narrow style scope.
+Input has Grid, List, and Page, plus Style for prepared PDFs. Output has Grid, List, and Page. Grid, List, and Page
+share selection and page operations. Input Page browses every original physical page once, regardless of Selection.
+Output browses every expanded occurrence, including Blank and Padding. Navigation does not change selection. Selection
+does not move the inspected page or narrow style scope.
 
-Grid interactions establish the page inspected in Page. Returning to Grid reveals that page's batch. Output inspection
-follows occurrence identity through movement. Removal chooses the next surviving neighbor, or the previous neighbor at
-the end. Input switching does not move Output inspection.
+Grid and List interactions establish the page inspected in Page. Returning to Grid reveals that page's batch. Entering
+List reveals the inspected row. Output inspection follows occurrence identity through movement. Removal chooses the next
+surviving neighbor, or the previous neighbor at the end. Input switching does not move Output inspection.
 
-Both panes offer Normal and Compact density. Output starts in Normal. After opening completes, an Input's first visible
-Input Grid measures Normal batch capacity. Above twice that capacity, it starts in Compact. Otherwise it starts in
-Normal. Each Input retains that choice, including manual changes. Resizing, browser zoom, Page, and Style do not
-reevaluate it. Density changes preserve selections, inspection, and operations. Both densities use the remaining
+Both panes offer Normal and Compact density for Grid. Output starts in Normal. After opening completes, an Input's first
+visible Input Grid measures Normal batch capacity. Above twice that capacity, it starts in Compact. Otherwise it starts
+in Normal. Each Input retains that choice, including manual changes. Resizing, browser zoom, List, Page, and Style do
+not reevaluate it. Density changes preserve selections, inspection, and operations. Both densities use the remaining
 viewport height and show complete rows. Short viewports retain one complete row and usable controls through document
 scrolling. [VIEW.md](VIEW.md#workspace) defines capacity references and calibration limits.
 
@@ -72,6 +81,26 @@ When copies exist, Input page numbers open copy counts and Output positions. Out
 and original page number. Mappings distinguish independent Inputs and follow edits. Compact details also provide a
 larger preview and individual actions. Outside click or Escape closes details. PDF labels supplement physical numbers.
 If a PDF label differs from its physical number, Page shows both.
+
+### Named pages and List
+
+List shows one row per physical Input page or expanded Output occurrence, in the same order as the pane's page sequence.
+Each row retains its physical number or Output position, optional PDF label, and supplied page name. Pages without names
+remain available by number. Repeated names do not merge rows or occurrences. Blank and Padding rows retain their
+existing product identities without invented authored names.
+
+List choices use the existing Selection and page-action model. They resolve to physical indexes or Output occurrence
+identities. List does not own another selection state or change the numeric Selection grammar. View changes retain the
+selection, inspection, Output, styles, and each pane's Grid density. The numeric field retains its touch keyboard
+behavior.
+
+Grid and Page show supplied page names as captions. Missing names add no empty caption. Names supplement physical
+numbers and PDF labels. They do not replace navigation identities. [VIEW](VIEW.md#grid-and-page) owns caption placement
+and layout.
+
+The shared library owns page names and tags under its [page metadata contract](../../lib/doc/SPEC.md#page-metadata).
+Tags remain available as data for future page selection. This version defines no tag-query control, expression grammar,
+or dynamic Recipe lookup.
 
 ### Demo
 
@@ -135,7 +164,7 @@ remain available.
 Sequences and expanded Output support at most 10,000 pages, including Padding. Repetitions accept integers from 1 to
 1,000. Invalid or empty sequences cannot be added. One-page PDFs support repeated entries such as `1,1`.
 
-## Output composition
+## Output structure
 
 Every Output occurrence is independently editable. Selection follows occurrence identity through edits. Other
 occurrences, Input pages, and styles remain intact. Page edits preserve expanded order, materialize existing Padding as
@@ -166,7 +195,7 @@ and two sheets.
 **Start each repeat on front** is off by default. It gives odd-length copies a trailing Blank, including the final copy.
 If preceding pages end on a Front face, a leading Blank completes that sheet.
 
-| Composition                      | Expanded pages                  | PDF pages |
+| Output structure                 | Expanded pages                  | PDF pages |
 | -------------------------------- | ------------------------------- | --------- |
 | A B C, two copies, alignment off | A B C A B C                     | 6         |
 | A B C, two copies, alignment on  | A B C Blank A B C Blank         | 8         |
@@ -189,9 +218,8 @@ drag completes its click action on release.
 An Output card's left/right halves insert before/after it. The Output background appends. Dropping on a selected Output
 occurrence leaves order unchanged. A prospective slot never changes document order before drop. Output Page navigation
 advances the inspected drop target after a hover dwell. Cancellation or rejection restores prior inspection and leaves
-the composition unchanged. A completed move follows the moved occurrence. Drop, cancellation, and leaving Output clear
-temporary feedback. Native drag support depends on the browser and input device. Buttons support keyboard and touch
-alternatives.
+Output unchanged. A completed move follows the moved occurrence. Drop, cancellation, and leaving Output clear temporary
+feedback. Native drag support depends on the browser and input device. Buttons support keyboard and touch alternatives.
 
 Touch dragging starts from a grip when the finger moves. It uses the same selections and insertion rules as mouse
 dragging. In Grid, only the card area accepts and highlights drops. On narrow layouts, Input rejects drops and
@@ -418,8 +446,8 @@ the active Input's profile intent and manual edit IDs together with its override
 
 Field reset removes one override. **Reset all styles** clears the active Input's complete map, including hidden and
 saved overrides, and invalid drafts. Other Inputs follow only the eligible propagation above. Resets retain selections,
-composition, and immutable bytes. Reset appears only with overrides or invalid drafts. Keyboard activation returns focus
-to the Style tab before the control disappears.
+Output, and immutable bytes. Reset appears only with overrides or invalid drafts. Keyboard activation returns focus to
+the Style tab before the control disappears.
 
 ### Processing
 
@@ -442,7 +470,7 @@ The processor writes and validates the final PDF once.
 
 Partial Input processing can use extracted pages, but controls, labels, preview, and Compare retain original physical
 identities. New Download processing uses complete immutable Inputs and complete Input overrides. Input errors offer
-Retry even with another Input or tab active. Invalid drafts never enter a Job. Obsolete processing results cannot
+Retry even with another Input or tab active. Invalid drafts never enter a Plan. Obsolete processing results cannot
 replace newer choices.
 
 ## Page preview and comparison
@@ -485,8 +513,9 @@ touch cancellation, window blur, resize, or visibility change cancels page navig
 their existing actions. Navigation stops at document boundaries and preserves Selection and Output.
 
 **Compare page** toggles the inspected occurrence between completed Input styles and immutable opened appearance. It
-requires a completed relevant style difference. Composition alone does not enable it. Pending or invalid relevant drafts
-disable it. Reset can enable Compare by removing saved overrides. Input switching retains Output position and Compare.
+requires a completed relevant style difference. Page arrangement alone does not enable it. Pending or invalid relevant
+drafts disable it. Reset can enable Compare by removing saved overrides. Input switching retains Output position and
+Compare.
 
 **Show original page** opens the occurrence's Input in Input Page at its original physical page, including extracted
 previews. It matches Output zoom and visible region once. Later navigation, zoom, and panning remain independent.
@@ -543,14 +572,14 @@ all-pages intent from a complete page list. It adds no hard page-count expectati
 diagnostics and applicability against updated PDFs.
 
 The JSON filename uses the current Output filename stem with `.json`. Its default follows the existing dynamic Output
-name. The 1 MiB Recipe limit applies before download. Saving or cancelling retains composition, style choices,
-Selection, previews, and PDF Download/Share acknowledgment. Saving a Recipe does not clear the PDF unsaved warning.
+name. The 1 MiB Recipe limit applies before download. Saving or cancelling retains Output, style choices, Selection,
+previews, and PDF Download/Share acknowledgment. Saving a Recipe does not clear the PDF unsaved warning.
 
 ## Download, Print, View, and recovery
 
 Download, Print, and View are disabled for empty or invalid Output and for invalid drafts affecting its content. Unused
 invalid parameters do not block them. Relevant Input processing disables these actions while the header reports
-progress. Full-document Style processing retains one completed composition per Input. Other combined Outputs need their
+progress. Full-document Style processing retains one completed composed PDF per Input. Other combined Outputs need their
 own PDF preparation.
 
 Output also checks the referenced Inputs and Inputs against the Download limits: 32 of each and 128 MiB of aggregate
@@ -558,8 +587,8 @@ Input bytes. Each Input identity counts once. Unused open Inputs do not count. A
 Download as soon as Output exceeds a limit. Removing the excess restores Download. Processor validation remains
 authoritative.
 
-Download captures the valid Job. If Output contains every page from one completed Input in physical order, Download
-reuses its validated and inspected composition. Current styles and page quantities must match. This path needs no new
+Download captures the valid Plan. If Output contains every page from one completed Input in physical order, Download
+reuses its validated and inspected composed PDF. Current styles and page quantities must match. This path needs no new
 processing or inspection. Copies, Blanks, other page orders, and multiple Inputs require a new composition.
 
 New preparation supplies each referenced Input once. A compact modal at the header reports preparation and inspection
@@ -585,7 +614,7 @@ filename editor; the Output page actions menu also provides it. A custom name ap
 remains in the workspace until Home. The editor rejects empty names, path separators, and control characters, and adds
 `.pdf` when needed. Use default restores automatic naming. The header does not display the filename beside its controls.
 
-Print captures the same Job and uses the same preparation, validation, inspection, and cancellation as Download. It
+Print captures the same Plan and uses the same preparation, validation, inspection, and cancellation as Download. It
 hands the completed PDF bytes to the browser's PDF viewer, preserving the Output pages and styles. Browsers with native
 PDF viewing receive a print request with the Output filename as the viewer document title, without an application viewer
 panel. Apple browsers use a separate PDF window because embedded iOS PDF printing can omit pages. Print reserves that
@@ -693,11 +722,16 @@ An offline installation retains its build's ID.
 
 ## Processing boundaries
 
-The [Job contract](../../lib/doc/SPEC.md#63-job-and-composition) owns serialization and processor validation. PDF
+The [Plan contract](../../lib/doc/SPEC.md#63-plans-and-composition) owns serialization and processor validation. PDF
 Composer sends only referenced Inputs, with complete override maps, and binds Input IDs to immutable bytes separately. A
-Blank-only Job needs no Input bindings. Selections, labels, view state, invalid drafts, local paths, and PDF bytes stay
-outside the Job. The application supplies immediate field feedback. The processor remains authoritative for references,
+Blank-only Plan needs no Input bindings. Selections, labels, view state, invalid drafts, local paths, and PDF bytes stay
+outside the Plan. The application supplies immediate field feedback. The processor remains authoritative for references,
 values, resource limits, repetition, and Padding.
+
+A workspace Input has independent styles and page preparation. At the library boundary, immutable PDF bytes form an
+Input binding, and each independent styled use is an Input instance. The Plan's `sources` map records Input instances;
+their `input` fields name the immutable bindings. Accepted Output choices produce a Plan. Composition produces a
+Document with Provenance. Output remains the editable workspace target.
 
 Parameter IDs are opaque. Labels and descriptions are plain text. The application adds no painting engine, executable
 document markup, or authoritative contract validator. Downloaded prepared content remains editable without the original
@@ -711,18 +745,19 @@ until reload. A blocked update restores opening. Offline installation retries te
 reports a failure. Missing or incompatible assets block installation. Failure guidance asks users to reload the page and
 report repeated failures.
 
-Each worker runs one job at a time and loads only its bundled processor module. A failed operation discards the WASM
-instance and extracted-page cache before the next request. Cleanup errors fail successful work without replacing an
-earlier operation error. The workspace retains at most one idle processing worker. Completing another job releases the
-previous idle worker. Active jobs keep independent cancellation. Ordinary Inputs release their validation worker after
-opening. Repeated Style requests for the same cached Input and page sequence reuse the extracted bytes without sending
-the complete PDF again. Failure or worker disposal clears that reuse state. Cancellation, replacement, or Input removal
-stops obsolete processing and preview work. Later jobs start usable workers. Input bytes remain available for retry.
+Each worker runs one operation at a time and loads only its bundled processor module. A failed operation discards the
+WASM instance and extracted-page cache before the next request. Cleanup errors fail successful work without replacing an
+earlier operation error. The workspace retains at most one idle processing worker. Completing another operation releases
+the previous idle worker. Active operations keep independent cancellation. Ordinary Inputs release their validation
+worker after opening. Repeated Style requests for the same cached Input and page sequence reuse the extracted bytes
+without sending the complete PDF again. Failure or worker disposal clears that reuse state. Cancellation, replacement,
+or Input removal stops obsolete processing and preview work. Later operations start usable workers. Input bytes remain
+available for retry.
 
 A worker retains at most four completed Style or single-Input composition results for one exact input buffer. The 16 MiB
-budget counts the retained input, result PDFs, request keys, descriptions, and reports. Reuse requires exact input
-bytes, requests, and Input bindings. A cache hit returns an owned copy of a fully validated result without another PDF
-read.
+budget counts the retained input, result PDFs, request keys, descriptions, and Provenance records. Reuse requires exact
+input bytes, requests, and Input bindings. A cache hit returns an owned copy of a fully validated result without another
+PDF read.
 
 Different input bytes, processing failure, multiple-Input composition, and worker disposal clear this cache. The first
 request computes only its selected styles. No profile work runs during Input opening and no profile cache enters the
@@ -739,7 +774,18 @@ This changes preview pixels without changing PDF bytes, Input styles, page propo
 rendering. Exact raster reuse distinguishes thumbnail sampling from direct Page rendering. Only final-sized rasters
 enter the retained cache. Temporary render canvases release after completion, cancellation, and failure.
 
-App coordinates Input opening and selects retained documents after view updates. Output owns the accepted composition,
+An available producer PNG takes precedence over PDF rendering for the saved page's thumbnail appearance. The application
+fits the complete image to the page proportions. It does not stretch or crop the image. The application uses the PDF
+renderer after preview invalidation, absence, host limit rejection, or pixel decode failure. Page, lens, and Compare
+detail always use the actual PDF.
+
+Shared PNGs decode once per required raster size. Their final-sized canvases use the existing bounded raster cache.
+Reuse requires the same document, embedded image identity, raster size, and sampling mode. Temporary PNG bytes and
+object URLs release after decoding, cancellation, replacement, or failure. Image access follows the existing worker
+ownership policy. It does not retain an idle worker for every open Input. Producer images and derived values remain
+document data and never enter the offline cache.
+
+App coordinates Input opening and selects retained documents after view updates. Output owns the accepted Parts,
 occurrence selection, inspection, filename, and Download and Share acknowledgment. Export owns shared Output preparation
 and inspection, the ready Share File, and the latest View URL. Print owns its native PDF frame or window and temporary
 URL. The filename editor owns only its draft. Each Input's Preview owns style processing, cancellation, and
@@ -777,38 +823,41 @@ current requirements, not a claim of physical-device or accessibility certificat
 
 The [library glossary](../../lib/doc/SPEC.md#glossary) owns PDF and painting terms.
 
-| Term               | Meaning                                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------------------------------- |
-| Blank              | A content-free page with defined physical dimensions. It can be explicit or generated as Padding.       |
-| Build ID           | Istanbul timestamp identifying an application build, separate from version and Git revision.            |
-| Compare            | Preview of the same Output occurrence with completed styles or its opened Input appearance.             |
-| Composition        | Ordered assembly of Input pages and Blanks into Output.                                                 |
-| Copy count         | Number of repetitions of one complete Part.                                                             |
-| Error              | Failure message retained until dismissal or resolution.                                                 |
-| Grid               | Thumbnail view of Input or Output.                                                                      |
-| Grid density       | Normal or Compact layout chosen independently for each pane and retained for each open Input.           |
-| Help               | Dialog with App help, input-specific workspace instructions, and access to the Product tour.            |
-| Info               | Operation progress, result, or cancellation message.                                                    |
-| Input              | Opened PDF with independent styles and page choices. Recipe IDs bind its immutable bytes.               |
-| Job                | Complete processor request for one Output, separate from PDF bytes and editable workspace state.        |
-| Keyboard shortcuts | Help instructions for the current pane views and selection fields.                                      |
-| Notice             | Temporary guidance or event message in the header.                                                      |
-| Onboarding         | First-opening welcome whose dismissal is remembered on the device.                                      |
-| Output             | One document assembled from ordered Parts with their Input styles, copies, and Blanks.                  |
-| Output preview     | Complete expanded composition, independent of active Input and Selection.                               |
-| Output occurrence  | One page in Output with independent identity, including a copy, Blank, or Padding.                      |
-| Output selection   | Temporary set of occurrences used for edits and Input insertion destinations.                           |
-| Page               | View of one large page, with navigation through the pane's complete sequence.                           |
-| Page cursor        | Grid keyboard position, independent of selection and absent at an outer boundary.                       |
-| Padding            | Alignment-generated Blanks that remain visible and count toward Output pages.                           |
-| Paint duo          | Combined color and opacity control retaining separate parameter identities and resets.                  |
-| Part               | Internal flat page sequence with one Copy count and front-alignment choice, without independent styles. |
-| PDF Composer       | Local web application for page composition and declared styles in prepared PDFs.                        |
-| Product tour       | Contextual explanation of actual controls without changing document choices.                            |
-| Recipe             | Portable JSON processing record executed against bound Inputs.                                          |
-| Quartet            | Fill, Stroke, Width, and Visibility presentation for one Style object.                                  |
-| Selection          | Temporary ordered physical pages from one Input, including repeats, prepared for addition.              |
-| Share              | Mobile action that hands the completed Output File to the system sharing panel.                         |
-| Show original page | Opens an Output occurrence's original Input page and matches its visible region once.                   |
-| Style profile      | Named choice replacing one profile set's Input overrides.                                               |
-| UI group           | Authored presentation section whose order does not alter bindings or assignment scope.                  |
+| Term               | Meaning                                                                                                                  |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| Blank              | A content-free page with defined physical dimensions. It can be explicit or generated as Padding.                        |
+| Build ID           | Istanbul timestamp identifying an application build, separate from version and Git revision.                             |
+| Compare            | Preview of the same Output occurrence with completed styles or its opened Input appearance.                              |
+| Composition        | Library operation that executes Output's accepted Plan to create a Document and its Provenance.                          |
+| Copy count         | Number of repetitions of one complete Part.                                                                              |
+| Error              | Failure message retained until dismissal or resolution.                                                                  |
+| Grid               | Thumbnail view of Input or Output.                                                                                       |
+| Grid density       | Normal or Compact layout chosen independently for each pane and retained for each open Input.                            |
+| Help               | Dialog with App help, input-specific workspace instructions, and access to the Product tour.                             |
+| Info               | Operation progress, result, or cancellation message.                                                                     |
+| Input              | Opened PDF with independent styles and page choices. Recipe IDs bind its immutable bytes.                                |
+| Input index        | One-based row number in the Recipe export table, independent of the persisted Input ID.                                  |
+| Plan               | Concrete library composition request captured from accepted Output choices, separate from PDF bytes and workspace state. |
+| Keyboard shortcuts | Help instructions for the current pane views and selection fields.                                                       |
+| List               | Row view of Input pages or Output occurrences, with supplied names and the shared selection model.                       |
+| Notice             | Temporary guidance or event message in the header.                                                                       |
+| Onboarding         | First-opening welcome whose dismissal is remembered on the device.                                                       |
+| Output             | Editable workspace target defined by ordered Parts, Input styles, copies, and Blanks.                                    |
+| Output preview     | Expanded Output page sequence, independent of active Input and Selection.                                                |
+| Output occurrence  | One page in Output with independent identity, including a copy, Blank, or Padding.                                       |
+| Output selection   | Temporary set of occurrences used for edits and Input insertion destinations.                                            |
+| Page               | View of one large page, with navigation through the pane's complete sequence.                                            |
+| Page cursor        | Grid keyboard position, independent of selection and absent at an outer boundary.                                        |
+| Page name          | Authored name for List and Grid/Page captions, separate from page numbers and PDF labels.                                |
+| Padding            | Alignment-generated Blanks that remain visible and count toward Output pages.                                            |
+| Paint duo          | Combined color and opacity control retaining separate parameter identities and resets.                                   |
+| Part               | Page sequence with shared repetition and front alignment. Its styles belong to referenced Input instances.               |
+| PDF Composer       | Local web application for page composition and declared styles in prepared PDFs.                                         |
+| Product tour       | Contextual explanation of actual controls without changing document choices.                                             |
+| Recipe             | Portable JSON choices that resolve against bound Inputs into a Plan.                                                     |
+| Quartet            | Fill, Stroke, Width, and Visibility presentation for one Style object.                                                   |
+| Selection          | Temporary ordered physical pages from one Input, including repeats, prepared for addition.                               |
+| Share              | Mobile action that hands the completed Output File to the system sharing panel.                                          |
+| Show original page | Opens an Output occurrence's original Input page and matches its visible region once.                                    |
+| Style profile      | Named choice replacing one profile set's Input overrides.                                                                |
+| UI group           | Authored presentation section whose order does not alter bindings or assignment scope.                                   |

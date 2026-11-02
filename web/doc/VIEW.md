@@ -5,6 +5,9 @@ workspace behavior and product terminology. [Stylesheets](../src/main.css) and t
 CSS values, breakpoints, and animation keyframes. The rules below retain deliberate visual constraints without
 duplicating the implementation or the interaction specification.
 
+List and page-name captions below are pending requirements under the
+[workspace implementation status](SPEC.md#implementation-status).
+
 ## Contents
 
 - [Tokens and assets](#tokens-and-assets)
@@ -173,14 +176,14 @@ Pointer opening places initial focus on the Settings drawer. Keyboard opening fo
 navigation keeps a visible focus indicator on each control.
 
 Tabs use square corners and an accent underline. Unselected tabs gain color on hover. Keyboard focus uses a soft tint
-and one border, without glow. Grid, Page, and Style use their existing outlined icons. Disabled Style retains its
-crossed-out brush and explanatory hint. Density controls sit beside the Grid tabs, outside the tablist. Narrow panes
-reduce tab padding, then use icon-only tabs if the labels still do not fit. With visible labels, keep at least 12 CSS px
-between adjacent tab contents. Keep accessible names and explanatory titles. Tabs, density controls, and Style tools
-never wrap or overlap. Reserve space for adjacent controls across views. The toolbar retains its height in Grid, Page,
-and Style so content frames do not shift. Keep at least 8 CSS px between its controls and bottom separator. Take added
-space from the gap below the separator; retain the total vertical space so the selection bar, content frame, and Grid
-capacity do not move.
+and one border, without glow. Grid, List, Page, and Style use outlined icons. Disabled Style retains its crossed-out
+brush and explanatory hint. Density controls sit beside the Grid tabs, outside the tablist. Narrow panes reduce tab
+padding, then use icon-only tabs if the labels still do not fit. With visible labels, keep at least 12 CSS px between
+adjacent tab contents. Keep accessible names and explanatory titles. Tabs, density controls, and Style tools never wrap
+or overlap. Reserve space for adjacent controls across views. The toolbar retains its height in Grid, List, Page, and
+Style so content frames do not shift. Keep at least 8 CSS px between its controls and bottom separator. Take added space
+from the gap below the separator; retain the total vertical space so the selection bar, content frame, and Grid capacity
+do not move.
 
 Inset the selected tab underline by 4 CSS px at each end at every width.
 
@@ -301,6 +304,10 @@ small size. Hints reserve space and wrap naturally, so errors, bold counts, and 
 images. Input and Output use the same control dimensions. Preserve usable field width and full-size touch targets.
 
 ## Grid and Page
+
+Place a supplied page name below the Grid image in both densities, or below the image frame in Page. Keep captions
+outside PDF pixels and image zoom. Missing names reserve no empty caption. Long names and enlarged text must not overlap
+images, controls, or adjacent cards. Include caption space in frame sizing so Grid retains complete rows.
 
 Review thumbnail sampling at the actual Normal and Compact image sizes. Fine guides must remain visible on guide-only
 pages while full and partial pattern pages remain distinguishable. Compare the cover, text, raster images, and authored
@@ -840,7 +847,7 @@ instances by element type. PDF-authored group and object labels vary with each d
 ### Naming conventions
 
 English terms serve as the technical names. Turkish equivalents support conversations about the same elements. Visible
-labels such as Input, Output, Grid, Page, and Style retain their English names in both languages.
+labels such as Input, Output, Grid, List, Page, and Style retain their English names in both languages.
 
 Prefixes identify an element's location or purpose. For example, Input selection bar names the selection bar in the
 Input pane. These qualified names use standard component terms.
@@ -906,8 +913,8 @@ Tab, tab list, and tab panel follow the [W3C tabs terminology](https://www.w3.or
 | English term                 | Turkish equivalent                   | UI element                                                                     |
 | ---------------------------- | ------------------------------------ | ------------------------------------------------------------------------------ |
 | View toolbar                 | Görünüm araç çubuğu                  | The row with view tabs and the adjacent density controls or Style actions.     |
-| Tab list                     | Sekme çubuğu                         | The Grid, Page, and Style tabs as a group. Help has a Keyboard/Mouse tab list. |
-| Tab                          | Sekme                                | One Grid, Page, Style, Keyboard, or Mouse choice.                              |
+| Tab list                     | Sekme çubuğu                         | The Grid, List, Page, and Style tabs. Help groups Keyboard and Mouse.          |
+| Tab                          | Sekme                                | One Grid, List, Page, Style, Keyboard, or Mouse choice.                        |
 | Tab panel                    | Sekme içerik paneli                  | The content area associated with the active tab.                               |
 | Active tab indicator         | Etkin sekme göstergesi               | The accent underline beneath the active tab.                                   |
 | Grid density control         | Izgara yoğunluğu denetimi            | The Normal and Compact buttons.                                                |
@@ -917,6 +924,11 @@ Tab, tab list, and tab panel follow the [W3C tabs terminology](https://www.w3.or
 | Unavailable indicator        | Kullanılamazlık göstergesi           | The crossed-out brush and explanation for a visible but unavailable Style tab. |
 
 Grid density controls sit outside the tab list. The mobile view switcher uses buttons rather than tab roles.
+
+| English term      | Turkish equivalent   | UI element                                                                              |
+| ----------------- | -------------------- | --------------------------------------------------------------------------------------- |
+| List view         | Liste görünümü       | The row view of Input pages or Output occurrences with page numbers and supplied names. |
+| Page name caption | Sayfa adı açıklaması | The supplied page name below a Grid image or the Page image frame.                      |
 
 ### Page selection
 
@@ -966,7 +978,7 @@ The bar is the complete bordered row. The field is only the text-entry area with
 | Folded corner        | Katlanmış köşe                    | The curved corner that marks a back side.                                                               |
 | Card body            | Kart gövdesi                      | The main image section between the header and footer.                                                   |
 | Thumbnail frame      | Küçük resim çerçevesi             | The neutral area around the small page image.                                                           |
-| Page thumbnail       | Sayfa küçük resmi                 | The small rendered PDF page image inside the frame.                                                     |
+| Page thumbnail       | Sayfa küçük resmi                 | The small page image inside the frame, from a producer PNG or PDF rendering.                            |
 | Card footer          | Kart alt alanı                    | The section below the image that reserves space for card actions.                                       |
 | Card actions         | Kart işlemleri                    | Input addition or Output removal and duplication buttons.                                               |
 | Page details trigger | Sayfa ayrıntılarını açma denetimi | The interactive page number that opens page details.                                                    |
