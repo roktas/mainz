@@ -1,7 +1,7 @@
 // Runs cancellable processor requests and owns their worker lifetime.
 
 import type { Failure, Operation, Reply, Result } from "./protocol.ts"
-import type { Job } from "./model.ts"
+import type { Plan } from "./model.ts"
 import type { Scalar } from "./styles.ts"
 
 const messages: Record<string, string> = {
@@ -39,21 +39,21 @@ export class Processor {
     bytes: Uint8Array,
     revision: number,
     changes?: {
-      apply: Record<string, Scalar>
+      overrides: Record<string, Scalar>
       reset: string[]
       buffer?: { input: string; pages: number[] }
     },
   ): Promise<Result> {
-    if (this.active) return Promise.reject(new Error("A processing job is already active."))
+    if (this.active) return Promise.reject(new Error("A processing operation is already active."))
     const buffer = changes?.buffer && JSON.stringify(changes.buffer)
     const input = buffer && buffer === this.buffer ? new ArrayBuffer(0) : bytes.slice().buffer
     return this.send({ bytes: input, changes }, revision, [input], buffer)
   }
 
-  compose(job: Job, inputs: { id: string; bytes: Uint8Array }[], revision: number): Promise<Result> {
-    if (this.active) return Promise.reject(new Error("A processing job is already active."))
+  compose(plan: Plan, inputs: { id: string; bytes: Uint8Array }[], revision: number): Promise<Result> {
+    if (this.active) return Promise.reject(new Error("A processing operation is already active."))
     const bindings = Object.fromEntries(inputs.map((input) => [input.id, input.bytes.slice().buffer]))
-    return this.send({ job, inputs: bindings }, revision, Object.values(bindings))
+    return this.send({ plan, inputs: bindings }, revision, Object.values(bindings))
   }
 
   private send(operation: Operation, revision: number, transfers: ArrayBuffer[], buffer?: string): Promise<Result> {

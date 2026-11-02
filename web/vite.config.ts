@@ -68,8 +68,8 @@ function prepare() {
     "_mainz_input",
     "_mainz_clear_inputs",
     "_mainz_compose",
-    "_mainz_report",
-    "_mainz_report_size",
+    "_mainz_provenance",
+    "_mainz_provenance_size",
     "_mainz_style",
     "_mainz_fingerprint",
   ])

@@ -37,7 +37,7 @@ const minimal = {
     "Processor workers pin their module and recover from failed document cleanup",
     "Processors bound idle runtimes and reuse immutable page buffers across retries",
     "Style updates combine resets with overrides and preserve their immutable Input",
-    "Composition reuse preserves bytes, reports, and exact Input bindings",
+    "Composition reuse preserves bytes, Provenance, and exact Input bindings",
   ],
   pdf: [
     "Overlapping preview generations release their own pages and never paint stale results",

@@ -2,8 +2,8 @@
 
 /// <reference lib="es2024.string" />
 
-import { downloadInputs, job } from "./model.ts"
-import type { Job, Part, Source } from "./model.ts"
+import { downloadInputs, plan } from "./model.ts"
+import type { Plan, Part, Source } from "./model.ts"
 import type { Scalar } from "./styles.ts"
 
 type Profile = { set: string; id: string } | { family: string; name: string }
@@ -12,7 +12,7 @@ export type Recipe = {
   version: 1
   inputs: Record<string, { sha256: string; publication?: { id: string; version: string } }>
   sources: Record<string, { input: string; profiles: Profile[]; overrides: Override[] }>
-  parts: Job["parts"]
+  parts: Plan["parts"]
 }
 
 export function identities(ids: Record<string, string>): Record<string, string> {
@@ -36,7 +36,7 @@ export function identities(ids: Record<string, string>): Record<string, string> 
 }
 
 export function recipe(parts: readonly Part[], sources: readonly Source[]): Recipe {
-  const request = job(parts, sources)
+  const request = plan(parts, sources)
   const inputs = downloadInputs(parts, sources)
   return {
     version: 1,

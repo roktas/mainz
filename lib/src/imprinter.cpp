@@ -1,6 +1,6 @@
 #include "contract.hh"
+#include "imprinter/internal.hh"
 #include "pipeline.hh"
-#include "producer/internal.hh"
 #include <algorithm>
 #include <qpdf/Pipeline.hh>
 #include <qpdf/QPDFEFStreamObjectHelper.hh>
@@ -91,7 +91,7 @@ namespace {
         return root;
     }
 }
-Document produce(const std::string& svg, const std::string& bytes, const ProduceOptions& options)
+Document imprint(const std::string& svg, const std::string& bytes, const ImprintOptions& options)
 {
     try {
         auto source = declaration(bytes);
@@ -127,8 +127,8 @@ Document produce(const std::string& svg, const std::string& bytes, const Produce
         page.replaceKey("/Resources", resources);
         std::string content;
         std::size_t runs = 0, rendered = 0;
-        producer::CaptureBudget budget;
-        producer::render(svg, source.getDictItem("targets"), options, [&](std::string pdf, const std::string& target) {
+        imprinter::CaptureBudget budget;
+        imprinter::render(svg, source.getDictItem("targets"), options, [&](std::string pdf, const std::string& target) {
             require(pdf.size() <= pdf_limit - rendered && runs < 65536, "Rendered source exceeds its limit.",
                 "limit-exceeded");
             rendered += pdf.size();
@@ -138,7 +138,7 @@ Document produce(const std::string& svg, const std::string& bytes, const Produce
             layer.setImmediateCopyFrom(true);
             layer.processMemoryFile("Cairo SVG layer", pdf.data(), pdf.size());
             auto pages = QPDFPageDocumentHelper(layer).getAllPages();
-            require(pages.size() == 1, "Rendered layer must have one page.", "producer-error");
+            require(pages.size() == 1, "Rendered layer must have one page.", "imprinter-error");
             if (runs == 0)
                 page.replaceKey("/MediaBox", pages[0].getMediaBox().shallowCopy());
             auto form = document.copyForeignObject(pages[0].getFormXObjectForPage());
@@ -159,9 +159,9 @@ Document produce(const std::string& svg, const std::string& bytes, const Produce
                         {"records", records}}));
                 member(targets, target).addArrayElement(JSON::makeString(region));
                 properties.replaceKey("/" + region, Object::newDictionary());
-                producer::annotate(document, form, root, member(source.getDictItem("targets"), target), target, region,
+                imprinter::annotate(document, form, root, member(source.getDictItem("targets"), target), target, region,
                     resource, budget);
-                require(!array(records).empty(), "Selected element has no editable paths.", "producer-error");
+                require(!array(records).empty(), "Selected element has no editable paths.", "imprinter-error");
                 content += "/Figure /" + region + " BDC\n";
             }
             content += "q /" + resource + " Do Q\n";
@@ -188,11 +188,11 @@ Document produce(const std::string& svg, const std::string& bytes, const Produce
         auto prepared = Document::read(std::move(output.bytes));
         if (object(overrides).empty())
             return prepared;
-        return prepared.apply(overrides.unparse());
+        return prepared.style(overrides.unparse());
     } catch (const Error&) {
         throw;
     } catch (const std::exception& error) {
-        throw Error("producer-error", error.what());
+        throw Error("imprinter-error", error.what());
     }
 }
 }

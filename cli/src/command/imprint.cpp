@@ -1,5 +1,5 @@
 #include "command.hh"
-#include "producer.hh"
+#include "imprinter.hh"
 #include <charconv>
 #include <cmath>
 #include <fontconfig/fontconfig.h>
@@ -16,11 +16,11 @@ namespace {
         }
     };
 }
-void produce(const Arguments& args)
+void imprint(const Arguments& args)
 {
     RendererCaches caches;
     args.validate({"--declaration", "--output"}, {"--width", "--height", "--dpi"});
-    ProduceOptions options;
+    ImprintOptions options;
     auto dimension = [&](const std::string& key) {
         const auto& bytes = args.options.at(key);
         double n {};
@@ -36,7 +36,7 @@ void produce(const Arguments& args)
     if (args.options.contains("--dpi"))
         options.dpi = dimension("--dpi");
     auto result
-        = mainz::produce(read(args.input, pdf_limit), read(args.options.at("--declaration"), json_limit), options);
+        = mainz::imprint(read(args.input, pdf_limit), read(args.options.at("--declaration"), json_limit), options);
     changed(args, result);
 }
 }

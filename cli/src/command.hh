@@ -36,8 +36,8 @@ void apply(const Arguments&);
 void reset(const Arguments&);
 void extract(const Arguments&);
 void compose(const Arguments&);
-void run(const Arguments&);
-void produce(const Arguments&);
+void style(const Arguments&);
+void imprint(const Arguments&);
 void version();
 }
 #endif

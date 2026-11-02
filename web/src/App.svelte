@@ -4,7 +4,7 @@
   import { onDestroy, onMount, tick } from "svelte"
   import { animateRemoval } from "./motion.ts"
   import type { PDFDocumentLoadingTask } from "pdfjs-dist"
-  import { downloadInputs, downloadName, job, sizeOf, uid } from "./model.ts"
+  import { downloadInputs, downloadName, plan, sizeOf, uid } from "./model.ts"
   import type { Input, Source } from "./model.ts"
   import type { Inspection } from "./Page.svelte"
   import type { Magnification } from "./Lens.svelte"
@@ -23,7 +23,7 @@
   } from "./styles.ts"
   import { Documents, inspectPDF, openPDF } from "./pdf.ts"
   import { Processor } from "./processor.ts"
-  import gridJob from "../test/fixtures/grid-job.json"
+  import gridPlan from "../test/fixtures/grid-plan.json"
   import { Output } from "./output.svelte.ts"
   import { Preview } from "./preview.svelte.ts"
   import Export from "./Export.svelte"
@@ -485,7 +485,7 @@
     if (downloadError) throw new Error(downloadError)
     const selection = output.parts,
       contributors = sources,
-      request = job(selection, contributors)
+      request = plan(selection, contributors)
     const pages = output.pages
     const capturedName = output.filename
     const first = pages[0]?.content
@@ -499,7 +499,7 @@
           )
         : undefined
     return {
-      job: request,
+      plan: request,
       prepared,
       inputs: downloadInputs(selection, contributors),
       expected: output.pages.length,
@@ -585,7 +585,7 @@
           openingStatus = "Preparing Grid demo…"
           info(openingStatus)
           try {
-            const result = await processor.compose({ ...gridJob, version: 1 }, [{ id: "fixture", bytes }], revision)
+            const result = await processor.compose({ ...gridPlan, version: 1 }, [{ id: "fixture", bytes }], revision)
             bytes = new Uint8Array(result.bytes)
           } finally {
             processor.dispose()

@@ -82,7 +82,7 @@ if(EMSCRIPTEN)
     -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=1073741824 -sSTACK_SIZE=1048576
     -sMODULARIZE=1 -sEXPORT_ES6=1 -sENVIRONMENT=web,worker,node -sFILESYSTEM=0
     -sEXPORTED_RUNTIME_METHODS=HEAPU8
-    "-sEXPORTED_FUNCTIONS=[\"_malloc\",\"_free\",\"_mainz_read\",\"_mainz_describe\",\"_mainz_fingerprint\",\"_mainz_apply\",\"_mainz_style\",\"_mainz_reset\",\"_mainz_extract\",\"_mainz_close\",\"_mainz_result\",\"_mainz_size\",\"_mainz_status\",\"_mainz_input\",\"_mainz_clear_inputs\",\"_mainz_compose\",\"_mainz_recipe_inputs\",\"_mainz_resolve_recipe\",\"_mainz_report\",\"_mainz_report_size\"]")
+    "-sEXPORTED_FUNCTIONS=[\"_malloc\",\"_free\",\"_mainz_read\",\"_mainz_describe\",\"_mainz_fingerprint\",\"_mainz_style\",\"_mainz_reset\",\"_mainz_extract\",\"_mainz_close\",\"_mainz_result\",\"_mainz_size\",\"_mainz_status\",\"_mainz_input\",\"_mainz_clear_inputs\",\"_mainz_compose\",\"_mainz_recipe_inputs\",\"_mainz_resolve_recipe\",\"_mainz_provenance\",\"_mainz_provenance_size\"]")
 else()
   # SVG discovery stays available when QPDF uses explicit dependency archive paths.
   find_program(SVG_PKG_CONFIG_EXECUTABLE pkg-config REQUIRED)
@@ -90,24 +90,24 @@ else()
   find_package(PkgConfig REQUIRED)
   pkg_check_modules(SVG REQUIRED IMPORTED_TARGET cairo librsvg-2.0 libxml-2.0)
   pkg_check_modules(FONT_CACHE REQUIRED IMPORTED_TARGET pangocairo fontconfig)
-  set(producer_sources lib/src/producer.cpp lib/src/producer/svg.cpp lib/src/producer/capture.cpp)
-  add_library(producer ${producer_sources})
-  target_compile_features(producer PUBLIC cxx_std_20)
-  target_link_libraries(producer PUBLIC processor PRIVATE qpdf::libqpdf PkgConfig::SVG)
+  set(imprinter_sources lib/src/imprinter.cpp lib/src/imprinter/svg.cpp lib/src/imprinter/capture.cpp)
+  add_library(imprinter ${imprinter_sources})
+  target_compile_features(imprinter PUBLIC cxx_std_20)
+  target_link_libraries(imprinter PUBLIC processor PRIVATE qpdf::libqpdf PkgConfig::SVG)
   set(cli_sources cli/src/main.cpp cli/src/command.cpp cli/src/command/describe.cpp cli/src/command/profiles.cpp
     cli/src/command/verify.cpp
-    cli/src/command/apply.cpp cli/src/command/reset.cpp cli/src/command/extract.cpp cli/src/command/compose.cpp cli/src/command/run.cpp
-    cli/src/command/produce.cpp cli/src/command/version.cpp)
+    cli/src/command/style.cpp cli/src/command/reset.cpp cli/src/command/extract.cpp cli/src/command/compose.cpp cli/src/command/apply.cpp
+    cli/src/command/imprint.cpp cli/src/command/version.cpp)
   add_executable(mainz ${cli_sources})
   target_compile_definitions(mainz PRIVATE MAINZ_VERSION="${PROJECT_VERSION}")
   target_include_directories(mainz PRIVATE cli/src)
-  target_link_libraries(mainz PRIVATE producer qpdf::libqpdf PkgConfig::FONT_CACHE PkgConfig::SVG)
-  list(APPEND mainz_sources ${producer_sources} ${cli_sources})
-  list(APPEND mainz_targets producer mainz)
+  target_link_libraries(mainz PRIVATE imprinter qpdf::libqpdf PkgConfig::FONT_CACHE PkgConfig::SVG)
+  list(APPEND mainz_sources ${imprinter_sources} ${cli_sources})
+  list(APPEND mainz_targets imprinter mainz)
   if(MAINZ_LINT)
     find_program(CLANG_FORMAT_EXECUTABLE clang-format REQUIRED)
     set(format_sources ${mainz_sources} lib/src/processor.hh lib/src/contract.hh lib/src/content.hh lib/src/pipeline.hh
-      lib/src/producer.hh lib/src/recipe.hh lib/src/producer/internal.hh lib/src/processor/engine.hh cli/src/command.hh)
+      lib/src/imprinter.hh lib/src/recipe.hh lib/src/imprinter/internal.hh lib/src/processor/engine.hh cli/src/command.hh)
     add_custom_target(format
       COMMAND ${CLANG_FORMAT_EXECUTABLE} -i ${format_sources}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -131,7 +131,7 @@ if(BUILD_TESTING)
     set(test_names parity)
     set(test_environment "MAINZ_CLI=${MAINZ_NATIVE_CLI};MAINZ_WASM=$<TARGET_FILE:mainz>")
   else()
-    set(test_names contract producer cli inspector package)
+    set(test_names contract imprinter cli inspector package)
     set(test_environment "MAINZ_CLI=$<TARGET_FILE:mainz>")
   endif()
   foreach(name IN LISTS test_names)

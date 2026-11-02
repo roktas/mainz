@@ -99,7 +99,7 @@ test("Processor failures remain recoverable in Chromium and WebKit", { timeout: 
             const failures = []
             for (const [input, changes] of [
               [bytes.with(0, 0), undefined],
-              [bytes, { apply: { "guides-stroke-opacity": 2 }, reset: [] }],
+              [bytes, { overrides: { "guides-stroke-opacity": 2 }, reset: [] }],
             ]) {
               try {
                 await processor.run(input, failures.length, changes)
@@ -107,7 +107,7 @@ test("Processor failures remain recoverable in Chromium and WebKit", { timeout: 
                 failures.push(error.failure)
               }
             }
-            const edited = await processor.run(bytes, 3, { apply: { "guides-stroke-opacity": 0.65 }, reset: [] })
+            const edited = await processor.run(bytes, 3, { overrides: { "guides-stroke-opacity": 0.65 }, reset: [] })
             return {
               failures: failures.map((failure) => [failure.kind, failure.record?.code ?? failure.message]),
               pages: edited.description.pageCount,
@@ -298,7 +298,7 @@ test("Processors bound idle runtimes and reuse immutable page buffers across ret
         const pair = await Promise.all(processors.slice(0, 2).map((processor) => processor.run(bytes, 2)))
         const concurrent = pair.every((reply) => reply.description.pageCount === 40)
         const processor = processors[0]
-        const changes = { apply: {}, reset: [], buffer: { input: "sample", pages: [0, 2] } }
+        const changes = { overrides: {}, reset: [], buffer: { input: "sample", pages: [0, 2] } }
         const first = await processor.run(bytes, 3, changes)
         const cached = await processor.run(bytes, 4, changes)
         const transfers = window.transferred.slice(-2)
@@ -365,13 +365,13 @@ test("Style updates combine resets with overrides and preserve their immutable I
       const bytes = new Uint8Array(await (await fetch("/sample.pdf")).arrayBuffer())
       try {
         const saved = await processor.run(bytes, 1, {
-          apply: { "guides-stroke-color": "#123456", "guides-stroke-opacity": 0.7 },
+          overrides: { "guides-stroke-color": "#123456", "guides-stroke-opacity": 0.7 },
           reset: [],
         })
         const input = new Uint8Array(saved.bytes)
         const original = input.slice()
         const changes = {
-          apply: { "guides-stroke-color": "#ABCDEF", "guides-stroke-width": 0.4 },
+          overrides: { "guides-stroke-color": "#ABCDEF", "guides-stroke-width": 0.4 },
           reset: ["guides-stroke-color", "guides-stroke-opacity"],
         }
         const changed = await processor.run(input, 2, changes)
@@ -380,7 +380,7 @@ test("Style updates combine resets with overrides and preserve their immutable I
         repeated.description.parameters["guides-stroke-color"].parameter.value = "#000000"
         const cached = await processor.run(input, 4, changes)
         const unchanged = await processor.run(new Uint8Array(changed.bytes), 5, {
-          apply: { "guides-stroke-color": "#ABCDEF" },
+          overrides: { "guides-stroke-color": "#ABCDEF" },
           reset: ["guides-stroke-color"],
         })
         let failure
@@ -437,7 +437,7 @@ test("Style updates combine resets with overrides and preserve their immutable I
   }
 })
 
-test("Composition reuse preserves bytes, reports, and exact Input bindings", { timeout: 30000 }, async () => {
+test("Composition reuse preserves bytes, Provenance, and exact Input bindings", { timeout: 30000 }, async () => {
   const server = await serve()
   let browser
   try {
@@ -471,7 +471,7 @@ test("Composition reuse preserves bytes, reports, and exact Input bindings", { t
         const first = await run("input", bytes, 1)
         const second = await run("input", bytes, 2)
         new Uint8Array(second.bytes).fill(0)
-        second.report.pages[0].page = 99
+        second.provenance.pages[0].page = 99
         const reused = await run("input", bytes, 3)
         const failures = []
         for (const [id, candidate] of [
@@ -489,7 +489,7 @@ test("Composition reuse preserves bytes, reports, and exact Input bindings", { t
           identical: [reused, retry].every((reply) =>
             new Uint8Array(reply.bytes).every((value, index) => value === new Uint8Array(first.bytes)[index]),
           ),
-          report: reused.report,
+          provenance: reused.provenance,
           failures,
           count: reused.description.pageCount,
         }
@@ -499,7 +499,7 @@ test("Composition reuse preserves bytes, reports, and exact Input bindings", { t
     })
     assert.equal(result.identical, true)
     assert.equal(result.count, 2)
-    assert.deepEqual(result.report.pages, [
+    assert.deepEqual(result.provenance.pages, [
       { source: "book", page: 0, part: 0, copy: 0 },
       { source: "book", page: 2, part: 0, copy: 0 },
     ])

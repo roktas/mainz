@@ -348,8 +348,8 @@ static Resolution resolve(const std::string& recipe, const detail::Bindings& inp
             parts.addArrayElement(detail::dictionary({{"pages", pages},
                 {"copies", JSON::makeNumber(std::to_string(copies))}, {"front", JSON::makeBool(front)}}));
         }
-        auto job = detail::dictionary({{"version", JSON::makeNumber("1")}, {"sources", sources}, {"parts", parts}});
-        return {detail::encode(job, json_limit), detail::encode(warnings, json_limit)};
+        auto plan = detail::dictionary({{"version", JSON::makeNumber("1")}, {"sources", sources}, {"parts", parts}});
+        return {detail::encode(plan, json_limit), detail::encode(warnings, json_limit)};
     } catch (const std::bad_alloc&) {
         throw Error("limit-exceeded", "Recipe allocation failed.");
     }

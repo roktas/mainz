@@ -35,7 +35,7 @@ Local evidence lives outside Git:
 ### 1. Reuse Inputs across Recipes
 
 The first priority is one CLI invocation for several Recipes, with reuse of immutable Inputs. The current
-[Recipe command](cli/src/command/run.cpp) reads and opens its Inputs for each invocation. Parallel processes shorten
+[Recipe command](cli/src/command/apply.cpp) reads and opens its Inputs for each invocation. Parallel processes shorten
 elapsed time but retain this repeated work.
 
 The library already supports [composition from immutable Documents](lib/doc/SPEC.md#64-composition-adapters) through
@@ -48,7 +48,7 @@ PDF still needs normal production validation. Scheduling and filesystem policy b
 ### 2. Inspect Plans before PDF production
 
 The library's [Recipe resolver](lib/doc/SPEC.md#65-portable-recipes) already returns a Plan and warnings without PDF
-production. The CLI currently exposes execution through `run`, which requires an output path.
+production. The CLI CLI exposes execution through `apply`, which requires an output path.
 
 A CLI inspection mode can expose the Plan and warnings before production. A concise summary can show bound Inputs,
 expanded physical pages, copies, Blanks, and alignment. A future summary can also identify the matched profiles.

@@ -16,9 +16,6 @@ List, authored page-name captions, and producer PNG thumbnails below are pending
 offers Grid, Page, and Style, and renders thumbnails from PDF content. These extensions depend on the
 [pending library requirements](../../lib/doc/SPEC.md#implementation-status).
 
-Plan and Provenance use the canonical library terms. Web code currently uses `Job`/`job` and `Report`/`report` for these
-records. These identifier changes remain pending alongside the library adapter renames.
-
 ## Workspace
 
 One workspace supports several independent Inputs and one Output. The main flow is Input selection, addition to Output,
@@ -93,6 +90,19 @@ List choices use the existing Selection and page-action model. They resolve to p
 identities. List does not own another selection state or change the numeric Selection grammar. View changes retain the
 selection, inspection, Output, styles, and each pane's Grid density. The numeric field retains its touch keyboard
 behavior.
+
+List uses one keyboard cursor per pane, shared with Grid and Page inspection. Arrow Up/Down moves one row; Home/End
+moves to the first/last row. Cursor movement scrolls the complete row into view. Space toggles the cursor's selection.
+Shift with cursor movement extends selection with Grid's existing range rules. Enter opens the inspected row in Page.
+These keys act only while the List content owns focus. The numeric Selection field retains its Enter action and does not
+intercept List navigation.
+
+Clicking a row's selection area uses the shared selection model. Page numbers retain their details action. Selected rows
+use the pane's shared page-action bar; unselected rows expose their existing individual page actions. Action controls
+keep accessible names and keyboard focus. Removing a focused occurrence focuses the surviving neighbor. Switching views
+reveals the inspected item and transfers content focus to its equivalent only when content had focus. Tab activation
+keeps focus on the tab. List scrolls within the same pane content frame as Grid. Input switching restores its inspected
+item and reveals that row without changing Output.
 
 Grid and Page show supplied page names as captions. Missing names add no empty caption. Names supplement physical
 numbers and PDF labels. They do not replace navigation identities. [VIEW](VIEW.md#grid-and-page) owns caption placement

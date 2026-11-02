@@ -9,7 +9,7 @@
 #include <qpdf/QPDFObjGen.hh>
 #include <tuple>
 
-namespace mainz::producer {
+namespace mainz::imprinter {
 namespace {
     using namespace detail;
     using Object = QPDFObjectHandle;
@@ -25,7 +25,7 @@ namespace {
         auto ok = form.pipeStreamData(&output, &filtered, 0, qpdf_dl_generalized, true);
         if (output.failure)
             std::rethrow_exception(output.failure);
-        require(ok, "Cannot decode rendered content.", "producer-error");
+        require(ok, "Cannot decode rendered content.", "imprinter-error");
         return std::move(output.bytes);
     }
     double number(Object item)
@@ -90,7 +90,7 @@ namespace {
                 for (std::size_t j = 0; j < op.operands.size(); j += 2)
                     point(operand(op, j), operand(op, j + 1));
         }
-        require(std::isfinite(box[0]), "Empty editable path.", "producer-error");
+        require(std::isfinite(box[0]), "Empty editable path.", "imprinter-error");
         return box;
     }
     bool closed(const std::vector<Operation>& ops, std::size_t start, std::size_t end, std::string_view paint)
@@ -128,7 +128,7 @@ namespace {
             maximum = std::min(maximum, high);
         }
         require(std::isfinite(maximum) && maximum > 0, "A width binding needs a finite positive maximum.",
-            "producer-error");
+            "imprinter-error");
         auto box = extent(ops, start, end, state.matrix);
         auto radius = maximum * (72 / 25.4) * std::max(std::sqrt(2.0), state.miter) / 2;
         require(std::isfinite(radius), "Stroke extent arithmetic overflow.", "unsupported-context");
@@ -149,13 +149,13 @@ namespace {
                     auto lx = (m[3] * (x - m[4]) - m[2] * (y - m[5])) / det;
                     auto ly = (-m[1] * (x - m[4]) + m[0] * (y - m[5])) / det;
                     require(lx >= bound.box[0] && lx <= bound.box[2] && ly >= bound.box[1] && ly <= bound.box[3],
-                        "Maximum stroke width exceeds an export bound.", "producer-error");
+                        "Maximum stroke width exceeds an export bound.", "imprinter-error");
                 }
         }
     }
     Object resources_copy(Object resources)
     {
-        require(resources.isDictionary(), "Located Forms require explicit resources.", "producer-error");
+        require(resources.isDictionary(), "Located Forms require explicit resources.", "imprinter-error");
         auto copy = resources.unsafeShallowCopy();
         for (const auto* key : {"/XObject", "/ExtGState", "/Properties"}) {
             auto value = resources.getKey(key);
@@ -190,7 +190,7 @@ namespace {
         {
             require(array(path).size() <= 16 && ++budget.visits <= 65536, "Form traversal exceeds its limit.",
                 "limit-exceeded");
-            require(active.insert(form.getObjGen()).second, "Cyclic Form invocation.", "producer-error");
+            require(active.insert(form.getObjGen()).second, "Cyclic Form invocation.", "imprinter-error");
             auto dict = form.getDict();
             auto matrix = dict.getKey("/Matrix");
             if (!matrix.isNull())
@@ -218,7 +218,8 @@ namespace {
             bool clipping = false;
             for (std::size_t i = 0; i < ops.size(); ++i) {
                 const auto& op = ops[i];
-                require(op.op != "inline-image", "Inline images in editable source are unsupported.", "producer-error");
+                require(
+                    op.op != "inline-image", "Inline images in editable source are unsupported.", "imprinter-error");
                 if (path_op(op.op)) {
                     if (!start)
                         start = i;
@@ -233,8 +234,8 @@ namespace {
                             && state.groups,
                         "Unsupported editable painting context.", "unsupported-context");
                     for (auto j = *start; j < i; ++j)
-                        require(
-                            path_op(ops[j].op), "Non-path instruction interrupts editable geometry.", "producer-error");
+                        require(path_op(ops[j].op), "Non-path instruction interrupts editable geometry.",
+                            "imprinter-error");
                     if (strokes(op.op) && width_schema)
                         prove_width(ops, *start, i, state, bounds, *width_schema);
                     auto baseline = dictionary({{"paint", JSON::makeString(std::string(op.op))},
@@ -322,17 +323,17 @@ namespace {
                         }
                 } else if (op.op == "Do") {
                     count(op, 1);
-                    require(!start && !clipping, "Form interrupts a path.", "producer-error");
+                    require(!start && !clipping, "Form interrupts a path.", "imprinter-error");
                     auto objects = resources.getKey("/XObject");
                     auto child = objects.getKey(name(op, 0));
                     require(child.isStream(), "Missing XObject.", "pdf-syntax");
                     require(child.getDict().getKey("/Subtype").isNameAndEquals("/Form"),
                         "Images in editable source are unsupported.", "unsupported-context");
-                    require(!active.contains(child.getObjGen()), "Cyclic Form invocation.", "producer-error");
+                    require(!active.contains(child.getObjGen()), "Cyclic Form invocation.", "imprinter-error");
                     auto isolated = child.copyStream();
                     replaced_forms.insert(name(op, 0));
                     auto resource = "/MainzForm" + std::to_string(edits.size());
-                    require(!objects.hasKey(resource), "Generated Form resource conflicts.", "producer-error");
+                    require(!objects.hasKey(resource), "Generated Form resource conflicts.", "imprinter-error");
                     objects.replaceKey(resource, isolated);
                     auto child_path = JSON::makeArray();
                     for (const auto& step : array(path))
@@ -363,7 +364,7 @@ namespace {
                                                                             : "none";
                 auto marker = "P" + std::to_string(i);
                 auto properties = resources.getKey("/Properties");
-                require(!properties.hasKey("/" + marker), "Paint resource conflicts.", "producer-error");
+                require(!properties.hasKey("/" + marker), "Paint resource conflicts.", "imprinter-error");
                 properties.replaceKey("/" + marker, Object::newDictionary());
                 auto baselines = manifest.getDictItem("baselines");
                 auto key = paint.baseline.unparse();
@@ -390,7 +391,7 @@ namespace {
                 auto alpha_name = alpha != alphas.end() ? alpha->second : "/MainzAlpha" + std::to_string(alphas.size());
                 if (alpha == alphas.end()) {
                     auto states = resources.getKey("/ExtGState");
-                    require(!states.hasKey(alpha_name), "Alpha resource conflicts.", "producer-error");
+                    require(!states.hasKey(alpha_name), "Alpha resource conflicts.", "imprinter-error");
                     auto value = Object::newDictionary();
                     value.replaceKey("/Type", Object::newName("/ExtGState"));
                     value.replaceKey("/CA", Object::newReal(ca));
@@ -419,7 +420,7 @@ namespace {
             };
             for (const auto& edit : edits) {
                 require(edit.first >= offset && edit.last >= edit.first && edit.last <= source.size(),
-                    "Overlapping capture edits.", "producer-error");
+                    "Overlapping capture edits.", "imprinter-error");
                 append(std::string_view(source).substr(offset, edit.first - offset));
                 append(edit.bytes);
                 offset = edit.last;

@@ -24,12 +24,12 @@ module Mainz
       @original = fixture(@source)
       @initial = snapshot(@source)
       write("inputs.json", {"input" => @source.to_s})
-      write("job.json", job)
+      write("plan.json", plan)
     end
 
     def teardown
       write("inputs.json", {"input" => @source.to_s})
-      write("job.json", job)
+      write("plan.json", plan)
     end
 
     def test_description_exposes_baselines_and_plain_text
@@ -97,7 +97,7 @@ module Mainz
       restored = operation(edited, "fixed-visibility-reset.pdf", reset: true)
       extracted = extract(source, "fixed-visibility-extracted.pdf", [0])
       write("inputs.json", {"input" => source.to_s})
-      composed, = compose(job, "fixed-visibility-composed.pdf")
+      composed, = compose(plan, "fixed-visibility-composed.pdf")
       [edited, restored, extracted, composed].each do |path|
         command(@cli, "verify", path)
         summary = describe(path)
@@ -292,7 +292,7 @@ module Mainz
         "\uFEFF{}"
       ].each do |request|
         file("invalid.json").write(request)
-        failure = command(@cli, "apply", @source, "--request", file("invalid.json"), "--output", protected, ok: false)
+        failure = command(@cli, "style", @source, "--overrides", file("invalid.json"), "--output", protected, ok: false)
         error = JSON.parse(failure.stderr)
         assert_equal("invalid-request", error["code"])
         assert_equal("request", error["source"])
@@ -307,7 +307,7 @@ module Mainz
     def test_error_context_does_not_use_request_string_limits
       id = "x" * 4096
       request = write("long-unknown-id.json", {id => 0.2})
-      failure = command(@cli, "apply", @source, "--request", request, "--output", file("long-id.pdf"), ok: false)
+      failure = command(@cli, "style", @source, "--overrides", request, "--output", file("long-id.pdf"), ok: false)
       error = JSON.parse(failure.stderr)
       assert_equal("invalid-request", error["code"])
       assert_equal("request", error["source"])
@@ -641,7 +641,7 @@ module Mainz
       assert_equal({"version" => 1, "pageCount" => 1, "pages" => {}, "parameters" => {}}, describe(cover))
       assert_equal(cover.binread, extract(cover, "ordinary-all.pdf", [0]).binread)
       ordinary_request = write("ordinary-request.json", {})
-      [["apply", ["--request", ordinary_request]], ["reset", []]].each do |operation, options|
+      [["style", ["--overrides", ordinary_request]], ["reset", []]].each do |operation, options|
         failure = command(@cli, operation, cover, *options, "--output", file("ordinary-style.pdf"), ok: false)
         assert_equal("missing-contract", JSON.parse(failure.stderr)["code"])
       end
@@ -807,20 +807,20 @@ module Mainz
       assert_equal(@source.binread, extract(@source, "extracted-all.pdf", [0, 1]).binread)
     end
 
-    def test_composition_isolates_source_styles_and_reports_padding
-      composed, result = compose(job)
-      report = JSON.parse(result.stdout)
-      assert_equal(10, report["pages"].length)
+    def test_composition_isolates_source_styles_and_tracks_padding
+      composed, result = compose(plan)
+      provenance = JSON.parse(result.stdout)
+      assert_equal(10, provenance["pages"].length)
       assert_equal(
         {"part" => 1, "copy" => 0, "blank" => {"width" => 127, "height" => 127}, "padding" => true},
-        report["pages"][1]
+        provenance["pages"][1]
       )
       assert_equal(
         {"part" => 1, "copy" => 0, "blank" => {"width" => 210, "height" => 297}, "padding" => true},
-        report["pages"][5]
+        provenance["pages"][5]
       )
-      assert(report["pages"][9]["padding"])
-      assert_equal(1, report["pages"][9]["copy"])
+      assert(provenance["pages"][9]["padding"])
+      assert_equal(1, provenance["pages"][9]["copy"])
       command("qpdf", "--check", composed)
       description = describe(composed)
       assert_equal(10, description["pageCount"])
@@ -828,7 +828,7 @@ module Mainz
         [@original["groups"][0]["description"]] * 2,
         description["groups"].map { |group| group["description"] }
       )
-      identities = report["parameters"].to_h { |id, value| [[value["source"], value["parameter"]], id] }
+      identities = provenance["parameters"].to_h { |id, value| [[value["source"], value["parameter"]], id] }
       refute(description["parameters"][identities[["baseline", "opacity"]]]["parameter"].key?("value"))
       assert_equal(0.65, description["parameters"][identities[["edited", "opacity"]]]["parameter"]["value"])
       assert_equal(2, description["parameters"][identities[["baseline", "opacity"]]]["pages"].length)
@@ -844,7 +844,7 @@ module Mainz
       end
 
       assert_equal("Unrelated attachment.\n", command("qpdf", "--show-attachment=notes.txt", composed).stdout)
-      file("composition-report.json").binwrite(result.stdout)
+      file("composition-provenance.json").binwrite(result.stdout)
     end
 
     def test_composition_indexes_reordered_repeated_regions
@@ -897,13 +897,13 @@ module Mainz
       }
     end
 
-    def test_composition_rejects_invalid_jobs_and_identifiers
+    def test_composition_rejects_invalid_plans_and_identifiers
       invalids = [
-        job.merge("version" => 2),
-        job.merge("extra" => true),
-        job.merge("parts" => [{"pages" => [{"source" => "baseline", "page" => 99}]}]),
-        job.merge("parts" => [{"pages" => [{"source" => "baseline", "page" => 0}], "copies" => 1001}]),
-        job.merge("sources" => job["sources"].merge("edited" => {"input" => "input", "overrides" => {"opacity" => 2}})),
+        plan.merge("version" => 2),
+        plan.merge("extra" => true),
+        plan.merge("parts" => [{"pages" => [{"source" => "baseline", "page" => 99}]}]),
+        plan.merge("parts" => [{"pages" => [{"source" => "baseline", "page" => 0}], "copies" => 1001}]),
+        plan.merge("sources" => plan["sources"].merge("edited" => {"input" => "input", "overrides" => {"opacity" => 2}})),
         {"version" => 1, "sources" => {}, "parts" => [{"pages" => [{"blank" => {"width" => 0, "height" => 10}}]}]}
       ]
       invalids.each do |invalid|
@@ -948,7 +948,7 @@ module Mainz
       assert_equal("/parts/0/pages/0", JSON.parse(failure.stderr)["location"])
       _, failure = compose(
         blank.merge("parts" => [{"pages" => [{"blank" => {"width" => 1, "height" => 1}}] * 11, "copies" => 1000}]),
-        "oversized-job.pdf",
+        "oversized-plan.pdf",
         ok: false
       )
       assert_equal("limit-exceeded", JSON.parse(failure.stderr)["code"])
@@ -1287,10 +1287,10 @@ module Mainz
       )
       write("inputs.json", {"input" => source.to_s, "foreign" => foreign.to_s})
       request["sources"]["b"] = {"input" => "foreign", "overrides" => {"width" => 0.25}}
-      mixed, report = compose(request, "mixed-families.pdf")
+      mixed, provenance = compose(request, "mixed-families.pdf")
       description = describe(mixed)
       assert_equal(%w[fixture foreign], description["profileSets"].map { |set| set["family"] })
-      JSON.parse(report.stdout)["parameters"].each do |id, original|
+      JSON.parse(provenance.stdout)["parameters"].each do |id, original|
         next unless original == {"source" => "b", "parameter" => "width"}
 
         assert_equal("foreign", description["parameters"][id]["parameter"]["family"])
@@ -1711,13 +1711,13 @@ module Mainz
     end
 
     def compose(request, name = "composed.pdf", ok: true)
-      write("job.json", request)
+      write("plan.json", request)
       destination = file(name)
       FileUtils.rm_f(destination)
       result = command(
         @cli,
         "compose",
-        file("job.json"),
+        file("plan.json"),
         "--inputs",
         file("inputs.json"),
         "--output",
@@ -1736,7 +1736,7 @@ module Mainz
       destination
     end
 
-    def job
+    def plan
       {
         "version" => 1,
         "sources" => {
@@ -1762,8 +1762,8 @@ module Mainz
     def operation(input, name, request = nil, reset: false)
       output = file(name)
       FileUtils.rm_f(output)
-      arguments = [@cli, reset ? "reset" : "apply", input, "--output", output]
-      arguments += [reset ? "--ids" : "--request", write("request.json", request)] unless request.nil?
+      arguments = [@cli, reset ? "reset" : "style", input, "--output", output]
+      arguments += [reset ? "--ids" : "--overrides", write("request.json", request)] unless request.nil?
       command(*arguments)
       output
     end

@@ -151,7 +151,7 @@ export class Preview {
       const result = pages
         ? await processor.run(this.#input.bytes, revision, {
             reset: ids,
-            apply: Object.fromEntries(Object.entries(overrides).filter(([id]) => ids.includes(id))),
+            overrides: Object.fromEntries(Object.entries(overrides).filter(([id]) => ids.includes(id))),
             buffer: { input: this.#input.id, pages },
           })
         : await processor.compose(
@@ -174,7 +174,7 @@ export class Preview {
           )
       if (this.#disposed || revision !== this.#revision) return
       const expected = pages?.length ?? this.#input.description.pageCount
-      if (result.description.pageCount !== expected || (!pages && result.report?.pages.length !== expected))
+      if (result.description.pageCount !== expected || (!pages && result.provenance?.pages.length !== expected))
         throw new Error("The styled PDF does not match the expected page count.")
       task = await openPDF(new Uint8Array(result.bytes))
       if (this.#disposed || revision !== this.#revision) {

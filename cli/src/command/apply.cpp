@@ -1,45 +1,61 @@
 #include "command.hh"
-#include <utility>
-#include <vector>
+#include "recipe.hh"
+#include <algorithm>
+#include <cctype>
+#include <iostream>
 
 namespace mainz::cli {
 void apply(const Arguments& args)
 {
-    args.validate({"--output"}, {"--request", "--profile", "--set"});
-    bool profile = args.options.contains("--profile");
-    if (profile == args.options.contains("--request"))
-        throw std::runtime_error("Supply exactly one of --request and --profile.");
-    if (args.options.contains("--set") && !profile)
-        throw std::runtime_error("--set requires --profile.");
-    auto document = Document::read(read(args.input, pdf_limit));
-    if (!profile) {
-        changed(args, document.apply(read(args.options.at("--request"), json_limit)));
-        return;
-    }
-    if (!document.prepared())
-        throw Error("missing-contract", "PDF has no mainz.json attachment.");
-    auto sets = JSON::parse(document.describe()).getDictItem("profileSets");
-    auto available = JSON::makeArray();
-    std::vector<std::pair<JSON, JSON>> matches;
-    if (!sets.isNull())
-        for (const auto& set : detail::array(sets)) {
-            auto ids = JSON::makeArray();
-            for (const auto& choice : detail::array(set.getDictItem("profiles"))) {
-                ids.addArrayElement(choice.getDictItem("id"));
-                if (detail::text(choice.getDictItem("id")) == args.options.at("--profile")
-                    && (!args.options.contains("--set")
-                        || detail::text(set.getDictItem("id")) == args.options.at("--set")))
-                    matches.emplace_back(set, choice);
+    args.validate({"--output"}, {"--root", "--inputs"});
+    const bool mapped = args.options.contains("--inputs");
+    if (mapped && args.options.contains("--root"))
+        throw std::runtime_error("Use --inputs for explicit bindings or --root for filename lookup.");
+    auto recipe = read(args.input, json_limit);
+    auto definitions = detail::object(detail::parse(recipe_inputs(recipe), "request"));
+    std::map<std::string, std::string> paths;
+    if (mapped) {
+        paths = bindings(args.options.at("--inputs"));
+        detail::request_at("", [&] {
+            detail::require(paths.size() == definitions.size(), "Recipe Input bindings do not match.");
+            for (const auto& [id, path] : paths) {
+                (void)path;
+                detail::require(definitions.contains(id), "Unknown Recipe Input binding.");
             }
-            available.addArrayElement(detail::dictionary({{"set", set.getDictItem("id")}, {"profiles", ids}}));
+        });
+    }
+    auto root = args.options.contains("--root") ? args.options.at("--root") : ".";
+    std::map<std::string, Document> inputs;
+    std::size_t remaining = pdf_limit;
+    for (const auto& [id, definition] : definitions) {
+        (void)definition;
+        auto file = mapped ? paths.at(id) : id;
+        if (!mapped) {
+            auto suffix = file.substr(file.size() >= 4 ? file.size() - 4 : 0);
+            std::transform(suffix.begin(), suffix.end(), suffix.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (suffix != ".pdf")
+                file += ".pdf";
         }
-    if (matches.size() != 1)
-        throw std::runtime_error(
-            std::string(matches.empty() ? "Unknown profile selection. " : "Ambiguous profile ID. Use --set. ")
-            + "Available set and profile IDs: " + available.unparse());
-    const auto& [set, choice] = matches.front();
-    changed(args,
-        document.apply(detail::encode(choice.getDictItem("overrides"), json_limit),
-            detail::encode(set.getDictItem("parameters"), json_limit)));
+        try {
+            auto bytes = mapped ? read(file, remaining) : read_at(root, file, remaining);
+            remaining -= bytes.size();
+            auto document = detail::request_at(
+                "/inputs/" + detail::pointer(id), [&] { return Document::read(std::move(bytes)); });
+            inputs.emplace(id, std::move(document));
+        } catch (const Error&) {
+            throw;
+        } catch (const std::exception& error) {
+            throw std::runtime_error("Cannot bind Recipe Input " + JSON::makeString(id).unparse() + " from "
+                + JSON::makeString(file).unparse() + ": " + error.what());
+        }
+    }
+    auto resolved = resolve_recipe(recipe, inputs);
+    for (const auto& warning : detail::array(JSON::parse(resolved.warnings)))
+        std::cerr << warning.unparse() << "\n";
+    check_interrupt();
+    auto result = mainz::compose_validated(resolved.plan, inputs);
+    install(args.options.at("--output"), result.document.pdf());
+    std::cout << result.provenance << "\n";
 }
 }

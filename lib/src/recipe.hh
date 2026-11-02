@@ -5,7 +5,7 @@
 
 namespace mainz {
 struct Resolution {
-    std::string job;
+    std::string plan;
     std::string warnings;
 };
 std::string recipe_inputs(const std::string& recipe);

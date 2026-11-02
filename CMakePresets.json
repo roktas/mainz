@@ -52,13 +52,13 @@
     {
       "name": "native",
       "configurePreset": "native",
-      "filter": { "include": { "name": "^(contract|producer|cli|inspector|package)$" } },
+      "filter": { "include": { "name": "^(contract|imprinter|cli|inspector|package)$" } },
       "output": { "outputOnFailure": true }
     },
     {
       "name": "sanitize",
       "configurePreset": "sanitize",
-      "filter": { "include": { "name": "^(contract|producer|cli|inspector|package)$" } },
+      "filter": { "include": { "name": "^(contract|imprinter|cli|inspector|package)$" } },
       "output": { "outputOnFailure": true }
     },
     {

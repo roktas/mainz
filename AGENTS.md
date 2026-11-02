@@ -47,7 +47,7 @@ names. Use compounds, `-`, or `_` only for local convention. Naming difficulty s
 | -------------------------- | --------------------------------------------------------------------------------- |
 | `lib/src/`                 | One C++20/QPDF processor for native and WASM.                                     |
 | `lib/src/processor/`       | PDF validation, styling, page operations, and composition internals.              |
-| `lib/src/producer/`        | Native source selection, SVG rendering, and prepared-PDF production.              |
+| `lib/src/imprinter/`       | Native source selection, SVG rendering, and prepared-PDF production.              |
 | `cli/src/command/`         | CLI commands. Shared file policy belongs in `cli/src/command.*`.                  |
 | `web/src/`                 | Workspace state, widgets, and worker hosts.                                       |
 | Component `test/*_test.rb` | Ruby Minitest suites, with automation in the single root `Rakefile`.              |
@@ -68,7 +68,7 @@ Keep large tools and caches outside Dropbox. Follow [tool storage](web/doc/MEMO.
 Run commands from the repository root. Required tools:
 
 - Native: CMake 3.25+, Clang/clang-tidy/clang-format 22+, QPDF 12.4.2, zlib development files, and pkg-config.
-- SVG producer: Cairo, librsvg, libxml2, Pango, and Fontconfig development files.
+- SVG Imprinter: Cairo, librsvg, libxml2, Pango, and Fontconfig development files.
 - Maintenance/PDF: direnv, Ruby, Bundler, OpenSSL development files, `rsvg-convert`, QPDF, `pdftoppm`.
 
 Tool versions: `.ruby-version`, `.node-version`, `Gemfile.lock`, `CMakePresets.json`, package locks, CI. Initial setup:
@@ -85,13 +85,13 @@ Use focused development checks. Reserve long suites and full matrices for ship (
 | -------------------------------------------- | --------------------------------------------------------------------- |
 | Processor or shared PDF contract             | `build:native test:native`, then `build:wasm test:wasm package:wasm`. |
 | Ownership, bounds, allocation, or arithmetic | Also `build:sanitize test:sanitize` with ASan/UBSan.                  |
-| Native producer                              | `build:native test:producer`.                                         |
+| Native Imprinter                             | `build:native test:imprinter`.                                        |
 | CLI commands or file policy                  | `build:native test:cli`.                                              |
 | Packaging                                    | `test:package` and the relevant package task.                         |
 | Web asset setup                              | `setup:web test:web`, followed by the web checks below.               |
 
 Native, sanitizer, and WASM suites share `.local/tmp/test/lib/`. Run them sequentially within each checkout. Narrow
-tasks: `test:contract`, `test:producer`, `test:cli`, `test:inspector`, `test:parity`, `test:package`, and `test:web`.
+tasks: `test:contract`, `test:imprinter`, `test:cli`, `test:inspector`, `test:parity`, `test:package`, and `test:web`.
 `test:parity` refreshes contract fixtures first. `MAINZ_CLI` defaults to `.local/var/cpp/build/native/mainz`. For C++
 changes, also run `cmake --build --preset format-check` and `cmake --build --preset lint`.
 
@@ -100,7 +100,7 @@ Python and an activated Emscripten SDK outside Dropbox; `EMSDK` supplies its pat
 
 Independent HexaPDF comparison: `direnv exec . bundle exec rake 'preserve[original.pdf,edited.pdf,reset.pdf]'`.
 
-### Processor and producer review
+### Processor and Imprinter review
 
 - Follow the [C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines). Use RAII with scoped
   QPDF and standard-library values.
@@ -115,7 +115,7 @@ Independent HexaPDF comparison: `direnv exec . bundle exec rake 'preserve[origin
 - Preserve structured error codes and native/WASM equivalence in content, choices, geometry, and appearance.
 - Keep HexaPDF content/geometry comparisons independent of processor validation. Compare appearance with Poppler at
   relevant 150/300 DPI cases.
-- For producer changes, compare with ordinary librsvg. Reject unexplained raster differences before changing references.
+- For Imprinter changes, compare with librsvg. Reject unexplained raster differences before changing references.
 - Measure performance before optimizing. QPDF checks do not prove preservation or full PDF conformance.
 - Pipeline budgets and WASM heap capacity do not measure total peak memory.
 - Before changing support claims or printer defaults, record platform versions, revision, PDF digests, and results.

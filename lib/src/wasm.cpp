@@ -13,7 +13,7 @@ std::optional<mainz::Document> completed;
 std::optional<mainz::Document> last_input;
 std::uint32_t handle {0};
 std::string result;
-std::string report;
+std::string provenance;
 std::map<std::string, std::string> inputs;
 int status {0};
 const char* emergency {nullptr};
@@ -21,7 +21,7 @@ const char* emergency {nullptr};
 template <class Function> void boundary(Function operation, bool retain_completed = false) noexcept
 {
     result.clear();
-    report.clear();
+    provenance.clear();
     status = 0;
     emergency = nullptr;
     if (!retain_completed)
@@ -111,14 +111,10 @@ void mainz_fingerprint(std::uint32_t id)
 {
     boundary([&] { result = mainz::detail::sha256(get(id).pdf()); });
 }
-void mainz_apply(std::uint32_t id, const char* data, std::size_t size)
-{
-    boundary([&] { save(get(id).apply(bytes(data, size, mainz::json_limit))); });
-}
 void mainz_style(std::uint32_t id, const char* data, std::size_t size, const char* reset, std::size_t reset_size)
 {
     boundary([&] {
-        save(get(id).apply(bytes(data, size, mainz::json_limit), bytes(reset, reset_size, mainz::json_limit)));
+        save(get(id).style(bytes(data, size, mainz::json_limit), bytes(reset, reset_size, mainz::json_limit)));
     });
 }
 void mainz_reset(std::uint32_t id, const char* data, std::size_t size, int supplied)
@@ -157,7 +153,7 @@ void mainz_compose(const char* data, std::size_t size)
     boundary([&] {
         auto output = mainz::compose(bytes(data, size, mainz::json_limit), inputs, last_input ? &*last_input : nullptr);
         save(std::move(output.document));
-        report = std::move(output.report);
+        provenance = std::move(output.provenance);
     });
 }
 void mainz_recipe_inputs(const char* data, std::size_t size)
@@ -168,7 +164,7 @@ void mainz_resolve_recipe(const char* data, std::size_t size)
 {
     boundary([&] {
         auto resolved = mainz::resolve_recipe(bytes(data, size, mainz::json_limit), inputs);
-        result = mainz::detail::encode(mainz::detail::dictionary({{"job", JSON::parse(resolved.job)},
+        result = mainz::detail::encode(mainz::detail::dictionary({{"plan", JSON::parse(resolved.plan)},
                                            {"warnings", JSON::parse(resolved.warnings)}}),
             mainz::manifest_limit);
     });
@@ -184,7 +180,7 @@ void mainz_close(std::uint32_t id)
 }
 const char* mainz_result() { return emergency ? emergency : result.data(); }
 std::size_t mainz_size() { return emergency ? std::char_traits<char>::length(emergency) : result.size(); }
-const char* mainz_report() { return report.data(); }
-std::size_t mainz_report_size() { return report.size(); }
+const char* mainz_provenance() { return provenance.data(); }
+std::size_t mainz_provenance_size() { return provenance.size(); }
 int mainz_status() { return status; }
 }

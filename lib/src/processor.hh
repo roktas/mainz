@@ -41,14 +41,14 @@ public:
     const std::string& pdf() const { return bytes; }
     const std::string& describe() const { return description; }
     bool prepared() const { return has_contract; }
-    Document apply(const std::string& request) const;
-    Document apply(const std::string& request, const std::string& reset) const;
+    Document style(const std::string& overrides) const;
+    Document style(const std::string& overrides, const std::string& reset) const;
     Document reset(const std::optional<std::string>& ids = std::nullopt) const;
     Document extract(const std::string& pages) const;
 
 private:
     friend class detail::Engine;
-    enum class Change : unsigned char { apply, reset, reset_all };
+    enum class Change : unsigned char { style, reset, reset_all };
     Document(std::string bytes, std::string description, bool prepared, std::shared_ptr<const detail::Index> index);
     Document change(const std::string& request, Change, const std::string& reset = "[]") const;
     std::string bytes;
@@ -57,12 +57,12 @@ private:
     std::shared_ptr<const detail::Index> index;
 };
 
-struct Composition {
+struct Artifact {
     Document document;
-    std::string report;
+    std::string provenance;
 };
-Composition compose(
-    const std::string& job, const std::map<std::string, std::string>& inputs, const Document* previous = nullptr);
-Composition compose_validated(const std::string& job, const std::map<std::string, Document>& inputs);
+Artifact compose(
+    const std::string& plan, const std::map<std::string, std::string>& inputs, const Document* previous = nullptr);
+Artifact compose_validated(const std::string& plan, const std::map<std::string, Document>& inputs);
 }
 #endif

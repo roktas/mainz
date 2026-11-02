@@ -26,7 +26,7 @@ module Mainz
       @prepared = @directory.join("prepared.pdf")
       assert_equal(
         {"ok" => true},
-        JSON.parse(command("produce", @source, "--declaration", @declaration, "--output", @prepared).stdout)
+        JSON.parse(command("imprint", @source, "--declaration", @declaration, "--output", @prepared).stdout)
       )
       @request = @directory.join("request.json")
       @request.write("{}")
@@ -64,11 +64,11 @@ module Mainz
       [
         [],
         ["unknown", @prepared],
-        ["apply", @prepared],
+        ["style", @prepared],
         ["describe", @prepared, "--extra", "x"],
         ["describe", @prepared, "--extra"],
-        ["produce", @source, "--declaration", @declaration, "--output", "-"],
-        ["produce", "-", "--declaration", "-", "--output", @prepared],
+        ["imprint", @source, "--declaration", @declaration, "--output", "-"],
+        ["imprint", "-", "--declaration", "-", "--output", @prepared],
         ["describe", @prepared, "--extra", "x", "--extra", "y"]
       ].each do |arguments|
         result = command(*arguments, status: 2)
@@ -80,7 +80,7 @@ module Mainz
     def test_invalid_dimensions_are_argument_errors
       %w[--width --height --dpi].product([*%w[0 -1 nan inf 1e309 12px], ""]).each do |option, value|
         failure = command(
-          "produce",
+          "imprint",
           @source,
           "--declaration",
           @declaration,
@@ -96,8 +96,8 @@ module Mainz
     end
 
     def test_invalid_input_bindings_report_request_locations
-      job = @directory.join("job.json")
-      job.write(JSON.generate(version: 1, sources: {}, parts: [{pages: [{blank: {width: 100, height: 100}}]}]))
+      plan = @directory.join("plan.json")
+      plan.write(JSON.generate(version: 1, sources: {}, parts: [{pages: [{blank: {width: 100, height: 100}}]}]))
       bindings = @directory.join("inputs.json")
       output = @directory.join("composed.pdf")
       [[[], ""], [{"/~book" => false}, "/~1~0book"], [{"bad\nid" => @prepared.to_s}, "/bad\nid"]].each do |
@@ -105,7 +105,7 @@ module Mainz
           location
         |
         bindings.write(JSON.generate(value))
-        result = command("compose", job, "--inputs", bindings, "--output", output, status: 1)
+        result = command("compose", plan, "--inputs", bindings, "--output", output, status: 1)
         error = JSON.parse(result.stderr)
         assert_equal("invalid-request", error["code"])
         assert_equal("request", error["source"])
@@ -116,8 +116,8 @@ module Mainz
     end
 
     def test_input_paths_cannot_contain_null_bytes
-      job = @directory.join("job.json")
-      job.write(
+      plan = @directory.join("plan.json")
+      plan.write(
         JSON.generate(
           version: 1,
           sources: {source: {input: "book", overrides: {}}},
@@ -127,7 +127,7 @@ module Mainz
       bindings = @directory.join("inputs.json")
       bindings.write(JSON.generate("book" => "#{@prepared}\0missing"))
       output = @directory.join("null-path.pdf")
-      failure = command("compose", job, "--inputs", bindings, "--output", output, status: 2)
+      failure = command("compose", plan, "--inputs", bindings, "--output", output, status: 2)
       assert_includes(failure.stderr, "null byte")
       assert_empty(failure.stdout)
       refute_path_exists(output)
@@ -226,9 +226,9 @@ module Mainz
 
     def test_stdin_matches_file_input_and_preserves_output
       destination = @directory.join("stdin.pdf")
-      command("produce", "-", "--declaration", @declaration, "--output", destination, input: @source.binread)
+      command("imprint", "-", "--declaration", @declaration, "--output", destination, input: @source.binread)
       assert_equal(command("describe", @prepared).stdout, command("describe", destination).stdout)
-      command("apply", "-", "--request", @request, "--output", @protected, input: @prepared.binread, status: 2)
+      command("style", "-", "--overrides", @request, "--output", @protected, input: @prepared.binread, status: 2)
       assert_equal("protected", @protected.binread)
     end
 
@@ -263,7 +263,7 @@ module Mainz
       document.write(ordinary.to_s)
       assert_equal([], JSON.parse(command("profiles", ordinary).stdout))
       output = @directory.join("ordinary-styled.pdf")
-      failure = command("apply", ordinary, "--profile", "inkjet", "--output", output, status: 1)
+      failure = command("style", ordinary, "--profile", "inkjet", "--output", output, status: 1)
       assert_equal("missing-contract", JSON.parse(failure.stderr)["code"])
       refute_path_exists(output)
     end
@@ -274,21 +274,21 @@ module Mainz
       description = JSON.parse(command("describe", prepared).stdout)
       assert_equal({"kind" => "mixed"}, description["parameters"]["opacity"]["baseline"])
       paths = %w[hidden bold inkjet repeated original restored].to_h { [it, @directory.join("#{it}.pdf")] }
-      command("apply", prepared, "--profile", "off", "--output", paths["hidden"])
-      command("apply", paths["hidden"], "--profile", "bold", "--output", paths["bold"])
-      command("apply", paths["bold"], "--profile", "inkjet", "--output", paths["inkjet"])
+      command("style", prepared, "--profile", "off", "--output", paths["hidden"])
+      command("style", paths["hidden"], "--profile", "bold", "--output", paths["bold"])
+      command("style", paths["bold"], "--profile", "inkjet", "--output", paths["inkjet"])
       parameters = JSON.parse(command("describe", paths["inkjet"]).stdout).fetch("parameters")
       assert_equal(0.4, parameters["opacity"]["parameter"]["value"])
       refute(parameters["width"]["parameter"].key?("value"))
       assert_equal("none", parameters["display"]["parameter"]["value"])
-      command("apply", paths["inkjet"], "--profile", "inkjet", "--output", paths["repeated"])
+      command("style", paths["inkjet"], "--profile", "inkjet", "--output", paths["repeated"])
       assert_equal(paths["inkjet"].binread, paths["repeated"].binread)
-      command("apply", paths["inkjet"], "--set", "print", "--profile", "generic", "--output", paths["original"])
+      command("style", paths["inkjet"], "--set", "print", "--profile", "generic", "--output", paths["original"])
       parameters = JSON.parse(command("describe", paths["original"]).stdout).fetch("parameters")
       refute(parameters["opacity"]["parameter"].key?("value"))
       refute(parameters["width"]["parameter"].key?("value"))
       assert_equal("none", parameters["display"]["parameter"]["value"])
-      command("apply", paths["original"], "--set", "view", "--profile", "generic", "--output", paths["restored"])
+      command("style", paths["original"], "--set", "view", "--profile", "generic", "--output", paths["restored"])
       paths.each_value do |path|
         assert(JSON.parse(command("verify", path).stdout)["valid"])
         assert_equal(sets, JSON.parse(command("profiles", path).stdout))
@@ -322,7 +322,7 @@ module Mainz
         ["--set", "view", "--profile", "inkjet"]
       ].each do |options|
         [@directory.join("failed.pdf"), @protected].each do |output|
-          failure = command("apply", prepared, *options, "--output", output, status: 2)
+          failure = command("style", prepared, *options, "--output", output, status: 2)
           assert_includes(failure.stderr, "print")
           assert_includes(failure.stderr, "view")
           assert_includes(failure.stderr, "inkjet")
@@ -336,11 +336,11 @@ module Mainz
       end
 
       [
-        ["--profile", "inkjet", "--request", @request],
-        ["--set", "print", "--request", @request],
+        ["--profile", "inkjet", "--overrides", @request],
+        ["--set", "print", "--overrides", @request],
         ["--set", "print"]
       ].each do |options|
-        failure = command("apply", prepared, *options, "--output", @protected, status: 2)
+        failure = command("style", prepared, *options, "--output", @protected, status: 2)
         assert_empty(failure.stdout)
         assert_equal("protected", @protected.binread)
       end
@@ -350,7 +350,7 @@ module Mainz
       [["print:/ ü", "ink:jet/ü"], ["-", "-"]].each do |set_id, profile_id|
         prepared, = prepare_profiles(set_id:, profile_id:)
         output = prepared.sub_ext("-styled.pdf")
-        command("apply", "-", "--set", set_id, "--profile", profile_id, "--output", output, input: prepared.binread)
+        command("style", "-", "--set", set_id, "--profile", profile_id, "--output", output, input: prepared.binread)
         description = JSON.parse(command("describe", output).stdout)
         assert_equal(0.4, description["parameters"]["opacity"]["parameter"]["value"])
         assert_equal(set_id, description["profileSets"][0]["id"])
@@ -367,7 +367,7 @@ module Mainz
       manifest["profileSets"][0]["profiles"][0]["overrides"] = {"opacity" => 0.5}
       attachment.stream = JSON.generate(manifest)
       document.write(invalid.to_s)
-      [["profiles", invalid], ["apply", invalid, "--profile", "inkjet", "--output", @protected]].each do |arguments|
+      [["profiles", invalid], ["style", invalid, "--profile", "inkjet", "--output", @protected]].each do |arguments|
         failure = command(*arguments, status: 1)
         assert_empty(failure.stdout)
         assert_equal("invalid-contract", JSON.parse(failure.stderr)["code"])
@@ -451,16 +451,16 @@ module Mainz
         )
       )
       prepared = directory.join("prepared.pdf")
-      command("produce", source, "--declaration", declaration, "--output", prepared)
+      command("imprint", source, "--declaration", declaration, "--output", prepared)
       [prepared, JSON.parse(JSON.generate(sets))]
     end
 
     def operations
       profiled, = prepare_profiles
       [
-        ["apply", @prepared, ["--request", @request]],
-        ["apply", profiled, ["--profile", "inkjet"]],
-        ["produce", @source, ["--declaration", @declaration]]
+        ["style", @prepared, ["--overrides", @request]],
+        ["style", profiled, ["--profile", "inkjet"]],
+        ["imprint", @source, ["--declaration", @declaration]]
       ]
     end
 

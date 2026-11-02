@@ -272,7 +272,7 @@ module Mainz
           build,
           "--output-on-failure",
           "-R",
-          "^(contract|producer|cli|inspector|package)$"
+          "^(contract|imprinter|cli|inspector|package)$"
         )
       )
       dependencies = Mainz.run("ldd", build.join("mainz"))
@@ -412,7 +412,7 @@ end
 namespace(:test) do
   {
     contract: "lib/test/contract_test.rb",
-    producer: "lib/test/producer_test.rb",
+    imprinter: "lib/test/imprinter_test.rb",
     cli: "cli/test/{cli,recipe}_test.rb",
     inspector: "lib/test/preserve_test.rb",
     parity: "lib/test/parity_test.rb",

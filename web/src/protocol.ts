@@ -1,7 +1,7 @@
 // Defines requests, results, and structured failures shared by the processor host and worker.
 
 import type { Description, Scalar } from "./styles.ts"
-import type { Content, Job } from "./model.ts"
+import type { Content, Plan } from "./model.ts"
 
 export type ProcessorError = {
   code: string
@@ -17,16 +17,16 @@ export type Operation =
   | {
       bytes: ArrayBuffer
       changes?: {
-        apply: Record<string, Scalar>
+        overrides: Record<string, Scalar>
         reset: string[]
         buffer?: { input: string; pages: number[] }
       }
     }
-  | { job: Job; inputs: Record<string, ArrayBuffer> }
+  | { plan: Plan; inputs: Record<string, ArrayBuffer> }
 export type Request = Operation & {
   revision: number
 }
-export type Report = {
+export type Provenance = {
   version: 1
   pages: (Content & { part: number; copy: number; padding?: boolean })[]
   parameters: Record<string, { source: string; parameter: string }>
@@ -36,6 +36,6 @@ export type Result = {
   bytes: ArrayBuffer
   description: Description
   sha256?: string
-  report?: Report
+  provenance?: Provenance
 }
 export type Reply = Result | { revision: number; failure: Failure }

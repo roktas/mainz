@@ -87,8 +87,8 @@ test(
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
         await page.addInitScript(trackWorkers)
         await page.addInitScript(() => {
-          window.styleJobs = 0
-          window.peakStyleJobs = 0
+          window.stylePlans = 0
+          window.peakStylePlans = 0
           const Original = Worker
           window.Worker = class extends Original {
             busy = false
@@ -98,13 +98,13 @@ test(
               this.addEventListener("error", () => this.finish())
             }
             finish() {
-              if (this.busy) window.styleJobs--
+              if (this.busy) window.stylePlans--
               this.busy = false
             }
             postMessage(message, ...rest) {
-              if (message.changes || message.job) {
+              if (message.changes || message.plan) {
                 this.busy = true
-                window.peakStyleJobs = Math.max(window.peakStyleJobs, ++window.styleJobs)
+                window.peakStylePlans = Math.max(window.peakStylePlans, ++window.stylePlans)
               }
               return super.postMessage(message, ...rest)
             }
@@ -275,12 +275,12 @@ test(
           "An identical ID cannot substitute for a different name",
         )
         await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
-        await page.evaluate(() => (window.peakStyleJobs = 0))
+        await page.evaluate(() => (window.peakStylePlans = 0))
         await profile("Gamma").selectOption("alpha-fine")
         await profile("Gamma").selectOption("generic")
         await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
         assert.equal(
-          await page.evaluate(() => window.peakStyleJobs),
+          await page.evaluate(() => window.peakStylePlans),
           1,
           "Cross-file previews process one file at a time",
         )
@@ -1568,7 +1568,7 @@ test(
         const Original = window.Worker
         window.Worker = class extends Original {
           postMessage(message, ...rest) {
-            if (message.changes || message.job) window.styleRequests++
+            if (message.changes || message.plan) window.styleRequests++
             super.postMessage(message, ...rest)
           }
         }
@@ -1676,7 +1676,7 @@ test("Download reuses completed full-document styles and invalidates changed Out
       window.processingRequests = 0
       const post = Worker.prototype.postMessage
       Worker.prototype.postMessage = function (message, ...rest) {
-        if (message.job || message.changes) window.processingRequests++
+        if (message.plan || message.changes) window.processingRequests++
         return post.call(this, message, ...rest)
       }
     })
@@ -1709,7 +1709,7 @@ test("Download reuses completed full-document styles and invalidates changed Out
       await ready()
       const requests = await page.evaluate(() => window.processingRequests)
       await download()
-      assert.equal(await page.evaluate(() => window.processingRequests), requests, "Ready PDF needs no second job")
+      assert.equal(await page.evaluate(() => window.processingRequests), requests, "Ready PDF needs no second plan")
     }
     await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
     await ready()

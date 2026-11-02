@@ -232,7 +232,7 @@ test(
           bindings,
           JSON.stringify({ book: join(directory, "source.pdf"), other: join(directory, "other.pdf") }),
         )
-        execFileSync(process.env.MAINZ_CLI, ["run", recordPath, "--inputs", bindings, "--output", result])
+        execFileSync(process.env.MAINZ_CLI, ["apply", recordPath, "--inputs", bindings, "--output", result])
         const browserPDF = join(directory, "browser.pdf")
         await writeFile(browserPDF, expected)
         assert.deepEqual(contents(result), contents(browserPDF))
@@ -265,7 +265,7 @@ test(
           }
           buffer(encoder.encode(JSON.stringify(savedRecord)), (p, n) => wasm["_mainz_resolve_recipe"](p, n))
           const resolution = JSON.parse(decoder.decode(result()))
-          buffer(encoder.encode(JSON.stringify(resolution.job)), (p, n) => wasm["_mainz_compose"](p, n))
+          buffer(encoder.encode(JSON.stringify(resolution.plan)), (p, n) => wasm["_mainz_compose"](p, n))
           return { warnings: resolution.warnings, bytes: [...result()] }
         },
         { savedRecord: record, inputs: { book: [...first], other: [...second] } },
@@ -292,7 +292,7 @@ test(
         const Original = Worker
         window.Worker = class extends Original {
           postMessage(message, ...rest) {
-            if (window.holdExport && message.job) {
+            if (window.holdExport && message.plan) {
               window.resumeExport = () => super.postMessage(message, ...rest)
               return
             }
@@ -402,7 +402,7 @@ test("Installed View opens the native PDF viewer without another confirmation", 
       const Original = Worker
       window.Worker = class extends Original {
         postMessage(message, ...rest) {
-          if (!window.holdExport || !message.job) super.postMessage(message, ...rest)
+          if (!window.holdExport || !message.plan) super.postMessage(message, ...rest)
         }
       }
     })

@@ -143,7 +143,7 @@ test("Touch dialog focus stays quiet and keyboard focus stays visible", { timeou
         const Original = Worker
         window.Worker = class extends Original {
           postMessage(message, ...rest) {
-            if (window.holdExport && message.job) return
+            if (window.holdExport && message.plan) return
             super.postMessage(message, ...rest)
           }
         }
@@ -195,7 +195,7 @@ test("Header progress preserves workspace bounds and scroll at narrow widths", {
         const Original = Worker
         window.Worker = class extends Original {
           postMessage(message, ...rest) {
-            if (window.holdStyles && (message.changes || message.job)) return
+            if (window.holdStyles && (message.changes || message.plan)) return
             super.postMessage(message, ...rest)
           }
         }
@@ -351,7 +351,7 @@ test(
           const Original = Worker
           window.Worker = class extends Original {
             postMessage(message, ...rest) {
-              if (window.holdStyles && (message.changes || message.job)) return
+              if (window.holdStyles && (message.changes || message.plan)) return
               super.postMessage(message, ...rest)
             }
           }

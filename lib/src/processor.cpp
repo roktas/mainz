@@ -30,7 +30,7 @@ Document Document::change(const std::string& input, Change operation, const std:
     try {
         require(has_contract, "PDF has no mainz.json attachment.", "missing-contract");
         auto request = operation == Change::reset_all ? JSON::makeArray() : parse(input, "request");
-        auto resets = operation == Change::apply ? parse(reset, "request") : request;
+        auto resets = operation == Change::style ? parse(reset, "request") : request;
         auto current = object(JSON::parse(description).getDictItem("parameters"));
         for (auto& [id, parameter] : current) {
             (void)id;
@@ -49,7 +49,7 @@ Document Document::change(const std::string& input, Change operation, const std:
                     (void)parameter;
                     ids.insert(id);
                 }
-            if (operation == Change::apply)
+            if (operation == Change::style)
                 for (const auto& [id, item] : object(request)) {
                     try {
                         require(current.contains(id), "Unknown parameter: " + id);
@@ -104,10 +104,10 @@ Document Document::change(const std::string& input, Change operation, const std:
         throw Error("pdf-syntax", error.what());
     }
 }
-Document Document::apply(const std::string& request) const { return change(request, Change::apply); }
-Document Document::apply(const std::string& request, const std::string& reset) const
+Document Document::style(const std::string& overrides) const { return change(overrides, Change::style); }
+Document Document::style(const std::string& overrides, const std::string& reset) const
 {
-    return change(request, Change::apply, reset);
+    return change(overrides, Change::style, reset);
 }
 Document Document::reset(const std::optional<std::string>& ids) const
 {

@@ -19,21 +19,7 @@ terms.
 
 Page metadata, manifests without editable paint, PNG previews, preview access, and SVG page annotations below are
 pending requirements. The current processor rejects `pageMetadata` and requires nonempty paint maps. Native and WASM
-preview access and producer PNG input are not implemented.
-
-Plan, Provenance, and Composed are the canonical terms in the [glossary](#glossary). A Plan is a concrete composition
-request. Composed contains the resulting Document and its Provenance, the source mapping for composed pages and
-parameters. The Plan and Provenance JSON records retain their fields and versions. Adapter identifier changes are
-pending:
-
-| Canonical identifier                                    | Current implementation                                |
-| ------------------------------------------------------- | ----------------------------------------------------- |
-| Native `Resolution::plan` and WASM result member `plan` | Native `Resolution::job` and WASM result member `job` |
-| Native `Composed`                                       | Native `Composition`                                  |
-| `Composed::provenance`                                  | `Composition::report`                                 |
-| `mainz_provenance`, `mainz_provenance_size`             | `mainz_report`, `mainz_report_size`                   |
-
-The adapter descriptions below use canonical identifiers. Current callers use the implementation names in this table.
+preview access and Imprinter PNG input are not implemented.
 
 ## 1. The styling boundary
 
@@ -189,8 +175,8 @@ operator. A stroke record duplicating a separate existing fill of the same geome
 
 ### 4.1 Encoding and identifiers
 
-JSON uses UTF-8 under [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259). Manifest, apply, Plan, and Recipe inputs are
-objects. Supplied reset and extraction requests are arrays. Duplicate member names after escape decoding, invalid
+JSON uses UTF-8 under [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259). Manifest, overrides, Plan, and Recipe inputs
+are objects. Supplied reset and extraction requests are arrays. Duplicate member names after escape decoding, invalid
 Unicode, and byte-order marks are errors. Unknown fields fail at every defined object level. Object member order has no
 meaning. Arrays carry order only where specified.
 
@@ -335,7 +321,7 @@ meaning, units, scope, and applicability of supported parameter and profile sele
 Pattern artwork, compatible additions, baseline values, and profile values can change within those constraints. A
 breaking change requires a new major. The producer owns this promise and versions the final assembled publication.
 
-Read, describe, apply, reset, and SVG production preserve the declaration. Extraction that changes the page sequence
+Read, describe, style, reset, and SVG production preserve the declaration. Extraction that changes the page sequence
 removes it. No-op extraction retains the original bytes and declaration. Composition never inherits an Input's
 publication declaration: the producer must explicitly declare the identity and version of its final assembled output.
 PDFs without a Mainz manifest have no such declaration and use the normal Recipe diagnostic path.
@@ -410,7 +396,7 @@ Opening preserves saved overrides without applying a profile. Choosing a profile
 Omitted parameters return to their own baselines. Other parameters and sets retain their choices.
 
 Applications supply a complete Input instance map or combine the set's reset IDs and the profile's overrides in one
-`apply` call. There is no inheritance, cascade, saved active-profile field, or additional processor operation. Profile
+`style` call. There is no inheritance, cascade, saved active-profile field, or additional processor operation. Profile
 values and meanings belong to the author.
 
 Optional set `family` follows the Style-family string rules in Section 4.2 and applies to every profile in that set.
@@ -732,19 +718,19 @@ and error conversion, without exposing QPDF object graphs.
 | `read`     | Validates PDF and any contract, returning an immutable document handle.                                |
 | `describe` | Returns definitions, overrides, baseline summaries, page scope, and presentation.                      |
 | `preview`  | Returns PNG bytes for a physical page, or no image when that page has no preview.                      |
-| `apply`    | Applies a parameter-ID-to-value patch and returns PDF bytes.                                           |
+| `style`    | Applies a parameter-ID-to-value patch and returns PDF bytes.                                           |
 | `reset`    | Removes selected overrides, or all with omitted IDs, and returns PDF bytes.                            |
 | `extract`  | Retains unique physical pages in requested order and rebuilds the contract.                            |
-| `compose`  | Executes a Plan against separately supplied Inputs, returning Composed with a Document and Provenance. |
+| `compose`  | Executes a Plan against separately supplied Inputs, returning Artifact with a Document and Provenance. |
 
-`apply` validates the complete request first. Unknown IDs, invalid values, unsupported properties, and malformed
+`style` validates the complete request first. Unknown IDs, invalid values, unsupported properties, and malformed
 definitions fail. `{}` is valid. Omitted IDs retain overrides. Requests cannot replace schemas, bindings, baselines, or
 presentation. `reset` accepts optional unique existing parameter IDs. Omission resets all. `[]` resets none. Unknown IDs
 fail even without a current override. Reset removes `value`, never assigning defaults or changing definitions. An
-explicit baseline value still creates an override. Unchanged stored state from valid apply/reset returns original bytes.
+explicit baseline value still creates an override. Unchanged stored state from valid style/reset returns original bytes.
 
-Native `Document::apply(request, reset)` combines a patch with a reset-ID array. Patch values take precedence for IDs in
-both inputs. Both inputs must be valid before any change. The processor writes and validates the final state once.
+Native `Document::style(overrides, reset)` combines a patch with a reset-ID array. Patch values take precedence for IDs
+in both inputs. Both inputs must be valid before any change. The processor writes and validates the final state once.
 Unchanged final overrides return original bytes.
 
 Apply and reset retain page names and tags. A changed stored assignment removes the preview reference from every page in
@@ -989,9 +975,9 @@ restoring its original per-record baselines instead of retaining the saved 0.15 
 
 ### 6.4 Composition adapters
 
-The native executor accepts Plan JSON and an Input-ID-to-owned-byte map. It returns Composed with `document` and
+The native executor accepts Plan JSON and an Input-ID-to-owned-byte map. It returns Artifact with `document` and
 `provenance`, without file access or scheduling. The Document owns the validated PDF. Provenance is a separate JSON
-record under Section 6.3. Composed is an adapter result, not another serialized record or a field in the PDF manifest.
+record under Section 6.3. Artifact is an adapter result, not another serialized record or a field in the PDF manifest.
 The [CLI](../../cli/doc/SPEC.md#2-requests) resolves file bindings before calling it.
 
 The optional `previous` document in native `compose` permits reuse of its input validation and parsed content. Reuse
@@ -1020,8 +1006,8 @@ WASM builds use native WebAssembly exception handling instead of JavaScript exce
 pinned toolchain's legacy exception instructions. Processor and host failures retain the status and result records
 below.
 
-`mainz_style(handle, requestPointer, requestSize, resetPointer, resetSize)` combines apply and reset in one operation.
-Both buffers contain JSON and each has the 1 MiB request limit. Patch values take precedence over resets.
+`mainz_style(handle, overridesPointer, overridesSize, resetPointer, resetSize)` combines overrides and reset in one
+operation. Both buffers contain JSON and each has the 1 MiB request limit. Patch values take precedence over resets.
 
 `mainz_input(idPointer, idSize, pdfPointer, pdfSize)` copies valid UTF-8 IDs and PDF bytes into a separate registry.
 Duplicate IDs fail. `mainz_clear_inputs()` releases registered bytes. They otherwise persist until cleared or worker
@@ -1151,7 +1137,7 @@ memory. Checks precede page-list expansion. Existing PDF, manifest, decoding, an
 Reproducibility covers the resolved operations and represented PDF content; it does not promise identical serialized
 bytes across processor or dependency versions. File naming, printing, sharing, and UI state remain host concerns.
 
-## 7. Producer and consuming-application obligations
+## 7. Imprinter and consuming-application obligations
 
 A producer that exposes Style resolves source rules, selectors, render instances, paint order, and compositing before
 publication. It supplies resolved bindings and original baselines, never source rules for the processor to evaluate. It
@@ -1169,7 +1155,7 @@ triggering inferred reconstruction. Ordinary page operations remain available un
 
 ### 7.1 SVG declarations
 
-The native `produce` function accepts SVG and a separate SVG declaration and returns a Document. Declarations require
+The native `imprint` function accepts SVG and a separate SVG declaration and returns a Document. Declarations require
 `targets` and `parameters`, with optional `groups`, `profileSets`, `publication`, and `page`. Publication identity and
 version follow Section 4.2. `page` contains optional `name` and `tags` under the page metadata rules. At least one field
 must be present. The producer assigns these fields to its emitted page ID. The producer also accepts separate optional
@@ -1211,7 +1197,7 @@ stylesheet restrictions do not extend the declaration-selector grammar.
 
 SVG input is limited to 128 MiB, 64 XML levels, and one million elements. Declarations are limited to 1 MiB. Captured
 manifest metadata uses the 16 MiB embedded-manifest limit. Decoded Form capture shares a 128 MiB budget. Producer errors
-use structured records and can add `producer-error` to processor error codes.
+use structured records and can add `imprinter-error` to processor error codes.
 
 ## 8. Required publication behavior
 
@@ -1239,8 +1225,8 @@ The [Web glossary](../../web/doc/SPEC.md#glossary) owns workspace terms.
 | Baseline                 | Immutable original state of one paint record before overrides.                                                                   |
 | Baseline slot            | Shared locator's local reference mapped to a region's own baseline.                                                              |
 | Binding                  | One parameter's connection to one property on eligible records in declared targets.                                              |
-| Composed                 | Composition result containing a Document and its Provenance.                                                                     |
-| Composition              | Operation that executes a Plan against separately supplied Inputs and returns Composed.                                          |
+| Artifact                 | Composition result containing a Document and its Provenance.                                                                     |
+| Composition              | Operation that executes a Plan against separately supplied Inputs and returns Artifact.                                          |
 | Description              | Read-only processor record of pages, definitions, overrides, baseline summaries, groups, and profiles.                           |
 | Document                 | Validated immutable PDF, usable as an Input or operation result.                                                                 |
 | Effective style          | Paint state after baseline, overrides, and display combine. Hidden targets retain selected values.                               |
@@ -1252,7 +1238,7 @@ The [Web glossary](../../web/doc/SPEC.md#glossary) owns workspace terms.
 | Plan                     | Concrete composition request with physical page references, Blanks, complete Input instance overrides, copies, and alignment.    |
 | Provenance               | Versioned record of page origins, Part and copy positions, and source mappings for parameter identities.                         |
 | Publication              | Producer-declared logical document identity and SemVer version carrying processing compatibility promises.                       |
-| Mainz                    | Project, contract, processor, reference producer, CLI, and WASM boundary, consumed by PDF Composer.                              |
+| Mainz                    | Project, contract, processor, reference Imprinter, CLI, and WASM boundary, consumed by PDF Composer.                             |
 | Manifest                 | Embedded declaration of page identities, optional page metadata, and any editable paint and presentation.                        |
 | Locator                  | Ordered Form invocation path and paint marker resolving one record in a page region.                                             |
 | Marker                   | Local empty PDF property resource identifying one balanced Figure sequence.                                                      |
@@ -1275,7 +1261,7 @@ The [Web glossary](../../web/doc/SPEC.md#glossary) owns workspace terms.
 | Presentation group       | Ordered parameter references with title/description, without style identity or assignment scope.                                 |
 | PDF Composer             | Local web consumer for page composition and Input instance styling.                                                              |
 | Processor                | Library applying the PDF contract and contract-aware page operations independently of producers.                                 |
-| Producer                 | Software publishing PDFs with Mainz declarations for editable paint or page metadata.                                            |
+| Imprinter                | Native source component creating Documents from SVG and separate declarations.                                                   |
 | Reference application    | Consumer exposing the common processor. File conformance does not depend on its widgets.                                         |
 | Record set               | Shared ordered locator syntax retaining separate occurrences and baseline identities.                                            |
 | Region                   | Unique occurrence scope with ordered paint records, belonging to one target.                                                     |

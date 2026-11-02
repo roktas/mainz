@@ -6,7 +6,7 @@
 
 - Recipe export from PDF Composer, with explicit profile intent, manual edits and baseline resets, Input fingerprints,
   and editable logical Input IDs for CLI replay.
-- Portable JSON Recipes and noninteractive `mainz run`, with shared native/WASM resolution, separate file bindings,
+- Portable JSON Recipes and noninteractive `mainz apply`, with shared native/WASM resolution, separate file bindings,
   profile and override choices, baseline resets, dynamic all-pages selection, and changed-Input diagnostics.
 - Optional publication identity and SemVer metadata for warning-free replay across producer-declared compatible changes,
   with all PDF and operation checks retained.
@@ -22,6 +22,11 @@
   another tap. Desktop and unsupported browsers retain Download.
 
 ### Changed
+
+- Breaking CLI changes for the next major release: PDF styling uses `style --overrides`, Recipe execution uses `apply`,
+  and SVG production uses `imprint`. Update callers from `apply --request`, `run`, and `produce`, respectively.
+- Aligned library and web names around Plan, Artifact, Provenance, and Imprinter. WASM Recipe resolution returns `plan`;
+  composition metadata uses `mainz_provenance` exports. PDF styling uses the combined `mainz_style` boundary.
 
 - Cross-file Style choices use explicit families. Profiles match by family and name; parameter edits and resets require
   matching semantic keys and equal previous values. The profile menu offers per-file scope and disables without

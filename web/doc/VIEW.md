@@ -303,11 +303,22 @@ Hints align below the field. Selection counts use accent emphasis. Errors replac
 small size. Hints reserve space and wrap naturally, so errors, bold counts, and drag guidance do not move fitted page
 images. Input and Output use the same control dimensions. Preserve usable field width and full-size touch targets.
 
+## List
+
+List rows align page numbers, supplied names, and page actions in stable columns. Keep number and action columns visible
+in narrow panes. Names wrap in the remaining space without horizontal scrolling. Unnamed pages reserve no empty name
+line. Repeated names retain separate numbered rows. Selection and keyboard cursor use the same focus and selected-state
+tokens as Grid. Row actions retain the existing minimum targets and visible focus indicators in both themes. List has no
+Grid density control. Switching views retains the toolbar height and content-frame position.
+
 ## Grid and Page
 
 Place a supplied page name below the Grid image in both densities, or below the image frame in Page. Keep captions
 outside PDF pixels and image zoom. Missing names reserve no empty caption. Long names and enlarged text must not overlap
-images, controls, or adjacent cards. Include caption space in frame sizing so Grid retains complete rows.
+images, controls, or adjacent cards. Include caption space in frame sizing so Grid retains complete rows. Captions wrap
+at word boundaries and break unbroken names within the card width. Both Grid densities and Page retain complete captions
+with enlarged text and narrow panes. Caption height participates in row sizing; captions never overlay the PDF or page
+actions.
 
 Review thumbnail sampling at the actual Normal and Compact image sizes. Fine guides must remain visible on guide-only
 pages while full and partial pattern pages remain distinguishable. Compare the cover, text, raster images, and authored

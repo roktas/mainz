@@ -73,7 +73,7 @@ public:
     void update(JSON next);
     std::string write(JSON next);
     std::string extract(JSON request, const std::string& input);
-    static Composition compose(JSON job, const Bindings& inputs, const Document* previous);
+    static Artifact compose(JSON plan, const Bindings& inputs, const Document* previous);
     std::shared_ptr<const Index> take_index() { return std::make_shared<Index>(std::move(index)); }
     JSON manifest = JSON::makeDictionary();
 

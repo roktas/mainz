@@ -22,7 +22,7 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
       const Original = Worker
       window.Worker = class extends Original {
         postMessage(message, ...rest) {
-          if (window.holdStyles && (message.changes || message.job)) {
+          if (window.holdStyles && (message.changes || message.plan)) {
             window.finishStyles = () => super.postMessage(message, ...rest)
             return
           }

@@ -5,12 +5,12 @@ require "minitest/autorun"
 load(File.expand_path("../../Rakefile", __dir__)) unless defined?(Mainz::Preservation)
 
 module Mainz
-  class ProducerTest < Minitest::Test
+  class ImprinterTest < Minitest::Test
     IMAGE = "<image x=\"30\" y=\"90\" width=\"20\" height=\"20\" href=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR4nGP4z8DAAMIM/////w8AH+4F+7C4l8kAAAAASUVORK5CYII=\"/>"
     SHAPE = "<g id=\"Guides\" style=\"fill:none;stroke:black;stroke-width:1\"><rect x=\"30\" y=\"30\" width=\"50\" height=\"40\"/></g>"
 
     def setup
-      @directory = Pathname(Dir.mktmpdir("producer-", Mainz.workspace("tmp/test/producer").to_s))
+      @directory = Pathname(Dir.mktmpdir("imprinter-", Mainz.workspace("tmp/test/imprinter").to_s))
       @cli = File.expand_path(ENV.fetch("MAINZ_CLI"))
     end
 
@@ -66,7 +66,7 @@ module Mainz
         source_path = @directory.join("#{label}.svg")
         source_path.write(source)
         declared = write("#{label}.json", data)
-        native = pdf("produce", "#{label}-native.pdf", source_path, "--declaration", declared, *options)
+        native = pdf("imprint", "#{label}-native.pdf", source_path, "--declaration", declared, *options)
         summary = JSON.parse(command(@cli, "describe", native).stdout)
         assert_equal(1, summary["pageCount"], label)
         assert_equal(data["parameters"].keys.sort, summary["parameters"].keys.sort, label)
@@ -102,7 +102,7 @@ module Mainz
         end
 
         request = write("#{label}-request.json", choices)
-        edited = pdf("apply", "#{label}-edited.pdf", native, "--request", request)
+        edited = pdf("style", "#{label}-edited.pdf", native, "--overrides", request)
         actual = JSON.parse(command(@cli, "describe", edited).stdout)["parameters"]
         assert_equal(choices, actual.transform_values { |entry| entry["parameter"]["value"] })
         restored = pdf("reset", "#{label}-reset.pdf", edited)
@@ -127,7 +127,7 @@ module Mainz
         ]
       [data["parameters"], data["parameters"].to_a.reverse.to_h].each_with_index do |parameters, index|
         declared = write("groups-#{index}.json", data.merge("parameters" => parameters))
-        output = pdf("produce", "groups-#{index}.pdf", source, "--declaration", declared)
+        output = pdf("imprint", "groups-#{index}.pdf", source, "--declaration", declared)
         assert_equal(expected, JSON.parse(command(@cli, "describe", output).stdout)["groups"])
       end
     end
@@ -139,17 +139,17 @@ module Mainz
         data = declaration({"guides" => "#Guides"})
         data["parameters"].delete("guides.display")
         data["targets"]["guides"]["display"] = "none" if display == "none"
-        native = pdf("produce", "fixed-#{display}.pdf", source, "--declaration", write("fixed.json", data))
+        native = pdf("imprint", "fixed-#{display}.pdf", source, "--declaration", write("fixed.json", data))
         description = JSON.parse(command(@cli, "describe", native).stdout)
         assert_equal(data.fetch("parameters").keys.sort, description.fetch("parameters").keys.sort)
         reference = @directory.join("fixed-#{display}-reference.pdf")
         command("rsvg-convert", "--format=pdf", "--output", reference, source)
         appearance(reference, native, "fixed-#{display}")
         edited = pdf(
-          "apply",
+          "style",
           "fixed-#{display}-edited.pdf",
           native,
-          "--request",
+          "--overrides",
           write("fixed-changes.json", {"guides.stroke-color" => "#336699", "guides.fill-opacity" => 0.4})
         )
         appearance(reference, edited, "fixed-hidden-edited") if display == "none"
@@ -167,7 +167,7 @@ module Mainz
       data["parameters"].reject! { |_, parameter| parameter["binding"]["targets"] == ["unused"] }
       failure = command(
         @cli,
-        "produce",
+        "imprint",
         source,
         "--declaration",
         write("unbound.json", data),
@@ -183,10 +183,10 @@ module Mainz
       physical = @directory.join("physical.svg")
       physical.write(svg(SHAPE, width: "2in", height: "1.5in"))
       declared = write("declaration.json", declaration({"guides" => "#Guides"}))
-      native = pdf("produce", "physical.pdf", physical, "--declaration", declared, "--dpi", "144")
+      native = pdf("imprint", "physical.pdf", physical, "--declaration", declared, "--dpi", "144")
       pixels = @directory.join("pixels.svg")
       pixels.write(svg(SHAPE, width: 192, height: 144))
-      equivalent = pdf("produce", "pixels.pdf", pixels, "--declaration", declared, "--dpi", "144")
+      equivalent = pdf("imprint", "pixels.pdf", pixels, "--declaration", declared, "--dpi", "144")
       appearance(equivalent, native, "physical")
       assert_equal(Preservation.read(equivalent), Preservation.read(native))
       assert_equal(
@@ -204,7 +204,7 @@ module Mainz
       id = "#{target}.stroke-opacity"
       data["parameters"][id]["value"] = 0.4
       declared = write("opaque.json", data)
-      output = pdf("produce", "opaque.pdf", source, "--declaration", declared)
+      output = pdf("imprint", "opaque.pdf", source, "--declaration", declared)
       parameters = JSON.parse(command(@cli, "describe", output).stdout)["parameters"]
       assert_equal(data["parameters"].keys.sort, parameters.keys.sort)
       assert_equal(0.4, parameters.fetch(id)["parameter"]["value"])
@@ -247,9 +247,9 @@ module Mainz
         path.write(source)
         declared = write("invalid.json", data)
         output = @directory.join("invalid.pdf")
-        result = command(@cli, "produce", path, "--declaration", declared, "--output", output, ok: false)
+        result = command(@cli, "imprint", path, "--declaration", declared, "--output", output, ok: false)
         assert_includes(
-          %w[invalid-contract producer-error unsupported-context],
+          %w[invalid-contract imprinter-error unsupported-context],
           JSON.parse(result.stderr)["code"],
           index.to_s
         )
@@ -261,14 +261,14 @@ module Mainz
       duplicate = @directory.join("duplicate.json")
       duplicate.write("{\"targets\":{},\"targets\":{},\"parameters\":{}}")
       output = @directory.join("invalid.pdf")
-      failure = command(@cli, "produce", source, "--declaration", duplicate, "--output", output, ok: false)
+      failure = command(@cli, "imprint", source, "--declaration", duplicate, "--output", output, ok: false)
       error = JSON.parse(failure.stderr)
       assert_equal("invalid-contract", error["code"])
       assert_equal("declaration", error["source"])
       assert_equal("", error["location"])
       data = declaration({"guides" => "#Guides"})
       data["parameters"]["guides.stroke-width"]["schema"]["default"] = 0.5
-      command(@cli, "produce", source, "--declaration", write("default.json", data), "--output", output, ok: false)
+      command(@cli, "imprint", source, "--declaration", write("default.json", data), "--output", output, ok: false)
       refute_path_exists(output)
       assert_empty(@directory.glob(".mainz-*"))
     end
@@ -282,7 +282,7 @@ module Mainz
       source = @directory.join("dense.svg")
       source.write(svg("<g id=\"Guides\" fill=\"none\">#{shapes}</g>"))
       declared = write("declaration.json", declaration({"guides" => "#Guides"}))
-      output = pdf("produce", "dense.pdf", source, "--declaration", declared)
+      output = pdf("imprint", "dense.pdf", source, "--declaration", declared)
       document = HexaPDF::Document.open(output)
       attachment = document.catalog[:Names][:EmbeddedFiles].each_entry.to_h.fetch("mainz.json")[:EF][:F]
 
@@ -298,7 +298,7 @@ module Mainz
       output = @directory.join("invalid.pdf")
       failure = command(
         @cli,
-        "produce",
+        "imprint",
         source,
         "--declaration",
         write("semantics.json", data),
@@ -323,7 +323,7 @@ module Mainz
       source.write(svg("<g id=\"Guides\" fill=\"none\">#{shapes}</g>"))
       declared = write("declaration.json", declaration({"guides" => "#Guides"}))
       output = @directory.join("invalid.pdf")
-      failure = command(@cli, "produce", source, "--declaration", declared, "--output", output, ok: false)
+      failure = command(@cli, "imprint", source, "--declaration", declared, "--output", output, ok: false)
       assert_equal("limit-exceeded", JSON.parse(failure.stderr)["code"])
       refute_path_exists(output)
     end
@@ -345,7 +345,7 @@ module Mainz
         output = @directory.join("mixed.pdf")
         failure = command(
           @cli,
-          "produce",
+          "imprint",
           source,
           "--declaration",
           write("mixed.json", data),

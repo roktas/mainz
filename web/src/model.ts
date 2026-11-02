@@ -1,4 +1,4 @@
-// Defines workspace Inputs, style intent, occurrence identities, and composition Job validation.
+// Defines workspace Inputs, style intent, occurrence identities, and composition Plan validation.
 
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { Description, Scalar, Usage } from "./styles.ts"
@@ -39,7 +39,7 @@ export type Preview = {
   dispose: () => void
 }
 export type Expanded = Page & { part: string; copy: number; padding: boolean }
-export type Job = {
+export type Plan = {
   version: 1
   sources: Record<string, { input: string; overrides: Record<string, Scalar> }>
   parts: { pages: Content[]; copies: number; front: boolean }[]
@@ -160,14 +160,14 @@ export function move<T>(items: readonly T[], indices: readonly number[], offset:
   return result
 }
 
-export function job(
+export function plan(
   parts: readonly Part[],
   sources: readonly {
     id: string
     input: { id: string; sizes: readonly Size[] }
     overrides: Record<string, Scalar>
   }[],
-): Job {
+): Plan {
   if (!parts.length) throw new Error("Add pages to Output before downloading.")
   expand(parts, sources)
   const used = new Set(

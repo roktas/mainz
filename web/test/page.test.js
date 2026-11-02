@@ -2534,7 +2534,7 @@ test(
         const Original = window.Worker
         window.Worker = class extends Original {
           postMessage(message, ...rest) {
-            if (message.changes || message.job) {
+            if (message.changes || message.plan) {
               const record = { pages: message.changes?.buffer?.pages, count: undefined }
               window.styleResults.push(record)
               this.addEventListener("message", function done(event) {
@@ -2633,7 +2633,7 @@ test(
         const { Processor } = await import("/src/processor.ts")
         const processor = new Processor()
         const original = Uint8Array.from(bytes)
-        const changes = { apply: {}, reset: [], buffer: { input: "ordinary-page", pages: [0] } }
+        const changes = { overrides: {}, reset: [], buffer: { input: "ordinary-page", pages: [0] } }
         try {
           const first = await processor.run(original, 1, changes)
           const cached = await processor.run(original, 2, changes)

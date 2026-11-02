@@ -27,7 +27,7 @@ static Object destination(Object value, QPDF& document)
     }
     return value;
 }
-struct JobSource {
+struct PlanSource {
     std::unique_ptr<Engine> engine;
     JSON manifest = JSON::makeDictionary();
     std::set<std::size_t> pages;
@@ -43,19 +43,19 @@ struct SourcePage {
 struct BlankPage {
     bool padding {false};
 };
-struct JobPage {
+struct PlanPage {
     std::variant<SourcePage, BlankPage> content {BlankPage {}};
     std::size_t part {0}, copy {0};
     double width {0}, height {0};
 };
-Composition Engine::compose(JSON job, const Bindings& inputs, const Document* previous)
+Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* previous)
 {
     Budget budget;
     request_at("", [&] {
-        fields(job, {"version", "sources", "parts"});
-        require(number(job.getDictItem("version")) == 1, "Unsupported Job version.", "unsupported-version");
+        fields(plan, {"version", "sources", "parts"});
+        require(number(plan.getDictItem("version")) == 1, "Unsupported Plan version.", "unsupported-version");
     });
-    auto definitions = request_at("/sources", [&] { return object(job.getDictItem("sources")); });
+    auto definitions = request_at("/sources", [&] { return object(plan.getDictItem("sources")); });
     require(inputs.size() <= input_limit && definitions.size() <= input_limit, "Inputs or Sources exceed 32.",
         "limit-exceeded");
     std::size_t aggregate {0};
@@ -66,7 +66,7 @@ Composition Engine::compose(JSON job, const Bindings& inputs, const Document* pr
         aggregate += bytes.size();
     }
     auto prepare = [&] {
-        std::map<std::string, JobSource> sources;
+        std::map<std::string, PlanSource> sources;
         std::set<std::string> used_inputs;
         std::size_t source_bytes {0};
         for (const auto& [id, definition] : definitions) {
@@ -132,7 +132,7 @@ Composition Engine::compose(JSON job, const Bindings& inputs, const Document* pr
             source_bytes += size;
             QPDFPageDocumentHelper(source.engine->document).pushInheritedAttributesToPage();
             for (auto item : source.engine->document.getAllObjects()) {
-                require(++budget.visits <= 65536, "Job traversal exceeds 65536 visits.", "limit-exceeded");
+                require(++budget.visits <= 65536, "Plan traversal exceeds 65536 visits.", "limit-exceeded");
                 if (!item.isDictionary())
                     continue;
                 if (item.hasKey("/Dest"))
@@ -149,12 +149,12 @@ Composition Engine::compose(JSON job, const Bindings& inputs, const Document* pr
     auto expand = [&] {
         std::set<std::string> used_sources;
         auto parts = request_at("/parts", [&] {
-            auto result = array(job.getDictItem("parts"));
-            require(!result.empty(), "Job requires at least one Part.");
+            auto result = array(plan.getDictItem("parts"));
+            require(!result.empty(), "Plan requires at least one Part.");
             return result;
         });
-        std::vector<JobPage> expanded;
-        auto append = [&](JobPage page) {
+        std::vector<PlanPage> expanded;
+        auto append = [&](PlanPage page) {
             require(expanded.size() < page_limit, "Expanded pages exceed 10000.", "limit-exceeded");
             expanded.push_back(std::move(page));
         };
@@ -178,11 +178,11 @@ Composition Engine::compose(JSON job, const Bindings& inputs, const Document* pr
                 require(items.size() <= page_limit / copies, "Repeated pages exceed 10000.", "limit-exceeded");
                 return items;
             });
-            std::vector<JobPage> pages;
+            std::vector<PlanPage> pages;
             for (std::size_t i = 0; i < sequence.size(); ++i) {
                 auto page = request_at(location + "/pages/" + std::to_string(i), [&] {
                     const auto& item = sequence[i];
-                    JobPage result;
+                    PlanPage result;
                     result.part = part_index;
                     if (object(item).contains("blank")) {
                         fields(item, {"blank"});
@@ -338,7 +338,7 @@ Composition Engine::compose(JSON job, const Bindings& inputs, const Document* pr
         std::vector<Object> labels;
         for (std::size_t index = 0; index < expanded.size(); ++index) {
             const auto& page = expanded[index];
-            auto report = dictionary({{"part", JSON::makeInt(static_cast<long long>(page.part))},
+            auto mapping = dictionary({{"part", JSON::makeInt(static_cast<long long>(page.part))},
                 {"copy", JSON::makeInt(static_cast<long long>(page.copy))}});
             if (auto blank_page = std::get_if<BlankPage>(&page.content)) {
                 auto blank = Object::newDictionary({{"/Type", Object::newName("/Page")},
@@ -348,10 +348,10 @@ Composition Engine::compose(JSON job, const Bindings& inputs, const Document* pr
                             Object::newReal(decimal(page.height * 72 / 25.4))})},
                     {"/Resources", Object::newDictionary()}});
                 tree.addPage(QPDFPageObjectHelper(blank), false);
-                report.addDictionaryMember("blank",
+                mapping.addDictionaryMember("blank",
                     dictionary({{"width", JSON::makeNumber(decimal(page.width))},
                         {"height", JSON::makeNumber(decimal(page.height))}}));
-                report.addDictionaryMember("padding", JSON::makeBool(blank_page->padding));
+                mapping.addDictionaryMember("padding", JSON::makeBool(blank_page->padding));
                 labels.push_back(Object::newInteger(static_cast<long long>(index)));
                 labels.push_back(Object::newDictionary(
                     {{"/S", Object::newName("/D")}, {"/St", Object::newInteger(static_cast<long long>(index) + 1)}}));
@@ -376,8 +376,8 @@ Composition Engine::compose(JSON job, const Bindings& inputs, const Document* pr
                     labels.push_back(Object::newDictionary({{"/S", Object::newName("/D")},
                         {"/St", Object::newInteger(static_cast<long long>(index) + 1)}}));
                 }
-                report.addDictionaryMember("source", JSON::makeString(content.source));
-                report.addDictionaryMember("page", JSON::makeInt(static_cast<long long>(content.page)));
+                mapping.addDictionaryMember("source", JSON::makeString(content.source));
+                mapping.addDictionaryMember("page", JSON::makeInt(static_cast<long long>(content.page)));
                 if (!object(source.manifest).empty()) {
                     auto page_id = "p" + std::to_string(index);
                     if (source.pages.contains(content.page))
@@ -402,12 +402,12 @@ Composition Engine::compose(JSON job, const Bindings& inputs, const Document* pr
                     }
                 }
             }
-            provenance.addArrayElement(report);
+            provenance.addArrayElement(mapping);
         }
         if (!labels.empty())
             output.getRoot().replaceKey("/PageLabels", Object::newDictionary({{"/Nums", Object::newArray(labels)}}));
         for (const auto& item : output.getAllObjects()) {
-            require(++budget.visits <= 65536, "Job traversal exceeds 65536 visits.", "limit-exceeded");
+            require(++budget.visits <= 65536, "Plan traversal exceeds 65536 visits.", "limit-exceeded");
             if (!item.isDictionary())
                 continue;
             auto value = item.hasKey("/Dest")                ? item.getKey("/Dest")
@@ -453,12 +453,12 @@ Composition Engine::compose(JSON job, const Bindings& inputs, const Document* pr
         }
         Engine reopened(saved.bytes, &budget, false, syntax);
         auto description = reopened.describe();
-        auto report
+        auto mapping
             = encode(dictionary({{"version", JSON::makeInt(1)}, {"pages", provenance}, {"parameters", parameter_map}}),
                 json_limit, budget.remaining);
-        return Composition {Document(std::move(saved.bytes), std::move(description), !object(reopened.manifest).empty(),
-                                reopened.take_index()),
-            std::move(report)};
+        return Artifact {Document(std::move(saved.bytes), std::move(description), !object(reopened.manifest).empty(),
+                             reopened.take_index()),
+            std::move(mapping)};
     };
     return assemble();
 }
@@ -466,26 +466,26 @@ Composition Engine::compose(JSON job, const Bindings& inputs, const Document* pr
 
 namespace mainz {
 using namespace detail;
-Composition compose(const std::string& job, const std::map<std::string, std::string>& inputs, const Document* previous)
+Artifact compose(const std::string& plan, const std::map<std::string, std::string>& inputs, const Document* previous)
 {
     try {
-        return Engine::compose(parse(job, "request"), bind_inputs(inputs), previous);
+        return Engine::compose(parse(plan, "request"), bind_inputs(inputs), previous);
     } catch (const Error&) {
         throw;
     } catch (const std::bad_alloc&) {
-        throw Error("limit-exceeded", "Composition allocation failed.");
+        throw Error("limit-exceeded", "Artifact allocation failed.");
     } catch (const std::exception& error) {
         throw Error("pdf-syntax", error.what());
     }
 }
-Composition compose_validated(const std::string& job, const std::map<std::string, Document>& inputs)
+Artifact compose_validated(const std::string& plan, const std::map<std::string, Document>& inputs)
 {
     try {
-        return Engine::compose(parse(job, "request"), bind_inputs(inputs), nullptr);
+        return Engine::compose(parse(plan, "request"), bind_inputs(inputs), nullptr);
     } catch (const Error&) {
         throw;
     } catch (const std::bad_alloc&) {
-        throw Error("limit-exceeded", "Composition allocation failed.");
+        throw Error("limit-exceeded", "Artifact allocation failed.");
     } catch (const std::exception& error) {
         throw Error("pdf-syntax", error.what());
     }

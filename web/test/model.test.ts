@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { copyError, downloadInputs, downloadName, expand, job, move, positionAfterEdit } from "../src/model.ts"
+import { copyError, downloadInputs, downloadName, expand, plan, move, positionAfterEdit } from "../src/model.ts"
 import type { Part } from "../src/model.ts"
 import { pageRanges, parseSequence, toggleSequence } from "../src/pages.ts"
 import * as composition from "../src/composition.ts"
@@ -217,7 +217,7 @@ const sources = [
     input: { id: "input", sizes: [{ width: 210, height: 297 }] },
     overrides: { color: "#222222" },
   },
-] satisfies Parameters<typeof job>[1]
+] satisfies Parameters<typeof plan>[1]
 function part(id: string, pages: number[], copies = 1, front = false): Part {
   return {
     id,
@@ -365,8 +365,8 @@ test("Occurrence identities survive materialization, insertion, reordering, and 
   )
 })
 
-test("Job includes only used Sources, full explicit overrides, and zero-based references", () => {
-  const request = job([part("practice", [1], 4)], sources)
+test("Plan includes only used Sources, full explicit overrides, and zero-based references", () => {
+  const request = plan([part("practice", [1], 4)], sources)
   assert.deepEqual(request, {
     version: 1,
     sources: { book: { input: "input", overrides: { color: "#777777" } } },
@@ -378,10 +378,10 @@ test("Job includes only used Sources, full explicit overrides, and zero-based re
     front: false,
     pages: [{ id: "page", content: { blank: { width: 148, height: 210 } } }],
   }
-  assert.deepEqual(job([blank], sources).sources, {})
+  assert.deepEqual(plan([blank], sources).sources, {})
   for (const text of ["", "0", "-1", "1.5", "1001", "Infinity"]) assert.ok(copyError(text))
   assert.equal(copyError("4"), undefined)
-  assert.throws(() => job([part("invalid", [0], 0)], sources), /whole number/)
+  assert.throws(() => plan([part("invalid", [0], 0)], sources), /whole number/)
 })
 
 test("Download preflight counts referenced Input identities and their aggregate bytes", () => {

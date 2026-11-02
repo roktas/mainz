@@ -18,7 +18,7 @@ module Mainz
       FileUtils.remove_entry(@directory)
     end
 
-    def test_run_matches_multi_input_job_and_independent_sources
+    def test_apply_matches_multi_input_plan_and_independent_sources
       recipe = record
       recipe["inputs"]["other"] = {}
       recipe["sources"] = {
@@ -75,12 +75,12 @@ module Mainz
       assert_equal(4, JSON.parse(command("describe", @output).stdout)["pageCount"])
       @output.delete
       enlarged = @directory.join("enlarged.pdf")
-      job = {
+      plan = {
         "version" => 1,
         "sources" => {"source" => {"input" => "book", "overrides" => {}}},
         "parts" => [{"pages" => Array.new(3) { {"source" => "source", "page" => 0} }}]
       }
-      compose(job, {"book" => @source}, enlarged)
+      compose(plan, {"book" => @source}, enlarged)
       FileUtils.cp(enlarged, @source)
       run_recipe(recipe)
       assert_equal(8, JSON.parse(command("describe", @output).stdout)["pageCount"])
@@ -108,15 +108,15 @@ module Mainz
       nested = @directory.join("config")
       nested.mkpath
       path = write("config/recipe.json", record)
-      command("run", path, "--output", @output, chdir: @directory)
+      command("apply", path, "--output", @output, chdir: @directory)
       @output.delete
-      command("run", path, "--output", @output, chdir: nested, status: 2)
+      command("apply", path, "--output", @output, chdir: nested, status: 2)
       refute_path_exists(@output)
-      command("run", path, "--root", @directory, "--output", @output)
+      command("apply", path, "--root", @directory, "--output", @output)
       @output.delete
-      command("run", "-", "--output", @output, input: JSON.generate(record), chdir: @directory)
+      command("apply", "-", "--output", @output, input: JSON.generate(record), chdir: @directory)
       @output.delete
-      command("run", "-", "--root", "..", "--output", @output, input: JSON.generate(record), chdir: nested)
+      command("apply", "-", "--root", "..", "--output", @output, input: JSON.generate(record), chdir: nested)
       @output.delete
       subfolder = @directory.join("pdfs")
       subfolder.mkpath
@@ -125,18 +125,18 @@ module Mainz
         recipe = record
         recipe["inputs"] = {"pdfs/#{id}" => {}}
         recipe["sources"]["source"]["input"] = "pdfs/#{id}"
-        command("run", write("config/recipe.json", recipe), "--output", @output, chdir: @directory)
+        command("apply", write("config/recipe.json", recipe), "--output", @output, chdir: @directory)
         @output.delete
       end
 
       bindings = write("bindings.json", {"book" => "book.pdf"})
-      command("run", path = write("recipe.json", record), "--inputs", bindings, "--output", @output, chdir: @directory)
+      command("apply", path = write("recipe.json", record), "--inputs", bindings, "--output", @output, chdir: @directory)
       @output.delete
-      command("run", path, "--inputs", bindings, "--output", @output, chdir: nested, status: 2)
+      command("apply", path, "--inputs", bindings, "--output", @output, chdir: nested, status: 2)
       bindings = write("bindings.json", {"book" => @source.to_s})
-      command("run", "-", "--inputs", bindings, "--output", @output, input: JSON.generate(record))
+      command("apply", "-", "--inputs", bindings, "--output", @output, input: JSON.generate(record))
       @output.delete
-      command("run", path, "--inputs", bindings, "--root", @directory, "--output", @output, status: 2)
+      command("apply", path, "--inputs", bindings, "--root", @directory, "--output", @output, status: 2)
     end
 
     def test_filename_lookup_is_bounded_and_explicit_bindings_accept_opaque_ids
@@ -144,10 +144,10 @@ module Mainz
         recipe = record
         recipe["inputs"] = {id => {}}
         recipe["sources"]["source"]["input"] = id
-        failure = command("run", write("recipe.json", recipe), "--root", @directory, "--output", @output, status: 2)
+        failure = command("apply", write("recipe.json", recipe), "--root", @directory, "--output", @output, status: 2)
         assert_includes(failure.stderr, "--inputs")
         bindings = write("bindings.json", {id => @source.to_s})
-        command("run", write("recipe.json", recipe), "--inputs", bindings, "--output", @output)
+        command("apply", write("recipe.json", recipe), "--inputs", bindings, "--output", @output)
         @output.delete
       end
 
@@ -156,16 +156,16 @@ module Mainz
       recipe = record
       recipe["inputs"] = {"link" => {}}
       recipe["sources"]["source"]["input"] = "link"
-      command("run", write("recipe.json", recipe), "--root", @directory, "--output", @output, status: 2)
+      command("apply", write("recipe.json", recipe), "--root", @directory, "--output", @output, status: 2)
       link.delete
       @directory.join("link.pdf").mkpath
-      command("run", write("recipe.json", recipe), "--root", @directory, "--output", @output, status: 2)
+      command("apply", write("recipe.json", recipe), "--root", @directory, "--output", @output, status: 2)
       refute_path_exists(@output)
       linked = @directory.join("linked")
       File.symlink(@directory, linked)
       recipe["inputs"] = {"linked/book" => {}}
       recipe["sources"]["source"]["input"] = "linked/book"
-      command("run", write("recipe.json", recipe), "--root", @directory, "--output", @output, status: 2)
+      command("apply", write("recipe.json", recipe), "--root", @directory, "--output", @output, status: 2)
       refute_path_exists(@output)
     end
 
@@ -174,12 +174,12 @@ module Mainz
       [{}, {"other" => @source.to_s}, {"book" => @source.to_s, "other" => @other.to_s}, {"book" => false}].each do |
           bindings
         |
-        result = command("run", path, "--inputs", write("bindings.json", bindings), "--output", @output, status: 1)
+        result = command("apply", path, "--inputs", write("bindings.json", bindings), "--output", @output, status: 1)
         assert_equal("invalid-request", JSON.parse(result.stderr)["code"])
         refute_path_exists(@output)
       end
 
-      command("run", path, "--inputs", write("bindings.json", {"book" => "-"}), "--output", @output, status: 2)
+      command("apply", path, "--inputs", write("bindings.json", {"book" => "-"}), "--output", @output, status: 2)
     end
 
     def test_recipe_errors_preserve_input_and_existing_output
@@ -225,19 +225,19 @@ module Mainz
         refute_path_exists(@output)
       end
 
-      path = @directory.join("job.json")
+      path = @directory.join("plan.json")
       path.write("{\"version\":1,\"version\":1,\"inputs\":{},\"sources\":{},\"parts\":[]}")
-      assert_equal("invalid-request", JSON.parse(command("run", path, "--output", @output, status: 1).stderr)["code"])
+      assert_equal("invalid-request", JSON.parse(command("apply", path, "--output", @output, status: 1).stderr)["code"])
     end
 
     def test_semantic_all_requires_explicit_scope
       composed = @directory.join("repeated.pdf")
-      job = {
+      plan = {
         "version" => 1,
         "sources" => {"a" => {"input" => "book", "overrides" => {}}, "b" => {"input" => "book", "overrides" => {}}},
         "parts" => [{"pages" => [{"source" => "a", "page" => 0}, {"source" => "b", "page" => 0}]}]
       }
-      compose(job, {"book" => @source}, composed)
+      compose(plan, {"book" => @source}, composed)
       recipe = record
       recipe["sources"]["source"]["profiles"] = [{"family" => "fixture", "name" => "Fine"}]
       assert_includes(run_recipe(recipe, inputs: {"book" => composed}, status: 1).stderr, "Ambiguous")
@@ -258,7 +258,7 @@ module Mainz
     def test_saved_input_styles_are_not_implicit_recipe_assignments
       apply = write("apply.json", {"width" => 0.2})
       saved = @directory.join("saved.pdf")
-      command("apply", @source, "--request", apply, "--output", saved)
+      command("style", @source, "--overrides", apply, "--output", saved)
       recipe = record
       run_recipe(recipe, inputs: {"book" => saved})
       description = JSON.parse(command("describe", @output).stdout)
@@ -341,7 +341,7 @@ module Mainz
       input = prepare("published", "width", 0.1, publication: publication)
       assert_equal(publication, JSON.parse(command("describe", input).stdout)["publication"])
       styled = @directory.join("styled.pdf")
-      command("apply", input, "--profile", "fine", "--output", styled)
+      command("style", input, "--profile", "fine", "--output", styled)
       assert_equal(publication, JSON.parse(command("describe", styled).stdout)["publication"])
       restored = @directory.join("restored.pdf")
       command("reset", styled, "--output", restored)
@@ -350,7 +350,7 @@ module Mainz
       ["1", "v1.2.3", "01.2.3", "1.2.3.4", "1.2.3-01", "1.2.3+", "1.2.3-", "1.2.3+bad..id", false].each do |version|
         declaration["publication"]["version"] = version
         failure = command(
-          "produce",
+          "imprint",
           @directory.join("published.svg"),
           "--declaration",
           write("invalid.json", declaration),
@@ -399,7 +399,7 @@ module Mainz
       }
       declaration["publication"] = publication if publication
       pdf = @directory.join("#{name}.pdf")
-      command("produce", svg, "--declaration", write("#{name}.json", declaration), "--output", pdf)
+      command("imprint", svg, "--declaration", write("#{name}.json", declaration), "--output", pdf)
       pdf
     end
 
@@ -420,7 +420,7 @@ module Mainz
       paths = inputs || {"book" => @source, "other" => @other}
       bindings = recipe["inputs"].keys.to_h { |id| [id, paths.fetch(id).to_s] }
       command(
-        "run",
+        "apply",
         write("recipe.json", recipe),
         "--inputs",
         write("recipe-inputs.json", bindings),
@@ -430,10 +430,10 @@ module Mainz
       )
     end
 
-    def compose(job, inputs, output = @directory.join("direct.pdf"))
+    def compose(plan, inputs, output = @directory.join("direct.pdf"))
       command(
         "compose",
-        write("direct.json", job),
+        write("direct.json", plan),
         "--inputs",
         write("inputs.json", inputs.transform_values(&:to_s)),
         "--output",

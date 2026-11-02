@@ -54,7 +54,7 @@ test("Vite verifies Mainz packages and publishes complete asset revisions", () =
         }),
       )
     }
-    const jobs = "_mainz_input _mainz_clear_inputs _mainz_compose _mainz_report _mainz_report_size"
+    const jobs = "_mainz_input _mainz_clear_inputs _mainz_compose _mainz_provenance _mainz_provenance_size"
     writePackage(jobs)
     result = build()
     assert.notEqual(result.status, 0)

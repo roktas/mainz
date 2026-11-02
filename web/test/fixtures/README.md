@@ -44,7 +44,7 @@ build.
 ## Grid fixture
 
 Grid demo contains 240 physical pages: 60 repetitions of the four pages in `demo.pdf`. Its maintained Plan and Input
-bindings are [`grid-job.json`](grid-job.json) and [`grid-inputs.json`](grid-inputs.json).
+bindings are [`grid-plan.json`](grid-plan.json) and [`grid-inputs.json`](grid-inputs.json).
 [`VIEW.md`](../../doc/VIEW.md#workspace) defines Normal and Compact geometry and expected desktop capacities.
 
 If `.local/tmp/web/grid/sample.pdf` is absent, run these commands from the repository root after building the native
@@ -52,7 +52,7 @@ CLI:
 
 ```sh
 mkdir -p .local/tmp/web/grid
-.local/var/cpp/build/native/mainz compose web/test/fixtures/grid-job.json --inputs web/test/fixtures/grid-inputs.json --output .local/tmp/web/grid/sample.pdf > .local/tmp/web/grid/provenance.json
+.local/var/cpp/build/native/mainz compose web/test/fixtures/grid-plan.json --inputs web/test/fixtures/grid-inputs.json --output .local/tmp/web/grid/sample.pdf > .local/tmp/web/grid/provenance.json
 ```
 
 After rebuilding `demo.pdf`, rebuild `sample.pdf` too. With the development server running, open

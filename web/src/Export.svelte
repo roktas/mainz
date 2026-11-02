@@ -1,10 +1,10 @@
 <!-- Prepares validated Output PDFs for printing, viewing, downloading, and sharing with cancellation and progress. -->
 
 <script module lang="ts">
-  import type { Input, Job } from "./model.ts"
+  import type { Input, Plan } from "./model.ts"
   export type Prepared = { bytes: ArrayBuffer; name: string; expected: number; complete: () => void }
   export type Snapshot = {
-    job: Job
+    plan: Plan
     inputs: Input[]
     expected: number
     prepared?: ArrayBuffer
@@ -164,7 +164,7 @@
     let loadingTask: PDFDocumentLoadingTask | undefined
     try {
       const snapshot = prepare()
-      const { job, inputs, expected } = snapshot
+      const { plan, inputs, expected } = snapshot
       running = true
       if (
         (action === "Print" && navigator.pdfViewerEnabled && navigator.vendor.includes("Apple")) ||
@@ -181,9 +181,9 @@
         if (action === "View") progress = stage
         else if (!dialog.open) dialog.showModal()
         processor = worker
-        const result = await worker.compose(job, inputs, generation)
+        const result = await worker.compose(plan, inputs, generation)
         if (disposed || generation !== revision) return
-        if (result.description.pageCount !== expected || result.report?.pages.length !== expected)
+        if (result.description.pageCount !== expected || result.provenance?.pages.length !== expected)
           throw new Error("The completed PDF does not match the Output page count.")
         stage = "Checking PDF…"
         if (action === "View") progress = stage
