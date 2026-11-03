@@ -603,6 +603,9 @@ compensate for their size difference to retain the same crop scale. The lens doe
 input. On touch screens, holding an image opens the lens. Moving the held finger changes the crop. Release,
 cancellation, a second finger, or scrolling dismisses it. A hold does not select, add, duplicate, or move pages.
 
+A thumbnail raster refresh retains a pending mouse hover while the pointer remains over the image. The opening delay
+restarts when the raster is ready. Escape, leaving the image, and the other dismissal actions clear that intent.
+
 For a named physical page, the lens shows its name below the crop in Input and Output, including Compare. Pages without
 a name have no lens caption. Its accessible page number uses the original physical page, including extracted previews.
 

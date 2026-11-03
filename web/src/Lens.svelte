@@ -30,18 +30,20 @@
   let point = $state<{ x: number; y: number; left: number; top: number; size: number }>()
   let refining = $state(false)
   let opening: ReturnType<typeof setTimeout> | undefined
+  let pointer: { x: number; y: number } | undefined
   let finger: { id: number; x: number; y: number } | undefined
   let holding = false
   function dismiss() {
     clearTimeout(opening)
     opening = undefined
     point = undefined
+    pointer = undefined
     finger = undefined
     holding = false
   }
   function touchStart(event: TouchEvent) {
     dismiss()
-    if (event.touches.length !== 1) return
+    if (rendering || event.touches.length !== 1) return
     const touch = event.touches[0]
     finger = { id: touch.identifier, x: touch.clientX, y: touch.clientY }
     opening = setTimeout(() => {
@@ -78,7 +80,7 @@
   }
   function observe() {
     const target = canvas
-    if (!target || !pdf || page < 1 || rendering) {
+    if (!target || !pdf || page < 1) {
       dismiss()
       return
     }
@@ -105,6 +107,13 @@
       dismiss()
     }
   }
+  $effect(() => {
+    if (rendering) {
+      const waiting = pointer
+      dismiss()
+      pointer = waiting
+    } else if (pointer && canvas?.matches(":hover")) hover()
+  })
   function refine(target: HTMLCanvasElement) {
     const source = pdf,
       number = page,
@@ -215,17 +224,21 @@
     if (
       event.pointerType !== "mouse" ||
       event.buttons ||
-      rendering ||
       !canvas ||
       !pdf ||
       !matchMedia("(hover: hover) and (pointer: fine)").matches
     )
       return
+    pointer = { x: event.clientX, y: event.clientY }
+    if (rendering) return
     if (point) return show(event.clientX, event.clientY)
+    hover()
+  }
+  function hover() {
     clearTimeout(opening)
     opening = setTimeout(() => {
       opening = undefined
-      show(event.clientX, event.clientY)
+      if (pointer) show(pointer.x, pointer.y)
     }, 180)
   }
   function show(x: number, y: number, touch = false) {

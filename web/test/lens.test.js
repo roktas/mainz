@@ -11,10 +11,15 @@ const harness = {
   resolveId: (id) => (id === "/lens-fixture.js" ? id : undefined),
   load: (id) =>
     id === "/lens-fixture.js"
-      ? `import { mount, unmount } from "svelte";
+      ? `import { flushSync, mount, unmount } from "svelte";
+         import { fromStore, writable } from "svelte/store";
          import Lens from "/src/Lens.svelte";
          window.mountLens = (props) => {
-           const instance = mount(Lens, { target: document.getElementById("app"), props });
+           const rendering = fromStore(writable(props.rendering));
+           const instance = mount(Lens, { target: document.getElementById("app"), props: {
+             ...props, get rendering() { return rendering.current; }
+           } });
+           window.setLensRendering = (value) => flushSync(() => { rendering.current = value; });
            window.unmountLens = () => unmount(instance);
          };`
       : undefined,
@@ -83,6 +88,50 @@ async function fixture(page, url, delayed = false, name) {
     { waitForPage: delayed, caption: name },
   )
 }
+
+test("Lens retains a stationary hover through raster refresh and respects dismissal", { timeout: 30000 }, async () => {
+  const server = await createServer({ plugins: [harness], server: { port: 0, host: "127.0.0.1" } })
+  try {
+    await server.listen()
+    for (const engine of [chromium, webkit]) {
+      const browser = await engine.launch()
+      try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
+        await fixture(page, server.resolvedUrls.local[0])
+        await page.evaluate(async () => (await import("/src/pdf.ts")).loadRenderer())
+        await page.clock.install()
+        await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000))
+        const source = page.locator("#lens-source")
+        await source.hover()
+        await page.clock.runFor(90)
+        await page.evaluate(() => window.setLensRendering(true))
+        await page.clock.runFor(250)
+        assert.equal(await page.locator(".lens").count(), 0)
+        await page.evaluate(() => window.setLensRendering(false))
+        await page.clock.runFor(300)
+        await page.locator('.lens[aria-busy="false"]').waitFor()
+        await page.keyboard.press("Escape")
+        await page.evaluate(() => {
+          window.setLensRendering(true)
+          window.setLensRendering(false)
+        })
+        await page.clock.runFor(300)
+        assert.equal(await page.locator(".lens").count(), 0, "Refresh does not undo Escape")
+        await page.mouse.move(101, 200)
+        await page.clock.runFor(90)
+        await page.evaluate(() => window.setLensRendering(true))
+        await page.mouse.move(0, 0)
+        await page.evaluate(() => window.setLensRendering(false))
+        await page.clock.runFor(300)
+        assert.equal(await page.locator(".lens").count(), 0, "Leaving cancels the pending hover")
+      } finally {
+        await browser.close()
+      }
+    }
+  } finally {
+    await server.close()
+  }
+})
 
 test("Lens names stay centered and truncate within short viewports and enlarged text", { timeout: 60000 }, async () => {
   const server = await createServer({ plugins: [harness], server: { port: 0, host: "127.0.0.1" } })

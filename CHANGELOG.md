@@ -63,6 +63,8 @@
 
 ### Fixed
 
+- Retained stationary lens hover intent when a thumbnail raster refreshes, while preserving Escape and pointer-leave
+  dismissal.
 - Corrected profile-styling diagnostics for metadata-only PDFs.
 - Kept narrow Normal card grips centered when the paired footer and selection contour are present.
 - Kept narrow List selections from reserving hidden action columns and shortened long row names with an ellipsis.
