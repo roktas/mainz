@@ -117,10 +117,10 @@ viewport stays neutral. Border, header, footer, and padding compensation prevent
 their images. Keyboard focus on the Page viewport uses the complete frame's secondary contour. Pointer zoom focuses the
 viewport for navigation without showing that contour or a clipped inner outline.
 
-Returning through view tabs or Grid density controls briefly marks the inspected item with a secondary tint and a 4 px
-inner start-edge bar. Keep the cue for 900 ms; reduced motion uses the same static cue without fading. The active tab or
-density control retains focus. Keyboard content returns focus the inspected item without this cue. The cue does not
-select the item or reopen its preview.
+Returning through view tabs or Grid density controls briefly marks the inspected item with a 30% secondary tint and a 4
+px inner start-edge bar. Keep the cue for 2000 ms, with a longer fade after the initial hold. Reduced motion uses the
+same static cue without fading. The active tab or density control retains focus. Keyboard content returns focus the
+inspected item without this cue. The cue does not select the item or reopen its preview.
 
 Motion follows reduced-motion preferences. Hover lifts, drag tilt, parallax, fades, and animated movement disappear
 under reduced motion. Static selection and operation highlights remain. Loading indicators retain a visible busy state
@@ -173,13 +173,13 @@ the redundant PDF suffix. A required fresh gesture uses neutral feedback rather 
 
 The decorative information icon yields space to the message in compact panels with three actions.
 
-Export recipe uses an outward diagonal arrow in an open square, immediately before Print and View in the Output header.
-Its glyph and target match Print and View. It remains available in both views. Its centered panel uses a Name, Index,
-Path, Title table and equal Cancel and Export buttons with the shared control gap. Index uses tabular numbers. Path is
-compact, muted read-only text with full-path hover. The table scrolls within its panel when columns cannot remain
-readable. Title shows the Input title. Name cells use accent text, a light accent tint, and a dotted underline to show
-editing. Activating a cell replaces its button with a full-width text field. Long values wrap within their cells. The
-panel scrolls within the viewport and retains keyboard focus behavior in both themes.
+Export recipe uses JSON braces in the secondary color, immediately before Print and View in the Output header. Its glyph
+and target match Print and View. It remains available in every workspace view. Its centered panel uses a Name, Index,
+Path, Title table with bold column headings and equal Cancel and Export buttons with the shared control gap. Index uses
+tabular numbers. Path is compact, muted read-only text with full-path hover. The table scrolls within its panel when
+columns cannot remain readable. Title shows the Input title. Name cells use accent text, a light accent tint, and a
+dotted underline to show editing. Activating a cell replaces its button with a full-width text field. Long values wrap
+within their cells. The panel scrolls within the viewport and retains keyboard focus behavior in both themes.
 
 Recipe matching uses paired rows: the saved cover and title on one side and the local PDF selection on the other. Keep
 cover and file selection beside each other at every width. Wide covers display at 110–130 CSS px; narrow covers use
@@ -194,8 +194,10 @@ hover description, with glyph-only glow and no hover surface. The small Recipe-d
 The larger logo occupies the upper end-side space and retains entry motion and parallax. Use sample PDFs precedes Choose
 local PDFs; both actions share a row and dimensions. An empty box centers Choose a PDF and its drop hint on both axes.
 Narrow layouts hide the drop hint and the logo, use shorter supporting copy, and reduce the gap below the Recipe
-filename. Use sample PDFs and Choose local PDFs stay beside each other. Choose a PDF has no border or hover surface.
-Other labeled actions retain their ordinary surfaces.
+filename. Wide layouts also keep a compact gap below the filename. The larger logo's visible top aligns with the Back
+arrow, without increasing the heading height. Use sample PDFs and Choose local PDFs stay beside each other. Choose a PDF
+uses the primary surface. It shares width and height with Cancel and Apply recipe where the row has enough space. At
+narrow widths or enlarged text, the PDF choice can retain its + icon and full accessible name.
 
 After selection, the box places the filename and match status in one half and the Change PDF/download group in the
 other. Both groups center vertically. Change PDF keeps its icon and text on one line, with equal side padding. Its
@@ -209,10 +211,11 @@ smaller, muted text with a clear gap. It is separate content, not a repeated or 
 uses the row's vertical space and can scroll when very long. Narrow layouts hide the inline description and expose it
 through the title's text trigger in the shared information popover, without shifting rows. The monospace logical Input
 ID and information icon share a compact row at the cover's lower edge on wide layouts. Do not repeat Saved Input beside
-every icon. Information controls use borderless surfaces with soft hover emphasis; keyboard focus remains visible. The
-shared status line holds Input counts and scrolls below the matching content. Initial demo opening does not draw a focus
-contour around the matching frame. Keyboard opening focuses Back; Tab and other keyboard actions retain visible control
-focus.
+every icon. Input and saved Recipe details use the same readable field names, such as Filename, Title, and Producer.
+Field names use bold text. Information controls use borderless surfaces and glyph emphasis without a circular hover
+surface or shadow. Keyboard focus remains visible. The shared status line holds Input counts and scrolls below the
+matching content. Initial demo opening does not draw a focus contour around the matching frame. Keyboard opening focuses
+Back; Tab and other keyboard actions retain visible control focus.
 
 At constrained widths with enlarged text, all four Output action glyphs shrink together to fit their row. They retain a
 28 px minimum and full interaction targets. Counts retain their details control. Normal text keeps the shared 28 px
@@ -386,8 +389,10 @@ page numbers and differing PDF labels belong in details.
 
 Keyboard focus draws one secondary contour around the complete row, including its number, name, and trailing controls.
 Individual row controls do not draw additional contours. Focus remains distinct from the primary selection surface. List
-additions slide in briefly; removed rows collapse and fade; surviving rows move into place. Use a lighter, vertical
-movement than Grid and respect reduced motion. The insertion marker lies across the row's top or bottom edge.
+additions slide in briefly; removed rows collapse and fade; surviving rows move into place. After its 240 ms movement, a
+moved Output row shows a secondary tint and fine inner contour that fade for 1200 ms. Grid uses the same arrival cue
+after its movement. Use a lighter, vertical movement than Grid and respect reduced motion. The insertion marker lies
+across the row's top or bottom edge.
 
 ## Triviality visibility
 
@@ -773,9 +778,9 @@ one control gap at viewport edges. Padding uses one gap, with two gaps at the bo
 retain measurement space without receiving focus.
 
 Input and Output shortcut sections align their headings and tables. Selection Field has its own Enter row. Workspace
-keys and routing notes sit below. Narrow screens stack panes and notes. Keycaps use consistent neutral surfaces,
-borders, and text size. Named keys have enough width for their full labels. Topic selection supplies the panel title
-without a duplicate heading.
+keys and routing notes sit below. A secondary-colored reminder explains that shortcuts follow the current pane views.
+Narrow screens stack panes and notes. Keycaps use consistent neutral surfaces, borders, and text size. Named keys have
+enough width for their full labels. Topic selection supplies the panel title without a duplicate heading.
 
 The welcome is a short native dialog. The product tour is a nonmodal popover with a compact card near the lower-right
 corner. Narrow screens use the available width above the bottom edge. Long content scrolls inside the card while heading

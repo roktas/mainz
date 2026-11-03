@@ -440,6 +440,9 @@
     }
     .composition-card {
       --return-surface: var(--soft);
+      &.selected {
+        --return-surface: color-mix(in oklch, var(--accent) 8%, var(--soft));
+      }
     }
     .page-list > li {
       --return-surface: var(--paper);
@@ -449,10 +452,10 @@
     }
     .composition-card[data-returning],
     .page-list > li[data-returning] {
-      background: color-mix(in oklch, var(--secondary) 18%, var(--return-surface));
+      background: color-mix(in oklch, var(--secondary) 30%, var(--return-surface));
       box-shadow: inset 4px 0 var(--secondary);
       @media (prefers-reduced-motion: no-preference) {
-        animation: view-return 900ms var(--ease-out);
+        animation: view-return 2000ms var(--ease-out);
       }
       @media (forced-colors: active) {
         outline: 2px solid Highlight;
@@ -461,8 +464,8 @@
     }
     @keyframes view-return {
       0%,
-      55% {
-        background: color-mix(in oklch, var(--secondary) 18%, var(--return-surface));
+      30% {
+        background: color-mix(in oklch, var(--secondary) 30%, var(--return-surface));
         box-shadow: inset 4px 0 var(--secondary);
       }
       to {

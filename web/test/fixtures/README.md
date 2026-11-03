@@ -63,7 +63,7 @@ mkdir -p .local/tmp/web/grid
 After rebuilding `demo.pdf`, rebuild `sample.pdf` too. With the development server running, open
 `http://127.0.0.1:5173/?demo=grid`. Add `&input=page` or `&output=page` to compare Grid with Page. Production and
 offline startup execute the same Plan in the browser, using the bundled four-page PDF. The 240-page PDF stays outside
-production assets and the offline cache. The examples dialog lists Grid demo second.
+production assets and the offline cache. The examples dialog lists it second as Large demo.
 
 ## Geometry collection and calibration
 

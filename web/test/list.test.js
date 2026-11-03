@@ -603,6 +603,10 @@ test(
           assert.equal(await page.locator(".page-peek:popover-open").count(), 0)
           assert.match(await item.evaluate((element) => getComputedStyle(element).boxShadow), /inset/)
           if (engine === webkit) assert.equal(await item.evaluate((element) => element.getAnimations().length), 0)
+          else {
+            await page.waitForFunction(() => document.querySelector("[data-returning]")?.getAnimations().length > 0)
+            assert.equal(await item.evaluate((element) => element.getAnimations()[0].effect.getTiming().duration), 2000)
+          }
           await item.locator(":scope[data-returning]").waitFor({ state: "detached" })
           await row.focus()
           await page.keyboard.press("v")
@@ -1068,6 +1072,26 @@ test(
       await page.waitForFunction(() =>
         [...document.querySelectorAll(".page-list > li")].some((element) => element.getAnimations().length),
       )
+      const moved = rows.first()
+      await page.waitForFunction(() =>
+        document
+          .querySelector(".composition-output .list-row")
+          ?.getAnimations()
+          .some(
+            (animation) =>
+              animation.effect.getKeyframes().some((frame) => frame.boxShadow?.includes("inset")) &&
+              animation.currentTime >= animation.effect.getTiming().delay,
+          ),
+      )
+      const landing = await moved.evaluate((element) => {
+        const glow = element
+          .getAnimations()
+          .find((animation) => animation.effect.getKeyframes().some((frame) => frame.boxShadow?.includes("inset")))
+        return { ...glow.effect.getTiming(), shadow: getComputedStyle(element).boxShadow }
+      })
+      assert.equal(landing.delay, 240)
+      assert.equal(landing.duration, 1200)
+      assert.match(landing.shadow, /inset/, "The moved row glows after reaching its position")
       await output.getByRole("button", { name: "Remove Output page 1", exact: true }).click()
       assert.equal(await rows.count(), 8)
       const outgoing = output.locator(".list-row.removing")
@@ -1081,6 +1105,27 @@ test(
         await rows.evaluateAll((elements) => elements.some((element) => element.getAnimations().length)),
         false,
       )
+      await tab(output, "Grid")
+      await page.emulateMedia({ reducedMotion: "no-preference" })
+      for (const colorScheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme })
+        const control = output.getByRole("button", { name: "Move Output page 2 earlier", exact: true })
+        const id = await control.evaluate((element) => element.closest(".composition-card").id)
+        await control.click()
+        await page.waitForFunction(
+          (value) =>
+            document
+              .getElementById(value)
+              ?.getAnimations()
+              .some(
+                (animation) =>
+                  animation.effect.getTiming().duration === 1200 &&
+                  animation.effect.getKeyframes().some((frame) => frame.boxShadow?.includes("inset")) &&
+                  animation.currentTime >= animation.effect.getTiming().delay,
+              ),
+          id,
+        )
+      }
     } finally {
       await browser.close()
     }
@@ -1165,9 +1210,22 @@ test(
           ["Cover", "Cover", "ITAL-CROS-79A4-WXGF", "ITAL-GUID-79A4-WXGX"],
         )
         assert.equal(await preparation.inputValue(), "")
+        await page.emulateMedia({ reducedMotion: "no-preference" })
         await move(output.getByRole("button", { name: "Select or drag Output page 1", exact: true }), rows.nth(3), true)
         const moved = await rows.evaluateAll((elements) => elements.map((element) => element.id))
         assert.equal(moved[3], ids[0])
+        await page.waitForFunction(
+          (id) =>
+            document
+              .getElementById(id)
+              ?.getAnimations()
+              .some(
+                (animation) =>
+                  animation.effect.getKeyframes().some((frame) => frame.boxShadow?.includes("inset")) &&
+                  animation.currentTime >= animation.effect.getTiming().delay,
+              ),
+          ids[0],
+        )
         assert.equal(await rows.count(), 10)
         assert.equal(await page.locator(".composer[data-drag], .drag-image, .list-row[data-drop]").count(), 0)
         await session?.detach()

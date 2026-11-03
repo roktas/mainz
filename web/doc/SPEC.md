@@ -184,8 +184,8 @@ PDF.
 | `?demo=grid`  | 240-page Input and Output from 60 repetitions of the four sample pages.                        |
 | `?demo&paint` | Style with the Filled profile, available only in development.                                  |
 
-On every screen, three quick clicks or taps on the upper-left logo open the examples dialog. The landing page offers the
-demo, Grid demo, and empty Output, in that order. The workspace also offers Show the welcome again. Links navigate
+On every screen, three quick clicks or taps on the upper-left logo open the examples dialog. It lists Single demo, Large
+demo, Recipe demo, and Empty demo, in that order. The workspace also offers Show the welcome again. Links navigate
 inside the application scope, including in an installed app. Before an example replaces undownloaded changes, the
 application asks for confirmation. A single click still returns home after the short triple-click interval. On the
 landing page, the logo still replays its animation immediately. Choose a PDF always opens local PDFs.
@@ -803,14 +803,15 @@ action. Supported desktop Safari versions show Add to Dock instructions. Unsuppo
 button. Continuing in the browser remains available after dismissal or failure.
 
 The tour explains actual controls without changing document choices or adding pages. Its core steps cover Input, Input
-Grid, Grid density, Input Page, Output Grid, Output selection actions, Output Page, and Download. Grid density points to
-Input's Normal and Compact controls when Input exists, otherwise to Output's controls. The Output selection step
-explains earlier/later moves, duplication, and removal. Without a selection, that step shows the real actions disabled
-and keeps the selection empty. Applicable Style and profile controls add at most two steps. Without Input, the five
-Output steps remain. Steps temporarily reveal their pane and tab. Each new step starts at the beginning of its
-explanation. Closing restores previous views and returns focus to a visible header control. Using a workspace control
-ends the tour and retains that action's pane and tab. Workspace or style availability changes dismiss the tour. Back,
-Next, Finish, End tour, Escape, and outside dismissal remain available.
+Grid, Grid density, Input List, Input Page, Output Grid, Output List, Output selection actions, Output Page, and Output
+delivery. The final step explains Download or Share, Print, View PDF, and Export recipe. Grid density points to Input's
+Normal and Compact controls when Input exists, otherwise to Output's controls. The Output selection step explains
+earlier/later moves, duplication, and removal. Without a selection, that step shows the real actions disabled and keeps
+the selection empty. Applicable Style and profile controls add at most two steps. Without Input, the six Output steps
+remain. Steps temporarily reveal their pane and tab. Each new step starts at the beginning of its explanation. Closing
+restores previous views and returns focus to a visible header control. Using a workspace control ends the tour and
+retains that action's pane and tab. Workspace or style availability changes dismiss the tour. Back, Next, Finish, End
+tour, Escape, and outside dismissal remain available.
 
 After welcome and tour dismissal, a visible Input thumbnail can introduce addition once per workspace with empty Output.
 The visual copy leaves Output and Selection unchanged. The status row says “Select pages · Use + to add to Output.”

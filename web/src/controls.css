@@ -54,6 +54,9 @@
         inline-size: var(--output-glyph-size);
         block-size: var(--output-glyph-size);
       }
+      & > .recipe-action:not(:disabled) {
+        color: var(--secondary);
+      }
       & > .view-action {
         /* Match the visible gap between the icons at their 20/24 viewBox bounds. */
         margin-inline-end: calc((var(--output-action-size) - var(--output-glyph-size) * 5 / 6) / 2);

@@ -214,7 +214,7 @@ export function animateMove(sheet: HTMLElement, direction: number) {
   return stop
 }
 
-export function animateOrder(grid: HTMLElement, duration = moveDuration) {
+export function animateOrder(grid: HTMLElement, duration = moveDuration, settle = false) {
   const motion = matchMedia("(prefers-reduced-motion: no-preference)")
   if (!motion.matches) return
   const start = grid.getBoundingClientRect()
@@ -252,6 +252,19 @@ export function animateOrder(grid: HTMLElement, duration = moveDuration) {
         }),
       )
       for (const { card, bounds: to } of cards) {
+        if (settle && card.classList.contains("range-highlight"))
+          animations.push(
+            card.animate(
+              [
+                {
+                  backgroundColor: "color-mix(in oklch, var(--secondary) 32%, var(--return-surface))",
+                  boxShadow: "inset 0 0 0 1px var(--secondary)",
+                },
+                { backgroundColor: "var(--return-surface)", boxShadow: "inset 0 0 0 1px transparent" },
+              ],
+              { delay: duration, duration: 1200, easing },
+            ),
+          )
         const from = positions.get(card.id)
         if (!from) continue
         const x = from.left - (to.left - end.left),

@@ -584,12 +584,7 @@
   }
   function inputDetails(input: Input) {
     if (!input.xmp && (!input.title || input.title === input.name)) return undefined
-    return [
-      `Filename: ${input.name}`,
-      ...Object.entries(input.xmp ?? {})
-        .filter(([key]) => key !== "dc:title")
-        .map(([key, value]) => `${key}: ${value}`),
-    ].join("\n")
+    return { Filename: input.name, ...(input.title ? { "dc:title": input.title } : {}), ...input.xmp }
   }
   function logo(event: MouseEvent) {
     const landing = event.currentTarget instanceof HTMLButtonElement
@@ -773,7 +768,7 @@
           <span class="input-chevron"><Icon name="next" /></span>
         </h2>
         {#if active && inputDetails(active.input)}<span class="input-information">
-            <Guidance title={active.input.title || active.input.name} details={inputDetails(active.input)} />
+            <Guidance title={active.input.title || active.input.name} fields={inputDetails(active.input)} />
           </span>{/if}
       </summary>
       <div class="input-list" role="group" aria-label="Inputs">
@@ -791,7 +786,7 @@
                   class="input-choice-title"
                   title={source.input.title}>{source.input.title}</span
                 >{/if}{#if source.id === activeId}<span aria-hidden="true">✓</span>{/if}</button
-            ><Guidance title={source.input.title || source.input.name} details={inputDetails(source.input)} />
+            ><Guidance title={source.input.title || source.input.name} fields={inputDetails(source.input)} />
           </div>{/each}
         <button class="danger" aria-label="Remove Input" title="Remove Input" onclick={removeSource}
           ><Icon name="trash" /><span>Remove Input</span></button

@@ -306,7 +306,9 @@
       <dt><kbd class="named">Space</kbd></dt>
       <dd>
         {mode !== "page"
-          ? "Select or unselect page"
+          ? mode === "list"
+            ? "Select or unselect page and advance"
+            : "Select or unselect page"
           : pane === "Input"
             ? "Add the current page to Output"
             : "Duplicate the current page"}
@@ -328,6 +330,8 @@
         <dt>
           <kbd class="named">Enter</kbd>{#if pane === "Output" || mode === "list"}
             / <kbd>+</kbd>{/if}
+          {#if mode === "list"}
+            / <kbd>=</kbd>{/if}
         </dt>
         <dd>{pane === "Input" ? "Add pages to Output" : "Duplicate pages"}</dd>
       </div>
@@ -404,9 +408,8 @@
             tabindex="0"
           >
             <div class="help-body">
-              <p>
-                V, Ctrl+A, Esc, and starting Grid navigation use the mouse side. PgUp/PgDn also change its Grid group.
-                Page keys use its Page, or the other open Page.
+              <p class="help-context">
+                <strong>Shortcuts follow each pane’s view.</strong> Change views, then reopen Help.
               </p>
               <div class="shortcut-views">
                 {#if hasInput}<section aria-label={`Input ${modes.input}`}>
@@ -481,7 +484,19 @@
                       <dd>Remove Output selection</dd>
                     </div>
                   </dl>
-                  <p>Fields and open menus keep their keys. Selection actions use the bar.</p>
+                  <p>
+                    Fields and menus keep their keys. V, Ctrl+A, Esc, and starting Grid navigation use the mouse-side
+                    pane. PgUp/PgDn change its Grid group. Page keys use its Page, or the other open Page.
+                  </p>
+                  {#if modes.input === "list" || modes.output === "list"}
+                    <p>
+                      List keys act while a row has focus. <kbd class="named">Shift</kbd> +
+                      <kbd class="named">Home</kbd> / <kbd class="named">End</kbd> extends selection to the first / last
+                      row.
+                      <kbd class="named">Shift</kbd> + <kbd class="named">PgUp</kbd> / <kbd class="named">PgDn</kbd>
+                      extends selection by one screen of rows.
+                    </p>
+                  {/if}
                   {#if modes.input === "grid" || modes.output === "grid"}
                     <p>
                       Without a selection, → starts at the first page of the current group. ← starts at the last.

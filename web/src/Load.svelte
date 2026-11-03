@@ -297,12 +297,7 @@
                     <div class="binding-meta">
                       <code title={id}>{id}</code>
                       {#if input.xmp && Object.keys(input.xmp).length}
-                        <Guidance
-                          {title}
-                          details={Object.entries(input.xmp)
-                            .map(([field, value]) => `${field}: ${value}`)
-                            .join("\n")}
-                        />{/if}
+                        <Guidance {title} fields={input.xmp} />{/if}
                     </div>
                   </div>
                   <p class="binding-description">{input.xmp?.["dc:description"] || ""}</p>
@@ -332,7 +327,7 @@
                     </p>
                   </div>{/if}
                 <div class="binding-pick">
-                  <label class={bound ? "file-picker" : "file-picker binding-empty"}
+                  <label class={bound ? "file-picker" : "file-picker primary binding-empty"}
                     ><Icon name={bound ? "input" : "add"} /><span>{bound ? "Change PDF" : "Choose a PDF"}</span>
                     <input
                       type="file"

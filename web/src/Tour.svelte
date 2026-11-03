@@ -5,10 +5,12 @@
     | "input"
     | "input-grid"
     | "input-density"
+    | "input-list"
     | "input-page"
     | "style"
     | "style-profile"
     | "output-grid"
+    | "output-list"
     | "output-density"
     | "output-selection"
     | "output-page"
@@ -80,6 +82,15 @@
     ...(hasInput
       ? [
           {
+            key: "input-list" as const,
+            title: "Find pages in List",
+            text: [
+              "List shows page numbers and names in rows. It shares the selection and page field with Grid and Page.",
+              "Select rows, then use the bar’s + to add them to Output. A row’s + adds that page without changing your selection.",
+              "The eye opens Page. Return with the List tab to find the inspected row. The page number opens its details.",
+            ],
+          },
+          {
             key: "input-page" as const,
             title: "Inspect an Input page",
             text: [
@@ -130,6 +141,15 @@
           ],
     },
     {
+      key: "output-list",
+      title: "Arrange Output in List",
+      text: [
+        "List shows each Output copy in print order. Page numbers open source details, and the eye opens Page.",
+        "Drag a row’s grip to move it. Row actions move one page earlier or later, remove it, or duplicate it.",
+        "Selected rows show a tick. The page field and bar apply actions to your selection across List, Grid, and Page.",
+      ],
+    },
+    {
       key: "output-selection",
       title: "Edit selected Output pages",
       text: [
@@ -154,10 +174,12 @@
     },
     {
       key: "download",
-      title: "Save your PDF",
+      title: "Save, print, or view Output",
       text: [
-        "Inspect Output, then use Download or Share to prepare its order, copies, blanks, and styles. Original PDFs stay intact.",
-        "The dialog shows preparation and validation. Cancel or an error keeps the workspace so you can adjust and retry.",
+        "Download or Share saves the Output PDF with its page order, copies, blanks, and styles. Original PDFs stay intact.",
+        "Print prepares the same PDF for browser printing. View PDF opens it in the browser’s PDF viewer.",
+        "Export recipe saves a JSON file with your page order and styles. Open it with the source PDFs to continue later.",
+        "Preparation shows progress. Cancel or an error keeps the workspace so you can adjust and retry.",
       ],
     },
   ])

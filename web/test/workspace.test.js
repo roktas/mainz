@@ -1128,7 +1128,7 @@ test("Help stays available across pointer types and tours retain visible focus",
       const welcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true })
       await welcome.getByRole("button", { name: "Take a tour", exact: true }).click()
       const tour = page.getByRole("dialog", { name: "Product tour", exact: true })
-      for (const step of ["input-grid", "input-density", "input-page"]) {
+      for (const step of ["input-grid", "input-density", "input-list", "input-page"]) {
         await tour.getByRole("button", { name: "Next", exact: true }).click()
         await page.waitForFunction(
           (key) => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === key,
@@ -1420,6 +1420,13 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
         if (mode === "Grid") {
           assert.match(await pane.innerText(), /←\s+\/\s+→\s+Start navigation \(no selection\)/)
           assert.match(await pane.innerText(), /PgUp\s+\/\s+PgDn\s+Previous \/ next thumbnail group/)
+        } else if (mode === "List") {
+          assert.match(await pane.innerText(), /V\s+Switch List \/ Page/)
+          assert.match(await pane.innerText(), /Space\s+Select or unselect page and advance/)
+          assert.match(await pane.innerText(), /PgUp\s+\/\s+PgDn\s+Move one screen of rows/)
+          assert.match(await pane.innerText(), /Enter\s*\/\s*\+\s*\/\s*=/)
+          assert.match(await shared.innerText(), /extends selection to the first \/ last row/)
+          assert.match(await shared.innerText(), /extends selection by one screen of rows/)
         } else if (mode === "Page") {
           assert.match(await pane.innerText(), /0\s+or\s+Z\s+Reset zoom \(100%\)/)
           assert.match(await pane.innerText(), /PgUp\s+\/\s+PgDn\s+Show previous \/ next page/)
@@ -2580,7 +2587,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
       await page.waitForFunction(
         () => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === "input",
       )
-      for (const step of ["input-grid", "input-density", "input-page", "style", "style-profile"]) {
+      for (const step of ["input-grid", "input-density", "input-list", "input-page", "style", "style-profile"]) {
         await tour.getByRole("button", { name: "Next", exact: true }).click()
         await page.waitForFunction(
           (key) => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === key,
@@ -2588,7 +2595,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
         )
       }
       const target = page.locator('[data-tour-target="style-profile"]')
-      assert.match(await tour.locator(".tour-progress").textContent(), /\/ 10/)
+      assert.match(await tour.locator(".tour-progress").textContent(), /\/ 12/)
       assert.equal(await target.isVisible(), true)
       assert.equal(await target.getAttribute("data-tour-active"), "true")
       assert.equal(await input.getByRole("tab", { name: "Style", exact: true }).getAttribute("aria-selected"), "true")
@@ -2599,11 +2606,21 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
       )
       await tour.getByRole("button", { name: "Next", exact: true }).click()
       await page.waitForFunction(
+        () => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === "output-list",
+      )
+      assert.equal(await output.getByRole("tab", { name: "List", exact: true }).getAttribute("aria-selected"), "true")
+      assert.equal(await output.locator(".page-list").isVisible(), true)
+      await tour.getByRole("button", { name: "Next", exact: true }).click()
+      await page.waitForFunction(
         () => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === "output-selection",
       )
       for (const name of ["Remove selected Output pages", "Duplicate selected Output pages"])
         assert.equal(await output.getByRole("button", { name, exact: true }).isEnabled(), true)
       assert.equal(await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "1-2")
+      await tour.getByRole("button", { name: "Back", exact: true }).click()
+      await page.waitForFunction(
+        () => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === "output-list",
+      )
       await tour.getByRole("button", { name: "Back", exact: true }).click()
       await page.waitForFunction(
         () => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === "output-grid",
@@ -3241,7 +3258,14 @@ test(
       await page.getByRole("button", { name: "Start Tour", exact: true }).click()
       const blankTour = page.getByRole("dialog", { name: "Product tour", exact: true })
       await blankTour.waitFor()
-      for (const key of ["output-density", "output-grid", "output-selection", "output-page", "download"]) {
+      for (const key of [
+        "output-density",
+        "output-grid",
+        "output-list",
+        "output-selection",
+        "output-page",
+        "download",
+      ]) {
         await page.waitForFunction(
           (value) => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === value,
           key,
@@ -3249,7 +3273,9 @@ test(
         assert.equal(await page.locator(`[data-tour-target="${key}"]`).isVisible(), true)
         if (key !== "download") await blankTour.getByRole("button", { name: "Next", exact: true }).click()
       }
-      assert.match(await blankTour.locator(".tour-progress").textContent(), /\/ 5/)
+      assert.match(await blankTour.locator(".tour-progress").textContent(), /\/ 6/)
+      for (const action of ["Export recipe", "Print", "View PDF"])
+        assert.ok((await blankTour.innerText()).includes(action), `Tour explains ${action}`)
       await blankTour.getByRole("button", { name: "Finish", exact: true }).click()
       assert.equal(await blankOutput.locator(".composition-totals strong").textContent(), "1 page")
       assert.equal((await blankOutput.locator(".composition-totals").innerText()).trim(), "1 page, 1 sheet")

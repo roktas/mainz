@@ -34,6 +34,14 @@
 
 ### Changed
 
+- Product tour steps cover Input and Output List views and explain Recipe export, Print, and View PDF. Help clarifies
+  its view-specific shortcuts and List range selection. Recipe export uses JSON braces in the secondary color and bold
+  table headings.
+- Recipe matching uses a shorter heading, an aligned larger logo, and primary PDF choices that share footer button
+  dimensions. Input and Recipe details use readable, bold field names and information icons without circular hover
+  shadows.
+- Moved Grid cards and List rows show a fading arrival cue. Page returns use a stronger highlight with a longer fade in
+  Grid and List.
 - Recipe export starts with editable Input names. Narrow Recipe matching keeps PDF choices beside smaller covers and
   opens long descriptions from the title without moving rows.
 - Breaking CLI changes for the next major release: PDF styling uses `style --overrides`, Recipe execution uses `apply`,

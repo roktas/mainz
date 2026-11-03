@@ -122,9 +122,10 @@
       --cover-width: clamp(110px, 10vi, 128px);
       --cover-height: calc(var(--cover-width) * 1.414);
       --binding-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-      --action-width: 9rem;
-      --action-height: max(46px, calc(3.25rem + 2px));
+      --action-width: 9.5rem;
+      --action-height: max(46px, calc(2.75rem + 2px));
       --inset: clamp(16px, 2.8vi, 40px);
+      --location-offset: max(-24px, calc(8px - var(--inset)));
       container: matching / inline-size;
       display: flex;
       flex-direction: column;
@@ -144,9 +145,11 @@
         margin: 0;
       }
       & .load-heading {
+        position: relative;
         display: grid;
         grid-template-columns: minmax(0, 1fr) clamp(64px, 22cqi, 280px);
-        gap: 1.25rem var(--gutter);
+        grid-template-rows: repeat(3, max-content);
+        gap: 0.625rem var(--gutter);
         align-items: start;
       }
       & .load-intro {
@@ -157,7 +160,7 @@
       }
       & .load-location {
         position: relative;
-        inset-block-start: max(-24px, calc(8px - var(--inset)));
+        inset-block-start: var(--location-offset);
         grid-column: 1;
         grid-row: 1;
         display: flex;
@@ -199,11 +202,14 @@
         }
       }
       & .load-mark {
-        grid-column: 2;
-        grid-row: 1 / span 3;
-        inline-size: 100%;
-        order: initial;
-        justify-self: end;
+        position: absolute;
+        inset-block-start: var(--location-offset);
+        inset-inline-end: 0;
+        inline-size: auto;
+        max-inline-size: 100%;
+        block-size: calc(100% - var(--location-offset));
+        /* The logo's 2/64 viewBox inset aligns its visible top with the arrow's 6/24 inset. */
+        translate: 0 calc(max(22px, 0.75rem) - 0.375rem - 3.125%);
       }
       & h1 {
         font-size: clamp(1.4rem, 1.1rem + 1cqi, 1.75rem);
@@ -347,7 +353,7 @@
       }
       & .icon-button {
         border: 0;
-        border-radius: 50%;
+        border-radius: 0;
         background: transparent;
         color: var(--muted);
       }
@@ -361,7 +367,7 @@
             border-color: transparent;
             background: transparent;
             color: var(--accent);
-            box-shadow: 0 0 16px color-mix(in oklch, var(--accent) 16%, transparent);
+            box-shadow: none;
             text-shadow: none;
             & svg {
               filter: none;
@@ -403,12 +409,25 @@
       }
       & .binding-pick {
         display: flex;
+        min-inline-size: 0;
+        max-inline-size: 100%;
         flex-wrap: wrap;
         align-items: center;
         justify-content: center;
         gap: 0.5rem 1rem;
         & .control-description {
           margin-inline-end: 0.5rem;
+        }
+      }
+      & .binding-empty {
+        inline-size: var(--action-width);
+        block-size: var(--action-height);
+        @container binding (width < 10rem) {
+          inline-size: var(--action-height);
+          padding: 8px;
+          & span {
+            display: none;
+          }
         }
       }
       & .bound .binding-pick {
@@ -556,24 +575,6 @@
       & .binding-target:has(.binding-empty) {
         border: 1px dashed var(--edge);
       }
-      & .file-picker.binding-empty {
-        border: 0;
-        background: transparent;
-        padding-inline: 0;
-        &:active:not(:has(input:disabled)) {
-          background: transparent;
-          color: var(--accent);
-          box-shadow: none;
-        }
-        @media (hover: hover) and (pointer: fine) {
-          &:hover:not(:has(input:disabled)) {
-            background: transparent;
-            color: var(--accent);
-            box-shadow: none;
-            text-shadow: 0 0 12px color-mix(in oklch, var(--accent) 25%, transparent);
-          }
-        }
-      }
       & .load-name .load-download svg {
         inline-size: 1.25em;
         block-size: 1.25em;
@@ -681,7 +682,7 @@
         & th {
           color: var(--muted);
           font-size: var(--small);
-          font-weight: 500;
+          font-weight: 700;
         }
         & .recipe-index {
           font-variant-numeric: tabular-nums;

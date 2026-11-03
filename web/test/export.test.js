@@ -149,12 +149,7 @@ test(
                 if ((await action.getAttribute("class")) === "load-back") {
                   assert.equal(style.shadow, "none")
                   assert.notEqual(style.glow, "none")
-                } else
-                  assert.notEqual(
-                    style.shadow,
-                    "none",
-                    `${engine.name()}, ${width}px, ${text}, ${colorScheme}, ${await action.getAttribute("class")}`,
-                  )
+                } else assert.equal(style.shadow, "none", "Information icons have no surrounding halo")
               }
             }
           }
@@ -167,14 +162,24 @@ test(
           const mark = element.querySelector(".load-mark").getBoundingClientRect()
           const arrow = element.querySelector(".load-back svg").getBoundingClientRect()
           const heading = element.querySelector("h1").getBoundingClientRect()
+          const visibleTop = (selector) => {
+            const svg = element.querySelector(selector)
+            return new DOMPoint(0, svg.getBBox().y).matrixTransform(svg.getScreenCTM()).y
+          }
           return {
             sameRow: Math.abs(back.y + back.height / 2 - name.y - name.height / 2) < 1,
             gap: name.x - back.right,
             logo: mark.width,
+            top: Math.abs(visibleTop(".load-mark svg") - visibleTop(".load-back svg")),
+            above: heading.y - back.bottom,
             left: Math.abs(arrow.x + (arrow.width * 8.2) / 24 - heading.x),
           }
         })
-        assert.ok(header.sameRow && header.gap >= 16 && header.logo >= 180 && header.left < 1)
+        assert.ok(
+          header.sameRow && header.gap >= 16 && header.logo >= 190 && header.left < 1 && header.top < 1,
+          JSON.stringify(header),
+        )
+        assert.ok(header.above <= 36, "Recipe heading keeps a compact gap below the filename")
         await page.emulateMedia({ reducedMotion: "no-preference" })
         await page.getByRole("button", { name: "Replay logo animation", exact: true }).click()
         await page.waitForFunction(() =>
@@ -273,6 +278,20 @@ test(
         aligned.rows.every((row) => row.height < 1 && row.center < 1 && row.meta < 1 && row.sameRow),
         JSON.stringify(aligned.rows),
       )
+      const dimensions = await panel
+        .locator(".binding-empty, .load-actions > button")
+        .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()))
+      assert.ok(
+        dimensions.every(
+          (button) =>
+            Math.abs(button.width - dimensions[0].width) < 1 && Math.abs(button.height - dimensions[0].height) < 1,
+        ),
+        "PDF choices, Cancel, and Apply recipe share dimensions",
+      )
+      await panel.locator(".binding-meta .guidance-trigger").first().click()
+      const details = page.locator(".guidance:popover-open")
+      assert.deepEqual(await details.locator(".guidance-text strong").allTextContents(), ["Title:", "Producer:"])
+      await page.keyboard.press("Escape")
       await page.locator(".footnote").getByText("0 of 3 Inputs selected · 3 remaining", { exact: true }).waitFor()
 
       for (const width of [1440, 768, 390, 375, 320]) {
@@ -284,6 +303,18 @@ test(
             content: element.scrollWidth,
           }))
           assert.ok(bounds.content <= bounds.width + 1, `${width}px, ${text}: matching stays within the landing frame`)
+          assert.equal(
+            await panel
+              .locator(".binding-empty")
+              .evaluateAll((elements) =>
+                elements.every(
+                  (element) =>
+                    element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1,
+                ),
+              ),
+            true,
+            `${width}px, ${text}: PDF choices keep all visible content inside the button`,
+          )
           if (width === 375 && text === "100%") {
             for (const family of ["", "DejaVu Sans, sans-serif"]) {
               await page.evaluate((font) => (document.body.style.fontFamily = font), family)
@@ -668,6 +699,11 @@ test(
       const input = page.locator(".selection-panel")
       await input.getByRole("button", { name: "Details for Italic Strokes", exact: true }).click()
       assert.ok(await page.getByRole("region", { name: "Italic Strokes", exact: true }).isVisible())
+      assert.deepEqual(await page.locator(".guidance:popover-open .guidance-text strong").allTextContents(), [
+        "Filename:",
+        "Title:",
+        "Producer:",
+      ])
       await page.getByRole("button", { name: "Close details", exact: true }).click()
       await page.getByRole("button", { name: "Set Output filename", exact: true }).click()
       const editor = page.locator(".filename-panel")
@@ -692,7 +728,7 @@ test(
       await page.locator(".input-current").filter({ hasText: "collected.pdf" }).waitFor()
       await input.getByRole("button", { name: "Details for Collected strokes & guides", exact: true }).click()
       const details = page.getByRole("region", { name: "Collected strokes & guides", exact: true })
-      assert.match(await details.innerText(), /mainz:coverpage: 2/)
+      assert.match(await details.innerText(), /Cover page: 2/)
     } finally {
       await browser.close()
     }

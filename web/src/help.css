@@ -125,6 +125,13 @@
       & p {
         color: var(--muted);
       }
+      & .help-context {
+        inline-size: 100%;
+        padding: calc(var(--gap) / 4) var(--gap);
+        border-inline-start: 3px solid var(--secondary);
+        color: var(--secondary);
+        background: color-mix(in oklch, var(--secondary) 8%, var(--paper));
+      }
       & kbd {
         display: inline flex;
         align-items: center;

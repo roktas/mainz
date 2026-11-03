@@ -219,18 +219,22 @@
       ? "style"
       : tour === "input-page"
         ? "page"
-        : tour === "input-grid" || tour === "input-density"
-          ? "grid"
-          : inputView.tab === "style" && !styleable
+        : tour === "input-list"
+          ? "list"
+          : tour === "input-grid" || tour === "input-density"
             ? "grid"
-            : inputView.tab,
+            : inputView.tab === "style" && !styleable
+              ? "grid"
+              : inputView.tab,
   )
   const activeOutputTab = $derived(
     tour === "output-page"
       ? "page"
-      : tour === "output-grid" || tour === "output-density" || tour === "output-selection"
-        ? "grid"
-        : outputTab,
+      : tour === "output-list"
+        ? "list"
+        : tour === "output-grid" || tour === "output-density" || tour === "output-selection"
+          ? "grid"
+          : outputTab,
   )
   const activeView = $derived(
     !source || tour?.startsWith("output-") || tour === "download"
@@ -327,7 +331,7 @@
     const list = document.getElementById(`${key}-output-panel`)?.querySelector<HTMLElement>(".page-list")
     if (!list) return
     const previous = cancelMove
-    cancelMove = animateOrder(list, destination === undefined ? 240 : 180)
+    cancelMove = animateOrder(list, destination === undefined ? 240 : 180, destination === undefined)
     previous?.()
   })
   export function views() {
@@ -439,7 +443,7 @@
         : output.pages[position]
           ? { kind: "output", id: output.pages[position].id }
           : undefined
-    returnTimeout = setTimeout(() => (returning = undefined), 900)
+    returnTimeout = setTimeout(() => (returning = undefined), 2000)
   }
   function focusPage(control: HTMLElement) {
     const page = control
@@ -812,7 +816,7 @@
     if (activeOutputTab === "list") {
       arriving = motion.current ? new Set(edit.added) : new Set()
       const list = panel?.querySelector<HTMLElement>(".page-list")
-      if (list) cancelMove = animateOrder(list, 240)
+      if (list) cancelMove = animateOrder(list, 240, reordering)
       return
     }
     if (added.length && !transfer.value) {
@@ -859,7 +863,7 @@
     }
     if (reordering && activeOutputTab === "grid") {
       const grid = panel?.querySelector<HTMLElement>(".composition-grid")
-      if (grid) cancelMove = animateOrder(grid)
+      if (grid) cancelMove = animateOrder(grid, undefined, true)
     }
   }
   function captureEditFocus(selecting: boolean) {
@@ -1949,7 +1953,9 @@
               tabindex={activeTab === "list" ? 0 : -1}
               onkeydown={tabKey}
               onclick={() => inputTab("list")}
-              title="List view"><Icon name="list" /><span>List</span></button
+              title="List view"
+              data-tour-tab="input-list"
+              data-tour-active={tour === "input-list"}><Icon name="list" /><span>List</span></button
             >
             <button
               id={`${key}-page`}
@@ -2011,7 +2017,7 @@
           class="input-panel"
           id={`${key}-source-panel`}
           role="tabpanel"
-          data-tour-target={activeTab === "style" ? "style" : activeTab === "page" ? "input-page" : "input-grid"}
+          data-tour-target={activeTab === "style" ? "style" : `input-${activeTab}`}
           data-tour-active={tour === "style" || tour?.startsWith("input-")}
           aria-labelledby={`${key}-${activeTab}`}
         >
@@ -2345,11 +2351,11 @@
         </div>
         <div class="output-actions" data-tour-target="download" data-tour-active={tour === "download"}>
           <button
-            class="icon-button"
+            class="icon-button recipe-action"
             aria-label="Export recipe"
             title={downloadError ?? "Export recipe"}
             disabled={!output.pages.length || outputProcessing || !!downloadError}
-            onclick={recipe}><Icon name="recipe" /></button
+            onclick={recipe}><Icon name="json" /></button
           >
           <button
             class="icon-button print-action"
@@ -2406,7 +2412,9 @@
             tabindex={activeOutputTab === "list" ? 0 : -1}
             onkeydown={outputKey}
             onclick={() => setOutputTab("list")}
-            title="List view"><Icon name="list" /><span>List</span></button
+            title="List view"
+            data-tour-tab="output-list"
+            data-tour-active={tour === "output-list"}><Icon name="list" /><span>List</span></button
           >
           <button
             id={`${key}-output-page`}
@@ -2427,7 +2435,7 @@
 
       <div
         class="output-panel"
-        data-tour-target={activeOutputTab === "page" ? "output-page" : "output-grid"}
+        data-tour-target={`output-${activeOutputTab}`}
         data-tour-active={tour?.startsWith("output-")}
         id={`${key}-output-panel`}
         role="tabpanel"
@@ -2581,6 +2589,7 @@
                   id={`${key}-${page.id}`}
                   class="list-row"
                   data-returning={(returning?.kind === "output" && returning.id === page.id) || undefined}
+                  class:range-highlight={highlight?.kind === "output" && highlight.ids.includes(page.id)}
                   data-index={index}
                   class:selected={selectedIds.has(page.id)}
                   data-dragging={transfer.moving(page.id) || undefined}

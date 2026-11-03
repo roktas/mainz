@@ -593,10 +593,10 @@ test("Landing logo replays entry and keeps parallax inside its framed area", asy
       const examples = target.getByRole("dialog", { name: "Explore the app", exact: true })
       await examples.waitFor()
       assert.deepEqual(await examples.locator("a strong").allTextContents(), [
-        "Try the demo",
-        "Grid demo",
+        "Single demo",
+        "Large demo",
         "Recipe demo",
-        "Start with empty Output",
+        "Empty demo",
       ])
       assert.equal(await examples.getByRole("link").nth(1).getAttribute("href"), "?demo=grid")
       await examples.getByRole("button", { name: "Close examples", exact: true }).click()

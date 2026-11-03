@@ -92,9 +92,11 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const workspaceSteps = [
     "input-grid",
     "input-density",
+    "input-list",
     "input-page",
     "style",
     "output-grid",
+    "output-list",
     "output-selection",
     "output-page",
     "download",
@@ -176,6 +178,9 @@ export async function checkWorkspace(page, prepared, ordinary) {
           `Tour shows ${name}, disabled without a selection`,
         )
     }
+    if (key === "download")
+      for (const action of ["Export recipe", "Print", "View PDF"])
+        assert.ok((await tour.innerText()).includes(action), `Tour explains ${action}`)
   }
   const open = async (name, buffer) => {
     const count = await page.locator(".input-list button[data-source]").count()
@@ -261,8 +266,10 @@ export async function checkWorkspace(page, prepared, ordinary) {
   for (const key of [
     "input-grid",
     "input-density",
+    "input-list",
     "input-page",
     "output-grid",
+    "output-list",
     "output-selection",
     "output-page",
     "download",
@@ -271,7 +278,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
     await step(key)
   }
   assert.ok(
-    (await tour.locator(".tour-progress").textContent()).includes("/ 8"),
+    (await tour.locator(".tour-progress").textContent()).includes("/ 10"),
     "Empty Output shows density and selection actions without adding sample pages",
   )
   await page.keyboard.press("Escape")
@@ -332,8 +339,8 @@ export async function checkWorkspace(page, prepared, ordinary) {
       assert.ok((await outputPage().getAttribute("aria-selected")) === "true", "Tour opens Output Page")
   }
   assert.ok(
-    (await tour.locator(".tour-progress").textContent()).includes("/ 9"),
-    "Style adds one step to the eight-step tour",
+    (await tour.locator(".tour-progress").textContent()).includes("/ 11"),
+    "Style adds one step to the ten-step tour",
   )
   await tour.getByRole("button", { name: "Finish", exact: true }).click()
   assert.ok(
@@ -1425,8 +1432,10 @@ export async function checkWorkspace(page, prepared, ordinary) {
   for (const key of [
     "input-grid",
     "input-density",
+    "input-list",
     "input-page",
     "output-grid",
+    "output-list",
     "output-selection",
     "output-page",
     "download",
@@ -1435,8 +1444,8 @@ export async function checkWorkspace(page, prepared, ordinary) {
     await step(key)
   }
   assert.ok(
-    (await tour.locator(".tour-progress").textContent()).includes("/ 8"),
-    "Ordinary PDFs use the eight-step tour",
+    (await tour.locator(".tour-progress").textContent()).includes("/ 10"),
+    "Ordinary PDFs use the ten-step tour",
   )
   await page.keyboard.press("Escape")
   await entry.fill("1,1")

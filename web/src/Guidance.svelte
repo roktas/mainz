@@ -2,11 +2,30 @@
 
 <script lang="ts">
   import Icon from "./Icon.svelte"
-  let { title, details, label }: { title: string; details?: string; label?: string } = $props()
+  let {
+    title,
+    details,
+    fields,
+    label,
+  }: { title: string; details?: string; fields?: Record<string, string>; label?: string } = $props()
+  const names: Record<string, string> = {
+    "dc:title": "Title",
+    "dc:description": "Description",
+    "dc:creator": "Author",
+    "dc:rights": "Copyright",
+    "dc:subject": "Subject",
+    "pdf:producer": "Producer",
+    "pdf:keywords": "Keywords",
+    "xmp:creatortool": "Creator",
+    "xmp:createdate": "Created",
+    "xmp:modifydate": "Modified",
+    "xmp:metadatadate": "Metadata date",
+    "mainz:coverpage": "Cover page",
+  }
   const key = $props.id()
 </script>
 
-{#if details?.trim()}
+{#if details?.trim() || (fields && Object.keys(fields).length)}
   <button
     class={label ? "guidance-label" : "icon-button guidance-trigger"}
     popovertarget={`${key}-details`}
@@ -43,6 +62,10 @@
         title="Close details"><Icon name="close" /></button
       >
     </span>
-    <span class="guidance-text">{details}</span>
+    {#if fields}
+      {#each Object.entries(fields) as [field, value] (field)}
+        <span class="guidance-text"><strong>{names[field] ?? field}:</strong> {value}</span>
+      {/each}
+    {:else}<span class="guidance-text">{details}</span>{/if}
   </span>
 {/if}
