@@ -268,7 +268,7 @@
   }}
   onblur={dismiss}
   onkeydown={(event) => {
-    if (event.key === "Escape" && (point || opening !== undefined)) dismiss()
+    if (event.key === "Escape") dismiss()
   }}
   onresize={dismiss}
 />
