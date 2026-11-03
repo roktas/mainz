@@ -1,8 +1,8 @@
 // Owns PDF.js loading, page inspection, document disposal, and bounded preview rasters.
 
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist"
-import { maxPages } from "./model.ts"
-import type { Size } from "./model.ts"
+import { maxInputBytes, maxPages, titleError, uid } from "./model.ts"
+import type { Input, Size } from "./model.ts"
 import type { Description } from "./styles.ts"
 import { Processor } from "./processor.ts"
 
@@ -46,6 +46,80 @@ export class Documents {
   }
   dispose() {
     this.retain([])
+  }
+}
+
+export class Opening {
+  #processor: Processor | undefined = new Processor()
+  #task: PDFDocumentLoadingTask | undefined
+  #input: Input | undefined
+  #cancelled = false
+
+  async read(
+    file: File | Uint8Array,
+    name: string,
+    revision: number,
+    geometry?: (input: Input) => void,
+  ): Promise<Input> {
+    if ((file instanceof File ? file.size : file.length) > maxInputBytes)
+      throw new Error("Choose a PDF smaller than 128 MiB.")
+    const bytes = file instanceof File ? new Uint8Array(await file.arrayBuffer()) : file
+    if (this.#cancelled) throw new DOMException("Opening cancelled.", "AbortError")
+    try {
+      const [result, opened] = await Promise.all([
+        this.#processor!.run(bytes, revision),
+        (async () => {
+          const task = await openPDF(bytes)
+          if (this.#cancelled) {
+            void task.destroy()
+            return
+          }
+          this.#task = task
+          const pdf = await task.promise
+          const dimensions = await inspectPDF(pdf, () => this.#cancelled)
+          if (!dimensions) return
+          const input: Input = {
+            id: uid(),
+            name,
+            bytes,
+            pdf,
+            ...dimensions,
+            ...(await metadata(pdf, name)),
+            description: {
+              version: 1,
+              pageCount: pdf.numPages,
+              pages: Array.from({ length: pdf.numPages }, () => ({})),
+              parameters: {},
+            },
+          }
+          if (this.#cancelled) return
+          geometry?.(input)
+          return input
+        })(),
+      ])
+      if (!opened || this.#cancelled) throw new DOMException("Opening cancelled.", "AbortError")
+      return (this.#input = { ...opened, description: result.description, sha256: result.sha256 })
+    } catch (error) {
+      this.dispose()
+      throw error
+    }
+  }
+
+  attach(documents: Documents) {
+    const input = this.#input!
+    documents.add(input.pdf, this.#task!, { bytes: input.bytes, description: input.description })
+    this.#task = undefined
+    const processor = this.#processor!
+    this.#processor = undefined
+    return processor
+  }
+
+  dispose() {
+    this.#cancelled = true
+    this.#processor?.dispose()
+    this.#processor = undefined
+    void this.#task?.destroy()
+    this.#task = undefined
   }
 }
 
@@ -162,6 +236,63 @@ export function loadRenderer() {
       renderer = undefined
       throw error
     }))
+}
+
+export async function metadata(
+  pdf: PDFDocumentProxy,
+  name: string,
+): Promise<Pick<Input, "title" | "coverPage" | "xmp">> {
+  const details = await pdf.getMetadata().catch(() => ({ info: {}, metadata: undefined }))
+  const { info, metadata: record } = details
+  const xmp = new Map<string, string>()
+  const encoder = new TextEncoder()
+  for (const [key, value] of record ?? []) {
+    if (xmp.size === 32) break
+    const text = typeof value === "string" ? value.trim() : Array.isArray(value) ? value.join(", ").trim() : ""
+    if (
+      key &&
+      key.isWellFormed() &&
+      encoder.encode(key).length <= 128 &&
+      text &&
+      text.isWellFormed() &&
+      encoder.encode(text).length <= 4096
+    )
+      xmp.set(key, text)
+  }
+  const candidate = record?.get("dc:title")
+  const title = [candidate, (info as { Title?: string }).Title, name, "Untitled"].find(
+    (value): value is string => typeof value === "string" && !titleError(value),
+  )!
+  const coverPage = Number(record?.get("mainz:coverpage"))
+  return {
+    title: title.trim(),
+    coverPage: Number.isSafeInteger(coverPage) && coverPage >= 1 && coverPage <= pdf.numPages ? coverPage : 1,
+    ...(xmp.size ? { xmp: Object.fromEntries(xmp) } : {}),
+  }
+}
+
+export async function cover(pdf: PDFDocumentProxy, page = 1): Promise<string> {
+  const { AnnotationMode } = await loadRenderer()
+  const canvas = document.createElement("canvas")
+  const sheet = await pdf.getPage(page)
+  try {
+    const size = sheet.getViewport({ scale: 1 })
+    let edge = 512
+    while (true) {
+      const viewport = sheet.getViewport({ scale: edge / Math.max(size.width, size.height) })
+      canvas.width = Math.ceil(viewport.width)
+      canvas.height = Math.ceil(viewport.height)
+      await sheet.render({ canvas, viewport, annotationMode: AnnotationMode.DISABLE, background: "rgb(255, 255, 255)" })
+        .promise
+      const png = canvas.toDataURL("image/png")
+      if (png.length <= 256 * 1024) return png
+      if (edge <= 240) throw new Error("The cover preview exceeds its size limit.")
+      edge = Math.max(240, Math.floor(edge * 0.8))
+    }
+  } finally {
+    canvas.width = canvas.height = 0
+    sheet.cleanup()
+  }
 }
 
 export async function verifyPDF(pdf: PDFDocumentProxy) {

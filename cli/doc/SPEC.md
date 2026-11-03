@@ -132,8 +132,10 @@ remains the Provenance JSON and follows atomic installation. Existing destinatio
 Recipe `apply`. It accepts `--inputs` or `--root`, never both. It rejects `--output`. Success writes only the resolved
 Plan JSON to stdout and one JSON record per change warning to stderr. No PDF is produced or installed. A resolved Plan
 does not guarantee that later composition will succeed. Resolver errors retain their codes and original Recipe JSON
-Pointers. Failure emits no partial Plan. The Recipe and resolved Plan each have the library's 1 MiB limit. Bound Inputs
-share its 128 MiB aggregate limit.
+Pointers. Failure emits no partial Plan. Recipe JSON has the library's 16 MiB limit; the resolved Plan retains its 1 MiB
+limit. Bound Inputs share its 128 MiB aggregate limit. Display titles, covers, and XMP fields do not affect CLI
+resolution. Optional Output metadata passes into the Plan and the PDF produced by `apply`. The library's editing-intent
+result is not part of CLI stdout.
 
 Global `--help` succeeds only as `mainz --help`, without an input or additional arguments. It writes usage to stdout and
 exits with code 0. Invalid invocations retain stderr diagnostics and exit code 2.

@@ -45,9 +45,10 @@ std::string pointer(const std::string& key)
         result += c == '~' ? "~0" : c == '/' ? "~1" : std::string(1, c);
     return result;
 }
-static void unicode(const std::string& string, bool id = false, std::string_view code = "invalid-contract")
+static void unicode(
+    const std::string& string, bool id = false, std::string_view code = "invalid-contract", std::size_t limit = 4096)
 {
-    require(string.size() <= 4096, "JSON string exceeds 4096 bytes.", "limit-exceeded");
+    require(string.size() <= limit, "JSON string exceeds " + std::to_string(limit) + " bytes.", "limit-exceeded");
     require(!id || !string.empty(), "An ID must not be empty.", code);
     std::size_t position = 0;
     while (position < string.size()) {
@@ -60,8 +61,9 @@ static void unicode(const std::string& string, bool id = false, std::string_view
 void identifier(const std::string& string, std::string_view code) { unicode(string, true, code); }
 class Guard : public JSON::Reactor {
 public:
-    explicit Guard(std::size_t limit)
+    explicit Guard(std::size_t limit, bool covers = false)
         : limit(limit)
+        , covers(covers)
     {
     }
     void dictionaryStart() override { start(); }
@@ -72,7 +74,7 @@ public:
     {
         unicode(key);
         require(keys.back().insert(key).second, "Duplicate JSON member: " + key);
-        check(item);
+        check(item, key == "cover");
         return false;
     }
     bool arrayItem(JSON const& item) override
@@ -85,25 +87,26 @@ private:
     std::vector<std::set<std::string>> keys;
     std::size_t count {0};
     std::size_t limit;
+    bool covers;
     void start()
     {
         require(keys.size() < 32, "JSON nesting exceeds 32.", "limit-exceeded");
         keys.emplace_back();
     }
-    void check(JSON item)
+    void check(JSON item, bool cover = false)
     {
         require(++count <= limit, "JSON item count exceeds the trusted limit.", "limit-exceeded");
         std::string string;
         if (item.getString(string))
-            unicode(string);
+            unicode(string, false, "invalid-contract", covers && cover ? std::size_t {256} * 1024 : 4096);
         if (item.getNumber(string))
             number(item);
     }
 };
-JSON parse(const std::string& bytes, const std::string& source)
+JSON parse(const std::string& bytes, const std::string& source, std::size_t limit)
 {
     try {
-        const auto ceiling = source == "manifest" ? manifest_limit : json_limit;
+        const auto ceiling = source == "manifest" ? manifest_limit : limit;
         require(bytes.size() <= ceiling, "JSON exceeds the trusted byte limit.", "limit-exceeded");
         require(!bytes.starts_with("\xef\xbb\xbf"), "A JSON byte-order mark is not permitted.");
         // Validate the complete encoding before QPDF decodes escapes.
@@ -114,7 +117,7 @@ JSON parse(const std::string& bytes, const std::string& source)
             require(!error && c <= 0x10ffff && !(c >= 0xd800 && c <= 0xdfff), "Invalid JSON UTF-8.");
         }
         BufferInputSource input("Mainz JSON", bytes);
-        Guard guard(source == "manifest" ? 2000000 : 50000);
+        Guard guard(source == "manifest" ? 2000000 : 50000, source == "request" && limit == recipe_limit);
         return JSON::parse(input, &guard);
     } catch (const Error& error) {
         auto code = error.code();
@@ -601,6 +604,25 @@ void profile_sets(JSON sets, const std::map<std::string, JSON>& parameters)
             "The first profile must restore original styles.");
     }
 }
+void document_metadata(JSON metadata, std::size_t pages)
+{
+    fields(metadata, {"title", "coverPage"});
+    auto title = text(metadata.getDictItem("title"));
+    require(!blank(title) && title.size() <= 4096, "PDF title requires 1 to 4096 bytes.");
+    std::size_t position {0};
+    while (position < title.size()) {
+        bool error {false};
+        auto code = QUtil::get_next_utf8_codepoint(title, position, error);
+        require(!error
+                && (code == 9 || code == 10 || code == 13 || (code >= 32 && code <= 0xd7ff)
+                    || (code >= 0xe000 && code <= 0xfffd) || (code >= 0x10000 && code <= 0x10ffff)),
+            "PDF title contains invalid XML text.");
+    }
+    auto page = number(metadata.getDictItem("coverPage"));
+    require(page >= 1 && page <= static_cast<double>(pages) && std::floor(page) == page,
+        "Cover page must identify a physical Output page.");
+}
+
 void page_metadata(JSON page)
 {
     auto present = fields(page, {}, {"name", "tags", "preview", "triviality"});

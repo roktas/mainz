@@ -24,7 +24,9 @@ optional Style changes, and Download or Print. View changes preserve selections,
 state. Ordinary PDFs support composition. Prepared PDFs also expose their declared Style controls.
 
 The landing distinguishes page composition for ordinary PDFs from Style support in prepared PDFs and links to the
-library specification. Its header logo replays the landing animation. In the workspace, that logo opens Home.
+library specification. Its primary action selects one PDF. The secondary Open recipe action selects a JSON Recipe and
+starts Input matching. The workspace offers Recipe export. Its header logo replays the landing animation. In the
+workspace, that logo opens Home.
 
 ### Inputs
 
@@ -37,13 +39,21 @@ and the workspace. Failure or cancellation discards the provisional Input. Openi
 workspace until the new Input is ready. Errors identify the file, cause, and next action. Incompatible style information
 requires a newly prepared PDF.
 
-A multi-file selection opens each file in order. A file that fails does not prevent later files from opening. Errors
-appear after the batch completes. A short alert reports the failed count. Review file errors opens a scrollable list
-with every failed filename and diagnostic. Cancel stops the current opening and the remaining files.
+A multi-file selection in the workspace opens each file in order. A file that fails does not prevent later files from
+opening. Errors appear after the batch completes. A short alert reports the failed count. Review file errors opens a
+scrollable list with every failed filename and diagnostic in a separate popover outside the header. Cancel stops the
+current opening and the remaining files.
 
 Opening the same PDF again creates an independent Input with the styles saved in that PDF and a new preparation. The
 Input chooser lists open Inputs and offers Remove Input for the active Input. An Input cannot be removed while Output
 references it. Removing Inputs never changes existing Blank dimensions.
+
+Input titles come from nonblank XMP `dc:title`, then PDF Info `Title`, then the opened filename. Candidates must fit the
+4096-byte UTF-8 limit and XML text rules. If no valid candidate exists, use `Untitled`. Wide layouts show a muted title
+beside the filename, with truncation when necessary. The Input chooser also shows the title. Hover and the information
+button expose the full title in constrained layouts. Available XMP fields appear as plain text in those details. Missing
+fields add no empty placeholders. The declared XMP `mainz:coverPage` selects the cover when it is a valid physical page;
+otherwise the first page is used.
 
 The Input chooser switches Inputs. Each retains its view, inspected page, zoom, Grid density, and preparation. Home
 requests confirmation before discarding undownloaded style or Output changes. Acceptance suppresses the browser exit
@@ -94,9 +104,10 @@ reverse indexes in memory. Document title, description, authorship, and copyrigh
 rather than page or workspace fields.
 
 List shows one row per visible physical Input page or expanded Output occurrence, in the same order as the pane's page
-sequence. Each row retains its physical number or Output position, optional PDF label, and supplied page name. Pages
-without names remain available by number. Repeated names do not merge rows or occurrences. Blank and Padding rows retain
-their existing product identities without invented authored names.
+sequence. Each row retains its physical number or Output position and supplied page name. Input rows can show a
+differing PDF label. Output rows show one position and keep original page numbers and differing PDF labels in details.
+Pages without names remain available by number. Repeated names do not merge rows or occurrences. Blank and Padding rows
+retain their existing product identities without invented authored names.
 
 List choices use the existing Selection and page-action model. They resolve to physical indexes or Output occurrence
 identities. List does not own another selection state or change the numeric Selection grammar. View changes retain the
@@ -618,20 +629,50 @@ the lens cancels that render and releases its acquired page and crop buffers.
 Settings shows the current lens magnification beside − and + buttons. Each step halves or doubles the magnification. The
 buttons disable at 2× and 128× respectively.
 
+## Recipe loading
+
+Open recipe on the landing page accepts a JSON file of at most 16 MiB. Dropping JSON on the landing starts the same
+flow. Matching replaces the landing content on the same page. Back or Cancel returns to the PDF/Recipe choices and
+releases selected documents. The shared worker validates its encoding, structure, and Input definitions before matching.
+Each row pairs the saved Input title and cover with a PDF selected on this device. Missing display metadata does not
+prevent loading. A blank saved title falls back to its logical Input ID. Available saved XMP fields appear behind an
+information button. Saved XMP `dc:description`, when present, appears directly below the title as longer descriptive
+text on wide layouts. In narrow layouts, tapping the title opens this description in the shared information popover
+without moving the Input rows. The title and description are separate metadata fields. The application does not derive
+them by splitting title punctuation.
+
+Users can choose or drop one PDF per row or choose several PDFs together through Choose local PDFs. Batch selection
+reserves filename matches to logical Input IDs before filling unmatched rows. File names and covers help users choose;
+the shared resolver remains authoritative. Each PDF is validated and prepared before workspace installation. Selected
+bytes share the 128 MiB aggregate limit. A digest difference is visible beside its binding. The resolver reports change
+warnings and rejects inapplicable references or choices. A failed replacement retains the previous selected PDF.
+
+Apply recipe becomes available after all required PDFs are selected. The selected and remaining Input counts use the
+application status line. Blank-only Recipes require no PDFs. Resolution and complete page expansion precede installation
+of one editable workspace. Loading preserves Parts, styles, explicit profile choices, manual edits, baseline resets, and
+optional Output title and cover. The selected PDF's actual saved appearance remains distinct from the requested Output
+styles. Cancellation and failures release unadopted documents and workers. No incomplete workspace is installed.
+
+The Recipe demo places Use sample PDFs before Choose local PDFs. The JSON download icon sits beside the Recipe filename.
+After a PDF is selected, its download icon saves those selected bytes under their opened filename. Empty bindings offer
+only selection and dropping. Download actions retain accessible names and hover descriptions. These bundled examples use
+the same inspection, binding, and resolution path as local files.
+
 ## Recipe export
 
 **Export recipe** in the Output header saves a portable JSON Recipe for the shared
-[Recipe contract](../../lib/doc/SPEC.md#65-portable-recipes). The CLI executes this file with `mainz run`. Web import is
-outside this version. Export requires a nonempty, valid Output and uses the existing contributing-Input and draft
-checks. Relevant pending Style work disables the action.
+[Recipe contract](../../lib/doc/SPEC.md#65-portable-recipes). The CLI executes this file with `mainz apply`; the landing
+page opens it through Input matching. Export requires a nonempty, valid Output and uses the existing contributing-Input
+and draft checks. Relevant pending Style work disables the action.
 
-The export panel assigns logical Input IDs through an Index, Path, ID table. Index shows a one-based row number. Path is
-muted, read-only text derived from the ID with `.pdf` appended. ID uses accent-colored editable cells. Activating a cell
-opens a text field. Enter or focus loss accepts the edit; Escape restores its prior value. Acceptance removes outer
-whitespace and a final `.pdf` suffix. The initial ID is the opened filename without that suffix. IDs must be nonempty
-and unique. Invalid IDs retain local explanations and disable Export. Editing an ID updates the Recipe's Input map and
-instance references without changing the workspace or actual files. Duplicate filenames require distinct IDs. The row
-index is presentation only. Blank-only Output requires no Input IDs.
+The export panel shows Name, Index, Path, and Title. Index shows a one-based row number. The compact Path column is
+muted, read-only text derived from Name with `.pdf` appended; hover exposes the complete path. Name supplies the logical
+Input ID and uses accent-colored editable cells. Title is read-only Input metadata. Activating a Name cell opens a text
+field. Enter or focus loss accepts the edit; Escape restores its prior value. Acceptance removes outer whitespace and a
+final `.pdf` suffix. The initial Name is the opened filename without that suffix. Names must be nonempty and unique.
+Invalid names retain local explanations and disable Export. Editing a Name updates the Recipe's Input map and instance
+references without changing the workspace or actual files. Duplicate filenames require distinct names. The row index is
+presentation only. Blank-only Output requires no Input names.
 
 The Recipe contains no file-location fields. At execution, the host binds logical Input IDs to files or selected bytes.
 The CLI accepts an explicit ID-to-file map. Automatic lookup uses the ID as a relative path, adds `.pdf` when absent,
@@ -639,8 +680,11 @@ and resolves from cwd or `--root`. The processor's `sources` entries retain inde
 references use instance IDs, separate from logical Input bindings.
 
 Each accepted Input supplies its SHA-256 digest and optional publication declaration. Its validation worker computes the
-digest once from the retained original bytes. Recipe export does not reopen files, prepare another PDF, or render pages.
-The record contains no PDF bytes, browser resources, invalid drafts, or incidental UI state.
+digest once from the retained original bytes. Export adds the Input title, available descriptive XMP fields, and a PNG
+render of its declared cover page. The image has a maximum edge of 512 pixels and an encoded limit of 256 KiB. The
+Recipe embeds it so matching works on another device without a local cache. Export does not reopen the original file or
+prepare another PDF. An unavailable cover render omits that optional display field and does not block export. The record
+contains no PDF bytes, browser resources, invalid drafts, or incidental UI state.
 
 Explicitly chosen profiles remain profile choices in the record. Later manual edits and baseline resets apply after
 those choices. Unique semantic family/name or family/key matches use semantic selectors. Ambiguous scopes use exact
@@ -652,8 +696,9 @@ all-pages intent from a complete page list. It adds no hard page-count expectati
 diagnostics and applicability against updated PDFs.
 
 The JSON filename uses the current Output filename stem with `.json`. Its default follows the existing dynamic Output
-name. The 1 MiB Recipe limit applies before download. Saving or cancelling retains Output, style choices, Selection,
-previews, and PDF Download/Share acknowledgment. Saving a Recipe does not clear the PDF unsaved warning.
+name. The 16 MiB Recipe limit applies before download. The record also saves the Output title and cover-page choice.
+Saving or cancelling retains Output, style choices, Selection, previews, and PDF Download/Share acknowledgment. Saving a
+Recipe does not clear the PDF unsaved warning.
 
 ## Download, Print, View, and recovery
 
@@ -668,8 +713,9 @@ Download as soon as Output exceeds a limit. Removing the excess restores Downloa
 authoritative.
 
 Download captures the valid Plan. If Output contains every page from one completed Input in physical order, Download
-reuses its validated and inspected composed PDF. Current styles and page quantities must match. This path needs no new
-processing or inspection. Copies, Blanks, other page orders, and multiple Inputs require a new composition.
+reuses its validated and inspected composed PDF. Current styles, page quantities, title, and cover page must match. This
+path needs no new processing or inspection. Copies, Blanks, other page orders, and multiple Inputs require a new
+composition.
 
 New preparation supplies each referenced Input once. A compact modal at the header reports preparation and inspection
 while locking workspace actions. It uses the same feedback presentation as other header operations. Cancel and Escape
@@ -693,6 +739,14 @@ hundredths. Unused Inputs do not affect the name. Blank-only Output uses `blank-
 filename editor; the Output page actions menu also provides it. A custom name applies to Download, Share, and Print and
 remains in the workspace until Home. The editor rejects empty names, path separators, and control characters, and adds
 `.pdf` when needed. Use default restores automatic naming. The header does not display the filename beside its controls.
+
+The same editor contains the Output title and cover-page choice, with a preview of that page. The title defaults to the
+first contributing Input's title, or its filename stem when no authored title exists. Empty stems retain the opened
+filename. Blank-only Output uses `Blank pages`. The cover defaults to the first Output page. A selected cover follows
+its occurrence through reordering; removing it restores the first-page default. Use default resets all three file
+fields. Download remains a direct action. The editor rejects titles that cannot be written as XML text or exceed 4096
+UTF-8 bytes. Composition writes the title to XMP `dc:title` and PDF Info `Title`, and the cover to XMP
+`mainz:coverPage`, using the library's namespace. Opening this PDF later uses those fields as Input metadata.
 
 Print captures the same Plan and uses the same preparation, validation, inspection, and cancellation as Download. It
 hands the completed PDF bytes to the browser's PDF viewer, preserving the Output pages and styles. Browsers with native
@@ -866,16 +920,21 @@ ownership policy. It does not retain an idle worker for every open Input. Produc
 document data and never enter the offline cache.
 
 App coordinates Input opening and selects retained documents after view updates. Output owns the accepted Parts,
-occurrence selection, inspection, filename, and Download and Share acknowledgment. Export owns shared Output preparation
-and inspection, the ready Share File, and the latest View URL. Print owns its native PDF frame or window and temporary
-URL. The filename editor owns only its draft. Each Input's Preview owns style processing, cancellation, and
-displayed-document handoff. App and Preview ignore obsolete processing results. The PDF boundary owns loading-task and
-raster release, initial page geometry, and labels. Opening reads complete geometry in bounded batches and releases each
-acquired page after inspection. Cancellation discards incomplete geometry. Each preview render releases its own acquired
-page, including obsolete generations, and cancels superseded render tasks. Cancellation retains the last completed
-raster.
+occurrence selection, inspection, filename, title, cover, and Download and Share acknowledgment. Export owns shared
+Output preparation and inspection, the ready Share File, and the latest View URL. Print owns its native PDF frame or
+window and temporary URL. The filename editor owns only its draft. Each Input's Preview owns style processing,
+cancellation, and displayed-document handoff. App and Preview ignore obsolete processing results. The PDF boundary owns
+loading-task and raster release, initial page geometry, and labels. Opening reads complete geometry in bounded batches
+and releases each acquired page after inspection. Cancellation discards incomplete geometry. Each preview render
+releases its own acquired page, including obsolete generations, and cancels superseded render tasks. Cancellation
+retains the last completed raster.
 
-Recipe owns its captured JSON, editable Input IDs, and temporary download URL. It changes no PDF-handoff owner.
+Recipe owns its captured JSON and editable Input names. It changes no PDF-handoff owner. Download owns each temporary
+browser-download URL for Output PDFs, Recipes, and selected matching PDFs. Replacement, expiry, or caller disposal
+releases that URL. Recipe loading owns selected opening tasks until App adopts their prepared documents. Closing or
+replacing the flow disposes tasks that were not adopted and cancels pending sample requests. Late file reads cannot
+change a later matching flow. Titles, XMP fields, and rendered covers remain document data and never enter the offline
+cache.
 
 Page pinch anchoring belongs to the displayed PDF, physical page, and sequence position. Cancellation, a page-context
 change, a hidden pane, or teardown clears pending anchoring and its temporary transform. Reattaching the same Page

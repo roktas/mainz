@@ -145,6 +145,53 @@ async function checkMobile(browser, url) {
   }
 }
 
+test(
+  "Landing file actions keep paired widths and padding with theme-aware PDF and JSON icons",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await chromium.launch()
+    try {
+      const page = await browser.newPage({ reducedMotion: "reduce" })
+      await page.goto(server.resolvedUrls.local[0])
+      for (const width of [1440, 768, 390]) {
+        await page.setViewportSize({ width, height: 1000 })
+        for (const colorScheme of ["light", "dark"]) {
+          await page.emulateMedia({ colorScheme })
+          const actions = await page.locator(".welcome .buttons > label").evaluateAll((labels) =>
+            labels.map((element) => {
+              const box = element.getBoundingClientRect(),
+                style = getComputedStyle(element),
+                icon = element.querySelector("svg").getBoundingClientRect()
+              return {
+                width: box.width,
+                height: box.height,
+                top: box.top,
+                center: box.top + box.height / 2,
+                padding: [
+                  style.paddingBlockStart,
+                  style.paddingBlockEnd,
+                  style.paddingInlineStart,
+                  style.paddingInlineEnd,
+                ],
+                icon: [icon.width, icon.height],
+              }
+            }),
+          )
+          assert.ok(Math.abs(actions[0].width - actions[1].width) < 1)
+          assert.ok(Math.abs(actions[1].height - actions[0].height - 1) < 0.5)
+          assert.ok(
+            actions.every((action) => new Set(action.padding).size === 1 && action.icon.every((size) => size >= 24)),
+          )
+          if (width > 640) assert.ok(Math.abs(actions[0].center - actions[1].center) < 1)
+        }
+      }
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
 test("Landing compact headings fit phones and tablets and logos follow theme changes and reloads", async () => {
   const server = await serve()
   let browser
@@ -548,6 +595,7 @@ test("Landing logo replays entry and keeps parallax inside its framed area", asy
       assert.deepEqual(await examples.locator("a strong").allTextContents(), [
         "Try the demo",
         "Grid demo",
+        "Recipe demo",
         "Start with empty Output",
       ])
       assert.equal(await examples.getByRole("link").nth(1).getAttribute("href"), "?demo=grid")
@@ -657,15 +705,15 @@ test(
       await page.goto(server.resolvedUrls.local[0])
       const bytes = fixture({ prepared: false })
       const pdf = (name) => ({ name, mimeType: "application/pdf", buffer: bytes })
+      await page.locator('input[type="file"]').first().setInputFiles(pdf("First.pdf"))
+      const input = page.locator(".selection-panel")
+      await input.locator(".input-current").filter({ hasText: "First.pdf" }).waitFor()
       await page
-        .locator('input[type="file"]')
-        .first()
+        .locator('.selection-panel input[type="file"]')
         .setInputFiles([
-          pdf("First.pdf"),
           { name: "Broken.pdf", mimeType: "application/pdf", buffer: Buffer.from("Not a PDF") },
           pdf("Last.pdf"),
         ])
-      const input = page.locator(".selection-panel")
       await input.locator(".input-current").filter({ hasText: "Last.pdf" }).waitFor()
       await page.locator(".header-feedback .opening-progress").waitFor({ state: "detached" })
       assert.deepEqual(await input.locator(".input-list button[data-source] > span:nth-child(2)").allTextContents(), [
@@ -730,14 +778,18 @@ test("Large failure batches announce a summary and retain every file error", { t
       }).observe(document, { childList: true, characterData: true, subtree: true })
     })
     await page.goto(server.resolvedUrls.local[0])
+    await page
+      .locator('input[type="file"]')
+      .first()
+      .setInputFiles({ name: "Initial.pdf", mimeType: "application/pdf", buffer: fixture({ prepared: false }) })
+    await page.locator(".input-current").filter({ hasText: "Initial.pdf" }).waitFor()
     const failed = Array.from({ length: 40 }, (_, index) => ({
       name: `${index}-${"long-publication-name-".repeat(6)}.${index < 2 ? "pdf" : "txt"}`,
       mimeType: "application/pdf",
       buffer: Buffer.from("Not a PDF"),
     }))
     await page
-      .locator('input[type="file"]')
-      .first()
+      .locator('.selection-panel input[type="file"]')
       .setInputFiles([
         ...failed,
         { name: "Ready.pdf", mimeType: "application/pdf", buffer: fixture({ prepared: false }) },
@@ -752,7 +804,7 @@ test("Large failure batches announce a summary and retain every file error", { t
       "Per-file failures must not produce long intermediate announcements",
     )
     const errors = page.getByRole("list", { name: "File errors", exact: true })
-    const disclosure = page.locator(".file-errors > summary")
+    const disclosure = page.locator(".file-errors-trigger")
     for (const [width, text, colorScheme] of [
       [320, "100%", "light"],
       [320, "200%", "dark"],
@@ -765,10 +817,10 @@ test("Large failure batches announce a summary and retain every file error", { t
       await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
       assert.equal(await errors.isVisible(), false)
       const alignment = await page.locator(".header-feedback .feedback[data-kind=error]").evaluate((element) => {
-        const summary = element.querySelector("summary").getBoundingClientRect()
-        const button = element.querySelector("button").getBoundingClientRect()
-        const icon = element.querySelector("button svg").getBoundingClientRect()
-        const action = element.querySelector("summary > span:last-child").getBoundingClientRect()
+        const summary = element.querySelector(".file-errors").getBoundingClientRect()
+        const button = element.querySelector(".feedback-actions button").getBoundingClientRect()
+        const icon = element.querySelector(".feedback-actions button svg").getBoundingClientRect()
+        const action = element.querySelector(".file-errors-trigger").getBoundingClientRect()
         return [
           summary.y - button.y,
           icon.x + icon.width / 2 - button.x - button.width / 2,
@@ -790,6 +842,14 @@ test("Large failure batches announce a summary and retain every file error", { t
       await disclosure.focus()
       await page.keyboard.press("Enter")
       await errors.waitFor()
+      const panelBounds = await page.locator(".file-error-panel").evaluate((element) => {
+        const box = element.getBoundingClientRect()
+        return box.x >= 0 && box.right <= innerWidth + 1 && box.y >= 0 && box.bottom <= innerHeight + 1
+      })
+      assert.ok(
+        panelBounds,
+        `${width}px, ${text}: Error details fit the viewport outside the header: ${JSON.stringify(await page.locator(".file-error-panel").boundingBox())}`,
+      )
       const messages = await errors.getByRole("listitem").allTextContents()
       assert.equal(messages.length, failed.length)
       for (const [index, file] of failed.entries()) assert.ok(messages[index].includes(file.name))
@@ -1957,12 +2017,12 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
         .evaluate((element) => getComputedStyle(element).color),
       await page.locator(".footnote").evaluate((element) => getComputedStyle(element).color),
     )
-    assert.equal(await page.locator(".drop-zone input[type=file]").isEnabled(), true)
+    assert.equal(await page.locator(".welcome .file-picker input[type=file]").isEnabled(), true)
     assert.ok((await page.evaluate(() => caches.keys())).some((name) => name.endsWith(":initial")))
     await other.close()
     const reloaded = page.waitForEvent("load")
     await update.click()
-    const opening = page.locator(".drop-zone input[type=file]")
+    const opening = page.locator(".welcome .file-picker input[type=file]")
     assert.equal(await opening.isDisabled(), true, "Opening waits for application activation")
     await opening.setInputFiles({
       name: "During update.pdf",

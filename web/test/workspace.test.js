@@ -56,7 +56,7 @@ test("Profile options require compatible peers and consider future profile choic
         name !== "Peer",
       )
     }
-    await input.locator(".input-picker > summary").click()
+    await input.locator(".input-picker > summary h2").click()
     await input.getByRole("button", { name: /First\.pdf/ }).click()
     assert.equal(
       await input.getByRole("button", { name: "Profile options", exact: true }).isEnabled(),
@@ -150,7 +150,7 @@ test(
             .waitFor()
         }
         const activate = async (name) => {
-          await input.locator(".input-picker > summary").click()
+          await input.locator(".input-picker > summary h2").click()
           await input.getByRole("button", { name: new RegExp(`${name}\\.pdf`) }).click()
         }
         const options = input.getByRole("button", { name: "Profile options", exact: true })
@@ -439,7 +439,7 @@ test("Opaque profile-set IDs keep their annotations across Input switches", { ti
         )
       assert.equal(new Set(targets).size, 2, "Each profile set has its own details panel")
     }
-    await input.locator(".input-picker > summary").click()
+    await input.locator(".input-picker > summary h2").click()
     await input.getByRole("button", { name: /Profiles-0.pdf/ }).click()
     for (const set of sets) {
       const profile = input.getByRole("combobox", { name: set.name, exact: true })
@@ -966,7 +966,7 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
               await pane.locator(".input-current").evaluate((element) => element.scrollWidth <= element.clientWidth),
               `${width}px: the demo filename fits the chooser`,
             )
-          await pane.locator(".input-picker > summary").click()
+          await pane.locator(".input-picker > summary h2").click()
           assert.ok(
             await pane.getByRole("button", { name: "Remove Input", exact: true }).evaluate((button) => {
               const rect = button.getBoundingClientRect()
@@ -1330,7 +1330,7 @@ test(
       const pending = page.waitForEvent("download")
       await download.click()
       assert.equal(await (await pending).failure(), null)
-      await input.locator(".input-picker > summary").click()
+      await input.locator(".input-picker > summary h2").click()
       await input.locator(".input-list button[data-source]").first().click()
       await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
@@ -1600,7 +1600,7 @@ test(
         )
       }
       const choose = async (index) => {
-        await page.locator(".input-picker > summary").click()
+        await page.locator(".input-picker > summary h2").click()
         await page.locator(".input-list button[data-source]").nth(index).click()
       }
       const style = () => input.getByRole("tab", { name: "Style", exact: true }).click()
@@ -3227,7 +3227,7 @@ test(
       await blankOutput.getByRole("button", { name: "Add blank page at end", exact: true }).click()
       await blankOutput.getByRole("button", { name: "Clear Output selection", exact: true }).click()
       await blankOutput.getByRole("button", { name: "Remove Output page 1", exact: true }).click()
-      await page.locator(".input-picker > summary").click()
+      await page.locator(".input-picker > summary h2").click()
       await page.locator(".input-picker").getByRole("button", { name: "Remove Input", exact: true }).click()
       await page.locator(".selection-panel").waitFor({ state: "hidden" })
       await page.getByRole("button", { name: "Help", exact: true }).click()

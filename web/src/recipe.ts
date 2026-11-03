@@ -6,13 +6,35 @@ import { downloadInputs, plan } from "./model.ts"
 import type { Plan, Part, Source } from "./model.ts"
 import type { Scalar } from "./styles.ts"
 
-type Profile = { set: string; id: string } | { family: string; name: string }
-type Override = ({ id: string } | { family: string; key: string }) & { value: Scalar | null }
+export const maxRecipeBytes = 16 * 1024 * 1024
+
+type Profile = { set: string; id: string } | { family: string; name: string; all?: boolean }
+type Override = ({ id: string } | { family: string; key: string; all?: boolean }) & { value: Scalar | null }
 export type Recipe = {
   version: 1
-  inputs: Record<string, { sha256: string; publication?: { id: string; version: string } }>
-  sources: Record<string, { input: string; profiles: Profile[]; overrides: Override[] }>
-  parts: Plan["parts"]
+  metadata?: Plan["metadata"]
+  inputs: Record<
+    string,
+    {
+      sha256?: string
+      pageCount?: number
+      publication?: { id: string; version: string }
+      title?: string
+      cover?: string
+      xmp?: Record<string, string>
+    }
+  >
+  sources: Record<string, { input: string; profiles?: Profile[]; overrides?: Override[] }>
+  parts: {
+    pages: (Plan["parts"][number]["pages"][number] | { source: string; pages: "all" })[]
+    copies?: number
+    front?: boolean
+  }[]
+}
+export type Resolution = {
+  plan: Plan
+  warnings: { code: string; input: string; location: string; message: string; expected: unknown; actual: unknown }[]
+  intent: Record<string, { profiles: Record<string, string>; edits: string[] }>
 }
 
 export function identities(ids: Record<string, string>): Record<string, string> {
@@ -21,25 +43,26 @@ export function identities(ids: Record<string, string>): Record<string, string> 
     Object.entries(ids).flatMap(([key, draft]) => {
       const id = draft.trim()
       const error = !id
-        ? "Enter an Input ID."
+        ? "Enter an Input name."
         : !id.isWellFormed() || new TextEncoder().encode(id).length > 4096
-          ? "Use a valid, shorter Input ID."
+          ? "Use a valid, shorter Input name."
           : // oxlint-disable-next-line no-control-regex -- IDs exclude control characters.
             /[\u0000-\u001f\u007f-\u009f]/.test(id)
-            ? "Use an Input ID without control characters."
+            ? "Use an Input name without control characters."
             : values.filter((value) => value === id).length > 1
-              ? "Each Input needs a unique ID."
+              ? "Each Input needs a unique name."
               : ""
       return error ? [[key, error]] : []
     }),
   )
 }
 
-export function recipe(parts: readonly Part[], sources: readonly Source[]): Recipe {
+export function recipe(parts: readonly Part[], sources: readonly Source[], metadata?: Plan["metadata"]): Recipe {
   const request = plan(parts, sources)
   const inputs = downloadInputs(parts, sources)
   return {
     version: 1,
+    ...(metadata ? { metadata } : {}),
     inputs: Object.fromEntries(
       inputs.map((input) => {
         if (!input.sha256) throw new Error(`The fingerprint for ${input.name} is unavailable. Reopen this Input.`)
@@ -47,6 +70,9 @@ export function recipe(parts: readonly Part[], sources: readonly Source[]): Reci
           input.id,
           {
             sha256: input.sha256,
+            ...(input.title ? { title: input.title } : {}),
+            ...(input.cover ? { cover: input.cover } : {}),
+            ...(input.xmp && Object.keys(input.xmp).length ? { xmp: input.xmp } : {}),
             ...(input.description.publication ? { publication: { ...input.description.publication } } : {}),
           },
         ]

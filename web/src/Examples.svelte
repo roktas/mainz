@@ -25,6 +25,9 @@
     <a href="?demo=grid" onclick={navigate}>
       <strong>Grid demo</strong><span>Explore a larger workspace with 240 pages.</span>
     </a>
+    <a href="?demo=recipe" onclick={navigate}>
+      <strong>Recipe demo</strong><span>Match three sample PDFs to a saved recipe.</span>
+    </a>
     <a href="?demo=empty" onclick={navigate}>
       <strong>Start with empty Output</strong><span>Use the same sample and choose the pages yourself.</span>
     </a>

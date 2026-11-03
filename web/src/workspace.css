@@ -10,6 +10,10 @@
       container: composer / inline-size;
       overflow-anchor: none;
     }
+    .empty-input {
+      display: flex;
+      margin-block-end: var(--gap);
+    }
     .composition-panels {
       display: grid;
       flex: 1;
@@ -84,6 +88,543 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: calc(var(--gap) / 2);
       }
+      & .file-cover {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--gap);
+        margin-block: calc(var(--gap) / 2);
+      }
+      & .file-cover-image {
+        flex: none;
+        inline-size: 6rem;
+        aspect-ratio: 1 / 1.414;
+        display: grid;
+        place-items: center;
+        background: oklch(100% 0 none);
+        border: 1px solid var(--border);
+        & img {
+          inline-size: 100%;
+          block-size: 100%;
+          object-fit: contain;
+        }
+      }
+      & .file-cover-field {
+        flex: 1 1 10rem;
+        display: grid;
+        gap: calc(var(--gap) / 2);
+        & .entry {
+          inline-size: min(100%, 8rem);
+        }
+      }
+    }
+    .load-panel {
+      --cover-width: clamp(110px, 10vi, 128px);
+      --cover-height: calc(var(--cover-width) * 1.414);
+      --binding-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      --action-width: 9rem;
+      --action-height: max(46px, calc(3.25rem + 2px));
+      --inset: clamp(16px, 2.8vi, 40px);
+      container: matching / inline-size;
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap);
+      padding: var(--inset);
+      padding-block-end: var(--gap);
+      margin-block-start: var(--gap);
+      border: 1px dashed var(--edge);
+      border-radius: 12px;
+      font-size: var(--body);
+      &:focus-visible {
+        outline: 2px solid transparent;
+      }
+      & p,
+      & h1,
+      & h2 {
+        margin: 0;
+      }
+      & .load-heading {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) clamp(64px, 22cqi, 280px);
+        gap: 1.25rem var(--gutter);
+        align-items: start;
+      }
+      & .load-intro {
+        grid-column: 1;
+        grid-row: 2;
+        min-inline-size: 0;
+        overflow-wrap: anywhere;
+      }
+      & .load-location {
+        position: relative;
+        inset-block-start: max(-24px, calc(8px - var(--inset)));
+        grid-column: 1;
+        grid-row: 1;
+        display: flex;
+        align-items: center;
+        gap: clamp(8px, 2cqi, 32px);
+        min-inline-size: 0;
+      }
+      & .load-back {
+        flex: none;
+        inline-size: max(44px, 1.5rem);
+        min-inline-size: 44px;
+        min-block-size: max(44px, 1.5rem);
+        margin-inline-start: -0.5rem;
+        padding: 0;
+        justify-content: start;
+        & svg {
+          inline-size: 1.5rem;
+          block-size: 1.5rem;
+        }
+      }
+      & .load-name {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        min-inline-size: 0;
+        font-size: var(--small);
+        color: var(--muted);
+        flex: 0 1 auto;
+        & > svg {
+          inline-size: 1.25em;
+          block-size: 1.25em;
+        }
+        & span {
+          flex: 0 1 auto;
+          min-inline-size: 0;
+          overflow: clip;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+      & .load-mark {
+        grid-column: 2;
+        grid-row: 1 / span 3;
+        inline-size: 100%;
+        order: initial;
+        justify-self: end;
+      }
+      & h1 {
+        font-size: clamp(1.4rem, 1.1rem + 1cqi, 1.75rem);
+        line-height: 1.25;
+        text-wrap: pretty;
+        margin-block-end: 0.5rem;
+      }
+      & .compact {
+        display: none;
+      }
+      & .load-intro > p {
+        color: var(--muted);
+      }
+      & .load-choices {
+        grid-column: 1;
+        grid-row: 3;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: center;
+        gap: var(--gap);
+        justify-self: start;
+        max-inline-size: 100%;
+        & > :is(button, label) {
+          block-size: 100%;
+          text-align: center;
+        }
+        & > :only-child {
+          grid-column: 1 / -1;
+        }
+      }
+      & .binding-labels {
+        display: grid;
+        grid-template-columns: var(--binding-columns);
+        gap: calc(2 * var(--gap));
+        color: var(--muted);
+        font-size: var(--small);
+      }
+      & .load-download {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+        inline-size: 44px;
+        min-inline-size: 44px;
+        min-block-size: 44px;
+        padding: 8px;
+        text-decoration: none;
+        & svg {
+          inline-size: 1.5rem;
+          block-size: 1.5rem;
+        }
+      }
+      & .recipe-bindings {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-auto-rows: 1fr;
+      }
+      & .binding-row {
+        display: grid;
+        grid-template-columns: var(--binding-columns);
+        min-inline-size: 0;
+        align-items: center;
+        gap: calc(2 * var(--gap));
+        padding-block: 1.5rem;
+        border-block-start: 1px solid var(--border);
+      }
+      & .binding-source {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: stretch;
+        gap: var(--gap);
+        min-inline-size: 0;
+      }
+      & .binding-cover {
+        flex: none;
+        align-self: start;
+        inline-size: var(--cover-width);
+        block-size: var(--cover-height);
+        aspect-ratio: 1 / 1.414;
+        display: grid;
+        place-items: center;
+        background: oklch(100% 0 none);
+        border: 1px solid var(--border);
+        & img {
+          inline-size: 100%;
+          block-size: 100%;
+          object-fit: contain;
+        }
+        & > svg {
+          inline-size: 2rem;
+          block-size: 2rem;
+          color: var(--muted);
+        }
+      }
+      & .binding-heading {
+        display: contents;
+      }
+      & .binding-identity {
+        display: flex;
+        flex-direction: column;
+        min-block-size: var(--cover-height);
+        flex: 1 1 9rem;
+        min-inline-size: 0;
+        & h2 {
+          font-size: 1.125rem;
+          text-align: start;
+          text-wrap: pretty;
+          overflow-wrap: break-word;
+        }
+        & > p {
+          color: var(--muted);
+          overflow-wrap: anywhere;
+        }
+      }
+      & .binding-description {
+        order: 1;
+        min-block-size: 2lh;
+        max-block-size: 5lh;
+        overflow: auto;
+        font-size: calc(var(--small) + 1.5px);
+        margin-block-start: 0.375rem;
+        margin-block-end: 0.5rem;
+      }
+      & .binding-meta {
+        order: 2;
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        margin-block-start: auto;
+        min-inline-size: 0;
+        min-block-size: 44px;
+        font-size: var(--small);
+        color: var(--muted);
+        & code {
+          min-inline-size: 0;
+          overflow: clip;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        }
+      }
+      & .icon-button {
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: var(--muted);
+      }
+      & button.icon-button {
+        &:active:not(:disabled) {
+          background: transparent;
+          color: var(--accent);
+        }
+        @media (hover: hover) and (pointer: fine) {
+          &:hover:not(:disabled) {
+            border-color: transparent;
+            background: transparent;
+            color: var(--accent);
+            box-shadow: 0 0 16px color-mix(in oklch, var(--accent) 16%, transparent);
+            text-shadow: none;
+            & svg {
+              filter: none;
+            }
+          }
+        }
+      }
+      & .binding-target {
+        container: binding / inline-size;
+        min-block-size: var(--cover-height);
+        min-inline-size: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: clamp(12px, 1.2cqi, 20px);
+        background: var(--soft);
+        border-radius: var(--radius);
+        align-items: center;
+        &.bound {
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+          column-gap: var(--gap);
+        }
+        & .file-picker {
+          min-inline-size: 0;
+          max-inline-size: 100%;
+          flex-wrap: wrap;
+        }
+      }
+      & .binding-result {
+        flex: 1 1 8rem;
+        min-inline-size: 0;
+        inline-size: 100%;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.5rem;
+      }
+      & .binding-pick {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem 1rem;
+        & .control-description {
+          margin-inline-end: 0.5rem;
+        }
+      }
+      & .bound .binding-pick {
+        flex: none;
+        flex-wrap: nowrap;
+        min-inline-size: 0;
+        max-inline-size: 100%;
+        & .file-picker {
+          flex: none;
+          flex-wrap: nowrap;
+          white-space: nowrap;
+          inline-size: var(--action-width);
+          block-size: var(--action-height);
+          padding-inline: 1rem;
+          & svg {
+            inline-size: 1.75rem;
+            block-size: 1.75rem;
+          }
+          @container binding (width < 13rem) {
+            inline-size: var(--action-height);
+            min-inline-size: 44px;
+            padding: 8px;
+            & span {
+              display: none;
+            }
+          }
+        }
+      }
+      @container matching (width <= 48em) {
+        & .load-heading {
+          grid-template-columns: minmax(0, 1fr);
+          row-gap: 0.25rem;
+        }
+        & .recipe-bindings {
+          grid-auto-rows: auto;
+        }
+        & .load-mark,
+        & .binding-labels,
+        & .expanded,
+        & .binding-pick > .control-description,
+        & .binding-description {
+          display: none;
+        }
+        & .compact {
+          display: inline;
+        }
+        & .load-choices {
+          grid-column: 1;
+          justify-self: stretch;
+          & > :is(button, label) {
+            min-inline-size: 0;
+            padding-inline: 8px;
+            overflow-wrap: anywhere;
+          }
+        }
+        & .binding-row {
+          --cover-width: clamp(80px, 20cqi, 110px);
+          --cover-height: calc(var(--cover-width) * 1.414);
+          grid-template-columns: var(--cover-width) minmax(0, 1fr);
+          grid-template-rows: auto minmax(var(--cover-height), auto);
+          padding-block: 0.5rem;
+          column-gap: clamp(8px, 2cqi, 12px);
+          row-gap: 0;
+          align-content: start;
+        }
+        & .binding-source,
+        & .binding-identity {
+          display: contents;
+        }
+        & .binding-heading {
+          display: flex;
+          grid-column: 1 / -1;
+          grid-row: 1;
+          align-items: center;
+          gap: 0.5rem;
+          margin-block-end: 0.25rem;
+          & h2 {
+            flex: 0 1 auto;
+            min-inline-size: 0;
+            font-size: 1rem;
+          }
+          & .binding-meta {
+            flex: 0 1 auto;
+            min-inline-size: 44px;
+            max-inline-size: 45%;
+            margin: 0;
+          }
+          & .guidance-label {
+            min-inline-size: 0;
+            min-block-size: 44px;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            box-shadow: none;
+            color: inherit;
+            font: inherit;
+            text-align: start;
+            text-decoration: underline dotted;
+            text-underline-offset: 0.2em;
+            @media (hover: hover) and (pointer: fine) {
+              &:hover {
+                color: var(--accent);
+              }
+            }
+          }
+        }
+        & .binding-cover {
+          grid-column: 1;
+          grid-row: 2;
+          align-self: stretch;
+          block-size: 100%;
+          aspect-ratio: auto;
+        }
+        & .binding-target {
+          grid-column: 2;
+          grid-row: 2;
+          padding: 8px;
+        }
+        & .binding-pick {
+          column-gap: 8px;
+        }
+        & .binding-pick .load-download {
+          min-block-size: 44px;
+          block-size: 44px;
+          & svg {
+            inline-size: 24px;
+            block-size: 24px;
+          }
+        }
+        & .bound .binding-pick .file-picker {
+          @container binding (width < 13rem) {
+            block-size: 44px;
+            min-block-size: 44px;
+            inline-size: 44px;
+            & svg {
+              inline-size: 24px;
+              block-size: 24px;
+            }
+          }
+        }
+      }
+      & .binding-target:has(.binding-empty) {
+        border: 1px dashed var(--edge);
+      }
+      & .file-picker.binding-empty {
+        border: 0;
+        background: transparent;
+        padding-inline: 0;
+        &:active:not(:has(input:disabled)) {
+          background: transparent;
+          color: var(--accent);
+          box-shadow: none;
+        }
+        @media (hover: hover) and (pointer: fine) {
+          &:hover:not(:has(input:disabled)) {
+            background: transparent;
+            color: var(--accent);
+            box-shadow: none;
+            text-shadow: 0 0 12px color-mix(in oklch, var(--accent) 25%, transparent);
+          }
+        }
+      }
+      & .load-name .load-download svg {
+        inline-size: 1.25em;
+        block-size: 1.25em;
+      }
+      & .load-name .load-download {
+        font-size: inherit;
+      }
+      & :is(.load-download, .load-back) {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--muted);
+        &:active:not(:disabled) {
+          background: transparent;
+          color: var(--accent);
+          box-shadow: none;
+        }
+        @media (hover: hover) and (pointer: fine) {
+          &:hover:not(:disabled) {
+            background: transparent;
+            color: var(--accent);
+            box-shadow: none;
+            & svg {
+              filter: drop-shadow(0 0 5px color-mix(in oklch, var(--accent) 25%, transparent));
+            }
+          }
+        }
+      }
+      @media (hover: hover) and (pointer: fine) {
+        & .load-back:hover svg {
+          filter: drop-shadow(0 0 5px color-mix(in oklch, var(--accent) 55%, transparent));
+        }
+      }
+      & .binding-file {
+        max-inline-size: 100%;
+        overflow: clip;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 600;
+      }
+      & .load-actions {
+        display: flex;
+        justify-content: end;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--gap);
+        padding-block-start: var(--gap);
+        border-block-start: 1px solid var(--border);
+        & > button {
+          flex: 0 1 var(--action-width);
+          inline-size: var(--action-width);
+          block-size: var(--action-height);
+        }
+      }
     }
     .recipe-panel {
       inline-size: min(34rem, calc(100vi - 2 * var(--gutter)));
@@ -107,12 +648,24 @@
         align-items: center;
         margin-block-end: 0;
       }
+      & .recipe-table {
+        min-inline-size: 0;
+        overflow: auto;
+        overscroll-behavior-inline: contain;
+      }
       & .recipe-inputs {
         inline-size: 100%;
+        min-inline-size: 26rem;
         table-layout: fixed;
         border-collapse: collapse;
         & col:first-child {
-          inline-size: 6ch;
+          inline-size: 29%;
+        }
+        & col:nth-child(2) {
+          inline-size: calc(5ch + var(--gap));
+        }
+        & col:nth-child(3) {
+          inline-size: 19%;
         }
         & th,
         & td {
@@ -133,9 +686,15 @@
         & .recipe-path {
           color: var(--muted);
           font-size: var(--small);
+          overflow: clip;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        & .recipe-title {
+          font-size: var(--small);
         }
         & input,
-        & .recipe-id {
+        & .recipe-name {
           inline-size: 100%;
           min-inline-size: 0;
           min-block-size: 44px;
@@ -150,7 +709,7 @@
           color: var(--accent);
           box-shadow: none;
         }
-        & .recipe-id {
+        & .recipe-name {
           display: block flow;
           text-align: start;
           color: var(--accent);
@@ -439,6 +998,8 @@
       position: relative;
       min-inline-size: 0;
       & > summary {
+        display: flex;
+        align-items: center;
         border-radius: var(--radius);
         & h2 {
           display: flex;
@@ -453,6 +1014,23 @@
         & .count {
           font-size: var(--small);
         }
+      }
+      & .input-information {
+        flex: none;
+        display: inline-flex;
+        & > .guidance-trigger {
+          block-size: 44px;
+          inline-size: 44px;
+        }
+      }
+      & .input-title {
+        flex: 0 1 40%;
+        min-inline-size: 0;
+        overflow: clip;
+        text-overflow: ellipsis;
+        font-size: var(--body);
+        font-weight: 400;
+        color: var(--muted);
       }
       & .input-current {
         flex: 1;
@@ -472,6 +1050,8 @@
         color: var(--muted);
       }
       & .input-list {
+        --input-control-height: max(46px, calc(3.25rem + 2px));
+        --input-details-width: 44px;
         position: absolute;
         z-index: 5;
         inset-block-start: calc(100% + 4px);
@@ -480,6 +1060,8 @@
         max-block-size: 70dvb;
         padding: var(--gap);
         display: block grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-auto-rows: 1fr;
         gap: var(--gap);
         border: 1px solid var(--border);
         border-radius: var(--radius);
@@ -487,12 +1069,29 @@
         box-shadow: 0 8px 24px var(--shadow);
         overflow: auto;
         overscroll-behavior: contain;
-        & button {
+        & .input-choice {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) var(--input-details-width);
+          column-gap: var(--gap);
+          align-items: center;
+        }
+        & .input-choice-title {
+          max-inline-size: 45%;
+          overflow: clip;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          color: var(--muted);
+          font-weight: 400;
+        }
+        & > button,
+        & .input-choice > button:not(.icon-button) {
           display: block flex;
           gap: 0.5em;
           align-items: center;
           text-align: start;
           min-inline-size: 0;
+          min-block-size: var(--input-control-height);
+          block-size: 100%;
           & > span:nth-child(2) {
             flex: 1;
             min-inline-size: 0;
@@ -503,9 +1102,44 @@
             border-color: var(--accent);
           }
         }
+        & > button {
+          justify-self: end;
+          align-self: center;
+          margin-inline-end: calc(var(--input-details-width) + var(--gap));
+          inline-size: max-content;
+          max-inline-size: calc(100% - var(--input-details-width) - var(--gap));
+          min-block-size: 46px;
+          block-size: auto;
+        }
+        & .input-choice > .icon-button {
+          min-block-size: 44px;
+          block-size: 44px;
+          inline-size: var(--input-details-width);
+        }
+      }
+    }
+    @container composer (width <= 30em) {
+      .input-list {
+        & .source-tag,
+        & .input-choice-title,
+        & > button > span {
+          display: none;
+        }
+        & > button {
+          min-inline-size: 46px;
+        }
       }
     }
     @container composer (width <= 55em) {
+      .input-picker > summary:has(.input-information) {
+        gap: 0;
+        & .input-chevron {
+          display: none;
+        }
+      }
+      .input-picker > summary .input-title {
+        display: none;
+      }
       .composer .mobile-workspace-tabs {
         margin-block-end: var(--gap);
         & button {

@@ -54,6 +54,7 @@ export class Transfer {
   #scrollArea: HTMLElement | undefined
   #scrollPoint: { x: number; y: number } | undefined
   #nativeMove: ((event: DragEvent) => void) | undefined
+  #grab: { x: number; y: number } | undefined
   #pressed: ReturnType<typeof createDragImage>
   #pressEvents: AbortController | undefined
   #moving = $derived(new Set(this.value?.kind === "output" ? this.value.ids : []))
@@ -260,6 +261,7 @@ export class Transfer {
     this.warning = false
     contact?.control.removeAttribute("data-press")
     active?.image?.image.remove()
+    this.#grab = undefined
     if (!completed && active) this.#workspace.inspected = active.inspected
     this.#interaction = { kind: "idle" }
     this.#target = { kind: "outside" }
@@ -326,20 +328,28 @@ export class Transfer {
       if (list.scrollTop === before) return
       const row = this.#rowAt(list, point.y)
       if (row) {
-        const box = row.querySelector<HTMLElement>(".list-choice")!.getBoundingClientRect()
+        const box = this.#choiceBounds(list, row)
         this.#place(Number(row.dataset.index), point.y >= box.top + box.height / 2)
       }
       this.#scrollFrame = requestAnimationFrame(scroll)
     }
     this.#scrollFrame = requestAnimationFrame(scroll)
   }
+  #choiceBounds(list: HTMLElement, row: HTMLElement) {
+    const choice = row.querySelector<HTMLElement>(".list-choice")!
+    return {
+      top: list.getBoundingClientRect().top - list.scrollTop + row.offsetTop + choice.offsetTop,
+      height: choice.offsetHeight,
+    }
+  }
   #rowAt(list: HTMLElement, y: number) {
+    const local = y - list.getBoundingClientRect().top + list.scrollTop
     const rows = list.querySelectorAll<HTMLElement>(":scope > .list-row:not(.removing):not([data-dragging])")
     let first = 0,
       last = rows.length
     while (first < last) {
       const middle = Math.floor((first + last) / 2)
-      if (rows[middle].getBoundingClientRect().bottom < y) first = middle + 1
+      if (rows[middle].offsetTop + rows[middle].offsetHeight < local) first = middle + 1
       else last = middle
     }
     return rows[first]
@@ -355,11 +365,17 @@ export class Transfer {
     const list = hit?.closest<HTMLElement>(".composition-output .page-list")
     if (list) {
       this.grid = undefined
-      const row = this.#rowAt(list, event.clientY)
-      if (row) {
-        const bounds = row.querySelector<HTMLElement>(".list-choice")!.getBoundingClientRect()
-        this.#place(Number(row.dataset.index), event.clientY >= bounds.top + bounds.height / 2)
-      } else this.#place()
+      const slot = list.querySelector<HTMLElement>(".list-drop-preview")
+      const top =
+        slot && list.getBoundingClientRect().top - list.scrollTop + slot.parentElement!.offsetTop + slot.offsetTop
+      // Keep an open insertion slot stable while its neighbors are moving.
+      if (!slot || event.clientY < top! || event.clientY > top! + slot.offsetHeight) {
+        const row = this.#rowAt(list, event.clientY)
+        if (row) {
+          const bounds = this.#choiceBounds(list, row)
+          this.#place(Number(row.dataset.index), event.clientY >= bounds.top + bounds.height / 2)
+        } else this.#place()
+      }
       this.#scrollList(list, event)
       if (this.#active?.image?.image.hasAttribute("data-strip")) this.#placeImage(event.clientX, event.clientY)
       if (this.blocked && transfer) transfer.dropEffect = "none"
@@ -581,13 +597,9 @@ export class Transfer {
       image.style.translate = `${Math.max(4, Math.min(innerWidth - drag.width - 4, x - drag.width / 2))}px ${Math.max(4, Math.min(innerHeight - drag.height - 4, y - 12))}px`
       return
     }
-    const hit = document.elementFromPoint(x, y),
-      list = hit?.closest<HTMLElement>(".composition-output .page-list")
-    const element = list ? this.#rowAt(list, y) : hit?.closest(".list-row")
-    const row = element?.querySelector(".list-choice")?.getBoundingClientRect(),
-      bounds = element?.getBoundingClientRect()
-    const left = Math.max(4, Math.min((bounds?.left ?? x) - 8, innerWidth - drag.width - 4)),
-      top = Math.max(4, Math.min((row?.bottom ?? y) - 12, innerHeight - drag.height - 4))
+    this.#grab ??= { x: x - drag.origin!.x, y: y - drag.origin!.y }
+    const left = Math.max(4, Math.min(x - this.#grab.x, innerWidth - drag.width - 4))
+    const top = Math.max(4, Math.min(y - this.#grab.y, innerHeight - drag.height - 4))
     image.style.translate = `${left}px ${top}px`
   }
 

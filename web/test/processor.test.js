@@ -8,6 +8,98 @@ import { serve } from "./server.ts"
 import { fixture, trackWorkers } from "./browser.js"
 
 test(
+  "Recipe workers inspect display metadata and retain editing intent through resolution and recovery",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await chromium.launch()
+    try {
+      const page = await browser.newPage()
+      await page.goto(server.resolvedUrls.local[0])
+      const result = await page.evaluate(
+        async (bytes) => {
+          const { Processor } = await import("/src/processor.ts")
+          const { openPDF, metadata, cover } = await import("/src/pdf.ts")
+          const processor = new Processor()
+          let task
+          try {
+            const original = await processor.run(new Uint8Array(bytes), 1)
+            const set = original.description.profileSets.find((candidate) => candidate.profiles.length > 1)
+            const profile = set.profiles[1]
+            const parameter = Object.keys(profile.overrides)[0]
+            const record = {
+              version: 1,
+              metadata: { title: "Collected & styled pages", coverPage: 2 },
+              inputs: { book: { title: "Saved book", xmp: { "dc:creator": "Fixture author" } } },
+              sources: {
+                styled: {
+                  input: "book",
+                  profiles: [{ set: set.id, id: profile.id }],
+                  overrides: [{ id: parameter, value: profile.overrides[parameter] }],
+                },
+              },
+              parts: [{ pages: [{ source: "styled", pages: "all" }], copies: 1, front: false }],
+            }
+            const text = JSON.stringify(record)
+            const definitions = await processor.inspect(text, 2)
+            const inputs = [{ id: "book", bytes: new Uint8Array(bytes) }]
+            const resolved = await processor.resolve(text, inputs, 3)
+            const invalid = structuredClone(record)
+            invalid.parts[0].pages = [{ source: "styled", page: 999 }]
+            let failure
+            try {
+              await processor.resolve(JSON.stringify(invalid), inputs, 4)
+            } catch (error) {
+              failure = error.failure.record
+            }
+            const recovered = await processor.resolve(text, inputs, 5)
+            const pdf = await processor.compose(recovered.plan, inputs, 6)
+            task = await openPDF(new Uint8Array(pdf.bytes))
+            const opened = await task.promise
+            const identity = await metadata(opened, "output.pdf")
+            const image = await cover(opened, identity.coverPage)
+            const pending = processor.resolve(text, inputs, 7).catch((error) => error.name)
+            processor.cancel()
+            const cancelled = await pending
+            const after = await processor.resolve(text, inputs, 8)
+            return {
+              definitions,
+              expectedDefinitions: record.inputs,
+              resolved,
+              recovered,
+              after,
+              failure,
+              cancelled,
+              expectedIntent: { styled: { profiles: { [set.id]: profile.id }, edits: [parameter] } },
+              title: identity.title,
+              coverPage: identity.coverPage,
+              png: image.startsWith("data:image/png;base64,"),
+              pages: pdf.description.pageCount,
+            }
+          } finally {
+            processor.dispose()
+            await task?.destroy()
+          }
+        },
+        [...fixture({ grouped: true, profileCount: 2, family: "fixture", count: 3 })],
+      )
+      assert.deepEqual(result.definitions, result.expectedDefinitions)
+      assert.deepEqual(result.resolved.intent, result.expectedIntent)
+      assert.deepEqual(result.recovered, result.resolved)
+      assert.deepEqual(result.after, result.resolved)
+      assert.equal(result.failure.location, "/parts/0/pages/0")
+      assert.equal(result.cancelled, "AbortError")
+      assert.equal(result.title, "Collected & styled pages")
+      assert.equal(result.coverPage, 2)
+      assert.equal(result.png, true)
+      assert.equal(result.pages, 3)
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test(
   "WASM rejects malformed semantic metadata and preserves demo families through composition",
   { timeout: 60000 },
   async () => {

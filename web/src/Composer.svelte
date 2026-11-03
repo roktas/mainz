@@ -321,6 +321,15 @@
       view = "output"
     },
   })
+  $effect.pre(() => {
+    if (activeOutputTab !== "list") return
+    const destination = transfer.destination
+    const list = document.getElementById(`${key}-output-panel`)?.querySelector<HTMLElement>(".page-list")
+    if (!list) return
+    const previous = cancelMove
+    cancelMove = animateOrder(list, destination === undefined ? 240 : 180)
+    previous?.()
+  })
   export function views() {
     return { input: activeTab, output: activeOutputTab }
   }
@@ -1554,14 +1563,14 @@
     pane="Output"
     number={transfer.number(index)}
     name={pageName(page.content)}
-    label={activeOutputTab === "list" && origin && "page" in page.content
-      ? origin.input.labels[page.content.page]
-      : undefined}
     mode={activeOutputTab === "list" ? "list" : outputCompact ? "compact" : "normal"}
     bind:opened={originOpen}
   >
     {#snippet details()}
       <strong>{origin?.input.name ?? (page.padding ? "Padding" : "Blank")}</strong>
+      {#if origin && "page" in page.content && origin.input.labels[page.content.page] && origin.input.labels[page.content.page] !== String(page.content.page + 1)}<span
+          class="page-context">PDF label: {origin.input.labels[page.content.page]}</span
+        >{/if}
       <span class="page-context"
         >{"page" in page.content
           ? `${activeOutputTab === "list" ? "Input page" : "p."} ${page.content.page + 1}`

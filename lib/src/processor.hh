@@ -18,6 +18,7 @@ inline constexpr std::size_t pipeline_limit = std::size_t {512} * 1024 * 1024;
 inline constexpr std::size_t manifest_limit = std::size_t {16} * 1024 * 1024;
 inline constexpr std::size_t locator_limit = std::size_t {128} * 1024 * 1024;
 inline constexpr std::size_t json_limit = std::size_t {1024} * 1024;
+inline constexpr std::size_t recipe_limit = std::size_t {16} * 1024 * 1024;
 inline constexpr std::size_t input_limit = 32;
 inline constexpr std::size_t page_limit = 10000;
 

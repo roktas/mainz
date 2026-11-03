@@ -1,6 +1,16 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { copyError, downloadInputs, downloadName, expand, plan, move, positionAfterEdit } from "../src/model.ts"
+import {
+  titleOf,
+  titleError,
+  copyError,
+  downloadInputs,
+  downloadName,
+  expand,
+  plan,
+  move,
+  positionAfterEdit,
+} from "../src/model.ts"
 import type { Part } from "../src/model.ts"
 import { pageRanges, parseSequence, toggleSequence } from "../src/pages.ts"
 import * as composition from "../src/composition.ts"
@@ -735,4 +745,12 @@ test("Quartets use complete Style objects at their first parameter's position", 
       },
     },
   ])
+})
+
+test("Output titles fit UTF-8 limits and XML text before saving", () => {
+  assert.equal(titleOf({ name: ".pdf" }), ".pdf")
+  for (const title of ["Ink & <Paper>", "Çalışma", "Pages\nfor practice", "界".repeat(1365)])
+    assert.equal(titleError(title), "")
+  for (const title of ["", " ", "bad\u0001title", "bad\ufffftitle", "bad\ud800title", "界".repeat(1366)])
+    assert.ok(titleError(title))
 })

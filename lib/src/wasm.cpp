@@ -169,14 +169,15 @@ void mainz_compose(const char* data, std::size_t size)
 }
 void mainz_recipe_inputs(const char* data, std::size_t size)
 {
-    boundary([&] { result = mainz::recipe_inputs(bytes(data, size, mainz::json_limit)); });
+    boundary([&] { result = mainz::recipe_inputs(bytes(data, size, mainz::recipe_limit)); });
 }
 void mainz_resolve_recipe(const char* data, std::size_t size)
 {
     boundary([&] {
-        auto resolved = mainz::resolve_recipe(bytes(data, size, mainz::json_limit), inputs);
-        result = mainz::detail::encode(mainz::detail::dictionary({{"plan", JSON::parse(resolved.plan)},
-                                           {"warnings", JSON::parse(resolved.warnings)}}),
+        auto resolved = mainz::resolve_recipe(bytes(data, size, mainz::recipe_limit), inputs);
+        result = mainz::detail::encode(
+            mainz::detail::dictionary({{"plan", JSON::parse(resolved.plan)},
+                {"warnings", JSON::parse(resolved.warnings)}, {"intent", JSON::parse(resolved.intent)}}),
             mainz::manifest_limit);
     });
 }

@@ -202,6 +202,27 @@ module Mainz
       assert_nil(HexaPDF::Document.open(result).catalog[:Metadata])
     end
 
+    def test_composition_writes_explicit_output_title_and_cover_page
+      request = plan
+      request["metadata"] = {"title" => "Ink & <Paper> Çalışma\rPart 2", "coverPage" => 2}
+      result, = compose(request, "identified.pdf")
+      saved = HexaPDF::Document.open(result)
+      assert_equal("Ink & <Paper> Çalışma\rPart 2", saved.trailer[:Info][:Title])
+      xml = saved.catalog[:Metadata].stream.force_encoding(Encoding::UTF_8)
+      assert_includes(xml, "Ink &amp; &lt;Paper&gt; Çalışma&#13;Part 2")
+      assert_includes(xml, "<mainz:coverPage>2</mainz:coverPage>")
+      assert_equal(10, describe(result)["pageCount"])
+      [0, 11, 1.5].each do |page|
+        request["metadata"]["coverPage"] = page
+        _, failure = compose(request, "invalid-title.pdf", ok: false)
+        assert_equal("/metadata", JSON.parse(failure.stderr)["location"])
+      end
+
+      request["metadata"] = {"title" => "bad\u0001text", "coverPage" => 1}
+      _, failure = compose(request, "invalid-title.pdf", ok: false)
+      assert_equal("invalid-request", JSON.parse(failure.stderr)["code"])
+    end
+
     def test_previews_survive_shared_pages_and_independent_sources
       source = file("preview.pdf")
       preview_fixture(source)

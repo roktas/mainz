@@ -208,13 +208,13 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const landingHeight = (await landing.boundingBox()).height
   await landing.dispatchEvent("dragenter", { dataTransfer: fileDrag })
   assert.ok(
-    await landing.getByText("Drop PDFs to open", { exact: true }).isVisible(),
+    await landing.getByText("Drop a PDF to open", { exact: true }).isVisible(),
     "PDF drag shows an explicit file target",
   )
   await landing.locator(".welcome").dispatchEvent("dragenter", { dataTransfer: fileDrag })
   await landing.locator(".welcome").dispatchEvent("dragleave", { dataTransfer: fileDrag })
   assert.ok(
-    (await landing.getByText("Drop PDFs to open", { exact: true }).isVisible()) &&
+    (await landing.getByText("Drop a PDF to open", { exact: true }).isVisible()) &&
       (await landing.boundingBox()).height === landingHeight,
     "Nested file drag events preserve the target and layout",
   )
@@ -438,7 +438,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
     page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
   const order = () => output.locator(".page-origin-info .page-context").allTextContents()
   const choose = async (number) => {
-    await page.locator(".input-picker > summary").click()
+    await page.locator(".input-picker > summary h2").click()
     await page
       .locator(".input-list")
       .getByRole("button", { name: new RegExp(`^${number} `) })
@@ -1306,7 +1306,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
           (await page.locator(".input-current").evaluate((element) => element.scrollWidth > element.clientWidth)),
         "Long mobile filenames truncate while keeping the full name in hover help",
       )
-      await page.locator(".input-picker > summary").click()
+      await page.locator(".input-picker > summary h2").click()
       assert.ok(
         await page.locator(".input-picker").getByRole("button", { name: "Remove Input", exact: true }).isVisible(),
         "The mobile Input chooser offers removal",
@@ -1399,7 +1399,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
     .getByRole("navigation", { name: "Workspace view", exact: true })
     .getByRole("button", { name: "Input", exact: true })
     .click()
-  await page.locator(".input-picker > summary").click()
+  await page.locator(".input-picker > summary h2").click()
   await page.locator(".input-picker").getByRole("button", { name: "Remove Input", exact: true }).click()
   assert.ok(
     (await page.locator(`.input-list button[data-source="${longInput}"]`).count()) === 0 &&
@@ -1408,7 +1408,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   )
   await page.evaluate(() => (document.documentElement.style.fontSize = ""))
   await page.setViewportSize({ width: 1440, height: 1100 })
-  await page.locator(".input-picker > summary").click()
+  await page.locator(".input-picker > summary h2").click()
   await page.locator(`.input-list button[data-source="${previousInput}"]`).click()
   await inputPages().click()
   assert.ok(
@@ -1542,7 +1542,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await zoom(output, "Zoom in")
   await output.getByLabel("Page selection", { exact: true }).fill("1")
   for (let index = 0; index < inputs + 1; index++) {
-    await page.locator(".input-picker > summary").click()
+    await page.locator(".input-picker > summary h2").click()
     await page.getByRole("button", { name: "Remove Input", exact: true }).click()
   }
   assert.ok(
@@ -1553,7 +1553,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
     "Removing the final Input returns focus to Open PDF",
   )
   assert.ok(
-    (await page.locator(".drop-zone").isVisible()) &&
+    (await page.locator(".empty-input input[type=file]").isVisible()) &&
       (await page.locator("html").getAttribute("data-active-processors")) === "0",
     "Removing all Inputs releases both busy and idle processors",
   )

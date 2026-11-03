@@ -109,7 +109,7 @@ export function createDragImage(control: HTMLElement, quantity: number, size?: S
     }
     image.setAttribute("aria-hidden", "true")
     document.body.append(image)
-    return { image, thumbnail, width, height, number, original }
+    return { image, thumbnail, width, height, number, original, origin: { x: bounds.left, y: bounds.top } }
   }
   const card =
     control.closest(".composition-card, .page-view") ??

@@ -4,6 +4,10 @@
 
 ### Added
 
+- Recipe loading from the landing page, with saved Input titles, embedded covers, XMP details, local PDF matching, and a
+  separate Recipe demo. Loaded profiles, manual edits, and baseline resets remain editable and exportable.
+- Output title and cover-page choices in the existing filename editor, written to generated PDF metadata and retained
+  when the PDF is opened as a later Input.
 - Optional page names, tags, triviality, and embedded PNG previews in the version 1 physical-page array, including
   metadata-only PDFs, numeric page scopes, native/WASM preview access, and `imprint --preview`.
 - List view, page-name captions, and adjustable Input Grid/List visibility based on triviality, with complete Selection
@@ -30,6 +34,8 @@
 
 ### Changed
 
+- Recipe export starts with editable Input names. Narrow Recipe matching keeps PDF choices beside smaller covers and
+  opens long descriptions from the title without moving rows.
 - Breaking CLI changes for the next major release: PDF styling uses `style --overrides`, Recipe execution uses `apply`,
   and SVG production uses `imprint`. Update callers from `apply --request`, `run`, and `produce`, respectively.
 - Aligned library and web names around Plan, Artifact, Provenance, and Imprinter. WASM Recipe resolution returns `plan`;
@@ -63,6 +69,9 @@
 
 ### Fixed
 
+- List transfers keep a flat strip attached to its grab point and a stable insertion slot while neighboring rows move.
+  Output rows keep source page labels in details so they do not appear as duplicate position numbers.
+- Multiple PDF-opening errors remain readable in a separate details panel outside the header.
 - Retained stationary lens hover intent when a thumbnail raster refreshes, while preserving Escape and pointer-leave
   dismissal.
 - Corrected profile-styling diagnostics for metadata-only PDFs.

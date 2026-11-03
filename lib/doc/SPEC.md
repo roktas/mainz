@@ -292,8 +292,9 @@ these values and their encoding. If it also writes equivalent legacy Info entrie
 The manifest's `publication` record remains a separate processing-compatibility claim.
 
 Styling and extraction retain existing document metadata. Composition creates a new Document and does not choose or
-merge Input titles, authors, or rights declarations. The producing application supplies the final publication's XMP.
-This contract adds no duplicate JSON metadata record or general metadata editor.
+merge Input titles, authors, or rights declarations. The producing application can supply a title and cover page through
+the Plan's optional `metadata` field. Composition writes these choices to XMP under Section 6.3. Other publication
+metadata remains the producing application's responsibility.
 
 #### Style families and semantic keys
 
@@ -907,7 +908,7 @@ instance IDs follow Section 4.1.
 
 | Record         | Fields                                                                                                  |
 | -------------- | ------------------------------------------------------------------------------------------------------- |
-| Plan           | Required `version`, `sources`, `parts`                                                                  |
+| Plan           | Required `version`, `sources`, `parts`; optional `metadata`                                             |
 | `version`      | Integer `1`                                                                                             |
 | `sources`      | Input instance-ID map, empty for Blank-only Plans                                                       |
 | Input instance | Required `input` ID and complete `overrides` object                                                     |
@@ -927,6 +928,12 @@ Input instance overrides replace complete saved state rather than applying a pat
 baselines. Mixed and unrepresentable baselines remain unassigned. Input instance changes never alter Inputs or other
 Input instances. All retained occurrences share their Input instance's parameter scope. Independent styles require
 independent Input instances, even with the same Input and page.
+
+Optional `metadata` contains exactly `title` and `coverPage`. The title is nonblank UTF-8 text of at most 4096 bytes and
+must contain valid XML 1.0 characters. `coverPage` is a one-based physical Output page number after repetition and
+Padding expansion. It must identify an existing page. Composition writes the title as XMP `dc:title` with the
+`x-default` language and the matching PDF Info `Title`. It writes the cover as `mainz:coverPage` in the namespace
+`https://github.com/roktas/mainz/ns/1.0/`. Omitting `metadata` writes neither field. Input metadata is never merged.
 
 Each Part repeats its complete sequence `copies` times. With `front: true`, copies start at even zero-based result
 indexes and finish complete duplex sheets. An odd preceding length adds leading Padding. Odd sequences add trailing
@@ -1051,21 +1058,23 @@ resolves to a Plan. It stores processing choices rather than UI events, preview 
 consumers use the same interpreter. The CLI owns filesystem access under its
 [Recipe execution rules](../../cli/doc/SPEC.md#22-recipe-execution).
 
-Recipe version 1 requires exactly `version`, `inputs`, `sources`, and `parts`. Version is integer `1`. Recipe and Plan
-versions are separate contracts. Encoding, unknown-field rejection, identifiers, and numeric rules follow Section 4.1.
+Recipe version 1 requires `version`, `inputs`, `sources`, and `parts` and permits optional `metadata` under the Plan's
+title and cover-page rules. Resolution checks the cover against the expanded Output and carries these choices into the
+Plan. Version is integer `1`. Recipe and Plan versions are separate contracts. Encoding, unknown-field rejection,
+identifiers, and numeric rules follow Section 4.1.
 
 Names and tag predicates can help a host construct a selection. The host records their resolved physical indexes as
 concrete page references. Replay does not repeat that name or tag lookup. Existing explicit `pages: "all"` selection
 retains its separate dynamic meaning.
 
-| Record                  | Fields                                                                         |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| Input                   | Optional `sha256`, `pageCount`, `publication`; an empty object is valid        |
-| Input instance          | Required `input`; optional `profiles`, `overrides`, both arrays                |
-| Local profile choice    | Exactly `set` and `id`, containing the Input's opaque set/profile IDs          |
-| Semantic profile choice | Required `family` and `name`; optional Boolean `all`, default `false`          |
-| Local override          | Exactly parameter `id` and `value`                                             |
-| Semantic override       | Required `family`, `key`, and `value`; optional Boolean `all`, default `false` |
+| Record                  | Fields                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------ |
+| Input                   | Optional `sha256`, `pageCount`, `publication`, `title`, `cover`, `xmp`; an empty object is valid |
+| Input instance          | Required `input`; optional `profiles`, `overrides`, both arrays                                  |
+| Local profile choice    | Exactly `set` and `id`, containing the Input's opaque set/profile IDs                            |
+| Semantic profile choice | Required `family` and `name`; optional Boolean `all`, default `false`                            |
+| Local override          | Exactly parameter `id` and `value`                                                               |
+| Semantic override       | Required `family`, `key`, and `value`; optional Boolean `all`, default `false`                   |
 
 `inputs` and `sources` are ID maps, empty for Blank-only Recipes. Every Input serves an Input instance and every Input
 instance has a page reference. Input IDs name logical PDF bindings; Input instance IDs name independent styled uses of
@@ -1073,6 +1082,13 @@ those Inputs. Several Input instances can use one Input. Both kinds of ID are op
 no file-location fields. The host binds each Input ID to actual PDF bytes at execution time. A filename without its
 `.pdf` suffix is a convenient initial ID, not a required filesystem location. Displayed one-based indexes identify rows
 only; they are not stored identities or references. JSON member order does not define a host's display order.
+
+Optional Input `title`, `cover`, and `xmp` describe the reference PDF for file matching. They do not affect resolution
+or establish PDF identity. The title is a string of at most 4096 UTF-8 bytes. `xmp` is a map of at most 32 string
+fields; keys contain 1–128 bytes and values contain at most 4096 bytes. A cover is a `data:image/png;base64,` string of
+at most 256 KiB, including its prefix. Its base64 encoding, PNG signature, IHDR header, and dimensions of 1–512 pixels
+on each axis must be valid. Hosts own pixel decoding and can omit an unavailable cover. No external image URL is
+accepted.
 
 Optional `sha256` records the reference PDF's digest as 64 lowercase hexadecimal characters. A mismatch produces an
 `input-changed` warning and permits updated Inputs. The warning contains `input`, `location`, `message`, `expected`, and
@@ -1140,24 +1156,29 @@ and preserves the represented content, page order, copies, Blanks, and styles. P
 requires its explicit Recipe representation; it cannot be inferred from an equivalent concrete snapshot.
 
 `recipe_inputs(recipe)` validates the unbound record and returns its Input definitions as JSON. It reads no files.
-`resolve_recipe(recipe, inputs)` validates separately supplied Input bytes and returns `Resolution` with `plan` and
-`warnings` JSON strings. The `plan` member contains the Plan. Resolution generates no intermediate styled PDFs or final
-PDF. The Plan executes through `compose`. Missing or extra bindings fail. Validation reports original Recipe pointers
-and retains structured PDF errors. Failure returns no partial Plan or warning result.
+`resolve_recipe(recipe, inputs)` validates separately supplied Input bytes and returns `Resolution` with `plan`,
+`warnings`, and `intent` JSON strings. The `plan` member contains the Plan. `intent` maps each Input instance ID to
+`profiles`, a local profile-set-ID-to-profile-ID map, and `edits`, an array of explicitly overridden local parameter
+IDs. Equal-valued edits and null baseline resets retain their explicit intent. Hosts use these records for further
+editing and export; composition uses the Plan. Resolution generates no intermediate styled PDFs or final PDF. The Plan
+executes through `compose`. Missing or extra bindings fail. Validation reports original Recipe pointers and retains
+structured PDF errors. Failure returns no partial result.
 
 The native `resolve_recipe` overload for immutable `Document` Inputs reuses their descriptions. The CLI reads and
 validates each binding once, then uses this overload and `compose_validated`. The byte-map overload remains available
 for hosts that supply bytes rather than retained validated documents. Both use the same resolver and validation rules.
 
 `mainz_recipe_inputs(pointer, size)` exposes unbound inspection through WASM. `mainz_resolve_recipe(pointer, size)`
-resolves against the registered Inputs and returns `{ "plan": ..., "warnings": [...] }` through `mainz_result` and
-`mainz_size`. These operations retain the active styling document and do not generate PDF bytes. The host copies the
-result before another operation, then can pass the returned Plan to `mainz_compose` using the same registered bytes.
+resolves against the registered Inputs and returns `{ "plan": ..., "warnings": [...], "intent": {...} }` through
+`mainz_result` and `mainz_size`. These operations retain the active styling document and do not generate PDF bytes. The
+host copies the result before another operation, then can pass the returned Plan to `mainz_compose` using the same
+registered bytes.
 
-Recipe JSON and Plan JSON each have a 1 MiB limit. The Plan's Input/Input instance, aggregate Input byte, copy, and
-expanded page limits apply during resolution. Parts and each unexpanded page-selector array contain at most 10000
-entries. Retained description JSON has a 512 MiB aggregate byte budget. These byte budgets do not measure total peak
-memory. Checks precede page-list expansion. Existing PDF, manifest, decoding, and traversal limits still apply.
+Recipe JSON has a 16 MiB limit. Plan JSON retains its 1 MiB limit. Only Recipe cover strings exceed the ordinary
+4096-byte string ceiling, within their separate limit above. The Plan's Input/Input instance, aggregate Input byte,
+copy, and expanded page limits apply during resolution. Parts and each unexpanded page-selector array contain at most
+10000 entries. Retained description JSON has a 512 MiB aggregate byte budget. These byte budgets do not measure total
+peak memory. Checks precede page-list expansion. Existing PDF, manifest, decoding, and traversal limits still apply.
 Reproducibility covers the resolved operations and represented PDF content; it does not promise identical serialized
 bytes across processor or dependency versions. File naming, printing, sharing, and UI state remain host concerns.
 
@@ -1258,7 +1279,7 @@ The [Web glossary](../../web/doc/SPEC.md#glossary) owns workspace terms.
 | Input                    | Immutable PDF bytes supplied separately under an opaque Input ID. Several Input instances can share them.                        |
 | Input ID                 | Logical key for a PDF binding, independent of its file location.                                                                 |
 | Recipe                   | Portable choices and logical Input IDs that resolve against bound PDFs into a Plan.                                              |
-| Resolution               | Recipe resolution result containing a Plan and change warnings, without a produced Document.                                     |
+| Resolution               | Recipe resolution result containing a Plan, change warnings, and explicit style intent, without a produced Document.             |
 | Plan                     | Concrete composition request with physical page references, Blanks, complete Input instance overrides, copies, and alignment.    |
 | Provenance               | Versioned record of page origins, Part and copy positions, and source mappings for parameter identities.                         |
 | Publication              | Producer-declared logical document identity and SemVer version carrying processing compatibility promises.                       |

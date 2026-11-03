@@ -43,6 +43,55 @@ test("The maintained demo declares its book title and physical page names", { ti
   }
 })
 
+test("Input metadata keeps bounded fields and uses valid title fallbacks", async () => {
+  const server = await serve()
+  const browser = await chromium.launch()
+  try {
+    const page = await browser.newPage()
+    await page.goto(server.resolvedUrls.local[0])
+    const values = await page.evaluate(async () => {
+      const { metadata } = await import("/src/pdf.ts")
+      const record = new Map([
+        ["dc:title", "XMP title"],
+        ["dc:description", "Practice pages"],
+        ["dc:creator", ["One", "Two"]],
+        ["mainz:coverpage", "3"],
+        ["x:" + "界".repeat(43), "Too many bytes in the key"],
+        ["x:broken", "\ud800"],
+      ])
+      const pdf = { numPages: 4, getMetadata: async () => ({ metadata: record, info: { Title: "Info title" } }) }
+      const first = await metadata(pdf, "file.pdf")
+      record.set("dc:title", "invalid\u0001title")
+      const fallback = await metadata(pdf, "file.pdf")
+      record.set("mainz:coverpage", "5")
+      pdf.getMetadata = async () => ({ metadata: record, info: { Title: "" } })
+      const filename = await metadata(pdf, "file.pdf")
+      pdf.getMetadata = async () => {
+        throw new Error("No document metadata")
+      }
+      const absent = await metadata(pdf, "file.pdf")
+      return { first, fallback: fallback.title, filename: [filename.title, filename.coverPage], absent }
+    })
+    assert.deepEqual(values, {
+      first: {
+        title: "XMP title",
+        coverPage: 3,
+        xmp: {
+          "dc:title": "XMP title",
+          "dc:description": "Practice pages",
+          "dc:creator": "One, Two",
+          "mainz:coverpage": "3",
+        },
+      },
+      fallback: "Info title",
+      filename: ["file.pdf", 1],
+      absent: { title: "file.pdf", coverPage: 1 },
+    })
+  } finally {
+    await browser.close()
+  }
+})
+
 test(
   "Shared PNG thumbnails decode once and keep Page pixels and decoder fallback independent",
   { timeout: 60000 },

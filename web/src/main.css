@@ -35,10 +35,6 @@
       border: 1px solid;
       border-radius: var(--radius);
       box-shadow: 0 4px 12px var(--shadow);
-      @media (prefers-reduced-motion: no-preference) {
-        rotate: -1.5deg;
-        animation: strip-lift 160ms var(--ease-out);
-      }
       & .drag-number {
         grid-column: 1;
         text-align: center;
@@ -84,14 +80,6 @@
       & .drag-count {
         inset-inline-end: 8px;
       }
-    }
-  }
-  @keyframes strip-lift {
-    from {
-      scale: 0.98;
-    }
-    to {
-      scale: 1;
     }
   }
   @scope (.addition-preview, .removal-preview) {
@@ -446,6 +434,9 @@
     main:has(.composer) + .footnote {
       border-block-start: 1px solid var(--border);
     }
+    main:has(.load-panel) + .footnote {
+      position: static;
+    }
     main:not(:has(.composer)) + .footnote {
       row-gap: var(--gap);
       & > time {
@@ -463,41 +454,60 @@
       margin-block: 0.75em;
     }
     .file-errors {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0 var(--gap);
       min-inline-size: 0;
-      & > summary {
-        flex-wrap: wrap;
-        column-gap: var(--gap);
-        row-gap: 0;
-        & > span {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5em;
-          min-inline-size: 0;
-          max-inline-size: 100%;
-          min-block-size: 44px;
-        }
-        & > span:last-child {
-          flex-wrap: wrap;
-          row-gap: 0;
-          & > span {
-            flex: 1 1 min-content;
-            min-inline-size: 0;
-          }
-        }
-        & > [role="alert"] {
-          color: var(--danger);
-        }
+      & > [role="alert"] {
+        display: inline-flex;
+        align-items: center;
+        min-block-size: 44px;
+        color: var(--danger);
       }
-      &[open] > summary svg {
-        rotate: 90deg;
+      & .file-errors-trigger {
+        min-inline-size: 0;
+        max-inline-size: 100%;
+        min-block-size: 44px;
+        padding-inline: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: start;
       }
-      ul {
-        margin-block-start: calc(var(--gap) / 2);
+    }
+    .file-error-panel {
+      inset: auto;
+      margin: 0;
+      margin-block-start: calc(var(--gap) / 2);
+      position-area: block-end span-inline-end;
+      position-try-fallbacks:
+        flip-block,
+        flip-inline,
+        flip-block flip-inline,
+        --popover-center;
+      inline-size: min(38rem, calc(100vi - 2 * var(--gutter)));
+      max-block-size: calc(100dvb - 2 * var(--gutter));
+      padding: var(--gap);
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: 0 4px 16px var(--shadow);
+      font-size: var(--body);
+      font-weight: 400;
+      text-align: start;
+      overflow: auto;
+      & .dialog-heading {
+        align-items: center;
+      }
+      & ul {
         max-block-size: min(16rem, 40dvb);
         overflow: auto;
         overscroll-behavior: contain;
+        overflow-wrap: anywhere;
       }
-      li + li {
+      & li + li {
         margin-block-start: 0.75em;
       }
     }
@@ -646,6 +656,12 @@
   }
 }
 @layer layouts {
+  @position-try --popover-center {
+    position-area: none;
+    inset-block: var(--gutter);
+    inset-inline: var(--gutter);
+    margin: auto;
+  }
   @scope (#app) {
     @media (width <= 30em) {
       main:has(

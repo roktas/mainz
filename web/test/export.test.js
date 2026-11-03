@@ -12,6 +12,690 @@ import { fixture, tab, trackWorkers } from "./browser.js"
 
 const inventory = JSON.parse(await readFile(new URL("./viewports.json", import.meta.url), "utf8"))
 
+test(
+  "Recipe matching shows long descriptions below titles in equal rows and keeps borderless actions",
+  { timeout: 90000 },
+  async () => {
+    const server = await serve()
+    const recipe = JSON.parse(await readFile(new URL("./fixtures/recipe/session.json", import.meta.url), "utf8"))
+    for (const input of Object.values(recipe.inputs)) {
+      input.xmp ??= {}
+      input.xmp["dc:description"] =
+        "A practical collection of prepared pages for pen movement, rhythm and deliberate letterforms"
+    }
+    const file = {
+      name: "practice-session.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(recipe)),
+    }
+    for (const engine of [chromium, webkit]) {
+      const browser = await engine.launch()
+      try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+        await page.goto(server.resolvedUrls.local[0])
+        await page.locator(".landing-recipe input").setInputFiles(file)
+        const panel = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
+        await panel.locator(".binding-row").first().waitFor()
+        for (const width of [1440, 768, 390, 375, 320]) {
+          await page.setViewportSize({ width, height: width === 375 ? 667 : width === 768 ? 1024 : 1000 })
+          for (const text of ["100%", "200%"]) {
+            await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+            for (const colorScheme of ["light", "dark"]) {
+              await page.emulateMedia({ colorScheme })
+              await panel.locator(".binding-description").first().waitFor({ state: "attached" })
+              const layout = () =>
+                panel.evaluate((element) => {
+                  const rows = [...element.querySelectorAll(".binding-row")].map((row) => {
+                    const box = row.getBoundingClientRect()
+                    return [box.y + scrollY, box.height]
+                  })
+                  const actions = element.querySelector(".load-actions").getBoundingClientRect()
+                  return {
+                    rows,
+                    actions: actions.y + scrollY,
+                    width: element.clientWidth,
+                    content: element.scrollWidth,
+                  }
+                })
+              const before = await layout()
+              if (width === 375 && text === "100%")
+                assert.ok(
+                  before.rows[1][0] + before.rows[1][1] <= 667,
+                  `${engine.name()}: two complete Inputs fit on iPhone SE`,
+                )
+              assert.ok(before.content <= before.width + 1, `${engine.name()}, ${width}px, ${text}: no overflow`)
+              const narrow = await panel
+                .locator(".binding-source")
+                .first()
+                .evaluate((element) => getComputedStyle(element).display === "contents")
+              if (!narrow)
+                assert.ok(
+                  before.rows.every(([, height]) => Math.abs(height - before.rows[0][1]) < 1),
+                  "equal desktop Input rows",
+                )
+              const titleStyle = await panel
+                .locator(".binding-identity")
+                .first()
+                .evaluate((element) => {
+                  const title = getComputedStyle(element.querySelector("h2"))
+                  const full = getComputedStyle(element.querySelector(".binding-description"))
+                  return {
+                    size: parseFloat(full.fontSize) < parseFloat(title.fontSize),
+                    muted: full.color !== title.color,
+                  }
+                })
+              assert.ok(titleStyle.size && titleStyle.muted, "description is smaller and muted")
+              const compact = await panel.evaluate((element) => {
+                const row = element.querySelector(".binding-row")
+                if (getComputedStyle(row.querySelector(".binding-source")).display !== "contents") return
+                const box = (selector) => row.querySelector(selector).getBoundingClientRect()
+                const cover = box(".binding-cover"),
+                  target = box(".binding-target"),
+                  title = box("h2"),
+                  meta = box(".binding-meta")
+                const choices = [...element.querySelectorAll(".load-choices > :is(button,label)")].map((button) =>
+                  button.getBoundingClientRect(),
+                )
+                return {
+                  paired:
+                    Math.abs(cover.y - target.y) < 1 &&
+                    Math.abs(cover.height - target.height) < 1 &&
+                    cover.right < target.x,
+                  title: title.bottom <= cover.y,
+                  meta: Math.abs(meta.y + meta.height / 2 - title.y - title.height / 2) < 1 && meta.x > title.right,
+                  hint: getComputedStyle(row.querySelector(".binding-pick > .control-description")).display === "none",
+                  logo: getComputedStyle(element.querySelector(".load-mark")).display === "none",
+                  choices: choices.every(
+                    (button) =>
+                      Math.abs(button.y - choices[0].y) < 1 &&
+                      Math.abs(button.width - choices[0].width) < 1 &&
+                      Math.abs(button.height - choices[0].height) < 1,
+                  ),
+                }
+              })
+              if (compact)
+                assert.ok(
+                  Object.values(compact).every(Boolean),
+                  `${engine.name()}, ${width}px, ${text}: ${JSON.stringify(compact)}`,
+                )
+              assert.equal(await panel.locator(".binding-description").first().isVisible(), !compact)
+              if (compact) {
+                const title = panel.locator(".binding-heading h2 .guidance-label").first()
+                await title.click()
+                const details = page.locator(".guidance:popover-open")
+                await details.waitFor()
+                assert.match(await details.innerText(), /A practical collection/)
+                const after = await layout()
+                assert.deepEqual(after.rows, before.rows, "Reading a long title does not move Input rows")
+                await page.keyboard.press("Escape")
+              }
+
+              for (const action of [
+                panel.getByRole("button", { name: "Back", exact: true }),
+                panel.locator(".guidance-trigger").first(),
+              ]) {
+                await action.hover()
+                const style = await action.evaluate((element) => {
+                  const computed = getComputedStyle(element)
+                  return {
+                    border: computed.borderWidth,
+                    background: computed.backgroundColor,
+                    shadow: computed.boxShadow,
+                    glow: getComputedStyle(element.querySelector("svg")).filter,
+                  }
+                })
+                assert.equal(style.border, "0px")
+                assert.equal(style.background, "rgba(0, 0, 0, 0)")
+                if ((await action.getAttribute("class")) === "load-back") {
+                  assert.equal(style.shadow, "none")
+                  assert.notEqual(style.glow, "none")
+                } else
+                  assert.notEqual(
+                    style.shadow,
+                    "none",
+                    `${engine.name()}, ${width}px, ${text}, ${colorScheme}, ${await action.getAttribute("class")}`,
+                  )
+              }
+            }
+          }
+        }
+        await page.setViewportSize({ width: 1440, height: 1000 })
+        await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+        const header = await panel.locator(".load-heading").evaluate((element) => {
+          const back = element.querySelector(".load-back").getBoundingClientRect()
+          const name = element.querySelector(".load-name").getBoundingClientRect()
+          const mark = element.querySelector(".load-mark").getBoundingClientRect()
+          const arrow = element.querySelector(".load-back svg").getBoundingClientRect()
+          const heading = element.querySelector("h1").getBoundingClientRect()
+          return {
+            sameRow: Math.abs(back.y + back.height / 2 - name.y - name.height / 2) < 1,
+            gap: name.x - back.right,
+            logo: mark.width,
+            left: Math.abs(arrow.x + (arrow.width * 8.2) / 24 - heading.x),
+          }
+        })
+        assert.ok(header.sameRow && header.gap >= 16 && header.logo >= 180 && header.left < 1)
+        await page.emulateMedia({ reducedMotion: "no-preference" })
+        await page.getByRole("button", { name: "Replay logo animation", exact: true }).click()
+        await page.waitForFunction(() =>
+          document
+            .querySelector(".load-mark")
+            .getAnimations()
+            .every((animation) => animation.playState === "finished"),
+        )
+        const zone = await panel.locator(".load-heading").boundingBox()
+        await page.mouse.move(zone.x + zone.width - 8, zone.y + zone.height / 2)
+        await page.waitForFunction(
+          () => parseFloat(document.querySelector(".load-mark").style.getPropertyValue("--logo-x")) > 0,
+        )
+        await page.emulateMedia({ reducedMotion: "reduce" })
+        assert.equal(
+          await panel.locator(".load-mark .logo").evaluate((element) => getComputedStyle(element).transform),
+          "none",
+        )
+        await panel.getByRole("button", { name: "Back", exact: true }).click()
+        assert.ok(await page.locator(".drop-zone").isVisible())
+        assert.equal(
+          await page.locator(".landing-recipe input").evaluate((element) => element === document.activeElement),
+          true,
+        )
+        await page
+          .locator(".landing-recipe input")
+          .setInputFiles({ name: "invalid.json", mimeType: "application/json", buffer: Buffer.from("{") })
+        await panel.getByRole("alert").waitFor()
+        await panel.getByRole("button", { name: "Cancel", exact: true }).click()
+        assert.ok(await page.locator(".drop-zone").isVisible())
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
+
+test(
+  "Recipe demo matches its sample PDFs and Blank-only Recipes open an editable Output",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await chromium.launch()
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=recipe`)
+      const panel = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
+      await panel.locator(".binding-row").first().waitFor()
+      assert.equal(await panel.locator(".binding-row").count(), 3)
+      assert.equal(await panel.evaluate((element) => getComputedStyle(element).outlineColor), "rgba(0, 0, 0, 0)")
+      await page.keyboard.press("Tab")
+      const back = panel.getByRole("button", { name: "Back", exact: true })
+      assert.equal(
+        await back.evaluate((element) => element === document.activeElement && element.matches(":focus-visible")),
+        true,
+      )
+      assert.deepEqual(
+        (await panel.locator(".load-choices > :is(button,label)").allTextContents()).map((text) => text.trim()),
+        ["Use sample PDFs", "Choose local PDFs"],
+      )
+      assert.equal(await panel.locator(".binding-target .load-download").count(), 0)
+      const aligned = await panel.evaluate((element) => {
+        const options = [...element.querySelectorAll(".load-choices > :is(button,label)")].map((item) =>
+          item.getBoundingClientRect(),
+        )
+        const rows = [...element.querySelectorAll(".binding-row")].map((row) => {
+          const cover = row.querySelector(".binding-cover").getBoundingClientRect()
+          const target = row.querySelector(".binding-target").getBoundingClientRect()
+          const pick = row.querySelector(".binding-pick").getBoundingClientRect()
+          const meta = row.querySelector(".binding-meta").getBoundingClientRect()
+          const actions = [...row.querySelector(".binding-pick").children].map((item) => item.getBoundingClientRect())
+          return {
+            height: Math.abs(cover.height - target.height),
+            center: Math.max(
+              Math.abs(pick.y + pick.height / 2 - target.y - target.height / 2),
+              Math.abs(pick.x + pick.width / 2 - target.x - target.width / 2),
+            ),
+            meta: Math.abs(meta.bottom - cover.bottom),
+            sameRow: actions.every(
+              (item) => Math.abs(item.y + item.height / 2 - actions[0].y - actions[0].height / 2) < 1,
+            ),
+          }
+        })
+        return {
+          options: options.every(
+            (item) =>
+              Math.abs(item.y - options[0].y) < 1 &&
+              Math.abs(item.height - options[0].height) < 1 &&
+              Math.abs(item.width - options[0].width) < 1,
+          ),
+          rows,
+        }
+      })
+      assert.ok(aligned.options, "local and sample choices share a row and dimensions")
+      assert.ok(
+        aligned.rows.every((row) => row.height < 1 && row.center < 1 && row.meta < 1 && row.sameRow),
+        JSON.stringify(aligned.rows),
+      )
+      await page.locator(".footnote").getByText("0 of 3 Inputs selected · 3 remaining", { exact: true }).waitFor()
+
+      for (const width of [1440, 768, 390, 375, 320]) {
+        await page.setViewportSize({ width, height: width === 375 ? 667 : width === 768 ? 1024 : 1000 })
+        for (const text of ["100%", "200%"]) {
+          await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+          const bounds = await panel.evaluate((element) => ({
+            width: element.clientWidth,
+            content: element.scrollWidth,
+          }))
+          assert.ok(bounds.content <= bounds.width + 1, `${width}px, ${text}: matching stays within the landing frame`)
+          if (width === 375 && text === "100%")
+            assert.ok(
+              await panel
+                .locator(".binding-row")
+                .nth(1)
+                .evaluate((row) => row.getBoundingClientRect().bottom <= innerHeight),
+              "Two complete Inputs fit on iPhone SE",
+            )
+          const choices = await panel
+            .locator(".load-choices > :is(button,label)")
+            .evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().toJSON()))
+          assert.ok(
+            choices.every(
+              (button) =>
+                Math.abs(button.y - choices[0].y) < 1 &&
+                Math.abs(button.width - choices[0].width) < 1 &&
+                Math.abs(button.height - choices[0].height) < 1,
+            ),
+            `${width}px, ${text}: sample and local choices stay side by side`,
+          )
+        }
+      }
+      await page.setViewportSize({ width: 1440, height: 1000 })
+      await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+      await panel.getByRole("button", { name: "Use sample PDFs", exact: true }).click()
+      await page
+        .locator(".footnote")
+        .getByText("3 of 3 Inputs selected · Ready to apply recipe", { exact: true })
+        .waitFor()
+      for (const width of [1440, 768, 390, 375, 320]) {
+        await page.setViewportSize({ width, height: width === 375 ? 667 : width === 768 ? 1024 : 1000 })
+        for (const text of ["100%", "200%"]) {
+          await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+          const layout = await panel.evaluate((element) => {
+            const outer = element.getBoundingClientRect()
+            const boxes = [...element.querySelectorAll(".bound")].map((target) => {
+              const bounds = target.getBoundingClientRect()
+              const actions = target.querySelector(".binding-pick").getBoundingClientRect()
+              const result = target.querySelector(".binding-result").getBoundingClientRect()
+              const change = target.querySelector(".file-picker").getBoundingClientRect()
+              const download = target.querySelector(".load-download").getBoundingClientRect()
+              const style = getComputedStyle(target.querySelector(".file-picker"))
+              return {
+                centered:
+                  Math.abs(
+                    (Math.min(result.y, actions.y) + Math.max(result.bottom, actions.bottom)) / 2 -
+                      bounds.y -
+                      bounds.height / 2,
+                  ) < 1,
+                peers: Math.abs(change.y + change.height / 2 - download.y - download.height / 2) < 1,
+                single: style.flexWrap === "nowrap",
+                padding: style.paddingInlineStart === style.paddingInlineEnd,
+                fits: target.scrollWidth <= target.clientWidth + 1,
+              }
+            })
+            const actions = element.querySelector(".load-actions").getBoundingClientRect()
+            const buttons = [...element.querySelectorAll(".load-actions button")].map((button) =>
+              button.getBoundingClientRect(),
+            )
+            const first = Math.min(...buttons.map((button) => button.y))
+            const last = Math.max(...buttons.map((button) => button.bottom))
+            return {
+              boxes,
+              fits: element.scrollWidth <= element.clientWidth + 1,
+              footer: Math.abs(first - actions.y - (outer.bottom - last)) < 2,
+              buttons: [...element.querySelectorAll(".bound .file-picker, .load-actions button")].map((button) => {
+                const box = button.getBoundingClientRect()
+                return [box.width, box.height]
+              }),
+            }
+          })
+          assert.ok(
+            layout.fits &&
+              layout.footer &&
+              layout.boxes.every((box) => box.centered && box.peers && box.single && box.padding && box.fits),
+            `${width}px, ${text}: ${JSON.stringify(layout)}`,
+          )
+          if (width === 1440 && text === "100%")
+            assert.ok(
+              layout.buttons.every(
+                ([buttonWidth, height]) =>
+                  Math.abs(buttonWidth - layout.buttons[0][0]) < 1 && Math.abs(height - layout.buttons[0][1]) < 1,
+              ),
+              "Change PDF and footer actions share dimensions",
+            )
+        }
+      }
+      await page.setViewportSize({ width: 1440, height: 1000 })
+      await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+      for (const download of [
+        panel.getByRole("link", { name: "Download recipe JSON", exact: true }),
+        panel.getByRole("button", { name: "Download book.pdf", exact: true }),
+      ]) {
+        await download.hover()
+        const style = await download.evaluate((element) => {
+          const computed = getComputedStyle(element)
+          return { background: computed.backgroundColor, shadow: computed.boxShadow }
+        })
+        assert.equal(style.background, "rgba(0, 0, 0, 0)")
+        assert.equal(style.shadow, "none")
+      }
+      const savedPDF = page.waitForEvent("download")
+      await panel.getByRole("button", { name: "Download book.pdf", exact: true }).click()
+      const saved = await savedPDF
+      assert.equal(saved.suggestedFilename(), "book.pdf")
+      assert.deepEqual(
+        await readFile(await saved.path()),
+        await readFile(new URL("./fixtures/demo.pdf", import.meta.url)),
+      )
+      await panel.getByRole("button", { name: "Apply recipe", exact: true }).click()
+      await panel.waitFor({ state: "hidden" })
+      assert.equal(await page.locator(".composition-totals strong").textContent(), "3 pages")
+      assert.equal(await page.locator(".input-picker .count").textContent(), "3")
+      const output = page.locator(".composition-output")
+      await tab(output, "List")
+      assert.deepEqual(
+        (await output.locator(".list-number .page-origin > button").allTextContents()).map((text) => text.trim()),
+        ["1", "2", "3"],
+        "Output rows show one unambiguous position",
+      )
+      await output.getByRole("button", { name: "Details for Output page 2", exact: true }).click()
+      await page.locator(".card-menu-options:popover-open").getByText("Input page 1", { exact: true }).waitFor()
+      await page.keyboard.press("Escape")
+      const reference = JSON.parse(await readFile(new URL("./fixtures/recipe/session.json", import.meta.url), "utf8"))
+      assert.deepEqual(
+        (await page.locator(".input-choice-title").allTextContents()).toSorted(),
+        Object.values(reference.inputs)
+          .map((input) => input.title)
+          .toSorted(),
+        "selected PDFs retain the saved XMP titles",
+      )
+      await page.locator(".input-picker > summary h2").click()
+      const menu = await page.locator(".input-list").evaluate((element) => {
+        const choices = [...element.querySelectorAll(".input-choice > button:not(.icon-button)")].map((button) =>
+          button.getBoundingClientRect(),
+        )
+        const remove = element.querySelector(":scope > button").getBoundingClientRect()
+        return {
+          peers: choices.every(
+            (box) => Math.abs(box.width - choices[0].width) < 1 && Math.abs(box.height - choices[0].height) < 1,
+          ),
+          aligned: Math.abs(remove.right - choices[0].right) < 1,
+          compact: remove.width <= choices[0].width && remove.height <= choices[0].height,
+        }
+      })
+      assert.ok(menu.peers && menu.aligned && menu.compact, JSON.stringify(menu))
+      await page.keyboard.press("Escape")
+      await page.getByRole("button", { name: "Export recipe", exact: true }).click()
+      const exported = page.getByRole("dialog", { name: "Export recipe", exact: true })
+      await exported.locator(".recipe-title").first().waitFor()
+      assert.deepEqual(await exported.getByRole("columnheader").allTextContents(), ["Name", "Index", "Path", "Title"])
+      assert.deepEqual(
+        (await exported.locator(".recipe-title").allTextContents()).toSorted(),
+        Object.values(reference.inputs)
+          .map((input) => input.title)
+          .toSorted(),
+      )
+      await exported.getByRole("button", { name: "Close recipe", exact: true }).click()
+      await page.close()
+      const blank = await browser.newPage({ reducedMotion: "reduce" })
+      await blank.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await blank.goto(server.resolvedUrls.local[0])
+      await blank.locator('.landing-recipe input[type="file"]').setInputFiles({
+        name: "blank.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(
+          JSON.stringify({
+            version: 1,
+            inputs: {},
+            sources: {},
+            parts: [{ pages: [{ blank: { width: 80, height: 100 } }], copies: 2 }],
+          }),
+        ),
+      })
+      const loading = blank.getByRole("region", { name: "Choose your source PDFs", exact: true })
+      await loading.getByText("This Recipe uses only blank pages and needs no PDFs.", { exact: true }).waitFor()
+      await loading.getByRole("button", { name: "Apply recipe", exact: true }).click()
+      await loading.waitFor({ state: "hidden" })
+      assert.equal(await blank.locator(".composition-totals strong").textContent(), "2 pages")
+      assert.ok(await blank.locator(".composer").isVisible())
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test("Recipe batches match named PDFs first and discard abandoned reads", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const record = {
+    version: 1,
+    inputs: { book: {}, guides: {}, crossings: {} },
+    sources: { book: { input: "book" }, guides: { input: "guides" }, crossings: { input: "crossings" } },
+    parts: [
+      {
+        pages: [
+          { source: "book", page: 0 },
+          { source: "guides", page: 0 },
+          { source: "crossings", page: 0 },
+        ],
+      },
+    ],
+  }
+  const browser = await chromium.launch()
+  try {
+    const page = await browser.newPage({ reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    const picker = page.locator(".landing-recipe input")
+    const file = { name: "bindings.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(record)) }
+    await picker.setInputFiles(file)
+    const panel = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
+    const rows = panel.locator(".binding-row")
+    await rows.first().waitFor()
+    const bytes = fixture({ prepared: false })
+    const pdf = (name) => ({ name, mimeType: "application/pdf", buffer: bytes })
+    await panel.locator(".load-choices input").setInputFiles([pdf("unmatched.pdf"), pdf("book.pdf"), pdf("guides.PDF")])
+    await panel.getByRole("button", { name: "Apply recipe", exact: true }).waitFor()
+    await page.waitForFunction(() => document.querySelectorAll(".binding-target.bound").length === 3)
+    assert.deepEqual(
+      await rows.evaluateAll((elements) =>
+        Object.fromEntries(
+          elements.map((row) => [
+            row.querySelector("code").textContent,
+            row.querySelector(".binding-file").textContent,
+          ]),
+        ),
+      ),
+      { book: "book.pdf", guides: "guides.PDF", crossings: "unmatched.pdf" },
+    )
+    await rows
+      .first()
+      .locator("input")
+      .setInputFiles({ name: "broken.pdf", mimeType: "application/pdf", buffer: Buffer.from("bad") })
+    await panel.getByRole("alert").waitFor()
+    assert.equal(
+      await rows.first().locator(".binding-file").textContent(),
+      "book.pdf",
+      "Failed replacements retain the previous PDF",
+    )
+    await panel.getByRole("button", { name: "Back", exact: true }).click()
+    await picker.setInputFiles(file)
+    await rows.first().waitFor()
+    await page.evaluate(() => {
+      const read = File.prototype.arrayBuffer
+      window.readFiles = []
+      File.prototype.arrayBuffer = async function () {
+        window.readFiles.push(this.name)
+        if (this.name === "Held.pdf" || this.name === "delayed.json")
+          await new Promise((resolve) => (window.releaseRead = resolve))
+        return read.call(this)
+      }
+    })
+    await panel.locator(".load-choices input").setInputFiles([pdf("Held.pdf"), pdf("Unopened.pdf")])
+    await page.waitForFunction(() => !!window.releaseRead)
+    await panel.getByRole("button", { name: "Back", exact: true }).click()
+    await picker.setInputFiles(file)
+    await rows.first().waitFor()
+    await page.evaluate(() => window.releaseRead())
+    await page.evaluate(() => new Promise(requestAnimationFrame))
+    assert.deepEqual(await page.evaluate(() => window.readFiles), ["Held.pdf", "bindings.json"])
+    assert.equal(await panel.locator(".bound").count(), 0)
+    await panel.getByRole("button", { name: "Back", exact: true }).click()
+    await page.evaluate(() => (window.releaseRead = undefined))
+    await picker.setInputFiles({ ...file, name: "delayed.json" })
+    await page.waitForFunction(() => !!window.releaseRead)
+    await panel.getByRole("button", { name: "Back", exact: true }).click()
+    await picker.setInputFiles({
+      ...file,
+      buffer: Buffer.from(
+        JSON.stringify({
+          version: 1,
+          inputs: {},
+          sources: {},
+          parts: [{ pages: [{ blank: { width: 80, height: 100 } }] }],
+        }),
+      ),
+    })
+    await panel.getByText("This Recipe uses only blank pages and needs no PDFs.", { exact: true }).waitFor()
+    await page.evaluate(() => window.releaseRead())
+    await page.evaluate(() => new Promise(requestAnimationFrame))
+    await panel.getByRole("button", { name: "Apply recipe", exact: true }).click()
+    await panel.waitFor({ state: "hidden" })
+    assert.equal(await page.locator(".composition-totals strong").textContent(), "1 page")
+    await page.close()
+    const interrupted = await browser.newPage({ reducedMotion: "reduce" })
+    let releaseDemo
+    const waiting = new Promise((resolve) => (releaseDemo = resolve))
+    await interrupted.route("**/recipe.json", async (route) => {
+      await waiting
+      await route.continue()
+    })
+    await interrupted.goto(`${server.resolvedUrls.local[0]}?demo=recipe`, { waitUntil: "domcontentloaded" })
+    await interrupted.locator(".landing-recipe input").setInputFiles({
+      ...file,
+      buffer: Buffer.from(
+        JSON.stringify({
+          version: 1,
+          inputs: {},
+          sources: {},
+          parts: [{ pages: [{ blank: { width: 80, height: 100 } }] }],
+        }),
+      ),
+    })
+    const local = interrupted.getByText("This Recipe uses only blank pages and needs no PDFs.", { exact: true })
+    await local.waitFor()
+    const resumed = interrupted.waitForResponse((response) => response.url().endsWith("/recipe.json"))
+    releaseDemo()
+    await resumed
+    await interrupted.evaluate(() => new Promise(requestAnimationFrame))
+    assert.ok(await local.isVisible(), "A delayed demo cannot replace a user-selected Recipe")
+  } finally {
+    await browser.close()
+  }
+})
+
+test("Opaque Input names load and export without optional cover previews", { timeout: 30000 }, async () => {
+  const server = await serve()
+  const browser = await chromium.launch()
+  try {
+    const page = await browser.newPage({ reducedMotion: "reduce" })
+    page.setDefaultTimeout(5000)
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    const names = ["__proto__", "constructor"]
+    const record = {
+      version: 1,
+      inputs: Object.fromEntries(names.map((name) => [name, { title: "   " }])),
+      sources: Object.fromEntries(names.map((name) => [name, { input: name }])),
+      parts: [{ pages: names.map((source) => ({ source, page: 0 })) }],
+    }
+    await page
+      .locator(".landing-recipe input")
+      .setInputFiles({ name: "opaque.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(record)) })
+    const panel = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
+    await panel.locator(".binding-row").first().waitFor()
+    assert.deepEqual(await panel.locator(".binding-row h2").allTextContents(), names)
+    await panel.locator(".load-choices input").setInputFiles(
+      names.map((name) => ({
+        name: `${name}.pdf`,
+        mimeType: "application/pdf",
+        buffer: fixture({ prepared: false }),
+      })),
+    )
+    await page.waitForFunction(() => document.querySelectorAll(".binding-target.bound").length === 2)
+    await panel.getByRole("button", { name: "Apply recipe", exact: true }).click()
+    await panel.waitFor({ state: "hidden" })
+    assert.equal(await page.locator(".composition-totals strong").textContent(), "2 pages")
+    await page.evaluate(() => {
+      HTMLCanvasElement.prototype.toDataURL = () => {
+        throw new Error("Cover encoding unavailable")
+      }
+    })
+    await page.getByRole("button", { name: "Export recipe", exact: true }).click()
+    const exported = page.getByRole("dialog", { name: "Export recipe", exact: true })
+    await exported.locator(".recipe-title").first().waitFor()
+    const pending = page.waitForEvent("download")
+    await exported.getByRole("button", { name: "Export", exact: true }).click()
+    const saved = JSON.parse(await readFile(await (await pending).path(), "utf8"))
+    assert.deepEqual(Object.keys(saved.inputs).toSorted(), names)
+    assert.ok(
+      Object.values(saved.inputs).every((input) => input.sha256 && input.title && !Object.hasOwn(input, "cover")),
+    )
+  } finally {
+    await browser.close()
+  }
+})
+
+test(
+  "Output file details become XMP identity when the downloaded PDF opens as a later Input",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await chromium.launch()
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.getByText("Demo workspace ready.", { exact: true }).waitFor()
+      const input = page.locator(".selection-panel")
+      await input.getByRole("button", { name: "Details for Italic Strokes", exact: true }).click()
+      assert.ok(await page.getByRole("region", { name: "Italic Strokes", exact: true }).isVisible())
+      await page.getByRole("button", { name: "Close details", exact: true }).click()
+      await page.getByRole("button", { name: "Set Output filename", exact: true }).click()
+      const editor = page.locator(".filename-panel")
+      await editor.getByRole("textbox", { name: "Filename", exact: true }).fill("collected.pdf")
+      const title = editor.getByRole("textbox", { name: "Title", exact: true })
+      await title.fill("Bad\u0001title")
+      assert.equal(await editor.getByRole("button", { name: "Save", exact: true }).isDisabled(), true)
+      await title.fill("Collected strokes & guides")
+      const cover = editor.getByRole("spinbutton", { name: "Cover page", exact: true })
+      await cover.fill("2")
+      await cover.press("Tab")
+      await editor.locator('img[alt="Cover · page 2"]').waitFor()
+      await editor.getByRole("button", { name: "Save", exact: true }).click()
+      const pending = page.waitForEvent("download")
+      await page.getByRole("button", { name: "Download", exact: true }).click()
+      const saved = await pending
+      assert.equal(saved.suggestedFilename(), "collected.pdf")
+      const bytes = await readFile(await saved.path())
+      await input
+        .locator('input[type="file"]')
+        .setInputFiles({ name: "collected.pdf", mimeType: "application/pdf", buffer: bytes })
+      await page.locator(".input-current").filter({ hasText: "collected.pdf" }).waitFor()
+      await input.getByRole("button", { name: "Details for Collected strokes & guides", exact: true }).click()
+      const details = page.getByRole("region", { name: "Collected strokes & guides", exact: true })
+      assert.match(await details.innerText(), /mainz:coverpage: 2/)
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
 function contents(path) {
   const objects = JSON.parse(execFileSync("qpdf", ["--json", "--json-stream-data=inline", path])).qpdf[1]
   delete objects.trailer.value["/ID"]
@@ -86,7 +770,13 @@ test(
             assert.ok(bounds.row && bounds.peers && bounds.overflow <= 1, `${label}: ${JSON.stringify(bounds)}`)
             await action.click()
             const panel = page.getByRole("dialog", { name: "Export recipe", exact: true })
+            await panel.locator("th").nth(1).waitFor()
             const layout = await panel.evaluate((element) => {
+              const index = element.querySelectorAll("th")[1]
+              const indexText = document.createRange()
+              indexText.selectNodeContents(index)
+              const singleLine =
+                indexText.getBoundingClientRect().height < parseFloat(getComputedStyle(index).lineHeight) * 1.5
               const box = element.getBoundingClientRect()
               const buttons = [...element.querySelectorAll(".recipe-actions button")].map((button) =>
                 button.getBoundingClientRect(),
@@ -94,6 +784,7 @@ test(
               const title = element.querySelector("h2").getBoundingClientRect()
               const close = element.querySelector(".dialog-heading button svg").getBoundingClientRect()
               return {
+                singleLine,
                 fits:
                   box.x >= 0 &&
                   box.right <= innerWidth + 1 &&
@@ -108,9 +799,14 @@ test(
               }
             })
             assert.ok(
-              layout.fits && layout.peers && layout.headingCentered && layout.gap >= 8,
+              layout.fits && layout.peers && layout.headingCentered && layout.gap >= 8 && layout.singleLine,
               `${label}: ${JSON.stringify(layout)}`,
             )
+            if (width === 320 && text === 2) {
+              await panel.locator(".recipe-table").focus()
+              await page.keyboard.press("ArrowRight")
+              await page.waitForFunction(() => document.querySelector(".recipe-table").scrollLeft > 0)
+            }
             await page.screenshot({ path: join(screenshots, `${label}-${colorScheme}.png`), fullPage: true })
             await page.keyboard.press("Escape")
             assert.equal(await action.evaluate((element) => element === document.activeElement), true, label)
@@ -161,14 +857,15 @@ test(
       const exportAction = output.getByRole("button", { name: "Export recipe", exact: true })
       await exportAction.click()
       const panel = page.getByRole("dialog", { name: "Export recipe", exact: true })
+      await panel.getByRole("table", { name: "Recipe Inputs", exact: true }).waitFor()
       assert.equal(await panel.getByRole("button", { name: "Export", exact: true }).isDisabled(), true)
-      assert.deepEqual(await panel.getByRole("columnheader").allTextContents(), ["Index", "Path", "ID"])
+      assert.deepEqual(await panel.getByRole("columnheader").allTextContents(), ["Name", "Index", "Path", "Title"])
       for (const [index, id] of [
         [1, "book"],
         [2, "other"],
       ]) {
-        await panel.getByRole("button", { name: `Edit ID ${index}`, exact: true }).click()
-        const field = panel.getByRole("textbox", { name: `ID ${index}`, exact: true })
+        await panel.getByRole("button", { name: `Edit Name ${index}`, exact: true }).click()
+        const field = panel.getByRole("textbox", { name: `Name ${index}`, exact: true })
         const border = await field.evaluate((element) => {
           const style = getComputedStyle(element)
           return [style.borderBlockEndWidth, style.borderInlineEndWidth, style.boxShadow]
@@ -176,15 +873,15 @@ test(
         assert.deepEqual(border, ["0px", "0px", "none"])
         await field.fill(`${id}.pdf`)
         await field.press("Enter")
-        assert.equal(await panel.getByRole("button", { name: `Edit ID ${index}`, exact: true }).innerText(), id)
+        assert.equal(await panel.getByRole("button", { name: `Edit Name ${index}`, exact: true }).innerText(), id)
       }
       assert.deepEqual(await panel.locator(".recipe-path").allTextContents(), ["book.pdf", "other.pdf"])
       assert.equal(await panel.locator(".recipe-path input").count(), 0)
-      await panel.getByRole("button", { name: "Edit ID 1", exact: true }).click()
-      const reverted = panel.getByRole("textbox", { name: "ID 1", exact: true })
+      await panel.getByRole("button", { name: "Edit Name 1", exact: true }).click()
+      const reverted = panel.getByRole("textbox", { name: "Name 1", exact: true })
       await reverted.fill("temporary")
       await reverted.press("Escape")
-      assert.equal(await panel.getByRole("button", { name: "Edit ID 1", exact: true }).innerText(), "book")
+      assert.equal(await panel.getByRole("button", { name: "Edit Name 1", exact: true }).innerText(), "book")
       const pending = page.waitForEvent("download")
       await panel.getByRole("button", { name: "Export", exact: true }).click()
       const saved = await pending
@@ -210,7 +907,7 @@ test(
         { family: "fixture", key: "guides-stroke-width", value: 0.06 },
       ])
       await exportAction.click()
-      assert.equal(await panel.getByRole("button", { name: "Edit ID 1", exact: true }).innerText(), "book")
+      assert.equal(await panel.getByRole("button", { name: "Edit Name 1", exact: true }).innerText(), "book")
       await panel.getByRole("button", { name: "Cancel", exact: true }).click()
       const confirmation = page.waitForEvent("dialog").then(async (dialog) => {
         assert.match(dialog.message(), /have not been downloaded/, "Recipe export retains the PDF unsaved warning")
@@ -272,6 +969,32 @@ test(
       )
       assert.deepEqual(resolved.warnings, [])
       assert.deepEqual(Buffer.from(resolved.bytes), expected)
+      await page.goto(server.resolvedUrls.local[0])
+      await page.locator('.landing-recipe input[type="file"]').setInputFiles(recordPath)
+      const loading = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
+      const rows = loading.locator(".binding-row")
+      await rows.first().waitFor()
+      assert.equal(await rows.count(), 2)
+      assert.equal(await rows.locator(".binding-cover img").count(), 2)
+      for (const [index, name, buffer] of [
+        [0, "book.pdf", first],
+        [1, "other.pdf", second],
+      ]) {
+        await rows.nth(index).locator('input[type="file"]').setInputFiles({ name, mimeType: "application/pdf", buffer })
+        await rows.nth(index).getByText("Matches the saved Input.", { exact: true }).waitFor()
+      }
+      await loading.getByRole("button", { name: "Apply recipe", exact: true }).click()
+      await loading.waitFor({ state: "hidden" })
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "4 pages")
+      await exportAction.click()
+      await panel.getByRole("button", { name: "Export", exact: true }).waitFor({ state: "visible" })
+      const replayPending = page.waitForEvent("download")
+      await panel.getByRole("button", { name: "Export", exact: true }).click()
+      const replay = JSON.parse(await readFile(await (await replayPending).path(), "utf8"))
+      const styled = Object.values(replay.sources).find((source) => source.profiles.length)
+      assert.deepEqual(styled.profiles, [{ family: "fixture", name: "Inkjet" }])
+      assert.deepEqual(styled.overrides, [{ family: "fixture", key: "guides-stroke-width", value: 0.06 }])
+      assert.deepEqual(replay.metadata, record.metadata)
     } finally {
       await browser.close()
       await rm(directory, { recursive: true, force: true })
@@ -668,7 +1391,7 @@ test("Output actions stay reachable with enlarged text", { timeout: 30000 }, asy
     await page.locator(".composer[aria-busy=false]").waitFor()
     const output = page.locator(".composition-output")
     for (const width of [320, 390, 768, 1440, 1920]) {
-      await page.setViewportSize({ width, height: 1000 })
+      await page.setViewportSize({ width, height: width === 375 ? 667 : width === 768 ? 1024 : 1000 })
       for (const size of [100, 200]) {
         await page.evaluate((textSize) => (document.documentElement.style.fontSize = `${textSize}%`), size)
         const switcher = page.getByRole("button", { name: "Output", exact: true })
@@ -1003,7 +1726,7 @@ test(
           [1920, "dark", 200, true],
           [390, "dark", 100, false],
         ]) {
-          await page.setViewportSize({ width, height: 1000 })
+          await page.setViewportSize({ width, height: width === 375 ? 667 : width === 768 ? 1024 : 1000 })
           await page.emulateMedia({ colorScheme: theme })
           await page.evaluate((textSize) => (document.documentElement.style.fontSize = `${textSize}%`), size)
           const trigger = input.getByRole("button", { name: "Edit Stroke", exact: true }).first()

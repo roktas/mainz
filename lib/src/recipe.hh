@@ -7,6 +7,7 @@ namespace mainz {
 struct Resolution {
     std::string plan;
     std::string warnings;
+    std::string intent;
 };
 std::string recipe_inputs(const std::string& recipe);
 Resolution resolve_recipe(const std::string& recipe, const std::map<std::string, std::string>& inputs);

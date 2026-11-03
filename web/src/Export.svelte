@@ -16,6 +16,7 @@
 <script lang="ts">
   import { onDestroy } from "svelte"
   import type { PDFDocumentLoadingTask } from "pdfjs-dist"
+  import { Download } from "./download.ts"
   import { Processor } from "./processor.ts"
   import { openPDF, verifyPDF } from "./pdf.ts"
   import Feedback from "./Feedback.svelte"
@@ -42,9 +43,8 @@
   let processor: Processor | undefined
   let revision = 0
   let task: PDFDocumentLoadingTask | undefined
-  let url: string | undefined
+  const saved = new Download()
   let viewURL = $state<string>()
-  let timer: ReturnType<typeof setTimeout> | undefined
   let disposed = false
   let reserved: Window | undefined
   let viewReady = $state(false)
@@ -85,24 +85,13 @@
     viewer.opener = null
     dialog.close()
   }
-  function release() {
-    clearTimeout(timer)
-    if (url) URL.revokeObjectURL(url)
-    url = undefined
-  }
   function download() {
     const pdf = ready
     if (!pdf) return
-    release()
-    url = URL.createObjectURL(pdf.file)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = pdf.file.name
-    link.click()
-    timer = setTimeout(release, 30000)
+    saved.save(pdf.file, pdf.file.name)
     pdf.complete()
     ready = undefined
-    info(`Downloaded ${pdf.expected} ${pdf.expected === 1 ? "page" : "pages"} · ${link.download}.`)
+    info(`Downloaded ${pdf.expected} ${pdf.expected === 1 ? "page" : "pages"} · ${pdf.file.name}.`)
     dialog.close()
   }
   async function share() {
@@ -249,7 +238,7 @@
     ready = undefined
     processor?.dispose()
     void task?.destroy()
-    release()
+    saved.dispose()
     if (viewURL) URL.revokeObjectURL(viewURL)
     reserved?.close()
   })

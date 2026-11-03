@@ -1,8 +1,9 @@
 // Runs cancellable processor requests and owns their worker lifetime.
 
-import type { Failure, Image, Operation, Reply, Result } from "./protocol.ts"
+import type { Failure, Operation, Reply, Result, Success } from "./protocol.ts"
 import type { Plan } from "./model.ts"
 import type { Scalar } from "./styles.ts"
+import type { Recipe, Resolution } from "./recipe.ts"
 
 const messages: Record<string, string> = {
   "pdf-syntax": "PDF Composer cannot read this PDF. Try an unprotected copy that opens in a PDF viewer.",
@@ -31,7 +32,7 @@ export class Processor {
   private active?: {
     revision: number
     buffer?: string
-    resolve: (result: Result | Image) => void
+    resolve: (result: Success) => void
     reject: (error: Error) => void
   }
 
@@ -56,6 +57,23 @@ export class Processor {
     return this.send({ plan, inputs: bindings }, revision, Object.values(bindings)).then(document)
   }
 
+  inspect(recipe: string, revision: number): Promise<Recipe["inputs"]> {
+    if (this.active) return Promise.reject(new Error("A processing operation is already active."))
+    return this.send({ recipe }, revision, []).then((result) => {
+      if (!("definitions" in result)) throw new Error("The processor returned no Recipe Inputs.")
+      return result.definitions
+    })
+  }
+
+  resolve(recipe: string, inputs: { id: string; bytes: Uint8Array }[], revision: number): Promise<Resolution> {
+    if (this.active) return Promise.reject(new Error("A processing operation is already active."))
+    const bindings = Object.fromEntries(inputs.map((input) => [input.id, input.bytes.slice().buffer]))
+    return this.send({ recipe, inputs: bindings }, revision, Object.values(bindings)).then((result) => {
+      if (!("resolution" in result)) throw new Error("The processor returned no Recipe resolution.")
+      return result.resolution
+    })
+  }
+
   preview(bytes: Uint8Array, page: number): Promise<ArrayBuffer> {
     if (this.active) return Promise.reject(new Error("A processing operation is already active."))
     const input = bytes.slice().buffer
@@ -65,12 +83,7 @@ export class Processor {
     })
   }
 
-  private send(
-    operation: Operation,
-    revision: number,
-    transfers: ArrayBuffer[],
-    buffer?: string,
-  ): Promise<Result | Image> {
+  private send(operation: Operation, revision: number, transfers: ArrayBuffer[], buffer?: string): Promise<Success> {
     idle.delete(this)
     if (!this.worker) {
       this.worker = new Worker(new URL("./processor.worker.ts", import.meta.url), {
@@ -128,7 +141,7 @@ export class Processor {
   }
 }
 
-function document(result: Result | Image): Result {
+function document(result: Success): Result {
   if (!("description" in result)) throw new Error("The processor returned no document result.")
   return result
 }

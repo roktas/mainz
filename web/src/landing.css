@@ -1,7 +1,58 @@
-/* Styles the PDF opening screen and its responsive layout. */
+/* Styles the animated PDF opening screen and its secondary Recipe file action. */
 
 @layer components {
   @scope (#app) {
+    .landing-recipe {
+      position: relative;
+      display: inline-flex;
+      justify-content: center;
+      gap: 0.5em;
+      inline-size: 100%;
+      margin: 0;
+      padding-inline: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: color-mix(in oklch, var(--soft) 60%, var(--paper));
+      color: var(--muted);
+      font-size: var(--body);
+      font-weight: 500;
+      cursor: pointer;
+      min-block-size: 46px;
+      align-items: center;
+      & > svg {
+        inline-size: var(--icon-size);
+        block-size: var(--icon-size);
+      }
+      & input {
+        position: absolute;
+        inset: 0;
+        inline-size: 100%;
+        block-size: 100%;
+        opacity: 0;
+        cursor: inherit;
+      }
+      &:has(input:focus-visible) {
+        outline: 1px solid var(--secondary);
+        outline-offset: 3px;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          color: var(--accent);
+          border-color: color-mix(in oklch, var(--accent) 45%, var(--border));
+          background: color-mix(in oklch, var(--tint) 35%, var(--paper));
+        }
+      }
+      &:active {
+        color: var(--accent);
+        background: var(--tint);
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        transition:
+          color 140ms var(--ease-out),
+          border-color 140ms var(--ease-out),
+          background-color 140ms var(--ease-out);
+      }
+    }
     .drop-zone {
       --inset: min(clamp(1.5rem, 1rem + 4vi, 3.5rem), 6cqi);
       position: relative;
@@ -135,10 +186,48 @@
         font-size: var(--body);
       }
       & .buttons {
-        flex-wrap: wrap;
+        --action-space: 0.875rem;
+        --action-icon: 1.5rem;
+        --action-height: calc(max(1.5 * var(--body), var(--action-icon)) + 2 * var(--action-space) + 2px);
+        display: inline-grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        inline-size: max-content;
+        max-inline-size: 100%;
+        gap: var(--gap);
         align-items: center;
         justify-content: start;
         margin-block-start: var(--gutter);
+        & > label {
+          min-inline-size: 0;
+          inline-size: 100%;
+          min-block-size: 0;
+          block-size: var(--action-height);
+          padding: var(--action-space);
+          line-height: 1.5;
+          & > svg {
+            inline-size: var(--action-icon);
+            block-size: var(--action-icon);
+          }
+          & > .pdf-icon {
+            color: light-dark(var(--accent-dark), var(--accent-light));
+          }
+        }
+        & > .landing-or {
+          color: var(--muted);
+          font-size: var(--body);
+          font-weight: 400;
+        }
+        & > .landing-recipe {
+          block-size: calc(var(--action-height) + 1px);
+        }
+        @media (width <= 40em) {
+          grid-template-columns: minmax(0, 1fr);
+          inline-size: max-content;
+          gap: 0.5rem;
+          & > .landing-or {
+            font-size: 0.85em;
+          }
+        }
       }
     }
     .hero-mark {
@@ -179,7 +268,7 @@
 @layer layouts {
   @scope (#app) {
     @media (width > 40em) {
-      :scope:has(.drop-zone) :is(.masthead, main) {
+      :scope:has(.drop-zone, .load-panel) :is(.masthead, main) {
         inline-size: min(100%, max(1232px, 57.5vi));
       }
       .drop-zone {

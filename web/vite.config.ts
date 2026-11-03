@@ -68,6 +68,8 @@ function prepare() {
     "_mainz_input",
     "_mainz_clear_inputs",
     "_mainz_compose",
+    "_mainz_recipe_inputs",
+    "_mainz_resolve_recipe",
     "_mainz_provenance",
     "_mainz_provenance_size",
     "_mainz_style",
@@ -84,6 +86,9 @@ function prepare() {
   }
   collect("public", "")
   collect("test/fixtures/demo.pdf", "demo.pdf")
+  collect("test/fixtures/recipe/session.json", "recipe.json")
+  collect("test/fixtures/recipe/guides.pdf", "recipe/guides.pdf")
+  collect("test/fixtures/recipe/crossings.pdf", "recipe/crossings.pdf")
   collect("node_modules/pdfjs-dist/build/pdf.worker.mjs", "pdfjs/pdf.worker.mjs")
   for (const name of ["cmaps", "standard_fonts", "iccs", "wasm"])
     collect(`node_modules/pdfjs-dist/${name}`, `pdfjs/${name}`)

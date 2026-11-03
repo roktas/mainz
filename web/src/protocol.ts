@@ -2,6 +2,7 @@
 
 import type { Description, Scalar } from "./styles.ts"
 import type { Content, Plan } from "./model.ts"
+import type { Recipe, Resolution } from "./recipe.ts"
 
 export type ProcessorError = {
   code: string
@@ -24,6 +25,7 @@ export type Operation =
     }
   | { plan: Plan; inputs: Record<string, ArrayBuffer> }
   | { preview: { bytes: ArrayBuffer; page: number } }
+  | { recipe: string; inputs?: Record<string, ArrayBuffer> }
 export type Request = Operation & {
   revision: number
 }
@@ -40,4 +42,9 @@ export type Result = {
   provenance?: Provenance
 }
 export type Image = { revision: number; image: ArrayBuffer }
-export type Reply = Result | Image | { revision: number; failure: Failure }
+export type Success =
+  | Result
+  | Image
+  | { revision: number; definitions: Recipe["inputs"] }
+  | { revision: number; resolution: Resolution }
+export type Reply = Success | { revision: number; failure: Failure }

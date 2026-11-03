@@ -1,0 +1,377 @@
+<!-- Matches local PDFs to saved Recipe Inputs before installing an editable workspace. -->
+
+<script module lang="ts">
+  import type { Input } from "./model.ts"
+  import { Opening } from "./pdf.ts"
+  export type Binding = { id: string; input: Input; opening: Opening }
+</script>
+
+<script lang="ts">
+  import { onDestroy, tick } from "svelte"
+  import { maxRecipeBytes } from "./recipe.ts"
+  import type { Recipe } from "./recipe.ts"
+  import { maxInputBytes } from "./model.ts"
+  import { Download } from "./download.ts"
+  import { Processor } from "./processor.ts"
+  import Guidance from "./Guidance.svelte"
+  import Icon from "./Icon.svelte"
+  import Logo, { parallax } from "./Logo.svelte"
+  let {
+    active = $bindable(false),
+    status = $bindable(""),
+    replay,
+    open,
+    cancel,
+  }: {
+    active?: boolean
+    status?: string
+    replay: number
+    open: (text: string, bindings: Binding[]) => Promise<void>
+    cancel: () => void
+  } = $props()
+  const key = $props.id()
+  let panel = $state<HTMLElement>(null!)
+  let name = $state("")
+  let text = ""
+  let inputs = $state.raw<Recipe["inputs"]>()
+  let selected = $state.raw(new Map<string, Binding>())
+  let reading: Opening | undefined
+  let busy = $state(false)
+  let opening = $state(false)
+  let failure = $state("")
+  let processor: Processor | undefined
+  let example = $state.raw<{ recipe: string; inputs: Record<string, string> }>()
+  let revision = 0
+  const download = new Download()
+  let request: AbortController | undefined
+  const count = $derived(Object.keys(inputs ?? {}).length)
+  const ready = $derived(selected.size)
+  $effect(() => {
+    status = !active
+      ? ""
+      : busy
+        ? opening
+          ? "Opening recipe…"
+          : inputs
+            ? "Reading PDF…"
+            : "Reading recipe…"
+        : inputs
+          ? count
+            ? `${ready} of ${count} Inputs selected${ready === count ? " · Ready to apply recipe" : ` · ${count - ready} remaining`}`
+            : "No PDFs needed."
+          : ""
+  })
+  function stop() {
+    revision++
+    processor?.dispose()
+    processor = undefined
+    reading?.dispose()
+    reading = undefined
+    for (const binding of selected.values()) binding.opening.dispose()
+    selected = new Map()
+    inputs = undefined
+    text = ""
+    example = undefined
+    name = ""
+    failure = ""
+    if (opening) cancel()
+    opening = false
+    busy = false
+    download.dispose()
+    request?.abort()
+    request = undefined
+  }
+  export async function show(file: File, preset?: { recipe: string; inputs: Record<string, string> }) {
+    stop()
+    const generation = ++revision
+    name = file.name
+    example = preset
+    busy = true
+    active = true
+    await tick()
+    if (generation !== revision) return
+    if (document.documentElement.dataset.keyboard === "true")
+      panel.querySelector<HTMLButtonElement>(".load-back")?.focus({ preventScroll: true })
+    else panel.focus({ preventScroll: true })
+    const worker = new Processor()
+    processor = worker
+    try {
+      if (file.size > maxRecipeBytes) throw new Error("Choose a Recipe smaller than 16 MiB.")
+      const record = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await file.arrayBuffer())
+      if (generation !== revision) return
+      text = record
+      const definitions = await worker.inspect(text, generation)
+      if (generation === revision) inputs = definitions
+    } catch (reason) {
+      if (generation === revision) failure = diagnostic(reason)
+    } finally {
+      worker.dispose()
+      if (generation === revision) {
+        busy = false
+        processor = undefined
+      }
+    }
+  }
+  function diagnostic(reason: unknown) {
+    const record = (reason as { failure?: { record?: { message: string; location?: string } } })?.failure?.record
+    return record
+      ? `${record.message}${record.location ? ` (${record.location})` : ""}`
+      : reason instanceof Error
+        ? reason.message
+        : "Could not open this Recipe. Choose its source PDFs and try again."
+  }
+  async function choose(id: string, file?: File) {
+    if (!file || busy) return
+    const generation = revision
+    busy = true
+    failure = ""
+    const job = new Opening()
+    reading = job
+    try {
+      const retained = [...selected.values()].reduce(
+        (total, binding) => total + (binding.id === id ? 0 : binding.input.bytes.length),
+        0,
+      )
+      if (retained + file.size > maxInputBytes)
+        throw new Error("Recipe Inputs exceed the 128 MiB total limit. Choose smaller PDFs.")
+      const input = await job.read(file, file.name, generation)
+      if (generation === revision) {
+        selected.get(id)?.opening.dispose()
+        selected = new Map(selected).set(id, { id, input, opening: job })
+      } else job.dispose()
+    } catch (reason) {
+      job.dispose()
+      if (generation === revision) failure = diagnostic(reason)
+    } finally {
+      if (generation === revision) {
+        busy = false
+        reading = undefined
+      }
+    }
+  }
+  async function files(list: FileList) {
+    if (busy) return
+    const generation = revision
+    const ids = Object.keys(inputs ?? {})
+    const batch = Array.from(list)
+      .map((file) => ({
+        file,
+        id: ids.find((id) => id.replace(/\.pdf$/i, "") === file.name.replace(/\.pdf$/i, "")),
+      }))
+      .toSorted((a, b) => Number(!!b.id) - Number(!!a.id))
+    for (const { file, id } of batch) {
+      if (generation !== revision) return
+      const target = id ?? ids.find((candidate) => !selected.has(candidate))
+      if (target) await choose(target, file)
+    }
+  }
+  async function samples() {
+    if (busy) return
+    const generation = revision
+    const controller = new AbortController()
+    request = controller
+    busy = true
+    failure = ""
+    try {
+      for (const [id, url] of Object.entries(example?.inputs ?? {})) {
+        const response = await fetch(url, { signal: controller.signal })
+        if (!response.ok) throw new Error("The sample PDF is unavailable. Choose a local PDF.")
+        const bytes = await response.arrayBuffer()
+        if (generation !== revision) return
+        busy = false
+        await choose(id, new File([bytes], `${id}.pdf`, { type: "application/pdf" }))
+        if (generation !== revision || failure) return
+        busy = true
+      }
+    } catch (reason) {
+      if (generation === revision) failure = diagnostic(reason)
+    } finally {
+      if (generation === revision) {
+        busy = false
+        request = undefined
+      }
+    }
+  }
+  async function start() {
+    if (!inputs || busy || ready !== count) return
+    const generation = revision
+    busy = true
+    opening = true
+    failure = ""
+    try {
+      await open(text, [...selected.values()])
+      if (generation !== revision) return
+      opening = false
+      busy = false
+      stop()
+      active = false
+      await tick()
+      document
+        .querySelector<HTMLElement>('.composer [role="tab"][aria-selected="true"]')
+        ?.focus({ preventScroll: true })
+    } catch (reason) {
+      if (generation === revision) failure = diagnostic(reason)
+    } finally {
+      if (generation === revision) {
+        busy = false
+        opening = false
+      }
+    }
+  }
+  async function close() {
+    stop()
+    active = false
+    await tick()
+    document.querySelector<HTMLInputElement>(".landing-recipe input")?.focus({ preventScroll: true })
+  }
+  onDestroy(stop)
+</script>
+
+{#if active}<section bind:this={panel} class="load-panel" aria-labelledby={`${key}-title`} tabindex="-1">
+    <div class="load-heading">
+      <div class="load-location">
+        <button type="button" class="load-back" aria-label="Back" title="Back" onclick={() => void close()}
+          ><Icon name="previous" /></button
+        >
+        <span class="load-name" title={name}
+          ><Icon name="json" /><span>{name}</span>
+          {#if example}<a
+              class="load-download"
+              href={example.recipe}
+              download="practice-session.json"
+              aria-label="Download recipe JSON"
+              title="Download recipe JSON"><Icon name="down" /></a
+            >{/if}
+        </span>
+      </div>
+      <div class="load-intro">
+        <h1 id={`${key}-title`}>Choose your source PDFs</h1>
+        <p>
+          <span class="expanded">Choose the PDFs for these saved Inputs. Your page order and styles are ready.</span
+          ><span class="compact">Choose PDFs to apply this recipe.</span>
+        </p>
+      </div>
+      {#if inputs && count}<div class="load-choices">
+          {#if example}<button type="button" disabled={busy} onclick={() => void samples()}>Use sample PDFs</button
+            >{/if}
+          <label class="file-picker"
+            >Choose local PDFs<input
+              type="file"
+              accept="application/pdf,.pdf"
+              multiple
+              title="Choose local PDFs"
+              disabled={busy}
+              onchange={(event) => {
+                if (event.currentTarget.files) void files(event.currentTarget.files)
+                event.currentTarget.value = ""
+              }}
+            /></label
+          >
+        </div>{/if}
+      {#key replay}<div class="hero-mark load-mark" {@attach parallax}><Logo /></div>{/key}
+    </div>
+    {#if inputs}
+      {#if count}
+        <div class="binding-labels">
+          <span>Saved Input</span><span>PDF on this device</span>
+        </div>
+        <div class="recipe-bindings">
+          {#each Object.entries(inputs) as [id, input] (id)}
+            {@const bound = selected.get(id)}
+            {@const title = input.title?.trim() || id}
+            {@const changed = bound && input.sha256 && bound.input.sha256 !== input.sha256}
+            <div class="binding-row">
+              <div class="binding-source">
+                <div class="binding-cover">
+                  {#if input.cover}<img src={input.cover} alt={`Saved cover · ${title}`} />{:else}<Icon
+                      name="page"
+                    />{/if}
+                </div>
+                <div class="binding-identity">
+                  <div class="binding-heading">
+                    <h2>
+                      {#if input.xmp?.["dc:description"]?.trim()}<span class="expanded">{title}</span><span
+                          class="compact"><Guidance {title} details={input.xmp["dc:description"]} label={title} /></span
+                        >{:else}{title}{/if}
+                    </h2>
+                    <div class="binding-meta">
+                      <code title={id}>{id}</code>
+                      {#if input.xmp && Object.keys(input.xmp).length}
+                        <Guidance
+                          {title}
+                          details={Object.entries(input.xmp)
+                            .map(([field, value]) => `${field}: ${value}`)
+                            .join("\n")}
+                        />{/if}
+                    </div>
+                  </div>
+                  <p class="binding-description">{input.xmp?.["dc:description"] || ""}</p>
+                </div>
+              </div>
+              <div
+                class="binding-target"
+                class:bound={!!bound}
+                role="group"
+                aria-label={`PDF for ${title}`}
+                ondragover={(event) => {
+                  event.preventDefault()
+                }}
+                ondrop={(event) => {
+                  event.preventDefault()
+                  if (event.dataTransfer?.files[0]) void choose(id, event.dataTransfer.files[0])
+                }}
+              >
+                {#if bound}<div class="binding-result">
+                    <p class="binding-file" title={bound.input.name}>{bound.input.name}</p>
+                    <p class="control-description">
+                      {changed
+                        ? "Different from the saved PDF. Review your Output."
+                        : input.sha256
+                          ? "Matches the saved Input."
+                          : "PDF selected."}
+                    </p>
+                  </div>{/if}
+                <div class="binding-pick">
+                  <label class={bound ? "file-picker" : "file-picker binding-empty"}
+                    ><Icon name={bound ? "input" : "add"} /><span>{bound ? "Change PDF" : "Choose a PDF"}</span>
+                    <input
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      disabled={busy}
+                      aria-label={`Choose PDF for ${title}`}
+                      title={bound ? "Change PDF" : "Choose a PDF"}
+                      onchange={(event) => {
+                        void choose(id, event.currentTarget.files?.[0])
+                        event.currentTarget.value = ""
+                      }}
+                    /></label
+                  >
+                  {#if !bound}<span class="control-description">or drop it here</span>{/if}
+                  {#if bound}<button
+                      type="button"
+                      class="load-download"
+                      onclick={() =>
+                        download.save(
+                          new Blob([bound.input.bytes.slice()], { type: "application/pdf" }),
+                          bound.input.name,
+                        )}
+                      aria-label={`Download ${bound.input.name}`}
+                      title="Download PDF"><Icon name="down" /></button
+                    >{/if}
+                </div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {:else}<p class="control-description">This Recipe uses only blank pages and needs no PDFs.</p>{/if}
+    {/if}
+    {#if failure}<p class="error" role="alert">{failure}</p>{/if}
+    <div class="load-actions">
+      <button type="button" onclick={() => void close()}>Cancel</button><button
+        type="button"
+        class="primary"
+        disabled={!inputs || busy || ready !== count}
+        onclick={() => void start()}>Apply recipe</button
+      >
+    </div>
+  </section>{/if}

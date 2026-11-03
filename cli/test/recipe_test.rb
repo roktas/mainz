@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "minitest/autorun"
+require "base64"
+require "zlib"
 
 load(File.expand_path("../../Rakefile", __dir__)) unless defined?(Mainz::ROOT)
 
@@ -310,6 +312,40 @@ module Mainz
       result = run_recipe(recipe)
       assert_equal(6, JSON.parse(result.stdout)["pages"].size)
       assert_equal({}, JSON.parse(command("describe", @output).stdout)["parameters"])
+    end
+
+    def test_input_presentation_is_bounded_and_does_not_change_resolution
+      recipe = record
+      original = command("resolve", write("original.json", recipe), "--root", @directory).stdout
+      chunk = -> (kind, data) { [data.bytesize].pack("N") + kind + data + [Zlib.crc32(kind + data)].pack("N") }
+      random = Random.new(42)
+      rows = Array.new(64) { "\0".b + random.bytes(64 * 3) }.join
+      png = "\x89PNG\r\n\x1a\n".b +
+        chunk.call("IHDR", [64, 64, 8, 2, 0, 0, 0].pack("NNC5")) +
+        chunk.call("IDAT", Zlib.deflate(rows)) +
+        chunk.call("IEND", "")
+      cover = "data:image/png;base64," + Base64.strict_encode64(png)
+      assert_operator(cover.bytesize, :>, 4096)
+      recipe["inputs"]["book"].merge!("title" => "Practice", "cover" => cover, "xmp" => {"dc:creator" => "Author"})
+      assert_equal(original, command("resolve", write("presented.json", recipe), "--root", @directory).stdout)
+      [
+        {"cover" => "data:image/svg+xml;base64,PHN2Zy8+"},
+        {"cover" => cover + "!"},
+        {"title" => "x" * 4097},
+        {"xmp" => {"dc:creator" => []}}
+      ].each_with_index do |values, index|
+        invalid = Marshal.load(Marshal.dump(recipe))
+        invalid["inputs"]["book"].merge!(values)
+        failure = command(
+          "resolve",
+          write("invalid-presentation-#{index}.json", invalid),
+          "--root",
+          @directory,
+          status: 1
+        )
+        assert_empty(failure.stdout)
+        assert_equal("request", JSON.parse(failure.stderr)["source"])
+      end
     end
 
     def test_publication_fast_forward_keeps_validation_authoritative

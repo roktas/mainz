@@ -53,11 +53,29 @@ and wraps on narrower layouts. Narrow layouts retain a single-line purpose headi
 The spacing scale uses a 28 px workspace gutter and fluid control gaps of 12–16 px at normal text size. Narrow layouts
 reduce gutters before reducing usable control space. Standard controls use 4 px corners. The landing frame uses softer
 12 px corners. Primary buttons are at least 104 × 46 px. Interactive targets are at least 44 px. Compact headers and
-single-pane Grid pagination use the target sizes in [Grid and Page](#grid-and-page). Peer buttons in the same visible
-group share width and height, with equal gaps between peers, unless a specific rule defines different dimensions.
-Desktop Open PDF and Download share the same dimensions.
+single-pane Grid pagination use the target sizes in [Grid and Page](#grid-and-page).
+
+Controls of the same type in a visible panel, toolbar, or action group must have the same width and height unless this
+document defines an explicit exception. Type means interaction role, such as a selection row, action button, icon
+button, or form field. Label length, icons, color, and action priority do not create a different type. Use the control
+that needs the most space to set the shared size. Define shared dimensions with one token or shared layout track. Keep
+equal gaps between controls. After the final adjustment, measure their rendered bounds in the browser and verify equal
+dimensions; visual estimates are not sufficient. Colors, surfaces, and hover treatments follow each control's role.
+Different control types can use their documented dimensions but must share an explicit alignment edge or centerline. In
+the Input chooser, selection rows share dimensions; information icons occupy a separate fixed-width column. Remove Input
+is a compact separate action whose end edge aligns with the selection rows. Narrow choosers hide secondary titles and
+indexes and show Remove Input as an accessible icon action. Desktop Open PDF and Download share the same dimensions.
 
 The shared `--icon-size` token sets ordinary icons to 1.125 rem. Control-specific icon sizes use their own visual role.
+
+Action labels use sentence case. Keep acronyms such as PDF and JSON and product terms such as Input and Output. Write
+the intended text directly; do not use CSS capitalization.
+
+Landing PDF and Recipe actions share width and padding on all four sides. At normal text size, their icons are 24 px.
+PDF is 54 px high; Recipe is 1 px taller. Wide layouts center them on one row with a muted `or`; narrow layouts stack
+them. The primary PDF action uses the unboxed Acrobat ribbon. Its color is the opposite theme's accent: beige in light
+mode and purple in dark mode. Recipe uses JSON braces and a quiet secondary surface. The existing animated logo and
+landing composition remain the visual anchor.
 
 Icon buttons use transparent surfaces, accent stroke emphasis on hover, and immediate press feedback. Destructive
 actions retain danger colors. Text and primary buttons can use a soft accent glow with a fine pointer and hover support.
@@ -156,11 +174,45 @@ the redundant PDF suffix. A required fresh gesture uses neutral feedback rather 
 The decorative information icon yields space to the message in compact panels with three actions.
 
 Export recipe uses an outward diagonal arrow in an open square, immediately before Print and View in the Output header.
-Its glyph and target match Print and View. It remains available in both views. Its centered panel uses an Index, Path,
-ID table and equal Cancel and Export buttons with the shared control gap. Index uses tabular numbers. Path is muted
-read-only text. ID cells use accent text, a light accent tint, and a dotted underline to show editing. Activating a cell
-replaces its button with a full-width text field. Long values wrap within their cells. The panel scrolls within the
-viewport and retains keyboard focus behavior in both themes.
+Its glyph and target match Print and View. It remains available in both views. Its centered panel uses a Name, Index,
+Path, Title table and equal Cancel and Export buttons with the shared control gap. Index uses tabular numbers. Path is
+compact, muted read-only text with full-path hover. The table scrolls within its panel when columns cannot remain
+readable. Title shows the Input title. Name cells use accent text, a light accent tint, and a dotted underline to show
+editing. Activating a cell replaces its button with a full-width text field. Long values wrap within their cells. The
+panel scrolls within the viewport and retains keyboard focus behavior in both themes.
+
+Recipe matching uses paired rows: the saved cover and title on one side and the local PDF selection on the other. Keep
+cover and file selection beside each other at every width. Wide covers display at 110–130 CSS px; narrow covers use
+80–110 px. The selection box shares the cover frame's height. Narrow rows place the smaller title, monospace Input ID,
+and information icon together above the cover. Each narrow row uses its content height, with a small consistent gap. At
+375 × 667 and normal text size, the first two complete demo Inputs fit on the first screen. Input details expose
+complete titles and available XMP fields. Wide Input headers and chooser entries show titles as muted secondary text.
+
+Matching is the landing's next step. The 24 px Back icon uses a target of at least 44 px beside the Recipe filename.
+Align its visible start edge with the heading, file choices, and covers below. Back retains its accessible name and
+hover description, with glyph-only glow and no hover surface. The small Recipe-download icon sits beside the filename.
+The larger logo occupies the upper end-side space and retains entry motion and parallax. Use sample PDFs precedes Choose
+local PDFs; both actions share a row and dimensions. An empty box centers Choose a PDF and its drop hint on both axes.
+Narrow layouts hide the drop hint and the logo, use shorter supporting copy, and reduce the gap below the Recipe
+filename. Use sample PDFs and Choose local PDFs stay beside each other. Choose a PDF has no border or hover surface.
+Other labeled actions retain their ordinary surfaces.
+
+After selection, the box places the filename and match status in one half and the Change PDF/download group in the
+other. Both groups center vertically. Change PDF keeps its icon and text on one line, with equal side padding. Its
+download icon stays beside it. Narrow layouts can stack the two groups. At enlarged text sizes with insufficient space,
+Change PDF can retain its icon with the same accessible name. Change PDF, Cancel, and Apply recipe share dimensions. The
+footer group has equal space above and below it, bounded by its separator and the outer frame. Download icons have no
+hover surface or circular shadow; only the glyph gains emphasis.
+
+Wide Input rows share a height. The title is primary text. Optional XMP `dc:description` appears directly below it as
+smaller, muted text with a clear gap. It is separate content, not a repeated or punctuation-split title. The description
+uses the row's vertical space and can scroll when very long. Narrow layouts hide the inline description and expose it
+through the title's text trigger in the shared information popover, without shifting rows. The monospace logical Input
+ID and information icon share a compact row at the cover's lower edge on wide layouts. Do not repeat Saved Input beside
+every icon. Information controls use borderless surfaces with soft hover emphasis; keyboard focus remains visible. The
+shared status line holds Input counts and scrolls below the matching content. Initial demo opening does not draw a focus
+contour around the matching frame. Keyboard opening focuses Back; Tab and other keyboard actions retain visible control
+focus.
 
 At constrained widths with enlarged text, all four Output action glyphs shrink together to fit their row. They retain a
 28 px minimum and full interaction targets. Counts retain their details control. Normal text keeps the shared 28 px
@@ -329,7 +381,8 @@ no Grid density control. Switching views retains the toolbar height and content-
 Each row has a grip beside its number and a View icon at the trailing edge. View hover or keyboard focus shows a large
 full-page preview beside the row. Keep the preview within the viewport and preserve the page's aspect ratio. It does not
 receive pointer input. Its caption appears only for a supplied page name. Narrow Output rows group their operations in a
-separate action menu. Number details show the supplied name and provenance.
+separate action menu. Number details show the supplied name and provenance. Output rows show one Output position; source
+page numbers and differing PDF labels belong in details.
 
 Keyboard focus draws one secondary contour around the complete row, including its number, name, and trailing controls.
 Individual row controls do not draw additional contours. Focus remains distinct from the primary selection surface. List
@@ -684,10 +737,12 @@ source or touch grip immediately fades its card and applies the drag tilt and sc
 Touch grips also receive an accent highlight. Pressing alone does not change selection. Release or cancellation clears
 the press feedback. Reduced motion keeps the fade and highlight without tilt or scaling.
 
-List drags use a horizontal strip at the row's height, with its number and name aligned to the row's columns. The strip
-appears on press and sits just below the row, offset 8 px toward its start and 12 px above its bottom edge. Its slight
-tilt and short entrance animation follow motion preferences. Multiple pages add a count. Do not put a page raster in
-this strip. The insertion slot holds one faint strip in the same columns and text size. Keep the moving strip opaque.
+List drags use a flat horizontal strip at the row's height, with its number and name aligned to the row's columns. The
+strip appears on press and stays attached to the original grab point while moving. Do not tilt or scale it. Multiple
+pages add a count. Do not put a page raster in this strip. The insertion slot holds one faint strip in the same columns
+and text size. Keep the moving strip opaque and the insertion slot stationary while neighboring rows move over 180 ms.
+Logical row bounds select targets independently of their animated positions. A pointer inside the open slot retains its
+destination. On drop, reveal the moved row at its destination instead of animating it from its hidden source position.
 Grid drag images and other moving page images use sharp rasters at device density, with a minimum density of two. Grid
 images stay attached to the pointer at their heading instead of above the card.
 
@@ -832,12 +887,12 @@ effects.
 Notice text keeps full contrast until dismissal. Reduced motion keeps busy rings static. Errors retain their explanation
 and do not repeat details in the footer. Loading, empty, error, and cancellation states identify the next action.
 
-Batch opening announces one short failure count after processing. A native disclosure joins the count and Review file
+Batch opening announces one short failure count after processing. A popover trigger joins the count and Review file
 errors on one row when space permits. It wraps without extra row gaps on narrow screens and with enlarged text. The
-dismiss button aligns with the disclosure's block start. All controls retain at least 44 px targets.
+dismiss button aligns with the failure group's block start. All controls retain at least 44 px targets.
 
-Review file errors reveals each filename and diagnostic outside the live alert. The list has a bounded height and
-supports keyboard scrolling.
+Review file errors opens a separate popover with each filename and diagnostic outside the live alert and header bounds.
+The list has a bounded height and supports keyboard scrolling.
 
 ## Validation
 

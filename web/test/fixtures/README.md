@@ -70,3 +70,19 @@ production assets and the offline cache. The examples dialog lists Grid demo sec
 See [MEMO](../../doc/MEMO.md#collection-and-calibration) for the shared probe, native Simulator acquisition, desktop
 references, calibration commands, and evidence retention. [VIEW](../../doc/VIEW.md#grid-and-page) owns visual acceptance
 limits.
+
+## Recipe fixture
+
+`?demo=recipe` opens [`recipe/session.json`](recipe/session.json) for Input matching. The example offers its JSON and
+PDFs as downloads and can select the bundled PDFs through Use sample PDFs. The `book` binding reuses `demo.pdf`.
+[`recipe/guides.pdf`](recipe/guides.pdf) contains its physical pages 2–4; its title is `Guide sheets` and its cover is
+page 1. [`recipe/crossings.pdf`](recipe/crossings.pdf) contains physical pages 3–4; its title is `Crossing strokes` and
+its cover is page 2. Both use short XMP `dc:title` and PDF Info `Title` values, with longer text in XMP
+`dc:description`. The Recipe retains both fields and matching file digests. `Italic Strokes` has no description, for
+comparison. Both are native compositions with empty complete overrides and explicit Plan metadata, followed by a QPDF
+metadata update for the descriptions. They retain the SAMPLE watermark and editable practice content.
+
+The Recipe contains three independent logical Inputs, each with a saved title, XMP fields, digest, and embedded PNG
+cover. Output contains the original cover and the first page from each derived PDF. Its title is `Practice session`.
+After rebuilding the PDFs, open the Recipe demo, choose the replacement files, and export a new Recipe to refresh the
+digests and covers. Keep the logical IDs `book`, `guides`, and `crossings` so the demo's sample bindings remain valid.

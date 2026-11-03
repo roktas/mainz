@@ -219,10 +219,12 @@ export function animateOrder(grid: HTMLElement, duration = moveDuration) {
   if (!motion.matches) return
   const start = grid.getBoundingClientRect()
   const positions = new Map(
-    [...grid.querySelectorAll<HTMLElement>(":scope > :is(.composition-card, .list-row)")].map((card) => {
-      const bounds = card.getBoundingClientRect()
-      return [card.id, { left: bounds.left - start.left, top: bounds.top - start.top }]
-    }),
+    [...grid.querySelectorAll<HTMLElement>(":scope > :is(.composition-card, .list-row:not([data-dragging]))")].map(
+      (card) => {
+        const bounds = card.getBoundingClientRect()
+        return [card.id, { left: bounds.left - start.left, top: bounds.top - start.top }]
+      },
+    ),
   )
   const easing = getComputedStyle(grid).getPropertyValue("--ease-in-out").trim()
   const animations: Animation[] = []
@@ -261,6 +263,9 @@ export function animateOrder(grid: HTMLElement, duration = moveDuration) {
             easing,
           }),
         )
+        const slot = card.querySelector<HTMLElement>(":scope > .list-drop-preview")
+        if (slot)
+          animations.push(slot.animate([{ translate: `${-x}px ${-y}px` }, { translate: "0 0" }], { duration, easing }))
       }
       void Promise.all(animations.map((animation) => animation.finished)).then(stop, stop)
     })

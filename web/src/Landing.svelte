@@ -1,62 +1,23 @@
-<!-- Offers local PDF opening, file drops, and the landing logo animation. -->
+<!-- Offers one local PDF as the primary action, secondary Recipe opening, and the landing logo animation. -->
 
 <script lang="ts">
   import Icon from "./Icon.svelte"
-  import Logo from "./Logo.svelte"
+  import Logo, { parallax } from "./Logo.svelte"
   let {
     loading,
     updating,
     replay,
     open,
+    recipe,
   }: {
     loading: boolean
     updating: boolean
     replay: number
     open: (list: FileList | File[]) => Promise<void>
+    recipe: (file: File) => void
   } = $props()
   let dragging = $state(false)
   let dragDepth = 0
-  function parallax(element: HTMLDivElement) {
-    const zone = element.parentElement!
-    const events = new AbortController()
-    const { signal } = events
-    const motion = matchMedia("(prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine)")
-    let entered = false
-    const reset = () => {
-      element.style.removeProperty("--logo-x")
-      element.style.removeProperty("--logo-y")
-    }
-    element.addEventListener(
-      "animationstart",
-      () => {
-        entered = false
-        reset()
-      },
-      { signal },
-    )
-    element.addEventListener(
-      "animationend",
-      () => {
-        entered = true
-      },
-      { signal },
-    )
-    zone.addEventListener(
-      "pointermove",
-      (event) => {
-        if (!entered || !motion.matches || event.pointerType !== "mouse") return
-        const bounds = zone.getBoundingClientRect()
-        const x = Math.max(-1, Math.min(1, (2 * (event.clientX - bounds.left)) / bounds.width - 1))
-        const y = Math.max(-1, Math.min(1, (2 * (event.clientY - bounds.top)) / bounds.height - 1))
-        element.style.setProperty("--logo-x", `${x}`)
-        element.style.setProperty("--logo-y", `${y}`)
-      },
-      { signal, passive: true },
-    )
-    zone.addEventListener("pointerleave", reset, { signal })
-    motion.addEventListener("change", reset, { signal })
-    return () => events.abort()
-  }
 </script>
 
 <svelte:window
@@ -102,10 +63,9 @@
     <p>Select and repeat PDF pages. Style prepared PDFs for your printer.</p>
     <div class="buttons">
       <label class="file-picker primary"
-        >Choose a PDF<input
+        ><Icon name="pdf" /><span>Choose a PDF</span><input
           type="file"
           accept="application/pdf,.pdf"
-          multiple
           disabled={loading || updating}
           onchange={(event) => {
             if (event.currentTarget.files) void open(event.currentTarget.files)
@@ -113,13 +73,27 @@
           }}
         /></label
       >
+      <span class="landing-or">or</span>
+      <label class="landing-recipe" title="Open a saved recipe"
+        ><Icon name="json" /><span>Open recipe</span><input
+          type="file"
+          accept="application/json,.json"
+          aria-label="Open recipe"
+          disabled={loading || updating}
+          onchange={(event) => {
+            const file = event.currentTarget.files?.[0]
+            if (file) recipe(file)
+            event.currentTarget.value = ""
+          }}
+        /></label
+      >
     </div>
   </div>
   {#key replay}<div class="hero-mark" {@attach parallax}><Logo /></div>{/key}
-  <p class="drop-note"><Icon name="input" />Drag PDFs into this area to open them.</p>
+  <p class="drop-note"><Icon name="input" />Drag a PDF into this area to open it.</p>
   {#if dragging}<div class="drop-prompt" role="status">
       <Icon name="input" />
-      <strong>Drop PDFs to open</strong>
+      <strong>Drop a PDF to open</strong>
       <span>Your files stay on this device.</span>
     </div>{/if}
 </section>

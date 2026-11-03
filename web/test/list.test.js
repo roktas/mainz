@@ -6,7 +6,7 @@ import { chromium, webkit } from "playwright"
 import { serve } from "./server.ts"
 import { tab, fixture } from "./browser.js"
 
-test("List strips appear on press with sharp text and stay tucked below their row", { timeout: 30000 }, async () => {
+test("List strips stay flat and follow their original grab point", { timeout: 30000 }, async () => {
   const server = await serve(),
     browser = await chromium.launch()
   try {
@@ -16,7 +16,8 @@ test("List strips appear on press with sharp text and stay tucked below their ro
     const grip = input.getByRole("button", { name: "Select or drag Input page 2 to Output", exact: true }),
       bounds = await grip.boundingBox(),
       row = await grip.locator("..").boundingBox()
-    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+    const point = { x: Math.floor(bounds.x + bounds.width / 2), y: Math.floor(bounds.y + bounds.height / 2) }
+    await page.mouse.move(point.x, point.y)
     await page.mouse.down()
     const strip = page.locator(".drag-image[data-strip]")
     assert.equal(await strip.locator(".drag-title").innerText(), "ITAL-GUID-79A4-WXGX")
@@ -38,13 +39,95 @@ test("List strips appear on press with sharp text and stay tucked below their ro
     assert.equal(await strip.evaluate((element) => element.tagName), "DIV")
     assert.equal(await strip.evaluate((element) => element.offsetHeight), row.height)
     const box = await strip.boundingBox()
-    assert.ok(Math.abs(box.x - row.x) < 16)
-    assert.ok(box.y < row.y + row.height && box.y > row.y + row.height - 24)
+    assert.ok(Math.abs(box.x - row.x) < 1)
+    assert.ok(Math.abs(box.y - row.y) < 1)
+    assert.equal(await strip.evaluate((element) => getComputedStyle(element).rotate), "none")
     assert.equal(await page.locator(".composer[data-drag]").count(), 0)
     assert.equal(await selection.inputValue(), "")
+    await page.mouse.move(point.x + 12, point.y, { steps: 3 })
+    await page.locator(".composer[data-drag]").waitFor()
+    for (const offset of [60, 120, 90]) {
+      const pointerY = point.y + offset
+      await page.mouse.move(point.x + 12, pointerY, { steps: 3 })
+      // Native dragover needs another move at the final point.
+      await page.mouse.move(point.x + 12, pointerY)
+      await page.waitForFunction(
+        (expected) => Math.abs(document.querySelector(".drag-image").getBoundingClientRect().y - expected) < 1,
+        row.y + offset,
+      )
+      const moved = await strip.boundingBox()
+      assert.ok(
+        Math.abs(moved.y - row.y - offset) < 1,
+        "The strip follows vertical motion without snapping to hovered rows",
+      )
+    }
     await page.keyboard.press("Escape")
     assert.equal(await strip.count(), 0)
     await page.mouse.up()
+  } finally {
+    await browser.close()
+  }
+})
+
+test("List neighbors move around a stationary insertion slot", { timeout: 30000 }, async () => {
+  const server = await serve(),
+    browser = await chromium.launch()
+  try {
+    const { page, output } = await lists(browser, server.resolvedUrls.local[0], {
+      hasTouch: true,
+      reducedMotion: "no-preference",
+    })
+    const rows = output.locator(".list-row"),
+      original = await rows.evaluateAll((elements) => elements.map((element) => element.id)),
+      from = await rows.nth(1).locator(".page-grip").boundingBox(),
+      to = await rows.nth(4).locator(".list-choice").boundingBox(),
+      session = await page.context().newCDPSession(page),
+      point = { x: from.x + from.width / 2, y: from.y + from.height / 2 }
+    await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ ...point, id: 1 }] })
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ ...point, x: point.x + 12, id: 1 }],
+    })
+    await page.locator('.composer[data-drag="output"]').waitFor()
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: to.x + to.width / 2, y: to.y + to.height * 0.85, id: 1 }],
+    })
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".composition-output .list-row")].some(
+        (row) =>
+          row.querySelector(".list-drop-preview") &&
+          row.getAnimations().some((animation) => animation.playState === "running"),
+      ),
+    )
+    const slot = output.locator(".list-drop-preview"),
+      target = await slot.locator("..").getAttribute("id"),
+      positions = await slot.evaluate(async (element) => {
+        const samples = []
+        for (let frame = 0; frame < 3; frame++) {
+          await new Promise(requestAnimationFrame)
+          samples.push(element.getBoundingClientRect().top)
+        }
+        return samples
+      })
+    assert.ok(Math.max(...positions) - Math.min(...positions) < 1, "The open slot stays still while its row moves")
+    const bounds = await slot.boundingBox()
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2, id: 1 }],
+    })
+    await page.evaluate(() => new Promise(requestAnimationFrame))
+    assert.equal(await slot.locator("..").getAttribute("id"), target)
+    assert.deepEqual(await rows.evaluateAll((elements) => elements.map((element) => element.id)), original)
+    await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+    assert.deepEqual(await rows.evaluateAll((elements) => elements.map((element) => element.id)), [
+      original[0],
+      ...original.slice(2, 5),
+      original[1],
+      ...original.slice(5),
+    ])
+    assert.equal(await page.locator(".drag-image, .list-drop-preview").count(), 0)
+    await session.detach()
   } finally {
     await browser.close()
   }
@@ -120,10 +203,9 @@ test(
         assert.equal(await rows.first().evaluate((element) => getComputedStyle(element).opacity), "0")
         assert.equal(await page.locator(".drag-image .drag-number").innerText(), "4")
         await page.emulateMedia({ reducedMotion: "no-preference" })
-        assert.notEqual(
-          await page.locator(".drag-image").evaluate((element) => getComputedStyle(element).rotate),
-          "none",
-        )
+        const rotation = await page.locator(".drag-image").evaluate((element) => getComputedStyle(element).rotate)
+        if (view === "List") assert.equal(rotation, "none")
+        else assert.notEqual(rotation, "none")
         await page.emulateMedia({ reducedMotion: "reduce" })
         assert.equal(await page.locator(".drag-image").evaluate((element) => getComputedStyle(element).rotate), "none")
         assert.equal(await output.locator(".drop-number").innerText(), "4")

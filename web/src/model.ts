@@ -16,6 +16,10 @@ export type Input = {
   sha256?: string
   sizes: Size[]
   labels: string[]
+  title?: string
+  coverPage?: number
+  cover?: string
+  xmp?: Record<string, string>
 }
 export type Source = {
   id: string
@@ -36,7 +40,11 @@ export type Preview = {
     page: number
     preview?: Description["pages"][number]["preview"]
   }
-  download: (source: Source, pages: readonly number[]) => ArrayBuffer | undefined
+  download: (
+    source: Source,
+    pages: readonly number[],
+    metadata: NonNullable<Plan["metadata"]>,
+  ) => ArrayBuffer | undefined
   reconcile: (source: Source, counts: Usage) => void
   schedule: (source: Source, counts: Usage, text?: string, serial?: boolean) => void
   cancel: () => void
@@ -45,13 +53,25 @@ export type Preview = {
 export type Expanded = Page & { part: string; copy: number; padding: boolean }
 export type Plan = {
   version: 1
+  metadata?: { title: string; coverPage: number }
   sources: Record<string, { input: string; overrides: Record<string, Scalar> }>
   parts: { pages: Content[]; copies: number; front: boolean }[]
 }
 export const maxCopies = 1000
 export const maxPages = 10000
+export const maxInputBytes = 128 * 1024 * 1024
 // getRandomValues also works over local-network HTTP.
 export const uid = () => crypto.getRandomValues(new Uint32Array(4)).join("-")
+export function titleError(title: string): string {
+  if (!title.trim() || new TextEncoder().encode(title).length > 4096) return "Enter a title of up to 4096 bytes."
+  // XML 1.0 text must also be representable when written to PDF XMP.
+  // oxlint-disable-next-line no-control-regex -- Reject characters XML cannot represent.
+  if (!title.isWellFormed() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/.test(title))
+    return "Use a title without invalid text characters."
+  return ""
+}
+export const titleOf = (input: Pick<Input, "name" | "title">) =>
+  input.title && input.title !== input.name ? input.title : input.name.replace(/\.pdf$/i, "") || input.name
 const pad = (value: number) => String(value).padStart(2, "0")
 
 export function positionAfterEdit(
@@ -101,7 +121,7 @@ export function downloadInputs<T extends { id: string; bytes: { length: number }
     throw new Error("Download supports up to 32 Inputs. Remove pages from an Input in Output to continue.")
   if (referenced.length > 32)
     throw new Error("Download supports up to 32 independent Input styles. Remove their pages from Output to continue.")
-  if (inputs.reduce((total, input) => total + input.bytes.length, 0) > 128 * 1024 * 1024)
+  if (inputs.reduce((total, input) => total + input.bytes.length, 0) > maxInputBytes)
     throw new Error("Inputs used by Output exceed the 128 MiB total limit. Remove pages from an Input to continue.")
   return inputs
 }

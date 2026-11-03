@@ -14,8 +14,8 @@ static void recipe(const Arguments& args, bool produce)
     const bool mapped = args.options.contains("--inputs");
     if (mapped && args.options.contains("--root"))
         throw std::runtime_error("Use --inputs for explicit bindings or --root for filename lookup.");
-    auto recipe = read(args.input, json_limit);
-    auto definitions = detail::object(detail::parse(recipe_inputs(recipe), "request"));
+    auto recipe = read(args.input, recipe_limit);
+    auto definitions = detail::object(detail::parse(recipe_inputs(recipe), "request", recipe_limit));
     std::map<std::string, std::string> paths;
     if (mapped) {
         paths = bindings(args.options.at("--inputs"));

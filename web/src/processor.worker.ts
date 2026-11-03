@@ -1,7 +1,7 @@
 // Runs WASM requests, fingerprints Inputs, and bounds reusable page and style results.
 
 /// <reference lib="webworker" />
-import type { Failure, Image, Request, Reply, Result, Provenance } from "./protocol.ts"
+import type { Failure, Success, Request, Reply, Result, Provenance } from "./protocol.ts"
 
 type Module = {
   HEAPU8: Uint8Array
@@ -17,6 +17,8 @@ type Module = {
   _mainz_input(idPointer: number, idSize: number, pdfPointer: number, pdfSize: number): void
   _mainz_clear_inputs(): void
   _mainz_compose(pointer: number, size: number): void
+  _mainz_recipe_inputs(pointer: number, size: number): void
+  _mainz_resolve_recipe(pointer: number, size: number): void
   _mainz_provenance(): number
   _mainz_provenance_size(): number
   _mainz_result(): number
@@ -64,7 +66,20 @@ function input<T>(wasm: Module, bytes: Uint8Array, call: (pointer: number, size:
   }
 }
 
-async function run(request: Request): Promise<Result | Image> {
+function register(wasm: Module, inputs: Record<string, ArrayBuffer>) {
+  wasm["_mainz_clear_inputs"]()
+  result(wasm)
+  for (const [id, buffer] of Object.entries(inputs)) {
+    input(wasm, encoder.encode(id), (idPointer, idSize) =>
+      input(wasm, new Uint8Array(buffer), (pdfPointer, pdfSize) =>
+        wasm["_mainz_input"](idPointer, idSize, pdfPointer, pdfSize),
+      ),
+    )
+    result(wasm)
+  }
+}
+
+async function run(request: Request): Promise<Success> {
   if (!module) {
     const moduleUrl = new URL(/* @vite-ignore */ "../processor.mjs", import.meta.url).href
     const { default: create } = await import(/* @vite-ignore */ moduleUrl)
@@ -112,6 +127,22 @@ async function run(request: Request): Promise<Result | Image> {
     open()
   }
   try {
+    if ("recipe" in request) {
+      styled = undefined
+      extracted = undefined
+      try {
+        if (request.inputs) register(wasm, request.inputs)
+        input(wasm, encoder.encode(request.recipe), (p, n) =>
+          request.inputs ? wasm["_mainz_resolve_recipe"](p, n) : wasm["_mainz_recipe_inputs"](p, n),
+        )
+        const record = JSON.parse(decoder.decode(result(wasm)))
+        return request.inputs
+          ? { revision: request.revision, resolution: record }
+          : { revision: request.revision, definitions: record }
+      } finally {
+        wasm["_mainz_clear_inputs"]()
+      }
+    }
     if ("preview" in request) {
       open()
       wasm["_mainz_preview"](handle, request.preview.page)
@@ -125,17 +156,8 @@ async function run(request: Request): Promise<Result | Image> {
         const reused = reuse(styleInput, styleKey)
         if (reused) return reused
       } else styled = undefined
-      wasm["_mainz_clear_inputs"]()
-      result(wasm)
       try {
-        for (const [id, buffer] of Object.entries(request.inputs)) {
-          input(wasm, encoder.encode(id), (idPointer, idSize) =>
-            input(wasm, new Uint8Array(buffer), (pdfPointer, pdfSize) =>
-              wasm["_mainz_input"](idPointer, idSize, pdfPointer, pdfSize),
-            ),
-          )
-          result(wasm)
-        }
+        register(wasm, request.inputs)
         input(wasm, encoder.encode(JSON.stringify(request.plan)), (p, n) => wasm["_mainz_compose"](p, n))
         bytes = result(wasm)
         provenance = JSON.parse(

@@ -54,7 +54,8 @@ test("Vite verifies Mainz packages and publishes complete asset revisions", () =
         }),
       )
     }
-    const jobs = "_mainz_input _mainz_clear_inputs _mainz_compose _mainz_provenance _mainz_provenance_size"
+    const jobs =
+      "_mainz_input _mainz_clear_inputs _mainz_compose _mainz_recipe_inputs _mainz_resolve_recipe _mainz_provenance _mainz_provenance_size"
     writePackage(jobs)
     result = build()
     assert.notEqual(result.status, 0)
@@ -88,6 +89,7 @@ test("Vite verifies Mainz packages and publishes complete asset revisions", () =
     writeFileSync(join(project, "public", "provenance.json"), "Unverified public metadata.")
     mkdirSync(join(project, "test", "fixtures"), { recursive: true })
     copyFileSync("test/fixtures/demo.pdf", join(project, "test", "fixtures", "demo.pdf"))
+    cpSync("test/fixtures/recipe", join(project, "test", "fixtures", "recipe"), { recursive: true })
     mkdirSync(join(project, "node_modules"))
     for (const name of readdirSync("node_modules"))
       if (name !== "pdfjs-dist") symlinkSync(resolve("node_modules", name), join(project, "node_modules", name))

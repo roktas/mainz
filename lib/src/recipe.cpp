@@ -1,11 +1,50 @@
 #include "recipe.hh"
 #include "contract.hh"
 #include <cmath>
+#include <cstdint>
 #include <new>
 
 namespace mainz {
 namespace {
     using namespace detail;
+
+    void cover(JSON item)
+    {
+        auto value = text(item);
+        constexpr std::string_view prefix = "data:image/png;base64,";
+        require(value.starts_with(prefix), "A cover must be an embedded PNG.");
+        require(value.size() <= std::size_t {256} * 1024, "Cover exceeds 256 KiB.", "limit-exceeded");
+        auto data = std::string_view(value).substr(prefix.size());
+        require(!data.empty() && data.size() % 4 == 0, "Invalid cover base64.");
+        constexpr std::string_view alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        auto padding = data.ends_with("==") ? 2U : data.ends_with('=') ? 1U : 0U;
+        std::uint32_t accumulator {0};
+        unsigned bits {0};
+        std::string header;
+        for (std::size_t i = 0; i < data.size() - padding; ++i) {
+            auto digit = alphabet.find(data[i]);
+            require(digit != alphabet.npos, "Invalid cover base64.");
+            accumulator = (accumulator << 6U) | static_cast<std::uint32_t>(digit);
+            bits += 6;
+            if (bits >= 8) {
+                bits -= 8;
+                if (header.size() < 24)
+                    header.push_back(static_cast<char>((accumulator >> bits) & 255U));
+            }
+        }
+        require(bits == padding * 2 && (accumulator & ((1U << bits) - 1)) == 0, "Invalid cover base64 padding.");
+        require(header.size() == 24 && header.substr(0, 8) == std::string("\x89PNG\r\n\x1a\n", 8)
+                && header.substr(8, 8) == std::string("\0\0\0\x0dIHDR", 8),
+            "Invalid cover PNG header.");
+        auto dimension = [&](std::size_t offset) {
+            std::uint32_t result {0};
+            for (std::size_t i = offset; i < offset + 4; ++i)
+                result = (result << 8U) | static_cast<unsigned char>(header[i]);
+            return result;
+        };
+        require(dimension(16) > 0 && dimension(16) <= 512 && dimension(20) > 0 && dimension(20) <= 512,
+            "Cover dimensions must be from 1 to 512 pixels.", "limit-exceeded");
+    }
 
     std::size_t integer(JSON item, std::size_t maximum)
     {
@@ -51,11 +90,13 @@ namespace {
     }
     JSON read_recipe(const std::string& bytes)
     {
-        auto root = parse(bytes, "request");
+        auto root = parse(bytes, "request", recipe_limit);
         request_at("", [&] {
-            fields(root, {"version", "inputs", "sources", "parts"});
+            fields(root, {"version", "inputs", "sources", "parts"}, {"metadata"});
             require(number(root.getDictItem("version")) == 1, "Unsupported Recipe version.", "unsupported-version");
         });
+        if (object(root).contains("metadata"))
+            request_at("/metadata", [&] { document_metadata(root.getDictItem("metadata"), page_limit); });
         auto inputs = request_at("/inputs", [&] { return object(root.getDictItem("inputs")); });
         auto sources = request_at("/sources", [&] { return object(root.getDictItem("sources")); });
         require(inputs.size() <= input_limit && sources.size() <= input_limit, "Inputs or Sources exceed 32.",
@@ -63,7 +104,19 @@ namespace {
         for (const auto& [id, definition] : inputs)
             request_at("/inputs/" + pointer(id), [&] {
                 identifier(id);
-                auto present = fields(definition, {}, {"sha256", "pageCount", "publication"});
+                auto present = fields(definition, {}, {"sha256", "pageCount", "publication", "title", "cover", "xmp"});
+                if (present.contains("title"))
+                    require(text(definition.getDictItem("title")).size() <= 4096, "Input title exceeds 4096 bytes.",
+                        "limit-exceeded");
+                if (present.contains("cover"))
+                    request_at("/inputs/" + pointer(id) + "/cover", [&] { cover(definition.getDictItem("cover")); });
+                if (present.contains("xmp")) {
+                    auto metadata = object(definition.getDictItem("xmp"));
+                    require(metadata.size() <= 32, "Input XMP exceeds 32 fields.", "limit-exceeded");
+                    for (const auto& [key, value] : metadata)
+                        require(!key.empty() && key.size() <= 128 && text(value).size() <= 4096,
+                            "Input XMP field exceeds its byte limit.", "limit-exceeded");
+                }
                 if (present.contains("publication"))
                     publication(definition.getDictItem("publication"));
                 if (present.contains("sha256")) {
@@ -163,6 +216,7 @@ namespace {
                     .push_back(id);
         }
         std::set<std::string> chosen_sets, assigned;
+        auto selected_profiles = JSON::makeDictionary();
         auto profiles
             = object(source).contains("profiles") ? array(source.getDictItem("profiles")) : std::vector<JSON> {};
         for (std::size_t i = 0; i < profiles.size(); ++i)
@@ -181,6 +235,7 @@ namespace {
                 cardinality(query, matches.size());
                 for (const auto& [set, profile] : matches) {
                     require(chosen_sets.insert(text(set.getDictItem("id"))).second, "Overlapping profile choices.");
+                    selected_profiles.addDictionaryMember(text(set.getDictItem("id")), profile.getDictItem("id"));
                     for (const auto& [id, value] : object(profile.getDictItem("overrides")))
                         overrides.emplace(id, value);
                 }
@@ -218,14 +273,17 @@ namespace {
         auto result = JSON::makeDictionary();
         for (const auto& [id, value] : overrides)
             result.addDictionaryMember(id, value);
-        return result;
+        auto edited = JSON::makeArray();
+        for (const auto& id : assigned)
+            edited.addArrayElement(JSON::makeString(id));
+        return dictionary({{"overrides", result}, {"profiles", selected_profiles}, {"edits", edited}});
     }
 }
 
 std::string recipe_inputs(const std::string& recipe)
 {
     try {
-        return detail::encode(read_recipe(recipe).getDictItem("inputs"), json_limit);
+        return detail::encode(read_recipe(recipe).getDictItem("inputs"), recipe_limit);
     } catch (const std::bad_alloc&) {
         throw Error("limit-exceeded", "Recipe allocation failed.");
     }
@@ -293,12 +351,17 @@ static Resolution resolve(const std::string& recipe, const detail::Bindings& inp
             descriptions.emplace(id, description);
         }
         auto sources = JSON::makeDictionary();
+        auto intent = JSON::makeDictionary();
         auto source_definitions = detail::object(root.getDictItem("sources"));
         for (const auto& [id, source] : source_definitions) {
             auto input = detail::text(source.getDictItem("input"));
+            auto style = styles(source, descriptions.at(input), "/sources/" + detail::pointer(id));
             sources.addDictionaryMember(id,
-                detail::dictionary({{"input", JSON::makeString(input)},
-                    {"overrides", styles(source, descriptions.at(input), "/sources/" + detail::pointer(id))}}));
+                detail::dictionary(
+                    {{"input", JSON::makeString(input)}, {"overrides", style.getDictItem("overrides")}}));
+            intent.addDictionaryMember(id,
+                detail::dictionary(
+                    {{"profiles", style.getDictItem("profiles")}, {"edits", style.getDictItem("edits")}}));
         }
         auto parts = JSON::makeArray();
         std::size_t expanded {0};
@@ -349,7 +412,12 @@ static Resolution resolve(const std::string& recipe, const detail::Bindings& inp
                 {"copies", JSON::makeNumber(std::to_string(copies))}, {"front", JSON::makeBool(front)}}));
         }
         auto plan = detail::dictionary({{"version", JSON::makeNumber("1")}, {"sources", sources}, {"parts", parts}});
-        return {detail::encode(plan, json_limit), detail::encode(warnings, json_limit)};
+        if (auto metadata = root.getDictItem("metadata"); !metadata.isNull()) {
+            detail::request_at("/metadata", [&] { detail::document_metadata(metadata, expanded); });
+            plan.addDictionaryMember("metadata", metadata);
+        }
+        return {
+            detail::encode(plan, json_limit), detail::encode(warnings, json_limit), detail::encode(intent, json_limit)};
     } catch (const std::bad_alloc&) {
         throw Error("limit-exceeded", "Recipe allocation failed.");
     }

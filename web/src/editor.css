@@ -1,12 +1,6 @@
 /* Styles Source parameters, profiles, and their editing layout. */
 
 @layer components {
-  @position-try --guidance-center {
-    position-area: none;
-    inset-block: var(--gutter);
-    inset-inline: var(--gutter);
-    margin: auto;
-  }
   @scope (#app) {
     .visibility {
       display: flex;
@@ -197,7 +191,7 @@
         flip-block,
         flip-inline,
         flip-block flip-inline,
-        --guidance-center;
+        --popover-center;
       inline-size: min(30rem, 100cqi, calc(100vi - 2 * var(--gutter)));
       max-block-size: calc(100dvb - 2 * var(--gutter));
       padding: var(--gap);

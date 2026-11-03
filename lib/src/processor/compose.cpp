@@ -52,7 +52,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
 {
     Budget budget;
     request_at("", [&] {
-        fields(plan, {"version", "sources", "parts"});
+        fields(plan, {"version", "sources", "parts"}, {"metadata"});
         require(number(plan.getDictItem("version")) == 1, "Unsupported Plan version.", "unsupported-version");
     });
     auto definitions = request_at("/sources", [&] { return object(plan.getDictItem("sources")); });
@@ -251,6 +251,15 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
         return expanded;
     };
     auto expanded = expand();
+    auto metadata = plan.getDictItem("metadata");
+    std::string title;
+    std::size_t cover_page {1};
+    if (object(plan).contains("metadata"))
+        request_at("/metadata", [&] {
+            document_metadata(metadata, expanded.size());
+            title = text(metadata.getDictItem("title"));
+            cover_page = static_cast<std::size_t>(number(metadata.getDictItem("coverPage")));
+        });
     auto assemble = [&] {
         auto next = dictionary({{"version", JSON::makeInt(1)}});
         next.addDictionaryMember("pages", JSON::makeArray());
@@ -474,6 +483,28 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             QPDFEmbeddedFileDocumentHelper(output).replaceEmbeddedFile("mainz.json", spec);
         }
         Buffer saved(pdf_limit, budget.remaining);
+        if (!metadata.isNull()) {
+            std::string escaped;
+            for (char character : title)
+                escaped += character == '\r' ? "&#13;"
+                    : character == '&'       ? "&amp;"
+                    : character == '<'       ? "&lt;"
+                    : character == '>'       ? "&gt;"
+                                             : std::string(1, character);
+            auto xml = "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF "
+                       "xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description "
+                       "rdf:about=\"\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" "
+                       "xmlns:mainz=\"https://github.com/roktas/mainz/ns/1.0/\"><dc:title><rdf:Alt>"
+                       "<rdf:li xml:lang=\"x-default\">"
+                + escaped + "</rdf:li></rdf:Alt></dc:title><mainz:coverPage>" + std::to_string(cover_page)
+                + "</mainz:coverPage></rdf:Description></rdf:RDF></x:xmpmeta>";
+            auto stream = output.newStream(xml);
+            stream.getDict().replaceKey("/Type", Object::newName("/Metadata"));
+            stream.getDict().replaceKey("/Subtype", Object::newName("/XML"));
+            output.getRoot().replaceKey("/Metadata", stream);
+            output.getTrailer().replaceKey("/Info",
+                output.makeIndirectObject(Object::newDictionary({{"/Title", Object::newUnicodeString(title)}})));
+        }
         QPDFWriter writer(output);
         writer.setOutputPipeline(&saved);
         writer.setDecodeLevel(qpdf_dl_none);

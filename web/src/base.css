@@ -12,7 +12,9 @@
     --border: light-dark(oklch(92.1906% 0 none), oklch(32.1093% 0 none));
     --page-surround: color-mix(in oklch, var(--border) 90%, var(--muted));
     --edge: light-dark(oklch(63.3429% 0 none), oklch(65.0041% 0 none));
-    --accent: light-dark(oklch(42.0914% 0.193453 328.3634), oklch(83.6851% 0.064657 70.6014));
+    --accent-light: oklch(42.0914% 0.193453 328.3634);
+    --accent-dark: oklch(83.6851% 0.064657 70.6014);
+    --accent: light-dark(var(--accent-light), var(--accent-dark));
     --secondary: light-dark(oklch(51.077905% 0.067592 242.365855), oklch(77.509101% 0.04764 237.42351));
     --tint: light-dark(oklch(94.4501% 0.030653 325.817), oklch(26.9988% 0.016373 67.0387));
     --on-accent: light-dark(oklch(100% 0 none), oklch(17.76% 0 none));

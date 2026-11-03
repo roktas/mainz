@@ -1,7 +1,8 @@
 // Owns a Source's styled preview, completed composition, cancellation, and PDF handoff.
 
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist"
-import type { Input, Source } from "./model.ts"
+import type { Input, Plan, Source } from "./model.ts"
+import { titleOf } from "./model.ts"
 import { applicable, bufferPages, needsRender } from "./styles.ts"
 import type { Description, Render, Scalar, Usage } from "./styles.ts"
 import { Documents, openPDF, verifyPDF } from "./pdf.ts"
@@ -67,9 +68,11 @@ export class Preview {
       : { pdf: displayed.pdf, page: index, preview: displayed.description.pages[index]?.preview }
   }
 
-  download(source: Source, pages: readonly number[]): ArrayBuffer | undefined {
+  download(source: Source, pages: readonly number[], metadata: NonNullable<Plan["metadata"]>): ArrayBuffer | undefined {
     if (
       this.status !== "ready" ||
+      metadata.title !== titleOf(this.#input) ||
+      metadata.coverPage !== 1 ||
       this.displayed.kind !== "full" ||
       pages.length !== this.#input.description.pageCount ||
       pages.some((page, index) => page !== index) ||
@@ -159,6 +162,7 @@ export class Preview {
         : await processor.compose(
             {
               version: 1,
+              metadata: { title: titleOf(this.#input), coverPage: 1 },
               sources: { [this.#input.id]: { input: this.#input.id, overrides } },
               parts: [
                 {

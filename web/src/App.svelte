@@ -3,8 +3,7 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte"
   import { animateRemoval } from "./motion.ts"
-  import type { PDFDocumentLoadingTask } from "pdfjs-dist"
-  import { downloadInputs, downloadName, plan, sizeOf, uid } from "./model.ts"
+  import { downloadInputs, downloadName, expand, maxInputBytes, plan, sizeOf, uid } from "./model.ts"
   import type { Input, Source } from "./model.ts"
   import type { Inspection } from "./Page.svelte"
   import type { Magnification } from "./Lens.svelte"
@@ -21,7 +20,7 @@
     sharedProfiles,
     usage,
   } from "./styles.ts"
-  import { Documents, inspectPDF, openPDF } from "./pdf.ts"
+  import { cover, Documents, Opening } from "./pdf.ts"
   import { Processor } from "./processor.ts"
   import gridPlan from "../test/fixtures/grid-plan.json"
   import { Output } from "./output.svelte.ts"
@@ -30,6 +29,8 @@
   import Print from "./Print.svelte"
   import Filename from "./Filename.svelte"
   import Recipe from "./Recipe.svelte"
+  import Load from "./Load.svelte"
+  import type { Binding } from "./Load.svelte"
   import type { Snapshot } from "./Export.svelte"
   import Landing from "./Landing.svelte"
   import Settings from "./Settings.svelte"
@@ -40,6 +41,7 @@
   import Feedback from "./Feedback.svelte"
   import Offline from "./Offline.svelte"
   import Style from "./Style.svelte"
+  import Guidance from "./Guidance.svelte"
   import Composer from "./Composer.svelte"
   import Help from "./Help.svelte"
   import type { TourStep } from "./Tour.svelte"
@@ -72,6 +74,9 @@
   let printer = $state<ReturnType<typeof Print>>(null!)
   let filenameEditor = $state<ReturnType<typeof Filename>>(null!)
   let recorder = $state<ReturnType<typeof Recipe>>(null!)
+  let loader = $state<ReturnType<typeof Load>>(null!)
+  let matching = $state(false)
+  let recipeStatus = $state("")
   let composer = $state<ReturnType<typeof Composer>>(null!)
   let examples = $state<ReturnType<typeof Examples>>(null!)
   let inputMenu = $state<HTMLDetailsElement>(null!)
@@ -83,7 +88,7 @@
   let comparing = $state(false)
   const documents = new Documents()
   let openingProcessor: Processor | undefined
-  let openingTask: PDFDocumentLoadingTask | undefined
+  let openingJob: Opening | undefined
   let openingSource = $state.raw<Source>()
   let openRevision = 0
   let disposed = false
@@ -207,9 +212,26 @@
   function choose(id: string, sequence: Sequence) {
     sequences = { ...sequences, [id]: sequence }
   }
+  function sourceFor(input: Input, id = uid(), processor?: Processor): Source {
+    const overrides = Object.fromEntries(
+      Object.entries(input.description.parameters)
+        .filter(([, entry]) => Object.hasOwn(entry.parameter, "value"))
+        .map(([key, entry]) => [key, entry.parameter.value!]),
+    )
+    const editable = Object.keys(input.description.parameters).length > 0
+    if (!editable) processor?.dispose()
+    return {
+      id,
+      input,
+      overrides,
+      drafts: {},
+      modified: false,
+      preview: previewFor(id, input, overrides, editable ? processor : undefined),
+    }
+  }
   async function open(file: Uint8Array | File, name: string, report: (text: string) => void = error) {
     if (loading || updating) return
-    if ((file instanceof File ? file.size : file.length) > 128 * 1024 * 1024) {
+    if ((file instanceof File ? file.size : file.length) > maxInputBytes) {
       report("Choose a PDF smaller than 128 MiB.")
       return
     }
@@ -219,84 +241,29 @@
     notify("")
     openingStatus = `Opening ${name}…`
     info(openingStatus)
-    const processor = new Processor()
-    openingProcessor = processor
-    let loadingTask: PDFDocumentLoadingTask | undefined
+    const job = new Opening()
+    openingJob = job
     let committed = false
-    let abandoned = false
     let preview: Source | undefined
     try {
-      const bytes = file instanceof File ? new Uint8Array(await file.arrayBuffer()) : file
+      const input = await job.read(file, name, revision, (provisional) => {
+        preview = sourceFor(provisional)
+        if (!sources.length && !parts.length) openingSource = preview
+      })
       if (disposed || revision !== openRevision) return
-      const [result, opened] = await Promise.all([
-        processor.run(bytes, revision),
-        (async () => {
-          loadingTask = await openPDF(bytes)
-          if (abandoned || disposed || revision !== openRevision) {
-            void loadingTask.destroy()
-            return
-          }
-          openingTask = loadingTask
-          const pdf = await loadingTask.promise
-          const geometry = await inspectPDF(pdf, () => abandoned || disposed || revision !== openRevision)
-          if (!geometry) return
-          const { sizes, labels } = geometry
-          const input: Input = {
-            id: uid(),
-            name,
-            bytes,
-            pdf,
-            sizes,
-            labels,
-            description: {
-              version: 1,
-              pageCount: pdf.numPages,
-              pages: Array.from({ length: pdf.numPages }, () => ({})),
-              parameters: {},
-            },
-          }
-          const id = uid()
-          preview = {
-            id,
-            input,
-            preview: previewFor(id, input, {}),
-            overrides: {},
-            drafts: {},
-            modified: false,
-          }
-          if (!sources.length && !parts.length) openingSource = preview
-          return preview
-        })(),
-      ])
-      if (disposed || revision !== openRevision || !opened) return
-      const pdf = opened.input.pdf
-      const input: Input = { ...opened.input, description: result.description, sha256: result.sha256 }
-      const overrides = Object.fromEntries(
-        Object.entries(result.description.parameters)
-          .filter(([, entry]) => Object.hasOwn(entry.parameter, "value"))
-          .map(([id, entry]) => [id, entry.parameter.value!]),
-      )
-      const editable = Object.keys(input.description.parameters).length > 0
-      opened.preview.dispose()
-      const source: Source = {
-        ...opened,
-        input,
-        overrides,
-        preview: previewFor(opened.id, input, overrides, editable ? processor : undefined),
-      }
-      documents.add(pdf, loadingTask!, { bytes: input.bytes, description: input.description })
+      preview?.preview.dispose()
+      const source = sourceFor(input, preview?.id, job.attach(documents))
       choose(source.id, {
-        text: pdf.numPages === 1 ? "1" : "",
-        pages: pdf.numPages === 1 ? [0] : [],
+        text: input.pdf.numPages === 1 ? "1" : "",
+        pages: input.pdf.numPages === 1 ? [0] : [],
         repeat: "1",
         front: false,
       })
       sources = [...sources, source]
       activeId = source.id
       openingSource = undefined
-      if (!editable) processor.dispose()
       committed = true
-      info(`Opened ${pdf.numPages} ${pdf.numPages === 1 ? "page" : "pages"}.`)
+      info(`Opened ${input.pdf.numPages} ${input.pdf.numPages === 1 ? "page" : "pages"}.`)
       return source
     } catch (reason) {
       if (!disposed && revision === openRevision) {
@@ -305,16 +272,14 @@
         )
       }
     } finally {
-      abandoned = true
       if (openingSource?.id === preview?.id) openingSource = undefined
       if (!committed) {
-        processor.dispose()
-        void loadingTask?.destroy()
+        preview?.preview.dispose()
+        job.dispose()
       }
       if (revision === openRevision) {
         loading = false
-        openingProcessor = undefined
-        openingTask = undefined
+        openingJob = undefined
       }
     }
   }
@@ -326,7 +291,7 @@
         failed.push(`Could not open ${file.name}. Choose a PDF file.`)
         continue
       }
-      if (file.size > 128 * 1024 * 1024) {
+      if (file.size > maxInputBytes) {
         failed.push(`Could not open ${file.name}. Choose a PDF smaller than 128 MiB.`)
         continue
       }
@@ -340,13 +305,94 @@
     }
     if (!disposed && failed.length) error(failed)
   }
+  async function openRecipe(file: File) {
+    openRevision++
+    await loader.show(file)
+  }
+  async function landingFiles(list: FileList | File[]) {
+    if (list.length !== 1) {
+      error("Choose one PDF or Recipe to start.")
+      return
+    }
+    const file = list[0]
+    if (file.name.toLowerCase().endsWith(".json")) await openRecipe(file)
+    else await files(list)
+  }
+  async function loadRecipe(text: string, bindings: Binding[]) {
+    if (loading || updating || sources.length || parts.length) throw new Error("Return home to open a Recipe.")
+    const revision = ++openRevision
+    loading = true
+    failure = ""
+    notify("")
+    openingStatus = "Opening Recipe…"
+    const worker = new Processor()
+    openingProcessor = worker
+    const prepared: Source[] = []
+    let committed = false
+    try {
+      const resolved = await worker.resolve(
+        text,
+        bindings.map(({ id, input }) => ({ id, bytes: input.bytes })),
+        revision,
+      )
+      if (disposed || revision !== openRevision) throw new DOMException("Opening cancelled.", "AbortError")
+      const inputs = new Map(bindings.map((binding) => [binding.id, binding.input]))
+      const identities = new Map<string, string>()
+      for (const [id, definition] of Object.entries(resolved.plan.sources)) {
+        const source = sourceFor(inputs.get(definition.input)!)
+        source.overrides = definition.overrides
+        source.profiles = resolved.intent[id].profiles
+        source.edits = resolved.intent[id].edits
+        prepared.push(source)
+        identities.set(id, source.id)
+      }
+      const next = resolved.plan.parts.map((part) => ({
+        id: uid(),
+        copies: part.copies,
+        front: part.front,
+        pages: part.pages.map((content) => ({
+          id: uid(),
+          content:
+            "source" in content
+              ? { source: identities.get(content.source)!, page: content.page }
+              : structuredClone(content),
+        })),
+      }))
+      expand(next, prepared)
+      for (const binding of bindings) binding.opening.attach(documents).dispose()
+      sources = prepared
+      for (const source of sources)
+        choose(source.id, {
+          text: source.input.pdf.numPages === 1 ? "1" : "",
+          pages: source.input.pdf.numPages === 1 ? [0] : [],
+          repeat: "1",
+          front: false,
+        })
+      output.commit(next)
+      output.title = resolved.plan.metadata?.title ?? ""
+      output.coverPage = resolved.plan.metadata?.coverPage ?? 1
+      activeId = sources[0]?.id ?? ""
+      committed = true
+      for (const source of sources) source.preview.schedule(source, counts, undefined, true)
+      info(
+        `Opened Recipe · ${output.pages.length} pages.${resolved.warnings.length ? ` ${resolved.warnings.length} Input change warning${resolved.warnings.length === 1 ? "" : "s"}.` : ""}`,
+      )
+    } finally {
+      if (!committed) for (const source of prepared) source.preview.dispose()
+      worker.dispose()
+      if (revision === openRevision) {
+        loading = false
+        openingProcessor = undefined
+      }
+    }
+  }
   function cancelOpen() {
     openRevision++
     openingSource = undefined
     openingProcessor?.dispose()
     openingProcessor = undefined
-    void openingTask?.destroy()
-    openingTask = undefined
+    openingJob?.dispose()
+    openingJob = undefined
     loading = false
     info("Opening cancelled. Your workspace is retained.")
   }
@@ -491,8 +537,11 @@
     const selection = output.parts,
       contributors = sources,
       request = plan(selection, contributors)
-    const pages = output.pages
+    request.metadata = output.metadata
     const capturedName = output.filename
+    const capturedTitle = output.title
+    const capturedCover = output.cover
+    const pages = output.pages
     const first = pages[0]?.content
     const contributor =
       first && "source" in first ? contributors.find((source) => source.id === first.source) : undefined
@@ -501,6 +550,7 @@
         ? contributor.preview.download(
             contributor,
             pages.flatMap(({ content }) => ("page" in content ? [content.page] : [])),
+            request.metadata,
           )
         : undefined
     return {
@@ -510,7 +560,7 @@
       expected: output.pages.length,
       name: () => capturedName || downloadName(selection, contributors),
       complete: () => {
-        output.acknowledge(selection)
+        output.acknowledge(selection, capturedTitle, capturedCover)
         sources = sources.map((source) => {
           const captured = contributors.find((item) => item.id === source.id)
           return request.sources[source.id] &&
@@ -522,6 +572,24 @@
         })
       },
     }
+  }
+  async function coverPreview(page: number) {
+    const content = output.pages[page - 1]?.content
+    if (!content) throw new Error("Choose an Output page.")
+    if ("blank" in content)
+      return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC"
+    const source = sources.find((item) => item.id === content.source)!
+    const appearance = source.preview.appearance(content.page)
+    return cover(appearance.pdf, appearance.page + 1)
+  }
+  function inputDetails(input: Input) {
+    if (!input.xmp && (!input.title || input.title === input.name)) return undefined
+    return [
+      `Filename: ${input.name}`,
+      ...Object.entries(input.xmp ?? {})
+        .filter(([key]) => key !== "dc:title")
+        .map(([key, value]) => `${key}: ${value}`),
+    ].join("\n")
   }
   function logo(event: MouseEvent) {
     const landing = event.currentTarget instanceof HTMLButtonElement
@@ -574,6 +642,23 @@
     void (async () => {
       let revision = openRevision
       try {
+        if (demo === "recipe") {
+          const base = import.meta.env.BASE_URL
+          const response = await fetch(`${base}recipe.json`)
+          if (!response.ok) throw new Error("The sample Recipe is unavailable. Choose a local Recipe.")
+          const bytes = await response.arrayBuffer()
+          if (disposed || revision !== openRevision) return
+          await loader.show(new File([bytes], "practice-session.json", { type: "application/json" }), {
+            recipe: `${base}recipe.json`,
+            inputs: {
+              book: `${base}demo.pdf`,
+              guides: `${base}recipe/guides.pdf`,
+              crossings: `${base}recipe/crossings.pdf`,
+            },
+          })
+          info("Recipe demo ready.")
+          return
+        }
         const gridDemo = demo === "grid"
         if (demo !== "" && demo !== "empty" && !gridDemo) throw new Error(`Unknown demo: ${demo}. Choose a local PDF.`)
         const filename = gridDemo ? "grid.pdf" : "demo.pdf"
@@ -653,7 +738,7 @@
     clearTimeout(logoTimer)
     clearTimeout(noticeTimer)
     openingProcessor?.dispose()
-    void openingTask?.destroy()
+    openingJob?.dispose()
     for (const source of sources) source.preview.dispose()
     documents.dispose()
   })
@@ -675,32 +760,44 @@
 {/snippet}
 
 {#snippet inputTools(heading: string)}
-  <details class="input-picker" bind:this={inputMenu}>
-    <summary aria-label={`Select Input · ${active?.input.name}`}>
-      <h2 id={heading}>
-        <Icon name="input" /><span class="input-label">Input</span><span class="count"
-          >{sources.length + Number(!!openingSource)}</span
-        ><span class="input-current" title={active?.input.name}>{active?.input.name}</span><span class="input-chevron"
-          ><Icon name="next" /></span
+  {#if active}<details class="input-picker" bind:this={inputMenu}>
+      <summary aria-label={`Select Input · ${active?.input.name}`}>
+        <h2 id={heading}>
+          <Icon name="input" /><span class="input-label">Input</span><span class="count"
+            >{sources.length + Number(!!openingSource)}</span
+          ><span class="input-current" title={active?.input.title || active?.input.name}>{active?.input.name}</span>
+          {#if active?.input.title && active.input.title !== active.input.name}<span
+              class="input-title"
+              title={active.input.title}>{active.input.title}</span
+            >{/if}
+          <span class="input-chevron"><Icon name="next" /></span>
+        </h2>
+        {#if active && inputDetails(active.input)}<span class="input-information">
+            <Guidance title={active.input.title || active.input.name} details={inputDetails(active.input)} />
+          </span>{/if}
+      </summary>
+      <div class="input-list" role="group" aria-label="Inputs">
+        {#each sources as source, index (source.id)}<div class="input-choice">
+            <button
+              aria-pressed={source.id === activeId}
+              data-source={source.id}
+              onclick={() => {
+                activeId = source.id
+                inputMenu.open = false
+                inputMenu.querySelector("summary")?.focus()
+              }}
+              ><span class="source-tag">{index + 1}</span><span>{source.input.name}</span
+              >{#if source.input.title && source.input.title !== source.input.name}<span
+                  class="input-choice-title"
+                  title={source.input.title}>{source.input.title}</span
+                >{/if}{#if source.id === activeId}<span aria-hidden="true">✓</span>{/if}</button
+            ><Guidance title={source.input.title || source.input.name} details={inputDetails(source.input)} />
+          </div>{/each}
+        <button class="danger" aria-label="Remove Input" title="Remove Input" onclick={removeSource}
+          ><Icon name="trash" /><span>Remove Input</span></button
         >
-      </h2>
-    </summary>
-    <div class="input-list" role="group" aria-label="Inputs">
-      {#each sources as source, index (source.id)}<button
-          aria-pressed={source.id === activeId}
-          data-source={source.id}
-          onclick={() => {
-            activeId = source.id
-            inputMenu.open = false
-            inputMenu.querySelector("summary")?.focus()
-          }}
-          ><span class="source-tag">{index + 1}</span><span>{source.input.name}</span>{#if source.id === activeId}<span
-              aria-hidden="true">✓</span
-            >{/if}</button
-        >{/each}
-      <button class="danger" onclick={removeSource}><Icon name="trash" />Remove Input</button>
-    </div>
-  </details>
+      </div>
+    </details>{/if}
   <label class="file-picker" title="Open PDF"
     ><Icon name="add" /><span>Open PDF</span><input
       type="file"
@@ -766,19 +863,31 @@
             {#snippet actions()}<button class="icon-button" aria-label="Dismiss error" onclick={() => (failure = "")}
                 ><Icon name="close" /></button
               >{/snippet}
-            {#if Array.isArray(failure)}<details class="file-errors">
-                <summary>
-                  <span role="alert"
-                    >{failure.length} {failure.length === 1 ? "file could" : "files could"} not be opened.</span
-                  >
-                  <span><Icon name="next" /><span>Review file errors</span></span>
-                </summary>
-                <!-- Keyboard users need a focusable list for native scrolling. -->
-                <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-                <ul tabindex="0" aria-label="File errors">
-                  {#each failure as message, index (index)}<li>{message}</li>{/each}
-                </ul>
-              </details>{/if}
+            {#if Array.isArray(failure)}<div class="file-errors">
+                <span role="alert"
+                  >{failure.length} {failure.length === 1 ? "file could" : "files could"} not be opened.</span
+                >
+                <button type="button" class="file-errors-trigger" popovertarget="file-error-panel"
+                  ><Icon name="next" /><span>Review file errors</span></button
+                >
+                <div id="file-error-panel" class="file-error-panel" popover="auto" aria-label="File error details">
+                  <div class="dialog-heading">
+                    <h3>File errors</h3>
+                    <button
+                      class="icon-button"
+                      popovertarget="file-error-panel"
+                      popovertargetaction="hide"
+                      aria-label="Close file errors"
+                      title="Close"><Icon name="close" /></button
+                    >
+                  </div>
+                  <!-- Keyboard users need a focusable list for native scrolling. -->
+                  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+                  <ul tabindex="0" aria-label="File errors">
+                    {#each failure as message, index (index)}<li>{message}</li>{/each}
+                  </ul>
+                </div>
+              </div>{/if}
           </Feedback>{/if}
         {#each failedSources as source (source.id)}<Feedback
             kind="error"
@@ -812,9 +921,18 @@
   </div>
 </header>
 <main id="workspace">
-  {#if !active}
-    <Landing {loading} {updating} replay={logoReplay} open={files} />
+  {#if !active && !parts.length && !matching}
+    <Landing {loading} {updating} replay={logoReplay} open={landingFiles} recipe={(file) => void openRecipe(file)} />
   {/if}
+  <Load
+    bind:this={loader}
+    bind:active={matching}
+    bind:status={recipeStatus}
+    replay={logoReplay}
+    open={loadRecipe}
+    cancel={cancelOpen}
+  />
+  {#if !active && parts.length && !matching}<div class="empty-input">{@render inputTools("")}</div>{/if}
   {#if active || parts.length}<Composer
       bind:this={composer}
       source={active}
@@ -848,9 +966,12 @@
 <footer class="footnote">
   {#if active}<span class="status-input" title={active.input.name}>{active.input.name}</span>{/if}
   <div class="status-messages">
-    {#if !loading && !processingSource && (message || notice === firstAction)}<p role="status" aria-atomic="true">
+    {#if !loading && !processingSource && (recipeStatus || message || notice === firstAction)}<p
+        role="status"
+        aria-atomic="true"
+      >
         {#key notice === firstAction ? firstAction : messageRevision}<span class="status-message"
-            >{notice === firstAction ? notice : message}</span
+            >{recipeStatus || (notice === firstAction ? notice : message)}</span
           >{/key}
       </p>{/if}
     <Offline
@@ -878,7 +999,16 @@
   print={(pdf, viewer) => printer.show(pdf, viewer)}
 />
 <Print bind:this={printer} {info} />
-<Filename bind:this={filenameEditor} bind:value={output.filename} suggest={() => downloadName(parts, sources)} />
+<Filename
+  bind:this={filenameEditor}
+  bind:value={output.filename}
+  bind:title={output.title}
+  bind:coverPage={output.coverPage}
+  pages={output.pages.length}
+  suggest={() => downloadName(parts, sources)}
+  suggestTitle={() => output.defaultTitle}
+  preview={coverPreview}
+/>
 <Recipe bind:this={recorder} {output} {sources} {info} />
 
 <Examples bind:this={examples} navigate={example} workspace={!!active || parts.length > 0} />

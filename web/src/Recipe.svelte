@@ -2,43 +2,53 @@
 
 <script lang="ts">
   import { onDestroy, tick } from "svelte"
-  import { recipe, identities } from "./recipe.ts"
+  import { recipe, identities, maxRecipeBytes } from "./recipe.ts"
   import type { Recipe } from "./recipe.ts"
   import { downloadInputs, downloadName } from "./model.ts"
-  import type { Source } from "./model.ts"
+  import type { Input, Source } from "./model.ts"
   import type { Output } from "./output.svelte.ts"
   import { dismiss } from "./dismiss.ts"
   import Icon from "./Icon.svelte"
+  import { cover } from "./pdf.ts"
+  import { Download } from "./download.ts"
   let { output, sources, info }: { output: Output; sources: readonly Source[]; info: (text: string) => void } = $props()
   const key = $props.id()
   let panel: HTMLDialogElement
   let captured = $state.raw<Recipe>()
-  let inputs = $state.raw<{ id: string; name: string }[]>([])
+  let inputs = $state.raw<Pick<Input, "id" | "name" | "title">[]>([])
   let ids = $state<Record<string, string>>({})
   let editing = $state<{ id: string; before: string }>()
   let filename = ""
   let failure = $state("")
-  let url: string | undefined
-  let timer: ReturnType<typeof setTimeout> | undefined
+  let preparing = $state(false)
+  let revision = 0
+  const download = new Download()
   const errors = $derived(identities(ids))
-  function release() {
-    clearTimeout(timer)
-    if (url) URL.revokeObjectURL(url)
-    url = undefined
-  }
-  export function show() {
+  export async function show() {
+    const generation = ++revision
     failure = ""
     editing = undefined
+    captured = undefined
+    preparing = true
+    panel.showModal()
     try {
-      captured = recipe(output.parts, sources)
-      inputs = downloadInputs(output.parts, sources).map(({ id, name }) => ({ id, name }))
+      const contributors = downloadInputs(output.parts, sources)
+      for (const input of contributors) {
+        input.cover ??= await cover(input.pdf, input.coverPage).catch(() => undefined)
+        if (generation !== revision || !panel.open) return
+      }
+      captured = recipe(output.parts, sources, output.metadata)
+      inputs = contributors.map(({ id, name, title }) => ({ id, name, title }))
       ids = Object.fromEntries(inputs.map((input) => [input.id, ids[input.id] ?? input.name.replace(/\.pdf$/i, "")]))
       filename = (output.filename || downloadName(output.parts, sources)).replace(/\.pdf$/i, "") + ".json"
     } catch (reason) {
-      captured = undefined
-      failure = reason instanceof Error ? reason.message : "Could not prepare the recipe."
+      if (generation === revision && panel.open) {
+        captured = undefined
+        failure = reason instanceof Error ? reason.message : "Could not prepare the recipe."
+      }
+    } finally {
+      if (generation === revision) preparing = false
     }
-    panel.showModal()
   }
   function finish(restore = false, focus = false) {
     if (!editing) return
@@ -62,21 +72,18 @@
         ),
       }
       const bytes = new TextEncoder().encode(JSON.stringify(record, null, 2) + "\n")
-      if (bytes.length > 1024 * 1024) throw new Error("The recipe exceeds the 1 MiB limit. Reduce Output choices.")
-      release()
-      url = URL.createObjectURL(new Blob([bytes], { type: "application/json" }))
-      const link = document.createElement("a")
-      link.href = url
-      link.download = filename
-      link.click()
-      timer = setTimeout(release, 30000)
+      if (bytes.length > maxRecipeBytes) throw new Error("The recipe exceeds the 16 MiB limit. Reduce Output choices.")
+      download.save(new Blob([bytes], { type: "application/json" }), filename)
       panel.close()
       info(`Exported recipe · ${filename}.`)
     } catch (reason) {
       failure = reason instanceof Error ? reason.message : "Could not export the recipe."
     }
   }
-  onDestroy(release)
+  onDestroy(() => {
+    revision++
+    download.dispose()
+  })
 </script>
 
 <dialog bind:this={panel} class="recipe-panel" aria-labelledby={`${key}-title`} closedby="any" {@attach dismiss}>
@@ -87,55 +94,66 @@
         ><Icon name="close" /></button
       >
     </div>
+    {#if preparing}<p role="status">Preparing Input covers…</p>{/if}
     {#if captured}
       {#if Object.keys(captured.inputs).length}
-        <table class="recipe-inputs" aria-label="Recipe Inputs">
-          <colgroup><col /><col /><col /></colgroup>
-          <thead><tr><th scope="col">Index</th><th scope="col">Path</th><th scope="col">ID</th></tr></thead>
-          <tbody>
-            {#each inputs as input, index (input.id)}
-              {@const path = `${ids[input.id].trim().replace(/\.pdf$/i, "")}.pdf`}
-              <tr>
-                <td class="recipe-index">{index + 1}</td>
-                <td class="recipe-path" title={path}>{path}</td>
-                <td>
-                  {#if editing?.id === input.id}
-                    <input
-                      aria-label={`ID ${index + 1}`}
-                      type="text"
-                      bind:value={ids[input.id]}
-                      spellcheck={false}
-                      autocomplete="off"
-                      aria-invalid={!!errors[input.id]}
-                      aria-describedby={errors[input.id] ? `${key}-error-${index}` : undefined}
-                      {@attach (element) => element.focus({ preventScroll: true })}
-                      onblur={() => finish()}
-                      onkeydown={(event) => {
-                        if (event.key !== "Enter" && event.key !== "Escape") return
-                        event.preventDefault()
-                        event.stopPropagation()
-                        finish(event.key === "Escape", true)
-                      }}
-                    />
-                  {:else}
-                    <button
-                      type="button"
-                      class="recipe-id"
-                      data-input={input.id}
-                      aria-label={`Edit ID ${index + 1}`}
-                      title={`Edit ID · ${input.name}`}
-                      onclick={() => (editing = { id: input.id, before: ids[input.id] })}
-                      >{ids[input.id] || "Set ID"}</button
-                    >
-                  {/if}
-                  {#if errors[input.id]}<p id={`${key}-error-${index}`} class="error" role="alert">
-                      {errors[input.id]}
-                    </p>{/if}
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+        <!-- Keyboard focus makes horizontally scrolled columns reachable. -->
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+        <div class="recipe-table" role="region" aria-label="Recipe Input names and titles" tabindex="0">
+          <table class="recipe-inputs" aria-label="Recipe Inputs">
+            <colgroup><col /><col /><col /><col /></colgroup>
+            <thead
+              ><tr
+                ><th scope="col">Name</th><th scope="col">Index</th><th scope="col">Path</th><th scope="col">Title</th
+                ></tr
+              ></thead
+            >
+            <tbody>
+              {#each inputs as input, index (input.id)}
+                {@const path = `${ids[input.id].trim().replace(/\.pdf$/i, "")}.pdf`}
+                <tr>
+                  <td>
+                    {#if editing?.id === input.id}
+                      <input
+                        aria-label={`Name ${index + 1}`}
+                        type="text"
+                        bind:value={ids[input.id]}
+                        spellcheck={false}
+                        autocomplete="off"
+                        aria-invalid={!!errors[input.id]}
+                        aria-describedby={errors[input.id] ? `${key}-error-${index}` : undefined}
+                        {@attach (element) => element.focus({ preventScroll: true })}
+                        onblur={() => finish()}
+                        onkeydown={(event) => {
+                          if (event.key !== "Enter" && event.key !== "Escape") return
+                          event.preventDefault()
+                          event.stopPropagation()
+                          finish(event.key === "Escape", true)
+                        }}
+                      />
+                    {:else}
+                      <button
+                        type="button"
+                        class="recipe-name"
+                        data-input={input.id}
+                        aria-label={`Edit Name ${index + 1}`}
+                        title={`Edit Name · ${input.name}`}
+                        onclick={() => (editing = { id: input.id, before: ids[input.id] })}
+                        >{ids[input.id] || "Set name"}</button
+                      >
+                    {/if}
+                    {#if errors[input.id]}<p id={`${key}-error-${index}`} class="error" role="alert">
+                        {errors[input.id]}
+                      </p>{/if}
+                  </td>
+                  <td class="recipe-index">{index + 1}</td>
+                  <td class="recipe-path" title={path}>{path}</td>
+                  <td class="recipe-title" title={input.title || input.name}>{input.title || input.name}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
       {:else}<p class="control-description">This recipe uses only blank pages and needs no Inputs.</p>{/if}
     {/if}
     {#if failure}<p class="error" role="alert">{failure}</p>{/if}

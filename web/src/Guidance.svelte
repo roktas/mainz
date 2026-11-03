@@ -1,17 +1,18 @@
-<!-- Presents optional authored Style details in one accessible, dismissible panel. -->
+<!-- Presents optional information through an icon or text trigger and a shared dismissible panel. -->
 
 <script lang="ts">
   import Icon from "./Icon.svelte"
-  let { title, details }: { title: string; details?: string } = $props()
+  let { title, details, label }: { title: string; details?: string; label?: string } = $props()
   const key = $props.id()
 </script>
 
 {#if details?.trim()}
   <button
-    class="icon-button guidance-trigger"
+    class={label ? "guidance-label" : "icon-button guidance-trigger"}
     popovertarget={`${key}-details`}
-    aria-label={`Details for ${title}`}
-    title={`Details for ${title}`}><Icon name="info" /></button
+    aria-label={label || `Details for ${title}`}
+    title={`Details for ${title}`}
+    >{#if label}{label}{:else}<Icon name="info" />{/if}</button
   >
   <!-- Text clicks must not activate an enclosing disclosure; Close keeps its native action. -->
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_click_events_have_key_events -->

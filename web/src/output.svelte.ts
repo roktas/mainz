@@ -1,6 +1,6 @@
-// Owns Output composition, filename, occurrence selection, inspection, and Download acknowledgment.
+// Owns Output composition, file identity, occurrence selection, inspection, and Download acknowledgment.
 
-import { expand, positionAfterEdit } from "./model.ts"
+import { expand, positionAfterEdit, titleOf } from "./model.ts"
 import type { Expanded, Part, Source } from "./model.ts"
 import { select } from "./composition.ts"
 
@@ -25,6 +25,10 @@ type Destination = {
 
 export class Output {
   filename = $state("")
+  title = $state("")
+  cover = $state<string>()
+  #downloadedTitle = $state("")
+  #downloadedCover = $state<string>()
   #sources: () => readonly Source[]
   #composition = $state.raw<Projection>({ parts: [], pages: [], positions: new Map() })
   #downloaded = $state.raw<readonly Part[]>(this.#composition.parts)
@@ -68,11 +72,31 @@ export class Output {
     this.#inspected = this.pages[Math.max(0, Math.min(this.pages.length - 1, position))]?.id
   }
   get modified() {
-    return this.parts !== this.#downloaded
+    return (
+      this.parts !== this.#downloaded || this.title !== this.#downloadedTitle || this.cover !== this.#downloadedCover
+    )
   }
 
-  acknowledge(parts: readonly Part[]) {
+  get coverPage() {
+    return (this.positions.get(this.cover ?? "") ?? 0) + 1
+  }
+  set coverPage(page: number) {
+    this.cover = page === 1 ? undefined : this.pages[page - 1]?.id
+  }
+  get defaultTitle() {
+    const content = this.pages.find((page) => "source" in page.content)?.content
+    const input =
+      content && "source" in content ? this.#sources().find((source) => source.id === content.source)?.input : undefined
+    return input ? titleOf(input) : "Blank pages"
+  }
+  get metadata() {
+    return { title: this.title || this.defaultTitle, coverPage: this.coverPage }
+  }
+
+  acknowledge(parts: readonly Part[], title = this.title, cover = this.cover) {
     this.#downloaded = parts
+    this.#downloadedTitle = title
+    this.#downloadedCover = cover
   }
 
   select(ids: Iterable<string>, anchor?: string) {
