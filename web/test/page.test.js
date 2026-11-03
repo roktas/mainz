@@ -1910,13 +1910,23 @@ test("Output Page keeps original PDF labels through composition and Input change
     await input.getByLabel("Page selection", { exact: true }).fill("2,1,2,3,4")
     await input.getByLabel("Page selection", { exact: true }).press("Enter")
     await tab(output, "List")
-    assert.deepEqual(await output.locator(".list-number .page-origin > button > .page-context").allTextContents(), [
-      "ii",
-      "i",
-      "ii",
-      "3",
-      long,
-    ])
+    assert.deepEqual(
+      (await output.locator(".list-number .page-origin > button").allTextContents()).map((text) => text.trim()),
+      ["1", "2", "3", "4", "5"],
+    )
+    for (const [index, source, label] of [
+      [1, 2, "ii"],
+      [2, 1, "i"],
+      [3, 2, "ii"],
+      [4, 3],
+      [5, 4, long],
+    ]) {
+      await output.getByRole("button", { name: `Details for Output page ${index}`, exact: true }).click()
+      const details = output.locator(".card-menu-options:popover-open")
+      await details.getByText(`Input page ${source}`, { exact: true }).waitFor()
+      if (label) await details.getByText(`PDF label: ${label}`, { exact: true }).waitFor()
+      await page.keyboard.press("Escape")
+    }
     await tab(output, "Page")
     await jump(1, "ii")
     await jump(2, "i")

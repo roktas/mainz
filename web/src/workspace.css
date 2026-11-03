@@ -442,6 +442,9 @@
           grid-template-columns: minmax(0, 1fr);
           row-gap: 0.25rem;
         }
+        & h1 {
+          font-size: 1.25rem;
+        }
         & .recipe-bindings {
           grid-auto-rows: auto;
         }
@@ -1195,7 +1198,7 @@
           background: var(--surface);
         }
         & .input-picker > summary {
-          padding-inline: 0.75em;
+          padding-inline: 0.5em;
           border: 1px solid var(--edge);
           background: var(--surface);
           &:focus-visible {

@@ -940,8 +940,9 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-    for (const [width, text, colorScheme] of [
+    for (const [width, text, colorScheme, font = ""] of [
       [320, "100%", "light"],
+      [320, "100%", "light", "DejaVu Sans, sans-serif"],
       [375, "100%", "dark"],
       [430, "100%", "light"],
       [640, "100%", "dark"],
@@ -952,7 +953,13 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
     ]) {
       await page.setViewportSize({ width, height: 900 })
       await page.emulateMedia({ colorScheme })
-      await page.evaluate((size) => (document.documentElement.style.fontSize = size), text)
+      await page.evaluate(
+        ({ size, family }) => {
+          document.documentElement.style.fontSize = size
+          document.body.style.fontFamily = family
+        },
+        { size: text, family: font },
+      )
       for (const [selector, name] of [
         [".selection-panel", "Input"],
         [".composition-output", "Output"],

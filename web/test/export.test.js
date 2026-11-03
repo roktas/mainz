@@ -284,14 +284,17 @@ test(
             content: element.scrollWidth,
           }))
           assert.ok(bounds.content <= bounds.width + 1, `${width}px, ${text}: matching stays within the landing frame`)
-          if (width === 375 && text === "100%")
-            assert.ok(
-              await panel
+          if (width === 375 && text === "100%") {
+            for (const family of ["", "DejaVu Sans, sans-serif"]) {
+              await page.evaluate((font) => (document.body.style.fontFamily = font), family)
+              const bottom = await panel
                 .locator(".binding-row")
                 .nth(1)
-                .evaluate((row) => row.getBoundingClientRect().bottom <= innerHeight),
-              "Two complete Inputs fit on iPhone SE",
-            )
+                .evaluate((row) => row.getBoundingClientRect().bottom)
+              assert.ok(bottom <= 667, `Two complete Inputs fit on iPhone SE (${family || "system font"}): ${bottom}`)
+            }
+            await page.evaluate(() => (document.body.style.fontFamily = ""))
+          }
           const choices = await panel
             .locator(".load-choices > :is(button,label)")
             .evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().toJSON()))
