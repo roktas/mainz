@@ -265,11 +265,11 @@ function choose(name: string) {
 }
 
 function density(name: string, compact: boolean) {
-  const button = document.querySelector<HTMLButtonElement>(
-    `button[aria-label="${compact ? "Compact" : "Normal"} ${name} grid"]`,
-  )
-  button?.click()
-  return !!button
+  const pane = document.querySelector(name === "Input" ? ".selection-panel" : ".composition-output")
+  const button = pane?.querySelector<HTMLButtonElement>(".grid-density")
+  if (!button) return false
+  if (button.getAttribute("aria-label") === `Switch to ${compact ? "Compact" : "Normal"} ${name} grid`) button.click()
+  return true
 }
 
 export async function view(name: "Input" | "Output", compact: boolean): Promise<Geometry> {

@@ -68,7 +68,7 @@ export function createDragImage(control: HTMLElement, quantity: number, size?: S
     colors.remove()
     paint.strokeRect(0.5, 0.5, width - 1, height - 1)
     paint.fillStyle = style.color
-    paint.font = font.font
+    paint.font = `${font.fontWeight} ${font.fontSize} ${font.fontFamily}`
     paint.textBaseline = "middle"
     const available = width - nameOffset - 28 - (quantity > 1 ? 52 : 0)
     let label = text
@@ -91,7 +91,7 @@ export function createDragImage(control: HTMLElement, quantity: number, size?: S
     image.dataset.strip = ""
     image.style.inlineSize = `${width}px`
     image.style.blockSize = `${height}px`
-    image.style.font = font.font
+    image.style.font = `${font.fontWeight} ${font.fontSize}/${font.lineHeight} ${font.fontFamily}`
     image.style.gridTemplateColumns = `${numberWidth}px ${Math.max(0, nameOffset - numberWidth)}px minmax(0,1fr) auto`
     image.style.color = style.color
     number.className = "drag-number"

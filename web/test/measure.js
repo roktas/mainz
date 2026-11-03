@@ -6,8 +6,11 @@ export async function gridDensity(pane, label, activate = (control) => control.c
   const control = pane.locator(".grid-density")
   await control.waitFor()
   if ((await control.getAttribute("aria-label")) === `Switch to ${label}`) return activate(control)
-  const expected = label.startsWith("Compact ") ? "compact" : "normal"
-  if ((await pane.getAttribute("data-density")) !== expected) throw new Error(`Unavailable density: ${label}`)
+  const opposite = label.startsWith("Compact ")
+    ? label.replace("Compact ", "Normal ")
+    : label.replace("Normal ", "Compact ")
+  if ((await control.getAttribute("aria-label")) !== `Switch to ${opposite}`)
+    throw new Error(`Unavailable density: ${label}`)
 }
 
 export function environments(records) {

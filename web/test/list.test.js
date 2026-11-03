@@ -694,13 +694,11 @@ test(
             assert.equal(
               await item.evaluate((element) => {
                 element.getAnimations()[0].finish()
-                const reference = document.createElement("span")
-                reference.style.background = "var(--return-surface)"
-                element.append(reference)
-                const settled =
-                  getComputedStyle(element).backgroundColor === getComputedStyle(reference).backgroundColor
-                reference.remove()
-                return settled
+                const animation = element.getAnimations()[0]
+                return (
+                  animation.effect.getComputedTiming().progress === 1 &&
+                  animation.effect.getTiming().fill === "forwards"
+                )
               }),
               true,
             )
@@ -1013,6 +1011,7 @@ test(
           const caption = pane.locator(".inspection-heading .page-name")
           assert.equal(await caption.isVisible(), false)
           await number.hover()
+          await caption.waitFor({ state: "visible" })
           assert.equal(await caption.innerText(), name)
           const before = await pane.locator(".page-scroll").boundingBox()
           await page.mouse.move(0, 0)

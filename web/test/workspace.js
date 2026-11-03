@@ -595,6 +595,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await page.setViewportSize({ width: 1440, height: 1100 })
   const details = control.locator(".details.compact")
   await details.locator("summary").hover()
+  await details.locator("div").waitFor({ state: "visible" })
   assert.ok(
     (await details.locator("div").isVisible()) && (await details.innerText()).includes("eligible Output pages"),
     "Style information exposes declared scope and Output coverage on hover",

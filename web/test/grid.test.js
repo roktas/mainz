@@ -512,6 +512,7 @@ test("Grid headers reveal page names without changing card geometry", { timeout:
             assert.equal(await caption.isVisible(), false)
             assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
             await heading.hover()
+            await caption.waitFor({ state: "visible" })
             assert.equal(await caption.innerText(), "ITAL-GUID-79A4-WXGX")
             assert.equal(await caption.isVisible(), true)
             const tooltip = await caption.boundingBox()
@@ -662,7 +663,7 @@ test("List rows contain long names and actions with enlarged text", { timeout: 6
               assert.equal(rows.length, names.length, label)
               for (const [index, row] of rows.entries()) {
                 assert.equal(row.name, names[index], label)
-                assert.equal(row.title, names[index], label)
+                assert.equal(row.title, "Select or unselect this page. Shift-click selects a range.", label)
                 assert.ok(row.accessible.includes(names[index]), label)
                 assert.equal(row.ellipsis, width === 390, label)
                 if (width === 390) assert.ok(row.bottom - row.top <= Math.max(44, row.lineHeight) + 1, label)

@@ -20,7 +20,9 @@ test("Parameter hover waits, cancels on leaving or Escape, and keeps click immed
       await page.locator('.composer[aria-busy="false"]').waitFor()
       const details = page.locator(".control .details.compact").first(),
         summary = details.locator("summary")
-      await page.clock.install()
+      await page.mouse.move(0, 0)
+      await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") })
+      await page.clock.pauseAt(new Date("2026-01-01T00:00:01Z"))
       await summary.hover()
       await page.clock.runFor(150)
       assert.equal(await details.evaluate((element) => element.open), false)
