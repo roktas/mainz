@@ -919,7 +919,9 @@ test(
       await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
       await page.locator('.composer[data-view="output"]').waitFor()
       assert.equal(await output.locator(".list-row").count(), 10)
-      await views.getByRole("button", { name: "Input", exact: true }).tap()
+      await page.locator(".composer[data-drag]").waitFor({ state: "detached" })
+      await views.getByRole("button", { name: "Input", exact: true }).click()
+      await input.waitFor({ state: "visible" })
       assert.equal(await selection.inputValue(), "")
       assert.equal(await page.locator(".drag-image, .composer[data-drag]").count(), 0)
       await session.detach()
@@ -1270,6 +1272,11 @@ test(
           if (touch)
             await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...end, id: 1 }] })
           else await page.mouse.move(end.x, end.y, { steps: 8 })
+          await page.waitForFunction(() =>
+            [...document.querySelectorAll(".page-list > li")].every((row) =>
+              row.getAnimations().every((animation) => animation.playState === "finished"),
+            ),
+          )
           const settled = await target.locator(".list-choice").boundingBox(),
             landing = { x: settled.x + settled.width / 2, y: settled.y + settled.height * (after ? 0.8 : 0.2) }
           if (touch)
@@ -1700,6 +1707,14 @@ test("Unmounted List details release preview ownership without clearing selectio
       await output
         .getByRole("button", { name: "Details for Output page 1", exact: true })
         .waitFor({ state: "detached" })
+      await page.waitForFunction(() => {
+        const list = document.querySelector(".composition-output .page-list")
+        const frame = list.getBoundingClientRect()
+        return [...list.querySelectorAll(".list-choice")].some((row) => {
+          const bounds = row.getBoundingClientRect()
+          return bounds.top >= frame.top && bounds.bottom <= frame.bottom
+        })
+      })
       const index = await list.evaluate((element) => {
         const frame = element.getBoundingClientRect()
         return Number(

@@ -424,6 +424,8 @@
         }
       }
       & .binding-empty {
+        padding-inline: 0.5rem;
+        white-space: nowrap;
         inline-size: var(--action-width);
         block-size: var(--action-height);
         @container binding (width < 10rem) {
