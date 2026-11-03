@@ -12,6 +12,34 @@ import { fixture, tab, trackWorkers } from "./browser.js"
 
 const inventory = JSON.parse(await readFile(new URL("./viewports.json", import.meta.url), "utf8"))
 
+test("Recipe details retain opaque metadata keys as literal labels", async () => {
+  const server = await serve()
+  const browser = await chromium.launch()
+  try {
+    const page = await browser.newPage()
+    const recipe = JSON.parse(await readFile(new URL("./fixtures/recipe/session.json", import.meta.url), "utf8"))
+    for (const input of Object.values(recipe.inputs))
+      input.xmp = Object.fromEntries([
+        ["__proto__", "Opaque prototype"],
+        ["constructor", "Opaque constructor"],
+      ])
+    await page.goto(server.resolvedUrls.local[0])
+    await page.locator(".landing-recipe input").setInputFiles({
+      name: "opaque.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(recipe)),
+    })
+    const panel = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
+    await panel.locator(".binding-meta .guidance-trigger").first().click()
+    const details = page.locator(".guidance:popover-open")
+    assert.deepEqual(await details.locator(".guidance-text strong").allTextContents(), ["__proto__:", "constructor:"])
+    assert.match(await details.innerText(), /__proto__: Opaque prototype/)
+    assert.match(await details.innerText(), /constructor: Opaque constructor/)
+  } finally {
+    await browser.close()
+  }
+})
+
 test(
   "Recipe matching shows long descriptions below titles in equal rows and keeps borderless actions",
   { timeout: 90000 },
@@ -162,6 +190,8 @@ test(
           const mark = element.querySelector(".load-mark").getBoundingClientRect()
           const arrow = element.querySelector(".load-back svg").getBoundingClientRect()
           const heading = element.querySelector("h1").getBoundingClientRect()
+          const intro = element.querySelector(".load-intro").getBoundingClientRect()
+          const choices = element.querySelector(".load-choices").getBoundingClientRect()
           const visibleTop = (selector) => {
             const svg = element.querySelector(selector)
             return new DOMPoint(0, svg.getBBox().y).matrixTransform(svg.getScreenCTM()).y
@@ -172,6 +202,7 @@ test(
             logo: mark.width,
             top: Math.abs(visibleTop(".load-mark svg") - visibleTop(".load-back svg")),
             above: heading.y - back.bottom,
+            below: choices.y - intro.bottom,
             left: Math.abs(arrow.x + (arrow.width * 8.2) / 24 - heading.x),
           }
         })
@@ -179,7 +210,8 @@ test(
           header.sameRow && header.gap >= 16 && header.logo >= 190 && header.left < 1 && header.top < 1,
           JSON.stringify(header),
         )
-        assert.ok(header.above <= 36, "Recipe heading keeps a compact gap below the filename")
+        assert.ok(header.above >= 12 && header.above <= 20, "Recipe heading sits closer to the filename")
+        assert.ok(header.below >= 24, "Recipe supporting text leaves clear space above the PDF choices")
         await page.emulateMedia({ reducedMotion: "no-preference" })
         await page.getByRole("button", { name: "Replay logo animation", exact: true }).click()
         await page.waitForFunction(() =>
@@ -360,6 +392,10 @@ test(
               const change = target.querySelector(".file-picker").getBoundingClientRect()
               const download = target.querySelector(".load-download").getBoundingClientRect()
               const style = getComputedStyle(target.querySelector(".file-picker"))
+              const glyph = target.querySelector(".load-download svg")
+              const ink = glyph.getBBox()
+              const edge = new DOMPoint(ink.x + ink.width, 0).matrixTransform(glyph.getScreenCTM()).x
+              const filename = target.querySelector(".binding-file").getBoundingClientRect()
               return {
                 centered:
                   Math.abs(
@@ -370,6 +406,9 @@ test(
                 peers: Math.abs(change.y + change.height / 2 - download.y - download.height / 2) < 1,
                 single: style.flexWrap === "nowrap",
                 padding: style.paddingInlineStart === style.paddingInlineEnd,
+                inset:
+                  Math.abs(result.y + result.height / 2 - actions.y - actions.height / 2) >= 1 ||
+                  Math.abs(filename.x - bounds.x - (bounds.right - edge)) < 2,
                 fits: target.scrollWidth <= target.clientWidth + 1,
               }
             })
@@ -392,7 +431,9 @@ test(
           assert.ok(
             layout.fits &&
               layout.footer &&
-              layout.boxes.every((box) => box.centered && box.peers && box.single && box.padding && box.fits),
+              layout.boxes.every(
+                (box) => box.centered && box.peers && box.single && box.padding && box.inset && box.fits,
+              ),
             `${width}px, ${text}: ${JSON.stringify(layout)}`,
           )
           if (width === 1440 && text === "100%")
@@ -713,6 +754,9 @@ test(
       assert.equal(await editor.getByRole("button", { name: "Save", exact: true }).isDisabled(), true)
       await title.fill("Collected strokes & guides")
       const cover = editor.getByRole("spinbutton", { name: "Cover page", exact: true })
+      const coverBounds = await editor.locator(".file-cover-field .entry").boundingBox()
+      const defaultBounds = await editor.getByRole("button", { name: "Use default", exact: true }).boundingBox()
+      assert.ok(Math.abs(coverBounds.x + coverBounds.width - defaultBounds.x - defaultBounds.width) < 1)
       await cover.fill("2")
       await cover.press("Tab")
       await editor.locator('img[alt="Cover · page 2"]').waitFor()

@@ -73,7 +73,6 @@
       }
     }
     .editing-toolbar {
-      --view-tools-width: 90px;
       min-block-size: calc(46px + var(--gap));
       align-items: center;
 

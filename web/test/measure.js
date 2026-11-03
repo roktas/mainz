@@ -1,6 +1,14 @@
-// Acquires shared geometry samples and groups their measured viewport and frame environments.
+// Acquires shared geometry samples, selects Grid density, and groups measured environments.
 
 import { geometry } from "../src/geometry.ts"
+
+export async function gridDensity(pane, label, activate = (control) => control.click()) {
+  const control = pane.locator(".grid-density")
+  await control.waitFor()
+  if ((await control.getAttribute("aria-label")) === `Switch to ${label}`) return activate(control)
+  const expected = label.startsWith("Compact ") ? "compact" : "normal"
+  if ((await pane.getAttribute("data-density")) !== expected) throw new Error(`Unavailable density: ${label}`)
+}
 
 export function environments(records) {
   const groups = new Map()
@@ -63,7 +71,7 @@ export async function collect(page, capture) {
       if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
       const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
       for (const density of ["Normal", "Compact"]) {
-        await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+        await gridDensity(pane, `${density} ${name} grid`)
         const grid = await measure(pane)
         if (!Object.keys(sample.layout.input).length) sample.viewport = (await page.evaluate(geometry)).viewport
         grid.capturedAt = new Date().toISOString()
@@ -83,7 +91,7 @@ export async function collect(page, capture) {
       if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
       const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
       const density = previous[name.toLowerCase()] === "compact" ? "Compact" : "Normal"
-      await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+      await gridDensity(pane, `${density} ${name} grid`)
     }
     if (await views.isVisible())
       await views.getByRole("button", { name: previous.pane === "output" ? "Output" : "Input", exact: true }).click()

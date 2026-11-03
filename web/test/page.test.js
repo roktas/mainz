@@ -4,7 +4,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { mkdir, readFile } from "node:fs/promises"
-import { measure } from "./measure.js"
+import { measure, gridDensity } from "./measure.js"
 import { chromium, webkit } from "playwright"
 import { aligned, zoom } from "./workspace.js"
 import { fixture, hasCursor, tab, pagePosition, image, pixel, captureLayout } from "./browser.js"
@@ -47,7 +47,7 @@ test("Long Page counters keep enlarged text and reachable zoom actions", { timeo
         await page.setViewportSize({ width: 1440, height: 900 })
         await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
         await tab(output, "Grid")
-        await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+        await gridDensity(output, `${density} Output grid`)
         await tab(output, "Page")
         if (density === "Compact")
           await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
@@ -141,10 +141,8 @@ test("Arrows enter Grid without selection and Page keys change thumbnail groups"
       ["Normal", 390, "light", "200%"],
       ["Compact", 390, "dark", "200%"],
     ].filter(
-      ([gridDensity, viewportWidth]) =>
-        !standard ||
-        (gridDensity === "Normal" && viewportWidth === 1440) ||
-        (gridDensity === "Compact" && viewportWidth === 390),
+      ([mode, viewportWidth]) =>
+        !standard || (mode === "Normal" && viewportWidth === 1440) || (mode === "Compact" && viewportWidth === 390),
     )) {
       page = await browser.newPage({
         viewport: { width, height: 900 },
@@ -165,7 +163,7 @@ test("Arrows enter Grid without selection and Page keys change thumbnail groups"
         if (width === 390)
           await page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true }).click()
         const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-        await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+        await gridDensity(pane, `${density} ${name} grid`)
         await page.waitForFunction(
           () => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"),
         )
@@ -350,8 +348,8 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
           await page.waitForFunction(
             () => document.querySelector(".composition-totals strong")?.textContent === "80 pages",
           )
-          await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
-          await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+          await gridDensity(input, "Compact Input grid")
+          await gridDensity(output, "Compact Output grid")
           const before = await measure(input)
           await tab(output, "Page")
           await output.locator(".pdf-viewport[aria-busy=false]").waitFor()
@@ -439,7 +437,7 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
       await page.setViewportSize({ width: 1920, height: 1080 })
       await tab(input, "Grid")
       await tab(output, "Grid")
-      await output.getByRole("button", { name: "Normal Output grid", exact: true }).click()
+      await gridDensity(output, "Normal Output grid")
       await output.getByRole("slider", { name: "Output thumbnail range", exact: true }).press("Home")
       await tab(output, "Page")
       await page.setViewportSize({ width: 390, height: 844 })
@@ -452,7 +450,7 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
       await aligned(output)
       const natural = await image(output).boundingBox()
       await tab(output, "Grid")
-      await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+      await gridDensity(output, "Compact Output grid")
       await tab(output, "Page")
       await page.waitForFunction(({ width, height }) => {
         const bounds = document.querySelector(".composition-output .page-view canvas")?.getBoundingClientRect()
@@ -1010,7 +1008,7 @@ test(
         await page.setViewportSize({ width, height })
         await zoom(output, "Reset zoom")
         await tab(output, "Grid")
-        await output.getByRole("button", { name: "Normal Output grid", exact: true }).click()
+        await gridDensity(output, "Normal Output grid")
         await ready()
         const edge = await lensEdge(output.locator(".thumbnail canvas").nth(2))
         assert.ok(edge > 160 && edge < 320)
@@ -1056,7 +1054,7 @@ test(
           `${width}: zoom retains balanced gutters at the scroll end (${trailingGap}, expected ${second[0]})`,
         )
         await tab(output, "Grid")
-        await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+        await gridDensity(output, "Compact Output grid")
         await ready()
         const compactEdge = await lensEdge(output.locator(".page-image canvas").nth(2))
         await tab(output, "Page")
@@ -1067,7 +1065,7 @@ test(
         )
       }
       await tab(output, "Grid")
-      await output.getByRole("button", { name: "Normal Output grid", exact: true }).click()
+      await gridDensity(output, "Normal Output grid")
       await tab(output, "Page")
       await ready()
       await output.locator(".page-scroll").evaluate((element) => {
@@ -1898,7 +1896,7 @@ test("Output Page keeps original PDF labels through composition and Input change
       assert.match(await pagePosition(output), new RegExp(`^${position}\\s*/ ${count}$`))
       assert.deepEqual(await labels.allTextContents(), label ? [label] : [])
     }
-    await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
+    await gridDensity(input, "Compact Input grid")
     await tab(input, "List")
     assert.deepEqual(await input.locator(".list-number .page-number > .page-context").allTextContents(), [
       "i",
@@ -2171,7 +2169,7 @@ test("Grid selection keeps painted pages in place", { timeout: 60000 }, async ()
         const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
         for (const density of ["Normal", "Compact"]) {
           const field = pane.getByLabel("Page selection", { exact: true })
-          await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+          await gridDensity(pane, `${density} ${name} grid`)
           await field.fill("")
           const range = pane.getByRole("slider", { name: `${name} thumbnail range`, exact: true })
           if (await range.count()) await range.press("Home")
@@ -2592,7 +2590,7 @@ test(
       await page.locator(".input-current").filter({ hasText: "Large.pdf" }).waitFor()
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
-      await input.getByRole("button", { name: "Normal Input grid", exact: true }).click()
+      await gridDensity(input, "Normal Input grid")
       const color = () =>
         input
           .locator("article.control")

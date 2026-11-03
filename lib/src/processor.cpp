@@ -5,13 +5,14 @@
 
 namespace mainz {
 using namespace detail;
-Document::Document(
-    std::string input, std::string description, bool manifest, bool prepared, std::shared_ptr<const Index> index)
+Document::Document(std::string input, std::string description, bool manifest, bool prepared,
+    std::shared_ptr<const Index> index, std::shared_ptr<const Previews> previews)
     : bytes(std::move(input))
     , description(std::move(description))
     , has_contract(manifest)
     , has_paint(prepared)
     , index(std::move(index))
+    , previews(std::move(previews))
 {
 }
 Document Document::read(std::string input)
@@ -19,7 +20,7 @@ Document Document::read(std::string input)
     try {
         Engine engine(input);
         return Document(std::move(input), engine.describe(), !object(engine.manifest).empty(), engine.prepared(),
-            engine.take_index());
+            engine.take_index(), engine.take_previews());
     } catch (const Error&) {
         throw;
     } catch (const std::bad_alloc&) {
@@ -98,7 +99,8 @@ Document Document::change(const std::string& input, Change operation, const std:
         }();
         // Release the editing graph before allocating the independently validated output graph.
         Engine reopened(output, &budget, false, syntax);
-        return Document(std::move(output), reopened.describe(), true, true, reopened.take_index());
+        return Document(
+            std::move(output), reopened.describe(), true, true, reopened.take_index(), reopened.take_previews());
     } catch (const Error&) {
         throw;
     } catch (const std::bad_alloc&) {
@@ -128,7 +130,7 @@ Document Document::extract(const std::string& pages) const
             return *this;
         Engine reopened(output, &budget, false, index);
         return Document(std::move(output), reopened.describe(), !object(reopened.manifest).empty(), reopened.prepared(),
-            reopened.take_index());
+            reopened.take_index(), reopened.take_previews());
     } catch (const Error&) {
         throw;
     } catch (const std::bad_alloc&) {
@@ -140,6 +142,13 @@ Document Document::extract(const std::string& pages) const
 std::string Document::preview(std::size_t page) const
 {
     try {
+        if (page >= previews->pages.size())
+            throw Error("invalid-request", "Preview page is outside the PDF.", "request", "");
+        const auto& file = previews->pages[page];
+        if (file.empty())
+            return {};
+        if (auto found = previews->images.find(file); found != previews->images.end())
+            return *found->second;
         Engine engine(bytes, nullptr, true, index);
         return engine.preview(page);
     } catch (const Error&) {

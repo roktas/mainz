@@ -1,5 +1,7 @@
 #include "command.hh"
+#include <algorithm>
 #include <array>
+#include <cctype>
 #include <cerrno>
 #include <csignal>
 #include <cstdlib>
@@ -89,6 +91,11 @@ std::string read_at(const std::string& root, const std::string& file, std::size_
             throw std::runtime_error("Input lookup rejects empty, . and .. path components. Use --inputs for this ID.");
     if (file.find("//") != file.npos)
         throw std::runtime_error("Input lookup rejects empty path components. Use --inputs for this ID.");
+    auto suffix = file.substr(file.size() >= 4 ? file.size() - 4 : 0);
+    std::transform(suffix.begin(), suffix.end(), suffix.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (suffix != ".pdf")
+        path += ".pdf";
     Descriptor directory(open(root.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC));
     for (const auto& component : directory_path) {
         Descriptor next(openat(directory.value, component.c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC));

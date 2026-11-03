@@ -5,6 +5,7 @@ import test from "node:test"
 import { chromium, webkit } from "playwright"
 import { createServer, tab } from "./browser.js"
 import { serve } from "./server.ts"
+import { gridDensity } from "./measure.js"
 
 const harness = {
   name: "lens-fixture",
@@ -215,7 +216,7 @@ test(
         [page.locator(".composition-output"), "Output"],
       ]) {
         for (const density of ["Normal", "Compact"]) {
-          await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+          await gridDensity(pane, `${density} ${name} grid`)
           const canvas = pane.locator('.page-image[data-page="1"] canvas')
           await page.waitForFunction(() => !document.querySelector('.composer [aria-busy="true"]'))
           await page.mouse.move(0, 0)

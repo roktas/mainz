@@ -19,6 +19,12 @@
 @import "./controls.css";
 
 @layer components {
+  @scope (.composer, .drag-image[data-strip]) {
+    :is(.page-name, .detail-name, .list-choice, .lens-name, .page-peek > p, .drop-name, .drag-title) {
+      font-variant-caps: all-small-caps;
+      font-synthesis: small-caps;
+    }
+  }
   @scope (.drag-image, .addition-preview, .removal-preview) {
     :scope {
       position: fixed;

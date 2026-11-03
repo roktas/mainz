@@ -5,7 +5,7 @@ import test from "node:test"
 import { serve } from "./server.ts"
 import { chromium } from "playwright"
 import { fixture } from "./browser.js"
-import { collect, environments, measure } from "./measure.js"
+import { collect, environments, measure, gridDensity } from "./measure.js"
 import { geometry, csv } from "../src/geometry.ts"
 import { bounds, quality } from "./quality.ts"
 
@@ -50,7 +50,7 @@ test("Grid measurement refreshes stylesheet preferences within the same frame", 
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
     const input = page.locator(".selection-panel")
-    await input.getByRole("button", { name: "Normal Input grid", exact: true }).click()
+    await gridDensity(input, "Normal Input grid")
     const before = await measure(input)
     const override = await page.addStyleTag({ content: ".composer .selection-panel { --grid-height: 14rem; }" })
     const captured = await page.evaluate(async () => (await import("/src/geometry.ts")).capture())
@@ -102,7 +102,7 @@ test("One geometry schema captures desktop and touch without changing Grid choic
           () => document.querySelector(".composition-totals strong")?.textContent === "240 pages",
         )
         const input = page.locator(".selection-panel")
-        await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
+        await gridDensity(input, "Compact Input grid")
         const selection = input.getByRole("textbox", { name: "Page selection", exact: true })
         await selection.fill("2")
         await selection.focus()

@@ -64,7 +64,8 @@
     </span>
     {#if fields}
       {#each Object.entries(fields) as [field, value] (field)}
-        <span class="guidance-text"><strong>{names[field] ?? field}:</strong> {value}</span>
+        <span class="guidance-text"><strong>{Object.hasOwn(names, field) ? names[field] : field}:</strong> {value}</span
+        >
       {/each}
     {:else}<span class="guidance-text">{details}</span>{/if}
   </span>

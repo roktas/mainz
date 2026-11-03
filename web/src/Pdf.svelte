@@ -160,7 +160,19 @@
             transient = raster
             raster.width = Math.ceil(size.width * scale)
             raster.height = Math.ceil(size.height * scale)
-            raster.getContext("2d")!.drawImage(image, 0, 0, raster.width, raster.height)
+            const context = raster.getContext("2d")!
+            const imageScale = Math.min(raster.width / image.width, raster.height / image.height)
+            const imageWidth = image.width * imageScale,
+              imageHeight = image.height * imageScale
+            context.fillStyle = "white"
+            context.fillRect(0, 0, raster.width, raster.height)
+            context.drawImage(
+              image,
+              (raster.width - imageWidth) / 2,
+              (raster.height - imageHeight) / 2,
+              imageWidth,
+              imageHeight,
+            )
             if (cacheRaster(document, rasterPage, scale, raster, sampling)) transient = undefined
           }
         }

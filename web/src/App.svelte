@@ -9,14 +9,17 @@
   import type { Magnification } from "./Lens.svelte"
   import {
     applicable,
+    applyEdits,
     applyProfile,
     counterparts,
     current,
     draftError,
+    editStyle,
     feedback,
     matchingProfile,
     propagate,
     resolve,
+    resetStyles,
     sharedProfiles,
     usage,
   } from "./styles.ts"
@@ -84,8 +87,6 @@
   let homeApproved = false
   let logoClicks = 0
   let logoTimer: ReturnType<typeof setTimeout> | undefined
-  let outputZoom = $state(100)
-  let comparing = $state(false)
   const documents = new Documents()
   let openingProcessor: Processor | undefined
   let openingJob: Opening | undefined
@@ -428,14 +429,9 @@
   function changeStyle(id: string, text: string) {
     if (!active) return
     const entry = active.input.description.parameters[id]
-    const invalid = feedback(entry, text)
-    const drafts = { ...active.drafts, [id]: text },
-      overrides = invalid
-        ? active.overrides
-        : { ...active.overrides, [id]: entry.parameter.schema.type === "number" ? Number(text) : text }
-    if (!invalid) delete drafts[id]
+    const { state, error: invalid } = editStyle(entry, id, text, active)
     choices(
-      { ...active, drafts, overrides, edits: invalid ? active.edits : [...new Set([...(active.edits ?? []), id])] },
+      { ...active, ...state },
       invalid ? undefined : `Updated ${entry.parameter.schema.title ?? id}.`,
       invalid ? [] : [id],
     )
@@ -448,20 +444,8 @@
   function resetStyle(id?: string) {
     if (!active) return
     failure = ""
-    const overrides = { ...active.overrides },
-      drafts = { ...active.drafts }
-    if (id) {
-      delete overrides[id]
-      delete drafts[id]
-    }
     choices(
-      {
-        ...active,
-        overrides: id ? overrides : {},
-        drafts: id ? drafts : {},
-        profiles: id ? active.profiles : undefined,
-        edits: id ? [...new Set([...(active.edits ?? []), id])] : undefined,
-      },
+      { ...active, ...resetStyles(active, id) },
       id
         ? `Restored ${active.input.description.parameters[id].parameter.schema.title ?? id} to the original style.`
         : "Restored all original styles.",
@@ -515,8 +499,7 @@
       if (!result.edits.length) return target
       const next = {
         ...target,
-        overrides: result.overrides,
-        edits: [...new Set([...(target.edits ?? []), ...result.edits])],
+        ...applyEdits(target, result.overrides, result.edits),
         modified: target.modified || result.changed,
       }
       affected.push(next)
@@ -949,8 +932,6 @@
       styling={sourceStyling}
       input={inputTools}
       {inspection}
-      bind:outputZoom
-      bind:comparing
       activate={(id) => (activeId = id)}
       {outputProcessing}
       {downloadError}

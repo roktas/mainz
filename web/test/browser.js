@@ -100,6 +100,7 @@ export function fixture({
   preview,
 } = {}) {
   const pages = Array.from({ length: count }, (_, index) => metadata?.[index] ?? {})
+  const previews = Array.isArray(preview) ? preview : preview ? [preview] : []
   const contract = prepared || !!preview || pages.some((page) => Object.keys(page).length > 0)
   const baseline = {
     paint: "S",
@@ -224,7 +225,14 @@ export function fixture({
     delete manifest.profileSets
   }
   const objects = [
-    `<< /Type /Catalog /Pages 2 0 R ${contract ? `/Names << /EmbeddedFiles << /Names [(mainz.json) 4 0 R${preview ? ` (preview.png) ${6 + count * 2} 0 R` : ""}] >> >>` : ""} >>`,
+    `<< /Type /Catalog /Pages 2 0 R ${
+      contract
+        ? `/Names << /EmbeddedFiles << /Names [(mainz.json) 4 0 R${previews
+            .map((_, index) => ` (preview${index || ""}.png) ${6 + count * 2 + index * 2} 0 R`)
+            .toSorted()
+            .join("")}] >> >>`
+        : ""
+    } >>`,
     `<< /Type /Pages /Kids [${Array.from({ length: count }, (_, index) => `${5 + index * 2} 0 R`).join(" ")}] /Count ${count} /MediaBox [0 0 595.2756 841.8898] >>`,
     stream("/Type /EmbeddedFile /Subtype /application#2Fjson", JSON.stringify(manifest)),
     "<< /Type /Filespec /F (mainz.json) /UF (mainz.json) /EF << /F 3 0 R /UF 3 0 R >> >>",
@@ -241,11 +249,14 @@ export function fixture({
     )
   }
   let pdf = "%PDF-1.7\n"
-  if (preview)
+  previews.forEach((bytes, index) => {
+    const name = `preview${index || ""}.png`
+    const payload = 5 + count * 2 + index * 2
     objects.push(
-      stream("/Type /EmbeddedFile /Subtype /image#2Fpng /Filter /ASCIIHexDecode", preview.toString("hex") + ">"),
-      `<< /Type /Filespec /F (preview.png) /UF (preview.png) /EF << /F ${5 + count * 2} 0 R /UF ${5 + count * 2} 0 R >> >>`,
+      stream("/Type /EmbeddedFile /Subtype /image#2Fpng /Filter /ASCIIHexDecode", bytes.toString("hex") + ">"),
+      `<< /Type /Filespec /F (${name}) /UF (${name}) /EF << /F ${payload} 0 R /UF ${payload} 0 R >> >>`,
     )
+  })
   const offsets = [0]
   objects.forEach((object, index) => {
     offsets.push(Buffer.byteLength(pdf))

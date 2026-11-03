@@ -7,7 +7,7 @@ import { mkdir, readFile } from "node:fs/promises"
 import { chromium, webkit } from "playwright"
 import { zoom } from "./workspace.js"
 import { tab, fixture, image, pagePosition, gridPage } from "./browser.js"
-import { measure } from "./measure.js"
+import { measure, gridDensity } from "./measure.js"
 
 const standard = process.env.MAINZ_TEST_MODE === "standard"
 
@@ -103,7 +103,7 @@ test("Dense page edits keep layout work bounded while animating complete batches
       ["Input", input],
       ["Output", output],
     ])
-      await pane.getByRole("button", { name: `Compact ${name} grid`, exact: true }).click()
+      await gridDensity(pane, `Compact ${name} grid`)
     const session = await page.context().newCDPSession(page)
     await session.send("Performance.enable")
     const layouts = async () =>
@@ -339,7 +339,7 @@ test("Grid navigation retains physical page positions during additions", { timeo
       const output = page.locator(".composition-output")
       const workspace = page.locator(".mobile-workspace-tabs > button:last-child")
       if (await workspace.isVisible()) await workspace.click()
-      await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+      await gridDensity(output, `${density} Output grid`)
       await output.locator(".thumbnail[aria-busy=false]").first().waitFor()
       await page.evaluate(() => {
         new MutationObserver(() => {
@@ -460,9 +460,8 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
       if (width === 1920)
         densities.push(["Normal", "Normal", 12], ["Normal", "Normal", 13], ["Compact", "Compact", "batch"])
       for (const [density, outputDensity, quantity = 2] of densities) {
-        await input.getByRole("button", { name: `${density} Input grid`, exact: true }).click()
-        if (width >= 1024)
-          await output.getByRole("button", { name: `${outputDensity} Output grid`, exact: true }).click()
+        await gridDensity(input, `${density} Input grid`)
+        if (width >= 1024) await gridDensity(output, `${outputDensity} Output grid`)
         const added =
           quantity === "batch" ? Number(await output.locator(".grid-view").getAttribute("data-batch")) + 1 : quantity
         await prepared.fill(Array.from({ length: added }, (_, index) => (index % 4) + 1).join(","))
@@ -694,7 +693,7 @@ test("Addition previews use their target image or the action area", { timeout: 9
           const output = page.locator(".composition-output")
           const workspace = page.locator(".mobile-workspace-tabs > button:last-child")
           if (await workspace.isVisible()) await workspace.click()
-          await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+          await gridDensity(output, `${density} Output grid`)
           const source = output.locator('.page-image[data-page="1"] canvas')
           await page.waitForFunction(() =>
             [...document.querySelectorAll(".composition-output .thumbnail")].every(
@@ -1041,7 +1040,7 @@ test(
           .evaluate((grid) => grid.getAnimations({ subtree: true }).forEach((animation) => animation.finish()))
         for (const density of ["Normal", "Compact"]) {
           t.diagnostic(`${width}: ${density} edit feedback`)
-          await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+          await gridDensity(output, `${density} Output grid`)
           const clear = output.getByRole("button", { name: "Clear Output selection", exact: true })
           if (await clear.isVisible()) await clear.click()
           const details = async () => {

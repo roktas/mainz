@@ -1,4 +1,4 @@
-// Defines Input page metadata and style schemas, values, profiles, applicability, and preview requirements.
+// Owns Input style schemas, accepted intent transitions, applicability, and preview requirements.
 
 import type { Part } from "./model.ts"
 
@@ -65,13 +65,13 @@ export type Description = {
   profileSets?: ProfileSet[]
 }
 
-type StyleState = {
-  input: { description: Description }
+export type StyleState = {
   overrides: Record<string, Scalar>
   drafts: Record<string, string>
   profiles?: Record<string, string>
   edits?: readonly string[]
 }
+type StyleSource = StyleState & { input: { description: Description } }
 
 function effective(entry: Entry): Scalar | undefined {
   return Object.hasOwn(entry.parameter, "value")
@@ -89,7 +89,7 @@ function comparable(entry: Entry): Scalar | undefined {
   return typeof value === "string" && entry.parameter.binding.property.endsWith("color") ? value.toLowerCase() : value
 }
 
-export function counterparts(source: StyleState, target: StyleState, ids: readonly string[]) {
+export function counterparts(source: StyleSource, target: StyleSource, ids: readonly string[]) {
   const keys = new Map<string, Map<Scalar, string>>()
   for (const id of ids) {
     const entry = resolve(source.input.description.parameters[id], source.overrides, id)
@@ -116,9 +116,9 @@ export function counterparts(source: StyleState, target: StyleState, ids: readon
 }
 
 export function propagate(
-  source: StyleState,
+  source: StyleSource,
   next: Pick<StyleState, "overrides" | "drafts">,
-  target: StyleState,
+  target: StyleSource,
   ids: readonly string[],
 ) {
   // A completed edit compares with the last valid value retained beneath its draft.
@@ -168,11 +168,7 @@ export function matchingProfile(
   )
 }
 
-export function applyProfile(
-  set: ProfileSet,
-  profile: Profile,
-  state: Pick<StyleState, "overrides" | "drafts" | "profiles" | "edits">,
-) {
+export function applyProfile(set: ProfileSet, profile: Profile, state: StyleState): StyleState {
   const parameters = new Set(set.parameters)
   const outside = <T>(values: Record<string, T>) =>
     Object.fromEntries(Object.entries(values).filter(([id]) => !parameters.has(id)))
@@ -182,6 +178,40 @@ export function applyProfile(
     profiles: { ...state.profiles, [set.id]: profile.id },
     edits: state.edits?.filter((id) => !parameters.has(id)) ?? [],
   }
+}
+
+export function editStyle(entry: Entry, id: string, text: string, state: StyleState) {
+  const error = feedback(entry, text)
+  const drafts = { ...state.drafts, [id]: text }
+  if (!error) delete drafts[id]
+  return {
+    error,
+    state: {
+      ...state,
+      drafts,
+      overrides: error
+        ? state.overrides
+        : { ...state.overrides, [id]: entry.parameter.schema.type === "number" ? Number(text) : text },
+      edits: error ? state.edits : manualEdits(state, [id]),
+    },
+  }
+}
+
+function manualEdits(state: StyleState, ids: readonly string[]) {
+  return [...new Set([...(state.edits ?? []), ...ids])]
+}
+
+export function applyEdits(state: StyleState, overrides: StyleState["overrides"], ids: readonly string[]): StyleState {
+  return { ...state, overrides, edits: manualEdits(state, ids) }
+}
+
+export function resetStyles(state: StyleState, id?: string): StyleState {
+  if (id === undefined) return { overrides: {}, drafts: {}, profiles: undefined, edits: undefined }
+  const overrides = { ...state.overrides },
+    drafts = { ...state.drafts }
+  delete overrides[id]
+  delete drafts[id]
+  return { ...state, overrides, drafts, edits: manualEdits(state, [id]) }
 }
 
 export function groups(description: Description): Group[] {

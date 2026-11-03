@@ -4,7 +4,7 @@
 
 import { downloadInputs, plan } from "./model.ts"
 import type { Plan, Part, Source } from "./model.ts"
-import type { Scalar } from "./styles.ts"
+import type { Scalar, StyleState } from "./styles.ts"
 
 export const maxRecipeBytes = 16 * 1024 * 1024
 
@@ -34,7 +34,7 @@ export type Recipe = {
 export type Resolution = {
   plan: Plan
   warnings: { code: string; input: string; location: string; message: string; expected: unknown; actual: unknown }[]
-  intent: Record<string, { profiles: Record<string, string>; edits: string[] }>
+  intent: Record<string, Required<Pick<StyleState, "profiles" | "edits">>>
 }
 
 export function identities(ids: Record<string, string>): Record<string, string> {

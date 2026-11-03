@@ -868,7 +868,7 @@ expansion. Exhaustion returns no successful output. Documents cannot raise limit
 | Cumulative expanded locator text per call | 128 MiB    |
 
 Locator accounting counts each shared-array occurrence, including repeated Input instance and completed-result
-validation. For each occurrence, it counts UTF-8 region, page, target, and resolved baseline IDs, paint marker, fill
+validation. For each occurrence, it counts UTF-8 region, target, and resolved baseline IDs, paint marker, fill
 capability, and Form-step resource names. Shared arrays and slots do not reduce the total. Limits apply before copied
 text and paths are stored. Other page, string, nesting, decoded-byte, and traversal ceilings remain enforced. Plan
 limits appear in Section 6.3 and producer limits in Section 7.1. Published ceilings depend on the released build. They
@@ -975,6 +975,10 @@ Both adapters enforce these limits before Input retention or expansion:
 | Copies per Part          | 1,000   |
 | Expanded pages           | 10,000  |
 
+Aggregate Input bytes count each binding once, including distinct bindings with identical bytes. Input instances using
+the same binding share its bytes. Each instance has an independent editing graph, subject to shared pipeline, locator,
+and traversal limits.
+
 Other manifest, output, decoding, and traversal limits still apply. Failures preserve Inputs and return no successful
 PDF or partial Provenance. Plan field errors use `source: "request"` and pointers to their Input instance, Part, or page
 reference.
@@ -1031,7 +1035,9 @@ result-buffer rules.
 
 `mainz_preview(handle, page)` returns PNG bytes for a zero-based physical page through `mainz_result` and `mainz_size`.
 Success without an image has size zero. Invalid indexes use the existing structured request error. The call retains the
-active document. The host copies the bytes before another operation and owns image decoding and disposal.
+active document. Each immutable Document retains at most 16 MiB of validated PNG payloads, shared by attachment
+identity. Larger previews remain accessible through bounded decoding. Derived Documents build their own preview index
+after validation. The host copies the bytes before another operation and owns image decoding and disposal.
 
 WASM builds use native WebAssembly exception handling instead of JavaScript exception emulation. Hosts must support the
 pinned toolchain's legacy exception instructions. Processor and host failures retain the status and result records
@@ -1238,7 +1244,9 @@ parameters form an Other controls group in ID order.
 Selected targets support vector paths. Text and images stay outside them. Masks, filters, group opacity, unsupported
 paint contexts, and ambiguous visibility fail. Targets hidden by `display: none !important` cannot be materialized. If
 the SVG stylesheet uses attribute selectors, CSS escapes, or `MainzSource`, source paint roots need authored IDs. These
-stylesheet restrictions do not extend the declaration-selector grammar.
+stylesheet restrictions do not extend the declaration-selector grammar. CSS property checks decode escapes and skip
+comments in both inline styles and stylesheets. Selector names do not count as compositing properties. Unbalanced
+blocks, unterminated comments or strings, invalid escapes, and at-rules fail before rendering.
 
 SVG input is limited to 128 MiB, 64 XML levels, and one million elements. Declarations are limited to 1 MiB. Captured
 manifest metadata uses the 16 MiB embedded-manifest limit. Decoded Form capture shares a 128 MiB budget. Producer errors

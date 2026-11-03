@@ -4,7 +4,8 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { chromium, webkit } from "playwright"
-import { fixture, tab, pixel } from "./browser.js"
+import { fixture, tab, pixel, trackWorkers } from "./browser.js"
+import { gridDensity } from "./measure.js"
 
 test("The maintained demo declares its book title and physical page names", { timeout: 30000 }, async () => {
   const server = await serve()
@@ -32,7 +33,7 @@ test("The maintained demo declares its book title and physical page names", { ti
       title: "Italic Strokes",
       infoTitle: "Italic Strokes",
       pages: [
-        { name: "Cover" },
+        { name: "COVER" },
         { name: "ITAL-GUID-79A4-WXGX" },
         { name: "ITAL-CROS-79A4-WXGF" },
         { name: "ITAL-CROS-79A4-WXGR" },
@@ -98,13 +99,23 @@ test(
   async () => {
     const server = await serve()
     const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-    const png = Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgYGAAAAAEAAH2FzhVAAAAAElFTkSuQmCC",
-      "base64",
-    )
     try {
       for (const failure of [false, true]) {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+        const png = Buffer.from(
+          await page.evaluate(() => {
+            const canvas = document.createElement("canvas")
+            canvas.width = 80
+            canvas.height = 40
+            const context = canvas.getContext("2d")
+            context.fillStyle = "red"
+            context.fillRect(0, 0, 40, 40)
+            context.fillStyle = "blue"
+            context.fillRect(40, 0, 40, 40)
+            return canvas.toDataURL().split(",")[1]
+          }),
+          "base64",
+        )
         await page.addInitScript((reject) => {
           localStorage.setItem("mainz:onboarding", "19")
           window.previewDecodes = 0
@@ -134,10 +145,37 @@ test(
         assert.equal(await page.evaluate(() => window.previewDecodes), 1, await page.locator("body").innerText())
         const input = page.locator(".selection-panel")
         const thumbnail = input.locator(".thumbnail canvas").first()
-        assert.ok(
-          (await pixel(thumbnail, 0.5)).slice(0, 3).every((channel) => (failure ? channel > 240 : channel < 20)),
-        )
-        await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
+        const pattern = await thumbnail.evaluate((canvas) => {
+          const context = canvas.getContext("2d")
+          const at = (x, y) =>
+            Array.from(
+              context.getImageData(Math.floor(canvas.width * x), Math.floor(canvas.height * y), 1, 1).data,
+            ).slice(0, 3)
+          const center = context.getImageData(0, Math.floor(canvas.height / 2), canvas.width, 1).data
+          const column = context.getImageData(Math.floor(canvas.width / 4), 0, 1, canvas.height).data
+          const [horizontal, vertical] = [center, column].map((data) =>
+            Array.from({ length: data.length / 4 }, (_, i) => i).filter((i) => data[i * 4 + 1] < 100),
+          )
+          return {
+            left: at(0.25, 0.5),
+            right: at(0.75, 0.5),
+            top: at(0.5, 0.05),
+            bottom: at(0.5, 0.95),
+            width: horizontal.length,
+            height: vertical.length,
+          }
+        })
+        assert.deepEqual(pattern.top, [255, 255, 255])
+        assert.deepEqual(pattern.bottom, [255, 255, 255])
+        if (failure) {
+          assert.deepEqual(pattern.left, [255, 255, 255])
+          assert.deepEqual(pattern.right, [255, 255, 255])
+        } else {
+          assert.deepEqual(pattern.left, [255, 0, 0])
+          assert.deepEqual(pattern.right, [0, 0, 255])
+          assert.ok(Math.abs(pattern.width / pattern.height - 2) < 0.1, "PNG pixels retain their 2:1 proportions")
+        }
+        await gridDensity(input, "Compact Input grid")
         await page.waitForFunction(() => !document.querySelector('.thumbnail[aria-busy="true"]'))
         assert.equal(await page.evaluate(() => window.previewDecodes), 1)
         await tab(input, "Page")
@@ -149,6 +187,68 @@ test(
         )
         await page.close()
       }
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test(
+  "Removing the last PNG document releases its idle preview worker and permits reopening",
+  { timeout: 30000 },
+  async () => {
+    const server = await serve(),
+      browser = await chromium.launch()
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgYGAAAAAEAAH2FzhVAAAAAElFTkSuQmCC",
+      "base64",
+    )
+    try {
+      const page = await browser.newPage()
+      await page.addInitScript(trackWorkers)
+      await page.route("**/preview.pdf", (route) =>
+        route.fulfill({
+          contentType: "application/pdf",
+          body: fixture({ prepared: false, count: 1, metadata: [{ preview: "preview.png" }], preview: png }),
+        }),
+      )
+      await page.goto(server.resolvedUrls.local[0])
+      const result = await page.evaluate(async () => {
+        const { Documents, openPDF, thumbnail } = await import("/src/pdf.ts")
+        const { Processor } = await import("/src/processor.ts")
+        const input = new Uint8Array(await (await fetch("/preview.pdf")).arrayBuffer())
+        const processor = new Processor()
+        const { description } = await processor.run(input, 1)
+        processor.dispose()
+        const documents = new Documents(),
+          counts = [],
+          pixels = []
+        try {
+          for (let attempt = 0; attempt < 2; attempt++) {
+            const task = await openPDF(input),
+              pdf = await task.promise
+            documents.add(pdf, task, { bytes: input, description })
+            const raster = await thumbnail(pdf, 0)
+            pixels.push([...raster.getContext("2d").getImageData(0, 0, 1, 1).data])
+            counts.push(
+              window.workers.filter((worker) => worker.url.includes("processor.worker") && !worker.terminated).length,
+            )
+            documents.dispose()
+            counts.push(
+              window.workers.filter((worker) => worker.url.includes("processor.worker") && !worker.terminated).length,
+            )
+            if (raster.width !== 0) throw new Error("Removed PNG raster remains allocated.")
+          }
+          return { counts, pixels }
+        } finally {
+          documents.dispose()
+        }
+      })
+      assert.deepEqual(result.counts, [1, 0, 1, 0])
+      assert.deepEqual(result.pixels, [
+        [0, 0, 0, 255],
+        [0, 0, 0, 255],
+      ])
     } finally {
       await browser.close()
     }

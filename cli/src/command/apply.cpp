@@ -1,7 +1,5 @@
 #include "command.hh"
 #include "recipe.hh"
-#include <algorithm>
-#include <cctype>
 #include <iostream>
 
 namespace mainz::cli {
@@ -33,19 +31,14 @@ static void recipe(const Arguments& args, bool produce)
     for (const auto& [id, definition] : definitions) {
         (void)definition;
         auto file = mapped ? paths.at(id) : id;
-        if (!mapped) {
-            auto suffix = file.substr(file.size() >= 4 ? file.size() - 4 : 0);
-            std::transform(suffix.begin(), suffix.end(), suffix.begin(),
-                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-            if (suffix != ".pdf")
-                file += ".pdf";
-        }
         try {
             auto bytes = mapped ? read(file, remaining) : read_at(root, file, remaining);
             remaining -= bytes.size();
             auto document = detail::request_at(
                 "/inputs/" + detail::pointer(id), [&] { return Document::read(std::move(bytes)); });
             inputs.emplace(id, std::move(document));
+        } catch (const Interrupt&) {
+            throw;
         } catch (const Error&) {
             throw;
         } catch (const std::exception& error) {

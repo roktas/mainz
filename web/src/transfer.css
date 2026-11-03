@@ -191,7 +191,8 @@
     .composition-output :is(.composition-card, .list-row)[data-dragging] {
       opacity: 0;
     }
-    .composition-output[data-preview] .page-list > .list-row[data-dragging] {
+    .composition-output[data-preview] .page-list > .list-row[data-dragging],
+    .page-list > .list-row[data-retained] {
       position: absolute;
       inset-block-start: 0;
       inset-inline: 0;

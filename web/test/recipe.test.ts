@@ -3,6 +3,7 @@ import test from "node:test"
 import { recipe, identities } from "../src/recipe.ts"
 import type { Part, Source } from "../src/model.ts"
 import type { Description, Entry } from "../src/styles.ts"
+import { applyEdits, applyProfile, editStyle, resetStyles } from "../src/styles.ts"
 
 function source(): Source {
   const width: Entry = {
@@ -96,6 +97,47 @@ test("Recipe retains explicit profile intent, equal-valued manual edits, and bas
     { pages: [{ source: "source", page: 0 }, { blank: { width: 80, height: 100 } }], copies: 2, front: true },
   ])
   assert.deepEqual(original.overrides, { width: 0.04 })
+})
+
+test("Style transitions preserve explicit Recipe intent through drafts, resets, and profiles", () => {
+  let original = source()
+  const set = original.input.description.profileSets![0]
+  original = { ...original, ...applyProfile(set, set.profiles[1], original) }
+  assert.deepEqual(recipe(parts, [original]).sources.source, {
+    input: "book",
+    profiles: [{ family: "fixture", name: "Fine" }],
+    overrides: [],
+  })
+  const rejected = editStyle(original.input.description.parameters.width, "width", "invalid", original)
+  assert.ok(rejected.error)
+  assert.deepEqual(rejected.state.edits, [])
+  assert.deepEqual(rejected.state.overrides, { width: 0.04, opacity: 0.5 })
+  const accepted = editStyle(original.input.description.parameters.width, "width", "0.04", original)
+  assert.equal(accepted.error, undefined)
+  original = { ...original, ...accepted.state }
+  assert.deepEqual(recipe(parts, [original]).sources.source.overrides, [
+    { family: "fixture", key: "guides.width", value: 0.04 },
+  ])
+  const invalid = editStyle(original.input.description.parameters.width, "width", "invalid", original)
+  assert.ok(invalid.error)
+  assert.deepEqual(invalid.state.overrides, original.overrides)
+  assert.deepEqual(invalid.state.edits, ["width"])
+  assert.deepEqual(invalid.state.drafts, { width: "invalid" })
+  original = { ...original, ...resetStyles(invalid.state, "width") }
+  assert.deepEqual(original.drafts, {})
+  assert.deepEqual(recipe(parts, [original]).sources.source, {
+    input: "book",
+    profiles: [{ family: "fixture", name: "Fine" }],
+    overrides: [{ family: "fixture", key: "guides.width", value: null }],
+  })
+  original = { ...original, ...applyEdits(original, { width: 0.06, opacity: 0.5 }, ["width"]) }
+  assert.deepEqual(original.edits, ["width"])
+  original = { ...original, ...applyProfile(set, set.profiles[1], original) }
+  assert.deepEqual(original.edits, [])
+  assert.deepEqual(recipe(parts, [original]).sources.source.overrides, [])
+  original = { ...original, ...resetStyles(original) }
+  assert.deepEqual(recipe(parts, [original]).sources.source, { input: "book", profiles: [], overrides: [] })
+  assert.deepEqual(original.drafts, {})
 })
 
 test("Recipe never infers profiles or all-pages intent from concrete values", () => {

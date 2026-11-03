@@ -28,22 +28,109 @@ namespace {
         return bytes ? reinterpret_cast<const char*>(bytes.get()) : "";
     }
     bool named(xmlNode* node, const char* name) { return xmlStrEqual(node->name, BAD_CAST name); }
-    bool compositing(std::string css)
+    bool compositing(std::string_view css, bool stylesheet = false)
     {
-        // Bound regex recursion without limiting authored CSS whitespace.
-        constexpr std::string_view whitespace = " \t\r\n\f\v";
-        auto end = css.begin();
-        bool previous = false;
-        for (auto c : css) {
-            auto current = whitespace.find(c) != std::string_view::npos;
-            if (!previous || !current)
-                *end++ = c;
-            previous = current;
+        constexpr std::string_view whitespace = " \t\r\n\f";
+        std::size_t offset = 0;
+        auto space = [&](char c) { return whitespace.find(c) != whitespace.npos; };
+        auto skip = [&] {
+            while (offset < css.size()) {
+                if (space(css[offset]))
+                    ++offset;
+                else if (css.substr(offset, 2) == "/*") {
+                    auto end = css.find("*/", offset + 2);
+                    require(end != css.npos, "Unterminated CSS comment.", "imprinter-error");
+                    offset = end + 2;
+                } else
+                    break;
+            }
+        };
+        auto escaped = [&](bool quoted = false) {
+            ++offset;
+            require(offset < css.size(), "Unsupported CSS escape.", "imprinter-error");
+            if (css[offset] == '\n' || css[offset] == '\r' || css[offset] == '\f') {
+                require(quoted, "Unsupported CSS escape.", "imprinter-error");
+                auto trailing = css[offset++];
+                if (trailing == '\r' && offset < css.size() && css[offset] == '\n')
+                    ++offset;
+                return '\0';
+            }
+            unsigned int code = 0;
+            std::size_t digits = 0;
+            constexpr std::string_view hex = "0123456789abcdef";
+            while (offset < css.size() && digits < 6) {
+                auto c = css[offset];
+                if (c >= 'A' && c <= 'F')
+                    c = static_cast<char>(c + ('a' - 'A'));
+                auto value = hex.find(c);
+                if (value == hex.npos)
+                    break;
+                code = code * 16 + static_cast<unsigned int>(value);
+                ++digits;
+                ++offset;
+            }
+            if (!digits)
+                return css[offset++];
+            if (offset < css.size() && space(css[offset])) {
+                auto trailing = css[offset++];
+                if (trailing == '\r' && offset < css.size() && css[offset] == '\n')
+                    ++offset;
+            }
+            require(code != 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff),
+                "Invalid CSS escaped code point.", "imprinter-error");
+            return code < 128 ? static_cast<char>(code) : '?';
+        };
+        auto name = [](unsigned char c) {
+            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_'
+                || c >= 128;
+        };
+        std::string blocks;
+        bool declaration = !stylesheet;
+        while (offset < css.size()) {
+            skip();
+            if (offset == css.size())
+                break;
+            auto c = css[offset];
+            if (c == '\'' || c == '"') {
+                ++offset;
+                while (offset < css.size() && css[offset] != c) {
+                    require(css[offset] != '\n' && css[offset] != '\r' && css[offset] != '\f', "Invalid CSS string.",
+                        "imprinter-error");
+                    if (css[offset] == '\\')
+                        escaped(true);
+                    else
+                        ++offset;
+                }
+                require(offset < css.size(), "Unterminated CSS string.", "imprinter-error");
+                ++offset;
+                declaration = false;
+            } else if (name(static_cast<unsigned char>(c)) || c == '\\') {
+                std::string property;
+                do {
+                    auto token = css[offset] == '\\' ? escaped() : css[offset++];
+                    property += token >= 'A' && token <= 'Z' ? static_cast<char>(token + ('a' - 'A')) : token;
+                } while (offset < css.size() && (name(static_cast<unsigned char>(css[offset])) || css[offset] == '\\'));
+                skip();
+                if (declaration && offset < css.size() && css[offset] == ':'
+                    && (property == "opacity" || property == "mask" || property == "filter"
+                        || property == "mix-blend-mode"))
+                    return true;
+                declaration = false;
+            } else {
+                require(c != '@' && c != '\0', "Unsupported CSS syntax.", "imprinter-error");
+                if (c == '(' || c == '[' || c == '{') {
+                    require(blocks.size() < 64, "CSS nesting exceeds its limit.", "limit-exceeded");
+                    blocks += c == '(' ? ')' : c == '[' ? ']' : '}';
+                } else if (c == ')' || c == ']' || c == '}') {
+                    require(!blocks.empty() && blocks.back() == c, "Unbalanced CSS block.", "imprinter-error");
+                    blocks.pop_back();
+                }
+                declaration = c == '{' || (c == ';' && (stylesheet ? blocks == "}" : blocks.empty()));
+                ++offset;
+            }
         }
-        css.erase(end, css.end());
-        static const std::regex properties(
-            "(?:^|[;{])\\s*(?:opacity|mask|filter|mix-blend-mode)\\s*:", std::regex::icase);
-        return std::regex_search(css, properties);
+        require(blocks.empty(), "Unterminated CSS block.", "imprinter-error");
+        return false;
     }
     void success(gboolean ok, GError* error)
     {
@@ -272,7 +359,7 @@ namespace {
                     source_ids_required = source_ids_required || css.find('[') != css.npos || css.find('\\') != css.npos
                         || css.find("MainzSource") != css.npos;
                 }
-                require(!bytes || !compositing(reinterpret_cast<const char*>(bytes.get())),
+                require(!bytes || !compositing(reinterpret_cast<const char*>(bytes.get()), true),
                     "Compositing CSS is unsupported.", "imprinter-error");
             }
             auto id = attribute(node, "id");

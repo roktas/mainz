@@ -24,7 +24,7 @@ export type Operation =
       }
     }
   | { plan: Plan; inputs: Record<string, ArrayBuffer> }
-  | { preview: { bytes: ArrayBuffer; page: number } }
+  | { preview: { input: number; bytes: ArrayBuffer; page: number } }
   | { recipe: string; inputs?: Record<string, ArrayBuffer> }
 export type Request = Operation & {
   revision: number

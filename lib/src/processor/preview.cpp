@@ -81,7 +81,12 @@ JSON Engine::image(const std::string& file)
     if (auto found = images.find(file); found != images.end())
         return found->second;
     auto stream = files.at(file).getKey("/EF").getKey("/F");
-    auto descriptor = png(decode(stream, budget, pdf_limit));
+    auto bytes = decode(stream, budget, pdf_limit);
+    auto descriptor = png(bytes);
+    if (bytes.size() <= manifest_limit - previews.bytes) {
+        previews.bytes += bytes.size();
+        previews.images.emplace(file, std::make_shared<const std::string>(std::move(bytes)));
+    }
     descriptor.addDictionaryMember("file", JSON::makeString(file));
     images.emplace(file, descriptor);
     return descriptor;
@@ -95,6 +100,7 @@ void Engine::load_previews(bool validate)
             continue;
         try {
             auto file = text(preview);
+            previews.pages[page] = file;
             require(file != "mainz.json" && files.contains(file), "Missing preview PNG attachment.");
             auto spec = files.at(file);
             require(spec.getKey("/F").isString() && spec.getKey("/UF").isString()

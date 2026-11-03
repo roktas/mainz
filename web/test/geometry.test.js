@@ -6,7 +6,7 @@ import { serve } from "./server.ts"
 import { chromium } from "playwright"
 import { aligned, zoom } from "./workspace.js"
 import { tab, image, captureLayout, fixture } from "./browser.js"
-import { measure } from "./measure.js"
+import { measure, gridDensity } from "./measure.js"
 
 test("Pane headers, tabs, and selections stay on single aligned rows", { timeout: 180000 }, async (t) => {
   const server = await serve()
@@ -50,7 +50,7 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
         const rect = (node) => node.getBoundingClientRect().toJSON()
         const bands = [
           [".section-heading", ":scope > :not(.download-error)"],
-          [".editing-toolbar", '[role="tab"], .grid-density > button, .style-status > button'],
+          [".editing-toolbar", '[role="tab"], .grid-density, .style-status > button'],
           [".sequence-entry > .entry", "input, button, summary"],
         ]
         return bands.flatMap(([selector, controls]) => {
@@ -162,7 +162,7 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
           ]) {
             await show(name)
             for (const density of ["Normal", "Compact"]) {
-              await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+              await gridDensity(pane, `${density} ${name} grid`)
               for (const colorScheme of ["light", "dark"]) {
                 await page.emulateMedia({ colorScheme })
                 t.diagnostic(`${width}px, ${text}, ${name}, ${density}, ${colorScheme}, populated=${populated}`)
@@ -776,7 +776,7 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
       await zoom(output, "Reset zoom")
       await fitted(image(output))
       await tab(output, "Grid")
-      await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+      await gridDensity(output, "Compact Output grid")
       const compact = await measure(output)
       assert.ok(compact.matrix[1] >= 7, "Compact capacity uses the expanded viewport without a fixed row cap")
       await input.locator(".pdf-viewport[aria-busy=false] canvas").waitFor()

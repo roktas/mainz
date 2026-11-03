@@ -32,6 +32,28 @@ module Mainz
       write("plan.json", plan)
     end
 
+    def test_shared_input_byte_limit_counts_bindings_once
+      source = file("large-input.pdf")
+      fixture(source, pdf_objects: -> (objects, stream) { objects << stream.call("", "x" * (65 * 1024 * 1024)) })
+      request = {
+        "version" => 1,
+        "sources" => {"a" => {"input" => "book", "overrides" => {}}, "b" => {"input" => "book", "overrides" => {}}},
+        "parts" => [{"pages" => [{"source" => "a", "page" => 0}, {"source" => "b", "page" => 1}]}]
+      }
+      write("inputs.json", {"book" => source.to_s})
+      output, = compose(request, "large-shared.pdf")
+      assert_equal(2, describe(output)["pageCount"])
+      recipe = request.merge("inputs" => {"book" => {}}, "sources" => {"a" => {"input" => "book"}, "b" => {"input" => "book"}})
+      recipe_output = file("large-recipe.pdf")
+      FileUtils.rm_f(recipe_output)
+      command(@cli, "apply", write("large-recipe.json", recipe), "--inputs", file("inputs.json"), "--output", recipe_output)
+      assert_equal(output.binread, recipe_output.binread)
+      request["sources"]["b"]["input"] = "other"
+      write("inputs.json", {"book" => source.to_s, "other" => source.to_s})
+      _, failure = compose(request, "large-distinct.pdf", ok: false)
+      assert_equal("limit-exceeded", JSON.parse(failure.stderr)["code"])
+    end
+
     def test_description_exposes_baselines_and_plain_text
       description = describe(@source)
       assert_equal(@original["groups"], description["groups"])
@@ -259,6 +281,16 @@ module Mainz
       image = describe(composed)["pages"][1]["preview"]["file"]
       assert_equal("i1:page.png", image)
       assert_equal(preview_png, command("qpdf", "--show-attachment=#{image}", composed).stdout)
+    end
+
+    def test_preview_payloads_above_retention_limit_remain_valid
+      text = "Comment\0" + "x" * (16 * 1024 * 1024 + 1)
+      chunk = "tEXt" + text
+      image = preview_png.dup.insert(33, [text.bytesize].pack("N") + chunk + [Zlib.crc32(chunk)].pack("N"))
+      file("large-preview.png").binwrite(image)
+      source = file("large-preview.pdf")
+      preview_fixture(source, image)
+      assert_equal({"file" => "page.png", "width" => 1, "height" => 1}, describe(source)["pages"][0]["preview"])
     end
 
     def test_preview_invalidation_follows_parameter_scope
@@ -1676,7 +1708,7 @@ module Mainz
       Base64.decode64("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgYGAAAAAEAAH2FzhVAAAAAElFTkSuQmCC")
     end
 
-    def preview_fixture(path)
+    def preview_fixture(path, image = preview_png)
       fixture(
         path,
         -> (manifest) {
@@ -1687,7 +1719,7 @@ module Mainz
         }
       )
       document = HexaPDF::Document.open(path)
-      document.files.add(StringIO.new(preview_png), name: "page.png", mime_type: "image/png")
+      document.files.add(StringIO.new(image), name: "page.png", mime_type: "image/png")
       yield document if block_given?
       document.write(path.to_s)
     end

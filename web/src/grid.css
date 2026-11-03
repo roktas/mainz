@@ -104,11 +104,21 @@
       :is(.page-origin, .page-number):hover > .page-name,
       .page-origin:hover > summary > .page-name {
         display: block;
+        animation: caption 220ms step-end;
       }
     }
     :is(.page-origin, .page-number):focus-within > .page-name,
     .page-origin:focus-within > summary > .page-name {
       display: block;
+      animation: none;
+    }
+    @keyframes caption {
+      from {
+        visibility: hidden;
+      }
+      to {
+        visibility: visible;
+      }
     }
     .page-view .inspection-heading {
       overflow: visible;
@@ -282,10 +292,16 @@
           }
         }
       }
+      & > .list-spacer {
+        min-block-size: 0;
+        border: 0;
+        pointer-events: none;
+      }
       & .list-number {
         max-inline-size: 8ch;
+        font-size: var(--body);
         font-variant-numeric: tabular-nums;
-        text-align: end;
+        text-align: center;
         overflow-wrap: anywhere;
       }
       & > li > .page-grip {
@@ -453,9 +469,8 @@
     .composition-card[data-returning],
     .page-list > li[data-returning] {
       background: color-mix(in oklch, var(--secondary) 30%, var(--return-surface));
-      box-shadow: inset 4px 0 var(--secondary);
       @media (prefers-reduced-motion: no-preference) {
-        animation: view-return 2000ms var(--ease-out);
+        animation: view-return 1200ms var(--ease-out) forwards;
       }
       @media (forced-colors: active) {
         outline: 2px solid Highlight;
@@ -466,11 +481,9 @@
       0%,
       30% {
         background: color-mix(in oklch, var(--secondary) 30%, var(--return-surface));
-        box-shadow: inset 4px 0 var(--secondary);
       }
       to {
         background: var(--return-surface);
-        box-shadow: inset 4px 0 transparent;
       }
     }
 
@@ -610,55 +623,40 @@
     }
 
     .grid-density {
-      display: inline flex;
-      inline-size: var(--view-tools-width);
-      align-items: center;
+      display: inline grid;
+      place-items: center;
+      inline-size: 46px;
+      min-inline-size: 46px;
+      block-size: 46px;
+      min-block-size: 46px;
       flex: none;
       margin-inline-start: auto;
+      padding: 0;
       border: 1px solid var(--border);
       border-radius: var(--radius);
+      color: var(--muted);
       background: var(--soft);
 
-      & > button {
-        inline-size: 44px;
-        min-inline-size: 44px;
-        block-size: 44px;
-        min-block-size: 44px;
-        padding: 0;
-        border-radius: calc(var(--radius) - 1px);
-        color: var(--muted);
-        background: transparent;
+      &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
+      }
 
-        &[aria-pressed="true"] {
+      &:active {
+        color: var(--accent);
+        background: var(--tint);
+      }
+
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
           color: var(--accent);
           background: var(--tint);
-        }
-
-        &:focus-visible {
-          outline: 2px solid var(--accent);
-          outline-offset: -2px;
-        }
-
-        &:active {
-          color: var(--accent);
-          background: var(--tint);
-        }
-
-        @media (hover: hover) and (pointer: fine) {
-          &:hover {
-            color: var(--accent);
-            background: var(--tint);
-          }
-        }
-
-        & svg {
-          inline-size: 1.3em;
-          block-size: 1.3em;
         }
       }
 
-      & > button + button {
-        border-inline-start: 1px solid var(--border);
+      & svg {
+        inline-size: 1.3em;
+        block-size: 1.3em;
       }
     }
 

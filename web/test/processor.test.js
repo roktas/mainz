@@ -2,10 +2,20 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
+import { crc32, deflateSync } from "node:zlib"
 import { chromium, webkit } from "playwright"
 import { createServer } from "vite"
 import { serve } from "./server.ts"
 import { fixture, trackWorkers } from "./browser.js"
+
+const pngChunk = (name, payload) => {
+  const bytes = Buffer.alloc(payload.length + 12)
+  bytes.writeUInt32BE(payload.length)
+  bytes.write(name, 4)
+  payload.copy(bytes, 8)
+  bytes.writeUInt32BE(crc32(bytes.subarray(4, -4)), bytes.length - 4)
+  return bytes
+}
 
 test(
   "Recipe workers inspect display metadata and retain editing intent through resolution and recovery",
@@ -614,3 +624,97 @@ test("Composition reuse preserves bytes, Provenance, and exact Input bindings", 
     await browser?.close()
   }
 })
+
+test(
+  "Distinct PNG requests transfer an immutable Input once and clear reuse after replacement, failure, and eviction",
+  { timeout: 60000 },
+  async () => {
+    const count = 32
+    const header = Buffer.from([0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0])
+    const pngs = Array.from({ length: count }, (_, index) =>
+      Buffer.concat([
+        Buffer.from("89504e470d0a1a0a", "hex"),
+        pngChunk("IHDR", header),
+        pngChunk("IDAT", deflateSync(Buffer.from([0, index, 255 - index, 40]))),
+        pngChunk("IEND", Buffer.alloc(0)),
+      ]),
+    )
+    const bytes = fixture({
+      prepared: false,
+      count,
+      preview: pngs,
+      metadata: Array.from({ length: count }, (_, index) => ({ preview: `preview${index || ""}.png` })),
+    })
+    const replacement = fixture({ prepared: false, count: 1 })
+    const server = await serve()
+    const browser = await chromium.launch()
+    try {
+      const page = await browser.newPage()
+      await page.addInitScript(() => {
+        window.previewTransfers = []
+        const post = Worker.prototype.postMessage
+        Worker.prototype.postMessage = function (message, transfers) {
+          if (message.preview) window.previewTransfers.push(message.preview.bytes.byteLength)
+          return post.call(this, message, transfers)
+        }
+      })
+      await page.route("**/previews.pdf", (route) => route.fulfill({ contentType: "application/pdf", body: bytes }))
+      await page.route("**/replacement.pdf", (route) =>
+        route.fulfill({ contentType: "application/pdf", body: replacement }),
+      )
+      await page.goto(server.resolvedUrls.local[0])
+      const result = await page.evaluate(async (pageCount) => {
+        const { Processor } = await import("/src/processor.ts")
+        const processor = new Processor()
+        const input = new Uint8Array(await (await fetch("/previews.pdf")).arrayBuffer())
+        const otherInput = new Uint8Array(await (await fetch("/replacement.pdf")).arrayBuffer())
+        const images = []
+        try {
+          for (let index = 0; index < pageCount; index++)
+            images.push([...new Uint8Array(await processor.preview(input, index))])
+          const initial = window.previewTransfers.slice()
+          const empty = (await processor.preview(otherInput, 0)).byteLength
+          const restored = [...new Uint8Array(await processor.preview(input, 1))]
+          let failure
+          try {
+            await processor.preview(input, pageCount)
+          } catch (error) {
+            failure = error.failure.record.code
+          }
+          await processor.preview(input, 0)
+          const retry = window.previewTransfers.at(-1)
+          const other = new Processor()
+          await other.run(otherInput, 1)
+          await processor.preview(input, 0)
+          const evicted = window.previewTransfers.at(-1)
+          other.dispose()
+          processor.dispose()
+          await processor.preview(input, 0)
+          return {
+            images,
+            initial,
+            empty,
+            restored,
+            failure,
+            retry,
+            evicted,
+            disposed: window.previewTransfers.at(-1),
+            size: input.length,
+          }
+        } finally {
+          processor.dispose()
+        }
+      }, count)
+      assert.deepEqual(result.initial, [result.size, ...Array(count - 1).fill(0)])
+      assert.ok(result.images.every((image, index) => Buffer.from(image).equals(pngs[index])))
+      assert.deepEqual(result.restored, [...pngs[1]])
+      assert.equal(result.empty, 0)
+      assert.equal(result.failure, "invalid-request")
+      assert.equal(result.retry, result.size)
+      assert.equal(result.evicted, result.size)
+      assert.equal(result.disposed, result.size)
+    } finally {
+      await browser.close()
+    }
+  },
+)

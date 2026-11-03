@@ -7,7 +7,7 @@ The Pages are the cover, `ital-guid-79a4-wxgx`, full-sheet CROS (`ital-cros-79a4
 (`ital-cros-79a4-wxgr`), in that order. Output starts with `1,2,3,4,3,4,3,4`. Repetitions expose no additional Book
 content.
 
-The page names are `Cover`, `ITAL-GUID-79A4-WXGX`, `ITAL-CROS-79A4-WXGF`, and `ITAL-CROS-79A4-WXGR`. The standard XMP
+The page names are `COVER`, `ITAL-GUID-79A4-WXGX`, `ITAL-CROS-79A4-WXGF`, and `ITAL-CROS-79A4-WXGR`. The standard XMP
 `dc:title` is `Italic Strokes`; the legacy Info title agrees with it. These fields describe the Input without
 duplicating the title in the manifest. The sample has no PNG previews. Browser tests use the shared fixture builder for
 unnamed capacity, metadata-only, and PNG cases.

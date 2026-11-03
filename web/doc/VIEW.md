@@ -117,10 +117,10 @@ viewport stays neutral. Border, header, footer, and padding compensation prevent
 their images. Keyboard focus on the Page viewport uses the complete frame's secondary contour. Pointer zoom focuses the
 viewport for navigation without showing that contour or a clipped inner outline.
 
-Returning through view tabs or Grid density controls briefly marks the inspected item with a 30% secondary tint and a 4
-px inner start-edge bar. Keep the cue for 2000 ms, with a longer fade after the initial hold. Reduced motion uses the
-same static cue without fading. The active tab or density control retains focus. Keyboard content returns focus the
-inspected item without this cue. The cue does not select the item or reopen its preview.
+Returning through view tabs or Grid density controls briefly marks the inspected item with a 30% secondary tint. Keep
+the cue for 1200 ms, with a longer fade after the initial hold. Hold the final color until the cue clears. Reduced
+motion uses the same static cue without fading. The active tab or density control retains focus. Keyboard content
+returns focus the inspected item without this cue. The cue does not select the item or reopen its preview.
 
 Motion follows reduced-motion preferences. Hover lifts, drag tilt, parallax, fades, and animated movement disappear
 under reduced motion. Static selection and operation highlights remain. Loading indicators retain a visible busy state
@@ -150,8 +150,9 @@ are at least 46 × 46 px. The visible Print–View and View–Download gaps matc
 peer-button widths. Output totals sit before these actions. Relevant processing disables Download, View, and Print
 without changing heading dimensions. Progress and Cancel belong to the app header. The Output heading is a frameless
 button that opens the filename editor. It retains Input's heading typography and icon alignment. Hover and keyboard
-focus identify the action. Its panel uses the standard full-height entry and equal Use default and Save buttons. Error
-space appears only for an actual error.
+focus identify the action. Its panel uses the standard full-height entry and equal Use default and Save buttons. When
+the cover thumbnail and field share a row, the number entry ends at Use default's end edge. Wrapped fields retain a
+usable width. Error space appears only for an actual error.
 
 Each pane header, view toolbar, and selection bar stays on one control row at every supported width and text size.
 Controls never wrap or move to another row. Preserve usable gaps, full-size touch targets, and shared vertical
@@ -200,11 +201,12 @@ uses the primary surface. It shares width and height with Cancel and Apply recip
 narrow widths or enlarged text, the PDF choice can retain its + icon and full accessible name.
 
 After selection, the box places the filename and match status in one half and the Change PDF/download group in the
-other. Both groups center vertically. Change PDF keeps its icon and text on one line, with equal side padding. Its
-download icon stays beside it. Narrow layouts can stack the two groups. At enlarged text sizes with insufficient space,
-Change PDF can retain its icon with the same accessible name. Change PDF, Cancel, and Apply recipe share dimensions. The
-footer group has equal space above and below it, bounded by its separator and the outer frame. Download icons have no
-hover surface or circular shadow; only the glyph gains emphasis.
+other. Both groups center vertically. In a shared row, the filename's start inset matches the download glyph's end
+inset. Keep this text inset when narrow layouts stack the groups. Change PDF keeps its icon and text on one line, with
+equal side padding. Its download icon stays beside it. Narrow layouts can stack the two groups. At enlarged text sizes
+with insufficient space, Change PDF can retain its icon with the same accessible name. Change PDF, Cancel, and Apply
+recipe share dimensions. The footer group has equal space above and below it, bounded by its separator and the outer
+frame. Download icons have no hover surface or circular shadow; only the glyph gains emphasis.
 
 Wide Input rows share a height. The title is primary text. Optional XMP `dc:description` appears directly below it as
 smaller, muted text with a clear gap. It is separate content, not a repeated or punctuation-split title. The description
@@ -238,13 +240,14 @@ navigation keeps a visible focus indicator on each control.
 
 Tabs use square corners and an accent underline. Unselected tabs gain color on hover. Keyboard focus uses a soft tint
 and one border, without glow. Grid, List, Page, and Style use outlined icons. Disabled Style retains its crossed-out
-brush and explanatory hint. Density controls sit beside the Grid tabs, outside the tablist. Narrow panes reduce tab
-padding, then use icon-only tabs if the labels still do not fit. With visible labels, keep at least 12 CSS px between
-adjacent tab contents. Keep accessible names and explanatory titles. Tabs, density controls, and Style tools never wrap
-or overlap. Reserve space for adjacent controls across views. The toolbar retains its height in Grid, List, Page, and
-Style so content frames do not shift. Keep at least 8 CSS px between its controls and bottom separator. Take added space
-from the gap below the separator; retain the total vertical space so the selection bar, content frame, and Grid capacity
-do not move.
+brush and explanatory hint. One 46 × 46 CSS px density action button sits beside the Grid tabs, outside the tablist, at
+every width. Its icon, hover text, and accessible name show the density that activation selects. The button keeps focus
+after switching. Narrow panes reduce tab padding, then use icon-only tabs if the labels still do not fit. With visible
+labels, keep at least 12 CSS px between adjacent tab contents. Keep accessible names and explanatory titles. Tabs,
+density controls, and Style tools never wrap or overlap. Reserve space for adjacent controls across views. The toolbar
+retains its height in Grid, List, Page, and Style so content frames do not shift. Keep at least 8 CSS px between its
+controls and bottom separator. Take added space from the gap below the separator; retain the total vertical space so the
+selection bar, content frame, and Grid capacity do not move.
 
 Inset the selected tab underline by 4 CSS px at each end at every width.
 
@@ -367,25 +370,30 @@ images. Input and Output use the same control dimensions. Preserve usable field 
 ## List
 
 List rows align page numbers, supplied names, and page actions in stable columns. Keep number and action columns visible
-in narrow panes. Names wrap in the remaining space without horizontal scrolling. Narrow rows truncate names on one line
-with an ellipsis; the full name remains in the control's accessible text and hover title, and in the page preview. The
-selection tick reserves only one action target when the row uses a compact action menu. Unnamed pages reserve no empty
-name line. Repeated names retain separate numbered rows. Selected rows use the primary surface and its contrasting text
-color, without a selection contour. Numbers, names, and ticks keep this contrast on hover and keyboard focus. Unselected
-row text and actions use an 80% mix of the text color over the page background. A tick replaces the row's Add or
-Duplicate action without moving its position. Keyboard focus remains visible independently of selection. Output groups
-its up/down controls and removal/duplication into two contiguous pairs, with 6 px between the pairs and no divider. On a
-fine pointer, Input Add and the Output pairs appear on row hover or focus. Hover changes the icon color without boxes or
-glow. Eye and the selection tick remain visible. Row actions use 32 px targets with a fine pointer and 44 px targets for
-touch, in both themes. Coarse pointers keep Input Add visible. Output uses a row-menu button for coarse pointers and
-narrow panes. Page details use a compact, start-aligned popover beside the number, including in narrow panes. List has
-no Grid density control. Switching views retains the toolbar height and content-frame position.
+in narrow panes. Plain numbers and detail buttons use the same type size and column center. Names wrap in the remaining
+space without horizontal scrolling. Narrow rows truncate names on one line with an ellipsis; the full name remains in
+the control's accessible text and page preview. The hover title explains selection. The selection tick reserves only one
+action target when the row uses a compact action menu. Unnamed pages reserve no empty name line. Repeated names retain
+separate numbered rows. Selected rows use the primary surface and its contrasting text color, without a selection
+contour. Numbers, names, and ticks keep this contrast on hover and keyboard focus. Unselected row text and actions use
+an 80% mix of the text color over the page background. A tick replaces the row's Add or Duplicate action without moving
+its position. Keyboard focus remains visible independently of selection. Output groups its up/down controls and
+removal/duplication into two contiguous pairs, with 6 px between the pairs and no divider. On a fine pointer, Input Add
+and the Output pairs appear on row hover or focus. Hover changes the icon color without boxes or glow. Eye and the
+selection tick remain visible. Row actions use 32 px targets with a fine pointer and 44 px targets for touch, in both
+themes. Coarse pointers keep Input Add visible. Output uses a row-menu button for coarse pointers and narrow panes. Page
+details use a compact, start-aligned popover beside the number, including in narrow panes. List has no Grid density
+control. Switching views retains the toolbar height and content-frame position.
 
 Each row has a grip beside its number and a View icon at the trailing edge. View hover or keyboard focus shows a large
 full-page preview beside the row. Keep the preview within the viewport and preserve the page's aspect ratio. It does not
 receive pointer input. Its caption appears only for a supplied page name. Narrow Output rows group their operations in a
 separate action menu. Number details show the supplied name and provenance. Output rows show one Output position; source
 page numbers and differing PDF labels belong in details.
+
+List numbers do not repeat the visible name in a hover tooltip. The name's hover text explains selection. Grid and Page
+name tooltips wait 220 ms on pointer hover. Keyboard focus shows them immediately. Parameter information uses the same
+hover delay. Leaving, scrolling, or Escape cancels a pending opening.
 
 Keyboard focus draws one secondary contour around the complete row, including its number, name, and trailing controls.
 Individual row controls do not draw additional contours. Focus remains distinct from the primary selection surface. List
@@ -419,11 +427,13 @@ detail menu.
 Normal and Compact Grid show the name in a tooltip when the page number receives hover or keyboard focus. The tooltip
 uses one horizontal line outside the number cell and reserves no caption row. Anchor it to the number and flip it inside
 the viewport at its edges. Long names truncate at the viewport limit. Hidden names must not add horizontal scrolling.
-Page uses the same number tooltip and leaves its footer for navigation and page actions. List also uses number tooltips.
+Page uses the same number tooltip and leaves its footer for navigation and page actions. List shows the name inline.
 Clicking replaces the name tooltip with one detail panel directly below the number. A supplied name becomes its first
 row, separated from the details by a light divider. Prepare the panel before opening it so the transition has no empty
 frame. Missing names add no caption. Both themes, narrow panes, and enlarged text retain usable controls and complete
 PDF images. Normal Input footers retain their centered Add action when no pages are selected.
+
+Page names use all small caps in List, captions, details, previews, and drag strips. Keep their authored text unchanged.
 
 Review thumbnail sampling at the actual Normal and Compact image sizes. Fine guides must remain visible on guide-only
 pages while full and partial pattern pages remain distinguishable. Compare the cover, text, raster images, and authored
@@ -1050,7 +1060,7 @@ Tab, tab list, and tab panel follow the [W3C tabs terminology](https://www.w3.or
 | Tab                          | Sekme                                | One Grid, List, Page, Style, Keyboard, or Mouse choice.                        |
 | Tab panel                    | Sekme içerik paneli                  | The content area associated with the active tab.                               |
 | Active tab indicator         | Etkin sekme göstergesi               | The accent underline beneath the active tab.                                   |
-| Grid density control         | Izgara yoğunluğu denetimi            | The Normal and Compact buttons.                                                |
+| Grid density control         | Izgara yoğunluğu denetimi            | One button that switches directly between Normal and Compact.                  |
 | Export recipe button / panel | Recipe dışa aktarma düğmesi / paneli | The arrow-out-of-square icon and the panel for saving portable Recipe JSON.    |
 | View switcher                | Görünüm değiştirici                  | The mobile Input/Output switch. Its buttons expose their pressed state.        |
 | Modified indicator           | Değişiklik göstergesi                | The small dot on the Style tab that indicates overrides or drafts.             |
@@ -1244,13 +1254,13 @@ Slider track, thumb, and tick marks use standard slider terminology.
 
 #### Buttons and supporting text
 
-| English term       | Turkish equivalent     | UI element                                                                     |
-| ------------------ | ---------------------- | ------------------------------------------------------------------------------ |
-| Icon button        | İkon düğmesi           | A button with a visible icon instead of text.                                  |
-| Toggle button      | Durum düğmesi          | A button with a persistent pressed state, such as Compare or a density choice. |
-| Primary button     | Birincil işlem düğmesi | An emphasized action, such as Download or the main addition button.            |
-| Destructive button | Silme/kaldırma düğmesi | A button with danger colors for an action such as removal.                     |
-| Tooltip            | Araç ipucu             | A short explanation that appears after a pointer pause over an element.        |
+| English term       | Turkish equivalent     | UI element                                                              |
+| ------------------ | ---------------------- | ----------------------------------------------------------------------- |
+| Icon button        | İkon düğmesi           | A button with a visible icon instead of text.                           |
+| Toggle button      | Durum düğmesi          | A button with a persistent pressed state, such as Compare.              |
+| Primary button     | Birincil işlem düğmesi | An emphasized action, such as Download or the main addition button.     |
+| Destructive button | Silme/kaldırma düğmesi | A button with danger colors for an action such as removal.              |
+| Tooltip            | Araç ipucu             | A short explanation that appears after a pointer pause over an element. |
 
 ### Dialogs and guidance
 

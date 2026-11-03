@@ -1,7 +1,32 @@
 <!-- Offers a full-page hover preview and an explicit action to inspect the page. -->
 
+<script module lang="ts">
+  export class Peeks {
+    #close?: () => void
+    show(close: () => void) {
+      this.dismiss()
+      this.#close = close
+    }
+    dismiss(event?: KeyboardEvent) {
+      if (event && event.key !== "Escape") return false
+      const active = !!this.#close
+      this.#close?.()
+      this.#close = undefined
+      if (active && event?.key === "Escape") {
+        event.preventDefault()
+        event.stopPropagation()
+        return true
+      }
+      return false
+    }
+    release(close: () => void) {
+      if (this.#close === close) this.#close = undefined
+    }
+  }
+</script>
+
 <script lang="ts">
-  import { onDestroy } from "svelte"
+  import { onDestroy, untrack } from "svelte"
   import type { Snippet } from "svelte"
   import Icon from "./Icon.svelte"
   import type { Size } from "./model.ts"
@@ -13,7 +38,7 @@
     name,
     size,
     enabled = true,
-    opened = $bindable(),
+    owner,
     open,
     children,
   }: {
@@ -23,29 +48,40 @@
     name?: string
     size: Size
     enabled?: boolean
-    opened?: string
+    owner: Peeks
     open: (event: MouseEvent | KeyboardEvent) => void
     children: Snippet
   } = $props()
+  const registry = untrack(() => owner)
   let pending: ReturnType<typeof setTimeout> | undefined
+  let opened = $state(false)
+  let events: AbortController | undefined
   function close() {
     clearTimeout(pending)
-    if (opened === id) opened = undefined
+    pending = undefined
+    opened = false
+    events?.abort()
+    registry.release(close)
   }
   function show() {
-    clearTimeout(pending)
-    if (enabled)
+    close()
+    if (enabled) {
+      registry.show(close)
+      events = new AbortController()
+      document.addEventListener("scroll", close, { capture: true, signal: events.signal })
+      window.addEventListener("resize", close, { signal: events.signal })
       pending = setTimeout(() => {
-        if (enabled) opened = id
+        pending = undefined
+        if (enabled) opened = true
       }, 220)
+    }
   }
+  $effect(() => {
+    if (!enabled) close()
+  })
   function reveal(element: HTMLElement) {
     element.showPopover()
-    const events = new AbortController()
-    document.addEventListener("scroll", close, { capture: true, signal: events.signal })
-    window.addEventListener("resize", close, { signal: events.signal })
     return () => {
-      events.abort()
       if (element.isConnected && element.matches(":popover-open")) element.hidePopover()
     }
   }
@@ -56,7 +92,7 @@
   <button
     class="icon-button"
     aria-label={`View ${pane} page ${number}`}
-    aria-describedby={opened === id ? id : undefined}
+    aria-describedby={opened ? id : undefined}
     onpointerenter={(event) => {
       if (event.pointerType === "mouse" && matchMedia("(hover: hover) and (pointer: fine)").matches) show()
     }}
@@ -70,7 +106,7 @@
       open(event)
     }}><Icon name="eye" /></button
   >
-  {#if opened === id && enabled}
+  {#if opened && enabled}
     <div
       {id}
       class="page-peek"

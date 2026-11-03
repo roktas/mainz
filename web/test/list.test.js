@@ -2,9 +2,11 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
+import { mkdir, writeFile } from "node:fs/promises"
 import { chromium, webkit } from "playwright"
 import { serve } from "./server.ts"
 import { tab, fixture } from "./browser.js"
+import { gridDensity } from "./measure.js"
 
 test("List strips stay flat and follow their original grab point", { timeout: 30000 }, async () => {
   const server = await serve(),
@@ -66,6 +68,72 @@ test("List strips stay flat and follow their original grab point", { timeout: 30
     await page.mouse.up()
   } finally {
     await browser.close()
+  }
+})
+
+test("List aligns plain and actionable page numbers in shared columns", { timeout: 60000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    try {
+      const { page, input, output } = await lists(browser, server.resolvedUrls.local[0])
+      await output.getByLabel("Page selection", { exact: true }).fill("1")
+      await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
+      for (const width of [1440, 768, 390, 320]) {
+        await page.setViewportSize({ width, height: 1100 })
+        const switcher = page
+          .getByRole("navigation", { name: "Workspace view", exact: true })
+          .getByRole("button", { name: "Input", exact: true })
+        if (await switcher.isVisible()) await switcher.click()
+        for (const text of ["100%", "200%"]) {
+          await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+          for (const colorScheme of ["light", "dark"]) {
+            await page.emulateMedia({ colorScheme })
+            for (const selected of [false, true]) {
+              await input.getByLabel("Page selection", { exact: true }).fill(selected ? "1-4" : "")
+              const rows = await input.locator(".list-row").evaluateAll((elements) =>
+                elements.map((row) => {
+                  const number = row.querySelector(".list-number strong > span"),
+                    cell = row.querySelector(".list-number").getBoundingClientRect(),
+                    frame = row.getBoundingClientRect(),
+                    range = document.createRange()
+                  range.selectNodeContents(number)
+                  const glyph = range.getBoundingClientRect()
+                  range.selectNodeContents(row.querySelector(".list-choice"))
+                  const name = range.getBoundingClientRect()
+                  const icon = row.querySelector(".page-grip svg"),
+                    ink = icon.getBBox()
+                  const center = new DOMPoint(ink.x + ink.width / 2, ink.y + ink.height / 2).matrixTransform(
+                    icon.getScreenCTM(),
+                  )
+                  return {
+                    font: getComputedStyle(number).fontSize,
+                    x: glyph.x + glyph.width / 2 - cell.x - cell.width / 2,
+                    y: glyph.y + glyph.height / 2 - frame.y - frame.height / 2,
+                    name: name.x,
+                    grip: center.y - frame.y - frame.height / 2,
+                  }
+                }),
+              )
+              const label = JSON.stringify({ width, text, colorScheme, selected, rows })
+              assert.equal(new Set(rows.map((row) => row.font)).size, 1, label)
+              assert.ok(
+                rows.every(
+                  (row) =>
+                    Math.abs(row.x) < 1 &&
+                    Math.abs(row.y - rows[0].y) < 1 &&
+                    Math.abs(row.grip) < 1 &&
+                    Math.abs(row.name - rows[0].name) < 1,
+                ),
+                label,
+              )
+            }
+          }
+        }
+      }
+    } finally {
+      await browser.close()
+    }
   }
 })
 
@@ -147,7 +215,7 @@ test(
         })
         if (view !== "List") {
           await tab(output, "Grid")
-          await output.getByRole("button", { name: `${view} Output grid`, exact: true }).click()
+          await gridDensity(output, `${view} Output grid`)
         }
         const rows = output.locator(view !== "List" ? ".composition-card" : ".list-row"),
           selection = output.getByRole("textbox", { name: "Page selection", exact: true }),
@@ -449,7 +517,7 @@ test(
             [output, "Output"],
           ]) {
             await tab(pane, "Grid")
-            await pane.getByRole("button", { name: `Normal ${name} grid`, exact: true }).click()
+            await gridDensity(pane, `Normal ${name} grid`)
             await pane.getByRole("textbox", { name: "Page selection", exact: true }).focus()
             await page.mouse.move(0, 0)
             const card = pane.locator(".composition-card").nth(1),
@@ -588,6 +656,9 @@ test(
           await tab(pane, "List")
           const selection = pane.getByRole("textbox", { name: "Page selection", exact: true })
           await selection.fill("1,3")
+          await pane.locator(".page-list").focus()
+          await page.keyboard.press("End")
+          for (let index = 0; index < 13; index++) await page.keyboard.press("ArrowUp")
           await pane.getByRole("button", { name: `View ${name} page 47`, exact: true }).click()
           await pane.getByRole("button", { name: `Next ${name} page`, exact: true }).click()
           const listTab = pane.getByRole("tab", { name: "List", exact: true })
@@ -598,14 +669,41 @@ test(
           assert.equal(await listTab.evaluate((element) => element === document.activeElement), true)
           const bounds = await item.boundingBox(),
             area = await pane.locator(".page-list").boundingBox()
-          assert.ok(bounds.y >= area.y - 1 && bounds.y + bounds.height <= area.y + area.height + 1)
+          assert.ok(
+            bounds.y >= area.y - 1 && bounds.y + bounds.height <= area.y + area.height + 1,
+            JSON.stringify({ bounds, area }),
+          )
           assert.equal(await selection.inputValue(), "1,3")
           assert.equal(await page.locator(".page-peek:popover-open").count(), 0)
-          assert.match(await item.evaluate((element) => getComputedStyle(element).boxShadow), /inset/)
+          assert.equal(
+            await item.evaluate((element) => {
+              const reference = document.createElement("span")
+              reference.style.background = "var(--return-surface)"
+              element.append(reference)
+              const highlighted =
+                getComputedStyle(element).backgroundColor !== getComputedStyle(reference).backgroundColor
+              reference.remove()
+              return highlighted
+            }),
+            true,
+          )
           if (engine === webkit) assert.equal(await item.evaluate((element) => element.getAnimations().length), 0)
           else {
             await page.waitForFunction(() => document.querySelector("[data-returning]")?.getAnimations().length > 0)
-            assert.equal(await item.evaluate((element) => element.getAnimations()[0].effect.getTiming().duration), 2000)
+            assert.equal(await item.evaluate((element) => element.getAnimations()[0].effect.getTiming().duration), 1200)
+            assert.equal(
+              await item.evaluate((element) => {
+                element.getAnimations()[0].finish()
+                const reference = document.createElement("span")
+                reference.style.background = "var(--return-surface)"
+                element.append(reference)
+                const settled =
+                  getComputedStyle(element).backgroundColor === getComputedStyle(reference).backgroundColor
+                reference.remove()
+                return settled
+              }),
+              true,
+            )
           }
           await item.locator(":scope[data-returning]").waitFor({ state: "detached" })
           await row.focus()
@@ -620,7 +718,7 @@ test(
           assert.equal(await selection.inputValue(), "1,3")
           await tab(pane, "Grid")
           for (const density of ["Normal", "Compact"]) {
-            await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+            await gridDensity(pane, `${density} ${name} grid`)
             let card = pane.locator(`.page-image[data-page="${current}"]`)
             await card.click({ modifiers: ["Control"] })
             assert.equal(await selection.inputValue(), "1,3")
@@ -763,11 +861,10 @@ test(
       await page.locator('.composer[data-drag="output"]').waitFor()
       await page.mouse.move(area.x + area.width / 2, area.y + area.height - 8, { steps: 5 })
       await page.waitForFunction(() => document.querySelector(".composition-output .page-list").scrollTop > 100)
-      assert.deepEqual(await rows.evaluateAll((elements) => elements.map((element) => element.id)), before)
+      assert.ok((await rows.count()) < 50, "Auto-scroll keeps only the nearby row window mounted")
       await page.keyboard.press("Escape")
       await page.mouse.up()
       assert.equal(await selection.inputValue(), "1,3")
-      assert.deepEqual(await rows.evaluateAll((elements) => elements.map((element) => element.id)), before)
       await page.waitForFunction(() => {
         const value = document.querySelector(".composition-output .page-list").scrollTop
         if (window.stoppedListScroll === value) return true
@@ -778,6 +875,9 @@ test(
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
       assert.equal(await list.evaluate((element) => element.scrollTop), stopped)
       assert.equal(await page.locator(".drag-image, .composer[data-drag], .list-row[data-drop]").count(), 0)
+      await list.evaluate((element) => (element.scrollTop = 0))
+      await rows.first().locator('[data-page="0"]').waitFor()
+      assert.deepEqual(await rows.evaluateAll((elements) => elements.map((element) => element.id)), before)
     } finally {
       await browser.close()
     }
@@ -869,7 +969,7 @@ test(
         for (const pane of [input, output]) {
           for (const density of ["Normal", "Compact"]) {
             const title = pane === input ? "Input" : "Output"
-            await pane.getByRole("button", { name: `${density} ${title} grid`, exact: true }).click()
+            await gridDensity(pane, `${density} ${title} grid`)
             const row = pane.locator(".composition-card").nth(1),
               number = row.locator(".page-origin > button, .page-origin > summary")
             await number.hover()
@@ -1207,7 +1307,7 @@ test(
             .locator(".list-choice")
             .allTextContents()
             .then((names) => names.slice(0, 4).map((name) => name.trim())),
-          ["Cover", "Cover", "ITAL-CROS-79A4-WXGF", "ITAL-GUID-79A4-WXGX"],
+          ["COVER", "COVER", "ITAL-CROS-79A4-WXGF", "ITAL-GUID-79A4-WXGX"],
         )
         assert.equal(await preparation.inputValue(), "")
         await page.emulateMedia({ reducedMotion: "no-preference" })
@@ -1231,6 +1331,453 @@ test(
         await session?.detach()
         await page.close()
       }
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+async function blankList(browser, url, count, reducedMotion = "reduce") {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion })
+  page.setDefaultTimeout(10000)
+  await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+  await page.goto(url)
+  await page.locator('.landing-recipe input[type="file"]').setInputFiles({
+    name: "Blank pages.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        version: 1,
+        inputs: {},
+        sources: {},
+        parts: [
+          { pages: Array.from({ length: count / 1000 }, () => ({ blank: { width: 80, height: 100 } })), copies: 1000 },
+        ],
+      }),
+    ),
+  })
+  await page.getByRole("button", { name: "Apply recipe", exact: true }).click()
+  await page.locator('.composer[aria-busy="false"]').waitFor()
+  return { page, output: page.locator(".composition-output") }
+}
+
+test(
+  "List windows 1,000 and 10,000 occurrences through scrolling, ranges, Page returns, and deletion",
+  { timeout: 90000 },
+  async () => {
+    const server = await serve(),
+      browser = await chromium.launch(),
+      observations = []
+    try {
+      for (const count of [1000, 10000]) {
+        const { page, output } = await blankList(browser, server.resolvedUrls.local[0], count)
+        const session = await page.context().newCDPSession(page)
+        await session.send("Performance.enable")
+        await session.send("Emulation.setCPUThrottlingRate", { rate: 4 })
+        await page.evaluate(() => {
+          window.listTasks = []
+          window.listDelays = []
+          window.listObserver = new PerformanceObserver((entries) =>
+            window.listTasks.push(...entries.getEntries().map((entry) => entry.duration)),
+          )
+          window.listObserver.observe({ type: "longtask" })
+          let previous = performance.now()
+          window.listClock = setInterval(() => {
+            const now = performance.now()
+            window.listDelays.push(now - previous - 16)
+            previous = now
+          }, 16)
+          window.listStarted = performance.now()
+        })
+        const before = await session.send("Performance.getMetrics")
+        await tab(output, "List")
+        const list = output.locator(".page-list"),
+          rows = list.locator(".list-row")
+        await rows.first().waitFor()
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+        const after = await session.send("Performance.getMetrics")
+        const timing = await page.evaluate(() => {
+          clearInterval(window.listClock)
+          window.listObserver.disconnect()
+          return {
+            elapsed: performance.now() - window.listStarted,
+            longestTask: Math.max(0, ...window.listTasks),
+            eventLoopDelay: Math.max(0, ...window.listDelays),
+          }
+        })
+        const layouts =
+          after.metrics.find((metric) => metric.name === "LayoutCount").value -
+          before.metrics.find((metric) => metric.name === "LayoutCount").value
+        observations.push({ count, cpuThrottle: 4, mountedRows: await rows.count(), layouts, ...timing })
+        assert.ok((await rows.count()) < 80, "Only the viewport and its margin mount")
+        assert.ok(layouts < 30, "Entering List performs bounded layout work")
+        assert.ok(timing.longestTask < 1500 && timing.eventLoopDelay < 1500, JSON.stringify(timing))
+        await session.send("Emulation.setCPUThrottlingRate", { rate: 1 })
+        await list.focus()
+        await page.keyboard.press("End")
+        await output.locator(`.list-choice[data-page="${count - 1}"]`).waitFor()
+        assert.ok((await rows.count()) < 80)
+        await page.keyboard.press("Shift+Home")
+        assert.equal(await output.getByLabel("Page selection", { exact: true }).inputValue(), `1-${count}`)
+        await page.keyboard.press("Escape")
+        await list.focus()
+        await page.keyboard.press("End")
+        await output.getByRole("button", { name: `View Output page ${count}`, exact: true }).click()
+        await output.locator(".page-scroll").focus()
+        await page.keyboard.press("v")
+        assert.equal(
+          await output
+            .locator(`.list-choice[data-page="${count - 1}"]`)
+            .evaluate((element) => element === document.activeElement),
+          true,
+        )
+        await page.keyboard.press("Delete")
+        assert.equal(await output.locator(".composition-totals strong").textContent(), `${count} pages`)
+        await page.keyboard.press("-")
+        await output.locator(`.list-choice[data-page="${count - 2}"]`).waitFor()
+        assert.equal(await output.locator(".composition-totals strong").textContent(), `${count - 1} pages`)
+        assert.equal(
+          await output
+            .locator(`.list-choice[data-page="${count - 2}"]`)
+            .evaluate((element) => element === document.activeElement),
+          true,
+        )
+        await list.evaluate((element) => (element.scrollTop = 0))
+        await output.locator('.list-choice[data-page="0"]').waitFor()
+        assert.equal(
+          await list.evaluate((element) => element === document.activeElement),
+          true,
+          "Wheel-style scrolling retains the List keyboard owner",
+        )
+        await list.evaluate((element) => (element.scrollTop = element.scrollHeight))
+        await output.locator(`.list-choice[data-page="${count - 2}"]`).waitFor()
+        assert.ok((await rows.count()) < 80)
+        await session.detach()
+        await page.close()
+      }
+      await mkdir("../.local/var/performance/xray", { recursive: true })
+      await writeFile("../.local/var/performance/xray/list.json", JSON.stringify(observations, null, 2) + "\n")
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test(
+  "Bulk List feedback clears complete batches and permits immediate edits and motion interruption",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve(),
+      browser = await chromium.launch()
+    try {
+      const { page, output } = await blankList(browser, server.resolvedUrls.local[0], 1000, "no-preference")
+      await tab(output, "List")
+      const selection = output.getByLabel("Page selection", { exact: true })
+      await selection.fill("1-1000")
+      await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "2000 pages")
+      await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "3000 pages")
+      await page.emulateMedia({ reducedMotion: "reduce" })
+      await page.waitForFunction(() => !document.querySelector(".list-row[data-arriving]"))
+      await page.emulateMedia({ reducedMotion: "no-preference" })
+      await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "2000 pages")
+      await selection.fill("1-1000")
+      await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
+      await page.waitForFunction(() => !document.querySelector(".list-row[data-arriving]"))
+      await output.locator(".page-list").evaluate((element) => (element.scrollTop = 0))
+      await output.locator('.list-choice[data-page="0"]').waitFor()
+      assert.equal(await output.locator(".list-row[data-arriving]").count(), 0)
+      assert.ok((await output.locator(".list-row").count()) < 80)
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test("Escape and scrolling cancel pending List previews without changing selection", { timeout: 30000 }, async () => {
+  const server = await serve(),
+    browser = await chromium.launch()
+  try {
+    const { page, output } = await lists(browser, server.resolvedUrls.local[0])
+    const selection = output.getByLabel("Page selection", { exact: true })
+    await selection.fill("1,3")
+    await page.clock.install()
+    const view = output.getByRole("button", { name: "View Output page 2", exact: true })
+    await view.hover()
+    await page.keyboard.press("Escape")
+    await page.clock.runFor(250)
+    assert.equal(await page.locator(".page-peek").count(), 0)
+    assert.equal(await selection.inputValue(), "1,3")
+    await page.mouse.move(0, 0)
+    await view.hover()
+    await output.locator(".page-list").dispatchEvent("scroll")
+    await page.clock.runFor(250)
+    assert.equal(await page.locator(".page-peek").count(), 0)
+    assert.equal(await selection.inputValue(), "1,3")
+    await page.mouse.move(0, 0)
+    await view.hover()
+    const dataTransfer = await page.evaluateHandle(() => new DataTransfer())
+    await output
+      .getByRole("button", { name: "Select or drag Output page 2", exact: true })
+      .dispatchEvent("dragstart", { dataTransfer })
+    await page.clock.runFor(250)
+    assert.equal(await page.locator(".page-peek").count(), 0)
+    assert.equal(await selection.inputValue(), "1,3")
+    await page.keyboard.press("Escape")
+    await dataTransfer.dispose()
+  } finally {
+    await browser.close()
+  }
+})
+
+test(
+  "Input List windows wrapped page names and keeps the inspected row visible after resizing",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve(),
+      browser = await chromium.launch()
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+      page.setDefaultTimeout(10000)
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(server.resolvedUrls.local[0])
+      await page
+        .locator('input[type="file"]')
+        .first()
+        .setInputFiles({
+          name: "Named pages.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture({
+            prepared: false,
+            count: 1000,
+            metadata: Array.from({ length: 1000 }, (_, index) => ({
+              name:
+                index % 2
+                  ? `Page ${index + 1}`
+                  : `Page ${index + 1}: ` + "A long authored page name with several wrapped lines. ".repeat(4),
+            })),
+          }),
+        })
+      await page.locator('.composer[aria-busy="false"]').waitFor()
+      const input = page.locator(".selection-panel")
+      await tab(input, "List")
+      const list = input.locator(".page-list")
+      await input.getByLabel("Page selection", { exact: true }).fill("")
+      await list.focus()
+      await page.keyboard.press("End")
+      await input.locator('.list-choice[data-page="999"]').waitFor()
+      await page.keyboard.press("Shift+Home")
+      assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "1-1000")
+      assert.ok((await input.locator(".list-row").count()) < 80)
+      const grip = input.getByRole("button", { name: "Select or drag Input page 1 to Output", exact: true })
+      const from = await grip.boundingBox()
+      await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(from.x + from.width + 12, from.y + from.height / 2, { steps: 3 })
+      await page.locator('.composer[data-drag="source"]').waitFor()
+      await list.evaluate((element) => (element.scrollTop = 500 * 45))
+      await page.waitForFunction(() =>
+        [...document.querySelectorAll(".selection-panel .list-choice")].some((row) => Number(row.dataset.page) > 100),
+      )
+      assert.equal(await grip.count(), 1, "The Input drag source survives scrolling out of its window")
+      await page.keyboard.press("Escape")
+      await page.mouse.up()
+      assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "1-1000")
+      for (const [width, textSize, colorScheme] of [
+        [1440, "100%", "light"],
+        [1440, "100%", "dark"],
+        [390, "200%", "light"],
+        [390, "200%", "dark"],
+      ]) {
+        await page.setViewportSize({ width, height: 1100 })
+        await page.evaluate((value) => (document.documentElement.style.fontSize = value), textSize)
+        await page.emulateMedia({ colorScheme })
+        await list.focus()
+        await page.keyboard.press("End")
+        await page.keyboard.press("Home")
+        await input.locator('.list-choice[data-page="0"]').waitFor()
+        const rows = await input.locator(".list-row").evaluateAll((elements) =>
+          elements.slice(0, 4).map((row) => {
+            const bounds = row.getBoundingClientRect(),
+              icon = row.querySelector(".page-grip svg"),
+              glyph = icon.getBBox()
+            const center = new DOMPoint(glyph.x + glyph.width / 2, glyph.y + glyph.height / 2).matrixTransform(
+              icon.getScreenCTM(),
+            )
+            return { y: bounds.y, height: bounds.height, iconOffset: center.y - bounds.y - bounds.height / 2 }
+          }),
+        )
+        assert.ok(
+          rows.every((row) => Math.abs(row.iconOffset) < 1),
+          JSON.stringify(rows),
+        )
+        if (width === 1440) assert.ok(rows[0].height > rows[1].height, "Wide names retain their wrapping")
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+        await mkdir("../.local/tmp/web/xray", { recursive: true })
+        await list.screenshot({ path: `../.local/tmp/web/xray/input-${width}-${colorScheme}.png` })
+      }
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test(
+  "Input List switching reveals the inspected row when equal page counts keep the same cursor",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    for (const engine of [chromium, webkit]) {
+      const browser = await engine.launch()
+      try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+        page.setDefaultTimeout(10000)
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        const input = page.locator(".selection-panel")
+        for (const name of ["Wrapped.pdf", "Short.pdf"]) {
+          await page
+            .locator('input[type="file"]')
+            .first()
+            .setInputFiles({
+              name,
+              mimeType: "application/pdf",
+              buffer: fixture({
+                prepared: false,
+                count: 1000,
+                metadata: Array.from({ length: 1000 }, () => ({
+                  name: name === "Wrapped.pdf" ? "A wrapped page name with many words. ".repeat(8) : "Short name",
+                })),
+              }),
+            })
+          await input.locator(".input-current").filter({ hasText: name }).waitFor()
+          await page.locator('.composer[aria-busy="false"]').waitFor()
+          await tab(input, "List")
+          await input.getByLabel("Page selection", { exact: true }).fill("2,4")
+        }
+        const list = input.locator(".page-list")
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+        await list.evaluate((element) => (element.scrollTop = 22000))
+        await page.waitForFunction(
+          () => Number(document.querySelector(".selection-panel .list-choice")?.dataset.page) > 100,
+        )
+        for (const name of ["Wrapped.pdf", "Short.pdf"]) {
+          await input.locator(".input-picker > summary").click()
+          await input.locator(".input-choice button").filter({ hasText: name }).click()
+          const first = input.locator('.list-choice[data-page="0"]')
+          await first.waitFor()
+          const row = await first.boundingBox(),
+            area = await list.boundingBox()
+          assert.ok(row.y >= area.y - 1 && row.y + row.height <= area.y + area.height + 1)
+          assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "2,4")
+          assert.equal(
+            await input.locator(".input-picker > summary").evaluate((element) => element === document.activeElement),
+            true,
+          )
+          assert.ok((await input.locator(".list-row").count()) < 80)
+        }
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
+
+test("Unmounted List details release preview ownership without clearing selection", { timeout: 60000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    try {
+      const { page, output } = await blankList(browser, server.resolvedUrls.local[0], 1000)
+      await tab(output, "List")
+      const selection = output.getByLabel("Page selection", { exact: true })
+      await selection.fill("1,3")
+      await output.getByRole("button", { name: "Details for Output page 1", exact: true }).click()
+      await output.locator(".page-origin [popover]:popover-open").waitFor()
+      const list = output.locator(".page-list")
+      await list.evaluate((element) => (element.scrollTop = 22000))
+      await output
+        .getByRole("button", { name: "Details for Output page 1", exact: true })
+        .waitFor({ state: "detached" })
+      const index = await list.evaluate((element) => {
+        const frame = element.getBoundingClientRect()
+        return Number(
+          [...element.querySelectorAll(".list-choice")].find((row) => {
+            const bounds = row.getBoundingClientRect()
+            return bounds.top >= frame.top && bounds.bottom <= frame.bottom
+          }).dataset.page,
+        )
+      })
+      await output.getByRole("button", { name: `View Output page ${index + 1}`, exact: true }).hover()
+      await page.locator(".page-peek:popover-open").waitFor()
+      await page.keyboard.press("Escape")
+      assert.equal(await page.locator(".page-peek").count(), 0)
+      assert.equal(await selection.inputValue(), "1,3")
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
+test(
+  "Large List drags retain their source across windows and drop at physical occurrence positions",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve(),
+      browser = await chromium.launch()
+    try {
+      const { page, output } = await blankList(browser, server.resolvedUrls.local[0], 10000)
+      await tab(output, "List")
+      await output.getByLabel("Page selection", { exact: true }).fill("1-1000")
+      const list = output.locator(".page-list"),
+        grip = output.getByRole("button", { name: "Select or drag Output page 1", exact: true })
+      const original = await grip.locator("..").getAttribute("id"),
+        box = await grip.boundingBox(),
+        area = await list.boundingBox()
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(box.x + box.width + 12, box.y + box.height / 2, { steps: 3 })
+      await page.locator('.composer[data-drag="output"]').waitFor()
+      await list.evaluate((element) => (element.scrollTop = 5000 * 45))
+      await page.mouse.move(area.x + area.width / 2, area.y + area.height - 8, { steps: 3 })
+      await page.waitForFunction(
+        () => document.querySelector(".composition-output .page-list").scrollTop > 5000 * 45 + 200,
+      )
+      assert.equal(await page.locator(`[id="${original}"]`).count(), 1, "Native drag source remains mounted")
+      assert.ok(
+        (await list.locator(".list-row").count()) < 80,
+        "Skipped selected rows do not expand the mounted window",
+      )
+      await page.mouse.move(area.x + area.width / 2, area.y + area.height / 2, { steps: 3 })
+      await page.mouse.move(area.x + area.width / 2, area.y + area.height / 2)
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+      const destination = await list.evaluate((element) => {
+        const frame = element.getBoundingClientRect()
+        const row = [...element.querySelectorAll(".list-row:not([data-dragging])")].find((item) => {
+          const bounds = item.getBoundingClientRect()
+          return bounds.y > frame.y + frame.height * 0.4 && bounds.bottom < frame.bottom
+        })
+        const bounds = row.querySelector(".list-choice").getBoundingClientRect()
+        return {
+          id: row.id,
+          index: Number(row.dataset.index),
+          x: bounds.x + bounds.width / 2,
+          y: bounds.y + bounds.height * 0.85,
+        }
+      })
+      await page.mouse.move(destination.x, destination.y, { steps: 5 })
+      await page.mouse.move(destination.x, destination.y)
+      await page.locator(`[id="${destination.id}"][data-drop="after"]`).waitFor()
+      await page.mouse.up()
+      await page.waitForFunction((id) => !document.getElementById(id)?.hasAttribute("data-dragging"), original)
+      const moved = page.locator(`[id="${original}"]`)
+      assert.equal(await moved.getAttribute("data-index"), String(destination.index - 999))
+      assert.equal(await moved.getAttribute("aria-posinset"), String(destination.index - 998))
+      assert.equal(await moved.getAttribute("aria-setsize"), "10000")
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "10000 pages")
+      assert.ok((await list.locator(".list-row").count()) < 80)
     } finally {
       await browser.close()
     }

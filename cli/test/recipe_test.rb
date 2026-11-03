@@ -3,6 +3,7 @@
 require "minitest/autorun"
 require "base64"
 require "zlib"
+require "timeout"
 
 load(File.expand_path("../../Rakefile", __dir__)) unless defined?(Mainz::ROOT)
 
@@ -177,15 +178,22 @@ module Mainz
     end
 
     def test_filename_lookup_is_bounded_and_explicit_bindings_accept_opaque_ids
-      ["/book", "../book", "folder/../book", "folder//book", "C:book", "book\\other"].each do |id|
+      @directory.join("folder").mkpath
+      ["..pdf", "...pdf", "folder/.pdf"].each { |name| FileUtils.cp(@source, @directory.join(name)) }
+      [".", "..", "folder/", "/book", "../book", "folder/../book", "folder//book", "C:book", "book\\other"].each do |id|
         recipe = record
         recipe["inputs"] = {id => {}}
         recipe["sources"]["source"]["input"] = id
-        failure = command("apply", write("recipe.json", recipe), "--root", @directory, "--output", @output, status: 2)
-        assert_includes(failure.stderr, "--inputs")
+        path = write("recipe.json", recipe)
         bindings = write("bindings.json", {id => @source.to_s})
-        command("apply", write("recipe.json", recipe), "--inputs", bindings, "--output", @output)
-        @output.delete
+        %w[apply resolve].each do |operation|
+          options = operation == "apply" ? ["--output", @output] : []
+          failure = command(operation, path, "--root", @directory, *options, status: 2)
+          assert_includes(failure.stderr, "--inputs")
+          assert_empty(failure.stdout)
+          command(operation, path, "--inputs", bindings, *options)
+          @output.delete if @output.exist?
+        end
       end
 
       link = @directory.join("link.pdf")
@@ -204,6 +212,44 @@ module Mainz
       recipe["sources"]["source"]["input"] = "linked/book"
       command("apply", write("recipe.json", recipe), "--root", @directory, "--output", @output, status: 2)
       refute_path_exists(@output)
+    end
+
+    def test_cancellation_during_recipe_binding_preserves_files
+      source = @source.binread
+      %w[apply resolve].each do |operation|
+        %w[INT TERM].each do |signal|
+          reader, writer = IO.pipe
+          path = write("recipe.json", record)
+          bindings = write("bindings.json", {"book" => "/dev/fd/3"})
+          @output.binwrite("protected")
+          options = operation == "apply" ? ["--output", @output.to_s] : []
+          Open3.popen3(@cli, operation, path.to_s, "--inputs", bindings.to_s, *options, 3 => reader) do |stdin, stdout, stderr, process|
+            begin
+              Timeout.timeout(10) do
+                stdin.close
+                reader.close
+                writer.write(" " * (2 * 1024 * 1024))
+                writer.flush
+                Process.kill(signal, process.pid)
+                writer.close
+                assert_empty(stdout.read)
+                assert_includes(stderr.read, "Operation cancelled")
+                assert_equal(130, process.value.exitstatus)
+              end
+            ensure
+              writer.close unless writer.closed?
+              reader.close unless reader.closed?
+              if process.alive?
+                Process.kill("KILL", process.pid)
+                process.join
+              end
+            end
+          end
+          assert_equal("protected", @output.binread)
+          assert_equal(source, @source.binread)
+          assert_empty(@directory.glob(".mainz-*"))
+        end
+      end
     end
 
     def test_explicit_bindings_require_exact_recipe_inputs

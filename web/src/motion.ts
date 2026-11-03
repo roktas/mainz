@@ -1,11 +1,95 @@
 // Animates page edits with visible snapshots and reduced motion support.
 
-import { tick } from "svelte"
+import { onDestroy, tick } from "svelte"
+import { SvelteSet } from "svelte/reactivity"
+import { scale as scaleOut, slide } from "svelte/transition"
+import { quadIn, quadOut } from "svelte/easing"
 import type { Size } from "./model.ts"
+import type { Edit } from "./output.svelte.ts"
 
 const additionDuration = 600
-export const removalDuration = 300
+const removalDuration = 300
 const moveDuration = 500
+
+export class Edits {
+  readonly pending = new SvelteSet<string>()
+  readonly arriving = new SvelteSet<string>()
+  readonly removing = new SvelteSet<string>()
+  readonly page = new SvelteSet<string>()
+  addition?: () => void
+  removal?: () => void
+  move?: () => void
+  #motion = matchMedia("(prefers-reduced-motion: no-preference)")
+  #transitions = new WeakMap<Element, ReturnType<typeof scaleOut>>()
+  #arrivals?: ReturnType<typeof setTimeout>
+  #generation = 0
+  #key: string
+  #panel() {
+    return document.getElementById(`${this.#key}-output-panel`)
+  }
+
+  constructor(key: string) {
+    this.#key = key
+    const change = () => {
+      if (this.#motion.matches) return
+      this.stop()
+      for (const card of this.#panel()?.querySelectorAll(".composition-card, .list-row") ?? [])
+        for (const animation of card.getAnimations()) animation.finish()
+    }
+    this.#motion.addEventListener("change", change)
+    onDestroy(() => {
+      this.#motion.removeEventListener("change", change)
+      this.stop()
+    })
+  }
+  stop() {
+    this.#generation++
+    clearTimeout(this.#arrivals)
+    this.arriving.clear()
+    this.removing.clear()
+    this.page.clear()
+    this.addition?.()
+    this.pending.clear()
+    this.removal?.()
+    this.move?.()
+    this.addition = this.removal = this.move = undefined
+    // Outgoing cards must leave before another edit or transfer uses their slots.
+    for (const card of this.#panel()?.querySelectorAll<HTMLElement>(".composition-card.removing, .list-row.removing") ??
+      []) {
+      for (const animation of card.getAnimations()) animation.finish()
+      card.style.display = "none"
+    }
+  }
+  prepare(edit: Edit, tab: "grid" | "list" | "page") {
+    for (const id of edit.removed) this.removing.add(id)
+    this.#transitions = new WeakMap()
+    if (!this.#motion.matches) return
+    if (tab === "list") {
+      for (const id of edit.added) this.arriving.add(id)
+      const generation = this.#generation
+      void tick().then(() => {
+        if (generation !== this.#generation) return
+        this.#arrivals = setTimeout(() => this.arriving.clear(), 240)
+      })
+    }
+    // Read all outgoing styles before Svelte changes individual cards.
+    for (const id of edit.removed) {
+      const card = document.getElementById(`${this.#key}-${id}`)
+      if (card)
+        this.#transitions.set(
+          card,
+          card.classList.contains("list-row")
+            ? slide(card, { duration: 220, easing: quadOut })
+            : scaleOut(card, { duration: removalDuration, start: 0.86, easing: quadIn }),
+        )
+    }
+  }
+  transition(node: Element, id: string) {
+    return this.#motion.matches && this.removing.has(id)
+      ? (this.#transitions.get(node) ?? { duration: 0 })
+      : { duration: 0 }
+  }
+}
 
 function visibleBounds(sheet: HTMLElement) {
   const bounds = sheet.getBoundingClientRect()

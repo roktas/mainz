@@ -12,6 +12,7 @@ namespace mainz {
 namespace detail {
     class Engine;
     struct Index;
+    struct Previews;
 }
 inline constexpr std::size_t pdf_limit = std::size_t {128} * 1024 * 1024;
 inline constexpr std::size_t pipeline_limit = std::size_t {512} * 1024 * 1024;
@@ -53,12 +54,13 @@ private:
     friend class detail::Engine;
     enum class Change : unsigned char { style, reset, reset_all };
     Document(std::string bytes, std::string description, bool manifest, bool prepared,
-        std::shared_ptr<const detail::Index> index);
+        std::shared_ptr<const detail::Index> index, std::shared_ptr<const detail::Previews> previews);
     Document change(const std::string& request, Change, const std::string& reset = "[]") const;
     std::string bytes;
     std::string description;
     bool has_contract, has_paint;
     std::shared_ptr<const detail::Index> index;
+    std::shared_ptr<const detail::Previews> previews;
 };
 
 struct Artifact {

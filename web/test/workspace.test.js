@@ -4,10 +4,47 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { mkdir, readFile } from "node:fs/promises"
-import { measure } from "./measure.js"
+import { measure, gridDensity } from "./measure.js"
 import { chromium, webkit } from "playwright"
 import { checkWorkspace } from "./workspace.js"
 import { tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
+
+test("Parameter hover waits, cancels on leaving or Escape, and keeps click immediate", { timeout: 30000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo&paint`)
+      await page.locator('.composer[aria-busy="false"]').waitFor()
+      const details = page.locator(".control .details.compact").first(),
+        summary = details.locator("summary")
+      await page.clock.install()
+      await summary.hover()
+      await page.clock.runFor(150)
+      assert.equal(await details.evaluate((element) => element.open), false)
+      await page.mouse.move(0, 0)
+      await page.clock.runFor(300)
+      assert.equal(await details.evaluate((element) => element.open), false)
+      await summary.hover()
+      await page.keyboard.press("Escape")
+      await page.clock.runFor(300)
+      assert.equal(await details.evaluate((element) => element.open), false)
+      await page.mouse.move(0, 0)
+      await summary.hover()
+      await page.clock.runFor(220)
+      assert.equal(await details.evaluate((element) => element.open), true)
+      await summary.click()
+      await page.mouse.move(0, 0)
+      assert.equal(await details.evaluate((element) => element.open), true)
+      await summary.click()
+      assert.equal(await details.evaluate((element) => element.open), false)
+    } finally {
+      await browser.close()
+    }
+  }
+})
 
 test("Profile options require compatible peers and consider future profile choices", { timeout: 60000 }, async () => {
   const server = await serve()
@@ -669,8 +706,8 @@ test("Profile details stay readable and aligned across layouts", { timeout: 1800
       const information = input.getByRole("button", { name: "Details for Filled", exact: true })
       for (const density of ["Normal", "Compact"]) {
         await tab(input, "Grid")
-        await input.getByRole("button", { name: `${density} Input grid`, exact: true }).click()
-        await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+        await gridDensity(input, `${density} Input grid`)
+        await gridDensity(output, `${density} Output grid`)
         await tab(input, "Style")
         for (const [width, height] of [
           [320, 568],

@@ -68,7 +68,6 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
     auto prepare = [&] {
         std::map<std::string, PlanSource> sources;
         std::set<std::string> used_inputs;
-        std::size_t source_bytes {0};
         for (const auto& [id, definition] : definitions) {
             auto location = "/sources/" + pointer(id);
             auto input = request_at(location, [&] {
@@ -127,9 +126,6 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
                 // Validate the completed composition once, after every Source has been assembled.
                 original.update(next);
             }
-            auto size = inputs.at(input).bytes.size();
-            require(size <= pdf_limit - source_bytes, "Processed Sources exceed 128 MiB.", "limit-exceeded");
-            source_bytes += size;
             QPDFPageDocumentHelper(source.engine->document).pushInheritedAttributesToPage();
             for (auto item : source.engine->document.getAllObjects()) {
                 require(++budget.visits <= 65536, "Plan traversal exceeds 65536 visits.", "limit-exceeded");
@@ -529,7 +525,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             = encode(dictionary({{"version", JSON::makeInt(1)}, {"pages", provenance}, {"parameters", parameter_map}}),
                 json_limit, budget.remaining);
         return Artifact {Document(std::move(saved.bytes), std::move(description), !object(reopened.manifest).empty(),
-                             reopened.prepared(), reopened.take_index()),
+                             reopened.prepared(), reopened.take_index(), reopened.take_previews()),
             std::move(mapping)};
     };
     return assemble();

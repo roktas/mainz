@@ -29,6 +29,8 @@ const idle = new Set<Processor>()
 export class Processor {
   private worker?: Worker
   private buffer?: string
+  private previewInput?: Uint8Array
+  private identity = 0
   private active?: {
     revision: number
     buffer?: string
@@ -76,15 +78,19 @@ export class Processor {
 
   preview(bytes: Uint8Array, page: number): Promise<ArrayBuffer> {
     if (this.active) return Promise.reject(new Error("A processing operation is already active."))
-    const input = bytes.slice().buffer
-    return this.send({ preview: { bytes: input, page } }, 0, [input]).then((result) => {
+    const reused = this.previewInput === bytes
+    const input = reused ? new ArrayBuffer(0) : bytes.slice().buffer
+    if (!reused) this.identity++
+    return this.send({ preview: { input: this.identity, bytes: input, page } }, 0, [input]).then((result) => {
       if (!("image" in result)) throw new Error("The processor returned no preview result.")
+      this.previewInput = bytes
       return result.image
     })
   }
 
   private send(operation: Operation, revision: number, transfers: ArrayBuffer[], buffer?: string): Promise<Success> {
     idle.delete(this)
+    if (!("preview" in operation)) this.previewInput = undefined
     if (!this.worker) {
       this.worker = new Worker(new URL("./processor.worker.ts", import.meta.url), {
         type: "module",
@@ -96,6 +102,7 @@ export class Processor {
         this.active = undefined
         if ("failure" in reply) {
           this.buffer = undefined
+          this.previewInput = undefined
           active.reject(new OperationError(reply.failure))
         } else {
           this.buffer = active.buffer
@@ -133,6 +140,7 @@ export class Processor {
   private stop(error: Error) {
     idle.delete(this)
     this.buffer = undefined
+    this.previewInput = undefined
     this.worker?.terminate()
     this.worker = undefined
     const active = this.active

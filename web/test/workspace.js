@@ -166,8 +166,8 @@ export async function checkWorkspace(page, prepared, ordinary) {
         `Tour ${key} honors reduced motion`,
       )
     if (key.endsWith("-density")) {
-      assert.ok(await target.getByRole("button", { name: /^Normal / }).isVisible(), "Tour reveals Normal density")
-      assert.ok(await target.getByRole("button", { name: /^Compact / }).isVisible(), "Tour reveals Compact density")
+      assert.ok(await target.evaluate((element) => element.matches("button")), "Tour reveals the density button")
+      assert.match(await target.getAttribute("aria-label"), /^Switch to (Normal|Compact) (Input|Output) grid$/)
     }
     if (key === "output-selection") {
       const unselected =

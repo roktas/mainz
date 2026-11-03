@@ -168,6 +168,7 @@ Engine::Engine(const std::string& input, Budget* shared_budget, bool validated, 
     pages = QPDFPageDocumentHelper(document).getAllPages();
     require(!pages.empty(), "PDF has no pages.", "pdf-syntax");
     require(pages.size() <= page_limit, "Pages exceed 10000.", "limit-exceeded");
+    previews.pages.resize(pages.size());
     std::set<QPDFObjGen> nodes;
     std::set<std::string> names;
     std::vector<Object> found;

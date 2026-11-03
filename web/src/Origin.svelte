@@ -1,7 +1,7 @@
 <!-- Presents page identity with card disclosures and anchored List or Compact menus. -->
 
 <script lang="ts">
-  import { flushSync } from "svelte"
+  import { flushSync, onDestroy } from "svelte"
   import type { Snippet } from "svelte"
 
   let {
@@ -25,6 +25,9 @@
     details?: Snippet
     children: Snippet
   } = $props()
+  onDestroy(() => {
+    if (opened === id) opened = undefined
+  })
 </script>
 
 {#snippet identity()}
@@ -32,7 +35,7 @@
   {#if label && label !== String(number)}<span class="page-context">{label}</span>{/if}
 {/snippet}
 {#snippet caption()}
-  {#if name && opened !== id}<p class="page-name">{name}</p>{/if}
+  {#if mode !== "list" && name && opened !== id}<p class="page-name">{name}</p>{/if}
 {/snippet}
 
 {#if mode === "compact" || (mode === "list" && details)}

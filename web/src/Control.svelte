@@ -1,6 +1,7 @@
 <!-- Edits one Style parameter with its baseline, constraints, and reset. -->
 
 <script lang="ts">
+  import { onDestroy } from "svelte"
   import { current, feedback, step } from "./styles.ts"
   import type { Entry } from "./styles.ts"
   import Icon from "./Icon.svelte"
@@ -27,6 +28,7 @@
   } = $props()
   const key = $props.id()
   let hovering = $state(false)
+  let opening = $state<ReturnType<typeof setTimeout>>()
   let pinned = $state(false)
   let editing = $state<string>()
   let details = $state<HTMLDetailsElement>(null!)
@@ -73,19 +75,33 @@
       .filter(Boolean)
       .join(" "),
   )
+  function leave() {
+    clearTimeout(opening)
+    opening = undefined
+    hovering = false
+  }
+  onDestroy(() => clearTimeout(opening))
 </script>
 
 <svelte:window
   onkeydown={(event) => {
     if (event.key === "Escape") {
       pinned = false
-      hovering = false
+      leave()
     }
   }}
+  onscrollcapture={(event) => {
+    if (!details?.contains(event.target as Node)) leave()
+  }}
+  onresize={leave}
+  onblur={leave}
 />
 <svelte:document
   onpointerdown={(event) => {
-    if (!details?.contains(event.target as Node)) pinned = false
+    if (!details?.contains(event.target as Node)) {
+      pinned = false
+      leave()
+    }
   }}
 />
 
@@ -96,16 +112,28 @@
     class="details compact"
     bind:this={details}
     open={hovering || pinned}
+    data-hover-pending={opening !== undefined || undefined}
     onpointerenter={(event) => {
-      if (event.pointerType === "mouse") hovering = true
+      if (
+        event.pointerType !== "mouse" ||
+        !matchMedia("(hover: hover) and (pointer: fine)").matches ||
+        pinned ||
+        hovering ||
+        opening !== undefined
+      )
+        return
+      opening = setTimeout(() => {
+        opening = undefined
+        hovering = true
+      }, 220)
     }}
-    onpointerleave={() => (hovering = false)}
+    onpointerleave={leave}
     onkeydown={(event) => {
-      if (event.key !== "Escape" || !(hovering || pinned)) return
+      if (event.key !== "Escape" || !(hovering || pinned || opening !== undefined)) return
       event.preventDefault()
       event.stopPropagation()
       pinned = false
-      hovering = false
+      leave()
       details.querySelector("summary")?.focus({ preventScroll: true })
     }}
   >
@@ -115,7 +143,7 @@
       onclick={(event) => {
         event.preventDefault()
         pinned = !pinned
-        hovering = false
+        leave()
       }}><Icon name="info" /></summary
     >
     <!-- Keyboard users need focus here to scroll long authored details. -->

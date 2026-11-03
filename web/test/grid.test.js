@@ -5,7 +5,7 @@ import test from "node:test"
 import { serve } from "./server.ts"
 import { chromium, webkit } from "playwright"
 import { fixture, captureLayout, tab, checkStatus, checkPagination } from "./browser.js"
-import { measure } from "./measure.js"
+import { measure, gridDensity } from "./measure.js"
 import inventory from "./viewports.json" with { type: "json" }
 import { bounds as gridBounds, quality } from "./quality.ts"
 
@@ -99,11 +99,11 @@ test("List row actions preserve selection and move individual occurrences", { ti
       assert.equal(await selection.inputValue(), "4")
       await add.click()
       assert.equal(await selection.inputValue(), "4", "Adding one row retains the other selected pages")
-      assert.equal(await output.locator(".page-list > li").count(), 9)
+      assert.equal(await output.locator(".page-list > .list-row").count(), 9)
       const outputSelection = output.getByRole("textbox", { name: "Page selection", exact: true })
       await outputSelection.fill("")
 
-      const rows = output.locator(".page-list > li")
+      const rows = output.locator(".page-list > .list-row")
       assert.equal(
         await rows
           .first()
@@ -226,7 +226,7 @@ test("List details stay anchored and row highlights remain flat", { timeout: 900
               assert.equal(await choice.evaluate((element) => getComputedStyle(element).boxShadow), "none")
               assert.equal(
                 await pane
-                  .locator(".page-list > li")
+                  .locator(".page-list > .list-row")
                   .first()
                   .evaluate((element) => getComputedStyle(element).boxShadow),
                 "none",
@@ -261,7 +261,7 @@ test("List details stay anchored and row highlights remain flat", { timeout: 900
             const panel = await details.boundingBox(),
               trigger = await number.boundingBox()
             assert.ok(panel.width < 400 && panel.x >= 0 && panel.x + panel.width <= width + 1)
-            assert.equal(await details.locator(".detail-name").innerText(), "Cover")
+            assert.equal(await details.locator(".detail-name").innerText(), "COVER")
             assert.ok(
               Math.min(Math.abs(panel.y - trigger.y - trigger.height), Math.abs(trigger.y - panel.y - panel.height)) <
                 40,
@@ -354,7 +354,7 @@ test(
       await visibility.locator("summary").click()
       await input.getByRole("button", { name: "All pages", exact: true }).click()
       await page.keyboard.press("Escape")
-      assert.equal(await input.locator(".page-list > li").count(), 6)
+      assert.equal(await input.locator(".page-list > .list-row").count(), 6)
       await input.locator('.list-choice[data-page="1"]').focus()
       await page.keyboard.press("v")
       assert.equal(await input.locator(".inspection-heading .page-name").textContent(), "Details")
@@ -366,7 +366,7 @@ test(
       await page.keyboard.press("Escape")
       assert.equal(await input.locator('.page-image[data-page="1"]').count(), 0)
       await tab(output, "List")
-      assert.equal(await output.locator(".page-list > li").count(), 6)
+      assert.equal(await output.locator(".page-list > .list-row").count(), 6)
       await tab(input, "List")
       await input.locator('.list-choice[data-page="2"]').focus()
       await page.keyboard.press("ArrowDown")
@@ -466,7 +466,7 @@ test("Metadata-only Inputs keep hidden pages accessible without Style controls",
     await tab(input, "List")
     assert.match(await input.locator(".composition-empty").innerText(), /No pages at this visibility/)
     await input.getByRole("button", { name: "All pages", exact: true }).tap()
-    assert.equal(await input.locator(".page-list > li").count(), 2)
+    assert.equal(await input.locator(".page-list > .list-row").count(), 2)
     await input.locator('.list-choice[data-page="1"]').focus()
     await page.keyboard.press("v")
     assert.equal(await input.locator(".inspection-heading .page-name").textContent(), "Reference")
@@ -500,7 +500,7 @@ test("Grid headers reveal page names without changing card geometry", { timeout:
         for (const name of ["Input", "Output"]) {
           const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
           for (const density of ["Normal", "Compact"]) {
-            await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+            await gridDensity(pane, `${density} ${name} grid`)
             await page.mouse.move(1, 1)
             const card = pane.locator(".composition-card").nth(1),
               heading = card.locator(".page-label > .page-origin, .page-label > .page-number"),
@@ -524,7 +524,7 @@ test("Grid headers reveal page names without changing card geometry", { timeout:
       }
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
-      await input.getByRole("button", { name: "Normal Input grid", exact: true }).click()
+      await gridDensity(input, "Normal Input grid")
       await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("")
       await input
         .locator(".input-footer")
@@ -552,7 +552,8 @@ test("List bounds long sequences and restores the surviving Output row", { timeo
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     await tab(input, "List")
-    assert.equal(await input.locator(".page-list > li").count(), 240)
+    assert.ok((await input.locator(".page-list > .list-row").count()) < 80)
+    assert.equal(await input.locator(".list-row").first().getAttribute("aria-setsize"), "240")
     assert.equal(
       await input
         .locator(".page-list")
@@ -570,7 +571,8 @@ test("List bounds long sequences and restores the surviving Output row", { timeo
     await tab(output, "List")
     await output.getByRole("button", { name: "Remove Output page 1", exact: true }).press("Enter")
     await page.waitForFunction(() => document.activeElement?.matches('.composition-output .list-choice[data-page="0"]'))
-    assert.equal(await output.locator(".page-list > li").count(), 239)
+    assert.ok((await output.locator(".page-list > .list-row").count()) < 80)
+    assert.equal(await output.locator(".list-row").first().getAttribute("aria-setsize"), "239")
   } finally {
     await browser.close()
   }
@@ -615,13 +617,13 @@ test("List rows contain long names and actions with enlarged text", { timeout: 6
           const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
           for (const density of ["Normal", "Compact"]) {
             await tab(pane, "Grid")
-            await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+            await gridDensity(pane, `${density} ${name} grid`)
             await tab(pane, "List")
             let widths
             for (const selected of [false, true]) {
               await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill(selected ? "1" : "")
               label = `${name}, ${width}px, ${text}, ${colorScheme}, ${density}, selected=${selected}`
-              const rows = await pane.locator(".page-list > li").evaluateAll((elements) =>
+              const rows = await pane.locator(".page-list > .list-row").evaluateAll((elements) =>
                 elements.map((row) => {
                   const bounds = row.getBoundingClientRect(),
                     choice = row.querySelector(".list-choice")
@@ -712,7 +714,7 @@ test("Normal card targets stay separate through phone pane and text transitions"
             .getByRole("button", { name, exact: true })
             .click()
           const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-          await pane.getByRole("button", { name: `Normal ${name} grid`, exact: true }).click()
+          await gridDensity(pane, `Normal ${name} grid`)
           await measure(pane)
           const field = pane.getByRole("textbox", { name: "Page selection", exact: true })
           await field.fill("")
@@ -806,7 +808,7 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
         for (const name of ["Input", "Output"]) {
           await page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true }).click()
           const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-          await pane.getByRole("button", { name: `Normal ${name} grid`, exact: true }).click()
+          await gridDensity(pane, `Normal ${name} grid`)
           const field = pane.getByRole("textbox", { name: "Page selection", exact: true })
           await field.fill("")
           await pane.getByRole("slider").press("Home")
@@ -906,7 +908,7 @@ const capture = (page) =>
     let result
     for (const compact of [false, true]) {
       for (const pane of ["Input", "Output"])
-        document.querySelector(`button[aria-label="${compact ? "Compact" : "Normal"} ${pane} grid"]`).click()
+        document.querySelector(`button[aria-label="Switch to ${compact ? "Compact" : "Normal"} ${pane} grid"]`)?.click()
       const current = await probe.stable()
       result ??= { ...current, layout: { ...current.layout, input: {}, output: {} } }
       const density = compact ? "compact" : "normal"
@@ -955,7 +957,7 @@ test("Workspace scrolling keeps Grid and Page controls clear of status", { timeo
           await tab(pane, "Grid")
           await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill("56-62")
           for (const density of ["Normal", "Compact"]) {
-            await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+            await gridDensity(pane, `${density} ${name} grid`)
             const grid = await measure(pane)
             assert.ok(grid.caption.bottom <= grid.status + 1, `${name} ${density}: status clears pagination`)
             await checkStatus(page)
@@ -1093,11 +1095,11 @@ test("Touch portrait Normal Grid fits readable cards across nearby phone dimensi
         await page.setViewportSize({ width, height })
         for (const colorScheme of ["light", "dark"]) {
           await page.emulateMedia({ colorScheme })
-          await output.getByRole("button", { name: "Normal Output grid", exact: true }).click()
+          await gridDensity(output, "Normal Output grid")
           const normal = await checkGrid(output, `${width}×${height}, ${colorScheme}, Normal`)
           const rows = width >= 426 ? 2 : 1
           assert.deepEqual(normal.matrix, [2, rows, 2 * rows], `${engine.name()}, ${width}×${height}, ${colorScheme}`)
-          await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+          await gridDensity(output, "Compact Output grid")
           const compact = await checkGrid(output, `${width}×${height}, ${colorScheme}, Compact`)
           assert.ok(Math.abs(compact.gaps[1] - 0.8 * compact.gaps[0]) < 1)
           checkDensityRatio(normal.image.height, compact.image.height, `${width}×${height}`)
@@ -1302,7 +1304,7 @@ test("Touch portrait pagination uses available height above the safe area", { ti
         await page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true }).click()
         const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
         for (const density of ["Normal", "Compact"]) {
-          await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+          await gridDensity(pane, `${density} ${name} grid`)
           const geometry = await measure(pane)
           assert.deepEqual(geometry.capacity.slice(0, 2), density === "Compact" ? [9, 4] : [5, 2])
           assert.ok(Math.abs(geometry.image.height - (density === "Compact" ? 69.5 : 144)) < 1)
@@ -1370,7 +1372,7 @@ test("Touch Grid uses complete rows within the available viewport", { timeout: 1
           ["Normal", normal],
           ["Compact", compact],
         ]) {
-          await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+          await gridDensity(pane, `${density} ${name} grid`)
           const label = `${name} ${density}, ${width}×${height}, ${colorScheme}`
           const geometry = await checkGrid(pane, label)
           if (density === "Normal") normalImage = geometry.image.height
@@ -1646,7 +1648,7 @@ test("Grid fitting respects viewport bounds and input capabilities", { timeout: 
           const touchPortrait = mode === "touch" && height > width
           let normalFrame, normalImage
           for (const density of ["Normal", "Compact"]) {
-            await pane.getByRole("button", { name: `${density} Input grid`, exact: true }).click()
+            await gridDensity(pane, `${density} Input grid`)
             const label = `${mode}, ${width}×${height}, ${density}`
             const geometry = await checkGrid(pane, label)
             if (density === "Normal") {
@@ -1706,7 +1708,7 @@ test("Grid fitting respects viewport bounds and input capabilities", { timeout: 
         await page.locator("main").evaluate((element) => (element.style.inlineSize = "1462px"))
         const pane = page.locator(".selection-panel")
         for (const density of ["Normal", "Compact"]) {
-          await pane.getByRole("button", { name: `${density} Input grid`, exact: true }).click()
+          await gridDensity(pane, `${density} Input grid`)
           const geometry = await checkGrid(pane, `QHD narrow pane, ${density}`)
           assert.deepEqual(geometry.matrix, density === "Normal" ? [4, 3, 12] : [8, 6, 48])
         }
@@ -1761,7 +1763,7 @@ test("Partial Grid batches retain full-matrix card positions and dimensions", { 
           )
         for (const density of ["Normal", "Compact"]) {
           const label = `${name} ${density}, ${width}×${height}`
-          await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+          await gridDensity(pane, `${density} ${name} grid`)
           const range = pane.getByRole("slider", { name: `${name} thumbnail range`, exact: true })
           await range.press("Home")
           await pane.getByRole("button", { name: `Select ${name} page 1`, exact: true }).waitFor()
@@ -1810,15 +1812,21 @@ test("Grid density switches paint complete batches without intermediate overflow
             const views = page.locator(".mobile-workspace-tabs")
             if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
             const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-            await pane.getByRole("button", { name: `Normal ${name} grid`, exact: true }).click()
+            await gridDensity(pane, `Normal ${name} grid`)
             await measure(pane)
             await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill(enlarged ? "1" : "")
             for (const [turn, density] of ["Compact", "Normal", "Compact", "Normal"].entries()) {
               label = `${viewportWidth}px, ${enlarged ? "200%, dark, reduced motion" : "100%, light"}, ${name}, ${density}`
-              const control = pane.getByRole("button", { name: `${density} ${name} grid`, exact: true })
+              const control = pane.locator(".grid-density")
+              assert.equal(await control.count(), 1)
+              assert.equal(await control.getAttribute("aria-label"), `Switch to ${density} ${name} grid`)
+              assert.equal(await control.getAttribute("aria-pressed"), null)
+              const bounds = await control.boundingBox()
+              assert.equal(bounds.width, 46, `${label}: one square target`)
+              assert.equal(bounds.height, 46, `${label}: one square target`)
               await control.focus()
-              const painted = await pane.evaluate(async (element, accessibleName) => {
-                const button = element.querySelector(`button[aria-label="${accessibleName}"]`)
+              const painted = await control.evaluate(async (button) => {
+                const element = button.closest(".selection-panel, .composition-output")
                 button.click()
                 const frames = []
                 let spinners = 0
@@ -1839,7 +1847,8 @@ test("Grid density switches paint complete batches without intermediate overflow
                   })
                 }
                 return { frames, spinners }
-              }, `${density} ${name} grid`)
+              })
+              assert.equal(await pane.getAttribute("data-density"), density.toLowerCase())
               for (const frame of painted.frames) {
                 assert.ok(
                   frame.cards.every((card) => card.bottom <= frame.bottom + 1),
@@ -1915,10 +1924,10 @@ test("Grid density retains inspection and compact page commands", { timeout: 600
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
-    await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
-    await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+    await gridDensity(input, "Compact Input grid")
+    await gridDensity(output, "Compact Output grid")
     await input.getByRole("button", { name: "Select Input page 12", exact: true }).click()
-    await input.getByRole("button", { name: "Normal Input grid", exact: true }).click()
+    await gridDensity(input, "Normal Input grid")
     await input.getByRole("button", { name: "Select Input page 12", exact: true }).waitFor()
     assert.equal(await output.locator(".composition-card").count(), 24, "Each pane retains its own density")
     await page.setViewportSize({ width: 2560, height: 1440 })
@@ -1931,17 +1940,17 @@ test("Grid density retains inspection and compact page commands", { timeout: 600
     for (let step = 0; step < 3; step++) await slider.press("ArrowRight")
     assert.equal((await input.locator(".batch-caption").innerText()).replace(/\s+/g, ""), "4/40·19–24/240")
     await tab(input, "Page")
-    assert.equal(await input.getByRole("group", { name: "Input grid density", exact: true }).isVisible(), false)
+    assert.equal(await input.locator(".grid-density").isVisible(), false)
     await tab(input, "Grid")
-    await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
+    await gridDensity(input, "Compact Input grid")
 
     for (const colorScheme of ["light", "dark"]) {
       await page.emulateMedia({ colorScheme })
-      await output.getByRole("button", { name: "Normal Output grid", exact: true }).click()
+      await gridDensity(output, "Normal Output grid")
       const normalNumber = output.locator(".composition-card .page-origin > summary").first()
       await normalNumber.hover()
       const hoverColor = await normalNumber.evaluate((element) => getComputedStyle(element).color)
-      await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+      await gridDensity(output, "Compact Output grid")
       const number = output.locator(".composition-card .card-number").first()
       await number.hover()
       assert.deepEqual(
@@ -2026,7 +2035,7 @@ test("Grid pagination bounds its marks and retains exact page navigation", { tim
       await page.keyboard.press("Escape")
       await input.getByRole("button", { name: "Add to Output", exact: true }).click()
       for (const density of ["Normal", "Compact"]) {
-        await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+        await gridDensity(output, `${density} Output grid`)
         await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
         const batch = Number(await output.locator(".grid-view").getAttribute("data-batch"))
         const batches = Math.ceil(total / batch)
@@ -2056,7 +2065,7 @@ test("Grid pagination bounds its marks and retains exact page navigation", { tim
             const views = page.locator(".mobile-workspace-tabs")
             if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
             const pane = name === "Input" ? input : output
-            await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).click()
+            await gridDensity(pane, `${density} ${name} grid`)
             assert.ok((await pane.locator(".batch-marks > span").count()) <= 64)
             assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
           }
@@ -2095,7 +2104,7 @@ test("Compact pagination retains readable four- and five-digit numbers", { timeo
       await page.locator(".composer[aria-busy=false]").waitFor()
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
-      await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+      await gridDensity(output, "Compact Output grid")
       for (const [copies, total] of [
         [1, 1000],
         [9, 10000],

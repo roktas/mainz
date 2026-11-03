@@ -84,6 +84,9 @@ not reevaluate it. Density changes preserve selections, inspection, and operatio
 viewport height and show complete rows. Short viewports retain one complete row and usable controls through document
 scrolling. [VIEW.md](VIEW.md#workspace) defines capacity references and calibration limits.
 
+Every pane width offers one button whose icon and label describe the density selected by activation. Each activation
+switches directly to that density and retains focus on the button.
+
 Density changes show a complete batch without intermediate overflow. Restored cards show cached thumbnails immediately.
 New sizes can need a new raster. Pages absent from the bounded cache can show loading feedback.
 
@@ -109,6 +112,10 @@ differing PDF label. Output rows show one position and keep original page number
 Pages without names remain available by number. Repeated names do not merge rows or occurrences. Blank and Padding rows
 retain their existing product identities without invented authored names.
 
+List mounts the visible window and a small margin, with spacers retaining the scroll range. Unmounted rows keep their
+physical positions, occurrence identities, and selections in the existing workspace owners. Contextual row actions mount
+when their menu opens.
+
 List choices use the existing Selection and page-action model. They resolve to physical indexes or Output occurrence
 identities. List does not own another selection state or change the numeric Selection grammar. View changes retain the
 selection, inspection, Output, styles, and each pane's Grid density. The numeric field retains its touch keyboard
@@ -117,9 +124,10 @@ behavior.
 List uses one keyboard cursor per pane, shared with Grid and Page inspection. Arrow Up/Down moves one row; Home/End
 moves to the first/last row. Cursor movement scrolls the complete row into view. Shift with cursor movement extends
 selection. Space toggles the row and advances the cursor. Page Up/Down moves one screen of rows. Enter adds the Input
-preparation or duplicates Output, following Grid. Plus offers the same action; minus and Delete remove Output pages. V
-and the View button open Page. Modified Enter/Space preserve native shortcuts. These keys act only while the List
-content owns focus. The numeric Selection field retains its Enter action and does not intercept List navigation.
+preparation or duplicates Output, following Grid. Plus offers the same action. Minus removes the Output selection or the
+cursor's row. Delete removes only the Output selection. V and the View button open Page. Modified Enter/Space preserve
+native shortcuts. These keys act only while the List content owns focus. The numeric Selection field retains its Enter
+action and does not intercept List navigation.
 
 The trailing View button opens the row in Page without changing selection. On a fine pointer, a 220 ms hover over this
 button shows a full-page preview. Keyboard focus provides the same preview. Leaving, scrolling, Escape, or a transfer
@@ -140,7 +148,9 @@ the same pane content frame as Grid. Input switching restores its inspected item
 Output. List edits use immediate document updates with addition, removal, and movement feedback. Reduced motion disables
 this feedback. Animation does not delay actions or leave outgoing rows interactive.
 
-Grid, List, and Page show supplied names when their page number receives hover or focus. Names stay horizontal on one
+Grid and Page show supplied names after 220 ms of pointer hover over their page number, or immediately on keyboard
+focus. List shows names inline and uses selection help on the name instead of repeating it in hover tooltips. Full names
+remain available through accessible labels, the View preview, and page details. Tooltip names stay horizontal on one
 line and truncate only at the viewport limit. Clicking replaces the name tooltip with one detail panel, with the name as
 its first row. The panel opens immediately below the number. Page has no name below the image. Missing names add no
 empty caption or invented name tooltip. Names supplement physical numbers and PDF labels. They do not replace navigation
@@ -443,7 +453,8 @@ no Style tab. Hidden or transparent prepared targets remain editable while their
 
 Groups and parameters follow authored array order. A group's count represents distinct Style objects by exact binding
 target sets. Information panels expose baselines, page scope, Output coverage, constraints, and opaque parameter IDs.
-Hover opens them, click pins them, and outside click or Escape dismisses them. With focus inside parameter information,
+Pointer hover opens them after 220 ms. Leaving, scrolling, or Escape cancels a pending opening. Click or keyboard
+activation pins them immediately, and outside click or Escape dismisses them. With focus inside parameter information,
 Escape returns focus to its information button and keeps the enclosing editor open.
 
 Related parameters combine only within their authored group and only with the same exact target set. Binding properties
@@ -707,9 +718,9 @@ invalid parameters do not block them. Relevant Input processing disables these a
 progress. Full-document Style processing retains one completed composed PDF per Input. Other combined Outputs need their
 own PDF preparation.
 
-Output also checks the referenced Inputs and Inputs against the Download limits: 32 of each and 128 MiB of aggregate
-Input bytes. Each Input identity counts once. Unused open Inputs do not count. An actionable error appears beside
-Download as soon as Output exceeds a limit. Removing the excess restores Download. Processor validation remains
+Output also checks the referenced Inputs and Input instances against the Download limits: 32 of each and 128 MiB of
+aggregate Input bytes. Each Input identity counts once. Unused open Inputs do not count. An actionable error appears
+beside Download as soon as Output exceeds a limit. Removing the excess restores Download. Processor validation remains
 authoritative.
 
 Download captures the valid Plan. If Output contains every page from one completed Input in physical order, Download
@@ -805,13 +816,13 @@ button. Continuing in the browser remains available after dismissal or failure.
 The tour explains actual controls without changing document choices or adding pages. Its core steps cover Input, Input
 Grid, Grid density, Input List, Input Page, Output Grid, Output List, Output selection actions, Output Page, and Output
 delivery. The final step explains Download or Share, Print, View PDF, and Export recipe. Grid density points to Input's
-Normal and Compact controls when Input exists, otherwise to Output's controls. The Output selection step explains
-earlier/later moves, duplication, and removal. Without a selection, that step shows the real actions disabled and keeps
-the selection empty. Applicable Style and profile controls add at most two steps. Without Input, the six Output steps
-remain. Steps temporarily reveal their pane and tab. Each new step starts at the beginning of its explanation. Closing
-restores previous views and returns focus to a visible header control. Using a workspace control ends the tour and
-retains that action's pane and tab. Workspace or style availability changes dismiss the tour. Back, Next, Finish, End
-tour, Escape, and outside dismissal remain available.
+Grid density button when Input exists, otherwise to Output's button. The Output selection step explains earlier/later
+moves, duplication, and removal. Without a selection, that step shows the real actions disabled and keeps the selection
+empty. Applicable Style and profile controls add at most two steps. Without Input, the six Output steps remain. Steps
+temporarily reveal their pane and tab. Each new step starts at the beginning of its explanation. Closing restores
+previous views and returns focus to a visible header control. Using a workspace control ends the tour and retains that
+action's pane and tab. Workspace or style availability changes dismiss the tour. Back, Next, Finish, End tour, Escape,
+and outside dismissal remain available.
 
 After welcome and tour dismissal, a visible Input thumbnail can introduce addition once per workspace with empty Output.
 The visual copy leaves Output and Selection unchanged. The status row says “Select pages · Use + to add to Output.”
@@ -885,9 +896,10 @@ WASM instance and extracted-page cache before the next request. Cleanup errors f
 earlier operation error. The workspace retains at most one idle processing worker. Completing another operation releases
 the previous idle worker. Active operations keep independent cancellation. Ordinary Inputs release their validation
 worker after opening. Repeated Style requests for the same cached Input and page sequence reuse the extracted bytes
-without sending the complete PDF again. Failure or worker disposal clears that reuse state. Cancellation, replacement,
-or Input removal stops obsolete processing and preview work. Later operations start usable workers. Input bytes remain
-available for retry.
+without sending the complete PDF again. Distinct PNG requests for the same immutable Input also reuse its transferred
+bytes. Failure, Input replacement, or worker disposal clears that reuse state. Cancellation, replacement, or Input
+removal stops obsolete processing and preview work. Later operations start usable workers. Input bytes remain available
+for retry.
 
 A worker retains at most four completed Style or single-Input composition results for one exact input buffer. The 16 MiB
 budget counts the retained input, result PDFs, request keys, descriptions, and Provenance records. Reuse requires exact

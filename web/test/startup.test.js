@@ -9,7 +9,7 @@ import { build, preview } from "vite"
 import { chromium, devices } from "playwright"
 import { aligned, zoom } from "./workspace.js"
 import { checkGeometry, checkStatus, createServer, trackWorkers, fixture, tab, pixel, gridPage } from "./browser.js"
-import { measure } from "./measure.js"
+import { measure, gridDensity } from "./measure.js"
 
 let compiled
 
@@ -1231,7 +1231,7 @@ test("Input density starts from two Normal batches and retains each Source choic
         "The small fixture contains exactly two Normal batches",
       )
       assert.equal(await output.getAttribute("data-density"), "normal")
-      await input.getByRole("button", { name: "Compact Input grid", exact: true }).press("Space")
+      await gridDensity(input, "Compact Input grid", (control) => control.press("Space"))
       await open("Large.pdf", large)
       await page.waitForFunction(
         () => document.querySelector(".selection-panel")?.getAttribute("data-density") === "compact",
@@ -1243,7 +1243,7 @@ test("Input density starts from two Normal batches and retains each Source choic
         assert.equal(await input.getAttribute("data-density"), "compact", "A larger screen retains the initial choice")
         await page.setViewportSize({ width, height })
       }
-      await input.getByRole("button", { name: "Normal Input grid", exact: true }).press("Space")
+      await gridDensity(input, "Normal Input grid", (control) => control.press("Space"))
       await tab(input, "Page")
       await tab(input, "Grid")
       assert.equal(await input.getAttribute("data-density"), "normal", "View switches retain the manual choice")
@@ -1332,7 +1332,7 @@ test(
           .first()
           .evaluate((canvas) => canvas.toDataURL())
       snapshots.set("Normal", await snapshot())
-      await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+      await gridDensity(output, "Compact Output grid")
       await page.waitForFunction(() => window.pdfContinuations.length > 0)
       const spinner = output.locator(".render-status").first()
       assert.equal(await spinner.innerText(), "")
@@ -1361,8 +1361,7 @@ test(
       snapshots.set("Page", await snapshot())
       for (const mode of ["Grid", "Normal", "Compact", "Page", "Grid"]) {
         await page.evaluate(() => (window.pdfRenderCount = 0))
-        if (mode === "Normal" || mode === "Compact")
-          await output.getByRole("button", { name: `${mode} Output grid`, exact: true }).click()
+        if (mode === "Normal" || mode === "Compact") await gridDensity(output, `${mode} Output grid`)
         else await tab(output, mode)
         await ready()
         // Density changes retain the previous raster until the next resize paint.
@@ -1388,7 +1387,7 @@ test(
       const compactPixels = await cold.evaluate((canvas) => canvas.toDataURL())
       const compactWidth = await cold.evaluate((canvas) => canvas.clientWidth)
       await page.evaluate(() => (window.holdPDFRendering = true))
-      await input.getByRole("button", { name: "Normal Input grid", exact: true }).click()
+      await gridDensity(input, "Normal Input grid")
       await page.waitForFunction(() => window.pdfContinuations.length > 0)
       assert.equal(
         await cold.evaluate((canvas) => canvas.toDataURL()),
@@ -1489,8 +1488,8 @@ test("Input switching renders thumbnails and the lens from the selected PDF", { 
     const inspect = async (name, color) => {
       assert.equal(await page.locator(".input-current").textContent(), name)
       assert.equal(
-        await input.getByRole("button", { name: "Compact Input grid", exact: true }).getAttribute("aria-pressed"),
-        String(name === "Filled.pdf"),
+        await input.getAttribute("data-density"),
+        name === "Filled.pdf" ? "compact" : "normal",
         "Production retains each Source's grid density",
       )
       await input.locator(".page-image .thumbnail[aria-busy=false]").waitFor()
@@ -1514,8 +1513,7 @@ test("Input switching renders thumbnails and the lens from the selected PDF", { 
         buffer: document.buffer,
       })
       await page.locator(".input-current").filter({ hasText: document.name }).waitFor()
-      if (document.name === "Filled.pdf")
-        await input.getByRole("button", { name: "Compact Input grid", exact: true }).click()
+      if (document.name === "Filled.pdf") await gridDensity(input, "Compact Input grid")
       await inspect(document.name, document.color)
     }
     for (const index of [0, 1, 0, 1]) {

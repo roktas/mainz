@@ -27,6 +27,7 @@ type Module = {
 }
 let module: Module | undefined
 let extracted: { input: string; pages: string; bytes: Uint8Array<ArrayBuffer> } | undefined
+let preview: { input: number; bytes: Uint8Array<ArrayBuffer> } | undefined
 let styled:
   | { input: Uint8Array<ArrayBuffer>; results: Map<string, { result: Result; size: number }>; size: number }
   | undefined
@@ -86,6 +87,7 @@ async function run(request: Request): Promise<Success> {
     module = await create({ locateFile: (name: string) => new URL(name, moduleUrl).href })
   }
   const wasm = module!
+  if (!("preview" in request)) preview = undefined
   let bytes =
     "preview" in request
       ? new Uint8Array(request.preview.bytes)
@@ -144,6 +146,11 @@ async function run(request: Request): Promise<Success> {
       }
     }
     if ("preview" in request) {
+      if (preview?.input === request.preview.input) bytes = preview.bytes
+      else {
+        if (!bytes.length) throw new Error("The preview Input is unavailable.")
+        preview = { input: request.preview.input, bytes }
+      }
       open()
       wasm["_mainz_preview"](handle, request.preview.page)
       return { revision: request.revision, image: result(wasm).buffer }
@@ -265,6 +272,7 @@ self.addEventListener("message", async (event: MessageEvent<Request>) => {
   } catch (error) {
     module = undefined
     extracted = undefined
+    preview = undefined
     styled = undefined
     reply = {
       revision: request.revision,

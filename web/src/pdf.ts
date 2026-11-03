@@ -132,7 +132,10 @@ function discard(raster: Raster) {
 
 export function releaseRasters(pdf: PDFDocumentProxy) {
   images.delete(pdf)
-  if (imageDocument === pdf) imageProcessor.cancel()
+  if (imageDocument === pdf) {
+    imageProcessor.dispose()
+    imageDocument = undefined
+  }
   const pages = rasters.get(pdf)
   if (!pages) return
   for (const raster of pages.values()) discard(raster)
@@ -214,7 +217,6 @@ export function thumbnail(pdf: PDFDocumentProxy, page: number): Promise<HTMLCanv
         bitmap.close()
       }
     } finally {
-      imageDocument = undefined
       source.pending.delete(key)
     }
   })

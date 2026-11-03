@@ -339,6 +339,62 @@ module Mainz
       assert_equal([target], parameters.fetch(id)["parameter"]["binding"]["targets"])
     end
 
+    def test_css_tokens_cannot_hide_compositing_when_splitting_children
+      body = "<g id=\"Parent\" style=\"STYLE\"><g id=\"First\"><path fill=\"none\" stroke=\"red\" stroke-width=\"30\" d=\"M30 60h80\"/></g><g id=\"Other\"><path fill=\"none\" stroke=\"blue\" stroke-width=\"30\" d=\"M60 30v70\"/></g></g>"
+      declared = write("compositing.json", declaration({"guides" => "#First"}, fill: false))
+      reference = @directory.join("opacity-reference.pdf")
+      source = @directory.join("compositing.svg")
+      source.write(svg(body.sub("STYLE", "opacity:.5")))
+      command("rsvg-convert", "--format=pdf", "--output", reference, source)
+      [
+        "opacity:.5",
+        "opa\\63ity:.5",
+        "\\6f pacity:.5",
+        "opa\\000063ity/**/:/**/.5",
+        "/* before */ opacity: .5 /* after */"
+      ].each_with_index do |css, index|
+        [false, true].each do |stylesheet|
+          content = stylesheet ? "<style>#Parent { #{css} }</style>" + body.sub(" style=\"STYLE\"", "") : body
+            .sub("STYLE") { css }
+          source.write(svg(content))
+          rendered = @directory.join("css-reference.pdf")
+          command("rsvg-convert", "--format=pdf", "--output", rendered, source)
+          appearance(reference, rendered, "css-#{index}-#{stylesheet}")
+          output = @directory.join("compositing.pdf")
+          result = command(@cli, "imprint", source, "--declaration", declared, "--output", output, ok: false)
+          assert_equal("imprinter-error", JSON.parse(result.stderr)["code"])
+          refute_path_exists(output)
+        end
+      end
+
+      source.write(svg(body.sub("STYLE", "/* opacity:.5 */fill:none;stroke-opacity:.5")))
+      output = pdf("imprint", "safe-css.pdf", source, "--declaration", declared)
+      command("rsvg-convert", "--format=pdf", "--output", reference, source)
+      appearance(reference, output, "safe-css-comments")
+      caption = body.sub(" style=\"STYLE\"", "") + "<text id=\"Caption\" x=\"10\" y=\"110\">Text</text>"
+      source.write(svg("<style>#Caption { font-family:'monospace' }</style>" + caption))
+      command("rsvg-convert", "--format=pdf", "--output", reference, source)
+      source.write(svg("<style>#Caption { font-family:'mono\\\nspace' }</style>" + caption))
+      output = pdf("imprint", "safe-css-string.pdf", source, "--declaration", declared)
+      appearance(reference, output, "safe-css-string")
+      ["#Parent:not(.hidden)", ".opacity:not(.hidden)", ".opa\\63ity:not(.hidden)"].each_with_index do |selector, index|
+        content = "<style>#{selector} { fill:none;stroke-opacity:.5 }</style>" +
+          body.sub(" style=\"STYLE\"", " class=\"opacity\"")
+        source.write(svg(content))
+        output = pdf("imprint", "safe-selector-#{index}.pdf", source, "--declaration", declared)
+        command("rsvg-convert", "--format=pdf", "--output", reference, source)
+        appearance(reference, output, "safe-css-selector-#{index}")
+      end
+
+      ["fill:none;/* unterminated", "fill:rgb(0,0,0", "fill:none;\\", "@import \"remote.css\";"].each do |css|
+        source.write(svg(body.sub("STYLE") { css.gsub("\"", "&quot;") }))
+        destination = @directory.join("invalid-css.pdf")
+        result = command(@cli, "imprint", source, "--declaration", declared, "--output", destination, ok: false)
+        assert_equal("imprinter-error", JSON.parse(result.stderr)["code"])
+        refute_path_exists(destination)
+      end
+    end
+
     def test_unsupported_sources_and_declarations_are_rejected
       invalid = [
         [

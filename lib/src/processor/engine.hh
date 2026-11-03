@@ -33,6 +33,11 @@ struct Index {
     std::unordered_map<std::string_view, std::shared_ptr<const Content>> contents;
     std::size_t bytes {0};
 };
+struct Previews {
+    std::vector<std::string> pages;
+    std::map<std::string, std::shared_ptr<const std::string>> images;
+    std::size_t bytes {0};
+};
 struct State {
     Matrix matrix {identity};
     bool normal {true}, mask {false}, stroke_overprint {false}, fill_overprint {false}, groups {true};
@@ -80,6 +85,7 @@ public:
     std::string extract(JSON request, const std::string& input);
     static Artifact compose(JSON plan, const Bindings& inputs, const Document* previous);
     std::shared_ptr<const Index> take_index() { return std::make_shared<Index>(std::move(index)); }
+    std::shared_ptr<const Previews> take_previews() { return std::make_shared<Previews>(std::move(previews)); }
     JSON manifest = JSON::makeDictionary();
 
 private:
@@ -90,6 +96,7 @@ private:
     std::map<std::string, Object> files;
     std::set<std::string> managed_previews;
     std::map<std::string, JSON> images;
+    Previews previews;
     std::vector<QPDFPageObjectHelper> pages;
     std::vector<Record> records;
     std::map<std::tuple<std::string, std::vector<Step>, std::string>, std::size_t> record_index;

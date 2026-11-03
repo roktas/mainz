@@ -34,6 +34,10 @@
 
 ### Changed
 
+- Bounded mounted List rows while preserving physical positions, occurrence identities, selection, and scrolling.
+- Centralized persisted Style intent and moved row interaction and edit feedback lifecycle to their owning surfaces.
+- Grid toolbars use one button that shows the density selected by activation at every width.
+- Page names use small caps across List, captions, details, previews, and drag strips.
 - Product tour steps cover Input and Output List views and explain Recipe export, Print, and View PDF. Help clarifies
   its view-specific shortcuts and List range selection. Recipe export uses JSON braces in the secondary color and bold
   table headings.
@@ -48,9 +52,9 @@
   and SVG production uses `imprint`. Update callers from `apply --request`, `run`, and `produce`, respectively.
 - Aligned library and web names around Plan, Artifact, Provenance, and Imprinter. WASM Recipe resolution returns `plan`;
   composition metadata uses `mainz_provenance` exports. PDF styling uses the combined `mainz_style` boundary.
-- Grid, List, and Page show supplied names on page-number hover or focus. Clicking merges the name into one detail panel
-  immediately below the number. The demo names its cover and practice sheets and stores `Italic Strokes` in standard XMP
-  title metadata.
+- Grid and Page show supplied names on page-number hover or focus. List keeps the name inline. Clicking merges the name
+  into one detail panel immediately below the number. The demo names its cover and practice sheets and stores
+  `Italic Strokes` in standard XMP title metadata.
 - View and Grid density changes reveal the inspected page, with a brief secondary cue for tab returns and preserved
   keyboard focus for content returns.
 - Grid and List transfers preview resulting page numbers, including moving images and placeholders. Grid folds follow
@@ -76,6 +80,26 @@
 - Compact mobile Output actions, with a square Download icon button and totals beside the icons.
 
 ### Fixed
+
+- Raised Recipe matching instructions toward the filename, leaving more space above the PDF choices.
+
+- Rejected escaped compositing CSS in SVG production before splitting overlapping layers. Safe selectors and quoted line
+  continuations remain supported.
+- Kept Recipe binding cancellation at exit 130 and rejected invalid lookup components before adding the PDF suffix.
+- Counted shared Input bytes once across independent Input instances, matching Download preflight.
+- Reused transferred PDF bytes across distinct PNG requests and bounded validated processor PNG retention to 16 MiB.
+- Preserved PNG thumbnail proportions on white page backgrounds and displayed opaque metadata keys literally.
+- Cancelled pending List hover previews with Escape.
+- Restored inspected List rows after Input switching and kept Delete limited to the Output selection.
+- Released page-detail state when List rows leave their mounted window, so later hover previews remain available.
+- Aligned plain List page numbers with detail buttons and replaced repeated name tooltips with selection help.
+- Delayed parameter information and page-name hover tooltips by 220 ms while keeping explicit activation immediate.
+- Shortened view-return feedback to 1.2 seconds, removed its side bar, and held the final color to prevent a second
+  flash.
+- Capitalized the demo cover's page name as `COVER`.
+- Inset matched PDF filenames and status text to balance the download glyph's opposite margin, with narrow stacking
+  retained.
+- Aligned the cover-page number field with Use default while retaining usable widths when the cover controls wrap.
 
 - List transfers keep a flat strip attached to its grab point and a stable insertion slot while neighboring rows move.
   Output rows keep source page labels in details so they do not appear as duplicate position numbers.

@@ -5,7 +5,7 @@ import test from "node:test"
 import { serve } from "./server.ts"
 import { chromium } from "playwright"
 import { fixture, checkGrips, checkPagination, tab, captureLayout } from "./browser.js"
-import { measure } from "./measure.js"
+import { measure, gridDensity } from "./measure.js"
 
 test("Style retains a Compact companion frame on short touch landscapes", { timeout: 60000 }, async () => {
   const server = await serve()
@@ -32,8 +32,8 @@ test("Style retains a Compact companion frame on short touch landscapes", { time
     ]) {
       await page.setViewportSize({ width, height })
       await tab(input, "Grid")
-      await input.getByRole("button", { name: "Normal Input grid", exact: true }).click()
-      await output.getByRole("button", { name: "Compact Output grid", exact: true }).click()
+      await gridDensity(input, "Normal Input grid")
+      await gridDensity(output, "Compact Output grid")
       await page.evaluate(() => scrollTo(0, 0))
       const before = await measure(output)
       await tab(input, "Style")
@@ -78,7 +78,7 @@ test("Style scrolling preserves its companion Grid capacity and Page frame", { t
           for (const density of ["Normal", "Compact"]) {
             await tab(input, "Grid")
             await tab(output, "Grid")
-            await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+            await gridDensity(output, `${density} Output grid`)
             const before = await measure(output)
             await tab(input, "Style")
             const after = await measure(output)
@@ -234,7 +234,7 @@ for (const hasTouch of [false, true])
               const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
               for (const density of ["Normal", "Compact"]) {
                 label = `${hasTouch ? "Touch" : "Mouse"} ${name} ${density}, ${width}×${height}, ${text} text`
-                await pane.getByRole("button", { name: `${density} ${name} grid`, exact: true }).dispatchEvent("click")
+                await gridDensity(pane, `${density} ${name} grid`, (control) => control.dispatchEvent("click"))
                 await checkGrips(pane, `${name} ${density}, ${width}×${height}, ${text} text`)
                 if (await views.isVisible()) await checkPagination(pane, label)
                 const grid = await pane.locator(".composition-grid").evaluate((element) => ({
@@ -389,7 +389,7 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
           await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
           for (const density of ["Normal", "Compact"]) {
             label = `${hasTouch ? "Touch" : "Mouse"} Output ${density}, ${width}×${height}, ${text}, five digits`
-            await output.getByRole("button", { name: `${density} Output grid`, exact: true }).click()
+            await gridDensity(output, `${density} Output grid`)
             await measure(output)
             await output.getByRole("slider", { name: "Output thumbnail range", exact: true }).press("End")
             await output.getByRole("button", { name: "Select Output page 10000", exact: true }).waitFor()

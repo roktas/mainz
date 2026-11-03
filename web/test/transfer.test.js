@@ -5,7 +5,7 @@ import test from "node:test"
 import { serve } from "./server.ts"
 import { chromium } from "playwright"
 import { fixture } from "./browser.js"
-import { measure } from "./measure.js"
+import { measure, gridDensity } from "./measure.js"
 
 test("Native page drags survive platform focus changes and cards respond on press", { timeout: 60000 }, async () => {
   const server = await serve()
@@ -21,7 +21,7 @@ test("Native page drags survive platform focus changes and cards respond on pres
         await page.goto(`${server.resolvedUrls.local[0]}?demo=empty`)
         const input = page.locator(".selection-panel"),
           output = page.locator(".composition-output")
-        await input.getByRole("button", { name: `${density} Input grid`, exact: true }).click()
+        await gridDensity(input, `${density} Input grid`)
         await measure(input)
         const source = input.locator(".page-image").first()
         const card = input.locator(".composition-card").first()

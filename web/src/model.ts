@@ -1,7 +1,7 @@
 // Defines workspace Inputs, style intent, occurrence identities, and composition Plan validation.
 
 import type { PDFDocumentProxy } from "pdfjs-dist"
-import type { Description, Scalar, Usage } from "./styles.ts"
+import type { Description, Scalar, StyleState, Usage } from "./styles.ts"
 
 export type Size = { width: number; height: number }
 export type Content = { source: string; page: number } | { blank: Size }
@@ -21,15 +21,11 @@ export type Input = {
   cover?: string
   xmp?: Record<string, string>
 }
-export type Source = {
+export type Source = StyleState & {
   id: string
   input: Input
   preview: Preview
-  overrides: Record<string, Scalar>
-  drafts: Record<string, string>
   modified: boolean
-  profiles?: Record<string, string>
-  edits?: readonly string[]
 }
 export type Preview = {
   readonly displayed: { readonly pdf: PDFDocumentProxy }
