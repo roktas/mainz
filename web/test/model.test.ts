@@ -276,6 +276,20 @@ test("Download names use the first contributing Input and local time to hundredt
   assert.equal(downloadName([blank], inputs, new Date(2026, 0, 2, 3, 4, 5, 9)), "blank-pages_2026-0102-0304-0500.pdf")
 })
 
+test("Download names replace trailing timestamps and preserve the rest of the Input name", () => {
+  const date = new Date(2026, 9, 6, 15, 30, 42, 789)
+  for (const [name, expected] of [
+    ["Practice_2026-1005-0900-1234.pdf", "Practice_2026-1006-1530-4278.pdf"],
+    ["Practice_2026-1004-0800-0000_2026-1005-0900-1234.PDF", "Practice_2026-1006-1530-4278.pdf"],
+    ["Practice_2026-1005-0900-1234_notes.pdf", "Practice_2026-1005-0900-1234_notes_2026-1006-1530-4278.pdf"],
+    ["Practice_2026-1005.pdf", "Practice_2026-1005_2026-1006-1530-4278.pdf"],
+    ["Practice_2026-1005-0900.pdf", "Practice_2026-1005-0900_2026-1006-1530-4278.pdf"],
+    ["_2026-1005-0900-1234.pdf", "blank-pages_2026-1006-1530-4278.pdf"],
+  ]) {
+    assert.equal(downloadName([part("practice", [0])], [{ id: "book", input: { name } }], date), expected, name)
+  }
+})
+
 test("Page entry retains exact order and repetitions with bounded expansion", () => {
   const selected = parseSequence("3-5,2,2,7", 7)
   assert.deepEqual(selected, { pages: [2, 3, 4, 1, 1, 6] })

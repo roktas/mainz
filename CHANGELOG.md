@@ -84,6 +84,7 @@
 
 ### Fixed
 
+- Replaced trailing timestamps in automatic Output filenames so repeated exports keep a single timestamp.
 - Raised Recipe matching instructions toward the filename, leaving more space above the PDF choices.
 
 - Rejected escaped compositing CSS in SVG production before splitting overlapping layers. Safe selectors and quoted line

@@ -746,11 +746,13 @@ Preparation workers release before the system panel opens. Only the ready File a
 handoff, cancellation, or disposal.
 
 The default filename is `<input-name>_YYYY-MMDD-HHmm-sscc.pdf`, using the first contributing Input's original filename
-without its `.pdf` extension. The timestamp uses local time when the PDF is ready. `ss` means seconds and `cc`
-hundredths. Unused Inputs do not affect the name. Blank-only Output uses `blank-pages`. The Output heading opens the
-filename editor; the Output page actions menu also provides it. A custom name applies to Download, Share, and Print and
-remains in the workspace until Home. The editor rejects empty names, path separators, and control characters, and adds
-`.pdf` when needed. Use default restores automatic naming. The header does not display the filename beside its controls.
+without its `.pdf` extension. Automatic naming removes all consecutive trailing `_YYYY-MMDD-HHmm-sscc` suffixes before
+it adds the new timestamp. Other parts of the name remain unchanged. An empty stem uses `blank-pages`. The timestamp
+uses local time when the PDF is ready. `ss` means seconds and `cc` hundredths. Unused Inputs do not affect the name.
+Blank-only Output uses `blank-pages`. The Output heading opens the filename editor; the Output page actions menu also
+provides it. A custom name applies to Download, Share, and Print and remains in the workspace until Home. The editor
+rejects empty names, path separators, and control characters, and adds `.pdf` when needed. Use default restores
+automatic naming. The header does not display the filename beside its controls.
 
 The same editor contains the Output title and cover-page choice, with a preview of that page. The title defaults to the
 first contributing Input's title, or its filename stem when no authored title exists. Empty stems retain the opened
