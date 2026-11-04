@@ -40,7 +40,7 @@ test(
             const record = {
               version: 1,
               metadata: { title: "Collected & styled pages", coverPage: 2 },
-              inputs: { book: { title: "Saved book", xmp: { "dc:creator": "Fixture author" } } },
+              inputs: { book: { ...original.reference, title: "Saved book", xmp: { "dc:creator": "Fixture author" } } },
               sources: {
                 styled: {
                   input: "book",
