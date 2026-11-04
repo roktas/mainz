@@ -3,6 +3,7 @@
 <script lang="ts">
   import { titleError } from "./model.ts"
   import Icon from "./Icon.svelte"
+  import Feedback from "./Feedback.svelte"
   let {
     value = $bindable(""),
     title = $bindable(""),
@@ -22,6 +23,7 @@
   } = $props()
   const key = $props.id()
   let panel: HTMLDivElement
+  let opened = $state(false)
   let draft = $state("")
   let suggested = ""
   let suggestedTitle = ""
@@ -74,8 +76,14 @@
   }
 </script>
 
-<div bind:this={panel} class="filename-panel" popover="auto" aria-labelledby={`${key}-title`}>
-  <form onsubmit={save}>
+<div
+  bind:this={panel}
+  class="filename-panel"
+  popover="auto"
+  aria-labelledby={`${key}-title`}
+  ontoggle={(event) => (opened = event.newState === "open")}
+>
+  <form onsubmit={save} novalidate>
     <div class="dialog-heading">
       <h3 id={`${key}-title`}>Output filename</h3>
       <button
@@ -99,9 +107,18 @@
         aria-describedby={error ? `${key}-error` : undefined}
       />
     </div>
-    {#if error}<p id={`${key}-error`} class="error" role="alert">{error}</p>{/if}
+    <Feedback header active={opened} kind="error" text={error} summary="Check the filename." id={`${key}-error`} />
     <label for={`${key}-document-title`}>Title</label>
-    <div class="entry"><input id={`${key}-document-title`} type="text" bind:value={titleDraft} required /></div>
+    <div class="entry">
+      <input
+        id={`${key}-document-title`}
+        type="text"
+        bind:value={titleDraft}
+        required
+        aria-invalid={!!titleError(titleDraft)}
+        aria-describedby={`${key}-identity-error`}
+      />
+    </div>
     <div class="file-cover">
       <div class="file-cover-image">
         {#if picture}<img src={picture} alt={`Cover · page ${coverDraft}`} />{/if}
@@ -116,6 +133,8 @@
             max={pages}
             step="1"
             bind:value={coverDraft}
+            aria-invalid={!!identityError && !titleError(titleDraft)}
+            aria-describedby={`${key}-identity-error`}
             onchange={() => void renderCover()}
             required
           />
@@ -123,7 +142,14 @@
         <p class="control-description">The first page is the default cover.</p>
       </div>
     </div>
-    {#if identityError}<p class="error" role="alert">{identityError}</p>{/if}
+    <Feedback
+      header
+      active={opened}
+      kind="error"
+      text={identityError}
+      summary="Check title and cover."
+      id={`${key}-identity-error`}
+    />
     <div class="filename-actions">
       <button
         type="button"

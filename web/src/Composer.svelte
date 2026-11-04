@@ -1,6 +1,7 @@
 <!-- Coordinates pane views, page selections, Output edits, and transfers. -->
 
 <script lang="ts">
+  import Feedback from "./Feedback.svelte"
   import { onDestroy, tick } from "svelte"
   import type { Snippet } from "svelte"
   import { copyError, parseCopies, sizeOf, uid } from "./model.ts"
@@ -1175,7 +1176,7 @@
       ].includes(event.key.toLowerCase())
     )
       return
-    if (opening || (event.target instanceof Element && event.target.closest(".file-errors"))) return
+    if (opening || (event.target instanceof Element && event.target.closest(".message-details"))) return
     if (event.key === "Escape" && event.target instanceof HTMLElement && event.target.closest(".page-jump")) return
     if (shortcuts(event)) return
     if (
@@ -1189,7 +1190,7 @@
       usingKeyboard = true
     const context = shortcutContext(event, {
       overlay: !!document.querySelector(
-        "dialog[open], [popover]:popover-open, .input-picker[open], .lens, .quartet-panel, .control details:is([open], [data-hover-pending])",
+        "dialog[open], [popover]:popover-open:not(.header-feedback), .input-picker[open], .lens, .quartet-panel, .control details:is([open], [data-hover-pending])",
       ),
     })
     if (shortcut(event, context, "escape") !== "clear") return
@@ -1282,7 +1283,7 @@
         outputMenu.querySelector("summary")?.focus({ preventScroll: true })
       }
     }}
-    ><Icon name="compare" />{#if menu}Compare page{/if}</button
+    ><Icon name="compare" />{#if menu}Compare{/if}</button
   >
   <button
     class={menu ? undefined : "tool"}
@@ -1290,7 +1291,7 @@
     title="Show original page"
     disabled={inspection?.kind !== "pdf" || !inspection.comparison}
     onclick={showOriginal}
-    ><Icon name="original" />{#if menu}Show original page{/if}</button
+    ><Icon name="original" />{#if menu}Original{/if}</button
   >
 {/snippet}
 
@@ -1322,7 +1323,7 @@
     title={zoom === 100 ? "Fit width" : "Reset zoom · 0 or Z"}
     onclick={() => (zoom === 100 ? fitWidth() : setZoom(pane, 100))}
   >
-    {#if menu}<Icon name="fit" />{zoom === 100 ? "Fit width" : `Reset zoom · ${zoom}%`}
+    {#if menu}<Icon name="fit" />{zoom === 100 ? "Fit width" : "Reset zoom"}
     {:else}
       {#if zoom !== 100}<span class="fit-level" aria-hidden="true">{zoom}%</span>{/if}
       <Icon name="fit" />
@@ -1708,7 +1709,7 @@
       title={`Move selected pages earlier · Ctrl/⌘+${activeOutputTab === "list" ? "↑" : "←"}`}
       disabled={!chosen.length || !!outputSelectionError || positions[0] === 0}
       onclick={() => order(-1)}
-      ><Icon name="earlier" />{#if !inline}Move selected pages earlier{/if}</button
+      ><Icon name="earlier" />{#if !inline}Earlier{/if}</button
     >
     <button
       class={inline ? "step" : undefined}
@@ -1716,7 +1717,7 @@
       title={`Move selected pages later · Ctrl/⌘+${activeOutputTab === "list" ? "↓" : "→"}`}
       disabled={!chosen.length || !!outputSelectionError || positions.at(-1) === output.pages.length - 1}
       onclick={() => order(1)}
-      ><Icon name="later" />{#if !inline}Move selected pages later{/if}</button
+      ><Icon name="later" />{#if !inline}Later{/if}</button
     >{/if}
 {/snippet}
 
@@ -1739,25 +1740,29 @@
           {/if}
         {/if}
         <div class="menu-moves">{@render outputMoves()}</div>
-        {#if chosen.length}<button disabled={!!outputSelectionError} onclick={() => blank(positions[0])}
-            ><Icon name="blank" />Blank before first selected page</button
+        {#if chosen.length}<button
+            disabled={!!outputSelectionError}
+            onclick={() => blank(positions[0])}
+            title="Insert a blank before the first selected page"><Icon name="blank" />Blank before</button
           >{/if}
-        <button disabled={!output.pages.length} onclick={() => blank(output.pages.length)}
-          ><Icon name="blank" />Add blank page at end</button
+        <button
+          disabled={!output.pages.length}
+          onclick={() => blank(output.pages.length)}
+          title="Add a blank page at the end"><Icon name="blank" />Blank at end</button
         >
         <button
           onclick={() => {
             const source = outputMenu.querySelector<HTMLElement>("summary")!
             outputMenu.open = false
             rename(source)
-          }}><Icon name="page" />Set Output filename</button
+          }}><Icon name="page" />Filename</button
         >
       </div>
       {#if chosen.length && adjacent}
         <Repetition pane="Output" bind:value={repetitions} bind:front />
         {#if Number(repetitions) !== 1 || front}<button
             disabled={!!repeatError || !!outputSelectionError}
-            onclick={repeat}>Repeat selected pages</button
+            onclick={repeat}>Repeat</button
           >{/if}
       {:else if chosen.length}<p>Select consecutive pages to repeat a sequence.</p>{/if}
     </div>
@@ -1800,6 +1805,11 @@
   <div class="composition-panels">
     {#if source}<section
         class="selection-panel"
+        data-warning={(transfer.warning &&
+          transfer.touching &&
+          transfer.value?.kind === "source" &&
+          activeView === "input") ||
+          undefined}
         style:--grid-digits={String(count).length}
         data-density={inputView.density}
         aria-labelledby={`${key}-selection`}
@@ -1948,7 +1958,7 @@
             </Selection>
             <div class="page-content">
               {#if transfer.warning && transfer.touching && transfer.value?.kind === "source" && activeView === "input"}
-                <div class="input-drop-hint" role="status"><Icon name="ban" />Move to Output.</div>
+                <Feedback header kind="notice" text="Move to Output." />
               {/if}
               {#if activeTab === "page"}
                 {#key source.id}<PageView
@@ -2213,9 +2223,7 @@
             ><Icon name={sharing ? "share" : "down"} /><span>{sharing ? "Share" : "Download"}</span></button
           >
         </div>
-        {#if downloadError}<p id={`${key}-download-error`} class="download-error error" role="alert">
-            {downloadError}
-          </p>{/if}
+        {#if downloadError}<span hidden id={`${key}-download-error`}>{downloadError}</span>{/if}
       </div>
       <div id={`${key}-output-summary`} class="output-details" popover="auto" role="note" aria-label="Output details">
         {@render outputSummary()}

@@ -1,7 +1,7 @@
 <!-- Shows the active Source's Style profiles, their guidance, and parameter groups. -->
 
 <script lang="ts">
-  import { feedback, groups, matchingProfile, objects, resolve } from "./styles.ts"
+  import { groups, matchingProfile, objects, resolve } from "./styles.ts"
   import { pageRanges } from "./pages.ts"
   import type { Entry } from "./styles.ts"
   import type { Source } from "./model.ts"
@@ -50,13 +50,6 @@
       .filter((group) => group.parameters.length),
   )
   const changed = $derived(Object.keys(source.overrides).length > 0 || Object.keys(source.drafts).length > 0)
-  const status = $derived(
-    source.preview.status === "error"
-      ? "Styles need retry"
-      : Object.entries(source.drafts).some(([id, text]) => feedback(definition.parameters[id], text))
-        ? "Invalid style draft"
-        : "",
-  )
   function entry(id: string): Entry {
     return resolve(definition.parameters[id], source.overrides, id)
   }
@@ -104,8 +97,7 @@
 {/snippet}
 
 {#if toolbarOnly}
-  <div class="style-status">
-    {#if status}<span class="danger" role="status" title={status}>{status}</span>{/if}
+  <div class="style-actions">
     {#if changed}
       <button
         class="icon-button danger"

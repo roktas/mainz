@@ -856,7 +856,7 @@ test(
         await page.locator(".header-feedback .opening-progress").waitFor({ state: "hidden" })
         if (index === 32) {
           assert.equal(await button.isEnabled(), true, "Unused open Inputs do not count")
-          assert.equal(await output.locator(".download-error").count(), 0)
+          assert.equal(await page.locator(".header-feedback .feedback[data-kind=error]").count(), 0)
         }
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
         await page.waitForFunction(
@@ -867,12 +867,12 @@ test(
         )
       }
       assert.equal(await button.isDisabled(), true)
-      assert.match(await output.locator(".download-error").innerText(), /32 Inputs.*Remove pages/)
+      assert.match(await page.locator(".header-feedback .message-details").textContent(), /32 Inputs.*Remove pages/)
       assert.equal(await page.locator(".export-dialog[open]").count(), 0)
       await output.getByRole("textbox", { name: "Page selection", exact: true }).fill("33")
       await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
       assert.equal(await button.isEnabled(), true)
-      assert.equal(await output.locator(".download-error").count(), 0)
+      assert.equal(await page.locator(".header-feedback .feedback[data-kind=error]").count(), 0)
     } finally {
       await browser?.close()
     }
@@ -1859,6 +1859,7 @@ test("Cancelling a paused batch inspection releases the next Source", { timeout:
     await page.evaluate(() => (window.holdBatchInspection = false))
     await page.getByRole("button", { name: "Cancel style processing", exact: true }).click()
     await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
+    await page.locator(".header-feedback").getByRole("alert").getByRole("button").click()
     await page.getByRole("button", { name: "Retry Input styles", exact: true }).click()
     await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
     assert.equal(
@@ -1944,6 +1945,7 @@ test("Style and Download cancellation release preview workers and retain choices
       window.holdPDFRendering = false
       window.pdfContinuations = []
     })
+    await page.locator(".header-feedback").getByRole("alert").getByRole("button").click()
     await page.getByRole("button", { name: "Retry Input styles", exact: true }).click()
     await output.locator('button[aria-label="Download"]:enabled').waitFor()
     assert.equal(await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).inputValue(), "0.04")
@@ -2059,12 +2061,11 @@ test(
       assert.equal(await width.inputValue(), "0.04")
       await width.fill("0")
       const validation = page.locator(".header-feedback .feedback[data-kind=error]")
-      assert.match(await validation.textContent(), /Invalid value for Guide width\. Width must be greater than zero\./)
+      assert.equal(await validation.getByRole("alert").textContent(), "Check Guide Width")
+      await validation.getByRole("alert").getByRole("button").click()
+      assert.match(await page.locator(".message-details:popover-open").innerText(), /Width must be greater than zero/)
+      await page.keyboard.press("Escape")
       assert.equal(await status.count(), 0)
-      assert.equal(
-        await validation.evaluate((element) => getComputedStyle(element).color),
-        await input.locator(".style-status [role=status]").evaluate((element) => getComputedStyle(element).color),
-      )
       assert.notEqual(
         await validation.evaluate((element) => getComputedStyle(element).color),
         await page.locator(".footnote").evaluate((element) => getComputedStyle(element).color),
@@ -2102,6 +2103,7 @@ test(
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
       await page.setViewportSize({ width: 1440, height: 1000 })
       await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+      await page.locator(".header-feedback").getByRole("alert").getByRole("button").click()
       await page.getByRole("button", { name: "Retry Input styles", exact: true }).click()
       await status.filter({ hasText: "Updated styles." }).waitFor()
       const pending = page.waitForEvent("download")
@@ -2166,6 +2168,7 @@ test(
         assert.ok(bounds.y + bounds.height <= workspace.y, JSON.stringify({ bounds, workspace }))
         await checkStatus(page)
       }
+      await page.locator(".header-feedback").getByRole("alert").getByRole("button").click()
       await page.getByRole("button", { name: "Dismiss error", exact: true }).focus()
       await page.keyboard.press("Enter")
       assert.equal(await banner.count(), 0)
@@ -3027,7 +3030,7 @@ test("Opacity percentages preserve precision and leave room for their sliders", 
       assert.equal(await slider.inputValue(), "0.123456789")
       await field.fill("101")
       assert.equal(await field.getAttribute("aria-invalid"), "true")
-      assert.match(await input.locator(".control .error").innerText(), /between 0% and 100%/)
+      assert.match(await page.locator(".header-feedback .message-details").textContent(), /between 0% and 100%/)
       await input.getByRole("button", { name: "Reset Guide Opacity", exact: true }).click()
       assert.equal(await field.inputValue(), "100")
     } finally {
@@ -3075,7 +3078,7 @@ test("Opaque parameter IDs retain style edits, draft errors, and downloaded valu
     const color = input.getByRole("textbox", { name: "Guide Color", exact: true })
     await color.fill("invalid")
     assert.equal(await color.getAttribute("aria-invalid"), "true")
-    assert.match(await input.locator(".control .error").innerText(), /six hexadecimal digits/)
+    assert.match(await page.locator(".header-feedback .message-details").textContent(), /six hexadecimal digits/)
     assert.equal(await input.locator('.quartet-text[title^="Stroke color:"] > span:last-child').innerText(), "Invalid")
     assert.equal(await input.locator(".control .scope").first().textContent(), "Input pages: 1-7")
     await color.fill("#ff0000")
@@ -3124,7 +3127,7 @@ test("Page addition hint skips on any click", { timeout: 60000 }, async () => {
     const pause = () => flight.evaluate((element) => element.getAnimations().forEach((animation) => animation.pause()))
     await flight.waitFor()
     await pause()
-    await page.locator(".header-note").click()
+    await page.locator(".header-feedback [role=status]").click()
     assert.equal(await flight.count(), 0, "Clicking outside page controls immediately skips a paused animation")
     assert.equal(
       await page.getByRole("banner").getByRole("status").count(),
@@ -3287,7 +3290,7 @@ test(
       await page.locator(".selection-panel").getByRole("tab", { name: "Grid", exact: true }).click()
       await page.getByRole("button", { name: "Select Input page 1", exact: true }).dblclick()
       await blankOutput.locator(".output-options > summary").click()
-      await blankOutput.getByRole("button", { name: "Add blank page at end", exact: true }).click()
+      await blankOutput.getByRole("button", { name: "Blank at end", exact: true }).click()
       await blankOutput.getByRole("button", { name: "Clear Output selection", exact: true }).click()
       await blankOutput.getByRole("button", { name: "Remove Output page 1", exact: true }).click()
       await page.locator(".input-picker > summary h2").click()
@@ -3338,8 +3341,8 @@ test(
       await openHintInput()
       const instruction = "Select pages · Use + to add to Output."
       const status = page.locator(".footnote [role=status] span")
-      const notice = page.locator(".footnote [role=status]").filter({ hasText: instruction })
-      const instructionText = notice.locator("span")
+      const notice = page.locator(".header-feedback [role=status]").filter({ hasText: instruction })
+      const instructionText = notice
       const flight = page.locator(".page-flight:popover-open")
       const hintWelcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true })
       const hintTour = page.getByRole("dialog", { name: "Product tour", exact: true })
@@ -3411,16 +3414,17 @@ test(
       assert.equal(await page.locator(".composition-totals strong").textContent(), "0 pages")
       assert.equal(
         await instructionText.evaluate((element) => getComputedStyle(element).fontWeight),
-        statusStyle.weight,
-        "The instruction uses the ordinary status treatment",
+        "700",
+        "The instruction uses the header notification treatment",
       )
       const headerBounds = await page.getByRole("banner").boundingBox()
       const noticeBounds = await notice.boundingBox()
       assert.ok(
-        noticeBounds.y >= headerBounds.y + headerBounds.height,
-        "The addition instruction stays below the workspace instead of covering the header",
+        noticeBounds.y >= headerBounds.y &&
+          noticeBounds.y + noticeBounds.height <= headerBounds.y + headerBounds.height,
+        "The addition instruction stays within the header",
       )
-      assert.equal(await status.textContent(), instruction)
+      assert.match(await status.textContent(), /Opened 1 page/)
       await notice.waitFor({ state: "hidden", timeout: 15000 })
       assert.match(await status.textContent(), /Opened 1 page/)
       await page.getByRole("button", { name: "Help", exact: true }).click()

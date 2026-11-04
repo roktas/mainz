@@ -3,6 +3,7 @@
 <script lang="ts">
   import { copyError, maxCopies } from "./model.ts"
   import Icon from "./Icon.svelte"
+  import Feedback from "./Feedback.svelte"
 
   let {
     pane,
@@ -27,7 +28,7 @@
     disabled={!!error || Number(value) <= 1}
     onclick={() => (value = String(Number(value) - 1))}>−</button
   >
-  <input {id} inputmode="numeric" bind:value aria-invalid={!!error} />
+  <input {id} inputmode="numeric" bind:value aria-invalid={!!error} aria-describedby={`${id}-error`} />
   <button
     class="step"
     aria-label={`More ${label} repetitions`}
@@ -41,7 +42,7 @@
     onclick={() => (value = initial)}><Icon name="reset" /></button
   >
 </div>
-{#if error}<p class="error" role="alert">{error}</p>{/if}
+<Feedback header kind="error" text={error} summary="Check repetitions." id={`${id}-error`} />
 <label class="align"><input type="checkbox" bind:checked={front} />Start each repeat on front</label>
 <p>
   {pane === "Input"

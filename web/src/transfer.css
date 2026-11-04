@@ -85,9 +85,6 @@
         opacity: 0.45;
       }
     }
-    .input-drop-hint {
-      display: none;
-    }
     .composer {
       &[data-drag] {
         & .composition-output .page-list > li:not([data-dragging]) {
@@ -140,6 +137,11 @@
     }
     @container composer (width <= 55em) {
       .composer[data-touch-drag][data-drag="source"][data-view="input"] {
+        & .selection-panel[data-warning] :is(.composition-grid, .page-list, .page-view) {
+          outline: 1px dashed var(--danger);
+          outline-offset: 6px;
+          border-radius: var(--radius);
+        }
         & .mobile-workspace-tabs > button:last-child {
           border-color: var(--accent);
           border-style: dashed;
@@ -147,38 +149,6 @@
           background: var(--tint);
           &[data-drop] {
             border-style: solid;
-          }
-        }
-        & .selection-panel .page-content {
-          position: relative;
-        }
-        & .selection-panel:has(.input-drop-hint) :is(.composition-grid, .page-list, .page-view) {
-          outline: 1px dashed var(--danger);
-          outline-offset: 6px;
-          border-radius: var(--radius);
-        }
-        & .input-drop-hint {
-          position: absolute;
-          inset-block-start: calc(var(--gap) / 2);
-          inset-inline-start: 50%;
-          translate: -50% 0;
-          display: block flex;
-          align-items: center;
-          gap: calc(var(--gap) / 2);
-          inline-size: max-content;
-          max-inline-size: calc(100% - var(--gap));
-          padding: calc(var(--gap) / 2);
-          border: 1px solid var(--danger);
-          border-radius: var(--radius);
-          color: var(--danger);
-          background: var(--paper);
-          font-size: var(--small);
-          pointer-events: none;
-          z-index: 5;
-          & svg {
-            flex: none;
-            inline-size: 1.25em;
-            block-size: 1.25em;
           }
         }
       }

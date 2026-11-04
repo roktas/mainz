@@ -1,23 +1,7 @@
-/* Coordinates workspace layout, Recipe checks and alignment, headings, and responsive navigation. */
+/* Coordinates workspace layout, Recipe matching, headings, and responsive navigation. */
 
 @layer layouts {
   @scope (#app) {
-    .recipe-alignment {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: var(--gap);
-      min-inline-size: 0;
-      padding-block: var(--gap);
-      color: var(--muted);
-      & > p {
-        flex: 1 1 20rem;
-        min-inline-size: 0;
-      }
-      & > button {
-        margin-inline-start: auto;
-      }
-    }
     .composer {
       --document-icon-size: 1.75rem;
       display: flex;
@@ -101,7 +85,7 @@
       }
       & .filename-actions {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--action-width)), 1fr));
         gap: calc(var(--gap) / 2);
       }
       & .file-cover {
@@ -138,8 +122,6 @@
       --cover-width: clamp(110px, 10vi, 128px);
       --cover-height: calc(var(--cover-width) * 1.414);
       --binding-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-      --action-width: 9.5rem;
-      --action-height: max(46px, calc(2.75rem + 2px));
       --inset: clamp(16px, 2.8vi, 40px);
       --location-offset: max(-24px, calc(8px - var(--inset)));
       container: matching / inline-size;
@@ -246,11 +228,11 @@
         grid-column: 1;
         grid-row: 3;
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--action-width)), 1fr));
         align-items: center;
         gap: var(--gap);
         justify-self: start;
-        max-inline-size: 100%;
+        inline-size: min(100%, calc(2 * var(--action-width) + var(--gap)));
         & > :is(button, label) {
           block-size: 100%;
           text-align: center;
@@ -446,7 +428,6 @@
         color: var(--accent);
         display: flex;
         align-items: center;
-        gap: 0.25rem;
         & > span {
           min-inline-size: 0;
           overflow: clip;
@@ -455,14 +436,20 @@
           text-decoration: underline dotted;
           text-underline-offset: 0.2em;
         }
-        & > svg {
-          flex: none;
-          inline-size: 1em;
-          block-size: 1em;
-        }
       }
       & .binding-check {
         inline-size: min(30rem, calc(100vi - 2 * var(--gutter)));
+        max-block-size: calc(100dvb - anchor-size(--header block) - 2 * var(--gap));
+        position-try-fallbacks: flip-inline, --review-center;
+        &:popover-open {
+          display: flex;
+          flex-direction: column;
+        }
+      }
+      & .binding-details {
+        min-block-size: 0;
+        overflow: auto;
+        overscroll-behavior: contain;
         & > .icon-button {
           float: inline-end;
           margin-inline-start: 0.5rem;
@@ -486,18 +473,13 @@
         color: var(--danger);
       }
       & .binding-accept {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+        flex: none;
+        display: block flex;
+        inline-size: fit-content;
+        max-inline-size: 100%;
         min-block-size: 44px;
-        cursor: pointer;
-        clear: both;
-        margin-block-start: 0.5rem;
-        & input {
-          flex: none;
-          inline-size: 1.125rem;
-          block-size: 1.125rem;
-        }
+        margin-inline: auto;
+        margin-block-start: var(--gap);
       }
       & .binding-pick {
         display: flex;
@@ -577,7 +559,6 @@
           & > :is(button, label) {
             min-inline-size: 0;
             padding-inline: 8px;
-            overflow-wrap: anywhere;
           }
         }
         & .binding-row {
@@ -819,7 +800,7 @@
       }
       & .recipe-actions {
         display: block grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--action-width)), 1fr));
         gap: var(--gap);
       }
     }
@@ -856,11 +837,6 @@
       color: var(--ink);
       background: var(--surface);
       font-size: var(--small);
-    }
-    .download-error {
-      grid-column: 1 / -1;
-      grid-row: 2;
-      margin: 0;
     }
     .composition-empty {
       display: grid;
@@ -1016,10 +992,8 @@
         }
       }
       & .source-tabs {
-        & .style-status {
-          margin: 0;
+        & .style-actions {
           margin-inline-start: auto;
-          gap: 0.25em;
         }
       }
       & .output-state {

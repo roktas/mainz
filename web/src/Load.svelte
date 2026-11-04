@@ -17,18 +17,20 @@
   import Guidance from "./Guidance.svelte"
   import Icon from "./Icon.svelte"
   import Logo, { parallax } from "./Logo.svelte"
-  import Align from "./Align.svelte"
   import Check from "./Check.svelte"
+  import Feedback from "./Feedback.svelte"
   import type { Alignment } from "./Align.svelte"
   let {
     active = $bindable(false),
     status = $bindable(""),
+    alignment = $bindable<Alignment | undefined>(),
     replay,
     open,
     cancel,
   }: {
     active?: boolean
     status?: string
+    alignment?: Alignment
     replay: number
     open: (text: string, bindings: Binding[], force: boolean) => Promise<Recipe>
     cancel: () => void
@@ -40,7 +42,6 @@
   let inputs = $state.raw<Recipe["inputs"]>()
   let selected = $state.raw(new Map<string, Binding>())
   let failures = $state.raw(new Map<string, { name: string; message: string }>())
-  let alignment = $state.raw<Alignment>()
   let reading: Opening | undefined
   let busy = $state(false)
   let opening = $state(false)
@@ -289,14 +290,13 @@
         </p>
       </div>
       {#if inputs && count}<div class="load-choices">
-          {#if example}<button type="button" disabled={busy} onclick={() => void samples()}>Use sample PDFs</button
-            >{/if}
+          {#if example}<button type="button" disabled={busy} onclick={() => void samples()}>Sample PDFs</button>{/if}
           <label class="file-picker"
-            >Choose local PDFs<input
+            >Choose PDFs<input
               type="file"
               accept="application/pdf,.pdf"
               multiple
-              title="Choose local PDFs"
+              title="Choose PDFs"
               disabled={busy}
               onchange={(event) => {
                 if (event.currentTarget.files) void files(event.currentTarget.files)
@@ -400,7 +400,7 @@
         </div>
       {:else}<p class="control-description">This Recipe uses only blank pages and needs no PDFs.</p>{/if}
     {/if}
-    {#if failure}<p class="error" role="alert">{failure}</p>{/if}
+    <Feedback header {active} kind="error" text={failure} summary="Could not load recipe." />
     <div class="load-actions">
       <button type="button" onclick={() => void close()}>Cancel</button><button
         type="button"
@@ -410,4 +410,3 @@
       >
     </div>
   </section>{/if}
-<Align bind:value={alignment} />

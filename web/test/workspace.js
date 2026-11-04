@@ -606,7 +606,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await page.keyboard.press("Escape")
   assert.ok(!(await details.locator("div").isVisible()), "Escape closes style information")
   await inputPages().click()
-  assert.ok(!(await input.locator(".style-status").count()), "Style controls belong only to the active Style tab")
+  assert.ok(!(await input.locator(".style-actions").count()), "Style controls belong only to the active Style tab")
   await ready()
   assert.ok((await entry.inputValue()) === "3-5,2,2,7", "Ordered duplicate page entry survives Style")
   assert.ok(
@@ -845,7 +845,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
     "Output preserves repeated physical page references",
   )
   await output.getByLabel("Output page actions", { exact: true }).click()
-  await output.getByRole("button", { name: "Add blank page at end", exact: true }).click()
+  await output.getByRole("button", { name: "Blank at end", exact: true }).click()
   const landscape = await output.locator(".composition-blank").boundingBox()
   assert.ok(
     Math.abs(landscape.width / landscape.height - 297 / 210) < 0.01 && landscape.height <= 168,
@@ -1113,7 +1113,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
     .getByRole("button", { name: "Select or drag Output page 5", exact: true })
     .click({ modifiers: ["Shift"] })
   await output.getByLabel("Output page actions", { exact: true }).click()
-  await output.getByRole("button", { name: "Repeat selected pages", exact: true }).click()
+  await output.getByRole("button", { name: "Repeat", exact: true }).click()
   assert.ok(
     (await total()) === "10 pages" && (await order()).slice(3, 7).join(",") === "p. 4,p. 1,p. 4,p. 1",
     "Output repetition preserves a consecutive sequence across independent Inputs",
@@ -1255,8 +1255,8 @@ export async function checkWorkspace(page, prepared, ordinary) {
   )
   await page.getByRole("button", { name: "Cancel style processing", exact: true }).click()
   assert.ok(
-    (await input.locator(".style-status").innerText()).includes("Styles need retry"),
-    "Cancellation retains styles with retry feedback",
+    (await page.locator(".header-feedback").getByRole("alert").innerText()).includes("Style update failed"),
+    "Cancellation retains styles with header recovery feedback",
   )
   assert.ok(
     await output.getByRole("button", { name: "Download", exact: true }).isVisible(),
@@ -1264,19 +1264,21 @@ export async function checkWorkspace(page, prepared, ordinary) {
   )
   await choose(2)
   await inputStyle().click()
+  await page.locator(".header-feedback").getByRole("alert").getByRole("button").click()
   assert.ok(
     await page.getByRole("button", { name: "Retry Input styles", exact: true }).isVisible(),
     "Failed Output preview remains visible and retryable when another Input is active",
   )
-  await choose(3)
   await page.getByRole("button", { name: "Retry Input styles", exact: true }).click()
   await output.locator('button[aria-label="Download"]:enabled').waitFor({ state: "visible", timeout: 60000 })
+  await choose(3)
+  await inputStyle().click()
   assert.ok((await color().inputValue()) === "#666666", "Retry completes the retained style choice")
   await outputPages().click()
   await output.getByRole("button", { name: "Select or drag Output page 1", exact: true }).click()
   const options = output.locator(".output-options")
   if ((await options.getAttribute("open")) === null) await options.locator("summary").first().click()
-  await output.getByRole("button", { name: "Blank before first selected page", exact: true }).click()
+  await output.getByRole("button", { name: "Blank before", exact: true }).click()
   assert.ok(
     (await total()) === "9 pages" && (await order())[0] === "210.0 × 297.0 mm",
     "Blank keeps adjacent physical dimensions",

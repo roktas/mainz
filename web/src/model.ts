@@ -92,8 +92,12 @@ export function downloadName(
   const content = parts.flatMap((part) => part.pages).find((page) => "source" in page.content)?.content
   const name =
     content && "source" in content ? sources.find((source) => source.id === content.source)?.input.name : undefined
-  const stem = name?.replace(/\.pdf$/i, "").replace(/(?:_\d{4}-\d{4}-\d{4}-\d{4})+$/, "") || "blank-pages"
-  return `${stem}_${String(date.getFullYear()).padStart(4, "0")}-${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}-${pad(date.getSeconds())}${pad(Math.floor(date.getMilliseconds() / 10))}.pdf`
+  return `${stampedName(name?.replace(/\.pdf$/i, "") || "", "blank-pages", date)}.pdf`
+}
+
+export function stampedName(stem: string, fallback: string, date = new Date()): string {
+  const name = stem.replace(/(?:_\d{4}-\d{4}-\d{4}-\d{4})+$/, "") || fallback
+  return `${name}_${String(date.getFullYear()).padStart(4, "0")}-${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}-${pad(date.getSeconds())}${pad(Math.floor(date.getMilliseconds() / 10))}`
 }
 
 export function copyError(text: string): string | undefined {

@@ -77,27 +77,27 @@ final class Probe: XCTestCase {
             prepare(app)
         }
         open(app)
-        XCTAssertTrue(wait(app.buttons["Reload fixture"], app, timeout: 20))
-        app.buttons["Reload fixture"].tap()
+        XCTAssertTrue(wait(app.buttons["Reload"], app, timeout: 20))
+        app.buttons["Reload"].tap()
         prepare(app)
         if fullscreen {
             open(app)
-            if app.buttons["Exit browser fullscreen"].exists {
-                app.buttons["Exit browser fullscreen"].tap()
+            if app.buttons["Windowed"].exists {
+                app.buttons["Windowed"].tap()
                 open(app)
             }
-            XCTAssertTrue(wait(app.buttons["Enter browser fullscreen"], app, timeout: 10))
-            app.buttons["Enter browser fullscreen"].tap()
+            XCTAssertTrue(wait(app.buttons["Fullscreen"], app, timeout: 10))
+            app.buttons["Fullscreen"].tap()
         }
         images(app, "baseline")
         open(app)
-        app.buttons[searching ? "Search candidates" : "Capture all views"].tap()
+        app.buttons[searching ? "Calibrate" : "Capture"].tap()
         let copy = app.buttons["Copy JSON"]
         XCTAssertTrue(wait(copy, app, timeout: searching ? 180 : 45))
         copy.tap()
-        XCTAssertTrue(app.staticTexts["Geometry copied."].waitForExistence(timeout: 10))
-        if searching && app.buttons["Preview candidate"].exists {
-            app.buttons["Preview candidate"].tap()
+        XCTAssertTrue(app.buttons["Geometry copied"].waitForExistence(timeout: 10))
+        if searching && app.buttons["Preview"].exists {
+            app.buttons["Preview"].tap()
             images(app, "candidate")
         } else { app.buttons["Close geometry"].tap() }
         let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())

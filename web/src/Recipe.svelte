@@ -11,9 +11,11 @@
   import Icon from "./Icon.svelte"
   import { cover } from "./pdf.ts"
   import { Download } from "./download.ts"
+  import Feedback from "./Feedback.svelte"
   let { output, sources, info }: { output: Output; sources: readonly Source[]; info: (text: string) => void } = $props()
   const key = $props.id()
   let panel: HTMLDialogElement
+  let opened = $state(false)
   let captured = $state.raw<Recipe>()
   let inputs = $state.raw<Pick<Input, "id" | "name" | "title">[]>([])
   let ids = $state<Record<string, string>>({})
@@ -86,7 +88,14 @@
   })
 </script>
 
-<dialog bind:this={panel} class="recipe-panel" aria-labelledby={`${key}-title`} closedby="any" {@attach dismiss}>
+<dialog
+  bind:this={panel}
+  class="recipe-panel"
+  aria-labelledby={`${key}-title`}
+  closedby="any"
+  {@attach dismiss}
+  ontoggle={(event) => (opened = event.newState === "open")}
+>
   <form onsubmit={save}>
     <div class="dialog-heading">
       <h2 id={`${key}-title`}>Export recipe</h2>
@@ -94,7 +103,7 @@
         ><Icon name="close" /></button
       >
     </div>
-    {#if preparing}<p role="status">Preparing Input covers…</p>{/if}
+    <Feedback header active={opened && preparing} kind="progress" text="Preparing Input covers…" />
     {#if captured}
       {#if Object.keys(captured.inputs).length}
         <!-- Keyboard focus makes horizontally scrolled columns reachable. -->
@@ -142,9 +151,14 @@
                         >{ids[input.id] || "Set name"}</button
                       >
                     {/if}
-                    {#if errors[input.id]}<p id={`${key}-error-${index}`} class="error" role="alert">
-                        {errors[input.id]}
-                      </p>{/if}
+                    <Feedback
+                      header
+                      active={opened}
+                      kind="error"
+                      id={`${key}-error-${index}`}
+                      text={errors[input.id]}
+                      summary="Check Input names."
+                    />
                   </td>
                   <td class="recipe-index">{index + 1}</td>
                   <td class="recipe-path" title={path}>{path}</td>
@@ -156,7 +170,7 @@
         </div>
       {:else}<p class="control-description">This recipe uses only blank pages and needs no Inputs.</p>{/if}
     {/if}
-    {#if failure}<p class="error" role="alert">{failure}</p>{/if}
+    <Feedback header active={opened} kind="error" text={failure} summary="Recipe export failed." />
     <div class="recipe-actions">
       <button type="button" onclick={() => panel.close()}>Cancel</button>
       <button type="submit" class="primary" disabled={!captured || Object.keys(errors).length > 0}>Export</button>

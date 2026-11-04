@@ -5,6 +5,7 @@
   import type { Snippet } from "svelte"
   import Icon from "./Icon.svelte"
   import { dismiss } from "./dismiss.ts"
+  import Feedback from "./Feedback.svelte"
 
   type Prompt = Event & {
     prompt: () => Promise<void>
@@ -28,6 +29,7 @@
   let standalone = $state(false)
   let requesting = $state(false)
   let message = $state("")
+  let failed = $state(false)
   let previous: Element | null = null
 
   function remember() {
@@ -51,6 +53,7 @@
     const request = prompt
     if (!request || requesting) return
     requesting = true
+    failed = false
     try {
       await request.prompt()
       const choice = await request.userChoice
@@ -60,6 +63,7 @@
           : "You can continue in this browser."
       remember()
     } catch {
+      failed = true
       message = "Installation is unavailable. You can continue in this browser."
     } finally {
       prompt = undefined
@@ -115,6 +119,12 @@
   })
 </script>
 
+<Feedback
+  header
+  kind={failed ? "error" : "notice"}
+  text={message}
+  summary={failed ? "Installation unavailable." : undefined}
+/>
 {#snippet content(intro: boolean)}
   {#if standalone}<p>PDF Composer is running in its own app window.</p>
   {:else}
@@ -125,9 +135,8 @@
         This browser has not offered installation. Continue in the browser, or check its app installation menu.
       </p>{/if}
   {/if}
-  {#if message}<p role="status">{message}</p>{/if}
   {#if intro || (prompt && !standalone)}<div class="installation-actions">
-      {#if intro}<button class="primary" onclick={close}>Continue in browser</button>{/if}
+      {#if intro}<button class="primary" onclick={close}>Use browser</button>{/if}
       {#if prompt && !standalone}<button onclick={install} disabled={requesting}>Install app</button>{/if}
     </div>{/if}
 {/snippet}
@@ -175,7 +184,6 @@
     & button {
       min-inline-size: 0;
       max-inline-size: 100%;
-      white-space: normal;
     }
   }
 </style>

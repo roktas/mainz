@@ -16,6 +16,7 @@
       color: var(--muted);
       font-size: var(--body);
       font-weight: 500;
+      white-space: nowrap;
       cursor: pointer;
       min-block-size: 46px;
       align-items: center;
@@ -186,7 +187,7 @@
         font-size: var(--body);
       }
       & .buttons {
-        --action-space: 0.875rem;
+        --action-space: clamp(14px, 2.5cqi, 0.875rem);
         --action-icon: 1.5rem;
         --action-height: calc(max(1.5 * var(--body), var(--action-icon)) + 2 * var(--action-space) + 2px);
         display: inline-grid;
@@ -277,7 +278,8 @@
         margin-inline: calc(0.5 * var(--gap));
         margin-block-start: calc(2 * var(--gap));
         @media (width <= 30em) {
-          margin-inline: clamp(var(--gap), 12cqi - 2rem, calc(2 * var(--gap)));
+          margin-inline: clamp(0px, 12cqi - 2rem, calc(2 * var(--gap)));
+          padding-inline: min(var(--inset), 4cqi);
           padding-block-start: calc(2 * var(--gap));
           & .hero-mark {
             inline-size: min(100%, clamp(11rem, 5.5rem + 40cqi, 15.5rem));

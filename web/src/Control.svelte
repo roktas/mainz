@@ -5,6 +5,7 @@
   import { current, feedback, step } from "./styles.ts"
   import type { Entry } from "./styles.ts"
   import Icon from "./Icon.svelte"
+  import Feedback from "./Feedback.svelte"
   let {
     id,
     entry,
@@ -322,7 +323,5 @@
     >
   </div>
 
-  <p id={`${key}-error`} class={{ error: !!error }} role={error ? "alert" : undefined}>
-    {error ?? ""}
-  </p>
+  <Feedback header kind="error" text={error} summary={`Check ${title}.`} id={`${key}-error`} />
 </article>

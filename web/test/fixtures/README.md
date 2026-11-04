@@ -74,7 +74,7 @@ limits.
 ## Recipe fixture
 
 `?demo=recipe` opens [`recipe/session.json`](recipe/session.json) for Input matching. The example offers its JSON and
-PDFs as downloads and can select the bundled PDFs through Use sample PDFs. The `book` binding reuses `demo.pdf`.
+PDFs as downloads and can select the bundled PDFs through Sample PDFs. The `book` binding reuses `demo.pdf`.
 [`recipe/guides.pdf`](recipe/guides.pdf) contains its physical pages 2–4; its title is `Guide sheets` and its cover is
 page 1. [`recipe/crossings.pdf`](recipe/crossings.pdf) contains physical pages 3–4; its title is `Crossing strokes` and
 its cover is page 2. Both use short XMP `dc:title` and PDF Info `Title` values, with longer text in XMP

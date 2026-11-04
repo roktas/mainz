@@ -166,7 +166,7 @@ test("Output Page removes the current occurrence, including Blank and the final 
     assert.equal(await output.locator(".composition-totals strong").textContent(), "7 pages")
     assert.equal(await output.getByLabel("Page selection", { exact: true }).inputValue(), "")
     await output.getByLabel("Output page actions", { exact: true }).click()
-    await output.getByRole("button", { name: "Add blank page at end", exact: true }).click()
+    await output.getByRole("button", { name: "Blank at end", exact: true }).click()
     assert.equal(await actions.getByRole("button").count(), 0, "Selection hides individual actions")
     await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
     await output.getByRole("button", { name: "Next Output page", exact: true }).focus()
@@ -784,12 +784,7 @@ test("Addition previews use their target image or the action area", { timeout: 9
           await pane.getByRole("textbox", { name: "Repeat selected sequence", exact: true }).fill("2")
         }
         const control = pane.getByRole("button", {
-          name:
-            action === "input"
-              ? "Add to Output"
-              : action === "copy"
-                ? "Duplicate selected Output pages"
-                : "Repeat selected pages",
+          name: action === "input" ? "Add to Output" : action === "copy" ? "Duplicate selected Output pages" : "Repeat",
           exact: true,
         })
         await control.scrollIntoViewIfNeeded()
@@ -1070,8 +1065,8 @@ test(
             await selection.fill("1")
             await output.getByLabel("Output page actions", { exact: true }).click()
             await output.getByRole("textbox", { name: "Repeat selected sequence", exact: true }).fill("2")
-            await addition(() => output.getByRole("button", { name: "Repeat selected pages", exact: true }).click())
-            for (const label of ["Blank before first selected page", "Add blank page at end"]) {
+            await addition(() => output.getByRole("button", { name: "Repeat", exact: true }).click())
+            for (const label of ["Blank before", "Blank at end"]) {
               await output.getByLabel("Output page actions", { exact: true }).click()
               await addition(() => output.getByRole("button", { name: label, exact: true }).click(), 1, true)
             }
@@ -1349,7 +1344,7 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     await selected.fill("2,2,4")
     assert.equal(await output.locator(".composition-card.selected").count(), 2)
     await outputOptions.click()
-    assert.equal(await output.getByRole("button", { name: "Repeat selected pages", exact: true }).count(), 0)
+    assert.equal(await output.getByRole("button", { name: "Repeat", exact: true }).count(), 0)
     await output.getByRole("button", { name: "Move selected pages earlier", exact: true }).press("Enter")
     assert.equal(await selected.evaluate((element) => element === document.activeElement), true)
     assert.deepEqual(await order(), ["p. 2", "p. 1", "p. 4", "p. 3", "p. 5"])
@@ -1388,13 +1383,13 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     await outputOptions.click()
     await outputRepeat.fill("3")
     await outputFront.check()
-    await output.getByRole("button", { name: "Repeat selected pages", exact: true }).click()
+    await output.getByRole("button", { name: "Repeat", exact: true }).click()
     assert.equal(await total(), "9 pages")
     assert.equal(await selected.inputValue(), "7-8")
     await outputOptions.click()
     assert.equal(await outputRepeat.inputValue(), "2")
     assert.equal(await outputFront.isChecked(), false)
-    await output.getByRole("button", { name: "Repeat selected pages", exact: true }).click()
+    await output.getByRole("button", { name: "Repeat", exact: true }).click()
     assert.equal(await total(), "11 pages")
     assert.equal(await selected.inputValue(), "9-10")
     await selected.fill("99")
@@ -1418,10 +1413,10 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     await outputOptions.click()
     assert.equal(await outputRepeat.inputValue(), "2")
     assert.equal(await outputFront.isChecked(), false)
-    await output.getByRole("button", { name: "Blank before first selected page", exact: true }).click()
+    await output.getByRole("button", { name: "Blank before", exact: true }).click()
     assert.equal(await selected.inputValue(), "9")
     await outputOptions.click()
-    await output.getByRole("button", { name: "Add blank page at end", exact: true }).click()
+    await output.getByRole("button", { name: "Blank at end", exact: true }).click()
     assert.equal(await selected.inputValue(), "13")
     await selected.fill("1-13")
     await selected.press("Enter")
@@ -1506,7 +1501,7 @@ test("Edited Padding retains its dimensions and page order in the downloaded PDF
     await tab(output, "Grid")
     await selected.fill("1")
     await options.click()
-    await output.getByRole("button", { name: "Blank before first selected page", exact: true }).click()
+    await output.getByRole("button", { name: "Blank before", exact: true }).click()
     assert.equal(await selected.inputValue(), "1")
     assert.deepEqual(await output.locator(".page-origin-info .page-context").allTextContents(), [
       "297.0 × 210.0 mm",

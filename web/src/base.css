@@ -27,6 +27,8 @@
     --gutter: clamp(1rem, 0.6rem + 1.6vi, 1.75rem);
     --radius: 4px;
     --icon-size: 1.125rem;
+    --action-width: 9.5rem;
+    --action-height: max(46px, calc(2.75rem + 2px));
     --small: clamp(0.6875rem, 0.66rem + 0.06vi, 0.75rem);
     --body: clamp(0.8125rem, 0.78rem + 0.08vi, 0.875rem);
     --heading: clamp(1rem, 0.93rem + 0.14vi, 1.125rem);
@@ -100,6 +102,7 @@
     background: var(--surface);
     font-size: var(--body);
     font-weight: 600;
+    white-space: nowrap;
     cursor: pointer;
     display: inline-flex;
     align-items: center;

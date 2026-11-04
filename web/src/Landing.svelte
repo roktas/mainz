@@ -63,7 +63,7 @@
     <p>Select and repeat PDF pages. Style prepared PDFs for your printer.</p>
     <div class="buttons">
       <label class="file-picker primary"
-        ><Icon name="pdf" /><span>Choose a PDF</span><input
+        ><Icon name="pdf" /><span>Open PDF</span><input
           type="file"
           accept="application/pdf,.pdf"
           disabled={loading || updating}
@@ -75,7 +75,7 @@
       >
       <span class="landing-or">or</span>
       <label class="landing-recipe" title="Open a saved recipe"
-        ><Icon name="json" /><span>Open recipe</span><input
+        ><Icon name="json" /><span>Recipe</span><input
           type="file"
           accept="application/json,.json"
           aria-label="Open recipe"

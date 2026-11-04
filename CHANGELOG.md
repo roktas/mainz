@@ -23,7 +23,7 @@
   page-name digests, reference counts, and an optional publication ID and integer `compat` veto.
 - `mainz align` writes a separate reference Recipe without changing processing intent. Recipe commands support
   review-only `--force`, informational `--verbose`, and structured `--jsonl` records.
-- Recipe loading shows per-Input explanations and explicit review acceptance. Changed loads offer Save updated recipe.
+- Recipe loading shows per-Input explanations and explicit review acceptance. Changed loads offer an updated Recipe.
   Shared e2e cases also provide development-only UI demos outside the logo menu.
 - Optional Style families and semantic parameter keys, preserved through production, styling, extraction, and
   composition.
@@ -38,6 +38,10 @@
 
 ### Changed
 
+- Centralized notifications and errors in the header, with short summaries, optional details, and stable local error
+  cues.
+- Updated Recipe export offers a timestamped copy or explicit local-file replacement in the header message panel.
+- Shortened action labels and kept them on one line, with matching button sizes and less space above message actions.
 - The header logo opens Home with one click, replays its animation with two, and opens examples with three or more.
 - Bounded mounted List rows while preserving physical positions, occurrence identities, selection, and scrolling.
 - Centralized persisted Style intent and moved row interaction and edit feedback lifecycle to their owning surfaces.

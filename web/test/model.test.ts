@@ -6,6 +6,7 @@ import {
   copyError,
   downloadInputs,
   downloadName,
+  stampedName,
   expand,
   plan,
   move,
@@ -288,6 +289,16 @@ test("Download names replace trailing timestamps and preserve the rest of the In
   ]) {
     assert.equal(downloadName([part("practice", [0])], [{ id: "book", input: { name } }], date), expected, name)
   }
+})
+
+test("Recipe copies use the shared local timestamp and replace previous filename stamps", () => {
+  const date = new Date(2026, 10, 4, 21, 23, 45, 678)
+  assert.equal(stampedName("review", "recipe", date), "review_2026-1104-2123-4567")
+  assert.equal(
+    stampedName("review_2026-1103-1011-1200_2026-1104-1230-0010", "recipe", date),
+    "review_2026-1104-2123-4567",
+  )
+  assert.equal(stampedName("", "recipe", date), "recipe_2026-1104-2123-4567")
 })
 
 test("Page entry retains exact order and repetitions with bounded expansion", () => {

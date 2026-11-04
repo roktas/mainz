@@ -156,25 +156,28 @@ test("One geometry schema captures desktop and touch without changing Grid choic
           assert.ok((await page.locator('link[rel="manifest"]').getAttribute("href")).endsWith("?geometry"))
           await page.getByRole("button", { name: "Geometry", exact: true }).click()
           const dialog = page.getByRole("dialog", { name: "Grid geometry", exact: true })
-          await dialog.getByText("Grid ready.", { exact: true }).waitFor()
+          await dialog.getByText("Grid ready", { exact: true }).waitFor()
           await dialog.getByText("Grid views", { exact: true }).click()
           await dialog.getByRole("button", { name: "Show Output Compact", exact: true }).click()
           await dialog.waitFor({ state: "hidden" })
           await page.waitForFunction(() => !document.querySelector("button[data-geometry]").disabled)
           assert.equal(await page.locator(".composition-output").getAttribute("data-density"), "compact")
           await page.getByRole("button", { name: "Geometry", exact: true }).click()
-          await dialog.getByRole("button", { name: "Reload fixture", exact: true }).click()
+          await dialog.getByRole("button", { name: "Reload", exact: true }).click()
           await page.waitForFunction(
             () => document.querySelector(".composition-totals strong")?.textContent === "240 pages",
           )
           await page.getByRole("button", { name: "Geometry", exact: true }).click()
           await dialog.getByLabel("Device or environment", { exact: true }).fill("Fixture test")
-          await dialog.getByRole("button", { name: "Capture all views", exact: true }).click()
+          await dialog.getByRole("button", { name: "Capture views", exact: true }).click()
           await page.waitForFunction(() =>
             document.querySelector(".geometry-dialog [role=status]")?.textContent?.trim(),
           )
-          assert.match(await dialog.getByRole("status").textContent(), /Captured Input and Output/)
-          await dialog.getByRole("button", { name: "Export JSON", exact: true }).waitFor()
+          assert.match(
+            await page.locator(".header-feedback").getByRole("status").textContent(),
+            /Captured Input and Output/,
+          )
+          await dialog.getByRole("button", { name: "Save JSON", exact: true }).waitFor()
           for (const extension of ["JSON", "CSV"]) {
             const [download] = await Promise.all([
               page.waitForEvent("download"),
@@ -205,12 +208,12 @@ test("One geometry schema captures desktop and touch without changing Grid choic
             await dialog.getByRole("button", { name: "Close geometry", exact: true }).click()
             const beforeSearch = await collect(page)
             await page.getByRole("button", { name: "Geometry", exact: true }).click()
-            await dialog.getByRole("button", { name: "Search candidates", exact: true }).click()
+            await dialog.getByRole("button", { name: "Find layouts", exact: true }).click()
             await dialog.waitFor({ timeout: 60000 })
-            assert.match(await dialog.getByRole("status").textContent(), /Searched /)
+            assert.match(await page.locator(".header-feedback").getByRole("status").textContent(), /Searched /)
             const [download] = await Promise.all([
               page.waitForEvent("download"),
-              dialog.getByRole("button", { name: "Export JSON", exact: true }).click(),
+              dialog.getByRole("button", { name: "Save JSON", exact: true }).click(),
             ])
             const chunks = []
             for await (const chunk of await download.createReadStream()) chunks.push(chunk)
@@ -232,11 +235,11 @@ test("One geometry schema captures desktop and touch without changing Grid choic
                 assert.deepEqual(afterSearch.layout[pane][density].card, beforeSearch.layout[pane][density].card)
             if (await page.evaluate(() => document.fullscreenEnabled)) {
               await page.getByRole("button", { name: "Geometry", exact: true }).click()
-              await dialog.getByRole("button", { name: "Enter browser fullscreen", exact: true }).click()
+              await dialog.getByRole("button", { name: "Fullscreen", exact: true }).click()
               await page.waitForFunction(() => !!document.fullscreenElement)
               assert.equal((await page.evaluate(geometry)).environment.presentationMode, "browser-fullscreen")
               await page.getByRole("button", { name: "Geometry", exact: true }).click()
-              await dialog.getByRole("button", { name: "Exit browser fullscreen", exact: true }).click()
+              await dialog.getByRole("button", { name: "Exit fullscreen", exact: true }).click()
               await page.waitForFunction(() => !document.fullscreenElement)
               assert.equal((await page.evaluate(geometry)).environment.presentationMode, "browser-tabbed")
             }
@@ -246,10 +249,13 @@ test("One geometry schema captures desktop and touch without changing Grid choic
               await dialog.getByRole("button", { name: "Close geometry", exact: true }).click()
               await pane.getByRole("tab", { name: "Page", exact: true }).click()
               await page.getByRole("button", { name: "Geometry", exact: true }).click()
-              await dialog.getByRole("button", { name: "Capture all views", exact: true }).click()
+              await dialog.getByRole("button", { name: "Capture views", exact: true }).click()
               await dialog.waitFor()
-              assert.match(await dialog.getByRole("status").textContent(), /Grid before capturing geometry/)
-              assert.equal(await dialog.getByRole("button", { name: "Export JSON", exact: true }).count(), 0)
+              assert.match(
+                await page.locator(".header-feedback .message-details").textContent(),
+                /Grid before capturing geometry/,
+              )
+              assert.equal(await dialog.getByRole("button", { name: "Save JSON", exact: true }).count(), 0)
             }
           }
         }

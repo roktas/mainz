@@ -78,6 +78,11 @@ suite checks portrait phone geometry in both engines. The Page suite checks doub
 uses Chromium's native touch dispatch for swipe, pan, and pinch. WebKit tests do not establish native iPadOS Safari
 behavior.
 
+The focused `Header messages fit representative Apple touch layouts` check covers the inventory's SE generation 3,
+iPhone 16, iPad mini generation 6, and standard iPad viewports in Chromium and WebKit. It samples normal and 200% text,
+both themes, selected landscape layouts, and modal errors. Screenshots go to `.local/tmp/web/layout/feedback/`. These
+are browser emulations; they do not establish physical-device or native Safari behavior.
+
 On Linux, Playwright's screenshot CLI disables mobile and touch emulation for WebKit device presets. Use a Chromium
 touch preset for CLI screenshots. The WebKit suites create contexts with explicit mobile and touch settings.
 
@@ -474,7 +479,7 @@ For a manual capture, set `SIMULATOR_UDID` to an available simulator's UUID, the
 xcrun simctl openurl "$SIMULATOR_UDID" 'http://127.0.0.1:5173/?demo=grid&geometry'
 ```
 
-Use Geometry → Capture all views → Copy JSON in the simulator, then save its clipboard and native screen:
+Use Geometry → Capture → Copy JSON in the simulator, then save its clipboard and native screen:
 
 ```sh
 xcrun simctl pbpaste "$SIMULATOR_UDID" > geometry.json

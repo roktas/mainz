@@ -154,8 +154,14 @@ test(
     try {
       const page = await browser.newPage({ reducedMotion: "reduce" })
       await page.goto(server.resolvedUrls.local[0])
-      for (const width of [1440, 768, 390]) {
+      for (const [width, text] of [
+        [1440, "100%"],
+        [768, "100%"],
+        [390, "100%"],
+        [320, "200%"],
+      ]) {
         await page.setViewportSize({ width, height: 1000 })
+        await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
         for (const colorScheme of ["light", "dark"]) {
           await page.emulateMedia({ colorScheme })
           const actions = await page.locator(".welcome .buttons > label").evaluateAll((labels) =>
@@ -163,6 +169,9 @@ test(
               const box = element.getBoundingClientRect(),
                 style = getComputedStyle(element),
                 icon = element.querySelector("svg").getBoundingClientRect()
+              const label = document.createRange()
+              label.selectNodeContents(element.querySelector("span"))
+              const words = label.getBoundingClientRect()
               return {
                 width: box.width,
                 height: box.height,
@@ -175,10 +184,18 @@ test(
                   style.paddingInlineEnd,
                 ],
                 icon: [icon.width, icon.height],
+                lines: label.getClientRects().length,
+                fits:
+                  words.x >= box.x + parseFloat(style.paddingInlineStart) - 1 &&
+                  words.right <= box.right - parseFloat(style.paddingInlineEnd) + 1,
               }
             }),
           )
           assert.ok(Math.abs(actions[0].width - actions[1].width) < 1)
+          assert.ok(
+            actions.every((action) => action.lines === 1 && action.fits),
+            JSON.stringify({ width, text, actions }),
+          )
           assert.ok(Math.abs(actions[1].height - actions[0].height - 1) < 0.5)
           assert.ok(
             actions.every((action) => new Set(action.padding).size === 1 && action.icon.every((size) => size >= 24)),
@@ -742,8 +759,8 @@ test(
         "First.pdf",
         "Last.pdf",
       ])
-      assert.equal(await page.getByRole("alert").innerText(), "1 file could not be opened.")
-      await page.getByText("Review file errors", { exact: true }).click()
+      assert.equal(await page.getByRole("alert").innerText(), "1 file failed")
+      await page.getByRole("alert").getByRole("button").click()
       assert.match(
         await page.getByRole("list", { name: "File errors", exact: true }).innerText(),
         /Could not open Broken\.pdf/,
@@ -820,13 +837,13 @@ test("Large failure batches announce a summary and retain every file error", { t
     const announcement = page.getByRole("alert")
     await announcement.waitFor()
     assert.ok((await announcement.innerText()).length < 120, "Batch announcements must not include every diagnostic")
-    assert.match(await announcement.innerText(), /40 files could not be opened/)
+    assert.match(await announcement.innerText(), /40 files failed/)
     assert.ok(
       await page.evaluate(() => window.announcements.every((text) => text.length < 120)),
       "Per-file failures must not produce long intermediate announcements",
     )
     const errors = page.getByRole("list", { name: "File errors", exact: true })
-    const disclosure = page.locator(".file-errors-trigger")
+    const disclosure = announcement.getByRole("button")
     for (const [width, text, colorScheme] of [
       [320, "100%", "light"],
       [320, "200%", "dark"],
@@ -838,39 +855,22 @@ test("Large failure batches announce a summary and retain every file error", { t
       await page.emulateMedia({ colorScheme })
       await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
       assert.equal(await errors.isVisible(), false)
-      const alignment = await page.locator(".header-feedback .feedback[data-kind=error]").evaluate((element) => {
-        const summary = element.querySelector(".file-errors").getBoundingClientRect()
-        const button = element.querySelector(".feedback-actions button").getBoundingClientRect()
-        const icon = element.querySelector(".feedback-actions button svg").getBoundingClientRect()
-        const action = element.querySelector(".file-errors-trigger").getBoundingClientRect()
-        return [
-          summary.y - button.y,
-          icon.x + icon.width / 2 - button.x - button.width / 2,
-          icon.y + icon.height / 2 - button.y - button.height / 2,
-          Math.max(0, action.right - summary.right),
-        ]
+      const alignment = await announcement.evaluate((element) => {
+        const group = element.closest(".feedback").getBoundingClientRect()
+        const header = document.querySelector(".header-inner").getBoundingClientRect()
+        return Math.abs(group.x + group.width / 2 - header.x - header.width / 2)
       })
-      assert.ok(
-        alignment.every((offset) => Math.abs(offset) < 1),
-        `${width}px: ${alignment}`,
-      )
-      if (width === 1440) {
-        assert.ok(
-          (await page.locator(".header-feedback .feedback[data-kind=error]").boundingBox()).height <= 76,
-          "A desktop error uses one control row",
-        )
-        assert.ok((await disclosure.boundingBox()).height <= 44, "The count and disclosure share one row")
-      }
+      assert.ok(alignment < 1, `${width}px: aligned batch message`)
       await disclosure.focus()
       await page.keyboard.press("Enter")
       await errors.waitFor()
-      const panelBounds = await page.locator(".file-error-panel").evaluate((element) => {
+      const panelBounds = await page.locator(".message-details:popover-open").evaluate((element) => {
         const box = element.getBoundingClientRect()
         return box.x >= 0 && box.right <= innerWidth + 1 && box.y >= 0 && box.bottom <= innerHeight + 1
       })
       assert.ok(
         panelBounds,
-        `${width}px, ${text}: Error details fit the viewport outside the header: ${JSON.stringify(await page.locator(".file-error-panel").boundingBox())}`,
+        `${width}px, ${text}: Error details fit the viewport outside the header: ${JSON.stringify(await page.locator(".message-details:popover-open").boundingBox())}`,
       )
       const messages = await errors.getByRole("listitem").allTextContents()
       assert.equal(messages.length, failed.length)
@@ -884,11 +884,12 @@ test("Large failure batches announce a summary and retain every file error", { t
       assert.ok(bounds.height <= 360 && bounds.overflow, "Details must scroll within the viewport")
       await errors.focus()
       await page.keyboard.press("End")
-      await page.waitForFunction(() => document.querySelector(".file-errors ul")?.scrollTop > 0)
+      await page.waitForFunction(() => document.querySelector(".message-details ul")?.scrollTop > 0)
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
       await disclosure.focus()
       await page.keyboard.press("Enter")
     }
+    await announcement.getByRole("button").click()
     await page.getByRole("button", { name: "Dismiss error", exact: true }).click()
     assert.equal(await announcement.count(), 0)
     assert.equal(await disclosure.count(), 0)
@@ -948,7 +949,7 @@ test("The first PDF previews before validation and commits only after success", 
     await open("Invalid.pdf", Buffer.from(bytes.toString().replace('"version":1', '"version":2')))
     release()
     await page.getByRole("alert").waitFor()
-    await page.getByText("Review file errors", { exact: true }).click()
+    await page.getByRole("alert").getByRole("button").click()
     assert.match(await page.getByRole("list", { name: "File errors", exact: true }).innerText(), /style format/)
     await page.locator(".drop-zone").waitFor()
     assert.equal(await page.locator(".composer").count(), 0)
@@ -1871,7 +1872,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     assert.match(initialCaches[0], /\/composer\/:initial$/)
     assert.equal(attempts, 2, "Installation recovers from a temporary asset download failure")
     transient = false
-    const installed = page.getByText("PDF Composer is ready for offline use.", { exact: true })
+    const installed = page.getByText("PDF Composer is ready for offline use", { exact: true })
     await installed.waitFor()
     assert.equal(await page.getByRole("banner").getByRole("status").count(), 1)
     const installedBox = await installed.boundingBox(),
@@ -1960,7 +1961,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     }, foreignCache)
     release = "next"
     await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update())
-    const update = page.getByRole("button", { name: "Update application", exact: true })
+    const update = page.getByRole("button", { name: "Update app", exact: true })
     await update.waitFor({ timeout: 60000 })
     const updateNotice = page.getByRole("banner").getByRole("status")
     await page.clock.fastForward(5500)
@@ -1996,27 +1997,19 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
       await page.setViewportSize({ width, height: 900 })
       await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
       const alignment = await updateNotice.evaluate((message) => {
-        const group = message.closest(".feedback")
-        const icon = group.querySelector(":scope > svg").getBoundingClientRect()
-        const action = group.querySelector(".feedback-actions svg").getBoundingClientRect()
+        const group = message.closest(".feedback").getBoundingClientRect()
         const header = document.querySelector(".header-inner").getBoundingClientRect()
         const range = document.createRange()
-        range.selectNodeContents(message)
+        range.selectNodeContents(message.querySelector("button"))
         const words = range.getBoundingClientRect()
-        const visible = message.getBoundingClientRect()
         return {
-          gaps: [Math.max(words.left, visible.left) - icon.right, action.left - Math.min(words.right, visible.right)],
-          center: (icon.left + action.right) / 2,
+          center: group.x + group.width / 2,
           headerCenter: header.x + header.width / 2,
           vertical: words.y + words.height / 2 - header.y - header.height / 2,
           height: words.height,
           lineHeight: parseFloat(getComputedStyle(message).lineHeight),
         }
       })
-      assert.ok(
-        alignment.gaps.every((gap) => gap >= 0 && gap <= 24),
-        JSON.stringify(alignment),
-      )
       assert.ok(Math.abs(alignment.center - alignment.headerCenter) < 1, JSON.stringify(alignment))
       assert.ok(Math.abs(alignment.vertical) < 2, JSON.stringify(alignment))
       assert.ok(alignment.height <= alignment.lineHeight, JSON.stringify(alignment))
@@ -2024,13 +2017,13 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
         const timestamp = document.querySelector(".footnote > time").getBoundingClientRect()
         return timestamp.top - button.getBoundingClientRect().bottom
       })
-      assert.ok(gap >= 12, `${width}px, ${text}: Update application retains space above Build ID`)
+      assert.ok(gap >= 12, `${width}px, ${text}: Update app retains space above Build ID`)
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
     }
     const other = await context.newPage()
     await other.goto(url)
     await update.click()
-    await page.getByText("Close other PDF Composer tabs before updating.", { exact: true }).waitFor()
+    await page.getByText("Close other PDF Composer tabs before updating", { exact: true }).waitFor()
     assert.notEqual(
       await page
         .locator(".header-feedback .feedback[data-kind=error]")

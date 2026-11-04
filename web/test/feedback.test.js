@@ -2,9 +2,9 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { mkdir } from "node:fs/promises"
+import { mkdir, readFile } from "node:fs/promises"
 import { resolve } from "node:path"
-import { chromium, webkit } from "playwright"
+import { chromium, webkit, devices } from "playwright"
 import { serve } from "./server.ts"
 import { fixture } from "./browser.js"
 
@@ -79,8 +79,8 @@ async function bounds(page, feedback) {
     const rect = element.getBoundingClientRect()
     const header = document.querySelector(".header-inner").getBoundingClientRect()
     const message = element.querySelector(".feedback-message").getBoundingClientRect()
-    const actions = element.querySelector(".feedback-actions")?.getBoundingClientRect()
-    const icon = element.querySelector(":scope > svg, :scope > .spinner").getBoundingClientRect()
+    const actions = element.querySelector(":scope > .feedback-actions")?.getBoundingClientRect()
+    const spinner = element.querySelector(":scope > .spinner")?.getBoundingClientRect()
     const controls = Array.from(document.querySelectorAll(".header-inner > .brand, .header-actions"), (control) =>
       getComputedStyle(control).visibility === "hidden" ? undefined : control.getBoundingClientRect().toJSON(),
     ).filter(Boolean)
@@ -91,7 +91,7 @@ async function bounds(page, feedback) {
       header: header.toJSON(),
       message: message.toJSON(),
       actions: actions?.toJSON(),
-      icon: icon.toJSON(),
+      spinner: spinner?.toJSON(),
       controls,
     }
   })
@@ -101,12 +101,13 @@ async function bounds(page, feedback) {
     Math.abs(result.rect.x + result.rect.width / 2 - result.header.x - result.header.width / 2) < 1,
     JSON.stringify(result),
   )
-  assert.ok(
-    Math.abs(result.icon.y + result.icon.height / 2 - result.message.y - result.message.height / 2) < 1,
-    JSON.stringify(result),
-  )
+  if (result.spinner)
+    assert.ok(
+      Math.abs(result.spinner.y + result.spinner.height / 2 - result.message.y - result.message.height / 2) < 1,
+      JSON.stringify(result),
+    )
   if (result.actions) {
-    assert.ok(result.message.left - result.icon.right <= 24, JSON.stringify(result))
+    if (result.spinner) assert.ok(result.message.left - result.spinner.right <= 24, JSON.stringify(result))
     assert.ok(result.actions.left - result.message.right <= 24, JSON.stringify(result))
     assert.ok(
       result.message.right <= result.actions.left + 1 || result.message.bottom <= result.actions.top + 1,
@@ -127,6 +128,224 @@ async function bounds(page, feedback) {
 
 const frames = (page) =>
   page.evaluate(() => new Promise((finish) => requestAnimationFrame(() => requestAnimationFrame(finish))))
+
+test("Header messages fit representative Apple touch layouts", { timeout: 90000 }, async () => {
+  const server = await serve()
+  const inventory = JSON.parse(await readFile(new URL("./viewports.json", import.meta.url), "utf8"))
+  const directory = resolve("../.local/tmp/web/layout/feedback")
+  await mkdir(directory, { recursive: true })
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    try {
+      for (const [device, reference, landscape] of [
+        ["iPhone SE (3rd gen)", "375x667-coarse", true],
+        ["iPhone 16", "393x852-coarse", false],
+        ["iPad Mini", "744x1133-coarse", true],
+        ["iPad (gen 7)", "810x1080-coarse", false],
+      ]) {
+        const entry = inventory.cases.find((value) => value.id === reference)
+        const [width, height] = entry.viewport
+        const page = await browser.newPage({ ...devices[device], viewport: { width, height }, reducedMotion: "reduce" })
+        page.setDefaultTimeout(10000)
+        const errors = []
+        page.on("pageerror", (error) => errors.push(error.message))
+        await page.addInitScript(() => {
+          localStorage.setItem("mainz:onboarding", "19")
+          localStorage.setItem("mainz:installation", "seen")
+        })
+        const fit = async (popup) => {
+          const geometry = await popup.evaluate((element) => ({
+            box: element.getBoundingClientRect().toJSON(),
+            width: innerWidth,
+            height: innerHeight,
+            overflow: element.scrollWidth > element.clientWidth + 1,
+          }))
+          assert.ok(
+            !geometry.overflow &&
+              geometry.box.x >= -1 &&
+              geometry.box.right <= geometry.width + 1 &&
+              geometry.box.y >= -1 &&
+              geometry.box.bottom <= geometry.height + 1,
+            JSON.stringify({ engine: engine.name(), reference, geometry }),
+          )
+        }
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=recipe-review`)
+        const feedback = page.locator(".header-feedback > .feedback")
+        await feedback.waitFor()
+        assert.equal(await feedback.count(), 1)
+        await bounds(page, feedback)
+        const review = page.locator(".binding-check:popover-open")
+        for (const text of ["100%", "200%"]) {
+          await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+          await feedback.getByRole("button", { name: "Review PDF", exact: true }).tap()
+          await fit(review)
+          await frames(page)
+          await page.screenshot({ path: resolve(directory, `${engine.name()}-${reference}-review-${text}.png`) })
+          const box = await review.boundingBox()
+          const header = await page.locator(".header-inner").boundingBox()
+          assert.ok(box.y >= header.y + header.height - 1, JSON.stringify({ reference, text, box, header }))
+          if (text === "100%") await page.keyboard.press("Escape")
+        }
+        if (reference === "375x667-coarse") {
+          const reasons = review.getByRole("region", { name: "PDF check details", exact: true })
+          await reasons.focus()
+          await page.keyboard.press("PageDown")
+          await page.waitForFunction(
+            () => document.querySelector(".binding-check:popover-open .binding-details").scrollTop > 0,
+          )
+        }
+        const approval = review.getByRole("button", { name: "Use anyway", exact: true })
+        const target = await approval.boundingBox()
+        const panel = await review.boundingBox()
+        assert.ok(target.y >= panel.y && target.y + target.height <= panel.y + panel.height)
+        await approval.tap()
+        await page.getByRole("button", { name: "Apply recipe", exact: true }).tap()
+        await feedback.getByRole("button", { name: "References updated", exact: true }).waitFor()
+        const cases = [
+          [width, height, "100%", "light"],
+          [width, height, "200%", "dark"],
+        ]
+        if (landscape) cases.push([height, width, "200%", "light"])
+        for (const [w, h, text, colorScheme] of cases) {
+          await page.setViewportSize({ width: w, height: h })
+          await page.emulateMedia({ colorScheme })
+          await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+          await feedback.getByRole("button", { name: "References updated", exact: true }).tap()
+          const popup = page.locator(".message-details:popover-open")
+          await bounds(page, feedback)
+          await fit(popup)
+          const boxes = await popup
+            .locator("form > :is(button, .entry)")
+            .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()))
+          assert.equal(boxes.length, 4)
+          assert.ok(
+            boxes.every(
+              (box) => Math.abs(box.width - boxes[0].width) < 1 && Math.abs(box.height - boxes[0].height) < 1,
+            ),
+            JSON.stringify(boxes),
+          )
+          const filename = popup.getByRole("textbox", { name: "Filename", exact: true })
+          const before = await page.evaluate(() => ({
+            scroll: [scrollX, scrollY],
+            top: document.querySelector(".composer").getBoundingClientRect().y + scrollY,
+          }))
+          await filename.fill("bad/name.json")
+          await feedback.getByRole("alert").waitFor()
+          await bounds(page, feedback)
+          await fit(popup)
+          await popup.getByRole("button", { name: "Save", exact: true }).scrollIntoViewIfNeeded()
+          assert.ok(await popup.getByRole("button", { name: "Save", exact: true }).isDisabled())
+          assert.deepEqual(
+            await page.evaluate(() => ({
+              scroll: [scrollX, scrollY],
+              top: document.querySelector(".composer").getBoundingClientRect().y + scrollY,
+            })),
+            before,
+          )
+          await filename.fill("References.json")
+          await page.screenshot({ path: resolve(directory, `${engine.name()}-${reference}-${w}x${h}-${text}.png`) })
+          await page.keyboard.press("Escape")
+          assert.equal(await feedback.count(), 1)
+        }
+        if (landscape) {
+          await page.setViewportSize({ width, height })
+          await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
+          const output = page.getByRole("button", { name: "Output", exact: true })
+          if (await output.isVisible()) await output.tap()
+          await page.getByRole("button", { name: "Export recipe", exact: true }).tap()
+          const recipe = page.getByRole("dialog", { name: "Export recipe", exact: true })
+          await recipe.getByRole("button", { name: "Edit Name 1", exact: true }).tap()
+          const name = recipe.getByRole("textbox", { name: "Name 1", exact: true })
+          const before = await name.boundingBox()
+          await name.fill("")
+          await feedback.getByRole("alert").waitFor()
+          await bounds(page, feedback)
+          assert.ok(
+            await feedback.evaluate((element) => element.closest("dialog") === document.querySelector("dialog:modal")),
+          )
+          assert.deepEqual(await name.boundingBox(), before)
+          await feedback.getByRole("button", { name: "Check Input names", exact: true }).tap()
+          await fit(page.locator(".message-details:popover-open"))
+          await page.screenshot({ path: resolve(directory, `${engine.name()}-${reference}-modal.png`) })
+          await page.keyboard.press("Escape")
+          await recipe.getByRole("button", { name: "Close recipe", exact: true }).tap()
+        }
+        assert.deepEqual(errors, [])
+        await page.close()
+      }
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
+test(
+  "Field errors share concise header feedback without moving fields or footer status",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    for (const engine of [chromium, webkit]) {
+      const browser = await engine.launch()
+      try {
+        const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+        await page.locator(".composer[aria-busy=false]").waitFor()
+        const status = page.locator(".footnote [role=status]")
+        const original = await status.textContent()
+        const input = page.locator(".selection-panel").getByRole("textbox", { name: "Page selection", exact: true })
+        const feedback = page.locator('.header-feedback .feedback[data-kind="error"]')
+        const errors = []
+        page.on("pageerror", (error) => errors.push(error.message))
+        for (const [width, text, colorScheme] of [
+          [1100, "100%", "dark"],
+          [390, "100%", "light"],
+          [320, "200%", "dark"],
+        ]) {
+          await page.setViewportSize({ width, height: 900 })
+          await page.emulateMedia({ colorScheme })
+          await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+          const before = await input.boundingBox()
+          await input.fill("999")
+          await feedback.getByRole("alert").waitFor()
+          assert.equal(await input.getAttribute("aria-invalid"), "true")
+          assert.equal(await feedback.getByRole("alert").textContent(), "Check Input selection")
+          const after = await input.boundingBox()
+          assert.ok(Math.abs(before.y - after.y) < 1 && Math.abs(before.height - after.height) < 1)
+          assert.equal(await status.textContent(), original, "A warning does not replace workspace status")
+          await bounds(page, feedback)
+          await input.fill("1")
+          await feedback.waitFor({ state: "hidden" })
+        }
+        await page.setViewportSize({ width: 1100, height: 900 })
+        await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+        await page.getByRole("button", { name: "Export recipe", exact: true }).click()
+        const panel = page.getByRole("dialog", { name: "Export recipe", exact: true })
+        await panel.getByRole("button", { name: "Edit Name 1", exact: true }).click()
+        const name = panel.getByRole("textbox", { name: "Name 1", exact: true })
+        const before = await name.boundingBox()
+        await name.fill("")
+        await feedback.getByRole("alert").waitFor()
+        assert.equal(await feedback.getByRole("alert").textContent(), "Check Input names")
+        assert.ok(
+          await feedback.evaluate((element) => element.closest("dialog") === document.querySelector("dialog:modal")),
+        )
+        const after = await name.boundingBox()
+        assert.ok(Math.abs(before.y - after.y) < 1 && Math.abs(before.height - after.height) < 1)
+        await feedback.getByRole("alert").getByRole("button").click()
+        assert.match(await page.locator(".message-details:popover-open").innerText(), /name/i)
+        await page.keyboard.press("Escape")
+        assert.ok(await panel.isVisible(), "Escape closes message details before the Recipe dialog")
+        await panel.getByRole("button", { name: "Close recipe", exact: true }).click()
+        await feedback.waitFor({ state: "hidden" })
+        assert.equal(await status.textContent(), original)
+        assert.deepEqual(errors, [])
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
 
 test("Touch dialog focus stays quiet and keyboard focus stays visible", { timeout: 30000 }, async () => {
   const server = await serve()
@@ -233,6 +452,7 @@ test("Header progress preserves workspace bounds and scroll at narrow widths", {
           assert.ok(await cancel.isEnabled())
           await cancel.click()
           await page.evaluate(() => (window.holdStyles = false))
+          await page.locator(".header-feedback").getByRole("alert").getByRole("button").click()
           const retry = page.getByRole("button", { name: "Retry Input styles", exact: true })
           await retry.click()
           await cancel.waitFor({ state: "hidden" })
@@ -297,10 +517,11 @@ test(
         await page.clock.install()
         await page.clock.pauseAt(new Date())
         await page.goto(server.resolvedUrls.local[0])
-        await page.getByRole("button", { name: "Continue in browser", exact: true }).click()
+        await page.getByRole("button", { name: "Use browser", exact: true }).click()
         const notice = page.locator(".header-feedback .notice")
         await notice.waitFor()
         await matrix(page, notice, "notice", () => page.clock.runFor(50))
+        await notice.getByRole("status").getByRole("button").click()
         await notice.getByRole("button", { name: "Dismiss notification", exact: true }).focus()
         await notice.getByRole("button", { name: "Dismiss notification", exact: true }).click()
         await page.locator(".header-actions .help-button:focus").waitFor()
@@ -370,17 +591,13 @@ test(
             await page.emulateMedia({ colorScheme })
             await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
             const message = await error.locator(".feedback-message").boundingBox()
-            const actions = await error.locator(".feedback-actions").boundingBox()
-            assert.ok(message.width > 0, JSON.stringify({ width, message, actions }))
-            assert.ok(message.x + message.width <= actions.x, JSON.stringify({ width, message, actions }))
-            assert.ok(Math.abs(message.y + message.height / 2 - actions.y - actions.height / 2) < 1)
+            assert.ok(message.width > 0)
+            await bounds(page, error)
             const text = error.getByRole("alert")
             assert.equal(await text.getAttribute("title"), (await text.innerText()).trim())
-            await text.evaluate((element) => (element.scrollLeft = element.scrollWidth))
-            assert.ok(
-              await text.evaluate((element) => element.scrollLeft > 0),
-              "Long errors can be read within their single line",
-            )
+            assert.equal(await text.innerText(), "Style update failed")
+            await error.getByRole("alert").getByRole("button").click()
+            assert.match(await page.locator(".message-details:popover-open").innerText(), /cancelled/)
             const retry = error.getByRole("button", { name: "Retry Input styles", exact: true })
             await retry.scrollIntoViewIfNeeded()
             const target = await retry.boundingBox()
@@ -397,9 +614,11 @@ test(
             await page.screenshot({
               path: resolve(`../.local/var/web/feedback/recovery-${engine.name()}-${width}-${colorScheme}.png`),
             })
+            await page.keyboard.press("Escape")
           }
         }
         await page.evaluate(() => (window.holdStyles = false))
+        await error.getByRole("alert").getByRole("button").click()
         await error.getByRole("button", { name: "Retry Input styles", exact: true }).click()
         await error.waitFor({ state: "detached" })
         await page.locator(".header-feedback .style-progress").waitFor({ state: "detached" })

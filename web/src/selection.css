@@ -24,12 +24,6 @@
       & > [aria-hidden="true"] {
         visibility: hidden;
       }
-      & > .error {
-        font-size: inherit;
-        border: 0;
-        padding: 0;
-        margin: 0;
-      }
     }
     .output-selection {
       display: flex;
@@ -133,7 +127,6 @@
       & button {
         justify-content: start;
         padding-inline: 0.5em;
-        overflow-wrap: anywhere;
       }
     }
     .composer {
@@ -169,6 +162,7 @@
           overflow: auto;
           overscroll-behavior: contain;
           padding: var(--gap);
+          padding-inline: min(var(--gap), 4cqi);
           border: 1px solid var(--edge);
           border-radius: var(--radius);
           background: var(--surface);

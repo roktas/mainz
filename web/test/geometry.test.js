@@ -8,6 +8,57 @@ import { aligned, zoom } from "./workspace.js"
 import { tab, image, captureLayout, fixture } from "./browser.js"
 import { measure, gridDensity } from "./measure.js"
 
+test("Geometry actions keep short labels and matching button bounds", { timeout: 30000 }, async () => {
+  const server = await serve()
+  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  try {
+    const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid&geometry`)
+    await page.getByRole("button", { name: "Geometry", exact: true }).click()
+    const panel = page.getByRole("dialog", { name: "Grid geometry", exact: true })
+    await panel.getByText("Grid views", { exact: true }).click()
+    for (const [width, size] of [
+      [1100, "100%"],
+      [320, "200%"],
+    ]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.evaluate((value) => (document.documentElement.style.fontSize = value), size)
+      const controls = await panel.locator(".geometry-actions button").evaluateAll((buttons) =>
+        buttons.map((button) => {
+          const text = document.createRange()
+          text.selectNodeContents(button)
+          const label = text.getBoundingClientRect()
+          const box = button.getBoundingClientRect()
+          const style = getComputedStyle(button)
+          return {
+            label: button.textContent.trim(),
+            lines: text.getClientRects().length,
+            fits:
+              label.x >= box.x + parseFloat(style.paddingInlineStart) - 1 &&
+              label.right <= box.right - parseFloat(style.paddingInlineEnd) + 1,
+            width: box.width,
+            height: box.height,
+          }
+        }),
+      )
+      assert.ok(
+        controls.length >= 7 && controls.every((button) => button.lines === 1 && button.fits),
+        JSON.stringify(controls),
+      )
+      assert.ok(
+        controls.every(
+          (button) =>
+            Math.abs(button.width - controls[0].width) < 1 && Math.abs(button.height - controls[0].height) < 1,
+        ),
+        JSON.stringify(controls),
+      )
+    }
+  } finally {
+    await browser.close()
+  }
+})
+
 test("Pane headers, tabs, and selections stay on single aligned rows", { timeout: 180000 }, async (t) => {
   const server = await serve()
   let browser, page
@@ -49,8 +100,8 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
         // oxlint-disable-next-line unicorn/consistent-function-scoping -- Playwright serializes the page callback.
         const rect = (node) => node.getBoundingClientRect().toJSON()
         const bands = [
-          [".section-heading", ":scope > :not(.download-error)"],
-          [".editing-toolbar", '[role="tab"], .grid-density, .style-status > button'],
+          [".section-heading", ":scope > *"],
+          [".editing-toolbar", '[role="tab"], .grid-density, .style-actions > button'],
           [".sequence-entry > .entry", "input, button, summary"],
         ]
         return bands.flatMap(([selector, controls]) => {
@@ -812,7 +863,7 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
       await fitted(image(output))
       await output.getByLabel("Page selection", { exact: true }).fill("1")
       await output.locator(".output-options > summary").click()
-      await output.getByRole("button", { name: "Blank before first selected page", exact: true }).click()
+      await output.getByRole("button", { name: "Blank before", exact: true }).click()
       await page.keyboard.press("Escape")
       await output.getByRole("region", { name: "PDF viewport", exact: true }).press("Home")
       await output.locator(".blank-sheet").waitFor()

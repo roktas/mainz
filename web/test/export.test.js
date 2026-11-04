@@ -242,7 +242,7 @@ test(
         await page
           .locator(".landing-recipe input")
           .setInputFiles({ name: "invalid.json", mimeType: "application/json", buffer: Buffer.from("{") })
-        await panel.getByRole("alert").waitFor()
+        await page.locator(".header-feedback").getByRole("alert").waitFor()
         await panel.getByRole("button", { name: "Cancel", exact: true }).click()
         assert.ok(await page.locator(".drop-zone").isVisible())
       } finally {
@@ -273,7 +273,7 @@ test(
       )
       assert.deepEqual(
         (await panel.locator(".load-choices > :is(button,label)").allTextContents()).map((text) => text.trim()),
-        ["Use sample PDFs", "Choose local PDFs"],
+        ["Sample PDFs", "Choose PDFs"],
       )
       assert.equal(await panel.locator(".binding-target .load-download").count(), 0)
       const aligned = await panel.evaluate((element) => {
@@ -377,7 +377,7 @@ test(
       }
       await page.setViewportSize({ width: 1440, height: 1000 })
       await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
-      await panel.getByRole("button", { name: "Use sample PDFs", exact: true }).click()
+      await panel.getByRole("button", { name: "Sample PDFs", exact: true }).click()
       await page
         .locator(".footnote")
         .getByText("3 of 3 Inputs selected · Ready to apply recipe", { exact: true })
@@ -605,7 +605,7 @@ test("Recipe batches match named PDFs first and discard abandoned reads", { time
       .locator("input")
       .setInputFiles({ name: "broken.pdf", mimeType: "application/pdf", buffer: Buffer.from("bad") })
     await rows.first().getByRole("button", { name: "Input result for book", exact: true }).click()
-    await page.locator(".binding-check:popover-open").getByRole("alert").waitFor()
+    await page.locator(".header-feedback").getByRole("alert").waitFor()
     assert.ok(await panel.getByRole("button", { name: "Apply recipe", exact: true }).isDisabled())
     await page.keyboard.press("Escape")
     assert.equal(
@@ -966,7 +966,7 @@ test(
       await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
       await output.getByLabel("Output page actions", { exact: true }).click()
-      await output.getByRole("button", { name: "Add blank page at end", exact: true }).click()
+      await output.getByRole("button", { name: "Blank at end", exact: true }).click()
       const exportAction = output.getByRole("button", { name: "Export recipe", exact: true })
       await exportAction.click()
       const panel = page.getByRole("dialog", { name: "Export recipe", exact: true })
@@ -1433,7 +1433,7 @@ test(
       const before = await page.evaluate(() => window.workers.length)
       await button.click()
       const ready = page.getByRole("dialog", { name: "Share", exact: true })
-      await ready.getByText("PDF ready to share.", { exact: true }).waitFor()
+      await ready.getByText("PDF ready to share", { exact: true }).waitFor()
       assert.equal(await ready.locator('.feedback[data-kind="notice"]').count(), 1)
       for (const width of [320, 390]) {
         await page.setViewportSize({ width, height: 1080 })
@@ -1482,7 +1482,7 @@ test(
       assert.match(await output.locator(".composition-totals").textContent(), /8 pages,\s*4\s+sheets/)
       await page.evaluate(() => (window.allowed = false))
       await button.click()
-      await ready.getByText("This PDF cannot be shared. Use Download.").waitFor()
+      await ready.getByText("This PDF cannot be shared. Use Download").waitFor()
       const pending = page.waitForEvent("download")
       await ready.getByRole("button", { name: "Download", exact: true }).click()
       const download = await pending
@@ -1580,7 +1580,7 @@ test("Output actions stay reachable with enlarged text", { timeout: 30000 }, asy
     await page.setViewportSize({ width: 390, height: 1000 })
     await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
     await output.getByLabel("Output page actions", { exact: true }).click()
-    await output.getByRole("button", { name: "Set Output filename", exact: true }).click()
+    await output.getByRole("button", { name: "Filename", exact: true }).click()
     await page.locator(".filename-panel").waitFor({ state: "visible" })
   } finally {
     await browser.close()
@@ -1711,11 +1711,15 @@ test("Print receives the generated Output PDF and its selected filename", { time
       await trigger.click()
       const editor = page.locator(".filename-panel"),
         field = editor.getByLabel("Filename", { exact: true })
-      assert.equal(await editor.locator(".error").count(), 0)
+      assert.ok(await editor.getByRole("button", { name: "Save", exact: true }).isEnabled())
       assert.ok((await field.boundingBox()).height >= 44)
       await field.fill("bad/name")
       assert.equal(await editor.getByRole("button", { name: "Save", exact: true }).isDisabled(), true)
-      assert.match(await editor.getByRole("alert").innerText(), /slashes/)
+      const validation = page.locator(".header-feedback")
+      assert.equal(await validation.getByRole("alert").innerText(), "Check the filename")
+      await validation.getByRole("alert").getByRole("button").click()
+      assert.match(await page.locator(".message-details:popover-open").innerText(), /slashes/)
+      await page.keyboard.press("Escape")
       await field.fill("Bad\u0085name")
       assert.equal(await editor.getByRole("button", { name: "Save", exact: true }).isDisabled(), true)
       await field.fill("Practice")

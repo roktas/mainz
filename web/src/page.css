@@ -231,6 +231,10 @@
         animation: spin 800ms linear infinite;
       }
     }
+    :is(.thumbnail, .pdf-viewport)[data-error] {
+      outline: 1px solid var(--danger);
+      outline-offset: -1px;
+    }
     .inspection-heading {
       display: block flex;
       flex-wrap: nowrap;

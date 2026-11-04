@@ -23,9 +23,9 @@ optional Style changes, and Download or Print. View changes preserve selections,
 state. Ordinary PDFs support composition. Prepared PDFs also expose their declared Style controls.
 
 The landing distinguishes page composition for ordinary PDFs from Style support in prepared PDFs and links to the
-library specification. Its primary action selects one PDF. The secondary Open recipe action selects a JSON Recipe and
-starts Input matching. The workspace offers Recipe export. Its header logo opens Home on a single click and replays the
-logo animation on a double-click.
+library specification. Its primary Open PDF action selects one PDF. The secondary Recipe action selects a JSON Recipe
+and starts Input matching. The workspace offers Recipe export. Its header logo opens Home on a single click and replays
+the logo animation on a double-click.
 
 ### Inputs
 
@@ -39,7 +39,7 @@ workspace until the new Input is ready. Errors identify the file, cause, and nex
 requires a newly prepared PDF.
 
 A multi-file selection in the workspace opens each file in order. A file that fails does not prevent later files from
-opening. Errors appear after the batch completes. A short alert reports the failed count. Review file errors opens a
+opening. Errors appear after the batch completes. A short alert reports the failed count. Clicking that message opens a
 scrollable list with every failed filename and diagnostic in a separate popover outside the header. Cancel stops the
 current opening and the remaining files.
 
@@ -172,7 +172,7 @@ On every screen, three or more quick clicks or taps on the upper-left logo open 
 demo, Large demo, Recipe demo, and Empty demo, in that order. The workspace also offers Show the welcome again. Links
 navigate inside the application scope, including in an installed app. Before an example replaces undownloaded changes,
 the application asks for confirmation. A single click returns Home, and a double-click replays the logo animation.
-Actions wait until the quick-click sequence ends. Reduced motion disables the animation. Choose a PDF always opens local
+Actions wait until the quick-click sequence ends. Reduced motion disables the animation. Open PDF always opens local
 PDFs.
 
 Unknown demo values show an Error and retain local PDF opening. Local opening takes precedence over a pending demo
@@ -617,22 +617,22 @@ buttons disable at 2× and 128× respectively.
 
 ## Recipe loading
 
-Open recipe on the landing page accepts a JSON file of at most 16 MiB. Dropping JSON on the landing starts the same
-flow. Matching replaces the landing content on the same page. Back or Cancel returns to the PDF/Recipe choices and
-releases selected documents. The shared worker validates its encoding, structure, and Input definitions before matching.
-Each row pairs the saved Input title and cover with a PDF selected on this device. Missing display metadata does not
-prevent loading. A blank saved title falls back to its logical Input ID. Available saved XMP fields appear behind an
-information button. Saved XMP `dc:description`, when present, appears directly below the title as longer descriptive
-text on wide layouts. In narrow layouts, tapping the title opens this description in the shared information popover
-without moving the Input rows. The title and description are separate metadata fields. The application does not derive
-them by splitting title punctuation.
+Recipe on the landing page accepts a JSON file of at most 16 MiB. Dropping JSON on the landing starts the same flow.
+Matching replaces the landing content on the same page. Back or Cancel returns to the PDF/Recipe choices and releases
+selected documents. The shared worker validates its encoding, structure, and Input definitions before matching. Each row
+pairs the saved Input title and cover with a PDF selected on this device. Missing display metadata does not prevent
+loading. A blank saved title falls back to its logical Input ID. Available saved XMP fields appear behind an information
+button. Saved XMP `dc:description`, when present, appears directly below the title as longer descriptive text on wide
+layouts. In narrow layouts, tapping the title opens this description in the shared information popover without moving
+the Input rows. The title and description are separate metadata fields. The application does not derive them by
+splitting title punctuation.
 
-Users can choose or drop one PDF per row or choose several PDFs together through Choose local PDFs. Batch selection
-reserves filename matches to logical Input IDs before filling unmatched rows. File names and covers help users choose;
-the shared resolver remains authoritative. Each PDF is validated and prepared before workspace installation. Selected
-bytes share the 128 MiB aggregate limit. The shared library assesses each selected Input before execution. Each row
-shows a short result. Clicking it opens diagnostic details without resizing the row. A failed read retains the previous
-selected PDF and blocks execution until a valid replacement is selected.
+Users can choose or drop one PDF per row or choose several PDFs together through Choose PDFs. Batch selection reserves
+filename matches to logical Input IDs before filling unmatched rows. File names and covers help users choose; the shared
+resolver remains authoritative. Each PDF is validated and prepared before workspace installation. Selected bytes share
+the 128 MiB aggregate limit. The shared library assesses each selected Input before execution. Each row shows a short
+result. Clicking it opens diagnostic details without resizing the row. A failed read retains the previous selected PDF
+and blocks execution until a valid replacement is selected.
 
 Apply recipe becomes available after all required PDFs pass assessment and every review result receives explicit
 acceptance. The selected and remaining Input counts use the application status line. Blank-only Recipes require no PDFs.
@@ -645,19 +645,34 @@ Input results follow the library's [assessment contract](../../lib/doc/SPEC.md#i
 error shows a blocking result; its details explain the failure and provide no override. Ready and update results use
 primary emphasis, review uses secondary emphasis, and errors use the danger color. Details omit repeated headings and
 filenames. One issue uses a paragraph; several issues use a list. A review result opens its reasons, expected/current
-facts when useful, and **Use this PDF anyway** in the details popover. Apply remains blocked until each affected Input
-is explicitly accepted. This acceptance applies only to the current PDF bytes and Recipe. Replacing either clears it.
-The status line distinguishes selected, review, and blocked Inputs instead of declaring every selected PDF ready.
+facts when useful, and an explicit **Use anyway** approval button in a Review step. The header offers Review until each
+affected PDF receives a decision. It does not expire. Review opens the corresponding PDF's review panel beside its row,
+which identifies the approval target. Apply remains blocked until each affected Input is explicitly accepted. Approval
+enables Apply when all Inputs are ready. This acceptance applies only to the current PDF bytes and Recipe. Replacing
+either clears it. The status line distinguishes selected, review, and blocked Inputs instead of declaring every selected
+PDF ready.
 
 The library checks styles, physical page references, and producer vetoes. The UI never derives another compatibility
 result from checksums, names, counts, or `compat`. The final shared resolution repeats complete checks before installing
 the workspace. No partial workspace is installed after rejection or cancellation.
 
-Successful loading of changed Inputs offers **Save updated recipe** as a quiet, optional action. It saves the library's
-aligned record with current available display annotations. It preserves original logical IDs and processing intent,
-including dynamic all-pages selectors. It does not reconstruct alignment by exporting expanded workspace Parts.
-Accepting review permits one load; saving the aligned Recipe separately accepts a new reference baseline. Failure or
-cancellation never saves alignment, and the browser never silently replaces the selected source JSON file.
+After changed Inputs load successfully, the header shows **References updated**. Clicking it opens an editable filename
+beside Save in the same message panel, with Dismiss and Overwrite below. The default is
+`<original-stem>_YYYY-MMDD-HHmm-sscc.json`, using the same local timestamp and suffix replacement as Output filenames.
+An empty stem uses `recipe`. Save confirms a new copy. Closing the panel retains the offer and filename draft without
+downloading. The editor rejects empty names, path separators, and control characters, and adds `.json` when needed.
+Dismiss closes the optional offer. A successful copy shows **Updated recipe exported** in the header.
+
+Overwrite opens the browser's file picker with the original Recipe filename as its suggestion. The user selects and
+approves the file to replace. This action is disabled when the browser has no local-file write picker. Picker
+cancellation and failed or cancelled writes retain the offer and leave the existing file unchanged. Once the final
+replacement begins, Cancel is disabled. Successful replacement shows **Recipe overwritten** in the header.
+
+Both actions save the library's aligned record with current available display annotations. They preserve original
+logical IDs and processing intent, including dynamic all-pages selectors. They do not reconstruct alignment by exporting
+expanded workspace Parts. Accepting review permits one load; saving the aligned Recipe separately accepts a new
+reference baseline. Failure or cancellation never saves alignment, and the browser never silently replaces the selected
+source JSON file.
 
 Development-only Recipe assessment demos use `?demo=recipe-<case>`. Cases are `ready`, `update`, `review`, `count`,
 `unnamed`, `compat`, `format`, `style`, and `page`. They select the relevant fixture PDFs automatically for UI
@@ -665,10 +680,10 @@ inspection. The [shared fixture guide](../../lib/test/fixtures/README.md) define
 These entries are absent from production and the offline cache and never appear in the logo's examples menu. CLI, WASM,
 and browser e2e tests consume the same generated cases.
 
-The Recipe demo places Use sample PDFs before Choose local PDFs. The JSON download icon sits beside the Recipe filename.
-After a PDF is selected, its download icon saves those selected bytes under their opened filename. Empty bindings offer
-only selection and dropping. Download actions retain accessible names and hover descriptions. These bundled examples use
-the same inspection, binding, and resolution path as local files.
+The Recipe demo places Sample PDFs before Choose PDFs. The JSON download icon sits beside the Recipe filename. After a
+PDF is selected, its download icon saves those selected bytes under their opened filename. Empty bindings offer only
+selection and dropping. Download actions retain accessible names and hover descriptions. These bundled examples use the
+same inspection, binding, and resolution path as local files.
 
 ## Recipe export
 
@@ -803,9 +818,9 @@ lens magnification, software version, Build ID, and the repository link. Escape,
 Settings and restores focus. Theme choice persists locally with system fallback.
 
 App installation help is separate from the welcome and Product tour. The first iPhone or iPad browser visit shows a
-dismissible introduction before a pending welcome. Continue in browser and Close permit normal PDF work. Standalone
-launches show no recommendation. Desktop startup stays quiet. Help's App topic always offers installation information.
-Closing the first recommendation shows a Notice that points to Help → App. Dismissal never removes that topic.
+dismissible introduction before a pending welcome. Use browser and Close permit normal PDF work. Standalone launches
+show no recommendation. Desktop startup stays quiet. Help's App topic always offers installation information. Closing
+the first recommendation shows a Notice that points to Help → App. Dismissal never removes that topic.
 
 Installation dismissal uses `mainz:installation` independently of `mainz:onboarding`. If storage is unavailable,
 dismissal lasts for the current page. Browser and standalone storage can differ. Installation does not replay the tour.
@@ -828,11 +843,11 @@ action's pane and tab. Workspace or style availability changes dismiss the tour.
 and outside dismissal remain available.
 
 After welcome and tour dismissal, a visible Input thumbnail can introduce addition once per workspace with empty Output.
-The visual copy leaves Output and Selection unchanged. The status row says “Select pages · Use + to add to Output.”
-Adding a page, starting the tour, clicking, scrolling, resizing, or reduced motion stops the animation. Any click also
-dismisses the instruction and completes its normal action. The instruction expires after ten seconds. Dismissal or
-expiry restores the operation status unless a newer operation replaced it. Clearing Output does not repeat the hint.
-Reduced motion keeps the instruction without animation.
+The visual copy leaves Output and Selection unchanged. The header says “Select pages · Use + to add to Output.” Adding a
+page, starting the tour, clicking, scrolling, resizing, or reduced motion stops the animation. Any click also dismisses
+the instruction and completes its normal action. The instruction expires after ten seconds. Dismissal or expiry restores
+the operation status unless a newer operation replaced it. Clearing Output does not repeat the hint. Reduced motion
+keeps the instruction without animation.
 
 ## Feedback
 
@@ -842,12 +857,16 @@ Reduced motion keeps the instruction without animation.
 | Notice  | Guidance or an event announcement.           | Ten seconds, dismissal, or resolution.    |
 | Error   | A failure with its next action.              | Until dismissal or resolution.            |
 
-A new Notice replaces the old Notice and restarts its timer without replacing operation status. All Notices expire,
-including actionable guidance. Associated controls remain available. An Error clears the current Notice and operation
-status. The header presents Notices, active operations, general Errors, and Input recovery actions. The footer presents
-completed results and cancellations. Active opening and Style progress do not repeat in the footer. Local errors retain
-their nearby explanation and retry action. Delayed completion cannot replace newer operation feedback. Temporary
-selection, navigation, and hover use local feedback.
+A new Notice replaces the old timed Notice and restarts its timer without replacing operation status. The optional
+updated-Recipe offer lasts until export or dismissal. The header presents notifications, warnings, errors, active
+operations, and recovery actions. The footer retains workspace status, completed results, and cancellations. Active
+opening and Style progress do not repeat in the footer. The header shows one message group at a time. Active operations
+keep Cancel available. Errors take priority over notices after active work ends. Header messages have no final period.
+Clicking a message opens its available actions or full explanation, or navigates to the affected item. Separate Details
+controls do not repeat this trigger. Dialog errors use the same visible, operable header area. Field errors retain
+accessible descriptions and invalid states. Local cues can identify an affected item without moving controls, resizing
+rows, or changing scroll position. Closing a dialog clears its field errors from the header. Delayed completion cannot
+replace newer operation feedback. Selection, navigation, and hover retain their local state cues.
 
 Opening, Style processing, offline installation, and new Download preparation use an indeterminate busy indicator and
 action text. Download distinguishes preparation from inspection. These operations report no percentage or remaining time
@@ -862,8 +881,8 @@ Messages identify the action, relevant setting, and page quantities or positions
 context. Other Inputs are named only for operations concerning them. Opening progress appears once. Detailed errors do
 not repeat in the footer. The offline-ready and update-ready events use Notices. An installed application does not
 repeat offline-ready guidance. Update controls remain after their Notice expires. Offline installation progress appears
-in the header. Update application stays in the footer. The update-ready Notice asks users to download and close their
-PDF only while a workspace or opening operation exists.
+in the header. Update app stays in the footer. The update-ready Notice asks users to download and close their PDF only
+while a workspace or opening operation exists.
 
 Build ID identifies the application build, separately from software version. Its format is `YYYY-MMDD-HHmm-sscc` in
 `Europe/Istanbul` time. Hover identifies this time zone and exposes the full UTC timestamp and available Git revision.

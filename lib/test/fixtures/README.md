@@ -21,8 +21,9 @@ npm run dev -- --port 5173 --strictPort
 | `page`    | error  | A fixed page position is outside the PDF.                |
 
 Open `http://127.0.0.1:5173/?demo=recipe-<case>` to inspect each loading state. These development demos select their PDF
-automatically. They are outside the logo menu and the production asset bundle. Click the short result in the PDF box to
-open explanations and review acceptance. Details do not change the row geometry.
+automatically. They are outside the logo menu and the production asset bundle. The header's Review action opens the
+affected PDF's review panel and explicit approval. The PDF result also opens its explanations. These panels do not
+change the row geometry.
 
 Each `<case>.json` records the base PDF reference. `cases.json` identifies the candidate PDF and expected state. Bind
 `book` to that candidate through CLI `--inputs`. Use `apply`, `resolve`, or `align` with `--jsonl` to inspect

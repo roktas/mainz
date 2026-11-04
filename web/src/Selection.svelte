@@ -1,7 +1,8 @@
-<!-- Presents a pane's selection field, action snippets, and local feedback. -->
+<!-- Presents a pane's selection field and hints while reporting errors to the header. -->
 
 <script lang="ts">
   import type { Snippet } from "svelte"
+  import Feedback from "./Feedback.svelte"
 
   let {
     id,
@@ -61,7 +62,7 @@
         ? "Page numbers in order, including copies. Example: 3-5,2,2,7."
         : "Output page numbers and ranges. Repeated numbers select the same page once."}
       aria-invalid={invalid}
-      aria-describedby={`${id}-hint`}
+      aria-describedby={error ? `${id}-error` : `${id}-hint`}
       oninput={(event) => change(event.currentTarget.value)}
       onkeydown={(event) => {
         if (
@@ -79,8 +80,9 @@
     />
     {@render actions()}
   </div>
-  <p id={`${id}-hint`} class="sequence-help" role={error ? "alert" : pane === "Output" ? "status" : undefined}>
-    <span aria-hidden={!!error || hiddenHint}>{@render hint()}</span>
-    {#if error}<span class="error">{error}</span>{:else}{@render feedback?.()}{/if}
+  <p id={`${id}-hint`} class="sequence-help">
+    <span aria-hidden={hiddenHint}>{@render hint()}</span>
+    {#if !error}{@render feedback?.()}{/if}
   </p>
+  <Feedback header kind="error" text={error} summary={`Check ${pane} selection.`} id={`${id}-error`} />
 </div>

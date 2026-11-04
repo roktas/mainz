@@ -177,8 +177,11 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
         const bounds = await grip.boundingBox()
         await send("touchStart", { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 })
         await send("touchMove", { x: bounds.x + bounds.width / 2 + 10, y: bounds.y + bounds.height / 2 })
-        assert.equal(await input.locator(".input-drop-hint").count(), 0)
-        await input.locator(".input-drop-hint").waitFor()
+        assert.equal(
+          await page.locator(".header-feedback [role=status]").filter({ hasText: "Move to Output." }).count(),
+          0,
+        )
+        await page.locator(".header-feedback [role=status]").filter({ hasText: "Move to Output." }).waitFor()
         assert.equal(
           await views
             .getByRole("button", { name: "Output", exact: true })
@@ -187,7 +190,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
         )
         await send("touchMove", { x: bounds.x + bounds.width / 2 + 10, y: bounds.y + bounds.height / 2 - 20 })
         assert.equal(
-          await input.locator(".input-drop-hint").count(),
+          await page.locator(".header-feedback [role=status]").filter({ hasText: "Move to Output." }).count(),
           0,
           "Progress toward Output dismisses the delayed hint",
         )
@@ -200,7 +203,10 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
         await send("touchMove", { x: outputTab.x + outputTab.width / 2, y: outputTab.y + outputTab.height / 2 })
         await page.waitForTimeout(750)
         assert.equal(await input.isVisible(), true, "Hovering Output does not change the pane before the drop")
-        assert.equal(await input.locator(".input-drop-hint").count(), 0)
+        assert.equal(
+          await page.locator(".header-feedback [role=status]").filter({ hasText: "Move to Output." }).count(),
+          0,
+        )
         await send("touchEnd")
         await output.waitFor({ state: "visible" })
         await page.waitForFunction(
@@ -942,6 +948,72 @@ test("Open menus retain page commands from both panes", async () => {
   }
 })
 
+test("Output menu labels fit one line with narrow and enlarged text", { timeout: 30000 }, async () => {
+  const server = await serve()
+  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  try {
+    const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    const output = page.locator(".composition-output")
+    for (const colorScheme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme })
+      for (const [width, size] of [
+        [1100, "100%"],
+        [390, "100%"],
+        [320, "200%"],
+      ]) {
+        await page.setViewportSize({ width, height: 900 })
+        await page.evaluate((value) => (document.documentElement.style.fontSize = value), size)
+        const switcher = page.getByRole("button", { name: "Output", exact: true })
+        if (await switcher.isVisible()) await switcher.click()
+        for (const view of ["Grid", "Page"]) {
+          await tab(output, view)
+          await output.getByLabel("Page selection", { exact: true }).fill("2-3")
+          await output.getByLabel("Output page actions", { exact: true }).click()
+          const increase = output.locator('.menu-options button[aria-label="Zoom in"]')
+          if (await increase.isVisible()) await increase.click()
+          const controls = await output.locator(".menu-options").evaluate((element) => {
+            const panel = element.getBoundingClientRect()
+            return [...element.querySelectorAll(".selected-actions button, :scope > button")]
+              .filter((button) => button.checkVisibility())
+              .map((button) => {
+                const box = button.getBoundingClientRect()
+                const label = [...button.childNodes].find(
+                  (node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim(),
+                )
+                const text = document.createRange()
+                text.selectNode(label)
+                return {
+                  label: button.textContent.trim(),
+                  lines: text.getClientRects().length,
+                  fits: button.scrollWidth <= button.clientWidth + 1 && box.x >= panel.x && box.right <= panel.right,
+                  width: box.width,
+                  height: box.height,
+                }
+              })
+          })
+          assert.deepEqual(
+            controls.slice(-4).map((button) => button.label),
+            ["Blank before", "Blank at end", "Filename", "Repeat"],
+          )
+          assert.ok(
+            controls.every((button) => button.lines === 1 && button.fits),
+            JSON.stringify({ width, size, controls }),
+          )
+          assert.ok(
+            controls.every((button) => button.width === controls[0].width && button.height === controls[0].height),
+            JSON.stringify(controls),
+          )
+          await page.keyboard.press("Escape")
+        }
+      }
+    }
+  } finally {
+    await browser.close()
+  }
+})
+
 test("Grid keyboard selection toggles at the cursor and stops at boundaries", { timeout: 60000 }, async () => {
   const server = await serve()
   let browser
@@ -1310,9 +1382,9 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     await selected.fill("2-4")
     await output.getByLabel("Output page actions", { exact: true }).click()
     await output.getByRole("textbox", { name: "Repeat selected sequence", exact: true }).fill("1")
-    assert.equal(await output.getByRole("button", { name: "Repeat selected pages", exact: true }).count(), 0)
+    assert.equal(await output.getByRole("button", { name: "Repeat", exact: true }).count(), 0)
     await output.getByLabel("Start each repeat on front", { exact: true }).check()
-    assert.equal(await output.getByRole("button", { name: "Repeat selected pages", exact: true }).count(), 1)
+    assert.equal(await output.getByRole("button", { name: "Repeat", exact: true }).count(), 1)
     await page.keyboard.press("Escape")
     await selected.fill("2,")
     assert.equal(

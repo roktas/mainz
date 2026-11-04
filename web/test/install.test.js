@@ -35,11 +35,19 @@ test("Installation guidance stays optional and independent of the product tour",
         await page.setViewportSize({ width: 320, height: 667 })
         await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
         assert.equal(await installation.evaluate((element) => element.scrollWidth <= element.clientWidth), true)
+        const continuation = await installation
+          .getByRole("button", { name: "Use browser", exact: true })
+          .evaluate((button) => {
+            const text = document.createRange()
+            text.selectNodeContents(button)
+            return { lines: text.getClientRects().length, fits: button.scrollWidth <= button.clientWidth + 1 }
+          })
+        assert.ok(continuation.lines === 1 && continuation.fits, JSON.stringify(continuation))
 
         if (colorScheme === "dark") {
           await installation.evaluate((element) => element.removeAttribute("closedby"))
           await page.touchscreen.tap(2, 100)
-        } else await installation.getByRole("button", { name: "Continue in browser", exact: true }).click()
+        } else await installation.getByRole("button", { name: "Use browser", exact: true }).click()
         assert.match(await page.locator(".notice").textContent(), /If you change your mind, open Help → App/)
         await welcome.waitFor()
         assert.equal(await installation.isVisible(), false)
@@ -159,12 +167,31 @@ test("Installation guidance stays optional and independent of the product tour",
           window.dispatchEvent(event)
         }, outcome)
         await installation.getByRole("button", { name: "Install app", exact: true }).click()
-        await installation.getByRole("status").waitFor()
+        await page
+          .locator(".header-feedback")
+          .getByRole(outcome === "error" ? "alert" : "status")
+          .waitFor()
         assert.match(
-          await installation.getByRole("status").textContent(),
-          outcome === "accepted" ? /Installation requested/ : /continue in this browser/,
+          await page
+            .locator(".header-feedback")
+            .getByRole(outcome === "error" ? "alert" : "status")
+            .textContent(),
+          outcome === "error"
+            ? /Installation unavailable/
+            : outcome === "accepted"
+              ? /Installation requested/
+              : /continue in this browser/,
         )
         assert.equal(await installation.getByRole("button", { name: "Install app", exact: true }).count(), 0)
+        if (outcome === "accepted") {
+          await page.clock.install()
+          await page.clock.runFor(10001)
+          await page
+            .locator(".header-feedback [role=status]")
+            .filter({ hasText: "Installation requested" })
+            .waitFor({ state: "hidden" })
+          assert.ok(await installation.isVisible(), "A completed notification expires without closing the dialog")
+        }
         await installation.getByRole("button", { name: "Close help", exact: true }).click()
       }
     } finally {

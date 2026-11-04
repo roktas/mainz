@@ -254,8 +254,10 @@
   }}
 >
   <Feedback
+    menu={false}
     kind={running ? "progress" : failure ? "error" : "notice"}
     text={running ? stage : failure || "PDF ready to share."}
+    summary={!running && failure.length > 80 ? "PDF export failed." : undefined}
   >
     {#snippet actions()}
       <button aria-label="Cancel" title="Cancel" onclick={cancel}><Icon name="close" /><span>Cancel</span></button>

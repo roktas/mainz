@@ -1,4 +1,4 @@
-<!-- Coordinates Input opening, style choices, and the Output and preview owners. -->
+<!-- Coordinates Input opening, workspace choices, preview owners, and header feedback. -->
 
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte"
@@ -34,6 +34,7 @@
   import Recipe from "./Recipe.svelte"
   import Load from "./Load.svelte"
   import type { Binding } from "./Load.svelte"
+  import type { Alignment } from "./Align.svelte"
   import type { Snapshot } from "./Export.svelte"
   import Landing from "./Landing.svelte"
   import Settings from "./Settings.svelte"
@@ -41,7 +42,9 @@
   import Theme from "./Theme.svelte"
   import Logo from "./Logo.svelte"
   import Icon from "./Icon.svelte"
-  import Feedback from "./Feedback.svelte"
+  import Feedback, { provideFeedback } from "./Feedback.svelte"
+  import type { Report } from "./Feedback.svelte"
+  import Align from "./Align.svelte"
   import Offline from "./Offline.svelte"
   import Style from "./Style.svelte"
   import Guidance from "./Guidance.svelte"
@@ -67,6 +70,22 @@
   let messageRevision = $state(0)
   const firstAction = "Select pages · Use + to add to Output."
   let failure = $state.raw<string | string[]>("")
+  let reports = $state.raw<Report[]>([])
+  const activeReport = $derived(
+    reports.findLast((item) => item.kind === "progress") ??
+      reports.findLast((item) => item.kind === "error") ??
+      reports.at(-1),
+  )
+  const reportBusy = $derived(activeReport?.kind === "progress")
+  provideFeedback((item) => {
+    reports = [...reports, item]
+    const remove = () => (reports = reports.filter((entry) => entry !== item))
+    const timer = item.kind === "notice" && !item.actions && !item.children ? setTimeout(remove, 10000) : undefined
+    return () => {
+      clearTimeout(timer)
+      remove()
+    }
+  })
   let loading = $state(false)
   let updating = $state(false)
   let openingStatus = $state("")
@@ -80,6 +99,7 @@
   let loader = $state<ReturnType<typeof Load>>(null!)
   let matching = $state(false)
   let recipeStatus = $state("")
+  let alignment = $state.raw<Alignment>()
   let composer = $state<ReturnType<typeof Composer>>(null!)
   let examples = $state<ReturnType<typeof Examples>>(null!)
   let inputMenu = $state<HTMLDetailsElement>(null!)
@@ -140,6 +160,9 @@
       return reason instanceof Error ? reason.message : "Invalid Download inputs."
     }
   })
+  const headerError = $derived(!!(failure || failedSources.length || downloadError || activeReport?.kind === "error"))
+  const headerBusy = $derived(!!(loading || processingSource || offlineStatus || exportStatus))
+  const headerActive = $derived(!!(headerError || headerBusy || notice || activeReport))
   const inspection: Inspection | undefined = $derived.by(() => {
     const page = output.pages[output.position]
     if (!page) return
@@ -178,6 +201,44 @@
     clearTimeout(noticeTimer)
     notice = text
     if (text) noticeTimer = setTimeout(() => (notice = ""), 10000)
+  }
+  function present(element: HTMLDivElement) {
+    const marker = document.createComment("Header feedback")
+    element.before(marker)
+    function place() {
+      const modal = [...document.querySelectorAll<HTMLDialogElement>("dialog:modal")].at(-1)
+      const parent = modal ?? marker.parentElement!
+      if (element.parentElement !== parent) {
+        element.hidePopover()
+        if (modal) modal.append(element)
+        else marker.after(element)
+      }
+      if (!element.matches(":popover-open")) element.showPopover()
+    }
+    const observer = new MutationObserver(place)
+    observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ["open"] })
+    function toggle(event: Event) {
+      if (event.target instanceof Node && !element.contains(event.target)) {
+        const target = event.target
+        if (
+          target instanceof HTMLElement &&
+          [...element.querySelectorAll("[popovertarget]")].some(
+            (button) => button.getAttribute("popovertarget") === target.id,
+          )
+        )
+          return
+        element.hidePopover()
+        place()
+      }
+    }
+    document.addEventListener("toggle", toggle, true)
+    place()
+    return () => {
+      observer.disconnect()
+      document.removeEventListener("toggle", toggle, true)
+      element.remove()
+      marker.remove()
+    }
   }
   function error(text: string | string[]) {
     failure = text
@@ -823,8 +884,13 @@
     if (unsaved && !approved) event.preventDefault()
   }}
 />
+{#snippet dismissReport()}<button
+    type="button"
+    aria-label={activeReport?.kind === "error" ? "Dismiss error" : "Dismiss notification"}
+    onclick={() => (reports = reports.filter((item) => item !== activeReport))}>Dismiss</button
+  >{/snippet}
 <header class="masthead">
-  <div class="header-inner">
+  <div class="header-inner" data-feedback={headerActive || undefined}>
     <a
       class="brand"
       href={import.meta.env.BASE_URL}
@@ -834,67 +900,91 @@
       onclick={logo}
       >{#key logoReplay}<Logo />{/key}</a
     >
-    {#if loading || processingSource || offlineStatus || exportStatus || failure || failedSources.length || (notice && notice !== firstAction)}
-      <div class="header-feedback">
+    {#if headerActive}
+      <div class="header-feedback" popover="manual" {@attach present}>
+        {#if activeReport && !headerBusy && (reportBusy || activeReport.kind === "error" || !headerError)}<Feedback
+            {...activeReport}
+            actions={activeReport.actions ??
+              (activeReport.kind === "progress" || activeReport.children ? undefined : dismissReport)}
+          />{/if}
         {#if exportStatus}<Feedback kind="progress" text={exportStatus}>
-            {#snippet actions()}<button onclick={() => exporter.cancel()}>Cancel</button>{/snippet}
-          </Feedback>{/if}
-        {#if loading}<Feedback kind="progress" class="opening-progress" text={openingStatus}>
-            {#snippet actions()}<button onclick={cancelOpen}>Cancel</button>{/snippet}
+            {#snippet actions()}<button
+                type="button"
+                class="icon-button"
+                aria-label="Cancel"
+                title="Cancel"
+                onclick={() => exporter.cancel()}><Icon name="close" /></button
+              >{/snippet}
+          </Feedback>{:else if loading}<Feedback
+            kind="progress"
+            class="opening-progress"
+            text={openingStatus}
+            summary={matching ? "Opening recipe…" : "Opening PDF…"}
+          >
+            {#snippet actions()}<button
+                type="button"
+                class="icon-button"
+                aria-label="Cancel"
+                title="Cancel"
+                onclick={cancelOpen}><Icon name="close" /></button
+              >{/snippet}
           </Feedback>{:else if processingSource}<Feedback
             kind="progress"
             class="style-progress"
             text={`Updating styles · ${processingSource.input.name}`}
+            summary="Updating styles…"
           >
             {#snippet actions()}<button
+                type="button"
+                class="icon-button"
                 aria-label="Cancel style processing"
-                onclick={() => processingSource?.preview.cancel()}>Cancel</button
+                title="Cancel"
+                onclick={() => processingSource?.preview.cancel()}><Icon name="close" /></button
               >{/snippet}
           </Feedback>{/if}
-        {#if offlineStatus}<Feedback kind="progress" class="offline-progress" text={offlineStatus} />{/if}
-        {#if notice && notice !== firstAction}<Feedback kind="notice" class="notice" text={notice}>
-            {#snippet actions()}<button class="icon-button" aria-label="Dismiss notification" onclick={() => notify("")}
-                ><Icon name="close" /></button
-              >{/snippet}
-          </Feedback>{/if}
-        {#if failure}<Feedback kind="error" text={Array.isArray(failure) ? undefined : failure}>
-            {#snippet actions()}<button class="icon-button" aria-label="Dismiss error" onclick={() => (failure = "")}
-                ><Icon name="close" /></button
-              >{/snippet}
-            {#if Array.isArray(failure)}<div class="file-errors">
-                <span role="alert"
-                  >{failure.length} {failure.length === 1 ? "file could" : "files could"} not be opened.</span
-                >
-                <button type="button" class="file-errors-trigger" popovertarget="file-error-panel"
-                  ><Icon name="next" /><span>Review file errors</span></button
-                >
-                <div id="file-error-panel" class="file-error-panel" popover="auto" aria-label="File error details">
-                  <div class="dialog-heading">
-                    <h3>File errors</h3>
-                    <button
-                      class="icon-button"
-                      popovertarget="file-error-panel"
-                      popovertargetaction="hide"
-                      aria-label="Close file errors"
-                      title="Close"><Icon name="close" /></button
-                    >
-                  </div>
-                  <!-- Keyboard users need a focusable list for native scrolling. -->
-                  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-                  <ul tabindex="0" aria-label="File errors">
-                    {#each failure as message, index (index)}<li>{message}</li>{/each}
-                  </ul>
-                </div>
-              </div>{/if}
-          </Feedback>{/if}
-        {#each failedSources as source (source.id)}<Feedback
-            kind="error"
-            text={`${source.input.name}: ${source.preview.error} The last completed preview is shown.`}
+        {#if !exportStatus && !loading && !processingSource && offlineStatus}<Feedback
+            kind="progress"
+            class="offline-progress"
+            text={offlineStatus}
+          />{/if}
+        {#if !activeReport && !headerError && !headerBusy && notice}<Feedback
+            kind="notice"
+            class="notice"
+            text={notice}
           >
-            {#snippet actions()}<button aria-label="Retry Input styles" onclick={() => schedule(source.id)}
-                >Retry</button
+            {#snippet actions()}<button type="button" aria-label="Dismiss notification" onclick={() => notify("")}
+                >Dismiss</button
               >{/snippet}
-          </Feedback>{/each}
+          </Feedback>{/if}
+        {#if failure && !headerBusy && !reportBusy && activeReport?.kind !== "error"}<Feedback
+            kind="error"
+            text={Array.isArray(failure)
+              ? `${failure.length} ${failure.length === 1 ? "file" : "files"} failed`
+              : failure}
+            details={Array.isArray(failure) ? failure : undefined}
+            summary={typeof failure === "string" && failure.length > 80 ? "Action failed." : undefined}
+          >
+            {#snippet actions()}<button type="button" aria-label="Dismiss error" onclick={() => (failure = "")}
+                >Dismiss</button
+              >{/snippet}
+          </Feedback>{/if}
+        {#if downloadError && !headerBusy && !reportBusy && activeReport?.kind !== "error" && !failure && !failedSources.length}<Feedback
+            kind="error"
+            text={downloadError}
+            summary="Check Output Inputs."
+          />{/if}
+        {#if !failure && !headerBusy && !reportBusy && activeReport?.kind !== "error"}{#each failedSources.slice(0, 1) as source (source.id)}<Feedback
+              kind="error"
+              text={`${source.input.name}: ${source.preview.error} The last completed preview is shown.`}
+              summary="Style update failed."
+            >
+              {#snippet actions()}<button
+                  type="button"
+                  aria-label="Retry Input styles"
+                  title="Retry styles"
+                  onclick={() => schedule(source.id)}>Retry</button
+                >{/snippet}
+            </Feedback>{/each}{/if}
       </div>
     {/if}
     <div class="header-actions">
@@ -926,6 +1016,7 @@
     bind:this={loader}
     bind:active={matching}
     bind:status={recipeStatus}
+    bind:alignment
     replay={logoReplay}
     open={loadRecipe}
     cancel={cancelOpen}
@@ -962,13 +1053,8 @@
 <footer class="footnote">
   {#if active}<span class="status-input" title={active.input.name}>{active.input.name}</span>{/if}
   <div class="status-messages">
-    {#if !loading && !processingSource && (recipeStatus || message || notice === firstAction)}<p
-        role="status"
-        aria-atomic="true"
-      >
-        {#key notice === firstAction ? firstAction : messageRevision}<span class="status-message"
-            >{recipeStatus || (notice === firstAction ? notice : message)}</span
-          >{/key}
+    {#if !loading && !processingSource && (recipeStatus || message)}<p role="status" aria-atomic="true">
+        {#key messageRevision}<span class="status-message">{recipeStatus || message}</span>{/key}
       </p>{/if}
     <Offline
       busy={sources.length > 0 || parts.length > 0 || loading}
@@ -1006,6 +1092,7 @@
   preview={coverPreview}
 />
 <Recipe bind:this={recorder} {output} {sources} {info} />
+<Align bind:value={alignment} {notify} />
 
 <Examples bind:this={examples} navigate={example} workspace={!!active || parts.length > 0} />
 

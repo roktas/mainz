@@ -235,19 +235,21 @@
   })
 </script>
 
-<div class={thumbnail ? "thumbnail" : "pdf-viewport"} aria-busy={rendering}>
+<div
+  class={thumbnail ? "thumbnail" : "pdf-viewport"}
+  aria-busy={rendering}
+  data-error={!!failure || undefined}
+  title={failure || undefined}
+>
   <!-- Prevent inherited button tooltips from covering the hover lens. -->
   <canvas
     bind:this={canvas}
     {@attach render}
     width="0"
     height="0"
-    aria-label={`PDF page ${pageNumber ?? page + 1}`}
+    aria-label={`PDF page ${pageNumber ?? page + 1}${failure ? ": could not render" : ""}`}
     title=""
   ></canvas>
-  {#if failure}<p class="error" role="alert">{failure}</p>{:else if rendering && !painted}<span
-      class="render-status"
-      aria-hidden="true"
-    ></span>{/if}
+  {#if !failure && rendering && !painted}<span class="render-status" aria-hidden="true"></span>{/if}
 </div>
 <Lens {pdf} page={page + 1} {pageNumber} {name} {canvas} {rendering} {magnification} ratio={lensScale} />

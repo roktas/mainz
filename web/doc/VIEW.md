@@ -70,11 +70,18 @@ The shared `--icon-size` token sets ordinary icons to 1.125 rem. Control-specifi
 Action labels use sentence case. Keep acronyms such as PDF and JSON and product terms such as Input and Output. Write
 the intended text directly; do not use CSS capitalization.
 
-Landing PDF and Recipe actions share width and padding on all four sides. At normal text size, their icons are 24 px.
-PDF is 54 px high; Recipe is 1 px taller. Wide layouts center them on one row with a muted `or`; narrow layouts stack
-them. The primary PDF action uses the unboxed Acrobat ribbon. Its color is the opposite theme's accent: beige in light
-mode and purple in dark mode. Recipe uses JSON braces and a quiet secondary surface. The existing animated logo and
-landing composition remain the visual anchor.
+**Button labels must never wrap. Shorten the label before increasing the button width.** Use the surrounding context
+instead of repeating it: use Save when the panel already identifies the file. Keep the full action clear. Do not shrink,
+clip, or truncate action labels. Keep peer buttons equal in size and aligned after shortening their labels. At narrow
+widths and enlarged text, move or stack whole controls when needed; never split their labels. Confirmation actions place
+Cancel or Dismiss before Save or Apply. Keep the positive action on the right in a row, or below the dismissive action
+when stacked.
+
+The landing labels are Open PDF and Recipe. These actions share width and padding on all four sides. At normal text
+size, their icons are 24 px. PDF is 54 px high; Recipe is 1 px taller. Wide layouts center them on one row with a muted
+`or`; narrow layouts stack them. The primary PDF action uses the unboxed Acrobat ribbon. Its color is the opposite
+theme's accent: beige in light mode and purple in dark mode. Recipe uses JSON braces and a quiet secondary surface. The
+existing animated logo and landing composition remain the visual anchor.
 
 Icon buttons use transparent surfaces, accent stroke emphasis on hover, and immediate press feedback. Destructive
 actions retain danger colors. Text and primary buttons can use a soft accent glow with a fine pointer and hover support.
@@ -151,7 +158,7 @@ without changing heading dimensions. Progress and Cancel belong to the app heade
 button that opens the filename editor. It retains Input's heading typography and icon alignment. Hover and keyboard
 focus identify the action. Its panel uses the standard full-height entry and equal Use default and Save buttons. When
 the cover thumbnail and field share a row, the number entry ends at Use default's end edge. Wrapped fields retain a
-usable width. Error space appears only for an actual error.
+usable width. Invalid fields retain their error state without adding layout space.
 
 Each pane header, view toolbar, and selection bar stays on one control row at every supported width and text size.
 Controls never wrap or move to another row. Preserve usable gaps, full-size touch targets, and shared vertical
@@ -171,8 +178,6 @@ Its 28 px share glyph matches Print and View and scales with text. Its button, t
 Desktop and unsupported environments keep Download. The ready-file panel names its actions Share and Download without
 the redundant PDF suffix. A required fresh gesture uses neutral feedback rather than a permission error.
 
-The decorative information icon yields space to the message in compact panels with three actions.
-
 Export recipe uses JSON braces in the secondary color, immediately before Print and View in the Output header. Its glyph
 and target match Print and View. It remains available in every workspace view. Its centered panel uses a Name, Index,
 Path, Title table with bold column headings and equal Cancel and Export buttons with the shared control gap. Index uses
@@ -191,11 +196,11 @@ complete titles and available XMP fields. Wide Input headers and chooser entries
 Matching is the landing's next step. The 24 px Back icon uses a target of at least 44 px beside the Recipe filename.
 Align its visible start edge with the heading, file choices, and covers below. Back retains its accessible name and
 hover description, with glyph-only glow and no hover surface. The small Recipe-download icon sits beside the filename.
-The larger logo occupies the upper end-side space and retains entry motion and parallax. Use sample PDFs precedes Choose
-local PDFs; both actions share a row and dimensions. An empty box centers Choose a PDF and its drop hint on both axes.
-Narrow layouts hide the drop hint and the logo, use shorter supporting copy, and reduce the gap below the Recipe
-filename. Wide layouts also keep a compact gap below the filename. The larger logo's visible top aligns with the Back
-arrow, without increasing the heading height. Use sample PDFs and Choose local PDFs stay beside each other. Choose a PDF
+The larger logo occupies the upper end-side space and retains entry motion and parallax. Sample PDFs precedes Choose
+PDFs; both actions share dimensions and stay on one row when they fit. Stack whole buttons at constrained widths. An
+empty box centers Choose a PDF and its drop hint on both axes. Narrow layouts hide the drop hint and the logo, use
+shorter supporting copy, and reduce the gap below the Recipe filename. Wide layouts also keep a compact gap below the
+filename. The larger logo's visible top aligns with the Back arrow, without increasing the heading height. Choose a PDF
 uses the primary surface. It shares width and height with Cancel and Apply recipe where the row has enough space. At
 narrow widths or enlarged text, the PDF choice can retain its + icon and full accessible name.
 
@@ -209,14 +214,23 @@ frame. Download icons have no hover surface or circular shadow; only the glyph g
 
 Each selected PDF keeps its filename and one short result in the existing box. The combined result is a details trigger
 with a 44 px minimum target. Truncate long text within the box; keep the complete result available to assistive
-technology. Clicking opens a shared popover with explanations and, for review, the acceptance checkbox. Opening,
-accepting, and closing details must not move or resize the row, cover, or PDF box. Both wide and narrow layouts use this
-interaction. The filename and result share a start edge at every width. Ready and update results use a primary check
-mark. Review uses a secondary warning mark, including after acceptance. Error uses a red prohibition mark and has no
-acceptance control. Unreadable PDFs retain the same selected-file box, filename, and Change PDF placement. Details show
-only explanations and review acceptance. Do not repeat the Input title, filename, or result as visible headings. Show
-one issue as a paragraph; show several issues as a list. After a successful changed load, a quiet inline action saves a
-separate updated Recipe above the composer.
+technology. Clicking opens explanations or a Review step with an explicit approval button. Opening, accepting, and
+closing details must not move or resize the row, cover, or PDF box. Both wide and narrow layouts use this interaction.
+The filename and result share a start edge at every width. Ready and update results use primary emphasis. Review uses
+secondary emphasis, including after acceptance. Error uses danger text and has no acceptance control. Unreadable PDFs
+retain the same selected-file box, filename, and Change PDF placement. Details show only explanations for ordinary
+results. A Review step stays beside the selected PDF, explains its issues, and centers its Use anyway button at the
+bottom with one standard gap above it. Keep the panel below the header and within the viewport. Long explanations scroll
+within the panel while the approval button remains visible. The header's Review action opens this step at the
+corresponding PDF row. The header uses the single action Review PDF; the row retains the state Review required. The
+action uses text glow without a button surface or box shadow. Do not repeat the filename or result, or add a Review
+heading inside the panel. Show one issue as a paragraph; show several issues as a list. After a changed load, the
+header's References updated message opens an explanation and two rows of controls in the same panel. The first row
+places the filename on the left and Save on the right. The second places Dismiss on the left and Overwrite on the right.
+All three buttons and the filename field share one width and height and align on both axes. Use a slightly wider
+horizontal gap than the vertical gap. The filename has a light secondary tint and an underline instead of a button
+outline. Overwrite uses the secondary fill; Save uses the primary fill. Stack whole controls when enlarged text leaves
+insufficient room. The workspace keeps its normal heading and content positions.
 
 Wide Input rows share a height. The title is primary text. Optional XMP `dc:description` appears directly below it as
 smaller, muted text with a clear gap. It is separate content, not a repeated or punctuation-split title. The description
@@ -734,7 +748,7 @@ navigation. The selected segment has clear emphasis. Neither segment is selected
 
 Hover emphasizes the relevant component or information marker without adding another border or moving values. Open
 editors retain an accent frame. Invalid drafts use danger text. Short labels retain full authored accessible names. The
-active Style tab row holds processing feedback and the danger-colored reset icon.
+active Style tab row holds the danger-colored reset icon. Processing feedback uses the header.
 
 ## Drag and drop
 
@@ -799,11 +813,10 @@ Detailed shortcut tables stay in Help.
 
 The first-addition hint brightens a visible Input thumbnail, waits 2600 ms, then sends a fading visual copy toward empty
 Output over 4200 ms. The copy begins moving before the fixed light fully fades. On mobile it moves toward the Output
-switch and stays within the viewport. Its instruction uses the existing bottom status row without a frame or a dismiss
-button. Reduced motion retains only the instruction. [SPEC.md](SPEC.md#help-and-onboarding) owns hint eligibility,
-dismissal, and tour state restoration.
+switch and stays within the viewport. Its instruction uses the header notification area. Reduced motion retains only the
+instruction. [SPEC.md](SPEC.md#help-and-onboarding) owns hint eligibility, dismissal, and tour state restoration.
 
-App installation guidance uses a separate native dialog. Continue in browser has primary emphasis. The optional native
+App installation guidance uses a separate native dialog. Use browser has primary emphasis. The optional native
 installation action has secondary emphasis. The title and visible close icon share a vertical centerline. Narrow layouts
 and enlarged text retain scrolling within the dialog. Installation guidance does not change workspace geometry or Grid
 capacity. [SPEC.md](SPEC.md#help-and-onboarding) owns startup eligibility, dismissal, and access through Help → App.
@@ -818,24 +831,41 @@ highlights the landing frame. A touch press keeps its feedback on the chooser wi
 | Message | Placement                                               | Treatment                                                                                              |
 | ------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | Info    | Header during work; bottom status row after completion. | Bold black/light or white/dark text, accent busy ring, and Cancel during work; small `--info` results. |
-| Notice  | Center of the app header.                               | Borderless black/light or white/dark text at weight 700, information icon, and dismiss button.         |
-| Error   | Header, or beside the affected field/dialog control.    | Danger color with explanation and recovery actions.                                                    |
+| Notice  | Center of the app header.                               | Borderless black/light or white/dark text at weight 700, with relevant actions.                        |
+| Error   | Header; optional local cues identify the affected item. | Danger color, a short explanation, and recovery actions.                                               |
 
 Header feedback uses one shared presentation for opening, Style processing, offline installation, Notices, and general
-Errors. Center the complete group, including its icon and actions, on the header's inline centerline. Align the icon's
-visible block center with its message. Keep Cancel beside progress with a full interaction target. Wide header actions
-remain available. Feedback has no enclosing border, shadow, or button surface. Messages use black text in light mode and
-white text in dark mode, at weight 700. Busy rings use the accent. Errors use the danger color.
+Errors. Center the complete message and action group on the header's inline centerline. Messages and results use no
+decorative information, warning, error, or success icons. Align the busy ring's visible block center with progress text.
+Keep Cancel beside progress with a full interaction target. Wide header actions remain available. Feedback has no
+enclosing border, shadow, or button surface. Messages use black text in light mode and white text in dark mode, at
+weight 700. Busy rings use the accent. Errors use the danger color. Header summaries, action labels, and state labels
+have no final period. Full explanations retain sentence punctuation. Ongoing progress uses an ellipsis.
 
 Wide headers use balanced side columns for the logo and actions, with feedback in the middle. The privacy indicator
-gives its space to active feedback. Feedback keeps its natural content width so that its information and dismiss icons
-stay beside the message. Center the group vertically within the existing header. Feedback does not change the header
-height or workspace position. Narrow headers show feedback within the existing header area and temporarily hide the logo
-and header actions. Opening or dismissing feedback does not move the workspace or document scroll. Each message and its
-actions use one row. Long messages scroll horizontally within their line, with the complete text retained for assistive
-technology and hover. Recovery actions keep a clear gap. Feedback never introduces horizontal overflow or overlaps
-header controls. Large error lists scroll within a bounded area. Active feedback remains visible during document
-scrolling and respects the safe area.
+gives its space to active feedback. Feedback keeps its natural content width so that actions stay beside the message.
+Center the group vertically within the existing header. Feedback does not change the header height or workspace
+position. Its container has a transparent background and stays above the header separator. Narrow headers show feedback
+within the existing header area and temporarily hide the logo and header actions. Opening or dismissing feedback does
+not move the workspace or document scroll. Each message and its actions use one row. Long messages scroll horizontally
+within their line, with the complete text retained for assistive technology and hover. Recovery actions keep a clear
+gap. Feedback never introduces horizontal overflow or overlaps header controls. Prefer a short sentence naming the issue
+or next action. The message itself is the trigger: it opens available actions, shows its full explanation, or takes the
+user to the affected item. Do not add a separate Details or ellipsis control. Explanations and action menus use a
+bounded panel below the header. Cancellable progress retains a visible Cancel control. Show one message group at a time;
+errors precede notices after the active operation. Active feedback remains visible during document scrolling and
+respects the safe area.
+
+Message-panel action buttons use the shared action width and height, matching ordinary screen controls such as Cancel
+and Change PDF. Do not stretch them across the panel. Center the action group below the explanation with one standard
+gap. Put two actions side by side when they fit; otherwise stack whole buttons. Use short, single-line labels. Place a
+concise explanation beside the Close control above the actions; do not reserve an empty heading row.
+
+The footer owns workspace status and completed operation reports. The header owns notifications, warnings, and error
+messages, including failures inside dialogs. Modal feedback stays visible and operable above its backdrop. An invalid
+field can retain its border and accessible error description. An affected item can retain an outline or a short
+explanation in reserved space. These local cues must not move nearby controls, resize rows, or change scroll position.
+They identify the source; the header provides the general message and recovery action.
 
 New Download or Print preparation uses a compact native modal centered at the header. It shares the busy ring, message,
 and actions above. Progress needs one row without a separate title or Close button. Errors retain readable text, Cancel,
@@ -853,7 +883,7 @@ The workspace uses the document-flow rule above so that its last controls remain
 and update controls share a centered column. Larger workspace views show the active filename at the start and Build ID
 at the end. Narrow mobile workspace views retain feedback and offline actions only. The landing places Build ID at the
 bottom center. It can wrap between groups with enlarged text. Long filenames truncate with full hover text. The landing
-keeps one standard gap between Update application and Build ID.
+keeps one standard gap between Update app and Build ID.
 
 New footer status briefly highlights the message with a light accent tint and a soft glow just around the text, then
 fades to its ordinary treatment. Repeated operations restart the feedback. Reduced motion skips this effect, which does
@@ -897,12 +927,12 @@ effects.
 Notice text keeps full contrast until dismissal. Reduced motion keeps busy rings static. Errors retain their explanation
 and do not repeat details in the footer. Loading, empty, error, and cancellation states identify the next action.
 
-Batch opening announces one short failure count after processing. A popover trigger joins the count and Review file
-errors on one row when space permits. It wraps without extra row gaps on narrow screens and with enlarged text. The
-dismiss button aligns with the failure group's block start. All controls retain at least 44 px targets.
+Batch opening announces one short failure count after processing. The count itself opens its explanations and actions.
+Keep the message on one row, including on narrow screens and with enlarged text. All controls retain at least 44 px
+targets.
 
-Review file errors opens a separate popover with each filename and diagnostic outside the live alert and header bounds.
-The list has a bounded height and supports keyboard scrolling.
+The message opens a separate popover with each filename and diagnostic outside the live alert and header bounds. The
+list has a bounded height and supports keyboard scrolling.
 
 ## Validation
 
@@ -934,6 +964,10 @@ must remain separate and usable. Compare Grid with Page's thumbnail reference. A
 rendered Normal and Compact column × row matrices against the table. Apply the touch references in both orientations,
 including Input/Output page counts and partial rows. Screenshots confirm the surrounding visual groups. Passing column
 counts, target sizes, or overflow checks alone does not pass this gate.
+
+For action buttons, measure the rendered label as well as the control. At normal and 200% text, each label must occupy
+one line and fit inside its button. Check peer dimensions, centers, and gaps after shortening labels or changing their
+layout. A no-wrap declaration alone does not prove that a label fits.
 
 Check calibration boundaries in both viewport dimensions and in each applicable orientation. Include a fine pointer with
 secondary touch input, a primary touch pointer, and unmatched viewport dimensions. Verify that only the matching entry
@@ -1089,7 +1123,7 @@ The bar is the complete bordered row. The field is only the text-entry area with
 | Duplicate button           | Çoğaltma düğmesi                | The + button that duplicates Output pages or a selection.                                                |
 | Selection hint             | Seçim yardım metni              | The text below the bar with usage, insertion destination, repetition, and alignment information.         |
 | Selection count            | Seçim sayacı                    | The emphasized count, such as “6 pages selected”.                                                        |
-| Validation message         | Doğrulama iletisi               | The error that replaces the hint for an invalid selection expression.                                    |
+| Validation message         | Doğrulama iletisi               | The header error for an invalid selection expression; the field retains its invalid state.               |
 
 #### Repetition and blank pages
 
@@ -1097,7 +1131,7 @@ The bar is the complete bordered row. The field is only the text-entry area with
 | ------------------------ | ---------------------------- | ----------------------------------------------------------------------------------------- |
 | Repetition control       | Tekrar sayısı denetimi       | The repetition field with decrease, increase, and reset buttons in the page actions menu. |
 | Front alignment checkbox | Ön yüze hizalama onay kutusu | The “Start each repeat on front” choice.                                                  |
-| Repeat button            | Tekrarlama düğmesi           | The “Repeat selected pages” button in the Output page actions menu.                       |
+| Repeat button            | Tekrarlama düğmesi           | The “Repeat” button in the Output page actions menu.                                      |
 | Insert blank actions     | Boş sayfa ekleme işlemleri   | The choices that insert a Blank before the first selected page or at the end of Output.   |
 
 ### Grid
@@ -1329,8 +1363,8 @@ Their visual popover name does not require every panel to use the browser's Popo
 | Notice                      | Geçici bildirim                       | Temporary guidance or an event message in the app header.                              |
 | Status message              | Durum iletisi                         | A result or cancellation in the status bar. SPEC calls this Info.                      |
 | Error message               | Hata iletisi                          | A persistent general or Input error in the header, with recovery actions.              |
-| Inline error message        | Alan içi hata iletisi                 | Local error text beside selection, Style, or page preview content.                     |
-| Dismiss button              | Bildirimi kapatma düğmesi             | The × control within a notice or error message.                                        |
+| Inline error message        | Alan içi hata iletisi                 | Local error text in reserved space that identifies the affected item.                  |
+| Dismiss button              | Bildirimi kapatma düğmesi             | The Dismiss action in a notification or error menu.                                    |
 | Cancel processing button    | İşlem iptal düğmesi                   | The Cancel action for the operation named in header feedback or the Download dialog.   |
 | Loading indicator / Spinner | Yükleme göstergesi                    | The ring visible during PDF preview or processing.                                     |
 | Loading status              | Yükleme durum alanı                   | Header feedback with the opening filename and Cancel action.                           |
@@ -1338,7 +1372,7 @@ Their visual popover name does not require every panel to use the browser's Popo
 | Empty state                 | Boş durum görünümü                    | Explanatory content such as “Your Output starts here.”                                 |
 | Operation highlight         | İşlem vurgusu                         | Temporary emphasis after addition, movement, or removal.                               |
 | Page transfer animation     | Sayfa aktarım animasyonu              | A page or stack moving toward Output after addition or during first-addition guidance. |
-| Offline/update status       | Çevrimdışı kullanım/güncelleme durumu | Header installation/update feedback and the footer's Update application button.        |
+| Offline/update status       | Çevrimdışı kullanım/güncelleme durumu | Header installation/update feedback and the footer's Update app button.                |
 
 #### Drop targets and previews
 
