@@ -280,10 +280,8 @@ function wasm(instance) {
         status = 0
       }
     },
-    _mainz_fingerprint() {
-      heap.fill(48, 0, 64)
-      size = 64
-      status = 0
+    _mainz_reference() {
+      record({ sha256: "0".repeat(64), pageCount: 1 })
     },
     _mainz_close() {
       if (instance === 1) record({ hostError: "Close failed." }, 2)

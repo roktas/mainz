@@ -74,6 +74,8 @@ function prepare() {
     "_mainz_provenance_size",
     "_mainz_style",
     "_mainz_fingerprint",
+    "_mainz_reference",
+    "_mainz_check_recipe_input",
     "_mainz_preview",
   ])
     if (!new RegExp(`\\b${name}\\b`).test(loader))
@@ -174,6 +176,26 @@ export default defineConfig({
       },
       configureServer(server) {
         server.middlewares.use((request, response, next) => {
+          const pathname = request.url?.split("?")[0]
+          const prefix = `${server.config.base}checks/`
+          if (pathname?.startsWith(prefix)) {
+            const name = pathname.slice(prefix.length)
+            if (!/^[a-z]+\.(json|pdf)$/.test(name)) {
+              response.statusCode = 404
+              response.end("Unknown Recipe fixture.")
+              return
+            }
+            const file = resolve("../.local/var/fixtures/recipe", name)
+            if (!existsSync(file)) {
+              response.statusCode = 404
+              response.end("Build the Recipe fixtures with bundle exec rake fixtures:recipe.")
+              return
+            }
+            response.setHeader("Content-Type", name.endsWith(".pdf") ? "application/pdf" : "application/json")
+            response.setHeader("Cache-Control", "no-store")
+            response.end(readFileSync(file))
+            return
+          }
           if (request.url === `${server.config.base}manifest.webmanifest?geometry`) {
             const manifest = JSON.parse(readFileSync(join(assets, "manifest.webmanifest"), "utf8"))
             response.setHeader("Content-Type", "application/manifest+json")

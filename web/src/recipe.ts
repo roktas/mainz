@@ -10,15 +10,27 @@ export const maxRecipeBytes = 16 * 1024 * 1024
 
 type Profile = { set: string; id: string } | { family: string; name: string; all?: boolean }
 type Override = ({ id: string } | { family: string; key: string; all?: boolean }) & { value: Scalar | null }
+export type Reference = {
+  sha256: string
+  pageCount: number
+  pageNamesSha256?: string
+  publication?: { id: string; compat: number }
+}
+export type Diagnostic = { code: string; message: string; location?: string; expected?: unknown; actual?: unknown }
+export type InputState = "ready" | "update" | "review" | "error"
+export type InputCheck = {
+  input: string
+  state: InputState
+  diagnostics: Diagnostic[]
+  reference?: Reference
+}
+export type Checks = { state: InputState; inputs: InputCheck[] }
 export type Recipe = {
   version: 1
   metadata?: Plan["metadata"]
   inputs: Record<
     string,
-    {
-      sha256?: string
-      pageCount?: number
-      publication?: { id: string; version: string }
+    Partial<Reference> & {
       title?: string
       cover?: string
       xmp?: Record<string, string>
@@ -33,7 +45,8 @@ export type Recipe = {
 }
 export type Resolution = {
   plan: Plan
-  warnings: { code: string; input: string; location: string; message: string; expected: unknown; actual: unknown }[]
+  checks: Checks
+  aligned: Recipe
   intent: Record<string, Required<Pick<StyleState, "profiles" | "edits">>>
 }
 
@@ -65,15 +78,14 @@ export function recipe(parts: readonly Part[], sources: readonly Source[], metad
     ...(metadata ? { metadata } : {}),
     inputs: Object.fromEntries(
       inputs.map((input) => {
-        if (!input.sha256) throw new Error(`The fingerprint for ${input.name} is unavailable. Reopen this Input.`)
+        if (!input.reference) throw new Error(`The reference for ${input.name} is unavailable. Reopen this Input.`)
         return [
           input.id,
           {
-            sha256: input.sha256,
+            ...input.reference,
             ...(input.title ? { title: input.title } : {}),
             ...(input.cover ? { cover: input.cover } : {}),
             ...(input.xmp && Object.keys(input.xmp).length ? { xmp: input.xmp } : {}),
-            ...(input.description.publication ? { publication: { ...input.description.publication } } : {}),
           },
         ]
       }),

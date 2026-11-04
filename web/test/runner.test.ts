@@ -39,6 +39,7 @@ test("Browser modes retain critical regressions and reserve calibration matrices
     "test/startup.test.js",
   ])
   assert.deepEqual(select("standard", "workspace").files, [
+    "test/checks.test.js",
     "test/export.test.js",
     "test/feedback.test.js",
     "test/workspace.test.js",

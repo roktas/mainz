@@ -15,7 +15,7 @@ const groups: Record<string, string[]> = {
   selection: ["selection"],
   startup: ["startup", "install", "assets"],
   page: ["page"],
-  workspace: ["workspace", "feedback", "export"],
+  workspace: ["workspace", "feedback", "export", "checks"],
   viewport: ["viewport"],
 }
 const files = readdirSync(new URL(".", import.meta.url))

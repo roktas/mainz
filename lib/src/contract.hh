@@ -42,7 +42,6 @@ bool equal(JSON, JSON);
 std::string sha256(std::string_view);
 bool blank(const std::string&);
 void publication(JSON, const std::string& source = "manifest");
-bool compatible_publication(JSON recorded, JSON current);
 template <class Function> auto request_at(const std::string& location, Function operation)
 {
     try {

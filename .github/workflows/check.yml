@@ -110,7 +110,7 @@ jobs:
         if: inputs.preset == 'native'
         env:
           MAINZ_REVISION: ${{ github.sha }}
-        run: bundle exec rake package:wasm
+        run: bundle exec rake package:wasm fixtures:recipe
       - name: Check and build PDF Composer
         if: inputs.preset == 'native'
         run: |
@@ -125,6 +125,15 @@ jobs:
         with:
           name: wasm
           path: .local/var/package/wasm
+          include-hidden-files: true
+          if-no-files-found: error
+          overwrite: true
+      - name: Upload Recipe cases for browser tests
+        if: inputs.preset == 'native'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: recipe-cases
+          path: .local/var/fixtures/recipe
           include-hidden-files: true
           if-no-files-found: error
           overwrite: true

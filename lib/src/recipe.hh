@@ -6,11 +6,15 @@
 namespace mainz {
 struct Resolution {
     std::string plan;
-    std::string warnings;
+    std::string checks;
     std::string intent;
+    std::string aligned;
 };
 std::string recipe_inputs(const std::string& recipe);
-Resolution resolve_recipe(const std::string& recipe, const std::map<std::string, std::string>& inputs);
-Resolution resolve_recipe(const std::string& recipe, const std::map<std::string, Document>& inputs);
+std::string recipe_reference(const Document& input);
+std::string check_recipe_input(const std::string& recipe, const std::string& id, const Document& input);
+Resolution resolve_recipe(
+    const std::string& recipe, const std::map<std::string, std::string>& inputs, bool force = false);
+Resolution resolve_recipe(const std::string& recipe, const std::map<std::string, Document>& inputs, bool force = false);
 }
 #endif

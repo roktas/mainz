@@ -8,10 +8,10 @@
   separate Recipe demo. Loaded profiles, manual edits, and baseline resets remain editable and exportable.
 - Output title and cover-page choices in the existing filename editor, written to generated PDF metadata and retained
   when the PDF is opened as a later Input.
-- Optional page names, tags, triviality, and embedded PNG previews in the version 1 physical-page array, including
-  metadata-only PDFs, numeric page scopes, native/WASM preview access, and `imprint --preview`.
-- List view, page-name captions, and adjustable Input Grid/List visibility based on triviality, with complete Selection
-  and Output retained. Thumbnails reuse supplied PNGs and fall back to PDF rendering after host image-decoder failures.
+- Optional page names, tags, and embedded PNG previews in the version 1 physical-page array, including metadata-only
+  PDFs, numeric page scopes, native/WASM preview access, and `imprint --preview`.
+- List view and page-name captions, with complete Selection and Output retained. Thumbnails reuse supplied PNGs and fall
+  back to PDF rendering after host image-decoder failures.
 - List full-page previews, direct Page inspection with return to List, animated edits, and native/touch drag and drop.
 - Matching Grid/List editing shortcuts and Ctrl/Command-arrow movement for selected or focused Output pages.
 - `mainz resolve` emits a resolved Plan without producing a PDF. Global `mainz --help` succeeds without an input.
@@ -19,8 +19,12 @@
   and editable logical Input IDs for CLI replay.
 - Portable JSON Recipes and noninteractive `mainz apply`, with shared native/WASM resolution, separate file bindings,
   profile and override choices, baseline resets, dynamic all-pages selection, and changed-Input diagnostics.
-- Optional publication identity and SemVer metadata for warning-free replay across producer-declared compatible changes,
-  with all PDF and operation checks retained.
+- Shared Recipe Input assessments for unchanged bytes, quiet updates, explicit review, and blocking errors, with ordered
+  page-name digests, reference counts, and an optional publication ID and integer `compat` veto.
+- `mainz align` writes a separate reference Recipe without changing processing intent. Recipe commands support
+  review-only `--force`, informational `--verbose`, and structured `--jsonl` records.
+- Recipe loading shows per-Input explanations and explicit review acceptance. Changed loads offer Save updated recipe.
+  Shared e2e cases also provide development-only UI demos outside the logo menu.
 - Optional Style families and semantic parameter keys, preserved through production, styling, extraction, and
   composition.
 - Optional plain-text `details` on parameter schemas, groups, profile sets, and profiles, requiring an accompanying
@@ -34,6 +38,7 @@
 
 ### Changed
 
+- The header logo opens Home with one click, replays its animation with two, and opens examples with three or more.
 - Bounded mounted List rows while preserving physical positions, occurrence identities, selection, and scrolling.
 - Centralized persisted Style intent and moved row interaction and edit feedback lifecycle to their owning surfaces.
 - Grid toolbars use one button that shows the density selected by activation at every width.
@@ -67,8 +72,6 @@
 - List selections use the primary background with contrasting text and replace row Add/Duplicate actions with an
   unselect tick. Output rows reveal paired move and remove/duplicate actions on hover or focus, with a visible menu for
   touch and narrow panes. Page details stay beside their number.
-- Grid and List share the Input visibility threshold and show its trailing toolbar control only for differing triviality
-  values.
 - Cross-file Style choices use explicit families. Profiles match by family and name; parameter edits and resets require
   matching semantic keys and equal previous values. The profile menu offers per-file scope and disables without
   compatible peers.

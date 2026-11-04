@@ -2,6 +2,7 @@
 
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { Description, Scalar, StyleState, Usage } from "./styles.ts"
+import type { Reference } from "./recipe.ts"
 
 export type Size = { width: number; height: number }
 export type Content = { source: string; page: number } | { blank: Size }
@@ -13,7 +14,7 @@ export type Input = {
   bytes: Uint8Array
   pdf: PDFDocumentProxy
   description: Description
-  sha256?: string
+  reference?: Reference
   sizes: Size[]
   labels: string[]
   title?: string

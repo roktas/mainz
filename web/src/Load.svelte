@@ -3,7 +3,8 @@
 <script module lang="ts">
   import type { Input } from "./model.ts"
   import { Opening } from "./pdf.ts"
-  export type Binding = { id: string; input: Input; opening: Opening }
+  import type { InputCheck } from "./recipe.ts"
+  export type Binding = { id: string; input: Input; opening: Opening; check: InputCheck; accepted: boolean }
 </script>
 
 <script lang="ts">
@@ -16,6 +17,9 @@
   import Guidance from "./Guidance.svelte"
   import Icon from "./Icon.svelte"
   import Logo, { parallax } from "./Logo.svelte"
+  import Align from "./Align.svelte"
+  import Check from "./Check.svelte"
+  import type { Alignment } from "./Align.svelte"
   let {
     active = $bindable(false),
     status = $bindable(""),
@@ -26,7 +30,7 @@
     active?: boolean
     status?: string
     replay: number
-    open: (text: string, bindings: Binding[]) => Promise<void>
+    open: (text: string, bindings: Binding[], force: boolean) => Promise<Recipe>
     cancel: () => void
   } = $props()
   const key = $props.id()
@@ -35,6 +39,8 @@
   let text = ""
   let inputs = $state.raw<Recipe["inputs"]>()
   let selected = $state.raw(new Map<string, Binding>())
+  let failures = $state.raw(new Map<string, { name: string; message: string }>())
+  let alignment = $state.raw<Alignment>()
   let reading: Opening | undefined
   let busy = $state(false)
   let opening = $state(false)
@@ -45,7 +51,16 @@
   const download = new Download()
   let request: AbortController | undefined
   const count = $derived(Object.keys(inputs ?? {}).length)
-  const ready = $derived(selected.size)
+  const chosen = $derived(new Set([...selected.keys(), ...failures.keys()]).size)
+  const review = $derived(
+    [...selected.values()].filter((binding) => binding.check.state === "review" && !binding.accepted).length,
+  )
+  const blocked = $derived(
+    new Set([
+      ...failures.keys(),
+      ...[...selected.values()].filter((binding) => binding.check.state === "error").map((binding) => binding.id),
+    ]).size,
+  )
   $effect(() => {
     status = !active
       ? ""
@@ -57,7 +72,7 @@
             : "Reading recipe…"
         : inputs
           ? count
-            ? `${ready} of ${count} Inputs selected${ready === count ? " · Ready to apply recipe" : ` · ${count - ready} remaining`}`
+            ? `${chosen} of ${count} Inputs selected${blocked ? ` · ${blocked} blocked` : review ? ` · ${review} need review` : chosen === count ? " · Ready to apply recipe" : ` · ${count - chosen} remaining`}`
             : "No PDFs needed."
           : ""
   })
@@ -69,6 +84,8 @@
     reading = undefined
     for (const binding of selected.values()) binding.opening.dispose()
     selected = new Map()
+    failures = new Map()
+    alignment = undefined
     inputs = undefined
     text = ""
     example = undefined
@@ -81,7 +98,10 @@
     request?.abort()
     request = undefined
   }
-  export async function show(file: File, preset?: { recipe: string; inputs: Record<string, string> }) {
+  export async function show(
+    file: File,
+    preset?: { recipe: string; inputs: Record<string, string>; automatic?: boolean },
+  ) {
     stop()
     const generation = ++revision
     name = file.name
@@ -111,6 +131,7 @@
         processor = undefined
       }
     }
+    if (preset?.automatic && generation === revision && inputs) await samples()
   }
   function diagnostic(reason: unknown) {
     const record = (reason as { failure?: { record?: { message: string; location?: string } } })?.failure?.record
@@ -135,13 +156,21 @@
       if (retained + file.size > maxInputBytes)
         throw new Error("Recipe Inputs exceed the 128 MiB total limit. Choose smaller PDFs.")
       const input = await job.read(file, file.name, generation)
+      if (generation !== revision) {
+        job.dispose()
+        return
+      }
+      const check = await job.check(text, id, generation)
       if (generation === revision) {
+        failures = new Map(failures)
+        failures.delete(id)
         selected.get(id)?.opening.dispose()
-        selected = new Map(selected).set(id, { id, input, opening: job })
+        selected = new Map(selected).set(id, { id, input, opening: job, check, accepted: false })
       } else job.dispose()
     } catch (reason) {
       job.dispose()
-      if (generation === revision) failure = diagnostic(reason)
+      if (generation === revision)
+        failures = new Map(failures).set(id, { name: file.name, message: diagnostic(reason) })
     } finally {
       if (generation === revision) {
         busy = false
@@ -193,17 +222,25 @@
     }
   }
   async function start() {
-    if (!inputs || busy || ready !== count) return
+    if (!inputs || busy || chosen !== count || blocked || review) return
     const generation = revision
     busy = true
     opening = true
     failure = ""
     try {
-      await open(text, [...selected.values()])
+      const bindings = [...selected.values()]
+      const filename = name
+      const aligned = await open(
+        text,
+        bindings,
+        bindings.some((binding) => binding.check.state === "review"),
+      )
       if (generation !== revision) return
+      const changed = bindings.some((binding) => binding.check.state !== "ready")
       opening = false
       busy = false
       stop()
+      if (changed) alignment = { recipe: aligned, name: filename, inputs: bindings }
       active = false
       await tick()
       document
@@ -278,9 +315,11 @@
         <div class="recipe-bindings">
           {#each Object.entries(inputs) as [id, input] (id)}
             {@const bound = selected.get(id)}
+            {@const rejected = failures.get(id)}
             {@const title = input.title?.trim() || id}
-            {@const changed = bound && input.sha256 && bound.input.sha256 !== input.sha256}
-            <div class="binding-row">
+            {@const state = rejected ? "error" : bound?.check.state}
+            {@const matched = !!bound || !!rejected}
+            <div class="binding-row" data-state={state}>
               <div class="binding-source">
                 <div class="binding-cover">
                   {#if input.cover}<img src={input.cover} alt={`Saved cover · ${title}`} />{:else}<Icon
@@ -305,7 +344,7 @@
               </div>
               <div
                 class="binding-target"
-                class:bound={!!bound}
+                class:bound={matched}
                 role="group"
                 aria-label={`PDF for ${title}`}
                 ondragover={(event) => {
@@ -316,32 +355,33 @@
                   if (event.dataTransfer?.files[0]) void choose(id, event.dataTransfer.files[0])
                 }}
               >
-                {#if bound}<div class="binding-result">
-                    <p class="binding-file" title={bound.input.name}>{bound.input.name}</p>
-                    <p class="control-description">
-                      {changed
-                        ? "Different from the saved PDF. Review your Output."
-                        : input.sha256
-                          ? "Matches the saved Input."
-                          : "PDF selected."}
-                    </p>
-                  </div>{/if}
+                {#if bound || rejected}<Check
+                    {title}
+                    filename={bound?.input.name ?? rejected?.name}
+                    check={bound?.check}
+                    failure={rejected?.message}
+                    accepted={bound?.accepted ?? false}
+                    disabled={busy}
+                    accept={(accepted) => {
+                      if (bound) selected = new Map(selected).set(id, { ...bound, accepted })
+                    }}
+                  />{/if}
                 <div class="binding-pick">
-                  <label class={bound ? "file-picker" : "file-picker primary binding-empty"}
-                    ><Icon name={bound ? "input" : "add"} /><span>{bound ? "Change PDF" : "Choose a PDF"}</span>
+                  <label class={matched ? "file-picker" : "file-picker primary binding-empty"}
+                    ><Icon name={matched ? "input" : "add"} /><span>{matched ? "Change PDF" : "Choose a PDF"}</span>
                     <input
                       type="file"
                       accept="application/pdf,.pdf"
                       disabled={busy}
                       aria-label={`Choose PDF for ${title}`}
-                      title={bound ? "Change PDF" : "Choose a PDF"}
+                      title={matched ? "Change PDF" : "Choose a PDF"}
                       onchange={(event) => {
                         void choose(id, event.currentTarget.files?.[0])
                         event.currentTarget.value = ""
                       }}
                     /></label
                   >
-                  {#if !bound}<span class="control-description">or drop it here</span>{/if}
+                  {#if !matched}<span class="control-description">or drop it here</span>{/if}
                   {#if bound}<button
                       type="button"
                       class="load-download"
@@ -365,8 +405,9 @@
       <button type="button" onclick={() => void close()}>Cancel</button><button
         type="button"
         class="primary"
-        disabled={!inputs || busy || ready !== count}
+        disabled={!inputs || busy || chosen !== count || !!blocked || !!review}
         onclick={() => void start()}>Apply recipe</button
       >
     </div>
   </section>{/if}
+<Align bind:value={alignment} />

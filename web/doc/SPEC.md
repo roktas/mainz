@@ -12,10 +12,9 @@ validation commands belong in [AGENTS.md](../../AGENTS.md#web).
 
 ## Implementation status
 
-The application implements Grid, List, Page, Style, authored page-name captions, and Input triviality visibility.
-Thumbnails use eligible producer PNGs with PDF rendering as the host-decoder fallback. Page, lens, Compare, and
-generated PDFs use PDF content. The [library contract](../../lib/doc/SPEC.md#implementation-status) owns page metadata
-and preview validation.
+The application implements Grid, List, Page, Style, and authored page-name captions. Thumbnails use eligible producer
+PNGs with PDF rendering as the host-decoder fallback. Page, lens, Compare, and generated PDFs use PDF content. The
+[library contract](../../lib/doc/SPEC.md#implementation-status) owns page metadata and preview validation.
 
 ## Workspace
 
@@ -25,8 +24,8 @@ state. Ordinary PDFs support composition. Prepared PDFs also expose their declar
 
 The landing distinguishes page composition for ordinary PDFs from Style support in prepared PDFs and links to the
 library specification. Its primary action selects one PDF. The secondary Open recipe action selects a JSON Recipe and
-starts Input matching. The workspace offers Recipe export. Its header logo replays the landing animation. In the
-workspace, that logo opens Home.
+starts Input matching. The workspace offers Recipe export. Its header logo opens Home on a single click and replays the
+logo animation on a double-click.
 
 ### Inputs
 
@@ -63,9 +62,9 @@ mark Output as changed.
 ### Views and density
 
 Input has Grid, List, and Page, plus Style for prepared PDFs. Output has Grid, List, and Page. Grid, List, and Page
-share selection and page operations. Input Page browses every original physical page once, regardless of Selection.
-Output browses every expanded occurrence, including Blank and Padding. Navigation does not change selection. Selection
-does not move the inspected page or narrow style scope.
+share selection and page operations. Input Grid and List include every physical page in PDF order. Input Page browses
+every original physical page once, regardless of Selection. Output browses every expanded occurrence, including Blank
+and Padding. Navigation does not change selection. Selection does not move the inspected page or narrow style scope.
 
 Grid and List interactions establish the page inspected in Page. Returning to Grid reveals that page's batch. Entering
 List reveals the inspected row. Output inspection follows occurrence identity through movement. Removal chooses the next
@@ -74,8 +73,7 @@ surviving neighbor, or the previous neighbor at the end. Input switching does no
 View changes and Grid density changes reveal the inspected item. Page navigation updates the item revealed on return. A
 tab or density control retains focus and briefly marks that item with secondary emphasis. Content gestures return focus
 to the corresponding item. Keyboard returns use its focus contour without the temporary pointer cue. These returns
-preserve selection. If Input visibility conceals the inspected page, Grid and List reveal the nearest visible physical
-page. Page retains the originating Grid or List for V and modified-click return gestures.
+preserve selection. Page retains the originating Grid or List for V and modified-click return gestures.
 
 Both panes offer Normal and Compact density for Grid. Output starts in Normal. After opening completes, an Input's first
 visible Input Grid measures Normal batch capacity. Above twice that capacity, it starts in Compact. Otherwise it starts
@@ -101,16 +99,16 @@ If a PDF label differs from its physical number, Page shows both.
 
 ### Named pages and List
 
-The shared Description page array follows physical PDF order. Each entry can supply independent `name`, `tags`,
-`triviality`, and preview metadata. There is no page-ID lookup. Page names can repeat; consumers derive any name/tag
-reverse indexes in memory. Document title, description, authorship, and copyright remain standard PDF XMP metadata
-rather than page or workspace fields.
+The shared Description page array follows physical PDF order. Each entry can supply independent `name`, `tags`, and
+preview metadata. There is no page-ID lookup. Page names can repeat; consumers derive any name/tag reverse indexes in
+memory. Document title, description, authorship, and copyright remain standard PDF XMP metadata rather than page or
+workspace fields.
 
-List shows one row per visible physical Input page or expanded Output occurrence, in the same order as the pane's page
-sequence. Each row retains its physical number or Output position and supplied page name. Input rows can show a
-differing PDF label. Output rows show one position and keep original page numbers and differing PDF labels in details.
-Pages without names remain available by number. Repeated names do not merge rows or occurrences. Blank and Padding rows
-retain their existing product identities without invented authored names.
+List shows one row per physical Input page or expanded Output occurrence, in the same order as the pane's page sequence.
+Each row retains its physical number or Output position and supplied page name. Input rows can show a differing PDF
+label. Output rows show one position and keep original page numbers and differing PDF labels in details. Pages without
+names remain available by number. Repeated names do not merge rows or occurrences. Blank and Padding rows retain their
+existing product identities without invented authored names.
 
 List mounts the visible window and a small margin, with spacers retaining the scroll range. Unmounted rows keep their
 physical positions, occurrence identities, and selections in the existing workspace owners. Contextual row actions mount
@@ -161,30 +159,6 @@ The shared library owns page names and tags under its [page metadata contract](.
 Tags remain available as data for future page selection. This version defines no tag-query control, expression grammar,
 or dynamic Recipe lookup.
 
-### Input triviality visibility
-
-Page triviality is authored display importance: zero means most important. Missing triviality means zero. Larger values
-have lower priority; several pages can have the same triviality. Tags have no reserved concealment meaning. Input Grid
-and List share a threshold and start with pages whose triviality is less than one. Their view controls offer the
-distinct triviality values present in the Input as inclusive thresholds and an All pages choice. Selecting triviality
-one shows triviality values zero and one. A missing or explicit zero triviality has the same visibility. When every page
-has the same effective triviality, including an Input without any supplied triviality, the control is absent and every
-page is visible.
-
-Each Input retains its chosen threshold as workspace view state. Changing the threshold does not edit the manifest,
-Selection, preparation, styles, Output, or Recipe. Page retains every physical page, and Output retains every
-occurrence. Numeric Selection and page entry continue to use original physical numbers. Grid batches, List rows, counts,
-cursor movement, and image navigation use the filtered sequence while retaining physical page identities. Its visible
-count distinguishes visible pages from the Input's total. An empty visible sequence still offers the visibility control.
-
-Existing selected pages remain selected when the threshold conceals them. Selection feedback includes their concealed
-count. Explicit numeric selection, Select all, and preparation continue to use the full physical sequence. A range
-created by visible Grid or List gestures follows visible page order. Concealing a focused Grid or List page moves the
-cursor to its nearest visible neighbor, or to the visibility control when no visible page survives. Returning from Page
-reveals the inspected page when visible; otherwise it retains that inspection without silently changing the threshold.
-View and threshold controls keep keyboard focus on activation. Triviality visibility never hides a page in the actual
-PDF.
-
 ### Demo
 
 | Query         | Result                                                                                         |
@@ -194,11 +168,12 @@ PDF.
 | `?demo=grid`  | 240-page Input and Output from 60 repetitions of the four sample pages.                        |
 | `?demo&paint` | Style with the Filled profile, available only in development.                                  |
 
-On every screen, three quick clicks or taps on the upper-left logo open the examples dialog. It lists Single demo, Large
-demo, Recipe demo, and Empty demo, in that order. The workspace also offers Show the welcome again. Links navigate
-inside the application scope, including in an installed app. Before an example replaces undownloaded changes, the
-application asks for confirmation. A single click still returns home after the short triple-click interval. On the
-landing page, the logo still replays its animation immediately. Choose a PDF always opens local PDFs.
+On every screen, three or more quick clicks or taps on the upper-left logo open the examples dialog. It lists Single
+demo, Large demo, Recipe demo, and Empty demo, in that order. The workspace also offers Show the welcome again. Links
+navigate inside the application scope, including in an installed app. Before an example replaces undownloaded changes,
+the application asks for confirmation. A single click returns Home, and a double-click replays the logo animation.
+Actions wait until the quick-click sequence ends. Reduced motion disables the animation. Choose a PDF always opens local
+PDFs.
 
 Unknown demo values show an Error and retain local PDF opening. Local opening takes precedence over a pending demo
 result or error. The bundled demo remains available offline after application installation. The
@@ -655,14 +630,40 @@ them by splitting title punctuation.
 Users can choose or drop one PDF per row or choose several PDFs together through Choose local PDFs. Batch selection
 reserves filename matches to logical Input IDs before filling unmatched rows. File names and covers help users choose;
 the shared resolver remains authoritative. Each PDF is validated and prepared before workspace installation. Selected
-bytes share the 128 MiB aggregate limit. A digest difference is visible beside its binding. The resolver reports change
-warnings and rejects inapplicable references or choices. A failed replacement retains the previous selected PDF.
+bytes share the 128 MiB aggregate limit. The shared library assesses each selected Input before execution. Each row
+shows a short result. Clicking it opens diagnostic details without resizing the row. A failed read retains the previous
+selected PDF and blocks execution until a valid replacement is selected.
 
-Apply recipe becomes available after all required PDFs are selected. The selected and remaining Input counts use the
-application status line. Blank-only Recipes require no PDFs. Resolution and complete page expansion precede installation
-of one editable workspace. Loading preserves Parts, styles, explicit profile choices, manual edits, baseline resets, and
-optional Output title and cover. The selected PDF's actual saved appearance remains distinct from the requested Output
-styles. Cancellation and failures release unadopted documents and workers. No incomplete workspace is installed.
+Apply recipe becomes available after all required PDFs pass assessment and every review result receives explicit
+acceptance. The selected and remaining Input counts use the application status line. Blank-only Recipes require no PDFs.
+Resolution and complete page expansion precede installation of one editable workspace. Loading preserves Parts, styles,
+explicit profile choices, manual edits, baseline resets, and optional Output title and cover. The selected PDF's actual
+saved appearance remains distinct from the requested Output styles. Cancellation and failures release unadopted
+documents and workers. No incomplete workspace is installed.
+
+Input results follow the library's [assessment contract](../../lib/doc/SPEC.md#input-references-and-assessment). An
+error shows a blocking result; its details explain the failure and provide no override. Ready and update results use
+primary emphasis, review uses secondary emphasis, and errors use the danger color. Details omit repeated headings and
+filenames. One issue uses a paragraph; several issues use a list. A review result opens its reasons, expected/current
+facts when useful, and **Use this PDF anyway** in the details popover. Apply remains blocked until each affected Input
+is explicitly accepted. This acceptance applies only to the current PDF bytes and Recipe. Replacing either clears it.
+The status line distinguishes selected, review, and blocked Inputs instead of declaring every selected PDF ready.
+
+The library checks styles, physical page references, and producer vetoes. The UI never derives another compatibility
+result from checksums, names, counts, or `compat`. The final shared resolution repeats complete checks before installing
+the workspace. No partial workspace is installed after rejection or cancellation.
+
+Successful loading of changed Inputs offers **Save updated recipe** as a quiet, optional action. It saves the library's
+aligned record with current available display annotations. It preserves original logical IDs and processing intent,
+including dynamic all-pages selectors. It does not reconstruct alignment by exporting expanded workspace Parts.
+Accepting review permits one load; saving the aligned Recipe separately accepts a new reference baseline. Failure or
+cancellation never saves alignment, and the browser never silently replaces the selected source JSON file.
+
+Development-only Recipe assessment demos use `?demo=recipe-<case>`. Cases are `ready`, `update`, `review`, `count`,
+`unnamed`, `compat`, `format`, `style`, and `page`. They select the relevant fixture PDFs automatically for UI
+inspection. The [shared fixture guide](../../lib/test/fixtures/README.md) defines each case and its generation command.
+These entries are absent from production and the offline cache and never appear in the logo's examples menu. CLI, WASM,
+and browser e2e tests consume the same generated cases.
 
 The Recipe demo places Use sample PDFs before Choose local PDFs. The JSON download icon sits beside the Recipe filename.
 After a PDF is selected, its download icon saves those selected bytes under their opened filename. Empty bindings offer
@@ -690,12 +691,12 @@ The CLI accepts an explicit ID-to-file map. Automatic lookup uses the ID as a re
 and resolves from cwd or `--root`. The processor's `sources` entries retain independent style instances. Their page
 references use instance IDs, separate from logical Input bindings.
 
-Each accepted Input supplies its SHA-256 digest and optional publication declaration. Its validation worker computes the
-digest once from the retained original bytes. Export adds the Input title, available descriptive XMP fields, and a PNG
-render of its declared cover page. The image has a maximum edge of 512 pixels and an encoded limit of 256 KiB. The
-Recipe embeds it so matching works on another device without a local cache. Export does not reopen the original file or
-prepare another PDF. An unavailable cover render omits that optional display field and does not block export. The record
-contains no PDF bytes, browser resources, invalid drafts, or incidental UI state.
+Each accepted Input supplies the library-computed factual reference: SHA-256, physical page count, available ordered
+page-name digest, and optional publication identity/compatibility veto. Export adds the Input title, available
+descriptive XMP fields, and a PNG render of its declared cover page. The image has a maximum edge of 512 pixels and an
+encoded limit of 256 KiB. The Recipe embeds it so matching works on another device without a local cache. Export does
+not reopen the original file or prepare another PDF. An unavailable cover render omits that optional display field and
+does not block export. The record contains no PDF bytes, browser resources, invalid drafts, or incidental UI state.
 
 Explicitly chosen profiles remain profile choices in the record. Later manual edits and baseline resets apply after
 those choices. Unique semantic family/name or family/key matches use semantic selectors. Ambiguous scopes use exact
@@ -703,8 +704,8 @@ local IDs. Export never infers a profile from matching values. Inputs without ex
 complete accepted override maps.
 
 The record preserves explicit physical pages, order, copies, front alignment, and Blanks. It never infers dynamic
-all-pages intent from a complete page list. It adds no hard page-count expectation. The shared library controls replay
-diagnostics and applicability against updated PDFs.
+all-pages intent from a complete page list. The recorded count is comparison data rather than a hard exact-count
+expectation. The shared library controls replay diagnostics and applicability against updated PDFs.
 
 The JSON filename uses the current Output filename stem with `.json`. Its default follows the existing dynamic Output
 name. The 16 MiB Recipe limit applies before download. The record also saves the Output title and cover-page choice.

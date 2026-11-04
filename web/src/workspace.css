@@ -1,7 +1,23 @@
-/* Coordinates Input/Output pane layout, headings, page markers, and responsive navigation. */
+/* Coordinates workspace layout, Recipe checks and alignment, headings, and responsive navigation. */
 
 @layer layouts {
   @scope (#app) {
+    .recipe-alignment {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--gap);
+      min-inline-size: 0;
+      padding-block: var(--gap);
+      color: var(--muted);
+      & > p {
+        flex: 1 1 20rem;
+        min-inline-size: 0;
+      }
+      & > button {
+        margin-inline-start: auto;
+      }
+    }
     .composer {
       --document-icon-size: 1.75rem;
       display: flex;
@@ -409,7 +425,79 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr);
         gap: 0.5rem;
-        padding-inline-start: 14px;
+        justify-items: stretch;
+        padding: 0 0 0 14px;
+        min-block-size: 44px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        color: inherit;
+        font: inherit;
+        text-align: start;
+        &:hover:not(:disabled) {
+          background: transparent;
+          box-shadow: none;
+        }
+      }
+      & .binding-status {
+        min-inline-size: 0;
+        margin: 0;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        & > span {
+          min-inline-size: 0;
+          overflow: clip;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          text-decoration: underline dotted;
+          text-underline-offset: 0.2em;
+        }
+        & > svg {
+          flex: none;
+          inline-size: 1em;
+          block-size: 1em;
+        }
+      }
+      & .binding-check {
+        inline-size: min(30rem, calc(100vi - 2 * var(--gutter)));
+        & > .icon-button {
+          float: inline-end;
+          margin-inline-start: 0.5rem;
+        }
+        & > :is(p, ul):first-of-type {
+          padding-block-start: max(0px, calc((44px - 1lh) / 2));
+        }
+        & ul {
+          list-style: disc;
+          margin-block: 0 0.5rem;
+          padding-inline-start: 1.25rem;
+          & li + li {
+            margin-block-start: 0.5rem;
+          }
+        }
+      }
+      & .binding-row[data-state="review"] .binding-status {
+        color: var(--secondary);
+      }
+      & .binding-row[data-state="error"] .binding-status {
+        color: var(--danger);
+      }
+      & .binding-accept {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-block-size: 44px;
+        cursor: pointer;
+        clear: both;
+        margin-block-start: 0.5rem;
+        & input {
+          flex: none;
+          inline-size: 1.125rem;
+          block-size: 1.125rem;
+        }
       }
       & .binding-pick {
         display: flex;

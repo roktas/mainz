@@ -19,6 +19,20 @@
 @import "./controls.css";
 
 @layer components {
+  @keyframes logo-enter {
+    from {
+      transform: perspective(800px) rotateY(-35deg) rotateZ(70deg) translateX(-20%);
+      opacity: 0;
+    }
+    65% {
+      transform: perspective(800px) rotateY(-8deg) rotateZ(8deg) translateX(3%);
+      opacity: 1;
+    }
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
   @scope (.composer, .drag-image[data-strip]) {
     :is(.page-name, .detail-name, .list-choice, .lens-name, .page-peek > p, .drop-name, .drag-title) {
       font-variant-caps: all-small-caps;
@@ -320,8 +334,10 @@
       min-block-size: 44px;
       color: var(--ink);
       text-decoration: none;
-      &.icon-button {
-        padding: 0;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .brand[data-replay] .logo {
+        animation: logo-enter 1500ms var(--ease-out) both;
       }
     }
     .brand .logo {

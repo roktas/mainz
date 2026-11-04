@@ -249,20 +249,6 @@
         animation: enter 650ms 150ms var(--ease-out) both;
       }
     }
-    @keyframes logo-enter {
-      from {
-        transform: perspective(800px) rotateY(-35deg) rotateZ(70deg) translateX(-20%);
-        opacity: 0;
-      }
-      65% {
-        transform: perspective(800px) rotateY(-8deg) rotateZ(8deg) translateX(3%);
-        opacity: 1;
-      }
-      to {
-        transform: none;
-        opacity: 1;
-      }
-    }
   }
 }
 @layer layouts {

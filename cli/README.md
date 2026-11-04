@@ -28,6 +28,8 @@ mainz extract input.pdf --pages pages.json --output selected.pdf
 mainz compose plan.json --inputs inputs.json --output composed.pdf
 mainz apply recipe.json --root ./pdfs --output composed.pdf
 mainz apply recipe.json --inputs bindings.json --output composed.pdf
+mainz resolve recipe.json --inputs bindings.json --jsonl
+mainz align recipe.json --inputs bindings.json --output aligned.json
 mainz imprint source.svg --declaration parameters.json --output prepared.pdf
 mainz verify prepared.pdf
 mainz --version
@@ -38,14 +40,17 @@ example. An extraction request of `[0,2]` keeps the first and third physical pag
 [Plan and separate Input bindings](doc/SPEC.md#2-requests).
 
 `compose` and `apply` write the composed PDF to `--output` and return its Provenance JSON on stdout. Provenance maps the
-result's pages and parameters to their sources. Recipe change warnings use stderr.
+result's pages and parameters to their sources. Recipe updates run quietly. Review rejects by default; explicit
+`--force` accepts review for one operation. Errors and producer vetoes always block.
 
 `apply` consumes a portable [Recipe](../lib/doc/SPEC.md#65-portable-recipes) containing logical Input IDs, Input
 instance styles, and composition choices. Use `--inputs bindings.json` to map IDs to PDF paths, such as
 `{"book":"pdfs/updated-book.pdf"}`. Without explicit bindings, each ID acts as a relative path. The CLI appends `.pdf`
 when absent and resolves from the working directory, or from `--root` when supplied. This shared record can also
-represent a web consumer's Output. The [execution rules](doc/SPEC.md#22-recipe-execution) define changed-Input warnings,
-explicit page-count expectations, and path containment.
+represent a web consumer's Output. The [execution rules](doc/SPEC.md#22-recipe-execution) define Input assessment,
+explicit review, reference alignment, and path containment. `align` preserves processing intent and writes a separate
+Recipe. `--jsonl` exposes Input diagnostics and the final result as one JSON object per line. Use `--verbose` for
+informational diagnostics with normal result JSON.
 
 `profiles` returns the embedded profile sets as JSON, or `[]` when none exist. Use the returned set and profile IDs. The
 examples above use `print` and `inkjet`; other PDFs can define different IDs. `--set` is optional when the profile ID

@@ -14,24 +14,23 @@ module Mainz
         recipe-native.pdf
         recipe-direct.pdf
         recipe-wasm.pdf
-        recipe-publication.pdf
-        recipe-forward-native.pdf
-        recipe-forward-wasm.pdf
       ]
         .each do |name|
           FileUtils.rm_f(file(name))
         end
 
+      %w[ready update review count unnamed].each { |id| %w[native wasm].each { |mode| FileUtils.rm_f(file("recipe-#{id}-#{mode}.pdf")) } }
       result = command(ROOT.join("lib/test/recipe.mjs"), cli, wasm, file("prepared.pdf"), @directory)
-      assert_equal({"pages" => 8, "independentSources" => 3, "fastForward" => true}, JSON.parse(result))
+      assert_equal({"pages" => 8, "independentSources" => 3, "checks" => 9}, JSON.parse(result))
       assert_equal(contents(file("recipe-direct.pdf")), contents(file("recipe-wasm.pdf")))
-      assert_equal(contents(file("recipe-forward-native.pdf")), contents(file("recipe-forward-wasm.pdf")))
+      %w[ready update review count unnamed].each do |id|
+        assert_equal(contents(file("recipe-#{id}-native.pdf")), contents(file("recipe-#{id}-wasm.pdf")), id)
+      end
       [150, 300].each do |dpi|
         %w[native wasm].each do |mode|
-          command("pdftoppm", "-r", dpi, "-png", file("recipe-forward-#{mode}.pdf"), file("recipe-#{mode}-#{dpi}"))
+          command("pdftoppm", "-r", dpi, "-png", file("recipe-review-#{mode}.pdf"), file("recipe-review-#{mode}-#{dpi}"))
         end
-
-        assert_equal(file("recipe-native-#{dpi}-1.png").binread, file("recipe-wasm-#{dpi}-1.png").binread)
+        (1..3).each { |page| assert_equal(file("recipe-review-native-#{dpi}-#{page}.png").binread, file("recipe-review-wasm-#{dpi}-#{page}.png").binread) }
       end
     end
 

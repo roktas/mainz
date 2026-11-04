@@ -12,7 +12,6 @@
     active,
     compact = false,
     count,
-    pages,
     position = $bindable(0),
     offset = $bindable(0),
     keyboard = $bindable(false),
@@ -26,7 +25,6 @@
     active: () => boolean
     compact?: boolean
     count: number
-    pages?: readonly number[]
     position?: number
     offset?: number
     keyboard?: boolean
@@ -38,8 +36,6 @@
   } = $props()
   let columns = $state(1)
   let rows = $state(1)
-  const gridCursor = $derived(pages ? pages.indexOf(position) : position)
-  const physical = (index: number) => pages?.[index] ?? index
   const batch = $derived(columns * rows)
   const start = $derived(
     Math.min(Math.floor(offset / batch) * batch, Math.max(0, Math.floor((count - 1) / batch) * batch)),
@@ -71,7 +67,7 @@
         observer.observe(card)
       }
       const previous = batch
-      const anchor = gridCursor >= start && gridCursor < start + batch ? gridCursor : offset
+      const anchor = position >= start && position < start + batch ? position : offset
       fit(grid)
       if (!element.clientWidth) return
       // The viewport budget is fixed in CSS; rendered cards cannot resize it.
@@ -137,7 +133,7 @@
 
   function move(next: number) {
     offset = Math.max(0, Math.min(next, (batches - 1) * batch))
-    position = physical(offset)
+    position = offset
   }
 
   function gridKeys(element: HTMLElement) {
@@ -165,7 +161,7 @@
       }
       boundary = next < 0 ? -1 : next >= count ? 1 : 0
       const index = Math.max(0, Math.min(next, count - 1))
-      position = physical(index)
+      position = index
       offset = Math.floor(index / batch) * batch
       await tick()
       if (element.isConnected) {
@@ -189,13 +185,12 @@
       boundary = 0
       delete element.dataset.cursorBoundary
       const page = Number(image.dataset.page)
-      const clicked = pages ? pages.indexOf(page) : page
       await tick()
-      if (event.detail) pointerSelection = selected(page) ? clicked : undefined
+      if (event.detail) pointerSelection = selected(page) ? page : undefined
       else {
         keyboard = true
         reset()
-        void advance(clicked + 1)
+        void advance(page + 1)
       }
     }
     function focus(event: FocusEvent) {
@@ -246,20 +241,9 @@
       if (!["extend", "left", "right", "up", "down", "first", "last", "next", "previous"].includes(action)) return
       const index =
         event.target instanceof HTMLButtonElement && event.target.matches(".page-image")
-          ? pages
-            ? pages.indexOf(Number(event.target.dataset.page))
-            : Number(event.target.dataset.page)
+          ? Number(event.target.dataset.page)
           : -1
-      let cursor =
-        event.target === element
-          ? boundary
-            ? boundary < 0
-              ? 0
-              : count
-            : pages
-              ? pages.indexOf(position)
-              : position
-          : index
+      let cursor = event.target === element ? (boundary ? (boundary < 0 ? 0 : count) : position) : index
       if (cursor < 0) return
       if (action === "extend") {
         if (pointerSelection === cursor) {
@@ -293,7 +277,7 @@
         reset()
         const page = step < 0 ? cursor - 1 : cursor
         if (page < 0 || page >= count) return
-        toggle(physical(page))
+        toggle(page)
         void advance(step > 0 ? page + 1 : page === 0 ? -1 : page)
       } else {
         reset()

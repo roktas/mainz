@@ -1,7 +1,8 @@
-// Runs WASM requests, fingerprints Inputs, and bounds reusable page and style results.
+// Runs WASM requests, captures Input references, and bounds reusable page and style results.
 
 /// <reference lib="webworker" />
 import type { Failure, Success, Request, Reply, Result, Provenance } from "./protocol.ts"
+import type { Reference } from "./recipe.ts"
 
 type Module = {
   HEAPU8: Uint8Array
@@ -12,13 +13,14 @@ type Module = {
   _mainz_extract(handle: number, pointer: number, size: number): void
   _mainz_preview(handle: number, page: number): void
   _mainz_describe(handle: number): void
-  _mainz_fingerprint(handle: number): void
+  _mainz_reference(handle: number): void
+  _mainz_check_recipe_input(handle: number, id: number, idSize: number, recipe: number, recipeSize: number): void
   _mainz_close(handle: number): void
   _mainz_input(idPointer: number, idSize: number, pdfPointer: number, pdfSize: number): void
   _mainz_clear_inputs(): void
   _mainz_compose(pointer: number, size: number): void
   _mainz_recipe_inputs(pointer: number, size: number): void
-  _mainz_resolve_recipe(pointer: number, size: number): void
+  _mainz_resolve_recipe(pointer: number, size: number, force: number): void
   _mainz_provenance(): number
   _mainz_provenance_size(): number
   _mainz_result(): number
@@ -91,9 +93,11 @@ async function run(request: Request): Promise<Success> {
   let bytes =
     "preview" in request
       ? new Uint8Array(request.preview.bytes)
-      : "bytes" in request
-        ? new Uint8Array(request.bytes)
-        : new Uint8Array(0)
+      : "check" in request
+        ? new Uint8Array(request.check.bytes)
+        : "bytes" in request
+          ? new Uint8Array(request.bytes)
+          : new Uint8Array(0)
   const selection = "bytes" in request ? request.changes?.buffer : undefined
   const pages = selection ? JSON.stringify(selection.pages) : ""
   const cached = selection && extracted?.input === selection.input && extracted.pages === pages
@@ -129,13 +133,24 @@ async function run(request: Request): Promise<Success> {
     open()
   }
   try {
+    if ("check" in request) {
+      open()
+      input(wasm, encoder.encode(request.check.input), (key, keySize) =>
+        input(wasm, encoder.encode(request.check.recipe), (p, n) =>
+          wasm["_mainz_check_recipe_input"](handle, key, keySize, p, n),
+        ),
+      )
+      return { revision: request.revision, check: JSON.parse(decoder.decode(result(wasm))) }
+    }
     if ("recipe" in request) {
       styled = undefined
       extracted = undefined
       try {
         if (request.inputs) register(wasm, request.inputs)
         input(wasm, encoder.encode(request.recipe), (p, n) =>
-          request.inputs ? wasm["_mainz_resolve_recipe"](p, n) : wasm["_mainz_recipe_inputs"](p, n),
+          request.inputs
+            ? wasm["_mainz_resolve_recipe"](p, n, request.force ? 1 : 0)
+            : wasm["_mainz_recipe_inputs"](p, n),
         )
         const record = JSON.parse(decoder.decode(result(wasm)))
         return request.inputs
@@ -208,16 +223,16 @@ async function run(request: Request): Promise<Success> {
     open()
     wasm["_mainz_describe"](handle)
     const description = JSON.parse(decoder.decode(result(wasm)))
-    let sha256: string | undefined
+    let reference: Reference | undefined
     if ("bytes" in request && !request.changes) {
-      wasm["_mainz_fingerprint"](handle)
-      sha256 = decoder.decode(result(wasm))
+      wasm["_mainz_reference"](handle)
+      reference = JSON.parse(decoder.decode(result(wasm)))
     }
     const reply: Result = {
       revision: request.revision,
       bytes: (bytes === extracted?.bytes ? bytes.slice() : bytes).buffer as ArrayBuffer,
       description,
-      sha256,
+      reference,
       provenance,
     }
     if (styleKey && styleInput) {

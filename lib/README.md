@@ -6,10 +6,11 @@ original styles, extracts pages, and executes Plans. Input bytes remain unchange
 Ordinary PDFs support page operations. Styling and reset require a prepared PDF with a valid Mainz contract. The native
 SVG Imprinter creates these PDFs from SVG and separate JSON declarations.
 
-Recipe resolution returns a Plan and warnings. Composition returns Artifact, containing a Document and its Provenance.
-SVG production returns a Document. The [version 1 contract](doc/SPEC.md#page-metadata) uses one object per physical page
-and numeric region page references. Independent optional page names, tags, triviality, and embedded PNG previews also
-work without editable paint. Document-wide descriptive metadata belongs in standard PDF XMP.
+Recipe resolution returns a Plan, shared Input assessments, editing intent, and an aligned Recipe. Composition returns
+Artifact, containing a Document and its Provenance. SVG production returns a Document. The
+[version 1 contract](doc/SPEC.md#page-metadata) uses one object per physical page and numeric region page references.
+Independent optional page names, tags, and embedded PNG previews also work without editable paint. Document-wide
+descriptive metadata belongs in standard PDF XMP.
 
 | Entry point                                                       | Responsibility                                                                   |
 | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |

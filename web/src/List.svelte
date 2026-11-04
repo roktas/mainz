@@ -8,7 +8,6 @@
   let {
     pane,
     count,
-    pages,
     revision,
     skipped,
     retained,
@@ -19,7 +18,6 @@
   }: {
     pane: "Input" | "Output"
     count: number
-    pages?: readonly number[]
     revision?: unknown
     skipped?: ReadonlySet<number>
     retained?: number
@@ -28,7 +26,6 @@
     edit: (action: "add" | "duplicate" | "remove", position: number) => boolean
     children: Snippet<[indices: readonly number[], retained?: number]>
   } = $props()
-  const cursor = $derived(pages ? pages.indexOf(position) : position)
   let viewport = $state(0)
   let scroll = $state(0)
   let dragged = $state<number>()
@@ -37,19 +34,14 @@
   const rowHeight = 44
   let measured = $state.raw<{
     revision: unknown
-    pages: typeof pages
     width: number
     sizes: ReadonlyMap<number, number>
   }>()
   let width = $state(0)
-  const indexes = $derived(new Map(pages?.map((page, index) => [page, index])))
   const order = $derived(Array.from({ length: count }, (_, index) => index).filter((index) => !skipped?.has(index)))
   const ranks = $derived(new Map(order.map((index, rank) => [index, rank])))
   const offsets = $derived.by(() => {
-    const sizes =
-      measured?.revision === revision && measured?.pages === pages && measured?.width === width
-        ? measured.sizes
-        : undefined
+    const sizes = measured?.revision === revision && measured?.width === width ? measured.sizes : undefined
     const result = new Float64Array(order.length + 1)
     for (let rank = 0; rank < order.length; rank++)
       result[rank + 1] = result[rank] + (sizes?.get(order[rank]) ?? rowHeight)
@@ -70,7 +62,7 @@
       ? Math.max(0, (offsets[(ranks.get(seeking) ?? 0) + 1] ?? 0) - viewport)
       : viewport
         ? scroll
-        : (offsets[ranks.get(Math.max(0, cursor)) ?? 0] ?? 0),
+        : (offsets[ranks.get(Math.max(0, position)) ?? 0] ?? 0),
   )
   const from = $derived(Math.max(0, Math.min(Math.max(0, order.length - 1), locate(start) - 8)))
   const to = $derived(Math.min(order.length, Math.max(from + 1, locate(start + viewport) + 9)))
@@ -106,22 +98,18 @@
       if (disposed) return
       viewport = element.clientHeight
       width = element.clientWidth
-      const previous =
-        measured?.revision === revision && measured?.pages === pages && measured?.width === width
-          ? measured.sizes
-          : undefined
+      const previous = measured?.revision === revision && measured?.width === width ? measured.sizes : undefined
       const sizes = new Map(previous)
       let changed = false
       for (const row of element.querySelectorAll<HTMLElement>(
         ".list-row:not(.removing):not([data-drop]):not([data-dragging])",
       )) {
-        const page = Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
-        const index = pages ? indexes.get(page) : page
-        if (index === undefined || !row.offsetHeight || sizes.get(index) === row.offsetHeight) continue
+        const index = Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
+        if (!Number.isFinite(index) || !row.offsetHeight || sizes.get(index) === row.offsetHeight) continue
         sizes.set(index, row.offsetHeight)
         changed = true
       }
-      if (changed) measured = { revision, pages, width, sizes }
+      if (changed) measured = { revision, width, sizes }
     }
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(frame)
@@ -139,7 +127,7 @@
       })
     })
     $effect(() => {
-      const index = cursor
+      const index = position
       untrack(() => {
         const rank = ranks.get(index)
         if (rank === undefined) return
@@ -153,7 +141,7 @@
           if (disposed) return
           measure()
           await tick()
-          if (!disposed && cursor === index) {
+          if (!disposed && position === index) {
             element
               .querySelector<HTMLElement>(`[data-page="${position}"]`)
               ?.closest("li")
@@ -182,8 +170,8 @@
     }
     if (!action || !count) return
     const element = event.currentTarget as HTMLElement
-    const index = Math.max(0, cursor)
-    position = pages?.[index] ?? index
+    const index = Math.max(0, position)
+    position = index
     if (action === "add" || action === "duplicate" || action === "remove") {
       event.preventDefault()
       if (!event.repeat) edit(action, position)
@@ -230,7 +218,7 @@
               ),
             )
     const anchor = position
-    position = pages?.[next] ?? next
+    position = next
     if (event.shiftKey && !["next", "previous"].includes(action)) select(position, true, anchor)
     const target = position
     await tick()
@@ -251,7 +239,7 @@
   ondragstartcapture={(event) => {
     const row = event.target instanceof Element ? event.target.closest(".list-row") : undefined
     const page = Number(row?.querySelector<HTMLElement>("[data-page]")?.dataset.page)
-    dragged = pages ? indexes.get(page) : Number.isFinite(page) ? page : undefined
+    dragged = Number.isFinite(page) ? page : undefined
   }}
   {@attach reveal}
 >

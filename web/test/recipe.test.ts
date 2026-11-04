@@ -18,7 +18,7 @@ function source(): Source {
   }
   const description: Description = {
     version: 1,
-    publication: { id: "fixture/book", version: "1.2.3" },
+    publication: { id: "fixture/book", compat: 1 },
     pageCount: 1,
     pages: [{}],
     parameters: {
@@ -51,7 +51,7 @@ function source(): Source {
       id: "book",
       name: "book.pdf",
       bytes: new Uint8Array([1, 2]),
-      sha256: "a".repeat(64),
+      reference: { sha256: "a".repeat(64), pageCount: 1, publication: { id: "fixture/book", compat: 1 } },
       sizes: [{ width: 210, height: 297 }],
       labels: ["1"],
       description,
@@ -91,7 +91,8 @@ test("Recipe retains explicit profile intent, equal-valued manual edits, and bas
   })
   assert.deepEqual(saved.inputs.book, {
     sha256: "a".repeat(64),
-    publication: { id: "fixture/book", version: "1.2.3" },
+    pageCount: 1,
+    publication: { id: "fixture/book", compat: 1 },
   })
   assert.deepEqual(saved.parts, [
     { pages: [{ source: "source", page: 0 }, { blank: { width: 80, height: 100 } }], copies: 2, front: true },
@@ -151,7 +152,7 @@ test("Recipe never infers profiles or all-pages intent from concrete values", ()
     { family: "fixture", key: "guides.opacity", value: 0.5 },
   ])
   assert.deepEqual(saved.parts[0].pages[0], { source: "source", page: 0 })
-  assert.equal(Object.hasOwn(saved.inputs.book, "pageCount"), false)
+  assert.equal(saved.inputs.book.pageCount, 1)
   const blanks = recipe([{ ...parts[0], pages: [parts[0].pages[1]] }], [original])
   assert.deepEqual(blanks.inputs, {})
   assert.deepEqual(blanks.sources, {})

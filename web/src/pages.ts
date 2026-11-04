@@ -9,17 +9,15 @@ export type Sequence = {
   front: boolean
 }
 
-export function toggleSequence(selected: readonly number[], page: number, anchor = page, visible?: readonly number[]) {
+export function toggleSequence(selected: readonly number[], page: number, anchor = page) {
   const first = Math.min(anchor, page),
     last = Math.max(anchor, page)
   const existing = new Set(selected)
-  const scope = visible && new Set(visible)
   const adding = !existing.has(page)
   let pages = [...selected]
   if (adding) {
-    for (let number = first; number <= last; number++)
-      if ((!scope || scope.has(number)) && !existing.has(number)) pages.push(number)
-  } else pages = pages.filter((number) => number < first || number > last || (scope && !scope.has(number)))
+    for (let number = first; number <= last; number++) if (!existing.has(number)) pages.push(number)
+  } else pages = pages.filter((number) => number < first || number > last)
   return { pages, first, last, adding }
 }
 

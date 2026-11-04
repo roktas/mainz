@@ -26,7 +26,7 @@ namespace {
         require(targets.empty() == parameters.empty(), "Targets and parameters must be empty together.");
         if (present.contains("page")) {
             auto page = root.getDictItem("page");
-            auto supplied = fields(page, {}, {"name", "tags", "triviality"});
+            auto supplied = fields(page, {}, {"name", "tags"});
             require(!supplied.empty(), "Page annotations must not be empty.");
             page_metadata(page);
         }

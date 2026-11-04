@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdint>
 #include <new>
+#include <utility>
 
 namespace mainz {
 namespace {
@@ -104,7 +105,8 @@ namespace {
         for (const auto& [id, definition] : inputs)
             request_at("/inputs/" + pointer(id), [&] {
                 identifier(id);
-                auto present = fields(definition, {}, {"sha256", "pageCount", "publication", "title", "cover", "xmp"});
+                auto present = fields(
+                    definition, {}, {"sha256", "pageCount", "pageNamesSha256", "publication", "title", "cover", "xmp"});
                 if (present.contains("title"))
                     require(text(definition.getDictItem("title")).size() <= 4096, "Input title exceeds 4096 bytes.",
                         "limit-exceeded");
@@ -119,11 +121,12 @@ namespace {
                 }
                 if (present.contains("publication"))
                     publication(definition.getDictItem("publication"));
-                if (present.contains("sha256")) {
-                    auto digest = text(definition.getDictItem("sha256"));
-                    require(digest.size() == 64 && digest.find_first_not_of("0123456789abcdef") == digest.npos,
-                        "SHA-256 must contain 64 lowercase hexadecimal characters.");
-                }
+                for (const auto& key : {"sha256", "pageNamesSha256"})
+                    if (present.contains(key)) {
+                        auto digest = text(definition.getDictItem(key));
+                        require(digest.size() == 64 && digest.find_first_not_of("0123456789abcdef") == digest.npos,
+                            "SHA-256 must contain 64 lowercase hexadecimal characters.");
+                    }
                 if (present.contains("pageCount"))
                     require(
                         integer(definition.getDictItem("pageCount"), page_limit) > 0, "Page count must be positive.");
@@ -278,6 +281,145 @@ namespace {
             edited.addArrayElement(JSON::makeString(id));
         return dictionary({{"overrides", result}, {"profiles", selected_profiles}, {"edits", edited}});
     }
+    JSON reference(const Document& document)
+    {
+        auto description = JSON::parse(document.describe());
+        auto result = dictionary({{"sha256", JSON::makeString(sha256(document.pdf()))},
+            {"pageCount", description.getDictItem("pageCount")}});
+        std::string names = "mainz-page-names-v1\n";
+        bool named = false;
+        for (const auto& page : array(description.getDictItem("pages"))) {
+            std::string encoded = "-;";
+            if (object(page).contains("name")) {
+                auto name = text(page.getDictItem("name"));
+                encoded = std::to_string(name.size()) + ":" + name + ";";
+                named = true;
+            }
+            require(encoded.size() <= manifest_limit - names.size(), "Page names exceed their byte budget.",
+                "limit-exceeded");
+            names += encoded;
+        }
+        if (named)
+            result.addDictionaryMember("pageNamesSha256", JSON::makeString(sha256(names)));
+        if (!description.getDictItem("publication").isNull())
+            result.addDictionaryMember("publication", description.getDictItem("publication"));
+        return result;
+    }
+    JSON diagnostic(const std::string& code, const std::string& message, const std::string& location,
+        JSON expected = JSON::makeNull(), JSON actual = JSON::makeNull())
+    {
+        auto result = dictionary({{"code", JSON::makeString(code)}, {"message", JSON::makeString(message)},
+            {"location", JSON::makeString(location)}});
+        if (!expected.isNull() || !actual.isNull()) {
+            result.addDictionaryMember("expected", expected);
+            result.addDictionaryMember("actual", actual);
+        }
+        return result;
+    }
+    JSON check(JSON root, const std::string& id, const Document& document)
+    {
+        auto location = "/inputs/" + pointer(id);
+        auto definition = member(root.getDictItem("inputs"), id);
+        auto description = JSON::parse(document.describe());
+        auto current = reference(document);
+        auto diagnostics = JSON::makeArray();
+        std::string state = "ready";
+        auto result = [&] {
+            return dictionary({{"input", JSON::makeString(id)}, {"state", JSON::makeString(state)},
+                {"diagnostics", diagnostics}, {"reference", current}});
+        };
+        try {
+            for (const auto& [source_id, source] : object(root.getDictItem("sources")))
+                if (text(source.getDictItem("input")) == id)
+                    static_cast<void>(styles(source, description, "/sources/" + pointer(source_id)));
+            auto parts = array(root.getDictItem("parts"));
+            auto sources = object(root.getDictItem("sources"));
+            auto count = integer(description.getDictItem("pageCount"), page_limit);
+            for (std::size_t i = 0; i < parts.size(); ++i) {
+                auto pages = array(parts[i].getDictItem("pages"));
+                for (std::size_t j = 0; j < pages.size(); ++j) {
+                    const auto& page = pages[j];
+                    if (!object(page).contains("page"))
+                        continue;
+                    auto source = sources.at(text(page.getDictItem("source")));
+                    if (text(source.getDictItem("input")) != id)
+                        continue;
+                    request_at("/parts/" + std::to_string(i) + "/pages/" + std::to_string(j), [&] {
+                        require(integer(page.getDictItem("page"), page_limit - 1) < count,
+                            "Recipe page is outside its Input.");
+                    });
+                }
+            }
+        } catch (const Error& error) {
+            state = "error";
+            diagnostics.addArrayElement(JSON::parse(error.json()));
+            return result();
+        }
+        if (equal(definition.getDictItem("sha256"), current.getDictItem("sha256")))
+            return result();
+        auto before = definition.getDictItem("publication");
+        auto after = current.getDictItem("publication");
+        if (!before.isNull() && !after.isNull() && !equal(before, after)) {
+            state = "error";
+            diagnostics.addArrayElement(diagnostic("input-incompatible",
+                "The publication identity or compat value vetoes this Recipe. Force cannot override this restriction.",
+                location + "/publication", before, after));
+            return result();
+        }
+        if (!before.isNull() && after.isNull())
+            diagnostics.addArrayElement(
+                diagnostic("publication-missing", "The recorded publication declaration is missing from this PDF.",
+                    location + "/publication", before, after));
+        if (definition.getDictItem("sha256").isNull())
+            diagnostics.addArrayElement(diagnostic("reference-missing",
+                "This Recipe has no recorded PDF fingerprint. Review the selected PDF before continuing.", location));
+        if (!equal(definition.getDictItem("pageCount"), current.getDictItem("pageCount")))
+            diagnostics.addArrayElement(diagnostic("page-count-changed",
+                "The physical page count differs from the saved reference. Existing positions can select different "
+                "content.",
+                location + "/pageCount", definition.getDictItem("pageCount"), current.getDictItem("pageCount")));
+        auto old_names = definition.getDictItem("pageNamesSha256");
+        auto new_names = current.getDictItem("pageNamesSha256");
+        if (old_names.isNull() || new_names.isNull())
+            diagnostics.addArrayElement(diagnostic("page-names-unverified",
+                "Ordered page names are unavailable for comparison. Review the selected PDF's page positions.",
+                location + "/pageNamesSha256", old_names, new_names));
+        else if (!equal(old_names, new_names))
+            diagnostics.addArrayElement(diagnostic("page-names-changed",
+                "The ordered page names changed. Saved positions can select different content.",
+                location + "/pageNamesSha256", old_names, new_names));
+        else {
+            std::set<std::string> names;
+            bool complete = true;
+            for (const auto& page : array(description.getDictItem("pages")))
+                if (page.getDictItem("name").isNull() || !names.insert(text(page.getDictItem("name"))).second)
+                    complete = false;
+            if (!complete)
+                diagnostics.addArrayElement(diagnostic("page-names-unverified",
+                    "Some page names are missing or repeated. Their physical order cannot be verified.",
+                    location + "/pageNamesSha256"));
+        }
+        state = array(diagnostics).empty() ? "update" : "review";
+        if (state == "update")
+            diagnostics.addArrayElement(diagnostic("input-updated",
+                "The PDF changed; its recorded page sequence and Recipe choices still match.", location,
+                definition.getDictItem("sha256"), current.getDictItem("sha256")));
+        return result();
+    }
+    JSON report(JSON checks)
+    {
+        auto rank = [](const std::string& state) {
+            return state == "error" ? 3 : state == "review" ? 2 : state == "update" ? 1 : 0;
+        };
+        std::string state = "ready";
+        for (const auto& item : array(checks)) {
+            auto next = text(item.getDictItem("state"));
+            if (rank(next) > rank(state))
+                state = next;
+        }
+        return dictionary({{"state", JSON::makeString(state)}, {"inputs", checks}});
+    }
+
 }
 
 std::string recipe_inputs(const std::string& recipe)
@@ -288,7 +430,26 @@ std::string recipe_inputs(const std::string& recipe)
         throw Error("limit-exceeded", "Recipe allocation failed.");
     }
 }
-static Resolution resolve(const std::string& recipe, const detail::Bindings& inputs)
+std::string recipe_reference(const Document& input)
+{
+    try {
+        return detail::encode(reference(input), recipe_limit);
+    } catch (const std::bad_alloc&) {
+        throw Error("limit-exceeded", "Recipe allocation failed.");
+    }
+}
+std::string check_recipe_input(const std::string& recipe, const std::string& id, const Document& input)
+{
+    try {
+        auto root = read_recipe(recipe);
+        detail::request_at("/inputs/" + detail::pointer(id),
+            [&] { detail::require(detail::object(root.getDictItem("inputs")).contains(id), "Unknown Recipe Input."); });
+        return detail::encode(check(root, id, input), recipe_limit);
+    } catch (const std::bad_alloc&) {
+        throw Error("limit-exceeded", "Recipe allocation failed.");
+    }
+}
+static Resolution resolve(const std::string& recipe, const detail::Bindings& inputs, bool force)
 {
     try {
         auto root = read_recipe(recipe);
@@ -306,50 +467,43 @@ static Resolution resolve(const std::string& recipe, const detail::Bindings& inp
         }
         std::map<std::string, JSON> descriptions;
         std::size_t metadata_remaining = pipeline_limit;
-        auto warnings = JSON::makeArray();
+        auto checks = JSON::makeArray();
         for (const auto& [id, definition] : definitions) {
+            static_cast<void>(definition);
             auto location = "/inputs/" + detail::pointer(id);
-            auto description = detail::request_at(location, [&] {
-                auto describe = [&](const Document& document) {
-                    const auto& description = document.describe();
-                    detail::require(description.size() <= metadata_remaining,
-                        "Recipe metadata exceeds its byte budget.", "limit-exceeded");
-                    metadata_remaining -= description.size();
-                    return JSON::parse(description);
-                };
+            try {
                 const auto& binding = inputs.at(id);
-                return binding.document ? describe(*binding.document) : describe(Document::read(binding.bytes));
-            });
-            if (detail::object(definition).contains("pageCount"))
-                detail::request_at(location + "/pageCount", [&] {
-                    detail::require(
-                        detail::equal(definition.getDictItem("pageCount"), description.getDictItem("pageCount")),
-                        "Input page count does not match its explicit expectation.");
-                });
-            auto recorded_publication = definition.getDictItem("publication");
-            auto current_publication = description.getDictItem("publication");
-            bool compatible = !recorded_publication.isNull() && !current_publication.isNull()
-                && detail::compatible_publication(recorded_publication, current_publication);
-            bool publication_changed = !recorded_publication.isNull() && !compatible
-                && !detail::equal(recorded_publication, current_publication);
-            if (publication_changed)
-                warnings.addArrayElement(detail::dictionary({{"code", JSON::makeString("input-incompatible")},
-                    {"input", JSON::makeString(id)}, {"location", JSON::makeString(location + "/publication")},
-                    {"message", JSON::makeString("Input has no compatible forward publication declaration.")},
-                    {"expected", recorded_publication}, {"actual", current_publication}}));
-            if (detail::object(definition).contains("sha256") && !compatible && !publication_changed) {
-                const auto& bytes = inputs.at(id).bytes;
-                auto actual = detail::sha256(bytes);
-                if (actual != detail::text(definition.getDictItem("sha256")))
-                    warnings.addArrayElement(detail::dictionary({{"code", JSON::makeString("input-changed")},
-                        {"input", JSON::makeString(id)}, {"location", JSON::makeString(location + "/sha256")},
-                        {"message",
-                            JSON::makeString(
-                                "Input bytes changed; fixed page references can select different content.")},
-                        {"expected", definition.getDictItem("sha256")}, {"actual", JSON::makeString(actual)}}));
+                auto assess = [&](const Document& document) {
+                    detail::require(document.describe().size() <= metadata_remaining,
+                        "Recipe metadata exceeds its byte budget.", "limit-exceeded");
+                    metadata_remaining -= document.describe().size();
+                    descriptions.emplace(id, JSON::parse(document.describe()));
+                    checks.addArrayElement(check(root, id, document));
+                };
+                if (binding.document)
+                    assess(*binding.document);
+                else
+                    assess(detail::request_at(location, [&] { return Document::read(binding.bytes); }));
+            } catch (const Error& error) {
+                auto diagnostics = JSON::makeArray();
+                diagnostics.addArrayElement(JSON::parse(error.json()));
+                checks.addArrayElement(detail::dictionary({{"input", JSON::makeString(id)},
+                    {"state", JSON::makeString("error")}, {"diagnostics", diagnostics}}));
             }
-            descriptions.emplace(id, description);
         }
+        auto checked = report(checks);
+        auto details = detail::encode(checked, recipe_limit);
+        if (detail::text(checked.getDictItem("state")) == "error")
+            for (const auto& item : detail::array(checks))
+                if (detail::text(item.getDictItem("state")) == "error") {
+                    auto error = detail::array(item.getDictItem("diagnostics")).front();
+                    throw Error(detail::text(error.getDictItem("code")), detail::text(error.getDictItem("message")),
+                        "request",
+                        error.getDictItem("location").isNull()
+                            ? "/inputs/" + detail::pointer(detail::text(item.getDictItem("input")))
+                            : detail::text(error.getDictItem("location")),
+                        details);
+                }
         auto sources = JSON::makeDictionary();
         auto intent = JSON::makeDictionary();
         auto source_definitions = detail::object(root.getDictItem("sources"));
@@ -416,24 +570,41 @@ static Resolution resolve(const std::string& recipe, const detail::Bindings& inp
             detail::request_at("/metadata", [&] { detail::document_metadata(metadata, expanded); });
             plan.addDictionaryMember("metadata", metadata);
         }
+        auto encoded_plan = detail::encode(plan, json_limit);
+        if (!force && detail::text(checked.getDictItem("state")) == "review")
+            throw Error("review-required", "Review the changed Recipe Inputs before explicitly accepting them.",
+                "request", "/inputs", details);
+        auto aligned = JSON::makeDictionary();
+        for (const auto& item : detail::array(checks)) {
+            auto id = detail::text(item.getDictItem("input"));
+            auto definition = JSON::makeDictionary();
+            for (const auto& [key, value] : detail::object(item.getDictItem("reference")))
+                definition.addDictionaryMember(key, value);
+            if (detail::text(item.getDictItem("state")) == "ready")
+                for (const auto& key : {"title", "cover", "xmp"})
+                    if (detail::object(definitions.at(id)).contains(key))
+                        definition.addDictionaryMember(key, definitions.at(id).getDictItem(key));
+            aligned.addDictionaryMember(id, definition);
+        }
+        root.addDictionaryMember("inputs", aligned);
         return {
-            detail::encode(plan, json_limit), detail::encode(warnings, json_limit), detail::encode(intent, json_limit)};
+            std::move(encoded_plan), details, detail::encode(intent, json_limit), detail::encode(root, recipe_limit)};
     } catch (const std::bad_alloc&) {
         throw Error("limit-exceeded", "Recipe allocation failed.");
     }
 }
-Resolution resolve_recipe(const std::string& recipe, const std::map<std::string, std::string>& inputs)
+Resolution resolve_recipe(const std::string& recipe, const std::map<std::string, std::string>& inputs, bool force)
 {
     try {
-        return resolve(recipe, detail::bind_inputs(inputs));
+        return resolve(recipe, detail::bind_inputs(inputs), force);
     } catch (const std::bad_alloc&) {
         throw Error("limit-exceeded", "Recipe allocation failed.");
     }
 }
-Resolution resolve_recipe(const std::string& recipe, const std::map<std::string, Document>& inputs)
+Resolution resolve_recipe(const std::string& recipe, const std::map<std::string, Document>& inputs, bool force)
 {
     try {
-        return resolve(recipe, detail::bind_inputs(inputs));
+        return resolve(recipe, detail::bind_inputs(inputs), force);
     } catch (const std::bad_alloc&) {
         throw Error("limit-exceeded", "Recipe allocation failed.");
     }

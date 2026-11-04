@@ -319,7 +319,7 @@
     if (file.name.toLowerCase().endsWith(".json")) await openRecipe(file)
     else await files(list)
   }
-  async function loadRecipe(text: string, bindings: Binding[]) {
+  async function loadRecipe(text: string, bindings: Binding[], force: boolean) {
     if (loading || updating || sources.length || parts.length) throw new Error("Return home to open a Recipe.")
     const revision = ++openRevision
     loading = true
@@ -335,6 +335,7 @@
         text,
         bindings.map(({ id, input }) => ({ id, bytes: input.bytes })),
         revision,
+        force,
       )
       if (disposed || revision !== openRevision) throw new DOMException("Opening cancelled.", "AbortError")
       const inputs = new Map(bindings.map((binding) => [binding.id, binding.input]))
@@ -375,9 +376,8 @@
       activeId = sources[0]?.id ?? ""
       committed = true
       for (const source of sources) source.preview.schedule(source, counts, undefined, true)
-      info(
-        `Opened Recipe · ${output.pages.length} pages.${resolved.warnings.length ? ` ${resolved.warnings.length} Input change warning${resolved.warnings.length === 1 ? "" : "s"}.` : ""}`,
-      )
+      info(`Opened Recipe · ${output.pages.length} pages.`)
+      return resolved.aligned
     } finally {
       if (!committed) for (const source of prepared) source.preview.dispose()
       worker.dispose()
@@ -570,20 +570,21 @@
     return { Filename: input.name, ...(input.title ? { "dc:title": input.title } : {}), ...input.xmp }
   }
   function logo(event: MouseEvent) {
-    const landing = event.currentTarget instanceof HTMLButtonElement
-    if (!landing && (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)) return
+    if (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
     event.preventDefault()
     clearTimeout(logoTimer)
-    logoClicks = Math.max(logoClicks + 1, event.detail)
-    if (logoClicks >= 3) {
-      logoClicks = 0
-      examples.show()
-      return
-    }
-    if (landing) logoReplay++
+    logoClicks++
     logoTimer = setTimeout(() => {
+      const clicks = logoClicks
       logoClicks = 0
-      if (landing) return
+      if (clicks >= 3) {
+        examples.show()
+        return
+      }
+      if (clicks === 2) {
+        logoReplay++
+        return
+      }
       if (unsaved && !confirm("Return home? Input style changes and Output choices have not been downloaded.")) return
       homeApproved = true
       location.assign(import.meta.env.BASE_URL)
@@ -620,6 +621,24 @@
     void (async () => {
       let revision = openRevision
       try {
+        if (import.meta.env.DEV && demo?.startsWith("recipe-")) {
+          const base = `${import.meta.env.BASE_URL}checks/`
+          const response = await fetch(`${base}cases.json`)
+          if (!response.ok) throw new Error("The Recipe check fixtures are unavailable.")
+          const cases: { id: string; pdf: string }[] = await response.json()
+          const entry = cases.find((item) => item.id === demo.slice("recipe-".length))
+          if (!entry) throw new Error(`Unknown Recipe check demo: ${demo}.`)
+          const record = await fetch(`${base}${entry.id}.json`)
+          if (!record.ok) throw new Error("The Recipe check example is unavailable.")
+          const bytes = await record.arrayBuffer()
+          if (disposed || revision !== openRevision) return
+          await loader.show(new File([bytes], `${entry.id}.json`, { type: "application/json" }), {
+            recipe: `${base}${entry.id}.json`,
+            inputs: { book: `${base}${entry.pdf}` },
+            automatic: true,
+          })
+          return
+        }
         if (demo === "recipe") {
           const base = import.meta.env.BASE_URL
           const response = await fetch(`${base}recipe.json`)
@@ -806,14 +825,15 @@
 />
 <header class="masthead">
   <div class="header-inner">
-    {#if !active && !parts.length}<button
-        type="button"
-        class="brand icon-button"
-        aria-label="Replay logo animation"
-        title="Replay logo animation"
-        onclick={logo}><Logo /></button
-      >{:else}<a class="brand" href={import.meta.env.BASE_URL} aria-label="PDF Composer home" onclick={logo}><Logo /></a
-      >{/if}
+    <a
+      class="brand"
+      href={import.meta.env.BASE_URL}
+      aria-label="PDF Composer home"
+      title="Home · Double-click to replay logo animation · Click 3 or more times for examples"
+      data-replay={logoReplay > 0 || undefined}
+      onclick={logo}
+      >{#key logoReplay}<Logo />{/key}</a
+    >
     {#if loading || processingSource || offlineStatus || exportStatus || failure || failedSources.length || (notice && notice !== firstAction)}
       <div class="header-feedback">
         {#if exportStatus}<Feedback kind="progress" text={exportStatus}>

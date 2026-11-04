@@ -98,11 +98,15 @@ export class Opening {
         })(),
       ])
       if (!opened || this.#cancelled) throw new DOMException("Opening cancelled.", "AbortError")
-      return (this.#input = { ...opened, description: result.description, sha256: result.sha256 })
+      return (this.#input = { ...opened, description: result.description, reference: result.reference })
     } catch (error) {
       this.dispose()
       throw error
     }
+  }
+
+  check(recipe: string, id: string, revision: number) {
+    return this.#processor!.check(recipe, id, this.#input!.bytes, revision)
   }
 
   attach(documents: Documents) {

@@ -384,6 +384,13 @@ end
 
 ENV["MAINZ_CLI"] ||= Mainz::ROOT.join(".local/var/cpp/build/native/mainz").to_s
 
+namespace(:fixtures) do
+  desc("Build shared Recipe assessment examples for CLI, WASM, and development UI checks")
+  task(:recipe) do
+    puts(Mainz.run(Mainz::ROOT.join("lib/test/fixtures/build.rb"), ENV.fetch("MAINZ_CLI")))
+  end
+end
+
 namespace(:setup) do
   desc("Install web dependencies under .local/var/js")
   task(:web) do

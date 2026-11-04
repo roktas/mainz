@@ -112,6 +112,17 @@ void mainz_fingerprint(std::uint32_t id)
 {
     boundary([&] { result = mainz::detail::sha256(get(id).pdf()); });
 }
+void mainz_reference(std::uint32_t id)
+{
+    boundary([&] { result = mainz::recipe_reference(get(id)); });
+}
+void mainz_check_recipe_input(
+    std::uint32_t id, const char* key, std::size_t key_size, const char* data, std::size_t size)
+{
+    boundary([&] {
+        result = mainz::check_recipe_input(bytes(data, size, mainz::recipe_limit), bytes(key, key_size, 4096), get(id));
+    });
+}
 void mainz_style(std::uint32_t id, const char* data, std::size_t size, const char* reset, std::size_t reset_size)
 {
     boundary([&] {
@@ -171,14 +182,15 @@ void mainz_recipe_inputs(const char* data, std::size_t size)
 {
     boundary([&] { result = mainz::recipe_inputs(bytes(data, size, mainz::recipe_limit)); });
 }
-void mainz_resolve_recipe(const char* data, std::size_t size)
+void mainz_resolve_recipe(const char* data, std::size_t size, int force)
 {
     boundary([&] {
-        auto resolved = mainz::resolve_recipe(bytes(data, size, mainz::recipe_limit), inputs);
+        mainz::detail::require(force == 0 || force == 1, "Force must be Boolean.", "invalid-request");
+        auto resolved = mainz::resolve_recipe(bytes(data, size, mainz::recipe_limit), inputs, force == 1);
         result = mainz::detail::encode(
-            mainz::detail::dictionary({{"plan", JSON::parse(resolved.plan)},
-                {"warnings", JSON::parse(resolved.warnings)}, {"intent", JSON::parse(resolved.intent)}}),
-            mainz::manifest_limit);
+            mainz::detail::dictionary({{"plan", JSON::parse(resolved.plan)}, {"checks", JSON::parse(resolved.checks)},
+                {"intent", JSON::parse(resolved.intent)}, {"aligned", JSON::parse(resolved.aligned)}}),
+            mainz::recipe_limit);
     });
 }
 void mainz_close(std::uint32_t id)

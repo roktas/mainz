@@ -26,7 +26,7 @@ inline constexpr std::size_t page_limit = 10000;
 class Error : public std::runtime_error {
 public:
     Error(const std::string& code, const std::string& message, const std::string& source = {},
-        const std::string& location = {});
+        const std::string& location = {}, const std::string& details = {});
     const std::string& code() const { return code_; }
     const std::string& source() const { return source_; }
     const std::string& json() const { return record; }

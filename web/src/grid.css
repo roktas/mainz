@@ -15,46 +15,6 @@
       min-block-size: 0;
     }
 
-    .page-visibility {
-      position: relative;
-      flex: none;
-      & summary {
-        list-style: none;
-      }
-      & summary::-webkit-details-marker {
-        display: none;
-      }
-      & summary:active {
-        background: var(--tint);
-      }
-      & .visibility-options {
-        position: absolute;
-        z-index: 20;
-        inset-block-start: 100%;
-        inset-inline-end: 0;
-        inline-size: max-content;
-        max-inline-size: min(22rem, 80vi);
-        max-block-size: 60dvb;
-        overflow: auto;
-        display: grid;
-        gap: 0.25em;
-        padding: 0.5em;
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        background: var(--surface);
-        box-shadow: 0 4px 12px var(--shadow);
-        & span {
-          padding: 0.5em;
-          color: var(--muted);
-          font-size: var(--small);
-        }
-        & button {
-          min-block-size: 44px;
-          text-align: start;
-        }
-      }
-    }
-
     .page-name {
       margin: 0;
       padding: 0.35em 0.25em;

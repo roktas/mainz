@@ -23,7 +23,7 @@ module Mainz
       source.write(svg(SHAPE))
       image = @directory.join("preview.png")
       image.binwrite(png)
-      data = {"targets" => {}, "parameters" => {}, "page" => {"name" => "Practice", "tags" => ["guides"], "triviality" => 1}}
+      data = {"targets" => {}, "parameters" => {}, "page" => {"name" => "Practice", "tags" => ["guides"]}}
       output = pdf("imprint", "metadata.pdf", source, "--declaration", write("metadata.json", data), "--preview", image)
       summary = JSON.parse(command(@cli, "describe", output).stdout)
       assert_equal({}, summary["parameters"])
@@ -32,7 +32,6 @@ module Mainz
           {
             "name" => "Practice",
             "tags" => ["guides"],
-            "triviality" => 1,
             "preview" => {"file" => "preview.png", "width" => 1, "height" => 1}
           }
         ],

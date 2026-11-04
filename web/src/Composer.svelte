@@ -108,7 +108,6 @@
     zoom: number
     pageInitialized?: boolean
     offset: number
-    triviality?: number
     region: Region
     alignment?: Region
   }
@@ -160,7 +159,6 @@
   let returnTimeout: ReturnType<typeof setTimeout> | undefined
   let inputMenu = $state<HTMLDetailsElement>(null!)
   let outputMenu = $state<HTMLDetailsElement>(null!)
-  let visibilityMenu = $state<HTMLDetailsElement>()
   let outputTarget = $state<HTMLButtonElement>()
   let sourceAnchor: { source: string; page: number } | undefined
   let inputClick: { source: string; page: number; sequence: Sequence; anchor: typeof sourceAnchor } | undefined
@@ -184,16 +182,7 @@
   const removing = feedback.removing
   const removingPage = $derived(feedback.page.size > 0)
   const count = $derived(source?.input.pdf.numPages ?? 0)
-  const thresholds = $derived(
-    [...new Set(source?.input.description.pages.map((page) => page.triviality ?? 0) ?? [])].toSorted((a, b) => a - b),
-  )
-  const filtering = $derived(thresholds.length > 1)
-  const visible = $derived(
-    Array.from({ length: count }, (_, page) => page).filter(
-      (page) => !filtering || (source?.input.description.pages[page]?.triviality ?? 0) <= (inputView.triviality ?? 0),
-    ),
-  )
-  const visibleSet = $derived(new Set(visible))
+  const catalog = $derived(Array.from({ length: count }, (_, page) => page))
   const hasStyles = $derived(!!source && Object.keys(source.input.description.parameters).length > 0)
   const activeTab = $derived(
     tour?.startsWith("style") && styleable
@@ -234,7 +223,6 @@
   )
   const inputText = $derived(draft.text)
   const inputPages = $derived(draft.pages)
-  const concealed = $derived(draft.pages.filter((page) => !visibleSet.has(page)).length)
   const parsed = $derived(parseSequence(inputText, count))
   const allInput = $derived(
     !parsed.error && parsed.pages.length === count && parsed.pages.every((page, index) => page === index),
@@ -344,17 +332,10 @@
   function inputTab(tab: InputView["tab"], event?: MouseEvent | KeyboardEvent) {
     const changed = tab !== activeTab
     cancelMotion()
-    const position =
-      (tab === "grid" || tab === "list") && visible.length && !visibleSet.has(inputView.position)
-        ? visible.reduce((best, page) =>
-            Math.abs(page - inputView.position) < Math.abs(best - inputView.position) ? page : best,
-          )
-        : inputView.position
     inspectInput({
       tab,
-      position,
       ...(tab === "page" && activeTab !== "page" ? { returnTo: activeTab === "list" ? "list" : "grid" } : {}),
-      ...(tab === "grid" ? { offset: Math.max(0, visible.indexOf(position)) } : {}),
+      ...(tab === "grid" ? { offset: inputPosition } : {}),
     })
     if (changed) void reveal("Input", event)
   }
@@ -373,32 +354,6 @@
       ? (pageName(page.content) ??
           ("page" in page.content ? `Page ${page.content.page + 1}` : page.padding ? "Padding" : "Blank"))
       : ""
-  }
-  async function visibility(value: number) {
-    cancelMotion()
-    const pages = Array.from({ length: count }, (_, page) => page).filter(
-      (page) => (source?.input.description.pages[page]?.triviality ?? 0) <= value,
-    )
-    const focused =
-      document.activeElement instanceof HTMLElement &&
-      !!document.activeElement.closest(".selection-panel :is(.composition-grid, .page-list)")
-    const hidden = !pages.includes(inputPosition)
-    const nearest = pages.reduce(
-      (best, page) => (Math.abs(page - inputPosition) < Math.abs(best - inputPosition) ? page : best),
-      pages[0],
-    )
-    inspectInput({
-      triviality: value,
-      offset: 0,
-      ...(focused && hidden && nearest !== undefined ? { position: nearest } : {}),
-    })
-    await tick()
-    if (focused && hidden)
-      (
-        document.querySelector<HTMLElement>(
-          `.selection-panel :is(.page-image, .list-choice)[data-page="${nearest}"]`,
-        ) ?? document.querySelector<HTMLElement>(".page-visibility summary")
-      )?.focus()
   }
   function setOutputTab(tab: typeof outputTab, event?: MouseEvent | KeyboardEvent) {
     const changed = tab !== activeOutputTab
@@ -714,12 +669,7 @@
   function toggle(page: number, range: boolean, origin?: number) {
     if (!source) return
     const anchor = sourceAnchor?.source === source.id ? sourceAnchor.page : origin
-    const { pages, first, last, adding } = toggleSequence(
-      draft.pages,
-      page,
-      range ? anchor : undefined,
-      activeTab === "grid" || activeTab === "list" ? visible : undefined,
-    )
+    const { pages, first, last, adding } = toggleSequence(draft.pages, page, range ? anchor : undefined)
     numbers(pageRanges(pages))
     sourceAnchor = { source: source.id, page }
     highlightRange(adding && range && first < last ? { kind: "source", source: source.id, first, last } : undefined)
@@ -1244,17 +1194,9 @@
     })
     if (shortcut(event, context, "escape") !== "clear") return
     const dismissing =
-      !!transfer.value ||
-      !!document.querySelector(".page-origin[open]") ||
-      inputMenu?.open ||
-      outputMenu?.open ||
-      visibilityMenu?.open
+      !!transfer.value || !!document.querySelector(".page-origin[open]") || inputMenu?.open || outputMenu?.open
     transfer.end()
     originOpen = undefined
-    if (visibilityMenu?.open) {
-      visibilityMenu.open = false
-      visibilityMenu.querySelector("summary")?.focus()
-    }
     if (inputMenu?.open) {
       inputMenu.open = false
       inputMenu.querySelector("summary")?.focus()
@@ -1323,7 +1265,6 @@
     if (!(event.target as Element).closest(".page-origin")) originOpen = undefined
     if (inputMenu && !inputMenu.contains(event.target as Node)) inputMenu.open = false
     if (outputMenu && !outputMenu.contains(event.target as Node)) outputMenu.open = false
-    if (visibilityMenu && !visibilityMenu.contains(event.target as Node)) visibilityMenu.open = false
   }}
 />
 
@@ -1930,24 +1871,6 @@
               >{/if}
           </div>
           {#if activeTab === "grid"}{@render gridDensity("Input", inputCompact)}{/if}
-          {#if (activeTab === "grid" || activeTab === "list") && filtering}
-            <details class="page-visibility" bind:this={visibilityMenu}>
-              <summary class="icon-button" aria-label="Page visibility" title="Page visibility"
-                ><Icon name="eye" /></summary
-              >
-              <div class="visibility-options" role="group" aria-label="Page visibility">
-                <span>{visible.length} of {count} pages visible</span>
-                {#each [...new Set([0, ...thresholds])] as level (level)}
-                  <button aria-pressed={(inputView.triviality ?? 0) === level} onclick={() => visibility(level)}
-                    >Triviality ≤ {level}{level === 0 ? " · Important" : ""}</button
-                  >
-                {/each}
-                <button aria-pressed={inputView.triviality === Infinity} onclick={() => visibility(Infinity)}
-                  >All pages</button
-                >
-              </div>
-            </details>
-          {/if}
           {#if activeTab === "style" && styling}{@render styling(true)}{/if}
         </div>
 
@@ -2011,11 +1934,6 @@
                     >{draft.pages.length} {draft.pages.length === 1 ? "page" : "pages"} selected</strong
                   > ·
                 {/if}
-                {#if (activeTab === "grid" || activeTab === "list") && visible.length < count}{visible.length} / {count} visible
-                  ·
-                {/if}
-                {#if (activeTab === "grid" || activeTab === "list") && concealed}{concealed} concealed ·
-                {/if}
                 {draft.pages.length
                   ? insertion === undefined
                     ? "Append to Output."
@@ -2055,29 +1973,22 @@
                     {error}
                     {magnification}
                   />{/key}
-              {:else if !visible.length}
-                <div class="composition-empty">
-                  <p>No pages at this visibility level.</p>
-                  <button onclick={() => visibility(Infinity)}>All pages</button>
-                </div>
               {:else if activeTab === "list"}
                 {#key source.id}<List
                     pane="Input"
-                    count={visible.length}
-                    pages={visible}
+                    {count}
                     bind:position={() => inputPosition, (position) => inspectInput({ position })}
                     select={toggle}
                     edit={(action, page) => action === "add" && !!add(undefined, inputTargets(page))}
                   >
                     {#snippet children(indices, retained)}
-                      {#each indices as index (visible[index])}
-                        {@const page = visible[index]}
+                      {#each indices as page (page)}
                         {@const metadata = source.input.description.pages[page]}
                         <li
                           class="list-row"
-                          data-retained={index === retained || undefined}
-                          aria-setsize={visible.length}
-                          aria-posinset={index + 1}
+                          data-retained={page === retained || undefined}
+                          aria-setsize={count}
+                          aria-posinset={page + 1}
                           data-returning={(returning?.kind === "source" &&
                             returning.source === source.id &&
                             returning.page === page) ||
@@ -2132,8 +2043,7 @@
                   pane="Input"
                   active={() => shortcutPane() === "Input"}
                   compact={inputCompact}
-                  count={visible.length}
-                  pages={visible}
+                  {count}
                   initialize={!opening && inputView.density === undefined ? initializeDensity : undefined}
                   bind:position={() => inputView.position, (position) => inspectInput({ position })}
                   bind:offset={() => inputView.offset, (offset) => inspectInput({ offset })}
@@ -2143,7 +2053,7 @@
                   edit={(action) => action === "add" && !!add()}
                 >
                   {#snippet children(from, to)}
-                    {#each visible.slice(from, to) as page, index (page)}
+                    {#each catalog.slice(from, to) as page, index (page)}
                       {@const first = index === 0}
                       {@const destinations = outputPositions.get(page) ?? []}
                       {@const detail = `${key}-input-${source.id}-${page}`}

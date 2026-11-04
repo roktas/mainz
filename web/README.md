@@ -18,14 +18,14 @@ Each pane offers Normal and Compact Grid density. Selection actions use the shar
 buttons, List actions, and Page actions use their own page. Grid headers reveal page names on hover or focus. Help
 explains keyboard, mouse, and touch controls and opens the Product tour.
 
-Named pages, List, supplied PNG thumbnails, and shared Input Grid/List triviality visibility follow the
-[workspace specification](doc/SPEC.md#implementation-status). Page metadata comes from the shared physical-page array.
-Tags classify content; the independent optional triviality defaults to zero, the highest display priority. Triviality
-visibility remains a workspace view preference and preserves Selection and Output.
+Named pages, List, and supplied PNG thumbnails follow the [workspace specification](doc/SPEC.md#implementation-status).
+Page metadata comes from the shared physical-page array. Tags classify content. Input Grid and List show every physical
+page.
 
 Export recipe in the Output header saves page arrangements and style choices as JSON. The [CLI](../cli/README.md)
-replays that file against Input PDFs, including updated publications. The export panel lets you assign logical Input
-IDs. The CLI binds them to files separately. Saving a Recipe retains the PDF unsaved warning.
+replays that file against Input PDFs. Shared checks distinguish quiet updates, explicit review, and errors. Recipe
+loading offers a separate updated Recipe after a changed Input is accepted. The export panel lets you assign logical
+Input IDs. The CLI binds them to files separately. Saving a Recipe retains the PDF unsaved warning.
 
 Try [mainz.roktas.dev](https://mainz.roktas.dev/). The [specification and glossary](doc/SPEC.md) define the workspace.
 [VIEW.md](doc/VIEW.md) defines its appearance.

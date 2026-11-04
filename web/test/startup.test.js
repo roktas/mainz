@@ -497,7 +497,7 @@ test("Landing top spacing stays bounded on wide coarse-pointer screens", async (
   }
 })
 
-test("Landing logo replays entry and keeps parallax inside its framed area", async () => {
+test("Logo clicks choose Home, animation, or examples and retain landing parallax", async () => {
   const server = await serve()
   let browser
   try {
@@ -523,9 +523,11 @@ test("Landing logo replays entry and keeps parallax inside its framed area", asy
     await mark.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)))
     for (const theme of ["light", "dark"]) {
       await page.evaluate((value) => (document.documentElement.dataset.theme = value), theme)
-      const replay = page.getByRole("button", { name: "Replay logo animation" })
-      if (theme === "light") await replay.click()
-      else await replay.press("Enter")
+      const replay = page.getByRole("link", { name: "PDF Composer home", exact: true })
+      await replay.dblclick()
+      await page.waitForFunction(
+        () => document.querySelector(".hero-mark")?.getAnimations()[0]?.playState === "running",
+      )
       assert.equal(
         await mark.evaluate((element) => element.getAnimations()[0]?.playState),
         "running",
@@ -555,11 +557,9 @@ test("Landing logo replays entry and keeps parallax inside its framed area", asy
       )
     }
     await corner()
-    await page.getByRole("button", { name: "Replay logo animation" }).press("Space")
-    assert.equal(await mark.evaluate((element) => element.getAnimations()[0]?.playState), "running")
     await page.emulateMedia({ reducedMotion: "reduce" })
     assert.equal(await logo.evaluate((element) => getComputedStyle(element).transform), "none")
-    await page.getByRole("button", { name: "Replay logo animation" }).click()
+    await page.getByRole("link", { name: "PDF Composer home", exact: true }).dblclick()
     assert.equal(await mark.evaluate((element) => element.getAnimations().length), 0)
     const touch = await browser.newPage({
       viewport: { width: 375, height: 667 },
@@ -571,7 +571,10 @@ test("Landing logo replays entry and keeps parallax inside its framed area", asy
     await touch
       .locator(".hero-mark")
       .evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)))
-    await touch.getByRole("button", { name: "Replay logo animation" }).tap()
+    const touchLogo = touch.getByRole("link", { name: "PDF Composer home", exact: true })
+    await touchLogo.tap()
+    await touchLogo.tap()
+    await touch.waitForFunction(() => document.querySelector(".hero-mark")?.getAnimations()[0]?.playState === "running")
     assert.equal(
       await touch.locator(".hero-mark").evaluate((element) => element.getAnimations()[0]?.playState),
       "running",
@@ -586,10 +589,14 @@ test("Landing logo replays entry and keeps parallax inside its framed area", asy
       await touch.locator(".hero-mark .logo").evaluate((element) => getComputedStyle(element).transform),
       "none",
     )
-    for (const target of [page, touch]) {
+    for (const [target, clicks] of [
+      [page, 3],
+      [touch, 4],
+      [page, 6],
+    ]) {
       await target.reload()
-      const trigger = target.getByRole("button", { name: "Replay logo animation", exact: true })
-      for (let click = 0; click < 3; click++) await trigger[target === touch ? "tap" : "click"]()
+      const trigger = target.getByRole("link", { name: "PDF Composer home", exact: true })
+      for (let click = 0; click < clicks; click++) await trigger[target === touch ? "tap" : "click"]()
       const examples = target.getByRole("dialog", { name: "Explore the app", exact: true })
       await examples.waitFor()
       assert.deepEqual(await examples.locator("a strong").allTextContents(), [
@@ -604,7 +611,22 @@ test("Landing logo replays entry and keeps parallax inside its framed area", asy
     await page.goto(server.resolvedUrls.local[0] + "?demo")
     await page.locator(".input-current").waitFor()
     assert.equal(await page.getByRole("link", { name: "PDF Composer home" }).count(), 1)
-    assert.equal(await page.getByRole("button", { name: "Replay logo animation" }).count(), 0)
+    const home = page.getByRole("link", { name: "PDF Composer home", exact: true })
+    await page.emulateMedia({ reducedMotion: "no-preference" })
+    await home.dblclick()
+    await page.waitForFunction(
+      () => document.querySelector(".brand .logo")?.getAnimations()[0]?.playState === "running",
+    )
+    assert.equal(new URL(page.url()).search, "?demo", "Double-click preserves the workspace")
+    assert.equal(await page.locator(".composition-totals strong").textContent(), "8 pages")
+    await home.click()
+    await page.locator(".drop-zone").waitFor()
+    assert.equal(new URL(page.url()).search, "", "One click opens Home")
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.locator(".input-current").waitFor()
+    await home.press("Enter")
+    await page.locator(".drop-zone").waitFor()
+    assert.equal(new URL(page.url()).search, "", "Keyboard activation opens Home")
   } finally {
     await browser?.close()
   }
@@ -1656,7 +1678,7 @@ test("Production Grid demo repeats the bundled sample without another PDF asset"
       if (new URL(request.url()).pathname.endsWith(".pdf")) requests.push(new URL(request.url()).pathname)
     })
     await page.goto(server.resolvedUrls.local[0])
-    const logo = page.getByRole("button", { name: "Replay logo animation", exact: true })
+    const logo = page.getByRole("link", { name: "PDF Composer home", exact: true })
     for (let click = 0; click < 3; click++) await logo.click()
     const examples = page.getByRole("dialog", { name: "Explore the app", exact: true })
     assert.equal(await examples.getByRole("link").nth(1).getAttribute("href"), "?demo=grid")

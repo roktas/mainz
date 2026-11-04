@@ -15,7 +15,6 @@ The [workspace specification](SPEC.md#implementation-status) defines the impleme
 - [Workspace](#workspace)
 - [Page fields](#page-fields)
 - [List](#list)
-- [Triviality visibility](#triviality-visibility)
 - [Grid and Page](#grid-and-page)
 - [Style presentation](#style-presentation)
 - [Drag and drop](#drag-and-drop)
@@ -208,6 +207,17 @@ with insufficient space, Change PDF can retain its icon with the same accessible
 recipe share dimensions. The footer group has equal space above and below it, bounded by its separator and the outer
 frame. Download icons have no hover surface or circular shadow; only the glyph gains emphasis.
 
+Each selected PDF keeps its filename and one short result in the existing box. The combined result is a details trigger
+with a 44 px minimum target. Truncate long text within the box; keep the complete result available to assistive
+technology. Clicking opens a shared popover with explanations and, for review, the acceptance checkbox. Opening,
+accepting, and closing details must not move or resize the row, cover, or PDF box. Both wide and narrow layouts use this
+interaction. The filename and result share a start edge at every width. Ready and update results use a primary check
+mark. Review uses a secondary warning mark, including after acceptance. Error uses a red prohibition mark and has no
+acceptance control. Unreadable PDFs retain the same selected-file box, filename, and Change PDF placement. Details show
+only explanations and review acceptance. Do not repeat the Input title, filename, or result as visible headings. Show
+one issue as a paragraph; show several issues as a list. After a successful changed load, a quiet inline action saves a
+separate updated Recipe above the composer.
+
 Wide Input rows share a height. The title is primary text. Optional XMP `dc:description` appears directly below it as
 smaller, muted text with a clear gap. It is separate content, not a repeated or punctuation-split title. The description
 uses the row's vertical space and can scroll when very long. Narrow layouts hide the inline description and expose it
@@ -230,10 +240,10 @@ drawer. Lens controls show the magnification beside − and + buttons, aligned l
 information sits at the bottom behind a thin separator. Version and Build ID values align to the end and wrap with
 enlarged text. The repository link uses an accessible icon target.
 
-The logo's triple-click gesture opens Explore the app as a normal modal dialog on every screen. Use short action labels
-and plain descriptions of each example, without showing query strings or developer parameter names. Only the workspace
-offers the welcome choice. PDF chooser controls do not select text or open native touch callouts during a hold. Taps
-open the system file picker.
+A single click on the logo opens Home. A double-click replays its existing entry animation. Three or more quick clicks
+open Explore the app as a normal modal dialog on every screen. Use short action labels and plain descriptions of each
+example, without showing query strings or developer parameter names. Only the workspace offers the welcome choice. PDF
+chooser controls do not select text or open native touch callouts during a hold. Taps open the system file picker.
 
 Pointer opening places initial focus on the Settings drawer. Keyboard opening focuses its Close button. Keyboard
 navigation keeps a visible focus indicator on each control.
@@ -401,21 +411,6 @@ additions slide in briefly; removed rows collapse and fade; surviving rows move 
 moved Output row shows a secondary tint and fine inner contour that fade for 1200 ms. Grid uses the same arrival cue
 after its movement. Use a lighter, vertical movement than Grid and respect reduced motion. The insertion marker lies
 across the row's top or bottom edge.
-
-## Triviality visibility
-
-Input Grid and List place triviality visibility last in the view toolbar, at the same trailing edge. Show it only when
-the Input contains different effective triviality values. Keep its accessible name Page visibility and retain a
-full-size target at narrow widths and enlarged text. Its compact presentation may use the existing view-menu pattern; it
-must not wrap the toolbar or reduce page-selection field width. The current threshold and All pages choice remain
-reachable by keyboard and touch. Show visible and total counts without implying that concealed pages were removed. Keep
-a selected concealed-page count in the existing Selection hint.
-
-An Input with no visible pages keeps its toolbar and visibility control in place. Its empty-state guidance offers All
-pages. Filtered cards use the same geometry, focus, motion, caption, and thumbnail rules as other Grid cards. Changing
-the threshold does not move peer control centers. Validate the control with both themes, both densities, no visible
-pages, all pages, long names, and enlarged text. Grid and List share the threshold. Page retains the full Input
-sequence.
 
 ## Grid and Page
 
@@ -1013,19 +1008,19 @@ role. For example, toolbar and menu can describe visual groups without correspon
 
 #### Header and workspace
 
-| English term      | Turkish equivalent          | UI element                                                                                         |
-| ----------------- | --------------------------- | -------------------------------------------------------------------------------------------------- |
-| App header        | Uygulama üst çubuğu         | The top section with the logo, privacy information, feedback, and header actions.                  |
-| Logo / Home link  | Logo / Ana sayfa bağlantısı | The upper-left logo. It opens Home in the workspace and replays the animation on the landing page. |
-| Header actions    | Üst çubuk işlemleri         | The Help, Settings, and theme buttons as a group.                                                  |
-| Header feedback   | Üst çubuk bildirim alanı    | Centered notifications, active progress, cancellation, and recovery actions.                       |
-| Privacy indicator | Gizlilik göstergesi         | The lock icon and “On your device” text.                                                           |
-| Theme toggle      | Tema değiştirme düğmesi     | The sun/moon button that switches between light and dark themes.                                   |
-| Examples dialog   | Örnekler penceresi          | The “Explore the app” dialog with demo, empty Output, and welcome choices.                         |
-| Workspace         | Çalışma alanı               | The main area for work with Input and Output.                                                      |
-| Input pane        | Input bölmesi               | The complete Input section, including its header, tabs, selection bar, and content.                |
-| Output pane       | Output bölmesi              | The complete Output section, including its header, tabs, selection bar, and content.               |
-| Pane divider      | Bölme ayırıcısı             | The fixed vertical line between Input and Output on desktop.                                       |
+| English term      | Turkish equivalent          | UI element                                                                                            |
+| ----------------- | --------------------------- | ----------------------------------------------------------------------------------------------------- |
+| App header        | Uygulama üst çubuğu         | The top section with the logo, privacy information, feedback, and header actions.                     |
+| Logo / Home link  | Logo / Ana sayfa bağlantısı | The upper-left logo. One click opens Home, two replay its animation, and three or more open examples. |
+| Header actions    | Üst çubuk işlemleri         | The Help, Settings, and theme buttons as a group.                                                     |
+| Header feedback   | Üst çubuk bildirim alanı    | Centered notifications, active progress, cancellation, and recovery actions.                          |
+| Privacy indicator | Gizlilik göstergesi         | The lock icon and “On your device” text.                                                              |
+| Theme toggle      | Tema değiştirme düğmesi     | The sun/moon button that switches between light and dark themes.                                      |
+| Examples dialog   | Örnekler penceresi          | The “Explore the app” dialog with demo, empty Output, and welcome choices.                            |
+| Workspace         | Çalışma alanı               | The main area for work with Input and Output.                                                         |
+| Input pane        | Input bölmesi               | The complete Input section, including its header, tabs, selection bar, and content.                   |
+| Output pane       | Output bölmesi              | The complete Output section, including its header, tabs, selection bar, and content.                  |
+| Pane divider      | Bölme ayırıcısı             | The fixed vertical line between Input and Output on desktop.                                          |
 
 The pane divider is a separator. It has no resize interaction, so its name is not splitter.
 
@@ -1109,25 +1104,24 @@ The bar is the complete bordered row. The field is only the text-entry area with
 
 #### Cards and previews
 
-| English term            | Turkish equivalent                | UI element                                                                                              |
-| ----------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Thumbnail grid          | Küçük resim ızgarası              | The area that arranges page cards in rows and columns.                                                  |
-| Page card               | Sayfa kartı                       | One complete card with its header, body, image, footer, and outer boundary.                             |
-| Card header             | Kart üst alanı                    | The upper section with the page number, drag handle, and page face indicator.                           |
-| Page number             | Sayfa numarası                    | The physical page position in the pane's sequence.                                                      |
-| Page label              | Sayfa etiketi                     | A PDF-authored label shown alongside a different physical page number.                                  |
-| Drag handle / Grip      | Sürükleme tutamacı                | The dotted handle in the card header. A click also selects or unselects the page.                       |
-| Page face indicator     | Sayfa yüzü göstergesi             | The corner indicator that identifies the front or back side.                                            |
-| Folded corner           | Katlanmış köşe                    | The curved corner that marks a back side.                                                               |
-| Card body               | Kart gövdesi                      | The main image section between the header and footer.                                                   |
-| Thumbnail frame         | Küçük resim çerçevesi             | The neutral area around the small page image.                                                           |
-| Page thumbnail          | Sayfa küçük resmi                 | The small page image inside the frame, from a producer PNG or PDF rendering.                            |
-| Card footer             | Kart alt alanı                    | The section below the image that reserves space for card actions.                                       |
-| Card actions            | Kart işlemleri                    | Input addition or Output movement, removal, and duplication controls.                                   |
-| Page details trigger    | Sayfa ayrıntılarını açma denetimi | The interactive page number that opens page details.                                                    |
-| Page details popover    | Sayfa ayrıntı paneli              | Input details or Output-copy information. Compact also includes a larger preview and available actions. |
-| Page visibility control | Sayfa görünürlüğü denetimi        | The shared Input Grid/List control that selects the highest visible triviality or All pages.            |
-| Blank page preview      | Boş sayfa önizlemesi              | The content-free page appearance with a Blank or Padding label.                                         |
+| English term         | Turkish equivalent                | UI element                                                                                              |
+| -------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Thumbnail grid       | Küçük resim ızgarası              | The area that arranges page cards in rows and columns.                                                  |
+| Page card            | Sayfa kartı                       | One complete card with its header, body, image, footer, and outer boundary.                             |
+| Card header          | Kart üst alanı                    | The upper section with the page number, drag handle, and page face indicator.                           |
+| Page number          | Sayfa numarası                    | The physical page position in the pane's sequence.                                                      |
+| Page label           | Sayfa etiketi                     | A PDF-authored label shown alongside a different physical page number.                                  |
+| Drag handle / Grip   | Sürükleme tutamacı                | The dotted handle in the card header. A click also selects or unselects the page.                       |
+| Page face indicator  | Sayfa yüzü göstergesi             | The corner indicator that identifies the front or back side.                                            |
+| Folded corner        | Katlanmış köşe                    | The curved corner that marks a back side.                                                               |
+| Card body            | Kart gövdesi                      | The main image section between the header and footer.                                                   |
+| Thumbnail frame      | Küçük resim çerçevesi             | The neutral area around the small page image.                                                           |
+| Page thumbnail       | Sayfa küçük resmi                 | The small page image inside the frame, from a producer PNG or PDF rendering.                            |
+| Card footer          | Kart alt alanı                    | The section below the image that reserves space for card actions.                                       |
+| Card actions         | Kart işlemleri                    | Input addition or Output movement, removal, and duplication controls.                                   |
+| Page details trigger | Sayfa ayrıntılarını açma denetimi | The interactive page number that opens page details.                                                    |
+| Page details popover | Sayfa ayrıntı paneli              | Input details or Output-copy information. Compact also includes a larger preview and available actions. |
+| Blank page preview   | Boş sayfa önizlemesi              | The content-free page appearance with a Blank or Padding label.                                         |
 
 Grid is the view name. Input uses an HTML list, and Output uses an ordered list. The view name does not imply an ARIA
 `grid` role.

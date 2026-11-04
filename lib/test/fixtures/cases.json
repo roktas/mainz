@@ -1,0 +1,11 @@
+[
+  { "id": "ready", "state": "ready", "pdf": "base.pdf" },
+  { "id": "update", "state": "update", "pdf": "update.pdf" },
+  { "id": "review", "state": "review", "pdf": "review.pdf" },
+  { "id": "count", "state": "review", "pdf": "count.pdf" },
+  { "id": "unnamed", "state": "review", "pdf": "unnamed.pdf" },
+  { "id": "compat", "state": "error", "pdf": "compat.pdf" },
+  { "id": "format", "state": "error", "pdf": "format.pdf" },
+  { "id": "style", "state": "error", "pdf": "style.pdf" },
+  { "id": "page", "state": "error", "pdf": "page.pdf" }
+]

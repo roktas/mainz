@@ -3,7 +3,7 @@
 import type { Failure, Operation, Reply, Result, Success } from "./protocol.ts"
 import type { Plan } from "./model.ts"
 import type { Scalar } from "./styles.ts"
-import type { Recipe, Resolution } from "./recipe.ts"
+import type { InputCheck, Recipe, Resolution } from "./recipe.ts"
 
 const messages: Record<string, string> = {
   "pdf-syntax": "PDF Composer cannot read this PDF. Try an unprotected copy that opens in a PDF viewer.",
@@ -67,10 +67,24 @@ export class Processor {
     })
   }
 
-  resolve(recipe: string, inputs: { id: string; bytes: Uint8Array }[], revision: number): Promise<Resolution> {
+  check(recipe: string, id: string, bytes: Uint8Array, revision: number): Promise<InputCheck> {
+    if (this.active) return Promise.reject(new Error("A processing operation is already active."))
+    const input = bytes.slice().buffer
+    return this.send({ check: { recipe, input: id, bytes: input } }, revision, [input]).then((result) => {
+      if (!("check" in result)) throw new Error("The processor returned no Input check.")
+      return result.check
+    })
+  }
+
+  resolve(
+    recipe: string,
+    inputs: { id: string; bytes: Uint8Array }[],
+    revision: number,
+    force = false,
+  ): Promise<Resolution> {
     if (this.active) return Promise.reject(new Error("A processing operation is already active."))
     const bindings = Object.fromEntries(inputs.map((input) => [input.id, input.bytes.slice().buffer]))
-    return this.send({ recipe, inputs: bindings }, revision, Object.values(bindings)).then((result) => {
+    return this.send({ recipe, inputs: bindings, force }, revision, Object.values(bindings)).then((result) => {
       if (!("resolution" in result)) throw new Error("The processor returned no Recipe resolution.")
       return result.resolution
     })

@@ -213,7 +213,10 @@ test(
         assert.ok(header.above >= 12 && header.above <= 20, "Recipe heading sits closer to the filename")
         assert.ok(header.below >= 24, "Recipe supporting text leaves clear space above the PDF choices")
         await page.emulateMedia({ reducedMotion: "no-preference" })
-        await page.getByRole("button", { name: "Replay logo animation", exact: true }).click()
+        await page.getByRole("link", { name: "PDF Composer home", exact: true }).dblclick()
+        await page.waitForFunction(
+          () => document.querySelector(".load-mark")?.getAnimations()[0]?.playState === "running",
+        )
         await page.waitForFunction(() =>
           document
             .querySelector(".load-mark")
@@ -549,7 +552,16 @@ test("Recipe batches match named PDFs first and discard abandoned reads", { time
   const server = await serve()
   const record = {
     version: 1,
-    inputs: { book: {}, guides: {}, crossings: {} },
+    inputs: Object.fromEntries(
+      ["book", "guides", "crossings"].map((id) => [
+        id,
+        {
+          sha256: createHash("sha256")
+            .update(fixture({ prepared: false }))
+            .digest("hex"),
+        },
+      ]),
+    ),
     sources: { book: { input: "book" }, guides: { input: "guides" }, crossings: { input: "crossings" } },
     parts: [
       {
@@ -592,7 +604,10 @@ test("Recipe batches match named PDFs first and discard abandoned reads", { time
       .first()
       .locator("input")
       .setInputFiles({ name: "broken.pdf", mimeType: "application/pdf", buffer: Buffer.from("bad") })
-    await panel.getByRole("alert").waitFor()
+    await rows.first().getByRole("button", { name: "Input result for book", exact: true }).click()
+    await page.locator(".binding-check:popover-open").getByRole("alert").waitFor()
+    assert.ok(await panel.getByRole("button", { name: "Apply recipe", exact: true }).isDisabled())
+    await page.keyboard.press("Escape")
     assert.equal(
       await rows.first().locator(".binding-file").textContent(),
       "book.pdf",
@@ -685,7 +700,17 @@ test("Opaque Input names load and export without optional cover previews", { tim
     const names = ["__proto__", "constructor"]
     const record = {
       version: 1,
-      inputs: Object.fromEntries(names.map((name) => [name, { title: "   " }])),
+      inputs: Object.fromEntries(
+        names.map((name) => [
+          name,
+          {
+            title: "   ",
+            sha256: createHash("sha256")
+              .update(fixture({ prepared: false }))
+              .digest("hex"),
+          },
+        ]),
+      ),
       sources: Object.fromEntries(names.map((name) => [name, { input: name }])),
       parts: [{ pages: names.map((source) => ({ source, page: 0 })) }],
     }
@@ -695,6 +720,8 @@ test("Opaque Input names load and export without optional cover previews", { tim
     const panel = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
     await panel.locator(".binding-row").first().waitFor()
     assert.deepEqual(await panel.locator(".binding-row h2").allTextContents(), names)
+    assert.equal(await panel.locator(".binding-target.bound").count(), 0)
+    assert.equal(await panel.getByRole("button", { name: /^Input result for / }).count(), 0)
     await panel.locator(".load-choices input").setInputFiles(
       names.map((name) => ({
         name: `${name}.pdf`,
@@ -703,6 +730,9 @@ test("Opaque Input names load and export without optional cover previews", { tim
       })),
     )
     await page.waitForFunction(() => document.querySelectorAll(".binding-target.bound").length === 2)
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".binding-row")].every((row) => row.dataset.state === "ready"),
+    )
     await panel.getByRole("button", { name: "Apply recipe", exact: true }).click()
     await panel.waitFor({ state: "hidden" })
     assert.equal(await page.locator(".composition-totals strong").textContent(), "2 pages")
@@ -1043,14 +1073,14 @@ test(
             )
             result()
           }
-          buffer(encoder.encode(JSON.stringify(savedRecord)), (p, n) => wasm["_mainz_resolve_recipe"](p, n))
+          buffer(encoder.encode(JSON.stringify(savedRecord)), (p, n) => wasm["_mainz_resolve_recipe"](p, n, 0))
           const resolution = JSON.parse(decoder.decode(result()))
           buffer(encoder.encode(JSON.stringify(resolution.plan)), (p, n) => wasm["_mainz_compose"](p, n))
-          return { warnings: resolution.warnings, bytes: [...result()] }
+          return { checks: resolution.checks, bytes: [...result()] }
         },
         { savedRecord: record, inputs: { book: [...first], other: [...second] } },
       )
-      assert.deepEqual(resolved.warnings, [])
+      assert.equal(resolved.checks.state, "ready")
       assert.deepEqual(Buffer.from(resolved.bytes), expected)
       await page.goto(server.resolvedUrls.local[0])
       await page.locator('.landing-recipe input[type="file"]').setInputFiles(recordPath)
@@ -1064,7 +1094,7 @@ test(
         [1, "other.pdf", second],
       ]) {
         await rows.nth(index).locator('input[type="file"]').setInputFiles({ name, mimeType: "application/pdf", buffer })
-        await rows.nth(index).getByText("Matches the saved Input.", { exact: true }).waitFor()
+        await rows.nth(index).getByText("Ready", { exact: true }).waitFor()
       }
       await loading.getByRole("button", { name: "Apply recipe", exact: true }).click()
       await loading.waitFor({ state: "hidden" })

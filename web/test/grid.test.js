@@ -300,141 +300,82 @@ test("List details stay anchored and row highlights remain flat", { timeout: 900
   }
 })
 
-test(
-  "Page metadata retains physical selection through visibility, List, and captions",
-  { timeout: 90000 },
-  async () => {
-    const server = await serve()
-    const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-    let page
-    try {
-      page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
-      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      const metadata = [
-        { name: "Practice", triviality: 0 },
-        { name: "Details", triviality: 1 },
-        { name: "Practice" },
-        { name: "An extended page name with unbrokenwords".repeat(3), triviality: 2 },
-        {},
-        { triviality: 1 },
-      ]
-      await page.route("**/grid.pdf", (route) =>
-        route.fulfill({ contentType: "application/pdf", body: fixture({ count: 6, metadata }) }),
-      )
-      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-      await page.locator(".composer[aria-busy=false]").waitFor()
-      const input = page.locator(".selection-panel"),
-        output = page.locator(".composition-output")
-      const selection = input.getByRole("textbox", { name: "Page selection", exact: true })
-      await input.locator('.page-image[data-page="4"]').waitFor()
-      assert.deepEqual(
-        await input.locator(".page-image").evaluateAll((nodes) => nodes.map((node) => Number(node.dataset.page))),
-        [0, 2, 4],
-      )
-      await selection.fill("1-6")
-      assert.match(await input.locator(".sequence-help").innerText(), /3 concealed/)
-      await input.locator(".page-visibility > summary").click()
-      await input.getByRole("button", { name: "All pages", exact: true }).click()
-      await input.getByRole("button", { name: "Triviality ≤ 0 · Important", exact: true }).click()
-      assert.equal(await selection.inputValue(), "1-6")
-      await page.keyboard.press("Escape")
-      assert.equal(await input.locator(".page-visibility").getAttribute("open"), null)
-      await selection.fill("")
-      await input.locator('.page-image[data-page="0"]').click()
-      await input.locator('.page-image[data-page="4"]').click({ modifiers: ["Shift"] })
-      assert.equal(await selection.inputValue(), "1, 3, 5")
-      await tab(input, "List")
-      assert.deepEqual(
-        await input.locator(".list-choice").evaluateAll((nodes) => nodes.map((node) => Number(node.dataset.page))),
-        [0, 2, 4],
-      )
-      const visibility = input.locator(".page-visibility")
-      assert.equal(await visibility.evaluate((element) => element === element.parentElement.lastElementChild), true)
-      const listEdge = (await visibility.boundingBox()).x + (await visibility.boundingBox()).width
-      await visibility.locator("summary").click()
-      await input.getByRole("button", { name: "All pages", exact: true }).click()
-      await page.keyboard.press("Escape")
-      assert.equal(await input.locator(".page-list > .list-row").count(), 6)
-      await input.locator('.list-choice[data-page="1"]').focus()
-      await page.keyboard.press("v")
-      assert.equal(await input.locator(".inspection-heading .page-name").textContent(), "Details")
-      await tab(input, "Grid")
-      const gridBox = await visibility.boundingBox()
-      assert.ok(Math.abs(gridBox.x + gridBox.width - listEdge) < 1)
-      await visibility.locator("summary").click()
-      await input.getByRole("button", { name: "Triviality ≤ 0 · Important", exact: true }).click()
-      await page.keyboard.press("Escape")
-      assert.equal(await input.locator('.page-image[data-page="1"]').count(), 0)
-      await tab(output, "List")
-      assert.equal(await output.locator(".page-list > .list-row").count(), 6)
-      await tab(input, "List")
-      await input.locator('.list-choice[data-page="2"]').focus()
-      await page.keyboard.press("ArrowDown")
-      assert.equal(
-        await input.locator('.list-choice[data-page="4"]').evaluate((element) => element === document.activeElement),
-        true,
-      )
-      await tab(input, "Grid")
-      await input.locator(".page-visibility > summary").click()
-      await input.getByRole("button", { name: "All pages", exact: true }).click()
-      await page.keyboard.press("Escape")
-      await page.setViewportSize({ width: 390, height: 1100 })
-      await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
-      const overflow = await page.evaluate(() =>
-        [...document.querySelectorAll(".selection-panel *, .composition-output *")]
-          .filter(
-            (element) =>
-              element.getBoundingClientRect().right > innerWidth + 1 && element.getBoundingClientRect().width > 0,
-          )
-          .map((element) => [element.className, element.getBoundingClientRect().width])
-          .slice(0, 15),
-      )
-      await captureLayout(page, "page-metadata", { visibility: "triviality 0", overflow })
-      assert.equal(
-        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-        true,
-        JSON.stringify(overflow),
-      )
-    } finally {
-      await browser.close()
-    }
-  },
-)
-
-test("Uniform page triviality keeps every page visible without a visibility control", { timeout: 30000 }, async () => {
+test("Page metadata retains physical selection through Grid, List, and captions", { timeout: 90000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch()
+  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  let page
   try {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+    page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    for (const metadata of [
-      [{}, {}],
-      [{ triviality: 2 }, { triviality: 2 }],
-      [{ triviality: 0 }, {}],
-    ]) {
-      await page.route("**/grid.pdf", (route) =>
-        route.fulfill({ contentType: "application/pdf", body: fixture({ count: 2, metadata }) }),
-      )
-      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-      await page.locator(".composer[aria-busy=false]").waitFor()
-      const input = page.locator(".selection-panel")
-      for (const view of ["Grid", "List"]) {
-        await tab(input, view)
-        assert.equal(await input.locator(".page-visibility").count(), 0)
-        assert.equal(await input.locator(view === "Grid" ? ".page-image" : ".list-choice").count(), 2)
-        assert.equal(
-          await input.locator(".tabs").evaluate((element) => parseFloat(getComputedStyle(element).columnGap) >= 4),
-          true,
+    const metadata = [
+      { name: "Practice", tags: ["guides"] },
+      { name: "Details", tags: ["detail"] },
+      { name: "Practice" },
+      { name: "An extended page name with unbrokenwords".repeat(3) },
+      {},
+      {},
+    ]
+    await page.route("**/grid.pdf", (route) =>
+      route.fulfill({ contentType: "application/pdf", body: fixture({ count: 6, metadata }) }),
+    )
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    await page.locator(".composer[aria-busy=false]").waitFor()
+    const input = page.locator(".selection-panel"),
+      output = page.locator(".composition-output")
+    const selection = input.getByRole("textbox", { name: "Page selection", exact: true })
+    await input.locator('.page-image[data-page="4"]').waitFor()
+    assert.deepEqual(
+      await input.locator(".page-image").evaluateAll((nodes) => nodes.map((node) => Number(node.dataset.page))),
+      [0, 1, 2, 3, 4, 5],
+    )
+    await selection.fill("")
+    await input.locator('.page-image[data-page="0"]').click()
+    await input.locator('.page-image[data-page="4"]').click({ modifiers: ["Shift"] })
+    assert.equal(await selection.inputValue(), "1-5")
+    await tab(input, "List")
+    assert.deepEqual(
+      await input.locator(".list-choice").evaluateAll((nodes) => nodes.map((node) => Number(node.dataset.page))),
+      [0, 1, 2, 3, 4, 5],
+    )
+    await input.locator('.list-choice[data-page="1"]').focus()
+    await page.keyboard.press("v")
+    assert.equal(await input.locator(".inspection-heading .page-name").textContent(), "Details")
+    await tab(input, "Grid")
+    assert.equal(await input.locator(".page-image").count(), 6)
+    assert.equal(await selection.inputValue(), "1-5")
+    await tab(output, "List")
+    assert.equal(await output.locator(".page-list > .list-row").count(), 6)
+    await tab(input, "List")
+    await input.locator('.list-choice[data-page="2"]').focus()
+    await page.keyboard.press("ArrowDown")
+    assert.equal(
+      await input.locator('.list-choice[data-page="3"]').evaluate((element) => element === document.activeElement),
+      true,
+    )
+    await tab(input, "Grid")
+    await page.setViewportSize({ width: 390, height: 1100 })
+    await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
+    const overflow = await page.evaluate(() =>
+      [...document.querySelectorAll(".selection-panel *, .composition-output *")]
+        .filter(
+          (element) =>
+            element.getBoundingClientRect().right > innerWidth + 1 && element.getBoundingClientRect().width > 0,
         )
-      }
-      await page.unroute("**/grid.pdf")
-    }
+        .map((element) => [element.className, element.getBoundingClientRect().width])
+        .slice(0, 15),
+    )
+    await captureLayout(page, "page-metadata", { overflow })
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      true,
+      JSON.stringify(overflow),
+    )
   } finally {
     await browser.close()
   }
 })
 
-test("Metadata-only Inputs keep hidden pages accessible without Style controls", { timeout: 30000 }, async () => {
+test("Metadata-only Inputs expose every page in Grid, List, and Page", { timeout: 30000 }, async () => {
   const server = await serve()
   const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
@@ -452,8 +393,8 @@ test("Metadata-only Inputs keep hidden pages accessible without Style controls",
           prepared: false,
           count: 2,
           metadata: [
-            { name: "Detail", triviality: 1 },
-            { name: "Reference", triviality: 2 },
+            { name: "Detail", tags: ["detail"] },
+            { name: "Reference", tags: ["reference"] },
           ],
         }),
       }),
@@ -462,10 +403,9 @@ test("Metadata-only Inputs keep hidden pages accessible without Style controls",
     await page.locator(".composer[aria-busy=false]").waitFor()
     const input = page.locator(".selection-panel")
     assert.equal(await input.getByRole("tab", { name: "Style", exact: true }).count(), 0)
-    assert.match(await input.locator(".composition-empty").innerText(), /No pages at this visibility/)
+    await input.locator('.page-image[data-page="1"]').waitFor()
+    assert.equal(await input.locator(".page-image").count(), 2)
     await tab(input, "List")
-    assert.match(await input.locator(".composition-empty").innerText(), /No pages at this visibility/)
-    await input.getByRole("button", { name: "All pages", exact: true }).tap()
     assert.equal(await input.locator(".page-list > .list-row").count(), 2)
     await input.locator('.list-choice[data-page="1"]').focus()
     await page.keyboard.press("v")

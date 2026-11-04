@@ -34,6 +34,8 @@ void profiles(const Arguments&);
 void verify(const Arguments&);
 void apply(const Arguments&);
 void resolve(const Arguments&);
+void align(const Arguments&);
+void recipe_checks(JSON report, bool jsonl, bool verbose);
 void reset(const Arguments&);
 void extract(const Arguments&);
 void compose(const Arguments&);

@@ -13,27 +13,28 @@ Recipe, Plan, and Provenance contract versions remain independent and unchanged.
 
 ## 1. Commands
 
-| Command                     | Required options                                            | Optional options                               | Success on stdout                                           |
-| --------------------------- | ----------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------- |
-| `mainz describe input.pdf`  | None                                                        | None                                           | Processor description                                       |
-| `mainz profiles input.pdf`  | None                                                        | None                                           | Ordered profile-set array                                   |
-| `mainz verify input.pdf`    | None                                                        | None                                           | `{"valid":true,"version":1}`                                |
-| `mainz style input.pdf`     | `--output edited.pdf` and one of `--overrides`, `--profile` | `--set` with `--profile`                       | `{"ok":true}`                                               |
-| `mainz reset input.pdf`     | `--output reset.pdf`                                        | `--ids parameters.json`                        | `{"ok":true}`                                               |
-| `mainz extract input.pdf`   | `--pages pages.json --output selected.pdf`                  | None                                           | `{"ok":true}`                                               |
-| `mainz compose plan.json`   | `--inputs inputs.json --output composed.pdf`                | None                                           | Provenance                                                  |
-| `mainz apply recipe.json`   | `--output composed.pdf`                                     | `--inputs bindings.json` or `--root directory` | Provenance                                                  |
-| `mainz imprint source.svg`  | `--declaration parameters.json --output prepared.pdf`       | `--width`, `--height`, `--dpi`, `--preview`    | `{"ok":true}`                                               |
-| `mainz resolve recipe.json` | None                                                        | `--inputs bindings.json` or `--root directory` | Plan                                                        |
-| `mainz --help`              | None                                                        | None                                           | Human-readable usage                                        |
-| `mainz --version`           | None                                                        | None                                           | Software version, contract version, and dependency versions |
+| Command                     | Required options                                            | Optional options                                        | Success on stdout                                           |
+| --------------------------- | ----------------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------- |
+| `mainz describe input.pdf`  | None                                                        | None                                                    | Processor description                                       |
+| `mainz profiles input.pdf`  | None                                                        | None                                                    | Ordered profile-set array                                   |
+| `mainz verify input.pdf`    | None                                                        | None                                                    | `{"valid":true,"version":1}`                                |
+| `mainz style input.pdf`     | `--output edited.pdf` and one of `--overrides`, `--profile` | `--set` with `--profile`                                | `{"ok":true}`                                               |
+| `mainz reset input.pdf`     | `--output reset.pdf`                                        | `--ids parameters.json`                                 | `{"ok":true}`                                               |
+| `mainz extract input.pdf`   | `--pages pages.json --output selected.pdf`                  | None                                                    | `{"ok":true}`                                               |
+| `mainz compose plan.json`   | `--inputs inputs.json --output composed.pdf`                | None                                                    | Provenance                                                  |
+| `mainz apply recipe.json`   | `--output composed.pdf`                                     | `--inputs`, `--root`, `--force`, `--verbose`, `--jsonl` | Provenance                                                  |
+| `mainz align recipe.json`   | `--output aligned.json`                                     | `--inputs`, `--root`, `--force`, `--verbose`, `--jsonl` | Alignment result                                            |
+| `mainz imprint source.svg`  | `--declaration parameters.json --output prepared.pdf`       | `--width`, `--height`, `--dpi`, `--preview`             | `{"ok":true}`                                               |
+| `mainz resolve recipe.json` | None                                                        | `--inputs`, `--root`, `--force`, `--verbose`, `--jsonl` | Plan                                                        |
+| `mainz --help`              | None                                                        | None                                                    | Human-readable usage                                        |
+| `mainz --version`           | None                                                        | None                                                    | Software version, contract version, and dependency versions |
 
-Options follow the positional input and each take one value. Missing, unknown, or duplicate options fail with exit
-code 2. Commands never request interactive input. PDF output always requires an explicit destination. `style` and
-`reset` require prepared PDFs with editable paint. `verify` requires a Mainz manifest and also accepts page metadata
-without editable paint. `describe`, `profiles`, `extract`, and `compose` also accept ordinary PDFs. An invalid embedded
-contract remains an error. It does not become an ordinary-PDF fallback. Version output uses software `version`, integer
-`contract`, and dependency version fields.
+Options follow the positional input. Recipe `--force`, `--verbose`, and `--jsonl` are valueless switches. Other options
+each take one value. Missing, unknown, or duplicate options fail with exit code 2. Commands never request interactive
+input. PDF output always requires an explicit destination. `style` and `reset` require prepared PDFs with editable
+paint. `verify` requires a Mainz manifest and also accepts page metadata without editable paint. `describe`, `profiles`,
+`extract`, and `compose` also accept ordinary PDFs. An invalid embedded contract remains an error. It does not become an
+ordinary-PDF fallback. Version output uses software `version`, integer `contract`, and dependency version fields.
 
 `verify` assesses one PDF's contract and supported contexts without changing it. It does not establish preservation
 against an earlier PDF. Independent input/output comparisons establish preservation. A processor failure produces
@@ -63,10 +64,9 @@ stdin. At most one input can use stdin.
 the native Imprinter. The declaration contains no image filesystem path or URL. The library owns PNG structure, size
 limits, and embedded-file references under its [preview contract](../../lib/doc/SPEC.md#preview-images).
 
-SVG declaration `page` can supply independent `name`, `tags`, and `triviality`. Triviality is an optional nonnegative
-safe integer whose absence means zero, the highest display priority. It does not alter CLI page selection or PDF output.
-The Imprinter writes page annotations into the emitted page's array entry. Document-wide title, description, author, and
-copyright belong in standard PDF XMP metadata supplied by the producing application, not a duplicate Mainz JSON record.
+SVG declaration `page` can supply independent `name` and `tags`. The Imprinter writes page annotations into the emitted
+page's array entry. Document-wide title, description, author, and copyright belong in standard PDF XMP metadata supplied
+by the producing application, not a duplicate Mainz JSON record.
 
 Composition and explicit Recipe bindings supply Inputs separately from the record. Bound PDF paths cannot use stdin.
 Relative paths resolve from the current working directory, including paths inside `inputs.json`. Paths cannot contain
@@ -118,24 +118,44 @@ File locations and root arguments never enter the Recipe. Each Input is read onc
 Resolution and composition share those same owned bytes; several Input instances can use one binding without rereading
 its file. Existing `compose` behavior stays unchanged.
 
-A SHA-256 mismatch produces one warning JSON record per Input on stderr and does not require a force option. Recorded
-publication identity and a compatible forward SemVer version suppress that digest warning. Missing, incompatible, older,
-zero-major, or pre-release declarations do not establish a compatible forward change. The library's publication
-comparison and all validation still run; an actual page or style error terminates execution even when the producer
-claims compatibility. Explicit page-count expectations, missing pages, unknown or ambiguous styles, invalid values, and
-resource-limit failures remain errors. Warnings do not replace diagnostics for subsequent failures. Success stdout
-remains the Provenance JSON and follows atomic installation. Existing destinations and Inputs are never replaced.
+Input assessment follows the library's [shared rules](../../lib/doc/SPEC.md#input-references-and-assessment). `ready`
+and `update` execute normally. Update information appears only with `--verbose`. `review` rejects by default with exit
+code 1 and a detailed `review-required` diagnostic. `--force` accepts review for this invocation and retains its
+diagnostic on stderr. Invalid PDFs, unsupported formats, invalid choices, and producer vetoes always reject, including
+with force. Rejection installs no Output. Neither execution nor force overwrites or aligns the source Recipe.
+
+`--verbose` writes Input check records to stderr. Normal stdout remains the command's result JSON. Diagnostics retain
+logical Input IDs, JSON Pointers, explanations, and available expected/current values. A review refusal states how to
+retry with force. Existing output and Input protection applies to every command and switch.
+
+### JSONL output
+
+Recipe `apply`, `resolve`, and `align` accept `--jsonl`. This mode writes only JSON Lines to stdout: one complete JSON
+object per line. Each Input record has `type: "input"`, logical `input`, `state`, `diagnostics`, and its available
+current `reference`. It includes update information without requiring verbose mode. The final record is either
+`{ "type": "result", "operation": "apply|resolve|align", "result": ... }` or an error object with `type: "error"`. Error
+objects retain `code`, `message`, source/location fields, and available structured `details`. Reports inside errors also
+become preceding Input records. JSONL emits no duplicate stderr diagnostics. Exit status still reports success or
+failure. Successful apply records follow complete PDF installation. Failure emits no success record.
+
+### Recipe alignment
+
+`mainz align recipe.json --output aligned.json` validates the same bindings and creates an aligned Recipe under the
+library's rules. It accepts `--inputs` or `--root`, with the same force, verbosity, JSONL, bounds, and path policies. It
+does not compose a PDF. Review rejects unless forced, and actual errors or producer vetoes cannot be forced. The output
+is a separate JSON file installed through the ordinary no-clobber policy. The source Recipe and all PDFs remain
+unchanged. Success stdout is `{ "ok": true }`, or the corresponding JSONL result record.
 
 ### 2.3 Recipe resolution
 
 `resolve` uses the same Recipe parsing, bindings, automatic lookup, stdin policy, aggregate byte limits, and resolver as
 Recipe `apply`. It accepts `--inputs` or `--root`, never both. It rejects `--output`. Success writes only the resolved
-Plan JSON to stdout and one JSON record per change warning to stderr. No PDF is produced or installed. A resolved Plan
-does not guarantee that later composition will succeed. Resolver errors retain their codes and original Recipe JSON
-Pointers. Failure emits no partial Plan. Recipe JSON has the library's 16 MiB limit; the resolved Plan retains its 1 MiB
-limit. Bound Inputs share its 128 MiB aggregate limit. Display titles, covers, and XMP fields do not affect CLI
-resolution. Optional Output metadata passes into the Plan and the PDF produced by `apply`. The library's editing-intent
-result is not part of CLI stdout.
+Plan JSON to stdout with the same Input assessment, review refusal, force, verbosity, and JSONL behavior as `apply`. No
+PDF is produced or installed. A resolved Plan does not guarantee that later composition will succeed. Resolver errors
+retain their codes and original Recipe JSON Pointers. Failure emits no partial Plan. Recipe JSON has the library's 16
+MiB limit; the resolved Plan retains its 1 MiB limit. Bound Inputs share its 128 MiB aggregate limit. Display titles,
+covers, and XMP fields do not affect CLI resolution. Optional Output metadata passes into the Plan and the PDF produced
+by `apply`. The library's editing-intent result is not part of CLI stdout.
 
 Global `--help` succeeds only as `mainz --help`, without an input or additional arguments. It writes usage to stdout and
 exits with code 0. Invalid invocations retain stderr diagnostics and exit code 2.
@@ -150,8 +170,8 @@ units resolve at 96 DPI. Invalid dimension arguments fail with exit code 2 befor
 ## 4. Results and files
 
 `compose` and `apply` write the composed Document to the output file and emit its Provenance JSON on stdout. The CLI
-does not serialize the library's Artifact return package. Recipe change warnings use stderr and remain separate from
-Provenance.
+does not serialize the library's Artifact return package. Recipe diagnostics use stderr and remain separate from
+Provenance, except for the explicit JSONL event stream.
 
 `description` and `details` remain plain-text JSON strings. `describe` retains them on parameter schemas, groups,
 profile sets, and profiles; `profiles` retains both set and profile annotations. Details require their owner's own
@@ -161,8 +181,8 @@ PDF operations and resolution use stdout JSON. Global help uses plain text. Diag
 contains no terminal controls. Document-supplied text in human-readable diagnostics escapes control characters.
 Processor errors retain the library's structured error record. Producer-specific failures can use `imprinter-error`.
 Declaration parse errors retain the library's [source and location fields](../../lib/doc/SPEC.md#62-errors-and-limits).
-Validation failures produce no stdout result except for the `verify` wrapper. Usage and file failures report through
-stderr without a JSON result.
+Without `--jsonl`, validation failures produce no stdout result except for the `verify` wrapper. Usage and file failures
+use stderr. Recipe JSONL failures emit a final error record on stdout instead.
 
 | Exit code | Meaning                                  |
 | --------- | ---------------------------------------- |
@@ -171,11 +191,11 @@ stderr without a JSON result.
 | 2         | Host, file, argument, or stdout failure  |
 | 130       | SIGINT or SIGTERM cancellation           |
 
-PDF output requires a file path. `-` is not an output destination. Existing destinations, including the input path, are
-never replaced. The CLI writes and flushes a complete mode-0600 temporary file in the destination directory, then
-installs it atomically without replacing an existing path. Installation uses a no-clobber link. An incomplete PDF is
-never installed. Atomic installation does not guarantee that the destination survives a power loss. The CLI flushes file
-contents but does not sync the parent directory.
+PDF and aligned Recipe output require a file path. `-` is not an output destination. Existing destinations, including
+the input path, are never replaced. The CLI writes and flushes a complete mode-0600 temporary file in the destination
+directory, then installs it atomically without replacing an existing path. Installation uses a no-clobber link. An
+incomplete PDF is never installed. Atomic installation does not guarantee that the destination survives a power loss.
+The CLI flushes file contents but does not sync the parent directory.
 
 Success JSON follows PDF installation. After the CLI installs a complete destination, a stdout failure can return exit
 code 2. The caller can inspect that destination before retrying. Failed stdout writes can also leave incomplete JSON.

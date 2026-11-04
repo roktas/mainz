@@ -43,7 +43,7 @@ module Mainz
       write("inputs.json", {"book" => source.to_s})
       output, = compose(request, "large-shared.pdf")
       assert_equal(2, describe(output)["pageCount"])
-      recipe = request.merge("inputs" => {"book" => {}}, "sources" => {"a" => {"input" => "book"}, "b" => {"input" => "book"}})
+      recipe = request.merge("inputs" => {"book" => {"sha256" => Digest::SHA256.file(source).hexdigest}}, "sources" => {"a" => {"input" => "book"}, "b" => {"input" => "book"}})
       recipe_output = file("large-recipe.pdf")
       FileUtils.rm_f(recipe_output)
       command(@cli, "apply", write("large-recipe.json", recipe), "--inputs", file("inputs.json"), "--output", recipe_output)
@@ -97,8 +97,8 @@ module Mainz
     def test_page_annotations_survive_page_operations
       source = file("annotated.pdf")
       pages = [
-        {"name" => "Practice", "tags" => ["Guides", "guides"], "triviality" => 0},
-        {"name" => "Practice", "tags" => [], "triviality" => 1}
+        {"name" => "Practice", "tags" => ["Guides", "guides"]},
+        {"name" => "Practice", "tags" => []}
       ]
       fixture(source, -> (manifest) { manifest["pages"] = pages })
       command(@cli, "verify", source)
@@ -126,7 +126,7 @@ module Mainz
 
     def test_metadata_only_supports_page_operations
       source = file("metadata-only.pdf")
-      annotation = {"name" => "Reference", "tags" => ["notes"], "triviality" => 1}
+      annotation = {"name" => "Reference", "tags" => ["notes"]}
       fixture(
         source,
         -> (manifest) {
@@ -183,10 +183,6 @@ module Mainz
         [{"tags" => ["detail", "detail"]}, {}],
         [{"tags" => [" "]}, {}],
         [{"tags" => [1]}, {}],
-        [{"triviality" => -1}, {}],
-        [{"triviality" => 0.5}, {}],
-        [{"triviality" => 9_007_199_254_740_992}, {}],
-        [{"triviality" => nil}, {}],
         [{"unknown" => true}, {}]
       ]
       invalids.each_with_index do |pages, index|
@@ -1479,7 +1475,7 @@ module Mainz
     end
 
     def test_publication_claims_do_not_follow_changed_page_sequences
-      publication = {"id" => "fixture/book", "version" => "1.2.3"}
+      publication = {"id" => "fixture/book", "compat" => 1}
       source = file("publication.pdf")
       fixture(source, -> (manifest) { manifest["publication"] = publication })
       assert_equal(publication, describe(source)["publication"])
@@ -1490,8 +1486,8 @@ module Mainz
       refute(describe(reversed).key?("publication"))
       pruned = extract(source, "publication-pruned.pdf", [0])
       refute(describe(pruned).key?("publication"))
-      ["1.2", "1.2.03", "1.2.3-alpha.01", "1.2.3+bad..id"].each do |version|
-        fixture(source, -> (manifest) { manifest["publication"] = publication.merge("version" => version) })
+      [0, -1, 1.5, "1"].each do |compat|
+        fixture(source, -> (manifest) { manifest["publication"] = publication.merge("compat" => compat) })
         assert_equal("invalid-contract", failure_code(source))
       end
     end
@@ -1714,7 +1710,7 @@ module Mainz
         -> (manifest) {
           manifest["pages"] = [
             {"name" => "Practice", "preview" => "page.png"},
-            {"preview" => "page.png", "triviality" => 1}
+            {"preview" => "page.png"}
           ]
         }
       )
