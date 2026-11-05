@@ -77,11 +77,12 @@ widths and enlarged text, move or stack whole controls when needed; never split 
 selection controls retain their own wrapping rules. Confirmation actions place Cancel or Dismiss before Save or Apply.
 Keep the positive action on the right in a row, or below the dismissive action when stacked.
 
-The landing labels are Open PDF and Recipe. These actions share width and padding on all four sides. At normal text
-size, their icons are 24 px. PDF is 54 px high; Recipe is 1 px taller. Wide layouts center them on one row with a muted
-`or`; narrow layouts stack them. The primary PDF action uses the unboxed Acrobat ribbon. Its color is the opposite
-theme's accent: beige in light mode and purple in dark mode. Recipe uses JSON braces and a quiet secondary surface. The
-existing animated logo and landing composition remain the visual anchor.
+The landing labels are PDF and Recipe. The PDF picker retains the accessible name Open PDF. These actions share width
+and padding on all four sides. At normal text size, their icons are 24 px. PDF is 54 px high; Recipe is 1 px taller.
+Wide layouts center them on one row with a muted `or`; narrow layouts stack them. The primary PDF action uses the
+unboxed Acrobat ribbon. Its color is the opposite theme's accent: beige in light mode and purple in dark mode. Recipe
+uses JSON braces and a quiet secondary surface. The existing animated logo and landing composition remain the visual
+anchor.
 
 Icon buttons use transparent surfaces, accent stroke emphasis on hover, and immediate press feedback. Destructive
 actions retain danger colors. Text and primary buttons can use a soft accent glow with a fine pointer and hover support.

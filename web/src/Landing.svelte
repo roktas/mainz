@@ -63,9 +63,10 @@
     <p>Select and repeat PDF pages. Style prepared PDFs for your printer.</p>
     <div class="buttons">
       <label class="file-picker primary"
-        ><Icon name="pdf" /><span>Open PDF</span><input
+        ><Icon name="pdf" /><span>PDF</span><input
           type="file"
           accept="application/pdf,.pdf"
+          aria-label="Open PDF"
           disabled={loading || updating}
           onchange={(event) => {
             if (event.currentTarget.files) void open(event.currentTarget.files)

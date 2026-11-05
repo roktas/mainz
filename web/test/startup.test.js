@@ -154,14 +154,16 @@ test(
     try {
       const page = await browser.newPage({ reducedMotion: "reduce" })
       await page.goto(server.resolvedUrls.local[0])
-      for (const [width, text] of [
+      for (const [width, text, family = ""] of [
         [1440, "100%"],
         [768, "100%"],
         [390, "100%"],
         [320, "200%"],
+        [320, "200%", "DejaVu Sans"],
       ]) {
         await page.setViewportSize({ width, height: 1000 })
         await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+        await page.evaluate((value) => (document.body.style.fontFamily = value), family)
         for (const colorScheme of ["light", "dark"]) {
           await page.emulateMedia({ colorScheme })
           const actions = await page.locator(".welcome .buttons > label").evaluateAll((labels) =>
@@ -194,7 +196,7 @@ test(
           assert.ok(Math.abs(actions[0].width - actions[1].width) < 1)
           assert.ok(
             actions.every((action) => action.lines === 1 && action.fits),
-            JSON.stringify({ width, text, actions }),
+            JSON.stringify({ width, text, family, actions }),
           )
           assert.ok(Math.abs(actions[1].height - actions[0].height - 1) < 0.5)
           assert.ok(

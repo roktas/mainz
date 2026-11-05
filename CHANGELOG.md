@@ -88,6 +88,8 @@
 
 ### Fixed
 
+- Shortened the landing PDF action so its label fits enlarged text with wider system fonts.
+
 - Kept header feedback usable inside the filename editor and in short landscape viewports. Open panels retain visibility
   when header controls hide, and page names retain wrapping.
 
