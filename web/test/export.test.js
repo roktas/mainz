@@ -32,9 +32,8 @@ test("Recipe details retain opaque metadata keys as literal labels", async () =>
     const panel = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
     await panel.locator(".binding-meta .guidance-trigger").first().click()
     const details = page.locator(".guidance:popover-open")
-    assert.deepEqual(await details.locator(".guidance-text strong").allTextContents(), ["__proto__:", "constructor:"])
-    assert.match(await details.innerText(), /__proto__: Opaque prototype/)
-    assert.match(await details.innerText(), /constructor: Opaque constructor/)
+    assert.deepEqual(await details.getByRole("rowheader").allTextContents(), ["__proto__", "constructor"])
+    assert.deepEqual(await details.getByRole("cell").allTextContents(), ["Opaque prototype", "Opaque constructor"])
   } finally {
     await browser.close()
   }
