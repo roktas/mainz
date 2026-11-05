@@ -56,6 +56,7 @@ test("Input metadata keeps bounded fields and uses valid title fallbacks", async
         ["dc:title", "XMP title"],
         ["dc:description", "Practice pages"],
         ["dc:creator", ["One", "Two"]],
+        ["dc:rights", "© Example"],
         ["mainz:coverpage", "3"],
         ["x:" + "界".repeat(43), "Too many bytes in the key"],
         ["x:broken", "\ud800"],
@@ -67,11 +68,23 @@ test("Input metadata keeps bounded fields and uses valid title fallbacks", async
       record.set("mainz:coverpage", "5")
       pdf.getMetadata = async () => ({ metadata: record, info: { Title: "" } })
       const filename = await metadata(pdf, "file.pdf")
+      record.delete("dc:creator")
+      pdf.getMetadata = async () => ({ metadata: record, info: { Author: " Info author " } })
+      const author = await metadata(pdf, "file.pdf")
+      pdf.getMetadata = async () => ({ metadata: undefined, info: { Author: "x".repeat(4097) } })
+      const oversized = await metadata(pdf, "file.pdf")
       pdf.getMetadata = async () => {
         throw new Error("No document metadata")
       }
       const absent = await metadata(pdf, "file.pdf")
-      return { first, fallback: fallback.title, filename: [filename.title, filename.coverPage], absent }
+      return {
+        first,
+        fallback: fallback.title,
+        filename: [filename.title, filename.coverPage],
+        author: author.xmp["dc:creator"],
+        oversized,
+        absent,
+      }
     })
     assert.deepEqual(values, {
       first: {
@@ -81,9 +94,12 @@ test("Input metadata keeps bounded fields and uses valid title fallbacks", async
           "dc:title": "XMP title",
           "dc:description": "Practice pages",
           "dc:creator": "One, Two",
+          "dc:rights": "© Example",
           "mainz:coverpage": "3",
         },
       },
+      author: "Info author",
+      oversized: { title: "file.pdf", coverPage: 1 },
       fallback: "Info title",
       filename: ["file.pdf", 1],
       absent: { title: "file.pdf", coverPage: 1 },

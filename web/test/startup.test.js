@@ -155,7 +155,9 @@ test(
       const page = await browser.newPage({ reducedMotion: "reduce" })
       await page.goto(server.resolvedUrls.local[0])
       for (const [width, text, family = ""] of [
+        [1920, "100%"],
         [1440, "100%"],
+        [375, "100%"],
         [768, "100%"],
         [390, "100%"],
         [320, "200%"],
@@ -200,9 +202,16 @@ test(
           )
           assert.ok(Math.abs(actions[1].height - actions[0].height - 1) < 0.5)
           assert.ok(
-            actions.every((action) => new Set(action.padding).size === 1 && action.icon.every((size) => size >= 24)),
+            actions.every(
+              (action) =>
+                action.padding[0] === action.padding[1] &&
+                action.padding[2] === action.padding[3] &&
+                action.icon.every((size) => size >= 24),
+            ),
           )
-          if (width > 640) assert.ok(Math.abs(actions[0].center - actions[1].center) < 1)
+          if (text === "100%") assert.ok(Math.abs(actions[0].center - actions[1].center) < 1)
+          if (width === 1920) assert.ok(actions.every((action) => action.width >= 120))
+          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
         }
       }
     } finally {

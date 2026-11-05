@@ -63,10 +63,16 @@
       >
     </span>
     {#if fields}
-      {#each Object.entries(fields) as [field, value] (field)}
-        <span class="guidance-text"><strong>{Object.hasOwn(names, field) ? names[field] : field}:</strong> {value}</span
-        >
-      {/each}
+      <table aria-label={`${title} details`}>
+        <tbody>
+          {#each Object.entries(fields) as [field, value] (field)}
+            <tr>
+              <th scope="row">{Object.hasOwn(names, field) ? names[field] : field}</th>
+              <td>{value}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
     {:else}<span class="guidance-text">{details}</span>{/if}
   </span>
 {/if}

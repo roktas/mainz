@@ -38,6 +38,10 @@
 
 ### Changed
 
+- Landing file actions share a row on narrow screens and gain width on wide screens.
+- File details align fields and values in a table and include PDF Info authors when XMP has none.
+- Shortcut Help uses more compact keycaps and groups routing notes to fit desktop List views.
+
 - Centralized notifications and errors in the header, with short summaries, optional details, and stable local error
   cues.
 - Updated Recipe export offers a timestamped copy or explicit local-file replacement in the header message panel.

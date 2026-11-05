@@ -484,25 +484,27 @@
                       <dd>Remove Output selection</dd>
                     </div>
                   </dl>
-                  <p>
-                    Fields and menus keep their keys. V, Ctrl+A, Esc, and starting Grid navigation use the mouse-side
-                    pane. PgUp/PgDn change its Grid group. Page keys use its Page, or the other open Page.
-                  </p>
-                  {#if modes.input === "list" || modes.output === "list"}
+                  <div>
                     <p>
-                      List keys act while a row has focus. <kbd class="named">Shift</kbd> +
-                      <kbd class="named">Home</kbd> / <kbd class="named">End</kbd> extends selection to the first / last
-                      row.
-                      <kbd class="named">Shift</kbd> + <kbd class="named">PgUp</kbd> / <kbd class="named">PgDn</kbd>
-                      extends selection by one screen of rows.
+                      Fields and menus keep their keys. V, Ctrl+A, Esc, and starting Grid navigation use the mouse-side
+                      pane. PgUp/PgDn change its Grid group. Page keys use its Page, or the other open Page.
                     </p>
-                  {/if}
-                  {#if modes.input === "grid" || modes.output === "grid"}
-                    <p>
-                      Without a selection, → starts at the first page of the current group. ← starts at the last.
-                      Reversing Shift+←/→ restores the step. Navigation stops at each end.
-                    </p>
-                  {/if}
+                    {#if modes.input === "list" || modes.output === "list"}
+                      <p>
+                        List keys act while a row has focus. <kbd class="named">Shift</kbd> +
+                        <kbd class="named">Home</kbd> / <kbd class="named">End</kbd> extends selection to the first /
+                        last row.
+                        <kbd class="named">Shift</kbd> + <kbd class="named">PgUp</kbd> / <kbd class="named">PgDn</kbd>
+                        extends selection by one screen of rows.
+                      </p>
+                    {/if}
+                    {#if modes.input === "grid" || modes.output === "grid"}
+                      <p>
+                        Without a selection, → starts at the first page of the current group. ← starts at the last.
+                        Reversing Shift+←/→ restores the step. Navigation stops at each end.
+                      </p>
+                    {/if}
+                  </div>
                 </div>
               </section>
             </div>

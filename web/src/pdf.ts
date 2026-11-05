@@ -265,6 +265,9 @@ export async function metadata(
     )
       xmp.set(key, text)
   }
+  const author = (info as { Author?: string }).Author
+  if (xmp.size < 32 && !xmp.has("dc:creator") && typeof author === "string" && author.trim() && !titleError(author))
+    xmp.set("dc:creator", author.trim())
   const candidate = record?.get("dc:title")
   const title = [candidate, (info as { Title?: string }).Title, name, "Untitled"].find(
     (value): value is string => typeof value === "string" && !titleError(value),

@@ -323,7 +323,7 @@ test(
       )
       await panel.locator(".binding-meta .guidance-trigger").first().click()
       const details = page.locator(".guidance:popover-open")
-      assert.deepEqual(await details.locator(".guidance-text strong").allTextContents(), ["Title:", "Producer:"])
+      assert.deepEqual(await details.locator("th").allTextContents(), ["Title", "Producer"])
       await page.keyboard.press("Escape")
       await page.locator(".footnote").getByText("0 of 3 Inputs selected · 3 remaining", { exact: true }).waitFor()
 
@@ -766,10 +766,10 @@ test(
       const input = page.locator(".selection-panel")
       await input.getByRole("button", { name: "Details for Italic Strokes", exact: true }).click()
       assert.ok(await page.getByRole("region", { name: "Italic Strokes", exact: true }).isVisible())
-      assert.deepEqual(await page.locator(".guidance:popover-open .guidance-text strong").allTextContents(), [
-        "Filename:",
-        "Title:",
-        "Producer:",
+      assert.deepEqual(await page.locator(".guidance:popover-open th").allTextContents(), [
+        "Filename",
+        "Title",
+        "Producer",
       ])
       await page.getByRole("button", { name: "Close details", exact: true }).click()
       await page.getByRole("button", { name: "Set Output filename", exact: true }).click()
@@ -798,7 +798,7 @@ test(
       await page.locator(".input-current").filter({ hasText: "collected.pdf" }).waitFor()
       await input.getByRole("button", { name: "Details for Collected strokes & guides", exact: true }).click()
       const details = page.getByRole("region", { name: "Collected strokes & guides", exact: true })
-      assert.match(await details.innerText(), /Cover page: 2/)
+      assert.match(await details.innerText(), /Cover page\s+2/)
     } finally {
       await browser.close()
     }
@@ -1872,3 +1872,45 @@ test(
     }
   },
 )
+
+test("Recipe file details align optional author and copyright fields without colons", async () => {
+  const server = await serve()
+  const browser = await chromium.launch()
+  try {
+    const page = await browser.newPage({ reducedMotion: "reduce" })
+    await page.goto(server.resolvedUrls.local[0])
+    const recipe = JSON.parse(await readFile(new URL("./fixtures/recipe/session.json", import.meta.url), "utf8"))
+    recipe.inputs.book.xmp["dc:creator"] = "Example author"
+    recipe.inputs.book.xmp["dc:rights"] = "© Example rights"
+    await page.locator(".landing-recipe input").setInputFiles({
+      name: "session.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(recipe)),
+    })
+    for (const width of [390, 1920]) {
+      await page.setViewportSize({ width, height: 960 })
+      for (const colorScheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme })
+        await page.locator(".binding-meta").first().getByRole("button").click()
+        const table = page.locator(".guidance:popover-open table")
+        assert.equal(await table.getByRole("rowheader", { name: "Author", exact: true }).count(), 1)
+        assert.equal(await table.getByRole("rowheader", { name: "Copyright", exact: true }).count(), 1)
+        assert.match(await table.innerText(), /Example author/)
+        assert.match(await table.innerText(), /© Example rights/)
+        const cells = await table.locator("tr").evaluateAll((rows) =>
+          rows.map((row) => {
+            const [field, value] = row.cells
+            const label = document.createRange()
+            label.selectNodeContents(field)
+            return { end: label.getBoundingClientRect().right, value: value.getBoundingClientRect().left }
+          }),
+        )
+        assert.ok(cells.every((cell) => Math.abs(cell.end - cells[0].end) < 1 && cell.value - cell.end >= 8))
+        assert.equal(await table.evaluate((element) => element.scrollWidth <= element.clientWidth), true)
+        await page.getByRole("button", { name: "Close details", exact: true }).click()
+      }
+    }
+  } finally {
+    await browser.close()
+  }
+})

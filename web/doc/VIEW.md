@@ -822,6 +822,10 @@ installation action has secondary emphasis. The title and visible close icon sha
 and enlarged text retain scrolling within the dialog. Installation guidance does not change workspace geometry or Grid
 capacity. [SPEC.md](SPEC.md#help-and-onboarding) owns startup eligibility, dismissal, and access through Help → App.
 
+Landing PDF and Recipe actions share one row with equal widths. Enlarged text can stack them when space is insufficient.
+Inline padding grows on wide screens. File details use a table with end-aligned field names, start-aligned values, and a
+gap instead of colons.
+
 The landing product name retains a readable minimum independently of the purpose heading. Enlarged text scales the name
 and permits wrapping. The persistent drop hint appears only with fine-pointer and hover capability. Actual file dragging
 still reveals the drop overlay on other inputs. The file chooser remains the primary opening action. Keyboard focus

@@ -217,6 +217,23 @@
         font-size: var(--body);
         font-weight: 600;
       }
+      & table {
+        inline-size: 100%;
+        table-layout: fixed;
+        border-collapse: collapse;
+        text-align: start;
+        & th,
+        & td {
+          vertical-align: top;
+          white-space: pre-line;
+        }
+        & th {
+          inline-size: 30%;
+          text-align: end;
+          padding-inline-end: var(--gap);
+          font-weight: 700;
+        }
+      }
       & .guidance-text {
         display: block flow;
         white-space: pre-line;

@@ -51,7 +51,8 @@ Input titles come from nonblank XMP `dc:title`, then PDF Info `Title`, then the 
 4096-byte UTF-8 limit and XML text rules. If no valid candidate exists, use `Untitled`. Wide layouts show a muted title
 beside the filename, with truncation when necessary. The Input chooser also shows the title. Hover and the information
 button expose the full title in constrained layouts. Available XMP fields appear as plain text in those details. Missing
-fields add no empty placeholders. The declared XMP `mainz:coverPage` selects the cover when it is a valid physical page;
+fields add no empty placeholders. Details include Author and Copyright when declared in XMP; PDF Info Author supplies
+the author when XMP has none. The declared XMP `mainz:coverPage` selects the cover when it is a valid physical page;
 otherwise the first page is used.
 
 The Input chooser switches Inputs. Each retains its view, inspected page, zoom, Grid density, and preparation. Home

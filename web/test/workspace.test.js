@@ -1554,11 +1554,13 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
       }
       await page.keyboard.press("Escape")
     }
-    await tab(input, "Grid")
+    await tab(input, "List")
     await tab(output, "Grid")
     for (const [width, height, theme, font] of [
       [2560, 1440, "dark", ""],
       [1920, 1080, "light", ""],
+      [1920, 960, "light", ""],
+      [1920, 960, "dark", "DejaVu Sans"],
       [1440, 900, "dark", ""],
       [1440, 900, "light", "DejaVu Sans"],
       [1440, 900, "dark", "DejaVu Sans"],
@@ -1594,6 +1596,7 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
     }
     await page.evaluate(() => document.body.style.removeProperty("font-family"))
     await page.setViewportSize({ width: 1440, height: 1100 })
+    await tab(input, "Grid")
     await input.getByRole("button", { name: "Select or drag Input page 2 to Output", exact: true }).click()
     await page.keyboard.press("Space")
     await page.waitForFunction(() => document.activeElement?.matches(".page-image[aria-pressed=false]"))

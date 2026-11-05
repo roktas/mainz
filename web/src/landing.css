@@ -203,7 +203,8 @@
           inline-size: 100%;
           min-block-size: 0;
           block-size: var(--action-height);
-          padding: var(--action-space);
+          padding-block: var(--action-space);
+          padding-inline: clamp(0.875rem, 0.5rem + 2cqi, 2rem);
           line-height: 1.5;
           gap: min(0.5em, 8px);
           & > svg {
@@ -222,13 +223,9 @@
         & > .landing-recipe {
           block-size: calc(var(--action-height) + 1px);
         }
-        @media (width <= 40em) {
+        @container (width < 16rem) {
           grid-template-columns: minmax(0, 1fr);
-          inline-size: max-content;
           gap: 0.5rem;
-          & > .landing-or {
-            font-size: 0.85em;
-          }
         }
       }
     }
