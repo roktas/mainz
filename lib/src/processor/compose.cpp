@@ -451,7 +451,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
         }
         if (!labels.empty())
             output.getRoot().replaceKey("/PageLabels", Object::newDictionary({{"/Nums", Object::newArray(labels)}}));
-        prune_previews(output, managed_previews, next.getDictItem("pages"), budget);
+        prune_previews(output, managed_previews, next.getDictItem("pages"));
         for (const auto& item : output.getAllObjects()) {
             require(++budget.visits <= 65536, "Plan traversal exceeds 65536 visits.", "limit-exceeded");
             if (!item.isDictionary())

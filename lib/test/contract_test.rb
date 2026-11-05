@@ -339,6 +339,36 @@ module Mainz
       assert_equal(preview_png, command("qpdf", "--show-attachment=page.png", discarded).stdout)
     end
 
+    def test_preview_cleanup_handles_dense_shared_graphs
+      source = file("preview-dense.pdf")
+      preview_fixture(source) do |document|
+        document.catalog[:Dense] = Array.new(130_000) { {} }
+        document.catalog[:PreviewName] = "page.png"
+        document.catalog[:Cycle] = document.catalog
+      end
+      changed = operation(source, "preview-dense-changed.pdf", {"opacity" => 0.4})
+      discarded = extract(changed, "preview-dense-extracted.pdf", [0])
+      refute(describe(discarded)["pages"][0].key?("preview"))
+      assert_equal(130_000, HexaPDF::Document.open(discarded.to_s).catalog[:Dense].length)
+      assert_equal(preview_png, command("qpdf", "--show-attachment=page.png", discarded).stdout)
+      assert_equal(Preservation.read(source), Preservation.read(changed))
+    end
+
+    def test_preview_cleanup_rejects_excessive_reference_fanout
+      source = file("preview-fanout.pdf")
+      preview_fixture(source) do |document|
+        document.catalog[:Dense] = Array.new(4_194_304, 0)
+      end
+      changed = operation(source, "preview-fanout-changed.pdf", {"opacity" => 0.4})
+      original = changed.binread
+      output = file("preview-fanout-extracted.pdf")
+      FileUtils.rm_f(output)
+      failure = command(@cli, "extract", changed, "--pages", write("request.json", [0]), "--output", output, ok: false)
+      assert_equal("limit-exceeded", JSON.parse(failure.stderr)["code"])
+      refute_path_exists(output)
+      assert_equal(original, changed.binread)
+    end
+
     def test_preview_references_validate_attachment_identity
       [
         -> (document) { document.catalog[:Names][:EmbeddedFiles].each_entry.to_h.fetch("page.png")[:UF] = "other.png" },

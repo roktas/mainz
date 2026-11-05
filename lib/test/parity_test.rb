@@ -48,7 +48,7 @@ module Mainz
         assert_equal(contents(file("extracted-#{name}.pdf")), contents(file("wasm-extracted-#{name}.pdf")))
       end
 
-      %w[ordinary-reverse composed composed-reset shared-edited shared-chained fixed-visibility-edited large-shared].each do |name|
+      %w[ordinary-reverse composed composed-reset shared-edited shared-chained fixed-visibility-edited large-shared preview-dense-extracted].each do |name|
         assert_equal(contents(file("#{name}.pdf")), contents(file("wasm-#{name}.pdf")), name)
       end
 

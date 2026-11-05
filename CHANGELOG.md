@@ -88,6 +88,9 @@
 
 ### Fixed
 
+- Allowed dense prepared PDFs to discard stale previews with a separate 4,194,304-reference traversal budget. Cleanup
+  avoids array copies and retains attachments referenced elsewhere in the PDF.
+
 - Shortened the landing PDF action so its label fits enlarged text with wider system fonts.
 
 - Kept header feedback usable inside the filename editor and in short landscape viewports. Open panels retain visibility

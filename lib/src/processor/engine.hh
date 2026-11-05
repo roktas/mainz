@@ -72,7 +72,7 @@ void compress(Object, const std::string&, Budget&);
 JSON copy_object(JSON);
 JSON mapped_profiles(JSON, const std::map<std::string, std::string>&, const std::string& prefix = {});
 JSON share_records(JSON);
-void prune_previews(QPDF&, const std::set<std::string>& managed, JSON pages, Budget&);
+void prune_previews(QPDF&, const std::set<std::string>& managed, JSON pages);
 class Engine {
 public:
     explicit Engine(const std::string& input, Budget* shared_budget = nullptr, bool validated = false,

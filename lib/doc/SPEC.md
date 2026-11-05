@@ -853,6 +853,12 @@ expansion. Exhaustion returns no successful output. Documents cannot raise limit
 | Other JSON items per input                | 50,000     |
 | Referenced paint occurrences              | 500,000    |
 | Cumulative expanded locator text per call | 128 MiB    |
+| Shared Form/attachment/field/Plan visits  | 65,536     |
+| Preview cleanup references per traversal  | 4,194,304  |
+
+Preview cleanup counts each inspected reference, including scalar array elements and repeated references. It expands
+shared indirect objects once. Its separate traversal budget does not consume the shared Form/attachment/field/Plan visit
+budget.
 
 Locator accounting counts each shared-array occurrence, including repeated Input instance and completed-result
 validation. For each occurrence, it counts UTF-8 region, target, and resolved baseline IDs, paint marker, fill

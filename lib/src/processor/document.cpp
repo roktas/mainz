@@ -548,7 +548,7 @@ std::string Engine::extract(JSON request, const std::string& input)
 }
 std::string Engine::save(std::optional<JSON> next)
 {
-    prune_previews(document, managed_previews, next ? next->getDictItem("pages") : JSON::makeArray(), budget);
+    prune_previews(document, managed_previews, next ? next->getDictItem("pages") : JSON::makeArray());
     if (next)
         compress(payload, encode(share_records(*next), manifest_limit, budget.remaining), budget);
     Buffer output(pdf_limit, budget.remaining);

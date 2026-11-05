@@ -131,7 +131,7 @@ std::string Engine::preview(std::size_t page)
         return {};
     return decode(files.at(text(value)).getKey("/EF").getKey("/F"), budget, pdf_limit);
 }
-void prune_previews(QPDF& document, const std::set<std::string>& managed, JSON pages, Budget& budget)
+void prune_previews(QPDF& document, const std::set<std::string>& managed, JSON pages)
 {
     if (managed.empty())
         return;
@@ -151,31 +151,39 @@ void prune_previews(QPDF& document, const std::set<std::string>& managed, JSON p
             }
     if (removed.empty())
         return;
+    constexpr std::size_t reference_limit = std::size_t {4} * 1024 * 1024;
+    std::size_t remaining = reference_limit;
     std::set<QPDFObjGen> seen;
     std::set<std::string> named;
-    std::vector<Object> pending {document.getTrailer()};
+    std::vector<Object> pending;
+    auto visit = [&](Object object) {
+        require(remaining > 0, "Preview references exceed limit.", "limit-exceeded");
+        --remaining;
+        if (object.isIndirect() && !seen.insert(object.getObjGen()).second)
+            return;
+        if (object.isString()) {
+            auto name = object.getUTF8Value();
+            if (removed.contains(name))
+                named.insert(std::move(name));
+        } else if (object.isDictionary() || object.isArray() || object.isStream())
+            pending.push_back(object);
+    };
+    visit(document.getTrailer());
     while (!pending.empty()) {
-        require(++budget.visits <= 65536, "Preview reference traversal exceeds 65536 visits.", "limit-exceeded");
         auto object = pending.back();
         pending.pop_back();
-        if (object.isIndirect() && !seen.insert(object.getObjGen()).second)
-            continue;
         if (object.isStream())
             object = object.getDict();
-        if (object.isString())
-            named.insert(object.getUTF8Value());
         if (object.isDictionary()) {
             auto keys = object.getKeys();
-            require(keys.size() <= 65536 - budget.visits - pending.size(), "Preview references exceed limit.",
-                "limit-exceeded");
+            require(keys.size() <= remaining, "Preview references exceed limit.", "limit-exceeded");
             for (const auto& key : keys)
-                pending.push_back(object.getKey(key));
+                visit(object.getKey(key));
         } else if (object.isArray()) {
-            auto count = static_cast<std::size_t>(object.getArrayNItems());
-            require(
-                count <= 65536 - budget.visits - pending.size(), "Preview references exceed limit.", "limit-exceeded");
-            for (const auto& item : object.getArrayAsVector())
-                pending.push_back(item);
+            auto count = object.getArrayNItems();
+            require(static_cast<std::size_t>(count) <= remaining, "Preview references exceed limit.", "limit-exceeded");
+            for (int index = 0; index < count; ++index)
+                visit(object.getArrayItem(index));
         }
     }
     for (const auto& [file, spec] : removed)
