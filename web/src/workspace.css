@@ -228,7 +228,7 @@
         grid-column: 1;
         grid-row: 3;
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--action-width)), 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
         align-items: center;
         gap: var(--gap);
         justify-self: start;
@@ -553,6 +553,9 @@
         & .compact {
           display: inline;
         }
+        & .binding-heading .guidance-label {
+          white-space: normal;
+        }
         & .load-choices {
           grid-column: 1;
           justify-self: stretch;
@@ -700,7 +703,8 @@
         border-block-start: 1px solid var(--border);
         & > button {
           flex: 0 1 var(--action-width);
-          inline-size: var(--action-width);
+          inline-size: min(100%, var(--action-width));
+          max-inline-size: 100%;
           block-size: var(--action-height);
         }
       }

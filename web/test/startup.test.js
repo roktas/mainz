@@ -1149,7 +1149,7 @@ test("Unknown demo variants report an error and permit opening a local PDF", asy
       await page.goto(`${server.resolvedUrls.local[0]}?demo=${encodeURIComponent(value)}`)
       const error = page.getByRole("alert")
       await error.waitFor()
-      assert.ok((await error.innerText()).includes(`Unknown demo: ${value}. Choose a local PDF.`))
+      assert.ok((await error.innerText()).includes(`Unknown demo: ${value}. Choose a local PDF`))
       await page
         .locator("input[type=file]")
         .first()
@@ -1966,12 +1966,12 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     const updateNotice = page.getByRole("banner").getByRole("status")
     await page.clock.fastForward(5500)
     assert.equal(await updateNotice.isVisible(), true)
-    assert.match(await updateNotice.textContent(), /Update ready\. Download and close your PDF\./)
+    assert.match(await updateNotice.textContent(), /Update ready\. Download and close your PDF$/)
     for (const width of [810, 1080]) {
       await page.setViewportSize({ width, height: 1080 })
       const lines = await updateNotice.evaluate((element) => {
         const range = document.createRange()
-        range.selectNodeContents(element)
+        range.selectNodeContents(element.querySelector("button") ?? element)
         return [...range.getClientRects()].length
       })
       assert.equal(lines, 1, `${width}px: the iPad update message fits on one line`)
@@ -2083,8 +2083,8 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
       "Offline setup failed. Reload this page in a moment. If it keeps failing, report it.",
       { exact: true },
     )
-    await failure.waitFor()
     const recovery = page.locator(".header-feedback")
+    await recovery.getByRole("alert").waitFor()
     for (const width of [320, 390, 768]) {
       for (const colorScheme of ["light", "dark"]) {
         await page.setViewportSize({ width, height: 900 })
@@ -2095,9 +2095,11 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
         const landing = await page.locator(".drop-zone").boundingBox()
         assert.ok(box.x >= 0 && box.x + box.width <= width)
         assert.ok(box.y + box.height <= landing.y, "The recovery area stays above the file controls")
-        await recovery.evaluate((element) => (element.scrollTop = element.scrollHeight))
+        await recovery.getByRole("alert").getByRole("button").click()
+        await failure.waitFor()
         const end = await failure.boundingBox()
-        assert.ok(end.y + end.height <= box.y + box.height + 1, "The full recovery message remains reachable")
+        assert.ok(end.y + end.height <= 900, "The full recovery message remains reachable in its panel")
+        await page.keyboard.press("Escape")
       }
     }
     await page.setViewportSize({ width: 1440, height: 900 })

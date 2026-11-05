@@ -606,7 +606,7 @@ test("Thumbnail allocation stays within its pixel limit and releases failed rend
           frame.style.cssText = `inline-size:${width}px;block-size:${height}px;min-block-size:0;padding:0`
           while (surfaces.length <= index || frame.getAttribute("aria-busy") === "true")
             await new Promise(requestAnimationFrame)
-          images.push({ width: canvas.width, height: canvas.height, failed: !!frame.querySelector(".error") })
+          images.push({ width: canvas.width, height: canvas.height, failed: frame.hasAttribute("data-error") })
           cached ??= cachedRaster(pdf, 0)
         }
       } finally {

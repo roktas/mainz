@@ -538,9 +538,9 @@ test(
         await progress.waitFor()
         await matrix(page, progress, "opening", () => page.clock.runFor(50))
         assert.equal(
-          await progress.locator("p").getAttribute("title"),
+          await progress.locator(".feedback-message > p").getAttribute("title"),
           await progress
-            .locator("p")
+            .locator(".feedback-message > p")
             .textContent()
             .then((value) => value.trim()),
         )

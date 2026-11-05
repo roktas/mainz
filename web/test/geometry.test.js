@@ -863,7 +863,7 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
       await fitted(image(output))
       await output.getByLabel("Page selection", { exact: true }).fill("1")
       await output.locator(".output-options > summary").click()
-      await output.getByRole("button", { name: "Blank before", exact: true }).click()
+      await output.getByRole("button", { name: "Before", exact: true }).click()
       await page.keyboard.press("Escape")
       await output.getByRole("region", { name: "PDF viewport", exact: true }).press("Home")
       await output.locator(".blank-sheet").waitFor()

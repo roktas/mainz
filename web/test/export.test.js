@@ -135,9 +135,7 @@ test(
                   logo: getComputedStyle(element.querySelector(".load-mark")).display === "none",
                   choices: choices.every(
                     (button) =>
-                      Math.abs(button.y - choices[0].y) < 1 &&
-                      Math.abs(button.width - choices[0].width) < 1 &&
-                      Math.abs(button.height - choices[0].height) < 1,
+                      Math.abs(button.width - choices[0].width) < 1 && Math.abs(button.height - choices[0].height) < 1,
                   ),
                 }
               })
@@ -367,11 +365,9 @@ test(
           assert.ok(
             choices.every(
               (button) =>
-                Math.abs(button.y - choices[0].y) < 1 &&
-                Math.abs(button.width - choices[0].width) < 1 &&
-                Math.abs(button.height - choices[0].height) < 1,
+                Math.abs(button.width - choices[0].width) < 1 && Math.abs(button.height - choices[0].height) < 1,
             ),
-            `${width}px, ${text}: sample and local choices stay side by side`,
+            `${width}px, ${text}: sample and local choices keep equal dimensions`,
           )
         }
       }
@@ -907,7 +903,10 @@ test(
                 peers:
                   Math.abs(buttons[0].width - buttons[1].width) < 1 &&
                   Math.abs(buttons[0].height - buttons[1].height) < 1,
-                gap: buttons[1].left - buttons[0].right,
+                gap:
+                  Math.abs(buttons[1].top - buttons[0].top) < 1
+                    ? buttons[1].left - buttons[0].right
+                    : buttons[1].top - buttons[0].bottom,
                 headingCentered: Math.abs(title.y + title.height / 2 - close.y - close.height / 2) < 1,
               }
             })
@@ -966,7 +965,7 @@ test(
       await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
       await output.getByLabel("Output page actions", { exact: true }).click()
-      await output.getByRole("button", { name: "Blank at end", exact: true }).click()
+      await output.getByRole("button", { name: "At end", exact: true }).click()
       const exportAction = output.getByRole("button", { name: "Export recipe", exact: true })
       await exportAction.click()
       const panel = page.getByRole("dialog", { name: "Export recipe", exact: true })

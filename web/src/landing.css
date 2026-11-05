@@ -205,6 +205,7 @@
           block-size: var(--action-height);
           padding: var(--action-space);
           line-height: 1.5;
+          gap: min(0.5em, 8px);
           & > svg {
             inline-size: var(--action-icon);
             block-size: var(--action-icon);
@@ -278,7 +279,7 @@
         margin-inline: calc(0.5 * var(--gap));
         margin-block-start: calc(2 * var(--gap));
         @media (width <= 30em) {
-          margin-inline: clamp(0px, 12cqi - 2rem, calc(2 * var(--gap)));
+          margin-inline: clamp(0px, 30cqi - 3rem, var(--gap));
           padding-inline: min(var(--inset), 4cqi);
           padding-block-start: calc(2 * var(--gap));
           & .hero-mark {

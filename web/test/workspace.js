@@ -845,7 +845,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
     "Output preserves repeated physical page references",
   )
   await output.getByLabel("Output page actions", { exact: true }).click()
-  await output.getByRole("button", { name: "Blank at end", exact: true }).click()
+  await output.getByRole("button", { name: "At end", exact: true }).click()
   const landscape = await output.locator(".composition-blank").boundingBox()
   assert.ok(
     Math.abs(landscape.width / landscape.height - 297 / 210) < 0.01 && landscape.height <= 168,
@@ -1278,7 +1278,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await output.getByRole("button", { name: "Select or drag Output page 1", exact: true }).click()
   const options = output.locator(".output-options")
   if ((await options.getAttribute("open")) === null) await options.locator("summary").first().click()
-  await output.getByRole("button", { name: "Blank before", exact: true }).click()
+  await output.getByRole("button", { name: "Before", exact: true }).click()
   assert.ok(
     (await total()) === "9 pages" && (await order())[0] === "210.0 × 297.0 mm",
     "Blank keeps adjacent physical dimensions",

@@ -88,6 +88,9 @@
 
 ### Fixed
 
+- Kept header feedback usable inside the filename editor and in short landscape viewports. Open panels retain visibility
+  when header controls hide, and page names retain wrapping.
+
 - Replaced trailing timestamps in automatic Output filenames so repeated exports keep a single timestamp.
 - Raised Recipe matching instructions toward the filename, leaving more space above the PDF choices.
 

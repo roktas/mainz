@@ -207,35 +207,25 @@
     element.before(marker)
     function place() {
       const modal = [...document.querySelectorAll<HTMLDialogElement>("dialog:modal")].at(-1)
-      const parent = modal ?? marker.parentElement!
+      const editor = document.querySelector<HTMLElement>(".filename-panel:popover-open")
+      const parent = editor ?? modal ?? marker.parentElement!
       if (element.parentElement !== parent) {
         element.hidePopover()
-        if (modal) modal.append(element)
+        if (editor || modal) parent.append(element)
         else marker.after(element)
       }
       if (!element.matches(":popover-open")) element.showPopover()
     }
     const observer = new MutationObserver(place)
     observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ["open"] })
-    function toggle(event: Event) {
-      if (event.target instanceof Node && !element.contains(event.target)) {
-        const target = event.target
-        if (
-          target instanceof HTMLElement &&
-          [...element.querySelectorAll("[popovertarget]")].some(
-            (button) => button.getAttribute("popovertarget") === target.id,
-          )
-        )
-          return
-        element.hidePopover()
-        place()
-      }
+    const toggle = (event: Event) => {
+      if (event.target instanceof Element && event.target.matches(".filename-panel")) place()
     }
     document.addEventListener("toggle", toggle, true)
     place()
     return () => {
-      observer.disconnect()
       document.removeEventListener("toggle", toggle, true)
+      observer.disconnect()
       element.remove()
       marker.remove()
     }

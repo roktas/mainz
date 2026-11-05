@@ -73,9 +73,9 @@ the intended text directly; do not use CSS capitalization.
 **Button labels must never wrap. Shorten the label before increasing the button width.** Use the surrounding context
 instead of repeating it: use Save when the panel already identifies the file. Keep the full action clear. Do not shrink,
 clip, or truncate action labels. Keep peer buttons equal in size and aligned after shortening their labels. At narrow
-widths and enlarged text, move or stack whole controls when needed; never split their labels. Confirmation actions place
-Cancel or Dismiss before Save or Apply. Keep the positive action on the right in a row, or below the dismissive action
-when stacked.
+widths and enlarged text, move or stack whole controls when needed; never split their labels. Page names inside
+selection controls retain their own wrapping rules. Confirmation actions place Cancel or Dismiss before Save or Apply.
+Keep the positive action on the right in a row, or below the dismissive action when stacked.
 
 The landing labels are Open PDF and Recipe. These actions share width and padding on all four sides. At normal text
 size, their icons are 24 px. PDF is 54 px high; Recipe is 1 px taller. Wide layouts center them on one row with a muted
@@ -847,14 +847,14 @@ gives its space to active feedback. Feedback keeps its natural content width so 
 Center the group vertically within the existing header. Feedback does not change the header height or workspace
 position. Its container has a transparent background and stays above the header separator. Narrow headers show feedback
 within the existing header area and temporarily hide the logo and header actions. Opening or dismissing feedback does
-not move the workspace or document scroll. Each message and its actions use one row. Long messages scroll horizontally
-within their line, with the complete text retained for assistive technology and hover. Recovery actions keep a clear
-gap. Feedback never introduces horizontal overflow or overlaps header controls. Prefer a short sentence naming the issue
-or next action. The message itself is the trigger: it opens available actions, shows its full explanation, or takes the
-user to the affected item. Do not add a separate Details or ellipsis control. Explanations and action menus use a
-bounded panel below the header. Cancellable progress retains a visible Cancel control. Show one message group at a time;
-errors precede notices after the active operation. Active feedback remains visible during document scrolling and
-respects the safe area.
+not move the workspace or document scroll. Open dialogs and popovers remain visible when their header launcher is
+hidden. Each message and its actions use one row. Long messages scroll horizontally within their line, with the complete
+text retained for assistive technology and hover. Recovery actions keep a clear gap. Feedback never introduces
+horizontal overflow or overlaps header controls. Prefer a short sentence naming the issue or next action. The message
+itself is the trigger: it opens available actions, shows its full explanation, or takes the user to the affected item.
+Do not add a separate Details or ellipsis control. Explanations and action menus use a bounded panel below the header.
+Cancellable progress retains a visible Cancel control. Show one message group at a time; errors precede notices after
+the active operation. Active feedback remains visible during document scrolling and respects the safe area.
 
 Message-panel action buttons use the shared action width and height, matching ordinary screen controls such as Cancel
 and Change PDF. Do not stretch them across the panel. Center the action group below the explanation with one standard

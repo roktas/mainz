@@ -235,6 +235,11 @@
       }
     }
   }
+  /* Top-layer panels must remain visible when their header launcher is hidden. */
+  :popover-open,
+  dialog:modal {
+    visibility: visible;
+  }
   dialog {
     border: 1px solid var(--border);
     border-radius: 8px;

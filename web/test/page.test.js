@@ -1237,7 +1237,7 @@ test(
       await ready()
       await color(image(output), 0.7, [255, 0, 0, 255])
       await output.getByLabel("Output page actions", { exact: true }).click()
-      await output.getByRole("button", { name: "Blank before", exact: true }).click()
+      await output.getByRole("button", { name: "Before", exact: true }).click()
       await output.getByRole("button", { name: "Previous Output page", exact: true }).click()
       await tab(output, "Grid")
       await dragFeedback(
@@ -1998,7 +1998,7 @@ test("Output Page keeps original PDF labels through composition and Input change
     await jump(3, "ii", 7)
     await jump(4, "3", 7)
     await output.getByLabel("Output page actions", { exact: true }).click()
-    await output.getByRole("button", { name: "Blank before", exact: true }).click()
+    await output.getByRole("button", { name: "Before", exact: true }).click()
     await jump(3, undefined, 8)
     assert.equal(await output.locator(".blank-sheet").isVisible(), true)
     await jump(4, "ii", 8)

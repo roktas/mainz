@@ -1204,6 +1204,7 @@ test("Help stays available across pointer types and tours retain visible focus",
         true,
         "Ending the tour returns focus to a visible header control",
       )
+      await input.getByRole("textbox", { name: "Page selection", exact: true }).click()
       for (const width of [375, 1024]) {
         await page.setViewportSize({ width, height: 900 })
         assert.equal(await page.locator(".help-button").isVisible(), true, `${width}px: Help remains available`)
@@ -1940,7 +1941,7 @@ test("Style and Download cancellation release preview workers and retain choices
     await page.waitForFunction((worker) => worker.terminated, cancelledStyle)
     assert.equal(await input.getByRole("combobox", { name: "Style profile", exact: true }).inputValue(), "inkjet")
     assert.equal(await output.locator(".composition-totals strong").textContent(), "2 pages")
-    assert.equal(await page.getByRole("button", { name: "Retry Input styles", exact: true }).count(), 1)
+    assert.equal(await page.locator(".header-feedback").getByRole("alert").count(), 1)
     await page.evaluate(() => {
       window.holdPDFRendering = false
       window.pdfContinuations = []
@@ -3030,6 +3031,7 @@ test("Opacity percentages preserve precision and leave room for their sliders", 
       assert.equal(await slider.inputValue(), "0.123456789")
       await field.fill("101")
       assert.equal(await field.getAttribute("aria-invalid"), "true")
+      await page.locator(".header-feedback [role=alert]").waitFor()
       assert.match(await page.locator(".header-feedback .message-details").textContent(), /between 0% and 100%/)
       await input.getByRole("button", { name: "Reset Guide Opacity", exact: true }).click()
       assert.equal(await field.inputValue(), "100")
@@ -3145,6 +3147,7 @@ test("Page addition hint skips on any click", { timeout: 60000 }, async () => {
     await settings.getByRole("button", { name: "Close Settings", exact: true }).click()
     for (const width of [390, 810]) {
       await page.setViewportSize({ width, height: 900 })
+      await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))))
       await page.reload()
       await flight.waitFor()
       await pause()
@@ -3290,7 +3293,7 @@ test(
       await page.locator(".selection-panel").getByRole("tab", { name: "Grid", exact: true }).click()
       await page.getByRole("button", { name: "Select Input page 1", exact: true }).dblclick()
       await blankOutput.locator(".output-options > summary").click()
-      await blankOutput.getByRole("button", { name: "Blank at end", exact: true }).click()
+      await blankOutput.getByRole("button", { name: "At end", exact: true }).click()
       await blankOutput.getByRole("button", { name: "Clear Output selection", exact: true }).click()
       await blankOutput.getByRole("button", { name: "Remove Output page 1", exact: true }).click()
       await page.locator(".input-picker > summary h2").click()
@@ -3339,7 +3342,7 @@ test(
         await page.locator(".input-current").waitFor()
       }
       await openHintInput()
-      const instruction = "Select pages · Use + to add to Output."
+      const instruction = "Select pages · Use + to add to Output"
       const status = page.locator(".footnote [role=status] span")
       const notice = page.locator(".header-feedback [role=status]").filter({ hasText: instruction })
       const instructionText = notice
@@ -3373,7 +3376,7 @@ test(
         { delay: 2600, duration: 4200 },
       )
       assert.equal(await flight.evaluate((element) => getComputedStyle(element).opacity), "0")
-      assert.equal(await instructionText.textContent(), instruction)
+      assert.equal((await instructionText.textContent()).trim(), instruction)
       assert.equal(
         await page.getByRole("button", { name: "Select Input page 1", exact: true }).getAttribute("aria-pressed"),
         "true",
@@ -3410,7 +3413,7 @@ test(
         "Notice text keeps its full contrast during display",
       )
       await flight.waitFor({ state: "hidden" })
-      assert.equal(await instructionText.textContent(), instruction)
+      assert.equal((await instructionText.textContent()).trim(), instruction)
       assert.equal(await page.locator(".composition-totals strong").textContent(), "0 pages")
       assert.equal(
         await instructionText.evaluate((element) => getComputedStyle(element).fontWeight),
@@ -3456,7 +3459,7 @@ test(
       await flight.waitFor()
       await page.emulateMedia({ reducedMotion: "reduce" })
       await flight.waitFor({ state: "hidden" })
-      assert.equal(await instructionText.textContent(), instruction)
+      assert.equal((await instructionText.textContent()).trim(), instruction)
       assert.equal(await page.locator(".composition-totals strong").textContent(), "0 pages")
       await page.reload()
       await openHintInput()

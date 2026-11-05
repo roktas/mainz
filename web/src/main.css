@@ -34,6 +34,9 @@
     }
   }
   @scope (.composer, .drag-image[data-strip]) {
+    .list-choice {
+      white-space: normal;
+    }
     :is(.page-name, .detail-name, .list-choice, .lens-name, .page-peek > p, .drop-name, .drag-title) {
       font-variant-caps: all-small-caps;
       font-synthesis: small-caps;
@@ -228,7 +231,7 @@
       inset-block-end: auto;
       inset-inline: var(--gutter);
       inline-size: min(32rem, calc(100vi - 2 * var(--gutter)));
-      max-block-size: min(24rem, 60dvb);
+      max-block-size: min(24rem, 60dvb, calc(100dvb - anchor-size(--header block) - 2 * var(--gap)));
       margin-block: 0;
       margin-inline: auto;
       padding: var(--gap);

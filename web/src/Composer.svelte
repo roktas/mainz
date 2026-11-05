@@ -1743,12 +1743,12 @@
         {#if chosen.length}<button
             disabled={!!outputSelectionError}
             onclick={() => blank(positions[0])}
-            title="Insert a blank before the first selected page"><Icon name="blank" />Blank before</button
+            title="Insert a blank before the first selected page"><Icon name="blank" />Before</button
           >{/if}
         <button
           disabled={!output.pages.length}
           onclick={() => blank(output.pages.length)}
-          title="Add a blank page at the end"><Icon name="blank" />Blank at end</button
+          title="Add a blank page at the end"><Icon name="blank" />At end</button
         >
         <button
           onclick={() => {

@@ -178,10 +178,10 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
         await send("touchStart", { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 })
         await send("touchMove", { x: bounds.x + bounds.width / 2 + 10, y: bounds.y + bounds.height / 2 })
         assert.equal(
-          await page.locator(".header-feedback [role=status]").filter({ hasText: "Move to Output." }).count(),
+          await page.locator(".header-feedback [role=status]").filter({ hasText: "Move to Output" }).count(),
           0,
         )
-        await page.locator(".header-feedback [role=status]").filter({ hasText: "Move to Output." }).waitFor()
+        await page.locator(".header-feedback [role=status]").filter({ hasText: "Move to Output" }).waitFor()
         assert.equal(
           await views
             .getByRole("button", { name: "Output", exact: true })
@@ -190,7 +190,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
         )
         await send("touchMove", { x: bounds.x + bounds.width / 2 + 10, y: bounds.y + bounds.height / 2 - 20 })
         assert.equal(
-          await page.locator(".header-feedback [role=status]").filter({ hasText: "Move to Output." }).count(),
+          await page.locator(".header-feedback [role=status]").filter({ hasText: "Move to Output" }).count(),
           0,
           "Progress toward Output dismisses the delayed hint",
         )
@@ -204,7 +204,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
         await page.waitForTimeout(750)
         assert.equal(await input.isVisible(), true, "Hovering Output does not change the pane before the drop")
         assert.equal(
-          await page.locator(".header-feedback [role=status]").filter({ hasText: "Move to Output." }).count(),
+          await page.locator(".header-feedback [role=status]").filter({ hasText: "Move to Output" }).count(),
           0,
         )
         await send("touchEnd")
@@ -995,7 +995,7 @@ test("Output menu labels fit one line with narrow and enlarged text", { timeout:
           })
           assert.deepEqual(
             controls.slice(-4).map((button) => button.label),
-            ["Blank before", "Blank at end", "Filename", "Repeat"],
+            ["Before", "At end", "Filename", "Repeat"],
           )
           assert.ok(
             controls.every((button) => button.lines === 1 && button.fits),
