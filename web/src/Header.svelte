@@ -52,7 +52,6 @@
       reports.findLast((item) => item.kind === "error") ??
       reports.at(-1),
   )
-  const reportBusy = $derived(activeReport?.kind === "progress")
   export function report(item: Report) {
     reports = [...reports, item]
     const remove = () => {
@@ -113,11 +112,6 @@
   >{/snippet}
 {#if visible}
   <div class="header-feedback" popover="manual" {@attach present}>
-    {#if activeReport && !headerBusy && (reportBusy || activeReport.kind === "error" || !headerError)}<Feedback
-        {...activeReport}
-        actions={activeReport?.actions ??
-          (activeReport?.kind === "progress" || activeReport?.children ? undefined : dismissReport)}
-      />{/if}
     {#if exportStatus}<Feedback kind="progress" text={exportStatus}>
         {#snippet actions()}<button
             type="button"
@@ -152,18 +146,15 @@
             title="Cancel"
             onclick={cancelStyle}><Icon name="close" /></button
           >{/snippet}
-      </Feedback>{/if}
-    {#if !exportStatus && !loading && !processingSource && offlineStatus}<Feedback
+      </Feedback>{:else if offlineStatus}<Feedback
         kind="progress"
         class="offline-progress"
         text={offlineStatus}
-      />{/if}
-    {#if !activeReport && !headerError && !headerBusy && notice}<Feedback kind="notice" class="notice" text={notice}>
-        {#snippet actions()}<button type="button" aria-label="Dismiss notification" onclick={() => notify("")}
-            >Dismiss</button
-          >{/snippet}
-      </Feedback>{/if}
-    {#if failure && !headerBusy && !reportBusy && activeReport?.kind !== "error"}<Feedback
+      />{:else if activeReport && (activeReport.kind === "progress" || activeReport.kind === "error" || !headerError)}<Feedback
+        {...activeReport}
+        actions={activeReport.actions ??
+          (activeReport.kind === "progress" || activeReport.children ? undefined : dismissReport)}
+      />{:else if failure}<Feedback
         kind="error"
         text={Array.isArray(failure) ? `${failure.length} ${failure.length === 1 ? "file" : "files"} failed` : failure}
         details={Array.isArray(failure) ? failure : undefined}
@@ -172,13 +163,11 @@
         {#snippet actions()}<button type="button" aria-label="Dismiss error" onclick={() => (failure = "")}
             >Dismiss</button
           >{/snippet}
-      </Feedback>{/if}
-    {#if downloadError && !headerBusy && !reportBusy && activeReport?.kind !== "error" && !failure && !failedSources.length}<Feedback
+      </Feedback>{:else if downloadError && !failedSources.length}<Feedback
         kind="error"
         text={downloadError}
         summary="Check Output Inputs."
-      />{/if}
-    {#if !failure && !headerBusy && !reportBusy && activeReport?.kind !== "error"}{#each failedSources.slice(0, 1) as source (source.id)}<Feedback
+      />{:else if failedSources.length}{#each failedSources.slice(0, 1) as source (source.id)}<Feedback
           kind="error"
           text={`${source.input.name}: ${source.preview.error} The last completed preview is shown.`}
           summary="Style update failed."
@@ -189,6 +178,10 @@
               title="Retry styles"
               onclick={() => retry(source.id)}>Retry</button
             >{/snippet}
-        </Feedback>{/each}{/if}
+        </Feedback>{/each}{:else if notice}<Feedback kind="notice" class="notice" text={notice}>
+        {#snippet actions()}<button type="button" aria-label="Dismiss notification" onclick={() => notify("")}
+            >Dismiss</button
+          >{/snippet}
+      </Feedback>{/if}
   </div>
 {/if}

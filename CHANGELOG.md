@@ -95,6 +95,7 @@
 
 ### Fixed
 
+- Header feedback keeps application update progress within one row without a vertical scrollbar.
 - TOC examples open on a fresh static-host visit through query URLs.
 - Contents reveals the current section in long outlines and announces one current location.
 

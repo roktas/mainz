@@ -1894,6 +1894,85 @@ test("Offline reads do not recreate a retired cache", { timeout: 60000 }, async 
   }
 })
 
+test(
+  "Application update progress replaces earlier feedback without a vertical header scroller",
+  { timeout: 60000 },
+  async () => {
+    const outDir = await production()
+    const server = await preview({
+      base: "/composer/",
+      build: { outDir },
+      preview: { host: "127.0.0.1", port: 0 },
+    })
+    const browser = await launch(chromium)
+    try {
+      for (const [width, text, colorScheme] of [
+        [1440, "100%", "light"],
+        [1440, "200%", "dark"],
+        [1024, "100%", "dark"],
+        [320, "200%", "light"],
+        [390, "100%", "dark"],
+        [768, "200%", "light"],
+      ]) {
+        const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme, reducedMotion: "reduce" })
+        await page.addInitScript(() => {
+          // Hold activation at the browser boundary so progress remains measurable.
+          const container = new EventTarget()
+          container.register = async () =>
+            Object.assign(new EventTarget(), { active: {}, waiting: { postMessage() {} } })
+          Object.defineProperty(navigator, "serviceWorker", { value: container })
+        })
+        await page.goto(server.resolvedUrls.local[0])
+        await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+        await page.getByText("Update ready", { exact: true }).waitFor()
+        for (const previous of ["notice", "error"]) {
+          if (previous === "error") {
+            await page.evaluate(() =>
+              navigator.serviceWorker.dispatchEvent(new MessageEvent("message", { data: "update-blocked" })),
+            )
+            await page.getByRole("alert").filter({ hasText: "Close other PDF Composer tabs" }).waitFor()
+          }
+          const header = await page.locator(".header-inner").boundingBox()
+          const main = await page.locator("main").boundingBox()
+          await page.getByRole("button", { name: "Update app", exact: true }).click()
+          await page.getByText("Updating application…", { exact: true }).waitFor()
+          const panel = page.locator(".header-feedback")
+          assert.equal(await panel.locator(":scope > .feedback").count(), 1)
+          assert.equal(await panel.getByRole("alert").count(), 0)
+          assert.deepEqual(await page.locator(".header-inner").boundingBox(), header)
+          assert.deepEqual(await page.locator("main").boundingBox(), main)
+          const geometry = await panel.evaluate((element) => {
+            const feedback = element.querySelector(".feedback").getBoundingClientRect()
+            const spinner = element.querySelector(".spinner").getBoundingClientRect()
+            const message = element.querySelector(".feedback-message").getBoundingClientRect()
+            const frame = document.querySelector(".header-inner").getBoundingClientRect()
+            return {
+              overflow: getComputedStyle(element).overflowY,
+              contained: feedback.top >= frame.top && feedback.bottom <= frame.bottom,
+              centered: Math.abs(feedback.x + feedback.width / 2 - frame.x - frame.width / 2) < 1,
+              aligned: Math.abs(spinner.y + spinner.height / 2 - message.y - message.height / 2) < 1,
+              fits: element.scrollHeight <= element.clientHeight && element.scrollWidth <= element.clientWidth,
+            }
+          })
+          const label = `${width}px, ${text}, ${colorScheme}, after ${previous}: ${JSON.stringify(geometry)}`
+          assert.ok(!["auto", "scroll"].includes(geometry.overflow), label)
+          assert.ok(geometry.contained && geometry.centered && geometry.aligned && geometry.fits, label)
+          if (previous === "notice" && (width === 320 || (width === 1440 && text === "100%"))) {
+            await mkdir("../.local/tmp/web/layout/feedback", { recursive: true })
+            await page
+              .locator(".masthead")
+              .screenshot({ path: `../.local/tmp/web/layout/feedback/update-${width}.png` })
+          }
+        }
+        await page.close()
+      }
+    } finally {
+      await browser.close()
+      await new Promise((resolve, reject) => server.httpServer.close((error) => (error ? reject(error) : resolve())))
+    }
+  },
+)
+
 test("Offline assets, scoped startup, and updates preserve a compatible workspace", { timeout: 180000 }, async () => {
   const outDir = await production()
   let server, browser

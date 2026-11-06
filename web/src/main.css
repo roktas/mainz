@@ -429,11 +429,7 @@
       justify-self: center;
       inline-size: min(100%, 32rem);
       min-inline-size: 0;
-      overflow: auto;
-      overscroll-behavior: contain;
-      & > .feedback + .feedback {
-        margin-block-start: calc(var(--gap) / 2);
-      }
+      overflow: clip;
     }
     @container app-header (width <= 55rem) {
       .header-inner[data-feedback] > :is(.brand, .header-actions) {
