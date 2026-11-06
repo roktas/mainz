@@ -3,7 +3,8 @@
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { Input } from "./model.ts"
 
-export type Outline = { title: string; path: string[]; depth: number; page: number; end: number }
+export type SectionPath = { path: readonly string[]; keys: readonly string[] }
+export type Outline = SectionPath & { title: string; depth: number; page: number; end: number }
 
 export async function readOutline(
   pdf: Pick<PDFDocumentProxy, "numPages" | "getOutline" | "getDestination" | "getPageIndex">,
@@ -14,14 +15,15 @@ export async function readOutline(
   const pages = new Map<string, ReturnType<typeof pdf.getPageIndex>>()
   try {
     const pending = ((await pdf.getOutline()) ?? [])
-      .map((node) => ({ node, path: [] as string[], depth: 0 }))
+      .map((node) => ({ node, path: [] as string[], keys: [] as string[], depth: 0 }))
       .toReversed()
     let visited = 0
     while (pending.length && visited++ < 10000 && !cancelled()) {
-      const { node, path, depth } = pending.pop()!
+      const { node, path, keys, depth } = pending.pop()!
       if (path.length >= 64) continue
       const title = node.title?.trim() && node.title.length <= 4096 ? node.title : undefined
       const next = title ? [...path, title] : path
+      const nextKeys = title ? [...keys, String(visited)] : keys
       let retained = false
       if (title)
         try {
@@ -44,14 +46,14 @@ export async function readOutline(
           }
           if (cancelled()) return []
           if (typeof page === "number" && Number.isInteger(page) && page >= 0 && page < pdf.numPages) {
-            result.push({ title, path: next, depth, page, end: pdf.numPages - 1 })
+            result.push({ title, path: next, keys: nextKeys, depth, page, end: pdf.numPages - 1 })
             retained = true
           }
         } catch {
           // A broken navigation target must not prevent opening the PDF or reading its children.
         }
       for (const child of node.items.toReversed())
-        pending.push({ node: child, path: next, depth: retained ? depth + 1 : depth })
+        pending.push({ node: child, path: next, keys: nextKeys, depth: retained ? depth + 1 : depth })
     }
   } catch {
     return []
@@ -74,7 +76,7 @@ const maxIndexedSections = 250000
 function leaves(matching: readonly Outline[]) {
   return matching.filter((entry, order) => {
     const next = matching[order + 1]
-    return !next || next.depth <= entry.depth || !entry.path.every((part, depth) => part === next.path[depth])
+    return !next || next.depth <= entry.depth || !entry.keys.every((key, depth) => key === next.keys[depth])
   })
 }
 
@@ -120,12 +122,11 @@ export type PageTitle = {
   name?: string
   paths?: readonly (readonly string[])[]
   context: readonly (readonly string[])[]
-  heading: readonly string[]
-  sectionCount: number
+  headings: readonly SectionPath[]
 }
 type TitleInput = Pick<Input, "description" | "outline">
 const titles = new WeakMap<TitleInput, Titles>()
-const untitled: PageTitle = { context: [], heading: [], sectionCount: 0 }
+const untitled: PageTitle = { context: [], headings: [] }
 
 class Titles {
   readonly choice: boolean
@@ -158,8 +159,7 @@ class Titles {
               .map((entry) => (entry.title === page.name ? entry.path.slice(0, -1) : entry.path))
               .filter((path) => path.length)
           : [],
-        heading: section ? (section.path.length > 1 ? section.path.slice(0, -1) : section.path) : [],
-        sectionCount: sections.length,
+        headings: sections,
       }
       result = { authored, toc: section ? { ...authored, name: section.title, paths, context: [] } : authored }
       // Retain recently visible identities rather than every page's breadcrumb arrays.

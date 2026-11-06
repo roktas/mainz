@@ -283,7 +283,7 @@
 }
 @layer layouts {
   @scope (#app) {
-    :is(.icon-button, .theme, .tool, .page-grip, .reset, .step:not(.primary)) {
+    :is(.icon-button, .theme, .tool, .page-grip, .reset, .step:not(.primary, .danger)) {
       @media (hover: hover) and (pointer: fine) {
         &:hover:not(:disabled) {
           background: transparent;

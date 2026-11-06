@@ -4,11 +4,14 @@
 
 ### Added
 
+- Input List shows PDF page labels in their own column before page names when the document defines them.
 - Collapsible List sections with block selection and dragging, section addition or copying, and first-page viewing.
-  Sections start closed when the expanded list exceeds the pane height, with a toolbar toggle for all sections.
+  Sections start closed when the expanded list exceeds the pane height, with a toolbar toggle for all sections and
+  ribbon disclosure buttons.
+- List section headings are shown by default and can be hidden independently in each pane for a flat page list.
 - TOC display titles, compact Input navigation, List section headings, and source-color dots for multiple-Input Output,
   with single and multiple demos.
-- Compact public-domain TOC samples. All demo documents download on demand and use a separate, bounded offline cache.
+- Public-domain TOC samples. All demo documents download on demand and use a separate, bounded offline cache.
 - Recipe loading from the landing page, with saved Input titles, embedded covers, XMP details, local PDF matching, and a
   separate Recipe demo. Loaded profiles, manual edits, and baseline resets remain editable and exportable.
 - Output title and cover-page choices in the existing filename editor, written to generated PDF metadata and retained
@@ -43,6 +46,19 @@
 
 ### Changed
 
+- List retains every TOC entry as a separate header, including entries without children, and folds, selects, or copies
+  its subtree.
+- The TOC demo uses the complete public-domain _Advanced Bash-Scripting Guide_, with three outline levels.
+- List section headings put the current title first, with muted parent titles and a compact full-path panel.
+- List places drag grips before page numbers. Section ribbons combine folding and dragging, followed by their starting
+  position and optional Input PDF page label. Nested headers use depth tints. Titles and starting page numbers use
+  normal text color when closed and primary when open, with the same text weight. Ribbons keep the secondary color.
+- Jump to section navigates from headers and pages to their ancestors, including the current Output occurrence.
+- Contents reveals the exact target in every view. Jump targets receive a brief highlight that respects reduced motion.
+- List rows use the full selection-bar width, with a stable external scrollbar gutter and matching toolbar separator.
+- Page places page labels in the leading footer corner and centers navigation arrows beside the middle actions.
+- Compact Grid numbers have more leading space, including wide counters.
+- Selected expanded List sections use a soft tint and selection tick without a leading line.
 - Landing file actions share a row on narrow screens and gain width on wide screens.
 - File details align fields and values in a table and include PDF Info authors when XMP has none.
 - Shortcut Help uses more compact keycaps and groups routing notes to fit desktop List views.
@@ -97,6 +113,11 @@
 
 ### Fixed
 
+- Clearing a header report cannot crash child effects during teardown.
+- Normal Grid keeps physical numbers centered and shows page labels in a detail table; long section paths stay inside
+  the detail panel.
+- List page and section View icons stay aligned when hierarchy controls widen the shared action column.
+- Keep the Output Remove button's danger background on hover and press so its white minus remains visible in light mode.
 - Header feedback keeps application update progress within one row without a vertical scrollbar.
 - TOC examples open on a fresh static-host visit through query URLs.
 - Contents reveals the current section in long outlines and announces one current location.

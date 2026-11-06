@@ -114,6 +114,9 @@ test("Page titles preserve authored names by default and use TOC only as a displ
   assert.deepEqual(titles.at(1, true).paths, [["Chapter", "Section"]])
   assert.equal(titles.at(2).name, "Section")
   assert.deepEqual(titles.at(3).context, [["Chapter"]])
+  const flat = titlesOf({ ...input, outline: undefined })
+  assert.equal(flat.at(1).name, "Authored")
+  assert.deepEqual(flat.at(1).headings, [])
   assert.equal(
     titlesOf({ ...input, description: { ...input.description, pages: [{}, { name: "Section" }, {}, {}] } }).choice,
     false,
@@ -132,10 +135,41 @@ test("Cancellation discards optional TOC work before reading navigation targets"
   assert.deepEqual(await readOutline(document, () => cancelled), [])
 })
 
+test("Every defined TOC heading remains a header independently of its page names", async () => {
+  const outline = await readOutline(
+    pdf(
+      [
+        node("Preface", 0),
+        node("Chapter 1", 1, [node("Section 1.1", 1, [node("Page X", 2), node("Page Y", 3)])]),
+        node("Epilogue", 4),
+      ],
+      5,
+    ),
+  )
+  const titles = titlesOf({
+    outline,
+    description: { version: 1, pageCount: 5, pages: Array.from({ length: 5 }, () => ({})), parameters: {} },
+  })
+  assert.deepEqual(
+    Array.from({ length: 5 }, (_, page) => [
+      titles.at(page).name,
+      titles.at(page).headings.map((heading) => heading.path),
+    ]),
+    [
+      ["Preface", [["Preface"]]],
+      ["Section 1.1", [["Chapter 1", "Section 1.1"]]],
+      ["Page X", [["Chapter 1", "Section 1.1", "Page X"]]],
+      ["Page Y", [["Chapter 1", "Section 1.1", "Page Y"]]],
+      ["Epilogue", [["Epilogue"]]],
+    ],
+  )
+})
+
 test("Indexed titles resolve the full supported page count", () => {
   const outline: Outline[] = Array.from({ length: 10000 }, (_, page) => ({
     title: `Section ${page + 1}`,
     path: [`Section ${page + 1}`],
+    keys: [String(page)],
     depth: 0,
     page,
     end: page,
@@ -151,15 +185,15 @@ test("Indexed titles resolve the full supported page count", () => {
 
 test("Non-monotonic bookmarks retain every overlapping section and the final page title", () => {
   const outline: Outline[] = Array.from({ length: 1000 }, (_, index) => [
-    { title: `A${index}`, path: [`A${index}`], depth: 0, page: index, end: 999 + index },
-    { title: `B${index}`, path: [`B${index}`], depth: 0, page: 1000 + index, end: 1000 + index },
+    { title: `A${index}`, path: [`A${index}`], keys: [`A${index}`], depth: 0, page: index, end: 999 + index },
+    { title: `B${index}`, path: [`B${index}`], keys: [`B${index}`], depth: 0, page: 1000 + index, end: 1000 + index },
   ]).flat()
   const titles = titlesOf({
     outline,
     description: { version: 1, pageCount: 2000, pages: Array.from({ length: 2000 }, () => ({})), parameters: {} },
   })
   assert.equal(titles.at(999).name, "A0")
-  assert.equal(titles.at(999).sectionCount, 1000)
+  assert.equal(titles.at(999).headings.length, 1000)
   assert.equal(titles.at(1999).name, "B999")
 })
 

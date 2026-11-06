@@ -90,35 +90,53 @@ digests and covers. Keep the logical IDs `book`, `guides`, and `crossings` so th
 
 ## TOC samples
 
-[`toc/flatland.pdf`](toc/flatland.pdf) contains chapters I-III and XIII-XV of Edwin A. Abbott's _Flatland_ (1884). It
-retains the original illustrations as vectors and the two-level Part/Chapter structure. Editorial endnotes are omitted.
-[`toc/bridge.pdf`](toc/bridge.pdf) contains Ambrose Bierce's complete _An Occurrence at Owl Creek Bridge_ (1890), with
-its three original sections. Both PDFs include printed contents, linked PDF outlines, and standard document metadata.
-Neither adds authored page names. The samples contain 26 and 13 pages. They are smaller than the 250 KiB PDF budget.
+[`toc/bash.pdf`](toc/bash.pdf) is Mendel Cooper's complete _Advanced Bash-Scripting Guide_, revision 10 (2014), from
+[The Linux Documentation Project](https://tldp.org/LDP/abs/abs-guide.pdf). It contains 916 pages, 38 chapters, and 156
+outline entries across three levels. Examples include Chapter 9 → Section 9.2 → Subsection 9.2.1, and Chapter 10 →
+Section 10.1 → Subsections 10.1.1 and 10.1.2. Chapters without children, appendices, tables, and code examples provide
+other realistic List cases. The author explicitly places the work in the
+[public domain](https://tldp.org/LDP/abs/html/copyright.html).
 
-The Flatland source comes from [Standard Ebooks](https://standardebooks.org/ebooks/edwin-a-abbott/flatland). Its
-contributors dedicate their additions to the public domain under
-[CC0](https://github.com/standardebooks/edwin-a-abbott_flatland/blob/master/LICENSE.md). The Bierce text comes from
-[Project Gutenberg #375](https://www.gutenberg.org/ebooks/375), which lists the work as public domain in the USA.
-[`toc/sources.json`](toc/sources.json) retains the selected text, vector illustrations, source URLs, and source hashes.
-The reading PDFs omit the Gutenberg branding and license boilerplate. Source attribution remains on each cover. New
-layout contributions in the two reading PDFs are dedicated to the public domain under CC0-1.0.
+The source PDF has duplicate resource dictionary keys. QPDF 12.4.2 normalizes these dictionaries and compresses object
+storage. All 916 page content streams, page boxes, and outline titles and destinations remain unchanged. No text,
+headings, or layout are authored for the demo. Output starts with pages from third-level outline entries to expose
+multilevel headers and repeated occurrences.
 
-Run the deterministic builder from the repository root:
+To refresh this fixture, download the pinned source and normalize it:
 
 ```sh
-uv run --with reportlab==5.1.0 --with svglib==2.4.0 web/test/fixtures/toc/build.py
+mkdir -p .local/tmp/web
+curl -fL https://tldp.org/LDP/abs/abs-guide.pdf -o .local/tmp/web/abs-guide.pdf
+printf '%s  %s\n' 'e36fca77351b221715567db4700cdb0041c8558d8db5c022e5dc2e2d35be4199' '.local/tmp/web/abs-guide.pdf' | sha256sum --check
+qpdf --warning-exit-0 --deterministic-id --object-streams=generate .local/tmp/web/abs-guide.pdf web/test/fixtures/toc/bash.pdf
+qpdf --check web/test/fixtures/toc/bash.pdf
+```
+
+[`toc/bridge.pdf`](toc/bridge.pdf) contains Ambrose Bierce's complete _An Occurrence at Owl Creek Bridge_ (1890), with
+its three original sections, in 13 pages. The text comes from
+[Project Gutenberg #375](https://www.gutenberg.org/ebooks/375), which lists the work as public domain in the USA. The
+reading PDF omits Gutenberg branding and license boilerplate.
+
+Both PDFs include printed contents, linked PDF outlines, and standard document metadata. Neither adds authored page
+names. Each PDF is smaller than the 2 MiB demo budget. [`toc/sources.json`](toc/sources.json) retains the Bierce text,
+source URLs, and source hashes. Source attribution remains in each PDF. New layout contributions to the Bierce PDF are
+dedicated to the public domain under CC0-1.0.
+
+Run the deterministic Bierce builder from the repository root:
+
+```sh
+uv run --with reportlab==5.1.0 web/test/fixtures/toc/build.py
 ```
 
 The builder reads only retained inputs and requires no network access after its dependencies are installed. After a
-rebuild, inspect the outlines with QPDF and render the pages with Poppler. Make sure that headings, illustrations,
-contents links, and page numbers remain correct before replacing the fixtures.
+rebuild, inspect the outlines with QPDF and render the pages with Poppler. Make sure that headings, contents links, and
+page numbers remain correct before replacing the fixtures.
 
 ## Download and storage budget
 
 All demo PDFs and Recipes stay outside the offline installation manifest. Vite publishes them as optional static files.
 The application downloads each file only when a user opens its demo or requests its sample PDFs. A separate cache
-retains only the current catalog's hash-matched files, up to 2 MiB in total. Application updates retain unchanged
+retains only the current catalog's hash-matched files, up to 4 MiB in total. Application updates retain unchanged
 examples and remove changed or retired hashes. New downloads bypass the HTTP cache. A fresh offline installation cannot
-open a demo that has not been downloaded. The build rejects PDFs above 250 KiB and Recipes above 1 MiB. Large demo
-repeats the shared four-page sample in the browser.
+open a demo that has not been downloaded. The build rejects PDFs above 2 MiB and Recipes above 1 MiB. Large demo repeats
+the shared four-page sample in the browser.

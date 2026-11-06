@@ -1082,13 +1082,16 @@ test("Demo variants open the maintained Input with populated or empty Output", a
       assert.equal(await input.locator(".page-image[aria-pressed=true]").count(), selected)
       if (!query) {
         const output = page.locator(".composition-output")
-        const order = await output.locator(".page-origin-info .page-context").allTextContents()
+        const order = await output
+          .locator('.page-origin-info .page-details tr:has(th:text-is("Original page")) td')
+          .allTextContents()
         await gridPage(output, 8)
-        order.push(...(await output.locator(".page-origin-info .page-context").allTextContents()))
-        assert.deepEqual(
-          order,
-          [1, 2, 3, 4, 3, 4, 3, 4].map((number) => `demo.pdf · p. ${number}`),
+        order.push(
+          ...(await output
+            .locator('.page-origin-info .page-details tr:has(th:text-is("Original page")) td')
+            .allTextContents()),
         )
+        assert.deepEqual(order, [1, 2, 3, 4, 3, 4, 3, 4].map(String))
         await gridPage(output, 1)
         assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "1-4")
         await input.getByRole("tab", { name: "Page", exact: true }).click()
@@ -1687,12 +1690,12 @@ test("Production demos download on demand and reuse verified files offline", { t
   const assets = JSON.parse(worker.match(/const ASSETS = (.*);\n/)[1])
   const examples = JSON.parse(worker.match(/const EXAMPLES = (.*);\n/)[1])
   const replacement = await readFile(join(outDir, "toc/bridge.pdf"))
-  const original = await readFile(join(outDir, "toc/flatland.pdf"))
+  const original = await readFile(join(outDir, "toc/bash.pdf"))
   const replacementHash = createHash("sha256").update(replacement).digest("hex")
   const next = examples
     .filter((asset) => asset.path !== "toc/bridge.pdf")
     .map((asset) =>
-      asset.path === "toc/flatland.pdf" ? { ...asset, bytes: replacement.length, sha256: replacementHash } : asset,
+      asset.path === "toc/bash.pdf" ? { ...asset, bytes: replacement.length, sha256: replacementHash } : asset,
     )
   const requests = []
   let changed = false
@@ -1719,7 +1722,7 @@ test("Production demos download on demand and reuse verified files offline", { t
                         .replace(/const EXAMPLES = .*;\n/, `const EXAMPLES = ${JSON.stringify(next)};\n`)
                     : worker,
                 )
-              } else if (path === "toc/flatland.pdf") {
+              } else if (path === "toc/bash.pdf") {
                 response.setHeader("Content-Type", "application/pdf")
                 response.setHeader("Cache-Control", "public, max-age=31536000")
                 response.end(changed ? replacement : original)
@@ -1738,13 +1741,13 @@ test("Production demos download on demand and reuse verified files offline", { t
       "recipe.json",
       "recipe/guides.pdf",
       "recipe/crossings.pdf",
-      "toc/flatland.pdf",
+      "toc/bash.pdf",
       "toc/bridge.pdf",
     ]
     assert.ok(assets.every((asset) => !paths.includes(asset.path)))
     assert.equal(examples.length, 6)
-    assert.ok(examples.reduce((sum, asset) => sum + asset.bytes, 0) <= 2 * 1024 * 1024)
-    assert.ok(examples.filter((asset) => asset.path.endsWith(".pdf")).every((asset) => asset.bytes <= 250 * 1024))
+    assert.ok(examples.reduce((sum, asset) => sum + asset.bytes, 0) <= 4 * 1024 * 1024)
+    assert.ok(examples.filter((asset) => asset.path.endsWith(".pdf")).every((asset) => asset.bytes <= 2 * 1024 * 1024))
     await page.goto(url)
     await page.waitForFunction(() => navigator.serviceWorker.controller)
     assert.deepEqual(requests, [], "Installing the app does not download demo documents")
@@ -1755,7 +1758,7 @@ test("Production demos download on demand and reuse verified files offline", { t
     for (const multiple of [false, true]) {
       await page.goto(`${url}?demo=toc${multiple ? "-multiple" : ""}`)
       await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
-      assert.equal(await page.locator(".input-current").innerText(), "flatland.pdf")
+      assert.equal(await page.locator(".input-current").innerText(), "bash.pdf")
       assert.equal(
         await page.locator(".composition-output .composition-totals strong").textContent(),
         multiple ? "11 pages" : "9 pages",
@@ -1764,7 +1767,7 @@ test("Production demos download on demand and reuse verified files offline", { t
       assert.ok(
         await page
           .locator(".contents:popover-open")
-          .getByRole("button", { name: "Collapse Part II: Other Worlds", exact: true })
+          .getByRole("button", { name: "Collapse Chapter 9. Another Look at Variables", exact: true })
           .isVisible(),
       )
       await page.keyboard.press("Escape")
@@ -1824,7 +1827,7 @@ test("Production demos download on demand and reuse verified files offline", { t
     assert.equal(retained.length, 4, "The changed file and the retired file are removed; four unchanged files remain")
     assert.ok(retained.every((key) => !/\/toc\//.test(key)))
     const fresh = await page.evaluate(async (base) => {
-      const bytes = await (await fetch(new URL("toc/flatland.pdf", base))).arrayBuffer()
+      const bytes = await (await fetch(new URL("toc/bash.pdf", base))).arrayBuffer()
       return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
         .map((byte) => byte.toString(16).padStart(2, "0"))
         .join("")
@@ -2429,6 +2432,29 @@ test("Public TOC examples open on a fresh static-host visit without a service wo
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
         assert.equal((await page.goto(href)).status(), 200)
         await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
+        assert.ok(
+          (await page.locator(".selection-panel .list-current").allTextContents()).includes(
+            "Chapter 2. Starting Off With a Sha-Bang",
+          ),
+        )
+        const contentsHeader = page
+          .locator(".selection-panel")
+          .getByRole("button", { name: "Table of Contents", exact: true })
+        assert.equal(await contentsHeader.locator("..").locator(".list-number").innerText(), "2")
+        assert.equal(await contentsHeader.locator("..").locator(".list-pdf-label").innerText(), "i")
+        await contentsHeader.locator("..").locator(".list-disclosure").click()
+        assert.equal(
+          await page.locator('.selection-panel .list-choice[data-page="1"]').textContent(),
+          "Table of Contents",
+        )
+        await page.getByRole("button", { name: "Input contents", exact: true }).click()
+        const titles = await page.locator(".contents:popover-open .destination > span:first-child").allTextContents()
+        assert.equal(titles.length, 156)
+        assert.ok(titles.includes("Chapter 9. Another Look at Variables"))
+        assert.ok(titles.includes("9.2. Typing variables: declare or typeset"))
+        assert.ok(titles.includes("9.2.1. Another use for declare"))
+        assert.ok(titles.includes("10.1.1. Manipulating strings using awk"))
+        await page.keyboard.press("Escape")
         assert.equal(
           await page.locator(".composition-output .composition-totals strong").textContent(),
           demo === "toc" ? "9 pages" : "11 pages",

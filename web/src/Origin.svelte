@@ -47,14 +47,16 @@
   const title = $derived(origin && titlesOf(origin.input).at(page, "tocTitles" in identity && identity.tocTitles))
   const name = $derived(title?.name)
   const paths = $derived(pane === "Input" ? title?.paths : undefined)
-  const label = $derived(pane === "Input" ? origin?.input.labels[page] : undefined)
+  const label = $derived(origin?.input.labels[page])
   const source = $derived(
     pane === "Output" && mode === "list" && multiple && origin
       ? { number: origin.number, title: titleOf(origin.input) }
       : undefined,
   )
   const destinations = $derived("destinations" in identity ? (identity.destinations ?? []) : [])
-  const details = $derived(pane === "Output" || destinations.length > 0 || !!title?.sectionCount)
+  const details = $derived(
+    pane === "Output" || destinations.length > 0 || !!title?.headings.length || (!!label && label !== String(page + 1)),
+  )
   const appearance = $derived(
     origin &&
       (pane === "Input"
@@ -69,29 +71,33 @@
 {#snippet numberLabel()}
   <strong><span>{number}</span></strong>
   {#if source}<Provenance id={`${id}-source`} number={source.number} title={source.title} />{/if}
-  {#if label && label !== String(number)}<span class="page-context">{label}</span>{/if}
 {/snippet}
-{#snippet copyNote()}
-  <span class="page-context"
-    >Output · <strong>{destinations.length}×</strong>{#if destinations.length}{" → "}{pageRanges(
-        destinations,
-      )}{/if}</span
-  >
+{#snippet pageDetails()}
+  <table class="page-details">
+    <tbody>
+      {#if origin}
+        {#if pane === "Output"}<tr><th scope="row">Input</th><td>{origin.input.name}</td></tr>{/if}
+        <tr><th scope="row">{pane === "Input" ? "Page" : "Original page"}</th><td>{page + 1}</td></tr>
+        {#if label && label !== String(page + 1)}<tr><th scope="row">Page Label</th><td>{label}</td></tr>{/if}
+        {#if pane === "Input"}<tr
+            ><th scope="row">Output</th><td
+              >{destinations.length}×{#if destinations.length}{" → "}{pageRanges(destinations)}{/if}</td
+            ></tr
+          >{/if}
+      {:else if "blank" in identity}<tr
+          ><th scope="row">Size</th><td>{identity.blank.width.toFixed(1)} × {identity.blank.height.toFixed(1)} mm</td
+          ></tr
+        >{/if}
+    </tbody>
+  </table>
 {/snippet}
 {#snippet detailBody()}
   {#if pane === "Input"}
     {#each title?.context ?? [] as path}<span class="page-context">{path.join(" › ")}</span>{/each}
-    {@render copyNote()}
   {:else if origin}
     {#if multiple}<strong>{titleOf(origin.input)}</strong>{/if}
-    <span class="page-context">{origin.input.name} · p. {page + 1}</span>
-    {#if origin.input.labels[page] && origin.input.labels[page] !== String(page + 1)}<span class="page-context"
-        >PDF label: {origin.input.labels[page]}</span
-      >{/if}
-  {:else if "blank" in identity}
-    <strong>{identity.padding ? "Padding" : "Blank"}</strong>
-    <span class="page-context">{identity.blank.width.toFixed(1)} × {identity.blank.height.toFixed(1)} mm</span>
-  {/if}
+  {:else if "blank" in identity}<strong>{identity.padding ? "Padding" : "Blank"}</strong>{/if}
+  {@render pageDetails()}
 {/snippet}
 {#snippet compactBody()}
   <div class="card-preview">
@@ -107,7 +113,7 @@
     {origin?.input.name ?? ("blank" in identity && identity.padding ? "Padding" : "Blank")}{#if origin}
       · {pane === "Input" ? `${page % 2 ? "Back" : "Front"} side` : `original page ${page + 1}`}{/if}
   </p>
-  {#if pane === "Input" && destinations.length}{@render copyNote()}{/if}
+  {@render pageDetails()}
   {#if actions}{#if pane === "Input"}<div class="occurrence-actions input-menu-action">
         {@render actions()}
       </div>{:else}{@render actions()}{/if}{/if}

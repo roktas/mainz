@@ -99,6 +99,7 @@ export function fixture({
   metadata,
   preview,
   outline,
+  labels,
 } = {}) {
   const pages = Array.from({ length: count }, (_, index) => metadata?.[index] ?? {})
   const previews = Array.isArray(preview) ? preview : preview ? [preview] : []
@@ -278,6 +279,11 @@ export function fixture({
     })
   }
   const offsets = [0]
+  if (labels)
+    objects[0] = objects[0].replace(
+      "/Type /Catalog",
+      `/Type /Catalog /PageLabels << /Nums [${labels.map((label, index) => `${index} << /P (${label.replaceAll(/([\\()])/g, "\\$1")}) >>`).join(" ")}] >>`,
+    )
   objects.forEach((object, index) => {
     offsets.push(Buffer.byteLength(pdf))
     pdf += `${index + 1} 0 obj\n${object}\nendobj\n`

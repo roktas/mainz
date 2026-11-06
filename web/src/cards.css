@@ -331,6 +331,7 @@
         inline-size: max-content;
         max-inline-size: min(28rem, calc(100vi - 2 * var(--gutter)));
         display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 0.4em;
         padding: var(--gap);
         border: 1px solid var(--edge);
@@ -395,7 +396,7 @@
             min-block-size: 0;
             justify-content: start;
             padding: 0;
-            padding-inline-start: 3px;
+            padding-inline-start: var(--compact-number-inset);
             border: 0;
             color: inherit;
             background: transparent;
@@ -424,8 +425,8 @@
             padding-inline: 0;
 
             & svg {
-              inline-size: 15px;
-              block-size: 15px;
+              inline-size: var(--compact-grip-size);
+              block-size: var(--compact-grip-size);
             }
 
             &::after {

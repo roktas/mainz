@@ -253,13 +253,6 @@
         display: flex;
         align-items: center;
         gap: 0.5em;
-        & .page-context {
-          min-inline-size: 0;
-          max-inline-size: 12ch;
-          overflow: clip;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
       }
       & .page-number-control {
         flex: none;
@@ -419,20 +412,34 @@
     }
     .page-navigation {
       display: block grid;
-      grid-template-columns: 44px minmax(0, 1fr) 44px;
+      grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr) auto minmax(0, 1fr) 44px minmax(0, 1fr);
       grid-template-rows: minmax(0, 1fr);
       align-items: center;
       padding-inline: var(--controls-inset);
       border-block-start: 1px solid var(--border);
       & > button {
         padding-inline: 0;
+        grid-row: 1;
+        justify-content: center;
       }
-      & > button:first-child {
-        justify-content: start;
+      & > [data-step="-1"] {
+        grid-column: 2;
       }
-      & > button:last-child {
-        justify-content: end;
-        grid-column: 3;
+      & > [data-step="1"] {
+        grid-column: 6;
+      }
+      & > .page-actions {
+        grid-column: 4;
+        grid-row: 1;
+      }
+      & > .page-context {
+        grid-column: 1;
+        grid-row: 1;
+        min-inline-size: 0;
+        overflow: clip;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        text-align: start;
       }
       & svg {
         inline-size: 20px;

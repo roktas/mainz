@@ -407,8 +407,8 @@ test("Page headings and navigation share stable frame edges and centerlines", { 
               return {
                 overflow: document.documentElement.scrollWidth > innerWidth,
                 controls: view.getAttribute("data-controls"),
-                starts: [box(".page-current").left, box(".page-navigation > button:first-child svg").left],
-                ends: [fit.getBoundingClientRect().right, box(".page-navigation > button:last-child svg").right],
+                starts: [box(".page-current").left],
+                ends: [fit.getBoundingClientRect().right],
                 grip: grip && grip.x + grip.width / 2,
                 gripTop: grip?.top,
                 gripRight: grip?.right,

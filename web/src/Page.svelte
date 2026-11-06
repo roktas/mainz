@@ -35,6 +35,7 @@
     count,
     sheet,
     name,
+    label,
     position = $bindable(0),
     comparing = $bindable(false),
     zoom = $bindable(100),
@@ -57,6 +58,7 @@
     count: number
     sheet?: Inspection
     name?: string
+    label?: string
     position?: number
     comparing?: boolean
     zoom?: number
@@ -155,14 +157,7 @@
         const style = getComputedStyle(element)
         const width = element.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
         const gripWidth = grip?.getBoundingClientRect().width ?? 0
-        const label = element.querySelector<HTMLElement>(".page-number > .page-context")
-        const counterWidth = counter.getBoundingClientRect().width
-        const numberWidth =
-          counterWidth +
-          (label
-            ? Math.min(label.scrollWidth, parseFloat(getComputedStyle(label).maxInlineSize)) +
-              parseFloat(getComputedStyle(label.parentElement!).columnGap)
-            : 0)
+        const numberWidth = counter.getBoundingClientRect().width
         const leading = Math.max(numberWidth, gripWidth ? (width - gripWidth) / 2 : 0)
         const available = width - leading - gripWidth
         const zoomStyle = getComputedStyle(group)
@@ -592,6 +587,12 @@
   </div>
   {#if sheet}
     <nav class="page-navigation" aria-label={`${pane} page navigation`}>
+      {#if label && label !== String(index + 1)}<span
+          class="page-context"
+          role="note"
+          aria-label={`Page Label: ${label}`}
+          title={`Page Label: ${label}`}>{label}</span
+        >{/if}
       <button
         class="icon-button"
         data-step="-1"

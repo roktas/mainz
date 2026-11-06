@@ -83,7 +83,29 @@
     .page-view .inspection-heading {
       overflow: visible;
     }
+    .page-details {
+      inline-size: 100%;
+      border-collapse: collapse;
+      text-align: start;
+      & th,
+      & td {
+        padding-block: 0.3em;
+        vertical-align: top;
+        text-align: start;
+      }
+      & th {
+        padding-inline-end: 1em;
+        color: var(--muted);
+        font-weight: 400;
+        white-space: nowrap;
+      }
+      & td {
+        overflow-wrap: anywhere;
+        min-inline-size: 0;
+      }
+    }
     .detail-name {
+      min-inline-size: 0;
       margin: 0;
       padding-block-end: 0.6em;
       margin-block-end: 0.35em;
@@ -119,13 +141,19 @@
       display: grid;
       grid-template-rows: minmax(0, 1fr);
       min-block-size: 20rem;
+      margin-inline-end: calc(-1 * var(--list-gutter, 0px));
     }
     .page-list {
       position: relative;
       container: list / inline-size;
       --list-action-size: 44px;
+      --list-grip-width: calc(var(--list-action-size) + 0.25em);
+      --list-number-size: 44px;
       display: grid;
-      grid-template-columns: minmax(44px, max-content) var(--list-action-size) minmax(0, 1fr) max-content;
+      grid-template-columns: [grip] var(--list-grip-width) [number] minmax(
+          var(--list-number-size),
+          max-content
+        ) [label] var(--list-label-width, 0px) [name] minmax(0, 1fr) [actions] max-content [end];
       grid-auto-rows: max-content;
       align-content: start;
       min-block-size: 0;
@@ -136,8 +164,12 @@
       margin: 0;
       padding: 0;
       color: color-mix(in oklch, var(--ink) 80%, var(--paper));
+      &.labeled {
+        --list-label-width: 4ch;
+      }
       @media (hover: hover) and (pointer: fine) {
         --list-action-size: 32px;
+        --list-number-size: 28px;
       }
       & > li {
         position: relative;
@@ -154,7 +186,7 @@
             outline-color: Highlight;
           }
         }
-        & :is(.list-choice, .list-sections, .page-grip, .page-origin > button, .list-actions button):focus-visible {
+        & :is(.list-choice, .page-grip, .page-origin > button, .list-actions button):focus-visible {
           outline-color: transparent;
         }
         &[data-dragging] {
@@ -182,12 +214,12 @@
           opacity: 0.45;
           pointer-events: none;
           & .drop-number {
-            grid-column: 1;
+            grid-column: number;
             text-align: center;
             font-variant-numeric: tabular-nums;
           }
           & .drop-name {
-            grid-column: 3;
+            grid-column: name;
             min-inline-size: 0;
             padding-inline: 0.5em;
             overflow: clip;
@@ -195,7 +227,7 @@
             text-overflow: ellipsis;
           }
           & > span:last-child:not(.drop-name) {
-            grid-column: 4;
+            grid-column: actions;
             padding-inline: 14px;
           }
         }
@@ -239,7 +271,7 @@
             color: inherit;
             transition: none;
           }
-          & .list-number .page-context {
+          & .list-pdf-label {
             color: inherit;
           }
           & .page-origin > button strong > span:first-child {
@@ -260,6 +292,8 @@
         pointer-events: none;
       }
       & .list-number {
+        grid-column: number;
+        position: relative;
         max-inline-size: 8ch;
         font-size: var(--body);
         font-variant-numeric: tabular-nums;
@@ -267,6 +301,8 @@
         overflow-wrap: anywhere;
       }
       & > li > .page-grip {
+        grid-column: grip;
+        justify-self: center;
         inline-size: var(--list-action-size);
         min-inline-size: var(--list-action-size);
         block-size: 44px;
@@ -282,13 +318,16 @@
         }
       }
       & .page-origin > button {
+        inline-size: max-content;
+        min-inline-size: var(--list-number-size);
+        padding-inline: 0.25em;
         color: inherit;
         transition: none;
         &:has([data-provenance]) {
-          position: relative;
+          position: static;
           & > [data-provenance] {
             position: absolute;
-            inset-inline-start: calc(75% + var(--list-action-size) / 4);
+            inset-inline-start: calc((100% - var(--list-grip-width)) / 4);
             inset-block-start: 50%;
             translate: -50% -50%;
           }
@@ -324,40 +363,16 @@
         }
       }
       & .list-label {
+        grid-column: name;
         display: flex;
         align-items: center;
         min-inline-size: 0;
       }
-      & .list-sections {
-        flex: none;
-        min-block-size: 44px;
-        padding: 0.5em;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        color: inherit;
-        box-shadow: none;
-        font-size: var(--small);
-        font-weight: 400;
-        font-variant-caps: normal;
-        white-space: nowrap;
-        &:active {
-          color: inherit;
-          filter: none;
-        }
-        @media (hover: hover) and (pointer: fine) {
-          &:hover {
-            color: inherit;
-            background: transparent;
-            box-shadow: none;
-            text-decoration: underline;
-            text-underline-offset: 0.2em;
-          }
-        }
-      }
       & .list-actions {
+        grid-column: actions;
         display: flex;
         align-items: center;
+        justify-content: flex-end;
         min-inline-size: var(--list-action-size);
         & button {
           &:not(:disabled) {
@@ -376,6 +391,18 @@
       }
       & .list-inline-actions {
         display: block;
+      }
+      & .list-pdf-label {
+        grid-column: label;
+        min-inline-size: 0;
+        padding-inline: 0.125em;
+        color: var(--muted);
+        font-size: var(--body);
+        font-variant-numeric: tabular-nums;
+        text-align: center;
+        overflow: clip;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       & .list-menu {
         display: none;
@@ -404,10 +431,10 @@
           background: transparent;
           box-shadow: none;
         }
-        & :is(.list-inline-actions, .list-add) {
+        & :is(.list-inline-actions, .list-add, .list-jump) {
           opacity: 0;
         }
-        & > li:hover :is(.list-inline-actions, .list-add) {
+        & > li:hover :is(.list-inline-actions, .list-add, .list-jump) {
           opacity: 1;
         }
       }
@@ -415,6 +442,9 @@
         opacity: 1;
       }
       & > .list-section:has(:focus-visible) .list-add {
+        opacity: 1;
+      }
+      & > li:has(:focus-visible, :popover-open) .list-jump {
         opacity: 1;
       }
       & .list-actions > [aria-pressed="true"] {
@@ -468,24 +498,25 @@
       }
     }
     .page-list > .list-section {
-      color: var(--secondary);
-      background: var(--soft);
-      &[data-selected]:not(.selected) {
-        background: color-mix(in oklch, var(--accent) 8%, var(--soft));
-        &::before {
-          content: "";
-          position: absolute;
-          inset-inline-start: 0;
-          inset-block: 0;
-          inline-size: 2px;
-          background: var(--accent);
-          pointer-events: none;
+      --section-actions: 3;
+      --section-surface: color-mix(in oklch, var(--secondary) calc(min(var(--section-depth), 3) * 8%), var(--soft));
+      color: inherit;
+      background: var(--section-surface);
+      &:has(> .list-disclosure[aria-expanded="true"]) {
+        & .list-current,
+        & > .list-number {
+          color: var(--accent);
         }
+      }
+      &[data-selected]:not(.selected) {
+        background: color-mix(in oklch, var(--accent) 22%, var(--section-surface));
       }
       &.selected {
         color: var(--on-accent);
         background: var(--accent);
         & > .list-disclosure,
+        & > .list-actions,
+        & > .list-actions > button:disabled,
         & .list-unselect {
           color: inherit;
         }
@@ -496,48 +527,53 @@
         }
       }
       & > .list-disclosure {
-        grid-column: 1;
+        grid-column: grip;
         justify-self: center;
-        inline-size: 44px;
-        block-size: 44px;
+        align-self: stretch;
+        inline-size: var(--list-grip-width);
+        min-inline-size: var(--list-grip-width);
+        block-size: auto;
+        min-block-size: 44px;
         padding: 0;
-        color: var(--accent);
+        padding-inline: 6px 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        color: var(--secondary);
+        background: transparent;
         & svg {
-          inline-size: 1.5em;
-          block-size: 1.5em;
+          inline-size: calc(min(1.25em, var(--list-number-size)) * 1.2);
+          block-size: calc(min(1.25em, var(--list-number-size)) * 1.2);
         }
-        &[aria-expanded="true"] svg {
+        &[aria-expanded="true"]:not(.dragging) svg {
           rotate: 90deg;
+        }
+        &.dragging svg {
+          inline-size: 16px;
+          block-size: 16px;
         }
         &:active {
           filter: brightness(1.15);
         }
         @media (hover: hover) and (pointer: fine) {
           &:hover {
-            color: var(--accent);
             background: transparent;
             box-shadow: none;
           }
         }
       }
-      & > .page-grip {
-        grid-column: 2;
-        cursor: grab;
-        &:active {
-          cursor: grabbing;
-        }
-      }
       & > .list-actions {
-        grid-column: 4;
-        justify-content: flex-end;
+        grid-column: actions;
+        color: var(--secondary);
       }
       & > .list-heading {
-        grid-column: 3;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
+        grid-column: name / end;
+        margin-inline-end: calc(var(--section-actions) * var(--list-action-size));
+        display: flex;
+        justify-content: flex-start;
         align-items: center;
         align-content: center;
-        gap: 0.5em;
+        gap: 0.55em;
         min-inline-size: 0;
         min-block-size: 44px;
         padding: 0.5em;
@@ -553,6 +589,38 @@
         text-align: start;
         white-space: normal;
         overflow-wrap: anywhere;
+        & .list-current {
+          min-inline-size: 0;
+          overflow: clip;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        &:has(.list-parents) .list-current {
+          flex: 0 1 auto;
+          max-inline-size: 70%;
+        }
+        & .list-parents {
+          display: flex;
+          align-items: center;
+          gap: 0.55em;
+          flex: 1 1 0;
+          min-inline-size: 0;
+          overflow: clip;
+          color: var(--muted);
+        }
+        & .list-separator {
+          flex: none;
+          color: var(--edge);
+          font-size: 1.3em;
+          font-weight: 700;
+          line-height: 1;
+        }
+        & .list-ancestor {
+          min-inline-size: 0;
+          overflow: clip;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
         &:active {
           background: color-mix(in oklch, currentColor 8%, transparent);
           filter: none;
@@ -565,6 +633,148 @@
           }
         }
       }
+      &.selected :is(.list-parents, .list-separator) {
+        color: inherit;
+      }
+    }
+    .section-path {
+      inline-size: 32rem;
+      max-inline-size: calc(100vi - 32px);
+      max-block-size: calc(100dvb - 32px);
+      overflow: auto;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: 0 12px 40px var(--shadow);
+      & > header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-block-end: 8px;
+        border-block-end: 1px solid var(--border);
+        & > svg {
+          flex: none;
+          inline-size: 24px;
+          block-size: 24px;
+          color: var(--secondary);
+        }
+        & > h3 {
+          flex: 1;
+          margin: 0;
+          font-size: 1rem;
+          font-weight: 600;
+        }
+      }
+      & > ol {
+        list-style: none;
+        margin: 10px 0 0;
+        padding: 0;
+        & > li {
+          position: relative;
+          color: var(--muted);
+          font-size: var(--body);
+          font-weight: 600;
+          font-variant-caps: all-small-caps;
+          font-synthesis: small-caps;
+          overflow-wrap: anywhere;
+          &::before {
+            content: "";
+            position: absolute;
+            inset-inline-start: 19px;
+            inset-block: 0;
+            inline-size: 1px;
+            background: var(--border);
+          }
+          &:first-child::before {
+            inset-block-start: 50%;
+          }
+          &:last-child::before {
+            inset-block-end: 50%;
+          }
+          &[aria-current="step"] {
+            color: var(--accent);
+            & .path-level {
+              border-color: var(--accent);
+              background: var(--accent);
+              color: var(--on-accent);
+            }
+          }
+          & > button.path-step {
+            display: grid;
+            grid-template-columns: 24px 3ch minmax(0, 1fr);
+            align-items: center;
+            gap: 8px;
+            inline-size: 100%;
+            min-inline-size: 0;
+            block-size: auto;
+            min-block-size: var(--list-action-size);
+            padding: 5px 8px;
+            border: 0;
+            border-radius: var(--radius);
+            background: transparent;
+            box-shadow: none;
+            color: inherit;
+            font: inherit;
+            font-variant-caps: inherit;
+            text-align: start;
+            white-space: normal;
+            &:focus-visible {
+              outline: 2px solid var(--secondary);
+              outline-offset: 2px;
+            }
+            &:active {
+              background: var(--tint);
+              filter: none;
+            }
+            @media (hover: hover) and (pointer: fine) {
+              &:hover {
+                background: var(--soft);
+              }
+            }
+          }
+        }
+      }
+      & .path-level {
+        display: inline grid;
+        place-items: center;
+        align-self: start;
+        z-index: 1;
+        inline-size: 24px;
+        block-size: 24px;
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        background: var(--surface);
+        font-variant-caps: normal;
+        font-size: 12px;
+      }
+      & .path-page {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+        font-variant-caps: normal;
+        text-align: center;
+      }
+    }
+    @media (hover: hover) and (pointer: fine) {
+      @container list (width > 22rem) {
+        .composition-output .list-section:has(.list-parents) .list-current {
+          /* Give parents the empty page-action slots without enlarging the current title. */
+          max-inline-size: calc((100% - 2 * var(--list-action-size) - 6px) * 0.7);
+        }
+      }
+    }
+    .page-list .list-actions .section-path > header > button {
+      inline-size: 44px;
+      block-size: 44px;
+      min-inline-size: 44px;
+      min-block-size: 44px;
+      margin-block: -10px;
+      margin-inline-end: -10px;
+    }
+    .page-list .list-actions .section-path > header > svg {
+      inline-size: 24px;
+      block-size: 24px;
     }
     .page-list > li {
       --return-surface: var(--paper);
@@ -591,6 +801,16 @@
       to {
         background: var(--return-surface);
       }
+    }
+    :is(.composition-card, .page-view)::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      border-radius: inherit;
+      background: var(--secondary);
+      opacity: 0;
+      pointer-events: none;
     }
 
     .list-peek {

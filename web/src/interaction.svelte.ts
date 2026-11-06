@@ -2,6 +2,7 @@
 
 import { onDestroy, onMount, tick } from "svelte"
 import { shortcut, shortcutContext } from "./keyboard.ts"
+import { flash } from "./motion.ts"
 import type { Source } from "./model.ts"
 import type { Output, Edit } from "./output.svelte.ts"
 import type { Transfer } from "./transfer.svelte.ts"
@@ -10,6 +11,7 @@ import type { Sequence } from "./pages.ts"
 import type { Region } from "./Page.svelte"
 
 export type InputView = {
+  grouped: boolean
   folds?: ReadonlySet<string>
   tocTitles: boolean
   returnTo: "grid" | "list"
@@ -87,7 +89,7 @@ export class Interaction {
     clearTimeout(this.returnTimeout)
     this.returning = undefined
   }
-  async reveal(pane: "Input" | "Output", event?: MouseEvent | KeyboardEvent) {
+  async reveal(pane: "Input" | "Output", event?: MouseEvent | KeyboardEvent, jump = false) {
     const tab = pane === "Input" ? this.host.activeTab : this.host.activeOutputTab
     const expectedSource = this.host.source?.id
     if (tab === "style") return
@@ -108,6 +110,11 @@ export class Interaction {
             )
     control?.scrollIntoView({ block: "nearest" })
     if (event) control?.focus({ preventScroll: true })
+    if (jump && control) {
+      const target = control.closest<HTMLElement>(".list-row, .composition-card, .page-view")
+      if (target) flash(target)
+      return
+    }
     if (!control || tab === "page" || event instanceof KeyboardEvent || event?.detail === 0) return
     clearTimeout(this.returnTimeout)
     this.returning =

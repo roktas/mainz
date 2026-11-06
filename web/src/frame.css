@@ -45,6 +45,8 @@
           2 * var(--thumbnail-padding)
       );
       --compact-number-size: 0.6875rem;
+      --compact-number-inset: 5px;
+      --compact-grip-size: 15px;
 
       @media (hover: hover) and (pointer: fine) {
         /* The lower card can lift another 2 px toward the upper footer. */
@@ -64,7 +66,14 @@
       &[data-density="compact"] {
         --grid-gap: max(0.5rem, calc(0.85 * var(--thumbnail-padding)));
         --grid-row-gap: max(var(--grid-gap), calc(var(--grid-column-gap, var(--grid-gap)) * var(--grid-row-factor, 1)));
-        --grid-min-width: calc(3 * (0.65 * var(--grid-digits, 1) * var(--compact-number-size) + 3px));
+        /* Reserve readable number cells and 2 px clearance around the centered grip. */
+        --grid-min-width: max(
+          calc(3 * (0.65 * var(--grid-digits, 1) * var(--compact-number-size) + 3px)),
+          calc(
+            2 * (0.65 * var(--grid-digits, 1) * var(--compact-number-size) + var(--compact-number-inset) + 3px) +
+              var(--compact-grip-size)
+          )
+        );
         --grid-min-height: calc(sqrt(2) * var(--grid-min-width));
         --grid-width: max(74px, calc(5 * var(--body)));
         --grid-height: 7.8125rem;

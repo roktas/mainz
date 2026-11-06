@@ -48,6 +48,7 @@ export function createDragImage(control: HTMLElement, quantity: number, size?: S
       height = bounds.height,
       numberCell = row.querySelector<HTMLElement>(".list-number")!,
       numberWidth = numberCell.getBoundingClientRect().width,
+      numberOffset = numberCell.getBoundingClientRect().left - bounds.left,
       nameOffset = choice.getBoundingClientRect().left - bounds.left,
       original = numberCell.querySelector("strong")?.textContent?.trim() ?? "",
       number = document.createElement("strong")
@@ -64,7 +65,7 @@ export function createDragImage(control: HTMLElement, quantity: number, size?: S
     paint.fillRect(0, 0, width, height)
     paint.strokeStyle = palette.color
     image.style.backgroundColor = paint.fillStyle
-    image.style.borderColor = palette.color
+    image.style.outlineColor = palette.color
     colors.remove()
     paint.strokeRect(0.5, 0.5, width - 1, height - 1)
     paint.fillStyle = style.color
@@ -92,7 +93,7 @@ export function createDragImage(control: HTMLElement, quantity: number, size?: S
     image.style.inlineSize = `${width}px`
     image.style.blockSize = `${height}px`
     image.style.font = `${font.fontWeight} ${font.fontSize}/${font.lineHeight} ${font.fontFamily}`
-    image.style.gridTemplateColumns = `${numberWidth}px ${Math.max(0, nameOffset - numberWidth)}px minmax(0,1fr) auto`
+    image.style.gridTemplateColumns = `${numberOffset}px ${numberWidth}px ${Math.max(0, nameOffset - numberOffset - numberWidth)}px minmax(0,1fr) auto`
     image.style.color = style.color
     number.className = "drag-number"
     number.textContent = original

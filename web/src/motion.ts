@@ -1,4 +1,4 @@
-// Animates page edits with visible snapshots and reduced motion support.
+// Animates page edits and navigation targets with reduced motion support.
 
 import { onDestroy, tick } from "svelte"
 import { SvelteSet } from "svelte/reactivity"
@@ -10,6 +10,35 @@ import type { Edit } from "./output.svelte.ts"
 const additionDuration = 600
 const removalDuration = 300
 const moveDuration = 500
+
+export function flash(element: HTMLElement) {
+  if (!matchMedia("(prefers-reduced-motion: no-preference)").matches) return
+  const surface = getComputedStyle(element).backgroundColor
+  const overlay = element.matches(".page-view, .composition-card")
+  const frames = overlay
+    ? [
+        { opacity: 0, offset: 0 },
+        { opacity: 0.4, offset: 0.1 },
+        { opacity: 0.4, offset: 0.6 },
+        { opacity: 0, offset: 1 },
+      ]
+    : [
+        { background: surface, offset: 0 },
+        { background: `color-mix(in oklch, var(--secondary) 45%, ${surface})`, offset: 0.1 },
+        { background: `color-mix(in oklch, var(--secondary) 45%, ${surface})`, offset: 0.6 },
+        { background: surface, offset: 1 },
+      ]
+  element
+    .getAnimations({ subtree: true })
+    .filter((animation) => animation.id === "jump")
+    .forEach((animation) => animation.cancel())
+  element.animate(frames, {
+    id: "jump",
+    duration: 3000,
+    easing: "ease-out",
+    ...(overlay ? { pseudoElement: "::after" } : {}),
+  })
+}
 
 export class Edits {
   readonly pending = new SvelteSet<string>()

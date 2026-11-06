@@ -61,8 +61,13 @@
   }
 </script>
 
-<button class="icon-button" aria-label="Input contents" title="Contents" popovertarget={id} disabled={!items.length}
-  ><Icon name="toc" /></button
+<button
+  class="icon-button"
+  aria-label="Input contents"
+  aria-expanded={opened}
+  title="Contents"
+  popovertarget={id}
+  disabled={!items.length}><Icon name="toc" /></button
 >
 <div
   {id}

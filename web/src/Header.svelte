@@ -152,8 +152,8 @@
         text={offlineStatus}
       />{:else if activeReport && (activeReport.kind === "progress" || activeReport.kind === "error" || !headerError)}<Feedback
         {...activeReport}
-        actions={activeReport.actions ??
-          (activeReport.kind === "progress" || activeReport.children ? undefined : dismissReport)}
+        actions={activeReport?.actions ??
+          (activeReport?.kind === "progress" || activeReport?.children ? undefined : dismissReport)}
       />{:else if failure}<Feedback
         kind="error"
         text={Array.isArray(failure) ? `${failure.length} ${failure.length === 1 ? "file" : "files"} failed` : failure}

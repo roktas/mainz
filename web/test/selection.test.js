@@ -1303,6 +1303,23 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
       await output.locator(".sequence-entry > .entry > :first-child").getAttribute("class"),
       "sequence-options output-options",
     )
+    await selected.fill("1-2")
+    for (const colorScheme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme })
+      const remove = output.getByRole("button", { name: "Remove selected Output pages", exact: true })
+      await remove.hover()
+      for (const pressed of [false, true]) {
+        if (pressed) await page.mouse.down()
+        const colors = await remove.evaluate((button) => {
+          const style = getComputedStyle(button)
+          return { background: style.backgroundColor, foreground: style.color }
+        })
+        assert.notEqual(colors.background, "rgba(0, 0, 0, 0)", `${colorScheme}, pressed=${pressed}: filled Remove`)
+        assert.notEqual(colors.background, colors.foreground, `${colorScheme}: visible minus`)
+      }
+      await page.mouse.move(0, 0)
+      await page.mouse.up()
+    }
     for (const [text, earlier, later] of [
       ["", false, false],
       ["1", false, true],
@@ -1412,10 +1429,10 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     await prepared.fill("3,1,3")
     await add.click()
     assert.deepEqual(
-      (await output.locator(".page-origin-info .page-context").allTextContents()).map((text) =>
-        text.replace(/^.* · (p\. \d+)$/, "$1"),
-      ),
-      ["p. 3", "p. 1", "p. 3"],
+      await output
+        .locator('.page-origin-info .page-details tr:has(th:text-is("Original page"), th:text-is("Size")) td')
+        .allTextContents(),
+      ["3", "1", "3"],
     )
     assert.equal(await selected.inputValue(), "1-3")
     await output.getByLabel("Output page actions", { exact: true }).focus()
@@ -1453,9 +1470,11 @@ test("Output separates page controls from group actions for keyboard and mouse",
       const selected = output.getByRole("textbox", { name: "Page selection", exact: true })
       const total = () => output.locator(".composition-totals strong").textContent()
       const contents = async () =>
-        (await output.locator(".composition-card:not([inert]) .page-origin-info .page-context").allTextContents()).map(
-          (text) => text.replace(/^.* · (p\. \d+)$/, "$1"),
-        )
+        await output
+          .locator(
+            '.composition-card:not([inert]) .page-origin-info .page-details tr:has(th:text-is("Original page"), th:text-is("Size")) td',
+          )
+          .allTextContents()
       if (interaction === "keyboard") {
         await input.getByRole("button", { name: "Select Input page 1", exact: true }).press("Space")
         await page.keyboard.press("Enter")
@@ -1478,7 +1497,7 @@ test("Output separates page controls from group actions for keyboard and mouse",
       assert.equal(await total(), "4 pages", "Addition transfers every selected Input page")
       assert.equal(await prepared.inputValue(), "", "Successful group addition resets the preparation")
       assert.equal(await selected.inputValue(), "2-4")
-      assert.deepEqual(await contents(), ["p. 1", "p. 2", "p. 3", "p. 4"])
+      assert.deepEqual(await contents(), ["1", "2", "3", "4"])
       assert.equal(
         await output.locator(".composition-card.range-highlight").count(),
         3,
@@ -1512,7 +1531,7 @@ test("Output separates page controls from group actions for keyboard and mouse",
       }
       assert.deepEqual(
         await contents(),
-        ["p. 2", "p. 3", "p. 4", "p. 1"],
+        ["2", "3", "4", "1"],
         "Movement keeps the selected pages together and in order",
       )
       assert.equal(await selected.inputValue(), "1-3")
@@ -1526,7 +1545,7 @@ test("Output separates page controls from group actions for keyboard and mouse",
         await output.getByLabel("Output page actions", { exact: true }).click()
         await output.getByRole("button", { name: "Move selected pages later", exact: true }).click()
       }
-      assert.deepEqual(await contents(), ["p. 1", "p. 2", "p. 3", "p. 4"])
+      assert.deepEqual(await contents(), ["1", "2", "3", "4"])
       for (const position of [4, 7]) {
         if (interaction === "keyboard") await page.keyboard.press("Shift+Equal")
         else await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
@@ -1538,18 +1557,7 @@ test("Output separates page controls from group actions for keyboard and mouse",
           "Duplication highlights the new group copy",
         )
       }
-      assert.deepEqual(await contents(), [
-        "p. 1",
-        "p. 2",
-        "p. 3",
-        "p. 4",
-        "p. 2",
-        "p. 3",
-        "p. 4",
-        "p. 2",
-        "p. 3",
-        "p. 4",
-      ])
+      assert.deepEqual(await contents(), ["1", "2", "3", "4", "2", "3", "4", "2", "3", "4"])
       if (interaction === "keyboard") await page.keyboard.press("Delete")
       else await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
       assert.equal(await total(), "7 pages", "Removal removes the selected copy and leaves other copies intact")
@@ -1562,11 +1570,7 @@ test("Output separates page controls from group actions for keyboard and mouse",
       if (interaction === "keyboard")
         await output.getByRole("button", { name: "Select Output page 4", exact: true }).press("Enter")
       else await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
-      assert.deepEqual(
-        await contents(),
-        ["p. 1", "p. 2", "p. 3", "p. 4", "p. 2", "p. 4"],
-        "Nonconsecutive targets copy in print order",
-      )
+      assert.deepEqual(await contents(), ["1", "2", "3", "4", "2", "4"], "Nonconsecutive targets copy in print order")
       await selected.fill("2,4")
       if (interaction === "keyboard")
         await output.getByRole("button", { name: "Select Output page 4", exact: true }).press("Control+ArrowLeft")
@@ -1599,7 +1603,7 @@ test("Output separates page controls from group actions for keyboard and mouse",
       await output.getByRole("button", { name: "Duplicate Output page 4", exact: true }).click()
       assert.deepEqual(
         await contents(),
-        ["p. 2", "p. 1", "p. 4", "p. 3", "p. 3", "p. 2", "p. 4"],
+        ["2", "1", "4", "3", "3", "2", "4"],
         "Without a selection, a card action uses its own occurrence",
       )
       await selected.fill("2,4")
@@ -1643,9 +1647,11 @@ test(
       const prepared = input.getByLabel("Page selection", { exact: true })
       const selected = output.getByLabel("Page selection", { exact: true })
       const contents = async () =>
-        (await output.locator(".composition-card:not([inert]) .page-origin-info .page-context").allTextContents()).map(
-          (text) => text.replace(/^.* · (p\. \d+)$/, "$1"),
-        )
+        await output
+          .locator(
+            '.composition-card:not([inert]) .page-origin-info .page-details tr:has(th:text-is("Original page"), th:text-is("Size")) td',
+          )
+          .allTextContents()
       const clear = async () => {
         if (!(await selected.isDisabled())) {
           const all = output.getByRole("button", { name: "Select all", exact: true })
@@ -1680,17 +1686,17 @@ test(
               await current.focus()
               if (key === "Escape") await page.mouse.move(pane === "Input" ? 8 : 1432, 20)
               await page.keyboard.press(key)
-              let expected = ["p. 1", "p. 2", "p. 3", "p. 4"]
+              let expected = ["1", "2", "3", "4"]
               if (pane === "Input" && key === "Enter" && inputSelection) {
-                expected.push("p. 2", "p. 3")
+                expected.push("2", "3")
               } else if (pane === "Output" && outputSelection && ["Enter", "Shift+Equal"].includes(key)) {
-                expected.push("p. 2", "p. 4")
+                expected.push("2", "4")
               } else if (key === "Delete" || (pane === "Output" && key === "-")) {
-                if (outputSelection) expected = ["p. 1", "p. 3"]
+                if (outputSelection) expected = ["1", "3"]
               } else if (outputSelection && key === "Control+ArrowLeft") {
-                expected = ["p. 2", "p. 1", "p. 4", "p. 3"]
+                expected = ["2", "1", "4", "3"]
               } else if (pane === "Output" && !outputSelection && key === "Control+ArrowRight") {
-                expected = ["p. 2", "p. 1", "p. 3", "p. 4"]
+                expected = ["2", "1", "3", "4"]
               }
               const scenario = `${pane} ${key}; Input selection=${inputSelection}, Output selection=${outputSelection}`
               assert.deepEqual(await contents(), expected, scenario)
@@ -1718,7 +1724,7 @@ test(
         await input.getByRole("button", { name: "Select Input page 1", exact: true }).click()
         await input.getByRole("button", { name: "Select Input page 3", exact: true }).click({ modifiers: ["Shift"] })
         await page.keyboard.press("Enter")
-        assert.deepEqual(await contents(), ["p. 1", "p. 2", "p. 3"])
+        assert.deepEqual(await contents(), ["1", "2", "3"])
         assert.equal(await selected.inputValue(), "1-3")
         assert.equal(await prepared.inputValue(), "")
         if (selectInputAgain) await input.getByRole("button", { name: "Select Input page 1", exact: true }).click()
@@ -1740,13 +1746,13 @@ test(
       await selected.fill("2-3")
       await prepared.fill("1")
       await prepared.press("Delete")
-      assert.deepEqual(await contents(), ["p. 1", "p. 2", "p. 3"], "Delete in a text field only edits text")
+      assert.deepEqual(await contents(), ["1", "2", "3"], "Delete in a text field only edits text")
       await output.getByLabel("Output page actions", { exact: true }).click()
       await page.keyboard.press("Delete")
-      assert.deepEqual(await contents(), ["p. 1", "p. 2", "p. 3"], "Open menus retain their keys")
+      assert.deepEqual(await contents(), ["1", "2", "3"], "Open menus retain their keys")
       await page.keyboard.press("Escape")
       await page.keyboard.press("Delete")
-      assert.deepEqual(await contents(), ["p. 1"], "Delete works again after a menu closes")
+      assert.deepEqual(await contents(), ["1"], "Delete works again after a menu closes")
       await clear()
       await prepared.fill("1-3")
       await prepared.press("Enter")
@@ -1755,11 +1761,11 @@ test(
       await page.keyboard.press("Enter")
       assert.deepEqual(
         await contents(),
-        ["p. 1", "p. 2", "p. 3", "p. 1", "p. 2", "p. 3"],
+        ["1", "2", "3", "1", "2", "3"],
         "Mouse selection can immediately duplicate with Enter",
       )
       await page.keyboard.press("Delete")
-      assert.deepEqual(await contents(), ["p. 1", "p. 2", "p. 3"], "The copied group can immediately be removed")
+      assert.deepEqual(await contents(), ["1", "2", "3"], "The copied group can immediately be removed")
       await prepared.fill("2-3")
       await selected.fill("1-3")
       await page.locator(".input-picker > summary").click()

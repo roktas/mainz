@@ -52,7 +52,7 @@ const examples = new Map([
   ["recipe.json", "test/fixtures/recipe/session.json"],
   ["recipe/guides.pdf", "test/fixtures/recipe/guides.pdf"],
   ["recipe/crossings.pdf", "test/fixtures/recipe/crossings.pdf"],
-  ["toc/flatland.pdf", "test/fixtures/toc/flatland.pdf"],
+  ["toc/bash.pdf", "test/fixtures/toc/bash.pdf"],
   ["toc/bridge.pdf", "test/fixtures/toc/bridge.pdf"],
 ])
 
@@ -250,10 +250,10 @@ export default defineConfig({
         })
         const optional = list.filter((file) => examples.has(file.path))
         if (
-          optional.some((file) => file.bytes > (file.path.endsWith(".pdf") ? 250 * 1024 : 1024 * 1024)) ||
-          optional.reduce((total, file) => total + file.bytes, 0) > 2 * 1024 * 1024
+          optional.some((file) => file.bytes > (file.path.endsWith(".pdf") ? 2 * 1024 * 1024 : 1024 * 1024)) ||
+          optional.reduce((total, file) => total + file.bytes, 0) > 4 * 1024 * 1024
         )
-          throw new Error("Demo assets exceed their PDF (250 KiB), Recipe (1 MiB), or total (2 MiB) budget.")
+          throw new Error("Demo assets exceed their PDF (2 MiB), Recipe (1 MiB), or total (4 MiB) budget.")
         writeFileSync(
           resolve(outputDirectory, "sw.js"),
           `const VERSION = '${hash.digest("hex")}';\nconst ASSETS = ${JSON.stringify(list.filter((file) => !examples.has(file.path)))};\nconst EXAMPLES = ${JSON.stringify(optional)};\n${source}`,

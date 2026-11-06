@@ -1259,9 +1259,9 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     const inputFront = input.getByLabel("Start each repeat on front", { exact: true })
     const outputFront = output.getByLabel("Start each repeat on front", { exact: true })
     const order = async () =>
-      (await output.locator(".page-origin-info .page-context").allTextContents()).map((text) =>
-        text.replace("Bulk.pdf · ", ""),
-      )
+      await output
+        .locator('.page-origin-info .page-details tr:has(th:text-is("Original page"), th:text-is("Size")) td')
+        .allTextContents()
     const total = () => output.locator(".composition-totals strong").textContent()
     const ready = () =>
       page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
@@ -1284,7 +1284,7 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     await inputRepeat.fill("2")
     await inputFront.check()
     await prepared.press("Enter")
-    assert.deepEqual(await order(), ["p. 2", "p. 4", "p. 2", "p. 4"])
+    assert.deepEqual(await order(), ["2", "4", "2", "4"])
     assert.equal(await selected.inputValue(), "1-4")
     assert.equal(await prepared.inputValue(), "")
     await inputOptions.click()
@@ -1311,20 +1311,7 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     await grip.dragTo(output.getByRole("button", { name: "Select Output page 2", exact: true }), {
       targetPosition: { x: 5, y: 40 },
     })
-    assert.deepEqual(await order(), [
-      "p. 2",
-      "p. 1",
-      "p. 3",
-      "p. 1",
-      "p. 1",
-      "p. 3",
-      "p. 1",
-      "p. 4",
-      "p. 2",
-      "p. 4",
-      "p. 6",
-      "p. 7",
-    ])
+    assert.deepEqual(await order(), ["2", "1", "3", "1", "1", "3", "1", "4", "2", "4", "6", "7"])
     assert.equal(await selected.inputValue(), "2-7")
     assert.equal(await prepared.inputValue(), "")
     await prepared.fill("1-7,1-4")
@@ -1351,7 +1338,7 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     assert.equal(await output.getByRole("button", { name: "Repeat", exact: true }).count(), 0)
     await output.getByRole("button", { name: "Move selected pages earlier", exact: true }).press("Enter")
     assert.equal(await selected.evaluate((element) => element === document.activeElement), true)
-    assert.deepEqual(await order(), ["p. 2", "p. 1", "p. 4", "p. 3", "p. 5"])
+    assert.deepEqual(await order(), ["2", "1", "4", "3", "5"])
     assert.equal(await selected.inputValue(), "1, 3")
     await outputOptions.click()
     assert.equal(
@@ -1359,13 +1346,13 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
       true,
     )
     await output.getByRole("button", { name: "Move selected pages later", exact: true }).click()
-    assert.deepEqual(await order(), ["p. 1", "p. 2", "p. 3", "p. 4", "p. 5"])
+    assert.deepEqual(await order(), ["1", "2", "3", "4", "5"])
     assert.equal(await selected.inputValue(), "2, 4")
     await ready()
     await output
       .getByRole("button", { name: "Select or drag Output page 4", exact: true })
       .dragTo(output.locator(".section-heading"))
-    assert.deepEqual(await order(), ["p. 1", "p. 3", "p. 5", "p. 2", "p. 4"])
+    assert.deepEqual(await order(), ["1", "3", "5", "2", "4"])
     assert.equal(await selected.inputValue(), "4-5")
     await tab(output, "Page")
     assert.match(await pagePosition(output), /5\s*\/ 5/)
@@ -1374,7 +1361,7 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     await moved.dispatchEvent("dragstart", { dataTransfer: data })
     await output.locator(".composition-card").nth(4).dispatchEvent("dragover", { dataTransfer: data })
     await output.locator(".composition-card").nth(4).dispatchEvent("drop", { dataTransfer: data })
-    assert.deepEqual(await order(), ["p. 1", "p. 3", "p. 5", "p. 2", "p. 4"])
+    assert.deepEqual(await order(), ["1", "3", "5", "2", "4"])
     assert.equal(await selected.inputValue(), "4-5")
     await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
     assert.equal(await selected.inputValue(), "6-7")
@@ -1508,20 +1495,20 @@ test("Edited Padding retains its dimensions and page order in the downloaded PDF
     await output.getByRole("button", { name: "Before", exact: true }).click()
     assert.equal(await selected.inputValue(), "1")
     assert.deepEqual(
-      (await output.locator(".page-origin-info .page-context").allTextContents()).map((text) =>
-        text.replace("Padding.pdf · ", ""),
-      ),
+      await output
+        .locator('.page-origin-info .page-details tr:has(th:text-is("Original page"), th:text-is("Size")) td')
+        .allTextContents(),
       [
         "297.0 × 210.0 mm",
-        "p. 7",
-        "p. 1",
+        "7",
+        "1",
         "297.0 × 210.0 mm",
-        "p. 2",
-        "p. 3",
+        "2",
+        "3",
         "210.0 × 297.0 mm",
-        "p. 1",
-        "p. 2",
-        "p. 3",
+        "1",
+        "2",
+        "3",
         "210.0 × 297.0 mm",
       ],
     )

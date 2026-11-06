@@ -1888,7 +1888,7 @@ test("Output Page keeps original PDF labels through composition and Input change
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     const selected = output.getByLabel("Page selection", { exact: true })
-    const labels = output.locator(".inspection-heading .page-number > .page-context")
+    const labels = output.locator(".page-navigation > .page-context")
     const jump = async (position, label, count = 5) => {
       await output.getByRole("button", { name: "Go to Output page", exact: true }).click()
       const entry = output.getByRole("textbox", { name: "Go to Output page", exact: true })
@@ -1899,13 +1899,9 @@ test("Output Page keeps original PDF labels through composition and Input change
     }
     await gridDensity(input, "Compact Input grid")
     await tab(input, "List")
-    assert.deepEqual(await input.locator(".list-number .page-number > .page-context").allTextContents(), [
-      "i",
-      "ii",
-      long,
-    ])
+    assert.deepEqual(await input.locator(".list-pdf-label").allTextContents(), ["i", "ii", "3", long])
     await tab(input, "Page")
-    assert.equal(await input.locator(".inspection-heading .page-context").innerText(), "i")
+    assert.equal(await input.locator(".page-navigation > .page-context").innerText(), "i")
     await input.getByLabel("Page selection", { exact: true }).fill("2,1,2,3,4")
     await input.getByLabel("Page selection", { exact: true }).press("Enter")
     await tab(output, "List")
@@ -1922,8 +1918,8 @@ test("Output Page keeps original PDF labels through composition and Input change
     ]) {
       await output.getByRole("button", { name: `Details for Output page ${index}`, exact: true }).click()
       const details = output.locator(".card-menu-options:popover-open")
-      await details.getByText(`Labeled.pdf · p. ${source}`, { exact: true }).waitFor()
-      if (label) await details.getByText(`PDF label: ${label}`, { exact: true }).waitFor()
+      await details.getByRole("row", { name: `Original page ${source}`, exact: true }).waitFor()
+      if (label) await details.getByRole("row", { name: `Page Label ${label}`, exact: true }).waitFor()
       await page.keyboard.press("Escape")
     }
     await tab(output, "Page")
@@ -1932,7 +1928,7 @@ test("Output Page keeps original PDF labels through composition and Input change
     await jump(3, "ii")
     await jump(4, "3")
     await jump(5, long)
-    assert.equal(await labels.getAttribute("title"), long)
+    assert.equal(await labels.getAttribute("title"), `Page Label: ${long}`)
     assert.equal(await labels.isVisible(), true)
     for (const [width, text, font, colorScheme] of [
       [1440, "100%", "", "light"],
@@ -1952,22 +1948,31 @@ test("Output Page keeps original PDF labels through composition and Input change
       )
       const views = page.locator(".mobile-workspace-tabs")
       if (await views.isVisible()) await views.getByRole("button", { name: "Output", exact: true }).click()
-      await page.waitForFunction(
-        (label) => {
-          const context = document.createElement("canvas").getContext("2d")
-          context.font = getComputedStyle(label).font
-          const box = label.getBoundingClientRect()
-          const heading = label.closest(".inspection-heading")
-          const counter = heading.querySelector(".page-number-control").getBoundingClientRect()
-          const tools = heading.querySelector(".page-tools").getBoundingClientRect()
-          return (
-            box.width + 1 >= context.measureText("Appendix…").width &&
-            box.left >= counter.right &&
-            box.right <= tools.left + 1
-          )
-        },
-        await labels.elementHandle(),
-      )
+      const labelBounds = await labels.evaluate((element) => {
+        const box = element.getBoundingClientRect()
+        const frame = element.closest(".page-view")
+        const counter = frame.querySelector(".page-number-control").getBoundingClientRect()
+        const previous = frame.querySelector('[data-step="-1"]').getBoundingClientRect()
+        return { aligned: Math.abs(box.left - counter.left) < 1, separate: box.right <= previous.left + 1 }
+      })
+      assert.ok(labelBounds.aligned && labelBounds.separate, JSON.stringify(labelBounds))
+      const navigation = await labels.evaluate((element) => {
+        const nav = element.closest(".page-navigation")
+        const frame = nav.getBoundingClientRect()
+        const style = getComputedStyle(nav)
+        const actions = nav.querySelector(".page-actions").getBoundingClientRect()
+        const previous = nav.querySelector('[data-step="-1"]').getBoundingClientRect()
+        const next = nav.querySelector('[data-step="1"]').getBoundingClientRect()
+        return {
+          previous: Math.abs(
+            previous.x + previous.width / 2 - (frame.left + parseFloat(style.paddingInlineStart) + actions.left) / 2,
+          ),
+          next: Math.abs(
+            next.x + next.width / 2 - (actions.right + frame.right - parseFloat(style.paddingInlineEnd)) / 2,
+          ),
+        }
+      })
+      assert.ok(navigation.previous < 1 && navigation.next < 1, JSON.stringify(navigation))
       await aligned(output)
       if ((await output.locator(".page-view").getAttribute("data-controls")) !== "all") {
         await output.getByLabel("Output page actions", { exact: true }).click()
@@ -2619,7 +2624,7 @@ test(
         await details.click()
         assert.match(
           await output.locator(".page-origin[open] .page-origin-info").innerText(),
-          new RegExp(`Large\\.pdf · p\\. ${original}`),
+          new RegExp(`Large\\.pdf\\s+Original page\\s+${original}`),
         )
         await details.click()
       }

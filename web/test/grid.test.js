@@ -10,6 +10,96 @@ import { measure, gridDensity } from "./measure.js"
 import inventory from "./viewports.json" with { type: "json" }
 import { bounds as gridBounds, quality } from "./quality.ts"
 
+test(
+  "Normal Grid centers physical numbers and bounds long section details with page labels",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const chapter = "Chapter 16. External filters, programs and commands " + "Long title ".repeat(6)
+    const section = "16.6. Communications commands " + "Long section ".repeat(6)
+    for (const engine of [chromium, webkit]) {
+      const browser = await launch(engine)
+      try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        await page
+          .locator('input[type="file"]')
+          .first()
+          .setInputFiles({
+            name: "Labels.pdf",
+            mimeType: "application/pdf",
+            buffer: fixture({
+              prepared: false,
+              count: 300,
+              labels: Array.from({ length: 300 }, (_, page) => String(page - 5)),
+              outline: [
+                { title: chapter, page: 294 },
+                { title: section, page: 294, parent: 0 },
+              ],
+            }),
+          })
+        const input = page.locator(".selection-panel")
+        await gridDensity(input, "Normal Input grid")
+        await input.getByRole("button", { name: "Input contents", exact: true }).click()
+        await page.locator(".contents:popover-open .destination").filter({ hasText: section }).click()
+        const card = input.locator('.composition-card:has(.page-image[data-page="294"])')
+        const details = card.getByLabel("Details for Input page 295", { exact: true })
+        for (const width of [1440, 390]) {
+          await page.setViewportSize({ width, height: 1000 })
+          await details.scrollIntoViewIfNeeded()
+          const position = await details.evaluate((button) => {
+            const number = button.querySelector("strong").getBoundingClientRect()
+            const target = button.getBoundingClientRect()
+            const frame = button.closest(".composition-card").getBoundingClientRect()
+            return {
+              centered: Math.abs(number.x + number.width / 2 - target.x - target.width / 2) < 1,
+              inset: number.left - frame.left,
+            }
+          })
+          assert.ok(position.centered && position.inset >= 8, JSON.stringify(position))
+          await details.click()
+          const panel = card.locator(".page-origin-info")
+          assert.equal(await panel.getByRole("row", { name: "Page Label 289", exact: true }).count(), 1)
+          const bounds = await panel.evaluate((element) => {
+            const box = element.getBoundingClientRect()
+            return {
+              fits: box.left >= 0 && box.right <= innerWidth + 1,
+              overflow: element.scrollWidth > element.clientWidth + 1,
+            }
+          })
+          assert.ok(bounds.fits && !bounds.overflow, JSON.stringify(bounds))
+          await details.click()
+        }
+        await tab(input, "List")
+        await input.getByRole("button", { name: "Input contents", exact: true }).click()
+        await page.locator(".contents:popover-open .destination").filter({ hasText: section }).click()
+        const heading = input.locator(".list-heading").first()
+        const style = await heading.evaluate((button) => ({
+          border: getComputedStyle(button).borderTopWidth,
+          caps: getComputedStyle(button).fontVariantCaps,
+          align: getComputedStyle(button).textAlign,
+        }))
+        assert.deepEqual(style, { border: "0px", caps: "all-small-caps", align: "start" })
+        await page.goto(server.resolvedUrls.local[0])
+        await page
+          .locator('input[type="file"]')
+          .first()
+          .setInputFiles({
+            name: "Unoutlined.pdf",
+            mimeType: "application/pdf",
+            buffer: fixture({ prepared: false, count: 1, labels: ["i"] }),
+          })
+        await gridDensity(input, "Normal Input grid")
+        await input.getByLabel("Details for Input page 1", { exact: true }).click()
+        await input.locator(".page-origin-info").getByRole("row", { name: "Page Label i", exact: true }).waitFor()
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
+
 test("List keyboard ranges and inspection preserve their pane, selection, and focus", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
@@ -268,7 +358,10 @@ test("List details stay anchored and row highlights remain flat", { timeout: 900
                 40,
             )
             assert.equal(await details.evaluate((element) => getComputedStyle(element).textAlign), "start")
-            assert.match(await details.innerText(), name === "Input" ? /Output · 1× → 1/ : /demo\.pdf · p\. 1/)
+            assert.match(
+              await details.innerText(),
+              name === "Input" ? /Output\s+1× → 1/ : /demo\.pdf\s+Original page\s+1/,
+            )
             await page.keyboard.press("Escape")
             assert.equal(await details.count(), 0)
             assert.equal(await number.evaluate((element) => element === document.activeElement), true)
@@ -2092,7 +2185,7 @@ test("Compact pagination retains readable four- and five-digit numbers", { timeo
                 spacing.every(
                   ({ numberGap, foldGap, offset }) => numberGap >= 2 && foldGap >= 2 && Math.abs(offset) < 1,
                 ),
-                `${family}: ${total} pages keep numbers, grips, and folds apart`,
+                `${family}, ${text}, touch=${hasTouch}: ${total} pages keep numbers, grips, and folds apart: ${JSON.stringify(spacing.filter(({ numberGap, foldGap, offset }) => numberGap < 2 || foldGap < 2 || Math.abs(offset) >= 1))}`,
               )
               const focusClearance = await output
                 .getByRole("slider", { name: "Output thumbnail range", exact: true })

@@ -4,12 +4,16 @@
   import { tick, untrack } from "svelte"
   import type { Snippet } from "svelte"
   import { shortcut, shortcutContext } from "./keyboard.ts"
+  import { sectionsOf, flattenSections } from "./sections.ts"
+  import { flash } from "./motion.ts"
+  import type { SectionPath } from "./outline.ts"
 
   let {
     pane,
     count,
+    labeled = false,
     revision,
-    heading,
+    headings,
     identity,
     section,
     selected,
@@ -23,10 +27,13 @@
   }: {
     pane: "Input" | "Output"
     count: number
+    labeled?: boolean
     revision?: unknown
-    heading?: (position: number) => readonly string[]
+    headings?: (position: number) => readonly SectionPath[]
     identity?: (position: number) => string
-    section?: Snippet<[start: number, end: number, path: readonly string[], expanded: boolean, toggle: () => void]>
+    section?: Snippet<
+      [start: number, end: number, path: readonly string[], expanded: boolean, toggle: () => void, id: number]
+    >
     selected?: (first: number, end: number) => boolean
     folds?: ReadonlySet<string>
     skipped?: ReadonlySet<number>
@@ -41,6 +48,7 @@
   let dragged = $state<number>()
   let seeking = $state<number>()
   let settling = Promise.resolve()
+  let list: HTMLUListElement | undefined
   const rowHeight = 44
   let measured = $state.raw<{
     revision: unknown
@@ -51,50 +59,68 @@
   const empty = new Set<string>()
   const collapsed = $derived(folds ?? empty)
   export function sectionState() {
-    if (!sections.size) return "none"
-    return [...sections.values()].some((entry) => !collapsed.has(entry.key)) ? "open" : "closed"
+    if (!sections.nodes.size) return "none"
+    return order.some((index) => index < 0 && !collapsed.has(sections.nodes.get(-index - 1)!.key)) ? "open" : "closed"
   }
   export function toggleSections() {
-    folds = sectionState() === "closed" ? new Set() : new Set([...sections.values()].map((entry) => entry.key))
+    folds = sectionState() === "closed" ? new Set() : new Set([...sections.nodes.values()].map((entry) => entry.key))
   }
   export function expand(index: number) {
-    for (const [start, entry] of sections)
-      if (start <= index && index < entry.end && collapsed.has(entry.key)) {
-        const next = new Set(collapsed)
-        next.delete(entry.key)
-        folds = next
-      }
+    const next = new Set(collapsed)
+    for (const entry of sections.nodes.values()) if (entry.start <= index && index < entry.end) next.delete(entry.key)
+    if (next.size !== collapsed.size) folds = next
   }
-  const sections = $derived.by(() => {
-    const result = new Map<number, { path: readonly string[]; key: string; end: number }>()
-    let previous: readonly string[] = []
-    let current: { path: readonly string[]; key: string; end: number } | undefined
-    if (!heading) return result
-    for (let index = 0; index < count; index++) {
-      const path = heading(index)
-      if (path.length === previous.length && path.every((part, depth) => part === previous[depth])) continue
-      if (current) current.end = index
-      current = path.length ? { path, key: identity?.(index) ?? String(index), end: count } : undefined
-      if (current) result.set(index, current)
-      previous = path
+  export async function revealSection(id: number) {
+    const target = sections.nodes.get(id)
+    if (!target || !list) return
+    const next = new Set(collapsed)
+    for (let parent = target.parent; parent; parent = parent.parent) next.delete(parent.key)
+    if (next.size !== collapsed.size) folds = next
+    const heading = await seek(-target.id - 1, `[data-section="${target.id}"] .list-heading`)
+    heading?.focus({ preventScroll: true })
+    const row = heading?.closest<HTMLElement>("li")
+    if (row) flash(row)
+  }
+  export async function revealPage(index: number) {
+    expand(index)
+    await seek(index, `[data-page="${index}"]`)
+  }
+  async function seek(index: number, selector: string) {
+    await tick()
+    seeking = index
+    await tick()
+    const rank = ranks.get(index)
+    let control: HTMLElement | undefined
+    if (rank !== undefined && list) {
+      list.scrollTop = offsets[rank]
+      scroll = list.scrollTop
+      await tick()
+      if (!list) {
+        seeking = undefined
+        return
+      }
+      control = list.querySelector<HTMLElement>(selector) ?? undefined
+      control?.scrollIntoView({ block: "nearest" })
+      scroll = list.scrollTop
     }
+    seeking = undefined
+    return control
+  }
+
+  export function trail(id: number) {
+    const result = []
+    for (let node = sections.nodes.get(id); node; node = node.parent) result.unshift(node)
     return result
-  })
-  const hidden = $derived.by(() => {
-    const result = new Set<number>()
-    for (const [start, entry] of sections)
-      if (collapsed.has(entry.key)) for (let index = start; index < entry.end; index++) result.add(index)
-    return result
-  })
-  const order = $derived.by(() => {
-    const result: number[] = []
-    // Negative entries place section headings before their first physical page.
-    for (let index = 0; index < count; index++) {
-      if (sections.has(index)) result.push(-index - 1)
-      if (!hidden.has(index) && !skipped?.has(index)) result.push(index)
-    }
-    return result
-  })
+  }
+  export function paths(page: number, ancestors: readonly string[]) {
+    return [...sections.nodes.values()].filter(
+      (entry) => ancestors.includes(entry.node) && entry.start <= page && page < entry.end,
+    )
+  }
+  const sections = $derived(sectionsOf(count, headings, identity))
+  const sequence = $derived(flattenSections(sections.roots, count, collapsed))
+  const order = $derived(sequence.filter((index) => index < 0 || !skipped?.has(index)))
+  const sequenceRanks = $derived(new Map(sequence.map((index, rank) => [index, rank])))
   const pages = $derived(order.filter((index) => index >= 0))
   const ranks = $derived(new Map(order.map((index, rank) => [index, rank])))
   const offsets = $derived.by(() => {
@@ -126,18 +152,14 @@
 
   const retainedIndex = $derived(dragged !== undefined && dragged < 0 ? dragged : (retained ?? dragged))
   const pin = $derived(
-    retainedIndex !== undefined &&
-      retainedIndex < count &&
-      (retainedIndex >= 0 || sections.has(-retainedIndex - 1)) &&
-      !hidden.has(retainedIndex) &&
-      !order.slice(from, to).includes(retainedIndex)
+    retainedIndex !== undefined && sequenceRanks.has(retainedIndex) && !order.slice(from, to).includes(retainedIndex)
       ? retainedIndex
       : undefined,
   )
   const rows = $derived.by(() => {
     const window = order.slice(from, to)
     if (pin !== undefined) window.push(pin)
-    return window.toSorted((a, b) => (a < 0 ? -a - 1.5 : a) - (b < 0 ? -b - 1.5 : b))
+    return window.toSorted((a, b) => sequenceRanks.get(a)! - sequenceRanks.get(b)!)
   })
   function scrolling(element: HTMLElement) {
     scroll = element.scrollTop
@@ -152,6 +174,8 @@
   }
 
   function reveal(element: HTMLElement) {
+    list = element as HTMLUListElement
+    const owner = element.closest<HTMLElement>(pane === "Input" ? ".selection-panel" : ".composition-output")
     element.addEventListener("keydown", keys)
     let disposed = false
     let frame = 0
@@ -161,6 +185,7 @@
       if (disposed) return
       viewport = element.clientHeight
       width = element.clientWidth
+      owner?.style.setProperty("--list-gutter", `${element.offsetWidth - element.clientWidth}px`)
       const previous = measured?.revision === revision && measured?.width === width ? measured.sizes : undefined
       const sizes = new Map(previous)
       let changed = false
@@ -175,9 +200,9 @@
         changed = true
       }
       if (changed) measured = { revision, width, sizes }
-      if (folds === undefined && sections.size && viewport && width)
+      if (folds === undefined && sections.nodes.size && viewport && width)
         folds = new Set(
-          element.scrollHeight > element.clientHeight + 1 ? [...sections.values()].map((entry) => entry.key) : [],
+          element.scrollHeight > element.clientHeight + 1 ? [...sections.nodes.values()].map((entry) => entry.key) : [],
         )
     }
     const observer = new ResizeObserver(() => {
@@ -226,6 +251,8 @@
       })
     })
     return () => {
+      list = undefined
+      owner?.style.removeProperty("--list-gutter")
       disposed = true
       cancelAnimationFrame(frame)
       observer.disconnect()
@@ -301,9 +328,9 @@
 
 <svelte:window ondragend={() => (dragged = undefined)} />
 
-<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <ul
   class="page-list"
+  class:labeled
   aria-label={`${pane} page list`}
   aria-keyshortcuts={`ArrowUp ArrowDown Home End PageUp PageDown N P Space Enter V Control+A Meta+A Shift+ArrowUp Shift+ArrowDown Plus${pane === "Output" ? " - Delete Control+ArrowUp Control+ArrowDown Meta+ArrowUp Meta+ArrowDown" : ""}`}
   tabindex="-1"
@@ -319,25 +346,33 @@
   {@attach reveal}
 >
   <li class="list-spacer" aria-hidden="true" style:block-size={`${offsets[from]}px`}></li>
-  {#each rows as index (index < 0 ? `section:${identity?.(-index - 1) ?? -index - 1}` : (identity?.(index) ?? index))}
+  {#each rows as index (index < 0 ? `section:${sections.nodes.get(-index - 1)!.key}` : (identity?.(index) ?? index))}
     {#if index < 0}
-      {@const entry = sections.get(-index - 1)!}
+      {@const entry = sections.nodes.get(-index - 1)!}
       <li
         class="list-section"
-        class:selected={collapsed.has(entry.key) && selected?.(-index - 1, entry.end)}
-        data-selected={selected?.(-index - 1, entry.end) || undefined}
+        style:--section-depth={entry.path.length - 1}
+        class:selected={collapsed.has(entry.key) && selected?.(entry.start, entry.end)}
+        data-selected={selected?.(entry.start, entry.end) || undefined}
         data-section={-index - 1}
-        data-index={-index - 1}
+        data-index={entry.start}
         data-end={collapsed.has(entry.key) ? entry.end - 1 : undefined}
         data-dragging={dragged === index || undefined}
         data-retained={index === pin || undefined}
       >
-        {@render section?.(-index - 1, entry.end, entry.path, !collapsed.has(entry.key), () => {
-          const next = new Set(collapsed)
-          if (next.has(entry.key)) next.delete(entry.key)
-          else next.add(entry.key)
-          folds = next
-        })}
+        {@render section?.(
+          entry.start,
+          entry.end,
+          entry.path,
+          !collapsed.has(entry.key),
+          () => {
+            const next = new Set(collapsed)
+            if (next.has(entry.key)) next.delete(entry.key)
+            else next.add(entry.key)
+            folds = next
+          },
+          entry.id,
+        )}
       </li>
     {:else}{@render children(index, pin)}{/if}
   {/each}

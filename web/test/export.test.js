@@ -479,7 +479,9 @@ test(
         "Output rows show one unambiguous position",
       )
       await output.getByRole("button", { name: "Details for Output page 2", exact: true }).click()
-      await page.locator(".card-menu-options:popover-open").getByText("guides.pdf · p. 1", { exact: true }).waitFor()
+      const provenance = page.locator(".card-menu-options:popover-open .page-details")
+      await provenance.getByRole("row", { name: "Input guides.pdf", exact: true }).waitFor()
+      assert.equal(await provenance.getByRole("row", { name: "Original page 1", exact: true }).count(), 1)
       await page.keyboard.press("Escape")
       const reference = JSON.parse(await readFile(new URL("./fixtures/recipe/session.json", import.meta.url), "utf8"))
       assert.deepEqual(

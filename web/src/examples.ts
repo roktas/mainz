@@ -47,12 +47,21 @@ export async function openExample(demo: string, host: Host) {
   try {
     host.info("Loading demo…")
     if (demo === "toc" || demo === "toc-multiple") {
-      const bytes = new Uint8Array(await (await fetchExample(`${base}toc/flatland.pdf`)).arrayBuffer())
+      const bytes = new Uint8Array(await (await fetchExample(`${base}toc/bash.pdf`)).arrayBuffer())
       if (!current()) return
-      const opened = await host.open(bytes, "flatland.pdf")
+      const opened = await host.open(bytes, "bash.pdf")
       revision = host.revision
       if (!opened || host.disposed) return
-      const starts = [...new Set(opened.input.outline?.filter((entry) => entry.depth > 0).map((entry) => entry.page))]
+      const starts = [
+        ...new Set(
+          opened.input.outline
+            ?.filter(
+              (entry, index, entries) =>
+                entry.depth >= 2 && (!entries[index + 1] || entries[index + 1].depth <= entry.depth),
+            )
+            .map((entry) => entry.page),
+        ),
+      ]
       if (starts.length < 3) throw new Error("The TOC sample is missing its sections.")
       const pages = [...starts.slice(0, 5), starts[1], starts[2], starts.at(-1)!, starts[1]].map((page) => ({
         source: opened.id,

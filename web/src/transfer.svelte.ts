@@ -22,6 +22,7 @@ type Contact = {
 }
 type Session = {
   kind: "active"
+  control: HTMLElement
   value: Payload
   inspected: string | undefined
   quantity: number
@@ -114,6 +115,9 @@ export class Transfer {
   }
   get value() {
     return this.#active?.value
+  }
+  get control() {
+    return this.#active?.control
   }
   get touching() {
     return this.#active?.pointer === "touch"
@@ -219,6 +223,7 @@ export class Transfer {
     const image = createDragImage(control, quantity, size)
     this.#interaction = {
       kind: "active",
+      control,
       value,
       inspected: this.#workspace.inspected,
       quantity,

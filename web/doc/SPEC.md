@@ -106,39 +106,64 @@ memory. Document title, description, authorship, and copyright remain standard P
 workspace fields.
 
 List shows one row per physical Input page or expanded Output occurrence, in the same order as the pane's page sequence.
-Each row retains its physical number or Output position and supplied page name. Input rows can show a differing PDF
-label. Output rows show one position and keep original page numbers and differing PDF labels in details. Pages without
-names remain available by number. Repeated names do not merge rows or occurrences. Blank and Padding rows retain their
-existing product identities without invented authored names.
+Each row retains its physical number or Output position and supplied page name. When an Input defines PDF page labels,
+List shows them in a separate column between the physical number and page name, including labels that match physical
+numbers. Inputs without page labels reserve no label column. Labels come from the PDF and do not replace physical
+selection or navigation numbers. Output rows show one position and keep original page numbers and differing PDF labels
+in details. Pages without names remain available by number. Repeated names do not merge rows or occurrences. Blank and
+Padding rows retain their existing product identities without invented authored names.
 
-An embedded PDF outline supplies display titles where authored page names are missing. A matching child takes priority
-over its ancestors. Ranges are inferred from subsequent section targets, so an omitted heading cannot close a preceding
-section. Same-page siblings remain separate even at different depths; their first section supplies the display title.
-Headings without usable titles or targets do not hide their navigable children or attach them to unrelated sections.
-Input List shows a section-count button when several sections cover a page, opening all their breadcrumb paths without
-changing selection. These titles never enter the Description, Recipe matching, or generated page-name metadata. Output
-resolves titles through each occurrence's original Input page.
+Authored page names and the embedded PDF outline have independent roles. Names identify pages for selection; the outline
+supplies section hierarchy and fallback display titles. Prepared status does not change these rules. Page names never
+create section headers. Without an outline, List remains flat even when named pages repeat.
 
-Contents offers Use TOC titles only when at least one authored page name differs from its matching section title. This
-per-Input preference reverses the display priority to section title, authored name, then page number. It applies to that
-Input and its Output occurrences without changing the PDF or Recipe. The default priority always favors authored names.
-TOC-derived Input detail headings show breadcrumbs; authored names retain a flat heading. Output details use flat
-headings, filename and original page number, and the document Title when several Inputs contribute pages.
+By default, each page uses its authored name, then a matching TOC title, then `Page N` with its physical page number. A
+matching child takes priority over its ancestors. Ranges are inferred from subsequent section targets, so an omitted
+heading cannot close a preceding section. Same-page siblings remain separate even at different depths; their first
+section supplies the display title. Headings without usable titles or targets do not hide their navigable children or
+attach them to unrelated sections. Input List navigation shows all matching paths when several sections cover a page,
+without changing selection. These titles never enter the Description, Recipe matching, or generated page-name metadata.
+Output resolves titles through each occurrence's original Input page.
+
+Contents offers Use TOC titles only when at least one authored page name differs from its matching section title. It is
+off by default. This per-Input preference reverses the display priority to section title, authored name, then `Page N`.
+The preference changes page display titles independently of the section hierarchy. It applies to that Input and its
+Output occurrences without changing the PDF or Recipe. The default priority always favors authored names. TOC-derived
+Input detail headings show breadcrumbs; authored names retain a flat heading. Output details use flat headings, filename
+and original page number, and the document Title when several Inputs contribute pages.
 
 The open-book Contents control navigates the Input outline in Grid, List, and Page without changing selection. Output
 has no Contents control. Opening Contents reveals the current leaf, or its visible ancestor when the branch is
-collapsed. Only that entry announces the current location. Ancestors retain their visual emphasis. List adds collapsible
-headings at section transitions in either pane. Output headings include the document Title when several Inputs
-contribute pages. A heading controls the consecutive rows until the next section. Its triangle hides or reveals those
-rows without changing selection, page numbers, or Output. Clicking the heading text selects or unselects all section
-members. Its grip starts a drag that selects the complete section and shows a page stack. Input sections copy to Output;
-Output sections move together. A closed section accepts a drop before or after its complete group.
+collapsed. Only that entry announces the current location. Ancestors retain their visual emphasis. List builds a section
+tree in each pane's page order, then flattens its visible headers and pages without indentation. Every retained TOC
+entry has its own header, including leaves, root entries, entries with identical titles, and entries that share a page.
+Child entries are not required. A TOC title can supply both a header and the fallback name of its pages. Physical page
+rows appear once, including pages shared by several TOC entries. Output headings include the document Title when several
+Inputs contribute pages. A heading controls all pages in its subtree, including pages under child headers. Its ribbon
+hides or reveals that subtree without changing selection, page numbers, or Output. Clicking the heading text selects or
+unselects all section members. Dragging the ribbon selects the complete section and shows a page stack. Holding it
+without movement does not start a drag. Input sections copy to Output; Output sections move together. A closed section
+accepts a drop before or after its complete group.
+
+Section headings place the current section title first, followed by its ancestors from nearest to farthest. Long titles
+truncate within the row. A separate navigation button opens the complete path from root to current section in a Jump to
+section panel without changing selection or Output. Each path entry navigates to its header in the same pane: it closes
+the panel, opens the required ancestors, and scrolls to and focuses the header. Output navigation stays within the
+current occurrence's ancestry. It preserves selection, the inspected page, and Output. The control is available on every
+section header and on page rows with TOC ancestry. A root header's button is disabled because its only target is the
+header itself. Page rows show every matching path and its physical target page numbers. Hiding headings also hides these
+navigation controls.
 
 The + action adds an Input section to Output or copies an Output section. When all members are selected, an Unselect
 action replaces +. View opens the section's first page without changing selection. On the first List opening, sections
 start closed if the expanded list exceeds the pane height. Otherwise, sections start open. Each pane retains expansion
 choices across view changes and resizing. The toolbar button toggles all sections between open and closed. Contents
-navigation reveals a collapsed destination. Lists without sections retain uninterrupted page rows.
+navigation opens every ancestor of a collapsed destination. Reopening a parent retains its children's individual fold
+choices. Lists without sections retain uninterrupted page rows.
+
+Section headings are shown by default. Each pane's Section headings toggle hides them to show a flat List with every
+page row, including pages in collapsed sections. Showing headings restores the retained expansion choices. This per-pane
+view choice survives view changes and does not change selections or Output.
 
 When several Inputs contribute to Output, List occurrence numbers have small source-color dots between the number and
 grip. Input's current file and chooser use the matching colors. Colors remain stable for each workspace source across
@@ -195,14 +220,14 @@ or dynamic Recipe lookup.
 
 ### Demo
 
-| URL                  | Result                                                                                         |
-| -------------------- | ---------------------------------------------------------------------------------------------- |
-| `?demo`              | Four-page Input, all pages selected, with Output ordered as `1,2,3,4,3,4,3,4`.                 |
-| `?demo=empty`        | The same Input with no Selection and empty Output, including onboarding and the addition hint. |
-| `?demo=grid`         | 240-page Input and Output from 60 repetitions of the four sample pages.                        |
-| `?demo&paint`        | Style with the Filled profile, available only in development.                                  |
-| `?demo=toc`          | Flatland excerpts with hierarchical Contents and arranged Output.                              |
-| `?demo=toc-multiple` | Flatland and An Occurrence at Owl Creek Bridge, with pages from both Inputs in Output.         |
+| URL                  | Result                                                                                                      |
+| -------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `?demo`              | Four-page Input, all pages selected, with Output ordered as `1,2,3,4,3,4,3,4`.                              |
+| `?demo=empty`        | The same Input with no Selection and empty Output, including onboarding and the addition hint.              |
+| `?demo=grid`         | 240-page Input and Output from 60 repetitions of the four sample pages.                                     |
+| `?demo&paint`        | Style with the Filled profile, available only in development.                                               |
+| `?demo=toc`          | The complete Advanced Bash-Scripting Guide with three-level Contents and arranged Output.                   |
+| `?demo=toc-multiple` | Advanced Bash-Scripting Guide and An Occurrence at Owl Creek Bridge, with pages from both Inputs in Output. |
 
 Both TOC demos start in List with section headings. The maintained public-domain reading PDFs have real embedded
 outlines and no authored page names.
@@ -217,7 +242,7 @@ animation. Open PDF always opens local PDFs.
 Unknown demo values show an Error and retain local PDF opening. Local opening takes precedence over a pending demo
 result or error. Demo PDFs and Recipes are excluded from offline installation. They download from the application's own
 server only when requested. A first request needs a connection; downloaded examples remain available offline in a
-separate cache. The build limits each demo PDF to 250 KiB, each Recipe to 1 MiB, and the complete example catalog to 2
+separate cache. The build limits each demo PDF to 2 MiB, each Recipe to 1 MiB, and the complete example catalog to 4
 MiB. The cache accepts only catalog entries with matching byte lengths and SHA-256 digests. Updates retain unchanged
 examples and remove changed or retired hashes. New downloads bypass the HTTP cache, so stale responses cannot populate a
 new catalog entry. User PDFs and generated files never enter this cache. If optional storage is unavailable, an online

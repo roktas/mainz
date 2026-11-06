@@ -7,6 +7,7 @@
   import { copyError, parseCopies, sizeOf, titleOf, uid } from "./model.ts"
   import type { Content, Expanded, Page, Part, Source } from "./model.ts"
   import { titlesOf } from "./outline.ts"
+  import type { Section } from "./sections.ts"
   import Contents from "./Contents.svelte"
   import * as composition from "./composition.ts"
   import type { Edit, Output } from "./output.svelte.ts"
@@ -109,6 +110,7 @@
     }
   }
   const initialView: InputView = {
+    grouped: true,
     tocTitles: false,
     returnTo: "grid",
     tab: untrack(() => initial.input),
@@ -128,11 +130,12 @@
   let inputList = $state<ReturnType<typeof List>>()
   let outputList = $state<ReturnType<typeof List>>()
   let outputFolds = $state<ReadonlySet<string>>()
+  let outputGrouped = $state(true)
   let outputPage = $state<ReturnType<typeof PageView>>()
   let outputPageInitialized = $state(false)
   let outputDensity = $state<"normal" | "compact">("normal")
   const tocTitlesRevision = $derived(sources.map((item) => !!inputViews[item.id]?.tocTitles).join(","))
-  const outputListRevision = $derived({ pages: output.pages, titles: tocTitlesRevision })
+  const outputListRevision = $derived({ pages: output.pages, grouped: outputGrouped, titles: tocTitlesRevision })
   const outputCompact = $derived(outputDensity === "compact")
   let outputOffset = $state(0)
   let outputText = $state<string>()
@@ -431,24 +434,30 @@
   function displayName(origin: Source | undefined, page: number) {
     return origin ? titlesOf(origin.input).at(page, inputViews[origin.id]?.tocTitles).name : undefined
   }
-  function inputTitle(page: number) {
-    return source ? titlesOf(source.input).at(page, inputView.tocTitles) : undefined
-  }
   function inputName(page: number) {
     return displayName(source, page)
   }
   function pageName(content: Content) {
     return "source" in content ? displayName(provenance(content), content.page) : undefined
   }
-  function inputHeading(page: number) {
-    return source ? titlesOf(source.input).at(page).heading : []
+  function inputHeadings(page: number) {
+    return source ? titlesOf(source.input).at(page).headings : []
   }
-  function outputHeading(content: Content) {
+  function outputHeadings(content: Content) {
     if (!("source" in content)) return []
     const document = provenance(content)?.input
-    return document
-      ? [...(outputBooks.size > 1 ? [titleOf(document)] : []), ...titlesOf(document).at(content.page).heading]
-      : []
+    if (!document) return []
+    const headings = titlesOf(document).at(content.page).headings
+    const path = outputBooks.size > 1 ? [titleOf(document)] : []
+    const keys = outputBooks.size > 1 ? [content.source] : []
+    return headings.length
+      ? headings.map((heading) => ({
+          path: [...path, ...heading.path],
+          keys: [...keys, ...heading.keys.map((node) => `${content.source}:${node}`)],
+        }))
+      : path.length
+        ? [{ path, keys }]
+        : []
   }
   function transferName() {
     const value = transfer.value
@@ -1038,6 +1047,67 @@
   </div>
 {/snippet}
 
+{#snippet pageJump(pane: "Input" | "Output", page: number)}
+  {@const list = pane === "Input" ? inputList : outputList}
+  {@const headings = pane === "Input" ? inputHeadings(page) : outputHeadings(output.pages[page].content)}
+  {#if headings.length}
+    {@render sectionJump(
+      pane,
+      headings.map((heading) => list?.paths(page, heading.keys) ?? []),
+      `${key}-${pane}-page-${page}-jump`,
+    )}
+  {/if}
+{/snippet}
+
+{#snippet sectionJump(pane: "Input" | "Output", paths: readonly (readonly Section[])[], id: string, disabled = false)}
+  {@const name = paths[0]?.at(-1)?.path.join(" › ") ?? ""}
+  <button
+    type="button"
+    class="icon-button list-jump"
+    aria-label={`Jump to section for ${pane}: ${name}`}
+    title="Jump to section"
+    {disabled}
+    popovertarget={id}><Icon name="jump" /></button
+  >
+  <div {id} class="section-path" popover="auto" role="region" aria-labelledby={`${id}-title`}>
+    <header>
+      <Icon name="jump" />
+      <h3 id={`${id}-title`}>Jump to section</h3>
+      <button
+        type="button"
+        class="icon-button"
+        aria-label="Close section navigation"
+        title="Close"
+        popovertarget={id}
+        popovertargetaction="hide"><Icon name="close" /></button
+      >
+    </header>
+    {#each paths as path, index (index)}
+      <ol>
+        {#each path as node, depth (node.id)}
+          {@const content = pane === "Output" ? output.pages[node.start]?.content : undefined}
+          {@const physical = content && "source" in content ? content.page + 1 : node.start + 1}
+          <li aria-current={depth === path.length - 1 ? "step" : undefined}>
+            <button
+              type="button"
+              class="path-step"
+              aria-label={`Go to section: ${node.path.join(" › ")}`}
+              onclick={(event) => {
+                event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
+                void (pane === "Input" ? inputList : outputList)?.revealSection(node.id)
+              }}
+              ><span class="path-level" aria-hidden="true">{depth + 1}</span><span
+                class="path-page"
+                aria-label={`Physical page ${physical}`}>{physical}</span
+              ><span>{node.path.at(-1)}</span></button
+            >
+          </li>
+        {/each}
+      </ol>
+    {/each}
+  </div>
+{/snippet}
+
 {#snippet sectionRow(
   pane: "Input" | "Output",
   first: number,
@@ -1045,8 +1115,12 @@
   path: readonly string[],
   expanded: boolean,
   toggle: () => void,
+  id: number,
 )}
   {@const name = path.join(" › ")}
+  {@const pathId = `${key}-${pane}-section-${id}-path`}
+  {@const disclosureId = `${pathId}-disclosure`}
+  {@const dragging = transfer.control?.id === disclosureId}
   {@const indices = Array.from({ length: end - first }, (_, index) => first + index)}
   {@const selected = sectionSelected(pane, first, end)}
   {@const payload: Payload = pane === "Input" ? { kind: "source", source: source!.id, choice: { kind: "pages", pages: indices } } : { kind: "output", ids: indices.map((index) => output.pages[index].id) }}
@@ -1054,32 +1128,47 @@
     {@render dropPreview(transfer.targetAfter)}
   {/if}
   <button
+    id={disclosureId}
     type="button"
-    class="list-disclosure icon-button"
+    class="list-disclosure page-grip icon-button"
+    class:dragging
     aria-label={`${expanded ? "Collapse" : "Expand"} ${pane} section: ${name}`}
     aria-expanded={expanded}
-    title={`${expanded ? "Collapse" : "Expand"} section`}
-    onclick={toggle}><Icon name="triangle" /></button
-  >
-  <button
-    type="button"
-    class="page-grip icon-button"
-    aria-label={`Drag ${pane} section: ${name}`}
-    title={pane === "Input" ? "Drag section to Output" : "Drag to move section"}
+    title={`${expanded ? "Collapse" : "Expand"} section. Drag to ${pane === "Input" ? "add to Output" : "move"}.`}
     draggable="true"
     onmousedown={retainFocus}
     ondragstart={(event) => start(event, payload)}
     onpointerdown={(event) => transfer.press(event, payload)}
-    ondragend={() => transfer.end()}><Icon name="reorder" /></button
+    ondragend={() => transfer.end()}
+    onclick={toggle}><Icon name={dragging ? "reorder" : "ribbon"} /></button
   >
+  <div class="list-number"><strong>{first + 1}</strong></div>
+  {#if pane === "Input" && source?.input.labels[first] !== undefined}<span
+      class="list-pdf-label"
+      aria-label={`Page Label: ${source.input.labels[first]}`}
+      title={source.input.labels[first]}>{source.input.labels[first]}</span
+    >{/if}
   <button
     type="button"
     class="list-heading"
+    aria-label={name}
     aria-pressed={selected}
     title={`Select or unselect section: ${name}`}
-    onclick={() => selectSection(pane, first, end)}><span>{name}</span></button
+    onclick={() => selectSection(pane, first, end)}
+    ><span class="list-current">{path.at(-1)}</span>
+    {#if path.length > 1}<span class="list-parents" aria-hidden="true">
+        {#each path.slice(0, -1).toReversed() as parent, depth (depth)}
+          <span class="list-separator">‹</span><span class="list-ancestor">{parent}</span>
+        {/each}
+      </span>{/if}</button
   >
   <div class="list-actions">
+    {@render sectionJump(
+      pane,
+      [(pane === "Input" ? inputList : outputList)?.trail(id) ?? []],
+      pathId,
+      path.length === 1,
+    )}
     {#if selected}<button
         type="button"
         class="icon-button list-unselect"
@@ -1256,10 +1345,6 @@
     {#if inputName(inputPosition)}<p class="page-name">
         {inputName(inputPosition)}
       </p>{/if}
-    {#if source?.input.labels[inputPosition] && source.input.labels[inputPosition] !== String(inputPosition + 1)}<span
-        class="page-context"
-        title={source.input.labels[inputPosition]}>{source.input.labels[inputPosition]}</span
-      >{/if}
   </span>
   <button
     class="page-grip"
@@ -1479,12 +1564,9 @@
 {/snippet}
 
 {#snippet outputPageHeading(fitWidth: () => void)}
-  {@const origin = inspected ? provenance(inspected.content) : undefined}
-  {@const label = inspected && "page" in inspected.content ? origin?.input.labels[inspected.content.page] : undefined}
   <span class="page-number">
     <Counter pane="Output" bind:this={outputCounter} bind:position={output.position} count={output.pages.length} />
     {#if inspected && pageName(inspected.content)}<p class="page-name">{pageName(inspected.content)}</p>{/if}
-    {#if label && label !== String(output.position + 1)}<span class="page-context" title={label}>{label}</span>{/if}
   </span>
   {@render pageTools("Output", fitWidth)}
   {@render pageFace(output.position)}
@@ -1692,6 +1774,17 @@
               onclick={() => inputList?.toggleSections()}
               ><Icon name={inputList?.sectionState() === "closed" ? "expand" : "collapse"} /></button
             >{/if}
+          {#if activeTab === "list" && source.input.outline?.length}<button
+              type="button"
+              class="icon-button"
+              aria-label="Section headings"
+              aria-pressed={inputView.grouped}
+              title={inputView.grouped ? "Hide section headings" : "Show section headings"}
+              onclick={() => {
+                inspectInput({ grouped: !inputView.grouped })
+                void interaction.reveal("Input")
+              }}><Icon name="sections" /></button
+            >{/if}
           {#if activeTab === "grid"}{@render gridDensity("Input", inputCompact)}{/if}
           {#if activeTab === "style" && styling}{@render styling(true)}{/if}
           {#if source.input.outline?.length}<Contents
@@ -1700,10 +1793,10 @@
               position={inputPosition}
               {titleChoice}
               bind:tocTitles={() => inputView.tocTitles, (tocTitles) => inspectInput({ tocTitles })}
-              navigate={(position) => {
-                inputList?.expand(position)
-                inspectInput({ position })
-                void interaction.reveal("Input")
+              navigate={async (position) => {
+                inspectInput({ position, offset: position })
+                if (activeTab === "list") await inputList?.revealPage(position)
+                void interaction.reveal("Input", undefined, true)
               }}
             />{/if}
         </div>
@@ -1791,6 +1884,7 @@
                     {count}
                     sheet={inputInspection}
                     name={inputName(inputPosition)}
+                    label={source.input.labels[inputPosition]}
                     bind:headingHeight={inputHeadingHeight}
                     bind:controls={inputControls}
                     initialize={!opening && !inputView.pageInitialized ? (zoom) => setZoom("Input", zoom) : undefined}
@@ -1812,16 +1906,17 @@
                     bind:this={inputList}
                     bind:folds={() => inputView.folds, (folds) => inspectInput({ folds })}
                     pane="Input"
-                    revision={inputView.tocTitles}
-                    heading={inputHeading}
+                    labeled={source.input.labels.length > 0}
+                    revision={`${inputView.grouped}:${inputView.tocTitles}`}
+                    headings={inputView.grouped ? inputHeadings : undefined}
                     selected={(first, end) => sectionSelected("Input", first, end)}
                     {count}
                     bind:position={() => inputPosition, (position) => inspectInput({ position })}
                     select={toggle}
                     edit={(action, page) => action === "add" && !!add(undefined, inputTargets(page))}
                   >
-                    {#snippet section(start, end, path, expanded, toggle)}
-                      {@render sectionRow("Input", start, end, path, expanded, toggle)}
+                    {#snippet section(start, end, path, expanded, toggle, id)}
+                      {@render sectionRow("Input", start, end, path, expanded, toggle, id)}
                     {/snippet}
                     {#snippet children(page, retained)}
                       <li
@@ -1850,7 +1945,7 @@
                           id={`${key}-list-input-${page}`}
                           name={inputName(page)}
                           label={inputName(page) ?? `Page ${page + 1}`}
-                          sections={inputTitle(page)?.paths?.length ?? 0}
+                          pdfLabel={source.input.labels[page]}
                           selected={inputSelected.has(page)}
                           touch={interaction.touchPointer}
                           {transfer}
@@ -1876,6 +1971,7 @@
                           {#snippet origin()}{@render inputOrigin(page, `${key}-list-input-${page}`)}{/snippet}
                           {#snippet actions()}{@render inputPageActions(page)}{/snippet}
                           {#snippet preview()}{@render inputPeek(page)}{/snippet}
+                          {#snippet navigation()}{#if inputView.grouped}{@render pageJump("Input", page)}{/if}{/snippet}
                         </Row>
                       </li>
                     {/snippet}
@@ -2086,6 +2182,17 @@
             onclick={() => outputList?.toggleSections()}
             ><Icon name={outputList?.sectionState() === "closed" ? "expand" : "collapse"} /></button
           >{/if}
+        {#if activeOutputTab === "list"}<button
+            type="button"
+            class="icon-button"
+            aria-label="Section headings"
+            aria-pressed={outputGrouped}
+            title={outputGrouped ? "Hide section headings" : "Show section headings"}
+            onclick={() => {
+              outputGrouped = !outputGrouped
+              void interaction.reveal("Output")
+            }}><Icon name="sections" /></button
+          >{/if}
         {#if activeOutputTab === "grid"}{@render gridDensity("Output", outputCompact)}{/if}
       </div>
 
@@ -2201,6 +2308,9 @@
                 count={output.pages.length}
                 sheet={inspection}
                 name={inspected ? pageName(inspected.content) : undefined}
+                label={inspected && "page" in inspected.content
+                  ? provenance(inspected.content)?.input.labels[inspected.content.page]
+                  : undefined}
                 bind:headingHeight={outputHeadingHeight}
                 bind:controls={outputControls}
                 initialize={!opening && !outputPageInitialized ? (zoom) => setZoom("Output", zoom) : undefined}
@@ -2231,7 +2341,7 @@
               pane="Output"
               count={output.pages.length}
               revision={outputListRevision}
-              heading={(index) => outputHeading(output.pages[index].content)}
+              headings={outputGrouped ? (index) => outputHeadings(output.pages[index].content) : undefined}
               selected={(first, end) => sectionSelected("Output", first, end)}
               identity={(index) => output.pages[index].id}
               skipped={skippedRows}
@@ -2244,8 +2354,8 @@
                 return !!(action === "remove" ? remove(ids) : duplicate(ids))
               }}
             >
-              {#snippet section(start, end, path, expanded, toggle)}
-                {@render sectionRow("Output", start, end, path, expanded, toggle)}
+              {#snippet section(start, end, path, expanded, toggle, id)}
+                {@render sectionRow("Output", start, end, path, expanded, toggle, id)}
               {/snippet}
               {#snippet children(index, retained)}
                 {@const page = output.pages[index]}
@@ -2322,6 +2432,7 @@
                     {#snippet origin()}{@render outputOrigin(page, index)}{/snippet}
                     {#snippet actions()}{@render occurrenceActions(page, index, true)}{/snippet}
                     {#snippet preview()}{@render outputPeek(page, index)}{/snippet}
+                    {#snippet navigation()}{#if outputGrouped}{@render pageJump("Output", index)}{/if}{/snippet}
                   </Row>
                 </li>
               {/snippet}

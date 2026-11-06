@@ -415,26 +415,65 @@ with the first text line and the Contents heading edge in both states. Use TOC t
 it changes a page's display title. When enlarged text leaves insufficient header width, move the complete Expand all /
 Collapse all control below the title and close button.
 
-List shows collapsible section headings when section titles are available. Section rows use the page rows' columns: a
-filled disclosure triangle, a drag grip, the heading, and + and View actions. Heading text uses the same size and small
-caps as page names, with the same starting edge. Its disclosure arrow shows expansion, and its soft background separates
-the section. Text and disclosure glyphs share the row's vertical center. The triangle uses the primary color and points
-right to expand a closed section or down to collapse an open section. It retains a transparent 44 px interaction target.
-The List reserves scrollbar space so that folding does not move its columns. The toolbar uses overlapping pages with a
-minus or plus to collapse or expand all sections.
+List shows the section tree as flat rows, with every ancestor header before its descendants and no depth indentation.
+Nested headers use progressively stronger secondary surface tints through three nested levels. Depth changes do not move
+the shared columns or change text size. Each TOC entry has a header, whether or not it has children. A header and its
+page rows may display the same title; both use the established small-caps typography. Page display-title preferences do
+not hide or rename section headers. Lists without a TOC contain only page rows. Section rows use the page rows' columns:
+a combined ribbon disclosure and drag control, the starting position, an optional Input PDF page label, the heading,
+and + and View actions. The starting position is the physical page number in Input and the occurrence number in Output.
+Heading text uses the same size and small caps as page names, with the same starting edge. Closed sections use normal
+text color for current titles and starting page numbers; open sections use primary for both at the same text weight.
+Ribbons keep the secondary color in both states. Expansion does not change the depth tint. Text and disclosure glyphs
+share the row's vertical center. The ribbon has a long rectangular body with a shallow rear notch and front point. It
+points right to expand a closed section or down to collapse an open section. Its interaction target is at least 44 px
+tall and uses the grip column's width: 32 px for fine pointers, 44 px for touch. It uses a transparent background
+without a border, rounded corners, or shadow. It fills the section row's height. Section rows retain the page rows' thin
+bottom separator. The List reserves native scrollbar space outside the row width, so rows align with the selection bar
+and folding does not move columns. The toolbar separator extends by the measured gutter equally on both sides. The
+toolbar uses overlapping pages with a minus or plus to collapse or expand all sections. A separate Section headings
+toggle follows it and stays in place when the expand/collapse control disappears. On narrow screens, toolbar icons have
+no gap between their 44 px targets. The visible Grid and Contents glyphs sit 4 px inside the toolbar's outer edges;
+wider layouts retain normal spacing. It shows or hides headings, with shown as its default. Hiding headings produces
+uninterrupted page rows and hides the expand/collapse toolbar control.
 
 The heading button toggles selection, including with Enter or Space. A fully selected closed section uses the primary
-background. A fully selected open section keeps secondary text, a soft primary tint, and a narrow primary leading mark.
-Its members retain their selected page appearance. The grip only starts dragging; a drag selects the group and shows a
+background. A fully selected open section uses a stronger primary tint and retains its primary-colored current title.
+Its members retain their selected page appearance. Clicking the ribbon, or pressing Enter or Space, toggles expansion.
+Moving the pressed ribbon starts dragging and replaces it with an unrotated grip until the drop or cancellation. A
+stationary hold keeps the ribbon. Dropping or cancelling does not toggle expansion. A drag selects the group and shows a
 page stack. The + action appears on hover or keyboard focus and stays visible with a touch pointer. Mouse focus alone
 does not keep it visible. An always-visible Unselect tick replaces + when all members are selected. View remains visible
-and shares the page rows' trailing column. Long headings wrap.
+and shares the page rows' trailing column.
 
-TOC-derived Input detail headings retain breadcrumbs with full-title popovers. Output details retain flat headings. Copy
-mappings use one line such as `Output · 2× → 2, 9`, without repeated leaf titles or inferred-range explanations. When a
-TOC-derived Input row covers several sections, a separate small `3 sections` button follows the page name. It opens all
-section paths in the page details and remains visible when the name truncates. Its text uses normal casing, without
-becoming part of the page name or changing selection.
+All List action groups align to the end of their shared column. Extra hierarchy controls must not move the page rows'
+View glyphs away from the section rows' View glyphs.
+
+Section headings show the current title before its parents in reverse hierarchy order, on one line with ellipsis when
+needed. Parents use the same small caps, size, and weight as the current title, with muted color. Separators use a
+larger, bold neutral `‹` with equal space on both sides. Parent text uses free space before the trailing actions.
+Selected closed sections keep all heading text readable against the primary surface.
+
+A return-arrow navigation icon opens Jump to section independently of selection on headers and pages with TOC paths. For
+root headers with no ancestor target, it remains present but disabled. Page-row navigation remains enabled. For fine
+pointers, it appears on hover, keyboard focus, or while its panel is open; touch keeps it visible. Its compact panel has
+16 px padding, a short heading row with a 44 px Close target, and a numbered vertical trail from root to current
+section. Each trail entry is a navigation button with an inset level marker, a physical-page column, and a visible
+keyboard focus outline. Trail text wraps; the current level uses the primary color. Activating an entry closes the panel
+and focuses its header in the same pane. Jump targets briefly fade in and out with a 3000 ms secondary highlight. Grid
+and Page use a translucent overlay across the complete target, without dimming content or adding a contour. Reduced
+motion disables this animation. Escape and outside click dismiss the panel.
+
+The Contents toolbar icon uses the primary color while its panel is open. Selecting an entry reveals its exact physical
+page in Grid, List, or Page, including Grid pages outside the current batch.
+
+Grid headers show only physical page numbers. Page Label and Output mappings appear in a two-column detail table. Normal
+Grid detail columns shrink within the viewport even when breadcrumb titles are long.
+
+TOC-derived Input detail headings retain breadcrumbs with full-title popovers. Output details retain flat headings. The
+detail table pairs each field with its value. The Output field shows copy mappings such as `2× → 2, 9`, without repeated
+leaf titles or inferred-range explanations. Page labels remain available in details even without an outline or Output
+copies.
 
 The section used as the display title remains the bold detail heading. Other paths follow below its separator in
 regular-weight, muted text, so the distinction survives without color.
@@ -443,6 +482,15 @@ Multiple-source Output List rows show an 8 px source-color dot centered exactly 
 dot identifies Input's current file and chooser entries. Dots have a paper-colored halo, distinct light/dark colors, and
 accessible source names. No visible source number, colored row background, or colored page-name text is added. In the
 single-pane layout, Input carries the active accent and the current filename uses normal text color.
+
+Page rows start with the drag grip, then the physical number. Section rows place the combined ribbon control in the grip
+column and the starting position in the number column. Fine pointers use a 32 px base grip column and a 28 px number
+column; touch keeps 44 px targets. Ribbons use a proportionate 1.5em square SVG with a 6 px leading inset. The grip
+column reserves an extra 0.25em from the title column to retain the surrounding gaps. Input List places PDF page labels
+immediately before the page name in a muted, centered 4ch column with 0.125em side padding. This column exists only when
+the PDF defines labels, and its width stays fixed across scrolling and folding. Long labels truncate with ellipsis and
+retain their full text in accessible text and the hover title. Selected labels inherit the row color. Section headings
+keep their text in the page-name column and show the starting page's label when Input defines one.
 
 List rows align page numbers, supplied names, and page actions in stable columns. Keep number and action columns visible
 in narrow panes. Plain numbers and detail buttons use the same type size and column center. Names wrap in the remaining
@@ -583,6 +631,9 @@ px between columns and 10.5 px between rows. The extra 0.5 px prevents touch con
 reaching the next target. Fine-pointer layouts with hover reserve at least 12 px gaps for the lower card's 2 px lift.
 These minima retain the required 85% gap ratio. Capacity yields to these targets.
 
+Compact physical numbers use a 5 px leading inset. The shared minimum card width keeps at least 2 px between the number
+and the centered grip, with equal space on the opposite side.
+
 Compact page identities use at least 0.6875 rem text, or 11 CSS px at ordinary text size. Four- and five-digit counts
 reserve wider equal header cells for the whole pane. These counts can reduce capacity and increase Compact image size
 beyond the ordinary two-to-one image-scale target. The text floor also scales with enlarged text.
@@ -682,13 +733,17 @@ accessible busy state. Rendering does not stretch unfinished canvases.
 Page headings and navigation stay outside the image viewport. All Page layouts use the frame as their alignment
 reference. Leave equal inline insets between visible content and the frame's inner edges. The inset also clears the
 back-page fold: visible control content stays at least 8 CSS px inside the fold's inner edge. Use the same inset on both
-sides and in both rows, including on front pages. Counter text and the Previous icon share the start reference. The
-visible zoom reset content and Next icon share the end reference. Center visible content vertically in its own row. Keep
-the Input grip and footer actions on the frame's true centerline, independent of side-group widths. Output has no grip.
-Zoom, panning, page proportions, and selection do not move these references. Keep targets separate and inside the frame,
-with at least 44 CSS px of target height.
+sides and in both rows, including on front pages. Counter text and the footer Page Label share the start reference.
+Visible zoom reset content uses the end reference. Navigation arrows stay centered between the frame insets and the
+middle action group. Center visible content vertically in its own row. Keep the Input grip and footer actions on the
+frame's true centerline, independent of side-group widths. Output has no grip. Zoom, panning, page proportions, and
+selection do not move these references. Keep targets separate and inside the frame, with at least 44 CSS px of target
+height.
 
-The measured Page-heading budget includes the counter and its PDF label before inline zoom actions.
+The measured Page-heading budget includes the counter before inline zoom actions. Page Label sits at the footer's
+leading edge, aligned with the counter. Previous and Next sit at the centers of the spaces on either side of the
+centered page actions. Long labels truncate before reaching Previous and retain their full value in the tooltip and
+accessible name.
 
 On desktop, retain native scrollbars when the Page image overflows. They show the available range and support mouse
 navigation. Hide them when the image fits that axis. Scrollbar visibility does not change the control references.
@@ -1158,8 +1213,8 @@ Grid density controls sit outside the tab list. The mobile view switcher uses bu
 | Page name caption | Sayfa adı açıklaması | The supplied page name below the Page image frame, or in a Grid header tooltip.         |
 | Contents          | İçindekiler          | Input's embedded PDF outline navigation, opened with the open-book icon.                |
 | Section headings  | Bölüm başlıkları     | The collapsible List section rows with block selection, addition or copying, and View.  |
-| Section path      | Bölüm yolu           | A breadcrumb from ancestor headings to a section, with expandable full titles.          |
-| Section count     | Bölüm sayacı         | The List button that opens all section paths sharing one Input page.                    |
+| Section path      | Bölüm yolu           | A section breadcrumb; List headers put the current title before its muted ancestors.    |
+| Jump to section   | Bölüme git           | The navigation button and numbered ancestor trail for a List header or page.            |
 | Source marker     | Kaynak işareti       | A small color dot identifying an Input and its Output List occurrences.                 |
 
 ### Page selection
@@ -1204,7 +1259,7 @@ The bar is the complete bordered row. The field is only the text-entry area with
 | Page card            | Sayfa kartı                       | One complete card with its header, body, image, footer, and outer boundary.                             |
 | Card header          | Kart üst alanı                    | The upper section with the page number, drag handle, and page face indicator.                           |
 | Page number          | Sayfa numarası                    | The physical page position in the pane's sequence.                                                      |
-| Page label           | Sayfa etiketi                     | A PDF-authored label shown alongside a different physical page number.                                  |
+| Page label           | Sayfa etiketi                     | An optional PDF-authored page identifier, independent of its physical position.                         |
 | Drag handle / Grip   | Sürükleme tutamacı                | The dotted handle in the card header. A click also selects or unselects the page.                       |
 | Page face indicator  | Sayfa yüzü göstergesi             | The corner indicator that identifies the front or back side.                                            |
 | Folded corner        | Katlanmış köşe                    | The curved corner that marks a back side.                                                               |

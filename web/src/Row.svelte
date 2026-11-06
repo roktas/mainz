@@ -13,7 +13,8 @@
     id,
     name,
     label,
-    sections = 0,
+    pdfLabel,
+    navigation,
     selected,
     touch,
     transfer,
@@ -33,7 +34,8 @@
     id: string
     name?: string
     label: string
-    sections?: number
+    pdfLabel?: string
+    navigation?: Snippet
     selected: boolean
     touch: boolean
     transfer: Transfer
@@ -55,7 +57,6 @@
   }
 </script>
 
-<div class="list-number">{@render origin()}</div>
 <button
   class="page-grip icon-button"
   aria-label={`Select or drag ${pane} page ${number}${pane === "Input" ? " to Output" : ""}`}
@@ -72,6 +73,10 @@
   onpointerdown={(event) => transfer.press(event, payload)}
   ondragend={() => transfer.end()}><Icon name="reorder" /></button
 >
+<div class="list-number">{@render origin()}</div>
+{#if pdfLabel !== undefined}<span class="list-pdf-label" aria-label={`Page Label: ${pdfLabel}`} title={pdfLabel}
+    >{pdfLabel}</span
+  >{/if}
 <div class="list-label">
   <button
     bind:this={choice}
@@ -99,14 +104,9 @@
       open(event)
     }}>{label}</button
   >
-  {#if sections > 1}<button
-      class="list-sections"
-      popovertarget={id}
-      aria-label={`Show all ${sections} sections on Input page ${number}`}
-      title="Show all sections on this page">{sections} sections</button
-    >{/if}
 </div>
 <div class="list-actions">
+  {@render navigation?.()}
   {#if selected}
     {#if pane === "Output"}<div class="occurrence-actions">{@render unselect()}</div>{:else}{@render unselect()}{/if}
   {:else}

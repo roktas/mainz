@@ -35,21 +35,24 @@ export async function aligned(pane) {
       child.checkVisibility({ visibilityProperty: true }),
     )
     const current = heading.querySelector(".page-current").getBoundingClientRect()
-    const previous = navigation.firstElementChild.querySelector("svg").getBoundingClientRect()
-    const next = navigation.lastElementChild.querySelector("svg").getBoundingClientRect()
+    const previous = navigation.querySelector('[data-step="-1"] svg').getBoundingClientRect()
+    const next = navigation.querySelector('[data-step="1"] svg').getBoundingClientRect()
     const frame = heading.getBoundingClientRect()
     const grip = handle?.checkVisibility() ? handle.getBoundingClientRect() : undefined
     const actions = navigation.querySelector(".page-actions")?.getBoundingClientRect()
     const leading = grip ?? heading.querySelector(".page-number-control").getBoundingClientRect()
+    const footer = navigation.getBoundingClientRect()
+    const padding = getComputedStyle(navigation)
+    const previousCenter = (footer.left + parseFloat(padding.paddingInlineStart) + actions.left) / 2
+    const nextCenter = (actions.right + footer.right - parseFloat(padding.paddingInlineEnd)) / 2
     const tools = [...heading.querySelectorAll(".page-tools button")]
       .filter((el) => el.checkVisibility() && getComputedStyle(el).visibility !== "hidden")
       .map((el) => el.getBoundingClientRect())
     const edges =
       Math.abs(current.left - frame.left - 32) < 1 &&
-      Math.abs(current.left - previous.left) < 1 &&
-      (!fit ||
-        (Math.abs(fit.getBoundingClientRect().right - frame.right + 32) < 1 &&
-          Math.abs(fit.getBoundingClientRect().right - next.right) < 1))
+      Math.abs(previous.left + previous.width / 2 - previousCenter) < 1 &&
+      Math.abs(next.left + next.width / 2 - nextCenter) < 1 &&
+      (!fit || Math.abs(fit.getBoundingClientRect().right - frame.right + 32) < 1)
     const centered = [heading, navigation].every((row) => {
       const bounds = row.getBoundingClientRect()
       return [...row.querySelectorAll(".page-position, button svg, button .fit-level, .page-zoom > output")]
