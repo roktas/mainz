@@ -5,6 +5,9 @@
     input: "M5 17H3V2h8l4 4v1M11 2v4h4M8 7h9l4 4v11H8V7Zm9 0v4h4",
     grid: "M3 2h7v9H3V2Zm11 0h7v9h-7V2ZM3 14h7v9H3v-9Zm11 0h7v9h-7v-9Z",
     list: "M4 6h.01M8 6h12M4 12h.01M8 12h12M4 18h.01M8 18h12",
+    sections: "M3 3h18M3 12h18M3 21h18M6 6v3m0 6v3M10 7.5h8M10 16.5h8",
+    // Lucide book-open-text (ISC); see public/notices/lucide.txt.
+    toc: "M12 5v16M16 13h2M16 9h2M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2ZM6 13h2M6 9h2",
     normal: "M3 4h7v16H3ZM14 4h7v16h-7Z",
     compact: "M3 2h7v8H3ZM14 2h7v8h-7ZM3 14h7v8H3ZM14 14h7v8h-7Z",
     // Adobe Acrobat ribbon from Simple Icons 13 (CC0). See public/notices/simple-icons.txt.

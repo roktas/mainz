@@ -1345,6 +1345,8 @@ test(
     try {
       browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+      const errors = []
+      page.on("pageerror", (error) => errors.push(error.message))
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.goto(server.resolvedUrls.local[0])
       await page.locator("input[type=file]").first().setInputFiles({
@@ -1386,6 +1388,7 @@ test(
       await color.fill("#123456")
       await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
       assert.equal(await download.isEnabled(), true)
+      assert.deepEqual(errors, [], "Clearing an active report cannot leave child effects reading a removed report")
     } finally {
       await browser?.close()
     }

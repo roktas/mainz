@@ -2,10 +2,12 @@
 
 <script lang="ts">
   import Feedback from "./Feedback.svelte"
-  import { onDestroy, tick } from "svelte"
+  import { onDestroy, tick, untrack } from "svelte"
   import type { Snippet } from "svelte"
-  import { copyError, parseCopies, sizeOf, uid } from "./model.ts"
+  import { copyError, parseCopies, sizeOf, titleOf, uid } from "./model.ts"
   import type { Content, Expanded, Page, Part, Source } from "./model.ts"
+  import { titlesOf } from "./outline.ts"
+  import Contents from "./Contents.svelte"
   import * as composition from "./composition.ts"
   import type { Edit, Output } from "./output.svelte.ts"
   import { pageRanges, parseSequence, toggleSequence } from "./pages.ts"
@@ -54,6 +56,7 @@
     opening = false,
     magnification = 16,
     tour,
+    initial = { input: "grid", output: "grid" },
   }: {
     source?: Source
     styleable: boolean
@@ -79,10 +82,13 @@
     opening?: boolean
     magnification?: Magnification
     tour?: TourStep
+    initial?: { input: "grid" | "list" | "page" | "style"; output: "grid" | "list" | "page" }
   } = $props()
   let outputZoom = $state(100)
   let comparing = $state(false)
   const key = $props.id()
+  const viewTabs = ["grid", "list", "page"] as const
+  const viewLabels = { grid: "Grid", list: "List", page: "Page" }
   function summary(element: HTMLDivElement) {
     const counts = element.querySelector<HTMLElement>(".composition-totals")!
     let frame: number
@@ -102,6 +108,8 @@
     }
   }
   type InputView = {
+    grouped: boolean
+    tocTitles: boolean
     returnTo: "grid" | "list"
     tab: "grid" | "list" | "page" | "style"
     density?: "normal" | "compact"
@@ -113,15 +121,10 @@
     alignment?: Region
   }
   const initialView: InputView = {
+    grouped: false,
+    tocTitles: false,
     returnTo: "grid",
-    tab:
-      import.meta.env.DEV &&
-      new URLSearchParams(location.search).has("demo") &&
-      new URLSearchParams(location.search).has("paint")
-        ? "style"
-        : import.meta.env.DEV && new URLSearchParams(location.search).get("input") === "page"
-          ? "page"
-          : "grid",
+    tab: untrack(() => initial.input),
     position: 0,
     zoom: 100,
     offset: 0,
@@ -129,6 +132,7 @@
   }
   let inputViews = $state.raw<Record<string, InputView>>({})
   const inputView = $derived((source && inputViews[source.id]) ?? initialView)
+  const titleChoice = $derived(source ? titlesOf(source.input).choice : false)
   const inputPosition = $derived(inputView.position)
   const inputCompact = $derived(inputView.density === "compact")
   let inputControls = $state<Controls>("all")
@@ -137,14 +141,15 @@
   let outputPage = $state<ReturnType<typeof PageView>>()
   let outputPageInitialized = $state(false)
   let outputDensity = $state<"normal" | "compact">("normal")
+  let outputGrouped = $state(false)
+  const tocTitlesRevision = $derived(sources.map((item) => !!inputViews[item.id]?.tocTitles).join(","))
+  const outputListRevision = $derived({ pages: output.pages, grouped: outputGrouped, titles: tocTitlesRevision })
   const outputCompact = $derived(outputDensity === "compact")
   let outputOffset = $state(0)
   let outputText = $state<string>()
   let repetitions = $state("2")
   let front = $state(false)
-  let outputTab = $state<"grid" | "list" | "page">(
-    import.meta.env.DEV && new URLSearchParams(location.search).get("output") === "page" ? "page" : "grid",
-  )
+  let outputTab = $state<"grid" | "list" | "page">(untrack(() => initial.output))
   let outputRegion = $state<Region>({ x: 0, y: 0 })
   let view = $state<"input" | "output">("input")
   let usingKeyboard = $state(false)
@@ -340,15 +345,42 @@
     })
     if (changed) void reveal("Input", event)
   }
+  const outputBooks = $derived(
+    new Set(output.pages.flatMap((page) => ("source" in page.content ? [page.content.source] : []))),
+  )
+  function displayName(origin: Source | undefined, page: number) {
+    return origin ? titlesOf(origin.input).at(page, inputViews[origin.id]?.tocTitles).name : undefined
+  }
+  function inputTitle(page: number) {
+    return source ? titlesOf(source.input).at(page, inputView.tocTitles) : undefined
+  }
+  function inputName(page: number) {
+    return displayName(source, page)
+  }
   function pageName(content: Content) {
-    return "source" in content ? provenance(content)?.input.description.pages[content.page]?.name : undefined
+    return "source" in content ? displayName(provenance(content), content.page) : undefined
+  }
+  function inputHeading(page: number) {
+    return inputTitle(page)?.heading ?? []
+  }
+  function outputHeading(content: Content) {
+    if (!("source" in content)) return []
+    const document = provenance(content)?.input
+    return document
+      ? [...(outputBooks.size > 1 ? [titleOf(document)] : []), ...titlesOf(document).at(content.page).heading]
+      : []
   }
   function transferName() {
     const value = transfer.value
     if (!value) return ""
     if (value.kind === "source") {
       const page = value.choice.kind === "page" ? value.choice.page : parsed.pages[0]
-      return sources.find((item) => item.id === value.source)?.input.description.pages[page]?.name ?? `Page ${page + 1}`
+      return (
+        displayName(
+          sources.find((item) => item.id === value.source),
+          page,
+        ) ?? `Page ${page + 1}`
+      )
     }
     const page = output.pages.find((item) => item.id === value.ids[0])
     return page
@@ -1102,35 +1134,21 @@
     view = activeView
     document.querySelector<HTMLElement>(".help-tour:popover-open")?.hidePopover()
   }
-  function tabKey(event: KeyboardEvent) {
+  function tabKey(event: KeyboardEvent, pane: "Input" | "Output" = "Input") {
     if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
     event.preventDefault()
-    const tabs: InputView["tab"][] = styleable ? ["grid", "list", "page", "style"] : ["grid", "list", "page"]
-    const index = tabs.indexOf(activeTab)
+    const tabs: InputView["tab"][] = pane === "Input" && styleable ? [...viewTabs, "style"] : [...viewTabs]
+    const index = tabs.indexOf(pane === "Input" ? activeTab : activeOutputTab)
     const tab =
       event.key === "Home"
         ? tabs[0]
         : event.key === "End"
           ? tabs.at(-1)!
           : tabs[(index + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]
-    inputTab(tab)
-    document.getElementById(`${key}-${tab}`)?.focus()
-  }
-  function outputKey(event: KeyboardEvent) {
-    if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
-    event.preventDefault()
-    const tabs: (typeof outputTab)[] = ["grid", "list", "page"]
-    const index = tabs.indexOf(outputTab)
-    setOutputTab(
-      event.key === "Home"
-        ? "grid"
-        : event.key === "End"
-          ? "page"
-          : tabs[(index + (event.key === "ArrowRight" ? 1 : 2)) % 3],
-    )
-    document.getElementById(`${key}-output-${outputTab}`)?.focus()
+    if (pane === "Input") inputTab(tab)
+    else if (tab !== "style") setOutputTab(tab)
+    document.getElementById(`${key}-${pane === "Input" ? "" : "output-"}${tab}`)?.focus()
   }
 </script>
 
@@ -1370,8 +1388,8 @@
       bind:position={() => inputView.position, (position) => inspectInput({ position, alignment: undefined })}
       {count}
     />
-    {#if source?.input.description.pages[inputPosition]?.name}<p class="page-name">
-        {source.input.description.pages[inputPosition].name}
+    {#if inputName(inputPosition)}<p class="page-name">
+        {inputName(inputPosition)}
       </p>{/if}
     {#if source?.input.labels[inputPosition] && source.input.labels[inputPosition] !== String(inputPosition + 1)}<span
         class="page-context"
@@ -1413,45 +1431,18 @@
 {/snippet}
 
 {#snippet inputOrigin(page: number, detail: string)}
-  {#if source}
-    {@const destinations = outputPositions.get(page) ?? []}
-    {#snippet details()}
-      <strong>Copies in Output: {destinations.length}</strong>
-      <span class="page-context">Output pages: {pageRanges(destinations)}</span>
-    {/snippet}
-    <Origin
+  {#snippet actions()}{@render inputPageActions(page)}{/snippet}
+  {#if source}<Origin
       id={detail}
       pane="Input"
       number={page + 1}
-      label={source.input.labels[page]}
-      name={source.input.description.pages[page]?.name}
+      identity={{ source, page, tocTitles: inputView.tocTitles, destinations: outputPositions.get(page) }}
       mode={activeTab === "list" ? "list" : inputCompact ? "compact" : "normal"}
       bind:opened={originOpen}
-      details={destinations.length ? details : undefined}
-    >
-      {#snippet children()}
-        <div class="card-preview">
-          <Pdf
-            pdf={source.input.pdf}
-            {page}
-            pageNumber={page + 1}
-            name={source.input.description.pages[page]?.name}
-            preview={source.input.description.pages[page]?.preview}
-            thumbnail
-            {magnification}
-            {error}
-          />
-        </div>
-        <p class="page-context">{source.input.name} · {page % 2 ? "Back" : "Front"} side</p>
-        {#if destinations.length}<p class="page-context">
-            Copies in Output: {destinations.length} · pages {pageRanges(destinations)}
-          </p>{/if}
-        {#if !draft.pages.length}<div class="occurrence-actions input-menu-action">
-            {@render inputPageActions(page)}
-          </div>{/if}
-      {/snippet}
-    </Origin>
-  {/if}
+      {magnification}
+      {error}
+      actions={!draft.pages.length ? actions : undefined}
+    />{/if}
 {/snippet}
 
 {#snippet outputOrigin(page: Expanded, index: number)}
@@ -1460,44 +1451,16 @@
     id={`${key}-output-menu-${page.id}`}
     pane="Output"
     number={transfer.number(index)}
-    name={pageName(page.content)}
+    identity={origin && "page" in page.content
+      ? { source: origin, page: page.content.page, tocTitles: inputViews[origin.id]?.tocTitles }
+      : { blank: sizeOf(page.content, sources), padding: page.padding }}
+    multiple={outputBooks.size > 1}
     mode={activeOutputTab === "list" ? "list" : outputCompact ? "compact" : "normal"}
     bind:opened={originOpen}
+    {magnification}
+    {error}
   >
-    {#snippet details()}
-      <strong>{origin?.input.name ?? (page.padding ? "Padding" : "Blank")}</strong>
-      {#if origin && "page" in page.content && origin.input.labels[page.content.page] && origin.input.labels[page.content.page] !== String(page.content.page + 1)}<span
-          class="page-context">PDF label: {origin.input.labels[page.content.page]}</span
-        >{/if}
-      <span class="page-context"
-        >{"page" in page.content
-          ? `${activeOutputTab === "list" ? "Input page" : "p."} ${page.content.page + 1}`
-          : `${sizeOf(page.content, sources).width.toFixed(1)} × ${sizeOf(page.content, sources).height.toFixed(1)} mm`}</span
-      >
-    {/snippet}
-    {#snippet children()}
-      <div class="card-preview">
-        {#if origin && "page" in page.content}<Pdf
-            {...origin.preview.appearance(page.content.page)}
-            pageNumber={page.content.page + 1}
-            name={pageName(page.content)}
-            thumbnail
-            {magnification}
-            {error}
-          />
-        {:else}<div
-            class="composition-blank"
-            style:--ratio={sizeOf(page.content, sources).width / sizeOf(page.content, sources).height}
-          >
-            <Icon name="blank" /><span>{page.padding ? "Padding" : "Blank"}</span>
-          </div>{/if}
-      </div>
-      <p class="page-context">
-        {origin?.input.name ?? (page.padding ? "Padding" : "Blank")}{#if "page" in page.content}
-          · original page {page.content.page + 1}{/if}
-      </p>
-      {@render occurrenceActions(page, index, !chosen.length)}
-    {/snippet}
+    {#snippet actions()}{@render occurrenceActions(page, index, !chosen.length)}{/snippet}
   </Origin>
 {/snippet}
 
@@ -1519,7 +1482,7 @@
         id={`${key}-peek-input-${page}`}
         pane="Input"
         number={page + 1}
-        name={source.input.description.pages[page]?.name}
+        name={inputName(page)}
         size={source.input.sizes[page]}
         enabled={!transfer.value && !originOpen}
         owner={peeks}
@@ -1818,47 +1781,21 @@
           {@render input(`${key}-selection`)}
         </div>
 
-        <div class="editing-toolbar source-tabs">
+        <div class="editing-toolbar source-tabs" style:anchor-name="--input-pane">
           <div class="tabs" role="tablist" aria-label="Input workspace">
-            <button
-              id={`${key}-grid`}
-              role="tab"
-              aria-label="Grid"
-              aria-selected={activeTab === "grid"}
-              aria-controls={`${key}-source-panel`}
-              tabindex={activeTab === "grid" ? 0 : -1}
-              onkeydown={tabKey}
-              onclick={() => inputTab("grid")}
-              title="Grid view"
-              data-tour-tab="input-grid"
-              data-tour-active={tour === "input-grid"}><Icon name="grid" /><span>Grid</span></button
-            >
-            <button
-              id={`${key}-list`}
-              role="tab"
-              aria-label="List"
-              aria-selected={activeTab === "list"}
-              aria-controls={`${key}-source-panel`}
-              tabindex={activeTab === "list" ? 0 : -1}
-              onkeydown={tabKey}
-              onclick={() => inputTab("list")}
-              title="List view"
-              data-tour-tab="input-list"
-              data-tour-active={tour === "input-list"}><Icon name="list" /><span>List</span></button
-            >
-            <button
-              id={`${key}-page`}
-              role="tab"
-              aria-label="Page"
-              aria-selected={activeTab === "page"}
-              aria-controls={`${key}-source-panel`}
-              tabindex={activeTab === "page" ? 0 : -1}
-              onkeydown={tabKey}
-              onclick={() => inputTab("page")}
-              title="Page view"
-              data-tour-tab="input-page"
-              data-tour-active={tour === "input-page"}><Icon name="page" /><span>Page</span></button
-            >
+            {#each viewTabs as tab}<button
+                id={`${key}-${tab}`}
+                role="tab"
+                aria-label={viewLabels[tab]}
+                aria-selected={activeTab === tab}
+                aria-controls={`${key}-source-panel`}
+                tabindex={activeTab === tab ? 0 : -1}
+                onkeydown={(event) => tabKey(event)}
+                onclick={() => inputTab(tab)}
+                title={`${viewLabels[tab]} view`}
+                data-tour-tab={`input-${tab}`}
+                data-tour-active={tour === `input-${tab}`}><Icon name={tab} /><span>{viewLabels[tab]}</span></button
+              >{/each}
             {#if hasStyles}<button
                 id={`${key}-style`}
                 role="tab"
@@ -1880,8 +1817,29 @@
                   ></span>{/if}</button
               >{/if}
           </div>
+          {#if activeTab === "list" && source.input.outline?.length}<button
+              class="icon-button"
+              aria-label="Section headings"
+              aria-pressed={inputView.grouped}
+              title={inputView.grouped ? "Hide section headings" : "Show section headings"}
+              onclick={() => {
+                inspectInput({ grouped: !inputView.grouped })
+                void reveal("Input")
+              }}><Icon name="sections" /></button
+            >{/if}
           {#if activeTab === "grid"}{@render gridDensity("Input", inputCompact)}{/if}
           {#if activeTab === "style" && styling}{@render styling(true)}{/if}
+          {#if source.input.outline?.length}<Contents
+              outline={source.input.outline}
+              source={source.id}
+              position={inputPosition}
+              {titleChoice}
+              bind:tocTitles={() => inputView.tocTitles, (tocTitles) => inspectInput({ tocTitles })}
+              navigate={(position) => {
+                inspectInput({ position })
+                void reveal("Input")
+              }}
+            />{/if}
         </div>
 
         <div
@@ -1966,7 +1924,7 @@
                     bind:this={inputPage}
                     {count}
                     sheet={inputInspection}
-                    name={source.input.description.pages[inputPosition]?.name}
+                    name={inputName(inputPosition)}
                     bind:headingHeight={inputHeadingHeight}
                     bind:controls={inputControls}
                     initialize={!opening && !inputView.pageInitialized ? (zoom) => setZoom("Input", zoom) : undefined}
@@ -1986,6 +1944,7 @@
               {:else if activeTab === "list"}
                 {#key source.id}<List
                     pane="Input"
+                    revision={`${inputView.grouped}:${inputView.tocTitles}`}
                     {count}
                     bind:position={() => inputPosition, (position) => inspectInput({ position })}
                     select={toggle}
@@ -1993,7 +1952,6 @@
                   >
                     {#snippet children(indices, retained)}
                       {#each indices as page (page)}
-                        {@const metadata = source.input.description.pages[page]}
                         <li
                           class="list-row"
                           data-retained={page === retained || undefined}
@@ -2016,8 +1974,13 @@
                             number={page + 1}
                             index={page}
                             id={`${key}-list-input-${page}`}
-                            name={metadata.name}
-                            label={metadata.name ?? `Page ${page + 1}`}
+                            name={inputName(page)}
+                            label={inputName(page) ?? `Page ${page + 1}`}
+                            sections={inputTitle(page)?.paths?.length ?? 0}
+                            heading={inputView.grouped &&
+                            (page === 0 || inputHeading(page).join(" › ") !== inputHeading(page - 1).join(" › "))
+                              ? inputHeading(page)
+                              : undefined}
                             selected={inputSelected.has(page)}
                             touch={touchPointer}
                             {transfer}
@@ -2136,7 +2099,7 @@
                             pdf={source.input.pdf}
                             {page}
                             pageNumber={page + 1}
-                            name={source.input.description.pages[page]?.name}
+                            name={inputName(page)}
                             preview={source.input.description.pages[page]?.preview}
                             thumbnail
                             {magnification}
@@ -2230,46 +2193,30 @@
       </div>
       <div class="editing-toolbar output-tabs">
         <div class="tabs" role="tablist" aria-label="Output workspace">
-          <button
-            id={`${key}-output-grid`}
-            role="tab"
-            aria-label="Grid"
-            aria-selected={activeOutputTab === "grid"}
-            aria-controls={`${key}-output-panel`}
-            tabindex={activeOutputTab === "grid" ? 0 : -1}
-            onkeydown={outputKey}
-            onclick={() => setOutputTab("grid")}
-            title="Grid view"
-            data-tour-tab="output-grid"
-            data-tour-active={tour === "output-grid"}><Icon name="grid" /><span>Grid</span></button
-          >
-          <button
-            id={`${key}-output-list`}
-            role="tab"
-            aria-label="List"
-            aria-selected={activeOutputTab === "list"}
-            aria-controls={`${key}-output-panel`}
-            tabindex={activeOutputTab === "list" ? 0 : -1}
-            onkeydown={outputKey}
-            onclick={() => setOutputTab("list")}
-            title="List view"
-            data-tour-tab="output-list"
-            data-tour-active={tour === "output-list"}><Icon name="list" /><span>List</span></button
-          >
-          <button
-            id={`${key}-output-page`}
-            role="tab"
-            aria-label="Page"
-            aria-selected={activeOutputTab === "page"}
-            aria-controls={`${key}-output-panel`}
-            tabindex={activeOutputTab === "page" ? 0 : -1}
-            onkeydown={outputKey}
-            onclick={() => setOutputTab("page")}
-            title="Page view"
-            data-tour-tab="output-page"
-            data-tour-active={tour === "output-page"}><Icon name="page" /><span>Page</span></button
-          >
+          {#each viewTabs as tab}<button
+              id={`${key}-output-${tab}`}
+              role="tab"
+              aria-label={viewLabels[tab]}
+              aria-selected={activeOutputTab === tab}
+              aria-controls={`${key}-output-panel`}
+              tabindex={activeOutputTab === tab ? 0 : -1}
+              onkeydown={(event) => tabKey(event, "Output")}
+              onclick={() => setOutputTab(tab)}
+              title={`${viewLabels[tab]} view`}
+              data-tour-tab={`output-${tab}`}
+              data-tour-active={tour === `output-${tab}`}><Icon name={tab} /><span>{viewLabels[tab]}</span></button
+            >{/each}
         </div>
+        {#if activeOutputTab === "list"}<button
+            class="icon-button"
+            aria-label="Section headings"
+            aria-pressed={outputGrouped}
+            title={outputGrouped ? "Hide section headings" : "Show section headings"}
+            onclick={() => {
+              outputGrouped = !outputGrouped
+              void reveal("Output")
+            }}><Icon name="sections" /></button
+          >{/if}
         {#if activeOutputTab === "grid"}{@render gridDensity("Output", outputCompact)}{/if}
       </div>
 
@@ -2410,7 +2357,7 @@
             <List
               pane="Output"
               count={output.pages.length}
-              revision={output.pages}
+              revision={outputListRevision}
               skipped={skippedRows}
               retained={retainedRow}
               bind:position={output.position}
@@ -2473,6 +2420,12 @@
                       {index}
                       id={`${key}-${page.id}`}
                       name={pageName(page.content)}
+                      heading={outputGrouped &&
+                      (index === 0 ||
+                        outputHeading(page.content).join(" › ") !==
+                          outputHeading(output.pages[index - 1].content).join(" › "))
+                        ? outputHeading(page.content)
+                        : undefined}
                       label={pageName(page.content) ??
                         ("blank" in page.content
                           ? page.padding

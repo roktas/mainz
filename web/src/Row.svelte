@@ -5,6 +5,7 @@
   import { retainFocus } from "./drag.ts"
   import type { Transfer, Payload } from "./transfer.svelte.ts"
   import Icon from "./Icon.svelte"
+  import Breadcrumb from "./Breadcrumb.svelte"
 
   let {
     pane,
@@ -13,6 +14,8 @@
     id,
     name,
     label,
+    sections = 0,
+    heading,
     selected,
     touch,
     transfer,
@@ -32,6 +35,8 @@
     id: string
     name?: string
     label: string
+    sections?: number
+    heading?: readonly string[]
     selected: boolean
     touch: boolean
     transfer: Transfer
@@ -53,6 +58,7 @@
   }
 </script>
 
+{#if heading?.length}<div class="list-section"><Breadcrumb path={heading} /></div>{/if}
 <div class="list-number">{@render origin()}</div>
 <button
   class="page-grip icon-button"
@@ -70,32 +76,40 @@
   onpointerdown={(event) => transfer.press(event, payload)}
   ondragend={() => transfer.end()}><Icon name="reorder" /></button
 >
-<button
-  bind:this={choice}
-  class="list-choice"
-  data-page={index}
-  aria-label={`Select ${pane} page ${number}${name ? `: ${name}` : ""}`}
-  title="Select or unselect this page. Shift-click selects a range."
-  aria-pressed={selected}
-  onfocus={inspect}
-  draggable="true"
-  onmousedown={retainFocus}
-  onpointerdown={(event) => {
-    if (event.pointerType === "mouse") transfer.press(event, payload)
-  }}
-  ondragstart={(event) => start(event, payload)}
-  ondragend={() => transfer.end()}
-  onclick={(event) => {
-    if (event.detail <= 1) restore = select(event)
-    if (event.detail) focus()
-  }}
-  ondblclick={(event) => {
-    if (touch || event.ctrlKey || event.metaKey) return
-    restore?.()
-    restore = undefined
-    open(event)
-  }}>{label}</button
->
+<div class="list-label">
+  <button
+    bind:this={choice}
+    class="list-choice"
+    data-page={index}
+    aria-label={`Select ${pane} page ${number}${name ? `: ${name}` : ""}`}
+    title="Select or unselect this page. Shift-click selects a range."
+    aria-pressed={selected}
+    onfocus={inspect}
+    draggable="true"
+    onmousedown={retainFocus}
+    onpointerdown={(event) => {
+      if (event.pointerType === "mouse") transfer.press(event, payload)
+    }}
+    ondragstart={(event) => start(event, payload)}
+    ondragend={() => transfer.end()}
+    onclick={(event) => {
+      if (event.detail <= 1) restore = select(event)
+      if (event.detail) focus()
+    }}
+    ondblclick={(event) => {
+      if (touch || event.ctrlKey || event.metaKey) return
+      restore?.()
+      restore = undefined
+      open(event)
+    }}>{label}</button
+  >
+  {#if sections > 1}<button
+      class="list-sections"
+      popovertarget={id}
+      aria-label={`Show all ${sections} sections on Input page ${number}`}
+      title="Show all sections on this page">{sections} sections</button
+    >{/if}
+</div>
 <div class="list-actions">
   {#if selected}
     {#if pane === "Output"}<div class="occurrence-actions">{@render unselect()}</div>{:else}{@render unselect()}{/if}

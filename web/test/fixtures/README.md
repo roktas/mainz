@@ -1,7 +1,8 @@
 # Prepared PDF sample
 
 [demo.pdf](demo.pdf) contains four Pages from Megic's Ital Winters 7.9 mm A4 series. PDF Composer's `?demo` mode opens
-it in development, production, and offline after application installation.
+it in development and production. The sample downloads on first use and then works offline when its optional cache is
+available.
 
 The Pages are the cover, `ital-guid-79a4-wxgx`, full-sheet CROS (`ital-cros-79a4-wxgf`), and partial CROS
 (`ital-cros-79a4-wxgr`), in that order. Output starts with `1,2,3,4,3,4,3,4`. Repetitions expose no additional Book
@@ -62,7 +63,7 @@ mkdir -p .local/tmp/web/grid
 
 After rebuilding `demo.pdf`, rebuild `sample.pdf` too. With the development server running, open
 `http://127.0.0.1:5173/?demo=grid`. Add `&input=page` or `&output=page` to compare Grid with Page. Production and
-offline startup execute the same Plan in the browser, using the bundled four-page PDF. The 240-page PDF stays outside
+offline startup execute the same Plan in the browser, using the downloaded four-page PDF. The 240-page PDF stays outside
 production assets and the offline cache. The examples dialog lists it second as Large demo.
 
 ## Geometry collection and calibration
@@ -74,7 +75,7 @@ limits.
 ## Recipe fixture
 
 `?demo=recipe` opens [`recipe/session.json`](recipe/session.json) for Input matching. The example offers its JSON and
-PDFs as downloads and can select the bundled PDFs through Sample PDFs. The `book` binding reuses `demo.pdf`.
+PDFs as downloads and can select the sample PDFs through Sample PDFs. The `book` binding reuses `demo.pdf`.
 [`recipe/guides.pdf`](recipe/guides.pdf) contains its physical pages 2–4; its title is `Guide sheets` and its cover is
 page 1. [`recipe/crossings.pdf`](recipe/crossings.pdf) contains physical pages 3–4; its title is `Crossing strokes` and
 its cover is page 2. Both use short XMP `dc:title` and PDF Info `Title` values, with longer text in XMP
@@ -86,3 +87,38 @@ The Recipe contains three independent logical Inputs, each with a saved title, X
 cover. Output contains the original cover and the first page from each derived PDF. Its title is `Practice session`.
 After rebuilding the PDFs, open the Recipe demo, choose the replacement files, and export a new Recipe to refresh the
 digests and covers. Keep the logical IDs `book`, `guides`, and `crossings` so the demo's sample bindings remain valid.
+
+## TOC samples
+
+[`toc/flatland.pdf`](toc/flatland.pdf) contains chapters I-III and XIII-XV of Edwin A. Abbott's _Flatland_ (1884). It
+retains the original illustrations as vectors and the two-level Part/Chapter structure. Editorial endnotes are omitted.
+[`toc/bridge.pdf`](toc/bridge.pdf) contains Ambrose Bierce's complete _An Occurrence at Owl Creek Bridge_ (1890), with
+its three original sections. Both PDFs include printed contents, linked PDF outlines, and standard document metadata.
+Neither adds authored page names. The samples contain 26 and 13 pages. They are smaller than the 250 KiB PDF budget.
+
+The Flatland source comes from [Standard Ebooks](https://standardebooks.org/ebooks/edwin-a-abbott/flatland). Its
+contributors dedicate their additions to the public domain under
+[CC0](https://github.com/standardebooks/edwin-a-abbott_flatland/blob/master/LICENSE.md). The Bierce text comes from
+[Project Gutenberg #375](https://www.gutenberg.org/ebooks/375), which lists the work as public domain in the USA.
+[`toc/sources.json`](toc/sources.json) retains the selected text, vector illustrations, source URLs, and source hashes.
+The reading PDFs omit the Gutenberg branding and license boilerplate. Source attribution remains on each cover. New
+layout contributions in the two reading PDFs are dedicated to the public domain under CC0-1.0.
+
+Run the deterministic builder from the repository root:
+
+```sh
+uv run --with reportlab==5.1.0 --with svglib==2.4.0 web/test/fixtures/toc/build.py
+```
+
+The builder reads only retained inputs and requires no network access after its dependencies are installed. After a
+rebuild, inspect the outlines with QPDF and render the pages with Poppler. Make sure that headings, illustrations,
+contents links, and page numbers remain correct before replacing the fixtures.
+
+## Download and storage budget
+
+All demo PDFs and Recipes stay outside the offline installation manifest. Vite publishes them as optional static files.
+The application downloads each file only when a user opens its demo or requests its sample PDFs. A separate cache
+retains only the current catalog's hash-matched files, up to 2 MiB in total. Application updates retain unchanged
+examples and remove changed or retired hashes. New downloads bypass the HTTP cache. A fresh offline installation cannot
+open a demo that has not been downloaded. The build rejects PDFs above 250 KiB and Recipes above 1 MiB. Large demo
+repeats the shared four-page sample in the browser.

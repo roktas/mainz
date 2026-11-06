@@ -111,6 +111,29 @@ label. Output rows show one position and keep original page numbers and differin
 names remain available by number. Repeated names do not merge rows or occurrences. Blank and Padding rows retain their
 existing product identities without invented authored names.
 
+An embedded PDF outline supplies display titles where authored page names are missing. A matching child takes priority
+over its ancestors. Ranges are inferred from subsequent section targets, so an omitted heading cannot close a preceding
+section. Same-page siblings remain separate even at different depths; their first section supplies the display title.
+Headings without usable titles or targets do not hide their navigable children or attach them to unrelated sections.
+Input List shows a section-count button when several sections cover a page, opening all their breadcrumb paths without
+changing selection. These titles never enter the Description, Recipe matching, or generated page-name metadata. Output
+resolves titles through each occurrence's original Input page.
+
+Contents offers Use TOC titles only when at least one authored page name differs from its matching section title. This
+per-Input preference reverses the display priority to section title, authored name, then page number. It applies to that
+Input and its Output occurrences without changing the PDF or Recipe. The default priority always favors authored names.
+TOC-derived Input detail headings show breadcrumbs; authored names retain a flat heading. Output details use flat
+headings, filename and original page number, and the document Title when several Inputs contribute pages.
+
+The open-book Contents control navigates the Input outline in Grid, List, and Page without changing selection. Output
+has no Contents control. The independent Section headings button adds breadcrumb dividers at List section transitions in
+either pane. Output dividers include the document Title when several Inputs contribute pages. Dividers never merge rows
+or occurrences. The default List has no dividers.
+
+When several Inputs contribute to Output, List occurrence numbers have small source-color dots between the number and
+grip. Input's current file and chooser use the matching colors. Colors remain stable for each workspace source across
+reordering and duplication; filename and original page details provide the source identity independently of color.
+
 List mounts the visible window and a small margin, with spacers retaining the scroll range. Unmounted rows keep their
 physical positions, occurrence identities, and selections in the existing workspace owners. Contextual row actions mount
 when their menu opens.
@@ -162,26 +185,38 @@ or dynamic Recipe lookup.
 
 ### Demo
 
-| Query         | Result                                                                                         |
-| ------------- | ---------------------------------------------------------------------------------------------- |
-| `?demo`       | Four-page Input, all pages selected, with Output ordered as `1,2,3,4,3,4,3,4`.                 |
-| `?demo=empty` | The same Input with no Selection and empty Output, including onboarding and the addition hint. |
-| `?demo=grid`  | 240-page Input and Output from 60 repetitions of the four sample pages.                        |
-| `?demo&paint` | Style with the Filled profile, available only in development.                                  |
+| URL                  | Result                                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| `?demo`              | Four-page Input, all pages selected, with Output ordered as `1,2,3,4,3,4,3,4`.                 |
+| `?demo=empty`        | The same Input with no Selection and empty Output, including onboarding and the addition hint. |
+| `?demo=grid`         | 240-page Input and Output from 60 repetitions of the four sample pages.                        |
+| `?demo&paint`        | Style with the Filled profile, available only in development.                                  |
+| `/demo=toc`          | Flatland excerpts with hierarchical Contents and arranged Output.                              |
+| `/demo=toc-multiple` | Flatland and An Occurrence at Owl Creek Bridge, with pages from both Inputs in Output.         |
+
+Both TOC demos start with the default List and offer optional Section headings. Their query equivalents are `?demo=toc`
+and `?demo=toc-multiple`. The maintained public-domain reading PDFs have real embedded outlines and no authored page
+names.
 
 On every screen, three or more quick clicks or taps on the upper-left logo open the examples dialog. It lists Single
-demo, Large demo, Recipe demo, and Empty demo, in that order. The workspace also offers Show the welcome again. Links
-navigate inside the application scope, including in an installed app. Before an example replaces undownloaded changes,
-the application asks for confirmation. A single click returns Home, and a double-click replays the logo animation.
-Actions wait until the quick-click sequence ends. Reduced motion disables the animation. Open PDF always opens local
-PDFs.
+demo, Large demo, TOC demo, TOCs demo, Recipe demo, and Empty demo, in that order. The workspace also offers Welcome
+screen. Menu entry names use two words. Links navigate inside the application scope, including in an installed app.
+Before an example replaces undownloaded changes, the application asks for confirmation. A single click returns Home, and
+a double-click replays the logo animation. Actions wait until the quick-click sequence ends. Reduced motion disables the
+animation. Open PDF always opens local PDFs.
 
 Unknown demo values show an Error and retain local PDF opening. Local opening takes precedence over a pending demo
-result or error. The bundled demo remains available offline after application installation. The
+result or error. Demo PDFs and Recipes are excluded from offline installation. They download from the application's own
+server only when requested. A first request needs a connection; downloaded examples remain available offline in a
+separate cache. The build limits each demo PDF to 250 KiB, each Recipe to 1 MiB, and the complete example catalog to 2
+MiB. The cache accepts only catalog entries with matching byte lengths and SHA-256 digests. Updates retain unchanged
+examples and remove changed or retired hashes. New downloads bypass the HTTP cache, so stale responses cannot populate a
+new catalog entry. User PDFs and generated files never enter this cache. If optional storage is unavailable, an online
+demo still opens. Core offline installation and updates do not depend on demo downloads. The
 [fixture guide](../test/fixtures/README.md) owns its contents and rebuild procedure.
 
-Production builds prepare Grid demo in the browser from the bundled sample. Grid demo also works offline and requires no
-additional PDF asset. Development uses the equivalent native fixture for calibration.
+Production builds prepare Grid demo in the browser from the downloaded four-page sample. After that sample is cached,
+Grid demo works offline without another PDF download. Development uses the equivalent native fixture for calibration.
 
 ## Selection and addition
 
@@ -907,12 +942,12 @@ document markup, or authoritative contract validator. Downloaded prepared conten
 Input or producer. Invalid embedded contracts remain errors. Encrypted, signed, unsupported, and excessive Inputs follow
 library restrictions.
 
-PDF processing stays on the device. PDF bytes and document-derived values are never uploaded or placed in the offline
-cache. Preview uses bundled assets, fetches no document-specified resources, and executes no PDF actions or scripts.
-Offline updates retain one complete compatible asset set without interrupting open work. Updating pauses PDF opening
-until reload. A blocked update restores opening. Offline installation retries temporary download failures before it
-reports a failure. Missing or incompatible assets block installation. Failure guidance asks users to reload the page and
-report repeated failures.
+PDF processing stays on the device. User PDF bytes and document-derived values are never uploaded or placed in the
+offline cache. Preview uses bundled assets, fetches no document-specified resources, and executes no PDF actions or
+scripts. Offline updates retain one complete compatible asset set without interrupting open work. Updating pauses PDF
+opening until reload. A blocked update restores opening. Offline installation retries temporary download failures before
+it reports a failure. Missing or incompatible assets block installation. Failure guidance asks users to reload the page
+and report repeated failures.
 
 Each worker runs one operation at a time and loads only its bundled processor module. A failed operation discards the
 WASM instance and extracted-page cache before the next request. Cleanup errors fail successful work without replacing an

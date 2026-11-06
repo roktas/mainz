@@ -1921,7 +1921,7 @@ test("Output Page keeps original PDF labels through composition and Input change
     ]) {
       await output.getByRole("button", { name: `Details for Output page ${index}`, exact: true }).click()
       const details = output.locator(".card-menu-options:popover-open")
-      await details.getByText(`Input page ${source}`, { exact: true }).waitFor()
+      await details.getByText(`Labeled.pdf · p. ${source}`, { exact: true }).waitFor()
       if (label) await details.getByText(`PDF label: ${label}`, { exact: true }).waitFor()
       await page.keyboard.press("Escape")
     }
@@ -2618,7 +2618,7 @@ test(
         await details.click()
         assert.match(
           await output.locator(".page-origin[open] .page-origin-info").innerText(),
-          new RegExp(`Large\\.pdf\\s+p\\. ${original}`),
+          new RegExp(`Large\\.pdf · p\\. ${original}`),
         )
         await details.click()
       }

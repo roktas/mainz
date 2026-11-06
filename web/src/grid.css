@@ -153,7 +153,7 @@
             outline-color: Highlight;
           }
         }
-        & :is(.list-choice, .page-grip, .page-origin > button, .list-actions button):focus-visible {
+        & :is(.list-choice, .list-sections, .page-grip, .page-origin > button, .list-actions button):focus-visible {
           outline-color: transparent;
         }
         &[data-dragging] {
@@ -282,6 +282,15 @@
       & .page-origin > button {
         color: inherit;
         transition: none;
+        &:has([data-provenance]) {
+          position: relative;
+          & > [data-provenance] {
+            position: absolute;
+            inset-inline-start: calc(75% + var(--list-action-size) / 4);
+            inset-block-start: 50%;
+            translate: -50% -50%;
+          }
+        }
         & strong > span:first-child {
           text-decoration: underline dotted var(--muted);
           text-underline-offset: 0.2em;
@@ -294,6 +303,7 @@
         font-size: var(--small);
       }
       & .list-choice {
+        flex: 1;
         display: block;
         min-block-size: 44px;
         min-inline-size: 0;
@@ -309,6 +319,38 @@
         &:active {
           background: transparent;
           filter: none;
+        }
+      }
+      & .list-label {
+        display: flex;
+        align-items: center;
+        min-inline-size: 0;
+      }
+      & .list-sections {
+        flex: none;
+        min-block-size: 44px;
+        padding: 0.5em;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: inherit;
+        box-shadow: none;
+        font-size: var(--small);
+        font-weight: 400;
+        font-variant-caps: normal;
+        white-space: nowrap;
+        &:active {
+          color: inherit;
+          filter: none;
+        }
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            color: inherit;
+            background: transparent;
+            box-shadow: none;
+            text-decoration: underline;
+            text-underline-offset: 0.2em;
+          }
         }
       }
       & .list-actions {
@@ -422,6 +464,21 @@
     }
     .page-list > li {
       --return-surface: var(--paper);
+      & > .list-section {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        min-inline-size: 0;
+        padding: 0.15rem 0.75rem;
+        color: var(--secondary);
+        background: var(--soft);
+        border-block-end: 1px solid var(--border);
+        font-size: var(--small);
+        font-weight: 600;
+        overflow-wrap: anywhere;
+      }
+      &:has(> .list-section) > :not(.list-section, .list-drop-preview) {
+        grid-row: 2;
+      }
       &.selected {
         --return-surface: var(--accent);
       }

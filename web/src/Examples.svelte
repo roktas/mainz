@@ -25,6 +25,11 @@
     <a href="?demo=grid" onclick={navigate}>
       <strong>Large demo</strong><span>Explore a larger workspace with 240 pages.</span>
     </a>
+    <a href={`${import.meta.env.BASE_URL}demo=toc`} onclick={navigate}>
+      <strong>TOC demo</strong><span>Explore section navigation and page titles in Input and Output.</span>
+    </a><a href={`${import.meta.env.BASE_URL}demo=toc-multiple`} onclick={navigate}
+      ><strong>TOCs demo</strong><span>Explore page provenance with two PDFs.</span></a
+    >
     <a href="?demo=recipe" onclick={navigate}>
       <strong>Recipe demo</strong><span>Match three sample PDFs to a saved recipe.</span>
     </a>
@@ -33,7 +38,7 @@
     </a>
     {#if workspace}
       <a href="?demo=empty&reset" onclick={navigate}>
-        <strong>Show the welcome again</strong><span>Start with the sample and revisit the introduction.</span>
+        <strong>Welcome screen</strong><span>Start with the sample and revisit the introduction.</span>
       </a>
     {/if}
   </nav>

@@ -3,6 +3,7 @@
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { Description, Scalar, StyleState, Usage } from "./styles.ts"
 import type { Reference } from "./recipe.ts"
+import type { Outline } from "./outline.ts"
 
 export type Size = { width: number; height: number }
 export type Content = { source: string; page: number } | { blank: Size }
@@ -17,6 +18,7 @@ export type Input = {
   reference?: Reference
   sizes: Size[]
   labels: string[]
+  outline?: Outline[]
   title?: string
   coverPage?: number
   cover?: string
@@ -24,6 +26,7 @@ export type Input = {
 }
 export type Source = StyleState & {
   id: string
+  number: number
   input: Input
   preview: Preview
   modified: boolean

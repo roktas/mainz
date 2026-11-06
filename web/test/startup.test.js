@@ -1,6 +1,7 @@
 // Checks opening, preview loading, assets, and offline updates.
 
 import assert from "node:assert/strict"
+import { createHash } from "node:crypto"
 import test, { after } from "node:test"
 import { serve } from "./server.ts"
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises"
@@ -630,6 +631,8 @@ test("Logo clicks choose Home, animation, or examples and retain landing paralla
       assert.deepEqual(await examples.locator("a strong").allTextContents(), [
         "Single demo",
         "Large demo",
+        "TOC demo",
+        "TOCs demo",
         "Recipe demo",
         "Empty demo",
       ])
@@ -1083,7 +1086,7 @@ test("Demo variants open the maintained Input with populated or empty Output", a
         order.push(...(await output.locator(".page-origin-info .page-context").allTextContents()))
         assert.deepEqual(
           order,
-          [1, 2, 3, 4, 3, 4, 3, 4].map((number) => `p. ${number}`),
+          [1, 2, 3, 4, 3, 4, 3, 4].map((number) => `demo.pdf · p. ${number}`),
         )
         await gridPage(output, 1)
         assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "1-4")
@@ -1677,6 +1680,155 @@ test("Concurrent Source previews isolate resets and ignore obsolete worker repli
   }
 })
 
+test("Production demos download on demand and reuse verified files offline", { timeout: 120000 }, async () => {
+  const outDir = await production()
+  const worker = await readFile(join(outDir, "sw.js"), "utf8")
+  const assets = JSON.parse(worker.match(/const ASSETS = (.*);\n/)[1])
+  const examples = JSON.parse(worker.match(/const EXAMPLES = (.*);\n/)[1])
+  const replacement = await readFile(join(outDir, "toc/bridge.pdf"))
+  const original = await readFile(join(outDir, "toc/flatland.pdf"))
+  const replacementHash = createHash("sha256").update(replacement).digest("hex")
+  const next = examples
+    .filter((asset) => asset.path !== "toc/bridge.pdf")
+    .map((asset) =>
+      asset.path === "toc/flatland.pdf" ? { ...asset, bytes: replacement.length, sha256: replacementHash } : asset,
+    )
+  const requests = []
+  let changed = false
+  let server, browser
+  try {
+    server = await preview({
+      base: "/composer/",
+      build: { outDir },
+      preview: { host: "127.0.0.1", port: 0 },
+      plugins: [
+        {
+          name: "demo-catalog-test",
+          configurePreviewServer(value) {
+            value.middlewares.use((request, response, advance) => {
+              const path = request.url.split("?")[0].replace("/composer/", "")
+              if (examples.some((asset) => asset.path === path)) requests.push(path)
+              if (path === "sw.js") {
+                response.setHeader("Content-Type", "text/javascript")
+                response.setHeader("Cache-Control", "no-store")
+                response.end(
+                  changed
+                    ? worker
+                        .replace(/const VERSION = '[^']+';/, "const VERSION = 'catalog-update';")
+                        .replace(/const EXAMPLES = .*;\n/, `const EXAMPLES = ${JSON.stringify(next)};\n`)
+                    : worker,
+                )
+              } else if (path === "toc/flatland.pdf") {
+                response.setHeader("Content-Type", "application/pdf")
+                response.setHeader("Cache-Control", "public, max-age=31536000")
+                response.end(changed ? replacement : original)
+              } else advance()
+            })
+          },
+        },
+      ],
+    })
+    browser = await chromium.launch()
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    const url = server.resolvedUrls.local[0]
+    const paths = [
+      "demo.pdf",
+      "recipe.json",
+      "recipe/guides.pdf",
+      "recipe/crossings.pdf",
+      "toc/flatland.pdf",
+      "toc/bridge.pdf",
+    ]
+    assert.ok(assets.every((asset) => !paths.includes(asset.path)))
+    assert.equal(examples.length, 6)
+    assert.ok(examples.reduce((sum, asset) => sum + asset.bytes, 0) <= 2 * 1024 * 1024)
+    assert.ok(examples.filter((asset) => asset.path.endsWith(".pdf")).every((asset) => asset.bytes <= 250 * 1024))
+    await page.goto(url)
+    await page.waitForFunction(() => navigator.serviceWorker.controller)
+    assert.deepEqual(requests, [], "Installing the app does not download demo documents")
+    await page.context().setOffline(true)
+    await page.goto(`${url}demo=toc`)
+    await page.getByRole("alert").filter({ hasText: "Connect" }).waitFor()
+    await page.context().setOffline(false)
+    for (const multiple of [false, true]) {
+      await page.goto(`${url}demo=toc${multiple ? "-multiple" : ""}`)
+      await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
+      assert.equal(await page.locator(".input-current").innerText(), "flatland.pdf")
+      assert.equal(await page.locator(".composition-output .list-row").count(), multiple ? 11 : 9)
+      await page.getByRole("button", { name: "Input contents", exact: true }).click()
+      assert.ok(
+        await page
+          .locator(".contents:popover-open")
+          .getByRole("button", { name: "Collapse Part II: Other Worlds", exact: true })
+          .isVisible(),
+      )
+      await page.keyboard.press("Escape")
+      await page.context().setOffline(true)
+      await page.reload()
+      await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
+      assert.equal(await page.locator(".composition-output .list-row").count(), multiple ? 11 : 9)
+      await page.context().setOffline(false)
+    }
+    await page.goto(`${url}?demo=recipe`)
+    await page.getByRole("button", { name: "Sample PDFs", exact: true }).click()
+    await page.getByText("3 of 3 Inputs selected · Ready to apply recipe", { exact: true }).waitFor()
+    await page.context().setOffline(true)
+    await page.reload()
+    await page.getByRole("button", { name: "Sample PDFs", exact: true }).click()
+    await page.getByText("3 of 3 Inputs selected · Ready to apply recipe", { exact: true }).waitFor()
+    const cached = await page.evaluate(async () => {
+      const cacheName = (await caches.keys()).find((name) => name.endsWith(":examples"))
+      return (await (await caches.open(cacheName)).keys()).map((request) => request.url)
+    })
+    assert.equal(cached.length, 6)
+    assert.ok(cached.every((key) => new URL(key).searchParams.has("sha256")))
+    await page.context().setOffline(false)
+    await page.goto(url)
+    const before = [...requests]
+    changed = true
+    await page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.getRegistration()
+      await registration.update()
+      const installing = registration.installing
+      if (installing && !["installed", "activated", "redundant"].includes(installing.state))
+        await new Promise((resolve) =>
+          installing.addEventListener("statechange", () => {
+            if (["installed", "activated", "redundant"].includes(installing.state)) resolve()
+          }),
+        )
+      registration.waiting?.postMessage("activate-idle")
+    })
+    await page.waitForFunction(async () => {
+      const names = await caches.keys()
+      const cacheName = names.find((name) => name.endsWith(":examples"))
+      return (
+        names.some((name) => name.endsWith(":catalog-update")) &&
+        cacheName &&
+        (await (await caches.open(cacheName)).keys()).length === 4
+      )
+    })
+    await page.reload()
+    assert.deepEqual(requests, before, "Updating the demo catalog does not prefetch its files")
+    const retained = await page.evaluate(async () => {
+      const cacheName = (await caches.keys()).find((name) => name.endsWith(":examples"))
+      return (await (await caches.open(cacheName)).keys()).map((request) => request.url)
+    })
+    assert.equal(retained.length, 4, "The changed file and the retired file are removed; four unchanged files remain")
+    assert.ok(retained.every((key) => !/\/toc\//.test(key)))
+    const fresh = await page.evaluate(async (base) => {
+      const bytes = await (await fetch(new URL("toc/flatland.pdf", base))).arrayBuffer()
+      return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("")
+    }, url)
+    assert.equal(fresh, replacementHash, "The new digest bypasses an old HTTP response with a long freshness lifetime")
+  } finally {
+    await browser?.close()
+    await server?.httpServer.close()
+  }
+})
+
 test("Production Grid demo repeats the bundled sample without another PDF asset", { timeout: 120000 }, async () => {
   const outDir = await production()
   let server, browser
@@ -1729,7 +1881,7 @@ test("Offline reads do not recreate a retired cache", { timeout: 60000 }, async 
     const result = await page.evaluate(async () => {
       const names = await caches.keys()
       for (const name of names) await caches.delete(name)
-      const response = await fetch(new URL("demo.pdf", document.baseURI))
+      const response = await fetch(new URL("logo.svg", document.baseURI))
       return { status: response.status, names: await caches.keys() }
     })
     assert.equal(result.status, 503, "A retired worker cannot serve assets from a missing cache")
@@ -1868,7 +2020,6 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
       )
       await checkStatus(installingPage)
     }
-    await installingPage.close()
     transient = true
     paused = false
     finishInstall()
@@ -1877,10 +2028,12 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, {
       timeout: 60000,
     })
-    const initialCaches = await page.evaluate(() => caches.keys())
+    await page.waitForFunction(async () => (await caches.keys()).some((name) => name.endsWith(":examples")))
+    const initialCaches = (await page.evaluate(() => caches.keys())).filter((name) => !name.endsWith(":examples"))
     assert.equal(initialCaches.length, 1)
     assert.ok(initialCaches[0].startsWith("mainz:"))
     assert.match(initialCaches[0], /\/composer\/:initial$/)
+    await installingPage.close()
     assert.equal(attempts, 2, "Installation recovers from a temporary asset download failure")
     transient = false
     const installed = page.getByText("PDF Composer is ready for offline use", { exact: true })
@@ -1941,7 +2094,14 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     )
     assert.ok(cachedURLs.length > 100)
     assert.ok(cachedURLs.every((path) => path.startsWith(new URL(url).origin + "/composer/")))
-    assert.ok(cachedURLs.includes(new URL("demo.pdf", url).href))
+    assert.ok(!cachedURLs.includes(new URL("demo.pdf", url).href), "Demo files stay outside the installation cache")
+    assert.ok(
+      await page.evaluate(async () =>
+        (await (await caches.open((await caches.keys()).find((name) => name.endsWith(":examples")))).keys()).some(
+          (request) => new URL(request.url).pathname.endsWith("/demo.pdf"),
+        ),
+      ),
+    )
     for (const name of ["apple-touch-icon.png", "icon-192.png", "icon-512.png"])
       assert.ok(
         cachedURLs.includes(new URL(name, url).href),
@@ -2060,11 +2220,11 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     assert.equal(await page.locator(".composer").count(), 0)
     await page.waitForFunction(async () => {
       const names = await caches.keys()
-      return names.length === 2 && names.some((name) => name.endsWith(":next"))
+      return names.length === 3 && names.some((name) => name.endsWith(":next"))
     })
     assert.deepEqual(
       (await page.evaluate(() => caches.keys())).toSorted(),
-      [foreignCache, `mainz:${url}:next`].toSorted(),
+      [foreignCache, `mainz:${url}:next`, `mainz:${url}:examples`].toSorted(),
     )
     await page.evaluate((name) => caches.delete(name), foreignCache)
     await page.waitForFunction(
@@ -2120,7 +2280,10 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
         .evaluate((element) => getComputedStyle(element).color),
       await page.locator(".footnote").evaluate((element) => getComputedStyle(element).color),
     )
-    assert.deepEqual(await page.evaluate(() => caches.keys()), [`mainz:${url}:next`])
+    assert.deepEqual(
+      (await page.evaluate(() => caches.keys())).toSorted(),
+      [`mainz:${url}:next`, `mainz:${url}:examples`].toSorted(),
+    )
     await context.setOffline(true)
     await page.reload()
     assert.equal(

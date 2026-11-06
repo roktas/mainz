@@ -1257,7 +1257,10 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     const outputRepeat = output.getByRole("textbox", { name: "Repeat selected sequence", exact: true })
     const inputFront = input.getByLabel("Start each repeat on front", { exact: true })
     const outputFront = output.getByLabel("Start each repeat on front", { exact: true })
-    const order = () => output.locator(".page-origin-info .page-context").allTextContents()
+    const order = async () =>
+      (await output.locator(".page-origin-info .page-context").allTextContents()).map((text) =>
+        text.replace("Bulk.pdf · ", ""),
+      )
     const total = () => output.locator(".composition-totals strong").textContent()
     const ready = () =>
       page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
@@ -1503,19 +1506,24 @@ test("Edited Padding retains its dimensions and page order in the downloaded PDF
     await options.click()
     await output.getByRole("button", { name: "Before", exact: true }).click()
     assert.equal(await selected.inputValue(), "1")
-    assert.deepEqual(await output.locator(".page-origin-info .page-context").allTextContents(), [
-      "297.0 × 210.0 mm",
-      "p. 7",
-      "p. 1",
-      "297.0 × 210.0 mm",
-      "p. 2",
-      "p. 3",
-      "210.0 × 297.0 mm",
-      "p. 1",
-      "p. 2",
-      "p. 3",
-      "210.0 × 297.0 mm",
-    ])
+    assert.deepEqual(
+      (await output.locator(".page-origin-info .page-context").allTextContents()).map((text) =>
+        text.replace("Padding.pdf · ", ""),
+      ),
+      [
+        "297.0 × 210.0 mm",
+        "p. 7",
+        "p. 1",
+        "297.0 × 210.0 mm",
+        "p. 2",
+        "p. 3",
+        "210.0 × 297.0 mm",
+        "p. 1",
+        "p. 2",
+        "p. 3",
+        "210.0 × 297.0 mm",
+      ],
+    )
     const saved = page.waitForEvent("download")
     await output.getByRole("button", { name: "Download", exact: true }).click()
     const download = await saved

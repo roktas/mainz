@@ -267,10 +267,7 @@ test("List details stay anchored and row highlights remain flat", { timeout: 900
                 40,
             )
             assert.equal(await details.evaluate((element) => getComputedStyle(element).textAlign), "start")
-            assert.match(
-              await details.innerText(),
-              name === "Input" ? /Copies in Output: 1/ : /demo.pdf\s+Input page 1/,
-            )
+            assert.match(await details.innerText(), name === "Input" ? /Output · 1× → 1/ : /demo\.pdf · p\. 1/)
             await page.keyboard.press("Escape")
             assert.equal(await details.count(), 0)
             assert.equal(await number.evaluate((element) => element === document.activeElement), true)

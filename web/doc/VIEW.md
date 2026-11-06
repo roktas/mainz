@@ -96,6 +96,12 @@ Each visual group has an explicit alignment reference: an edge, centerline, or t
 and footers use the same reference on both axes. Align text by its baseline and icons by their visible bounds. A
 centered control stays on the content's centerline when adjacent controls have different widths.
 
+Panels and popovers use equal, moderate inline insets. Header labels, separators, root content, and footers share those
+edges vertically. A close icon's visible trailing edge aligns with the right content edge; its invisible target padding
+does not define the margin. Nested content keeps its hierarchy within these shared bounds. Reserve scrollbar space
+outside the content edges so scrolling does not shift columns or break symmetry. Verify both scrolling and non-scrolling
+states at phone, tablet, and desktop widths.
+
 Stacked rows with corresponding controls share column widths and gaps. Align each control's start and end edges with the
 controls above and below it. Apply the same tracks to buttons and selectors; their labels do not set independent widths.
 
@@ -393,6 +399,38 @@ small size. Hints reserve space and wrap naturally, so errors, bold counts, and 
 images. Input and Output use the same control dimensions. Preserve usable field width and full-size touch targets.
 
 ## List
+
+Contents uses an open-book icon distinct from List, fixed at the far right of Input's Grid, List, and Page toolbar. Grid
+density sits immediately to its left. Its tree uses indentation, fine branch lines, quiet page positions, and a thin
+current-section marker. Nodes have no individual boxes or filled cards. Full titles wrap, and navigation preserves
+selection. Output has no Contents control.
+
+Contents keeps a compact fixed heading with one Expand all / Collapse all control. Its width is 32 rem, clamped to the
+Input toolbar's usable width and viewport, and stays fixed across expansion changes. Height follows the visible tree;
+only its inset tree area scrolls when required. Leaf rows use a 28 px minimum and parents 32 px, including touch. Long
+titles increase row height. Touch retains a wider disclosure column except on phones, where the column and nested
+indentation shrink. Contents, the separator, root disclosure glyphs, page positions, and the close glyph share equal
+20–24 px side insets. The scrollbar occupies the outer inset without moving the content edges. Disclosure glyphs align
+with the first text line and the Contents heading edge in both states. Use TOC titles appears below the tree only when
+it changes a page's display title. When enlarged text leaves insufficient header width, move the complete Expand all /
+Collapse all control below the title and close button.
+
+List defaults to uninterrupted page rows. Section headings adds breadcrumb dividers in List only, independently in each
+pane. Its icon sits immediately left of Input Contents; its active state uses color without an underline. Long
+breadcrumb segments use an ellipsis and open their full title on click, touch, or keyboard activation. TOC-derived Input
+detail headings use the same breadcrumbs. Output details retain flat headings. Copy mappings use one line such as
+`Output · 2× → 2, 9`, without repeated leaf titles or inferred-range explanations. When a TOC-derived Input row covers
+several sections, a separate small `3 sections` button follows the page name. It opens all section paths in the page
+details and remains visible when the name truncates. Its text uses normal casing, without becoming part of the page name
+or changing selection.
+
+The section used as the display title remains the bold detail heading. Other paths follow below its separator in
+regular-weight, muted text, so the distinction survives without color.
+
+Multiple-source Output List rows show an 8 px source-color dot centered exactly between the number and grip. The same
+dot identifies Input's current file and chooser entries. Dots have a paper-colored halo, distinct light/dark colors, and
+accessible source names. No visible source number, colored row background, or colored page-name text is added. In the
+single-pane layout, Input carries the active accent and the current filename uses normal text color.
 
 List rows align page numbers, supplied names, and page actions in stable columns. Keep number and action columns visible
 in narrow panes. Plain numbers and detail buttons use the same type size and column center. Names wrap in the remaining
@@ -1106,6 +1144,11 @@ Grid density controls sit outside the tab list. The mobile view switcher uses bu
 | ----------------- | -------------------- | --------------------------------------------------------------------------------------- |
 | List view         | Liste görünümü       | The row view of Input pages or Output occurrences with page numbers and supplied names. |
 | Page name caption | Sayfa adı açıklaması | The supplied page name below the Page image frame, or in a Grid header tooltip.         |
+| Contents          | İçindekiler          | Input's embedded PDF outline navigation, opened with the open-book icon.                |
+| Section headings  | Bölüm başlıkları     | The optional List breadcrumb dividers and their toolbar toggle.                         |
+| Section path      | Bölüm yolu           | A breadcrumb from ancestor headings to a section, with expandable full titles.          |
+| Section count     | Bölüm sayacı         | The List button that opens all section paths sharing one Input page.                    |
+| Source marker     | Kaynak işareti       | A small color dot identifying an Input and its Output List occurrences.                 |
 
 ### Page selection
 

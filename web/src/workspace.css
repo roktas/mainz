@@ -873,6 +873,11 @@
       background: var(--surface);
       white-space: nowrap;
       font-size: var(--small);
+      &.marked {
+        padding-inline: 0.1em;
+        border: 0;
+        background: transparent;
+      }
     }
     .mobile-workspace-tabs {
       display: none;
@@ -1196,7 +1201,7 @@
     }
     @container composer (width <= 30em) {
       .input-list {
-        & .source-tag,
+        & .source-tag:not(.marked),
         & .input-choice-title,
         & > button > span {
           display: none;
@@ -1215,6 +1220,9 @@
       }
       .input-picker > summary .input-title {
         display: none;
+      }
+      .input-picker > summary .input-current {
+        color: var(--ink);
       }
       .composer .mobile-workspace-tabs {
         margin-block-end: var(--gap);

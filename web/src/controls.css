@@ -103,6 +103,10 @@
       }
     }
     .editing-toolbar {
+      & > .icon-button[aria-pressed="true"] {
+        color: var(--accent);
+        box-shadow: none;
+      }
       display: flex;
       align-items: center;
       gap: var(--gap);

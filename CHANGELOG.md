@@ -4,6 +4,9 @@
 
 ### Added
 
+- TOC display titles, compact Input navigation, optional List section breadcrumbs, and source-color dots for
+  multiple-Input Output, with single and multiple demos.
+- Compact public-domain TOC samples. All demo documents download on demand and use a separate, bounded offline cache.
 - Recipe loading from the landing page, with saved Input titles, embedded covers, XMP details, local PDF matching, and a
   separate Recipe demo. Loaded profiles, manual edits, and baseline resets remain editable and exportable.
 - Output title and cover-page choices in the existing filename editor, written to generated PDF metadata and retained
@@ -92,6 +95,10 @@
 
 ### Fixed
 
+- TOC containers with unusable headings or targets retain their navigable children without extending unrelated sections.
+- Large outlines reuse indexed title lookups and bounded breadcrumb caches; closed Contents trees mount only when
+  opened.
+- Clearing a header message no longer interrupts feedback rendering.
 - Allowed dense prepared PDFs to discard stale previews with a separate 4,194,304-reference traversal budget. Cleanup
   avoids array copies and retains attachments referenced elsewhere in the PDF.
 

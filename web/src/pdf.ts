@@ -5,6 +5,7 @@ import { maxInputBytes, maxPages, titleError, uid } from "./model.ts"
 import type { Input, Size } from "./model.ts"
 import type { Description } from "./styles.ts"
 import { Processor } from "./processor.ts"
+import { readOutline } from "./outline.ts"
 
 const assets = new URL(`${import.meta.env.BASE_URL}pdfjs/`, location.href).href
 let renderer: Promise<typeof import("pdfjs-dist")> | undefined
@@ -342,7 +343,8 @@ export async function inspectPDF(pdf: PDFDocumentProxy, cancelled: () => boolean
     sizes.push(...batch)
   }
   const labels = (await pdf.getPageLabels()) ?? []
-  if (!cancelled()) return { sizes, labels }
+  const outline = cancelled() ? [] : await readOutline(pdf, cancelled)
+  if (!cancelled()) return { sizes, labels, outline }
 }
 
 export async function openPDF(bytes: Uint8Array) {

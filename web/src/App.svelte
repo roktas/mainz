@@ -3,7 +3,7 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte"
   import { animateRemoval } from "./motion.ts"
-  import { downloadInputs, downloadName, expand, maxInputBytes, plan, sizeOf, uid } from "./model.ts"
+  import { downloadInputs, downloadName, expand, maxInputBytes, plan, sizeOf, titleOf, uid } from "./model.ts"
   import type { Input, Source } from "./model.ts"
   import type { Inspection } from "./Page.svelte"
   import type { Magnification } from "./Lens.svelte"
@@ -25,7 +25,6 @@
   } from "./styles.ts"
   import { cover, Documents, Opening } from "./pdf.ts"
   import { Processor } from "./processor.ts"
-  import gridPlan from "../test/fixtures/grid-plan.json"
   import { Output } from "./output.svelte.ts"
   import { Preview } from "./preview.svelte.ts"
   import Export from "./Export.svelte"
@@ -52,11 +51,13 @@
   import Help from "./Help.svelte"
   import type { TourStep } from "./Tour.svelte"
   import type { Sequence } from "./pages.ts"
+  import { query, openExample, initialViews } from "./examples.ts"
+  import Provenance from "./Provenance.svelte"
 
-  const query = new URLSearchParams(location.search)
   const probe = import.meta.env.DEV && query.has("geometry")
   const demo = query.get("demo") ?? (probe ? "grid" : null)
   let sources = $state.raw<Source[]>([])
+  const sourceNumbers = new Map<string, number>()
   const output = new Output(() => sources)
   const parts = $derived(output.parts)
   let sequences = $state.raw<Record<string, Sequence>>({})
@@ -265,6 +266,7 @@
     sequences = { ...sequences, [id]: sequence }
   }
   function sourceFor(input: Input, id = uid(), processor?: Processor): Source {
+    if (!sourceNumbers.has(id)) sourceNumbers.set(id, sourceNumbers.size + 1)
     const overrides = Object.fromEntries(
       Object.entries(input.description.parameters)
         .filter(([, entry]) => Object.hasOwn(entry.parameter, "value"))
@@ -274,6 +276,7 @@
     if (!editable) processor?.dispose()
     return {
       id,
+      number: sourceNumbers.get(id)!,
       input,
       overrides,
       drafts: {},
@@ -669,117 +672,32 @@
       history.replaceState(history.state, "", url)
     }
     if (demo === null) return
-    void (async () => {
-      let revision = openRevision
-      try {
-        if (import.meta.env.DEV && demo?.startsWith("recipe-")) {
-          const base = `${import.meta.env.BASE_URL}checks/`
-          const response = await fetch(`${base}cases.json`)
-          if (!response.ok) throw new Error("The Recipe check fixtures are unavailable.")
-          const cases: { id: string; pdf: string }[] = await response.json()
-          const entry = cases.find((item) => item.id === demo.slice("recipe-".length))
-          if (!entry) throw new Error(`Unknown Recipe check demo: ${demo}.`)
-          const record = await fetch(`${base}${entry.id}.json`)
-          if (!record.ok) throw new Error("The Recipe check example is unavailable.")
-          const bytes = await record.arrayBuffer()
-          if (disposed || revision !== openRevision) return
-          await loader.show(new File([bytes], `${entry.id}.json`, { type: "application/json" }), {
-            recipe: `${base}${entry.id}.json`,
-            inputs: { book: `${base}${entry.pdf}` },
-            automatic: true,
-          })
-          return
-        }
-        if (demo === "recipe") {
-          const base = import.meta.env.BASE_URL
-          const response = await fetch(`${base}recipe.json`)
-          if (!response.ok) throw new Error("The sample Recipe is unavailable. Choose a local Recipe.")
-          const bytes = await response.arrayBuffer()
-          if (disposed || revision !== openRevision) return
-          await loader.show(new File([bytes], "practice-session.json", { type: "application/json" }), {
-            recipe: `${base}recipe.json`,
-            inputs: {
-              book: `${base}demo.pdf`,
-              guides: `${base}recipe/guides.pdf`,
-              crossings: `${base}recipe/crossings.pdf`,
-            },
-          })
-          info("Recipe demo ready.")
-          return
-        }
-        const gridDemo = demo === "grid"
-        if (demo !== "" && demo !== "empty" && !gridDemo) throw new Error(`Unknown demo: ${demo}. Choose a local PDF.`)
-        const filename = gridDemo ? "grid.pdf" : "demo.pdf"
-        const asset = gridDemo && import.meta.env.DEV ? filename : "demo.pdf"
-        const response = await fetch(`${import.meta.env.BASE_URL}${asset}`)
-        let bytes = new Uint8Array(await response.arrayBuffer())
-        if (disposed || revision !== openRevision) return
-        if (!response.ok) throw new Error("The demo PDF is unavailable. Choose a local PDF.")
-        if (gridDemo && !import.meta.env.DEV) {
-          const processor = new Processor()
-          revision = ++openRevision
-          openingProcessor = processor
-          loading = true
+    void openExample(demo, {
+      get revision() {
+        return openRevision
+      },
+      get disposed() {
+        return disposed
+      },
+      output,
+      open,
+      choose,
+      recipe: (file, preset) => loader.show(file, preset),
+      profile: changeProfile,
+      preparing(processor) {
+        openingProcessor = processor
+        loading = !!processor
+        if (processor) {
+          openRevision++
           openingStatus = "Preparing Grid demo…"
           info(openingStatus)
-          try {
-            const result = await processor.compose({ ...gridPlan, version: 1 }, [{ id: "fixture", bytes }], revision)
-            bytes = new Uint8Array(result.bytes)
-          } finally {
-            processor.dispose()
-            if (revision === openRevision) {
-              openingProcessor = undefined
-              loading = false
-            }
-          }
-          if (disposed || revision !== openRevision) return
         }
-        const source = await open(bytes, filename)
-        revision = openRevision
-        if (!source) return
-        if (gridDemo) {
-          output.commit([
-            {
-              id: uid(),
-              copies: 1,
-              front: false,
-              pages: Array.from({ length: source.input.pdf.numPages }, (_, page) => ({
-                id: uid(),
-                content: { source: source.id, page },
-              })),
-            },
-          ])
-          output.acknowledge(output.parts)
-          info(`Grid workspace · ${source.input.pdf.numPages} pages.`)
-          return
-        }
-        info("Demo workspace ready.")
-        if (demo === "empty") return
-        const pages = Array.from({ length: source.input.pdf.numPages }, (_, page) => page)
-        choose(source.id, { text: `1-${pages.length}`, pages, repeat: "1", front: false })
-        output.commit([
-          {
-            id: uid(),
-            copies: 1,
-            front: false,
-            pages: [...pages, ...pages.slice(2), ...pages.slice(2)].map((page) => ({
-              id: uid(),
-              content: { source: source.id, page },
-            })),
-          },
-        ])
-        output.acknowledge(output.parts)
-        if (import.meta.env.DEV && url.searchParams.has("paint")) {
-          const set = source.input.description.profileSets?.find((item) =>
-            item.profiles.some((profile) => profile.id === "inkjet"),
-          )
-          if (set) changeProfile(set.id, "inkjet")
-        }
-      } catch (reason) {
-        if (!disposed && revision === openRevision)
-          error(reason instanceof Error ? reason.message : "Demo could not open.")
-      }
-    })()
+      },
+      info,
+      error,
+    }).then((id) => {
+      if (id && !disposed) activeId = id
+    })
   })
   onDestroy(() => {
     disposed = true
@@ -813,7 +731,10 @@
         <h2 id={heading}>
           <Icon name="input" /><span class="input-label">Input</span><span class="count"
             >{sources.length + Number(!!openingSource)}</span
-          ><span class="input-current" title={active?.input.title || active?.input.name}>{active?.input.name}</span>
+          >{#if sources.length > 1}<Provenance number={active.number} title={titleOf(active.input)} />{/if}<span
+            class="input-current"
+            title={active?.input.title || active?.input.name}>{active?.input.name}</span
+          >
           {#if active?.input.title && active.input.title !== active.input.name}<span
               class="input-title"
               title={active.input.title}>{active.input.title}</span
@@ -825,7 +746,7 @@
           </span>{/if}
       </summary>
       <div class="input-list" role="group" aria-label="Inputs">
-        {#each sources as source, index (source.id)}<div class="input-choice">
+        {#each sources as source (source.id)}<div class="input-choice">
             <button
               aria-pressed={source.id === activeId}
               data-source={source.id}
@@ -834,8 +755,12 @@
                 inputMenu.open = false
                 inputMenu.querySelector("summary")?.focus()
               }}
-              ><span class="source-tag">{index + 1}</span><span>{source.input.name}</span
-              >{#if source.input.title && source.input.title !== source.input.name}<span
+              ><span class="source-tag" class:marked={sources.length > 1}
+                >{#if sources.length > 1}<Provenance
+                    number={source.number}
+                    title={titleOf(source.input)}
+                  />{:else}{source.number}{/if}</span
+              ><span>{source.input.name}</span>{#if source.input.title && source.input.title !== source.input.name}<span
                   class="input-choice-title"
                   title={source.input.title}>{source.input.title}</span
                 >{/if}{#if source.id === activeId}<span aria-hidden="true">✓</span>{/if}</button
@@ -894,8 +819,8 @@
       <div class="header-feedback" popover="manual" {@attach present}>
         {#if activeReport && !headerBusy && (reportBusy || activeReport.kind === "error" || !headerError)}<Feedback
             {...activeReport}
-            actions={activeReport.actions ??
-              (activeReport.kind === "progress" || activeReport.children ? undefined : dismissReport)}
+            actions={activeReport?.actions ??
+              (activeReport?.kind === "progress" || activeReport?.children ? undefined : dismissReport)}
           />{/if}
         {#if exportStatus}<Feedback kind="progress" text={exportStatus}>
             {#snippet actions()}<button
@@ -1014,6 +939,7 @@
   {#if !active && parts.length && !matching}<div class="empty-input">{@render inputTools("")}</div>{/if}
   {#if active || parts.length}<Composer
       bind:this={composer}
+      initial={initialViews}
       source={active}
       {styleable}
       opening={!!openingSource}

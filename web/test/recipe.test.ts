@@ -47,6 +47,7 @@ function source(): Source {
   }
   return {
     id: "source",
+    number: 1,
     input: {
       id: "book",
       name: "book.pdf",

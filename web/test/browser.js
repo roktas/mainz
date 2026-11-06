@@ -98,6 +98,7 @@ export function fixture({
   annotations,
   metadata,
   preview,
+  outline,
 } = {}) {
   const pages = Array.from({ length: count }, (_, index) => metadata?.[index] ?? {})
   const previews = Array.isArray(preview) ? preview : preview ? [preview] : []
@@ -257,6 +258,25 @@ export function fixture({
       `<< /Type /Filespec /F (${name}) /UF (${name}) /EF << /F ${payload} 0 R /UF ${payload} 0 R >> >>`,
     )
   })
+  if (outline?.length) {
+    const root = objects.length + 1
+    const children = (parent) => outline.flatMap((entry, index) => (entry.parent === parent ? [index] : []))
+    const links = (indexes) =>
+      indexes.length ? `/First ${root + 1 + indexes[0]} 0 R /Last ${root + 1 + indexes.at(-1)} 0 R` : ""
+    objects[0] = objects[0].replace("/Type /Catalog", `/Type /Catalog /Outlines ${root} 0 R`)
+    objects.push(`<< /Type /Outlines ${links(children(undefined))} >>`)
+    outline.forEach((entry, index) => {
+      const siblings = children(entry.parent),
+        position = siblings.indexOf(index)
+      const title = entry.title.replaceAll(/([\\()])/g, "\\$1")
+      objects.push(
+        `<< /Title (${title}) /Parent ${entry.parent === undefined ? root : root + 1 + entry.parent} 0 R
+        /Dest [${5 + entry.page * 2} 0 R /Fit] ${links(children(index))}
+        ${position > 0 ? `/Prev ${root + siblings[position - 1] + 1} 0 R` : ""}
+        ${position < siblings.length - 1 ? `/Next ${root + siblings[position + 1] + 1} 0 R` : ""} >>`,
+      )
+    })
+  }
   const offsets = [0]
   objects.forEach((object, index) => {
     offsets.push(Buffer.byteLength(pdf))

@@ -47,6 +47,14 @@ try {
 const wasm = resolve(process.env.MAINZ_WASM_DIR ?? "../.local/var/package/wasm")
 const cache = process.platform === "darwin" ? join(homedir(), "Library/Caches/Mainz") : join(homedir(), ".cache/mainz")
 let outputDirectory = resolve("../.local/var/js/dist")
+const examples = new Map([
+  ["demo.pdf", "test/fixtures/demo.pdf"],
+  ["recipe.json", "test/fixtures/recipe/session.json"],
+  ["recipe/guides.pdf", "test/fixtures/recipe/guides.pdf"],
+  ["recipe/crossings.pdf", "test/fixtures/recipe/crossings.pdf"],
+  ["toc/flatland.pdf", "test/fixtures/toc/flatland.pdf"],
+  ["toc/bridge.pdf", "test/fixtures/toc/bridge.pdf"],
+])
 
 function prepare() {
   if (!existsSync(`${wasm}/provenance.json`))
@@ -87,10 +95,7 @@ function prepare() {
     } else contents.set(destination, readFileSync(source))
   }
   collect("public", "")
-  collect("test/fixtures/demo.pdf", "demo.pdf")
-  collect("test/fixtures/recipe/session.json", "recipe.json")
-  collect("test/fixtures/recipe/guides.pdf", "recipe/guides.pdf")
-  collect("test/fixtures/recipe/crossings.pdf", "recipe/crossings.pdf")
+  for (const [path, source] of examples) collect(source, path)
   collect("node_modules/pdfjs-dist/build/pdf.worker.mjs", "pdfjs/pdf.worker.mjs")
   for (const name of ["cmaps", "standard_fonts", "iccs", "wasm"])
     collect(`node_modules/pdfjs-dist/${name}`, `pdfjs/${name}`)
@@ -241,11 +246,17 @@ export default defineConfig({
         const list = files.map((path) => {
           const bytes = readFileSync(resolve(outputDirectory, path))
           hash.update(path).update(bytes)
-          return { path, sha256: createHash("sha256").update(bytes).digest("hex") }
+          return { path, sha256: createHash("sha256").update(bytes).digest("hex"), bytes: bytes.length }
         })
+        const optional = list.filter((file) => examples.has(file.path))
+        if (
+          optional.some((file) => file.bytes > (file.path.endsWith(".pdf") ? 250 * 1024 : 1024 * 1024)) ||
+          optional.reduce((total, file) => total + file.bytes, 0) > 2 * 1024 * 1024
+        )
+          throw new Error("Demo assets exceed their PDF (250 KiB), Recipe (1 MiB), or total (2 MiB) budget.")
         writeFileSync(
           resolve(outputDirectory, "sw.js"),
-          `const VERSION = '${hash.digest("hex")}';\nconst ASSETS = ${JSON.stringify(list)};\n${source}`,
+          `const VERSION = '${hash.digest("hex")}';\nconst ASSETS = ${JSON.stringify(list.filter((file) => !examples.has(file.path)))};\nconst EXAMPLES = ${JSON.stringify(optional)};\n${source}`,
         )
       },
     },

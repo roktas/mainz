@@ -34,6 +34,7 @@ function installation({
   runInNewContext(source, {
     VERSION: "test",
     ASSETS,
+    EXAMPLES: [],
     URL,
     Request,
     Uint8Array,

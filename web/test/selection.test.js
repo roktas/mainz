@@ -1410,11 +1410,12 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     )
     await prepared.fill("3,1,3")
     await add.click()
-    assert.deepEqual(await output.locator(".page-origin-info .page-context").allTextContents(), [
-      "p. 3",
-      "p. 1",
-      "p. 3",
-    ])
+    assert.deepEqual(
+      (await output.locator(".page-origin-info .page-context").allTextContents()).map((text) =>
+        text.replace(/^.* · (p\. \d+)$/, "$1"),
+      ),
+      ["p. 3", "p. 1", "p. 3"],
+    )
     assert.equal(await selected.inputValue(), "1-3")
     await output.getByLabel("Output page actions", { exact: true }).focus()
     await page.keyboard.press("Delete")
@@ -1450,8 +1451,10 @@ test("Output separates page controls from group actions for keyboard and mouse",
       const prepared = input.getByRole("textbox", { name: "Page selection", exact: true })
       const selected = output.getByRole("textbox", { name: "Page selection", exact: true })
       const total = () => output.locator(".composition-totals strong").textContent()
-      const contents = () =>
-        output.locator(".composition-card:not([inert]) .page-origin-info .page-context").allTextContents()
+      const contents = async () =>
+        (await output.locator(".composition-card:not([inert]) .page-origin-info .page-context").allTextContents()).map(
+          (text) => text.replace(/^.* · (p\. \d+)$/, "$1"),
+        )
       if (interaction === "keyboard") {
         await input.getByRole("button", { name: "Select Input page 1", exact: true }).press("Space")
         await page.keyboard.press("Enter")
@@ -1638,8 +1641,10 @@ test(
         output = page.locator(".composition-output")
       const prepared = input.getByLabel("Page selection", { exact: true })
       const selected = output.getByLabel("Page selection", { exact: true })
-      const contents = () =>
-        output.locator(".composition-card:not([inert]) .page-origin-info .page-context").allTextContents()
+      const contents = async () =>
+        (await output.locator(".composition-card:not([inert]) .page-origin-info .page-context").allTextContents()).map(
+          (text) => text.replace(/^.* · (p\. \d+)$/, "$1"),
+        )
       const clear = async () => {
         if (!(await selected.isDisabled())) {
           const all = output.getByRole("button", { name: "Select all", exact: true })

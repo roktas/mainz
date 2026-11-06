@@ -8,6 +8,284 @@ import { serve } from "./server.ts"
 import { tab, fixture } from "./browser.js"
 import { gridDensity } from "./measure.js"
 
+test("List section summaries reveal every same-page section across hierarchy levels", { timeout: 60000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(server.resolvedUrls.local[0])
+      await page
+        .locator('input[type="file"]')
+        .first()
+        .setInputFiles({
+          name: "Shared-sections.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture({
+            prepared: false,
+            count: 6,
+            outline: [
+              { title: "Introduction", page: 0 },
+              { title: "Background", page: 0 },
+              { title: "Model", page: 0 },
+              { title: "Encoder", page: 1, parent: 2 },
+              { title: "Attention", page: 1, parent: 2 },
+              { title: "Scaled attention", page: 2, parent: 4 },
+              { title: "Multi-head attention", page: 2, parent: 4 },
+              { title: "Applications", page: 3, parent: 4 },
+              { title: "Feed-forward networks", page: 3, parent: 2 },
+              { title: "Embeddings", page: 3, parent: 2 },
+              { title: "Encoding", page: 4, parent: 2 },
+              { title: "Why attention", page: 4 },
+              { title: "Conclusion", page: 5 },
+            ],
+          }),
+        })
+      const input = page.locator(".selection-panel")
+      await input.locator(".input-current").filter({ hasText: "Shared-sections.pdf" }).waitFor()
+      await page.locator('.composer[aria-busy="false"]').waitFor()
+      await tab(input, "List")
+      assert.deepEqual(await input.locator(".list-sections").allTextContents(), [
+        "3 sections",
+        "2 sections",
+        "2 sections",
+        "3 sections",
+        "2 sections",
+      ])
+      await input.getByRole("button", { name: "Show all 3 sections on Input page 4", exact: true }).click()
+      const details = input.locator("[popover]:popover-open")
+      assert.deepEqual(await details.getByRole("navigation", { name: "Section path", exact: true }).allInnerTexts(), [
+        "Model\n›\nAttention\n›\nApplications",
+        "Model\n›\nFeed-forward networks",
+        "Model\n›\nEmbeddings",
+      ])
+      assert.equal(
+        await details.getByRole("group", { name: "Displayed section", exact: true }).innerText(),
+        "Model\n›\nAttention\n›\nApplications",
+      )
+      const other = details.getByRole("group", { name: "Other sections on this page", exact: true })
+      assert.equal(await other.getByRole("navigation", { name: "Section path", exact: true }).count(), 2)
+      assert.equal(await other.evaluate((element) => getComputedStyle(element).fontWeight), "400")
+      assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "")
+      await page.keyboard.press("Escape")
+      await page.setViewportSize({ width: 375, height: 667 })
+      await input.getByRole("button", { name: "Show all 3 sections on Input page 1", exact: true }).click()
+      assert.deepEqual(
+        await input
+          .locator("[popover]:popover-open")
+          .getByRole("navigation", { name: "Section path", exact: true })
+          .allInnerTexts(),
+        ["Introduction", "Background", "Model"],
+      )
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
+test("Contents titles are a per-Input display preference with authored-name fallback", { timeout: 60000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(server.resolvedUrls.local[0])
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output")
+      for (const complete of [true, false]) {
+        const name = complete ? "Complete.pdf" : "Partial.pdf"
+        await page
+          .locator('input[type="file"]')
+          .first()
+          .setInputFiles({
+            name,
+            mimeType: "application/pdf",
+            buffer: fixture({
+              prepared: false,
+              count: 4,
+              metadata: [
+                { name: "Cover" },
+                { name: "Authored name" },
+                complete ? { name: "Third page" } : {},
+                complete ? { name: "Last page" } : {},
+              ],
+              outline: [
+                { title: "Chapter", page: 1 },
+                { title: "Section", page: 1, parent: 0 },
+              ],
+            }),
+          })
+        await input.locator(".input-current").filter({ hasText: name }).waitFor()
+        await page.locator('.composer[aria-busy="false"]').waitFor()
+        await tab(input, "List")
+        await input.getByLabel("Page selection", { exact: true }).fill("1-4")
+        await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+        await tab(output, "List")
+        assert.equal(await input.locator('.list-choice[data-page="1"]').innerText(), "Authored name")
+        await input.getByRole("button", { name: "Input contents", exact: true }).click()
+        const preference = page.getByRole("checkbox", { name: "Use TOC titles", exact: true })
+        assert.equal(await preference.isChecked(), false)
+        await preference.check()
+        await page.keyboard.press("Escape")
+        assert.equal(await input.locator('.list-choice[data-page="0"]').innerText(), "Cover")
+        assert.equal(await input.locator('.list-choice[data-page="1"]').innerText(), "Section")
+        assert.equal(await input.locator('.list-choice[data-page="2"]').innerText(), "Section")
+        const names = await output.locator(".list-choice").allTextContents()
+        assert.equal(names.at(-3), "Section")
+        await input.getByRole("button", { name: "Details for Input page 2", exact: true }).click()
+        assert.equal(await input.locator("[popover]:popover-open .detail-name").innerText(), "Chapter\n›\nSection")
+        await page.keyboard.press("Escape")
+        await input.getByRole("button", { name: "Input contents", exact: true }).click()
+        await preference.uncheck()
+        await page.keyboard.press("Escape")
+        assert.equal(await input.locator('.list-choice[data-page="1"]').innerText(), "Authored name")
+        assert.equal(
+          await input.locator('.list-choice[data-page="2"]').innerText(),
+          complete ? "Third page" : "Section",
+        )
+        await input.getByRole("button", { name: "Details for Input page 2", exact: true }).click()
+        assert.equal(await input.locator("[popover]:popover-open .detail-name").innerText(), "Authored name")
+        await page.keyboard.press("Escape")
+      }
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
+test("Contents keeps compact rows and fixed width across disclosure states", { timeout: 60000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch()
+    try {
+      for (const hasTouch of [false, true]) {
+        const page = await browser.newPage({
+          viewport: { width: hasTouch ? 768 : 1440, height: 1024 },
+          hasTouch,
+          reducedMotion: "reduce",
+        })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        await page
+          .locator('input[type="file"]')
+          .first()
+          .setInputFiles({
+            name: "Contents.pdf",
+            mimeType: "application/pdf",
+            buffer: fixture({
+              prepared: false,
+              count: 4,
+              outline: [
+                { title: "Chapter", page: 0 },
+                { title: "First section", page: 0, parent: 0 },
+                { title: "Second section", page: 2, parent: 0 },
+                { title: "Final chapter", page: 3 },
+              ],
+            }),
+          })
+        const input = page.locator(".selection-panel")
+        await input.locator(".input-current").filter({ hasText: "Contents.pdf" }).waitFor()
+        await page.locator('.composer[aria-busy="false"]').waitFor()
+        await tab(input, "List")
+        for (const width of [1440, 768, 375, 320]) {
+          await page.setViewportSize({ width, height: width <= 480 ? 667 : 1024 })
+          for (const font of ["100%", "200%"]) {
+            await page.evaluate((value) => (document.documentElement.style.fontSize = value), font)
+            assert.equal(await page.locator(".contents .destination").count(), 0)
+            await input.getByRole("button", { name: "Input contents", exact: true }).click()
+            const panel = page.locator(".contents:popover-open")
+            assert.equal(await panel.getByRole("checkbox", { name: "Use TOC titles", exact: true }).count(), 0)
+            const expanded = await panel.boundingBox()
+            assert.ok(
+              expanded.y >= 0 && expanded.y + expanded.height <= page.viewportSize().height + 1,
+              JSON.stringify({ width, font, hasTouch, expanded }),
+            )
+            const rows = await panel
+              .locator(".destination")
+              .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height))
+            if (font === "100%") assert.ok(rows[0] <= 33 && rows[1] <= 29, JSON.stringify({ hasTouch, width, rows }))
+            for (const state of ["Collapse all", "Expand all"]) {
+              const toggle = panel.getByRole("button", { name: state, exact: true })
+              const target = await toggle.evaluate((element) => {
+                const box = element.getBoundingClientRect(),
+                  frame = element.closest(".contents").getBoundingClientRect()
+                return {
+                  usable: element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)),
+                  button: box.toJSON(),
+                  panel: frame.toJSON(),
+                }
+              })
+              assert.ok(target.usable, JSON.stringify({ engine: engine.name(), width, font, hasTouch, state, target }))
+              await toggle.click()
+              const box = await panel.boundingBox()
+              assert.ok(Math.abs(box.width - expanded.width) < 1)
+              const edges = await panel.evaluate((element) => {
+                const heading = element.querySelector("header strong").getBoundingClientRect().x
+                return [...element.querySelectorAll("nav > ul > li > .branch > .disclosure svg path")].map(
+                  (path) => path.getBoundingClientRect().x - heading,
+                )
+              })
+              assert.ok(
+                edges.every((edge) => Math.abs(edge) < 1),
+                JSON.stringify({ width, hasTouch, edges }),
+              )
+            }
+            if (font === "100%")
+              assert.equal(
+                await panel.locator("nav").evaluate((element) => element.scrollHeight > element.clientHeight + 1),
+                false,
+              )
+            assert.equal(
+              await panel.locator("nav").evaluate((element) => element.scrollWidth > element.clientWidth + 1),
+              false,
+            )
+            {
+              const margins = await panel.evaluate((element) => {
+                const outer = element.getBoundingClientRect(),
+                  title = element.querySelector("header strong").getBoundingClientRect()
+                const close = element.querySelector("header .icon-button svg path").getBoundingClientRect()
+                const header = element.querySelector("header").getBoundingClientRect()
+                const positions = [...element.querySelectorAll(".positions")].map(
+                  (position) => position.getBoundingClientRect().right,
+                )
+                return [
+                  title.left - outer.left,
+                  outer.right - close.right,
+                  header.left - outer.left,
+                  outer.right - header.right,
+                  ...positions.map((right) => outer.right - right),
+                ]
+              })
+              assert.ok(
+                margins.every((margin) => Math.abs(margin - margins[0]) < 1),
+                JSON.stringify(margins),
+              )
+            }
+            if (width <= 480) {
+              assert.equal(
+                await input
+                  .locator(".input-current")
+                  .evaluate(
+                    (element) => getComputedStyle(element).color === getComputedStyle(element.closest("h2")).color,
+                  ),
+                true,
+              )
+            }
+            await page.keyboard.press("Escape")
+            assert.equal(await page.locator(".contents .destination").count(), 0)
+          }
+        }
+        await page.close()
+      }
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
 test("List strips stay flat and follow their original grab point", { timeout: 30000 }, async () => {
   const server = await serve(),
     browser = await chromium.launch()
@@ -664,7 +942,7 @@ test(
           const listTab = pane.getByRole("tab", { name: "List", exact: true })
           await listTab.click()
           const row = pane.locator('.list-choice[data-page="47"]'),
-            item = row.locator("..")
+            item = row.locator("xpath=ancestor::li[1]")
           await item.locator(":scope[data-returning]").waitFor()
           assert.equal(await listTab.evaluate((element) => element === document.activeElement), true)
           const bounds = await item.boundingBox(),
@@ -738,7 +1016,7 @@ test(
           await listTab.click()
           await pane
             .locator(`.list-choice[data-page="${current}"]`)
-            .locator("..")
+            .locator("xpath=ancestor::li[1]")
             .locator(":scope[data-returning]")
             .waitFor()
           assert.equal(await listTab.evaluate((element) => element === document.activeElement), true)

@@ -90,6 +90,7 @@ test("Vite verifies Mainz packages and publishes complete asset revisions", () =
     mkdirSync(join(project, "test", "fixtures"), { recursive: true })
     copyFileSync("test/fixtures/demo.pdf", join(project, "test", "fixtures", "demo.pdf"))
     cpSync("test/fixtures/recipe", join(project, "test", "fixtures", "recipe"), { recursive: true })
+    cpSync("test/fixtures/toc", join(project, "test", "fixtures", "toc"), { recursive: true })
     mkdirSync(join(project, "node_modules"))
     for (const name of readdirSync("node_modules"))
       if (name !== "pdfjs-dist") symlinkSync(resolve("node_modules", name), join(project, "node_modules", name))

@@ -443,12 +443,15 @@ export async function checkWorkspace(page, prepared, ordinary) {
   const total = async () => output.locator(".composition-totals strong").textContent()
   const ready = () =>
     page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
-  const order = () => output.locator(".page-origin-info .page-context").allTextContents()
+  const order = async () =>
+    (await output.locator(".page-origin-info .page-context").allTextContents()).map((text) =>
+      text.replace(/^.* · (p\. \d+)$/, "$1"),
+    )
   const choose = async (number) => {
     await page.locator(".input-picker > summary h2").click()
     await page
-      .locator(".input-list")
-      .getByRole("button", { name: new RegExp(`^${number} `) })
+      .locator(".input-list button[data-source]")
+      .nth(number - 1)
       .click()
   }
   const outputImages = async (count) => {
@@ -635,7 +638,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   await page.keyboard.press("Enter")
   assert.ok(
     (await mappedCard.evaluate((card) => card.classList.contains("selected"))) &&
-      (await mappedCard.locator(".page-origin-info").innerText()) === "Copies in Output: 2\nOutput pages: 4-5",
+      (await mappedCard.locator(".page-origin-info").innerText()) === "Output · 2× → 4-5",
     "Input page details show the copy count and physical Output positions",
   )
   await page.keyboard.press("Escape")
@@ -734,7 +737,7 @@ export async function checkWorkspace(page, prepared, ordinary) {
   assert.ok((await total()) === "8 pages", "Enter adds the exact repeated page entry")
   await inputDetails.click()
   assert.ok(
-    (await pendingCard.locator(".page-origin-info").innerText()) === "Copies in Output: 2\nOutput pages: 7-8",
+    (await pendingCard.locator(".page-origin-info").innerText()) === "Output · 2× → 7-8",
     "Input mapping follows newly added Output copies",
   )
   await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()

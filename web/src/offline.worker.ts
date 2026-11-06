@@ -1,12 +1,47 @@
-// Caches verified application assets per deployment and coordinates offline updates across tabs.
+// Installs verified application assets and retains explicitly requested public demos separately.
 
 declare const VERSION: string
 declare const ASSETS: { path: string; sha256: string }[]
+declare const EXAMPLES: { path: string; sha256: string; bytes: number }[]
 const worker = self as unknown as ServiceWorkerGlobalScope
 const prefix = `mainz:${worker.registration.scope}:`
 const cacheName = `${prefix}${VERSION}`
+const exampleCache = `${prefix}examples`
+const examples = new Map(EXAMPLES.map((asset) => [new URL(asset.path, worker.registration.scope).href, asset]))
+const exampleKeys = new Map([...examples].map(([url, asset]) => [url, `${url}?sha256=${asset.sha256}`]))
 const urls = ASSETS.map((asset) => new URL(asset.path, worker.registration.scope).href)
 const entry = new URL("index.html", worker.registration.scope).href
+const entries = [
+  worker.registration.scope,
+  entry,
+  ...["demo=toc", "demo=toc-multiple"].map((path) => new URL(path, worker.registration.scope).href),
+]
+
+async function remember(url: string, response: Response) {
+  const asset = examples.get(url)!
+  const bytes = await response.clone().arrayBuffer()
+  const digest = await crypto.subtle.digest("SHA-256", bytes)
+  const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
+  if (bytes.byteLength !== asset.bytes || sha256 !== asset.sha256) throw new Error("Incompatible demo asset.")
+  try {
+    await (await caches.open(exampleCache)).put(exampleKeys.get(url)!, response)
+  } catch {
+    // A storage limit must not prevent using a verified demo while online.
+  }
+}
+
+async function example(request: Request) {
+  const cached = await caches.match(exampleKeys.get(request.url)!, { cacheName: exampleCache, ignoreVary: true })
+  if (cached) return cached
+  try {
+    const response = await fetch(new Request(request, { cache: "reload" }))
+    if (!response.ok) return response
+    await remember(request.url, response.clone())
+    return response
+  } catch {
+    return new Response("Connect to download this demo before using it offline.", { status: 503 })
+  }
+}
 
 async function download(url: string) {
   for (let attempt = 0; ; attempt++) {
@@ -59,13 +94,31 @@ worker.addEventListener("activate", (event) => {
     (async () => {
       // Retire caches owned by the previously deployed application in this scope.
       for (const name of await caches.keys())
-        if (name.startsWith(prefix) && name !== cacheName) await caches.delete(name)
+        if (name.startsWith(prefix) && name !== cacheName && name !== exampleCache) await caches.delete(name)
+      if ((await caches.keys()).includes(exampleCache)) {
+        const cache = await caches.open(exampleCache)
+        for (const request of await cache.keys())
+          if (![...exampleKeys.values()].includes(request.url)) await cache.delete(request)
+      }
       await worker.clients.claim()
     })(),
   )
 })
 
 worker.addEventListener("message", (event) => {
+  if (event.data?.type === "remember-example") {
+    const { url, bytes } = event.data
+    if (examples.has(url) && bytes instanceof ArrayBuffer && bytes.byteLength === examples.get(url)!.bytes)
+      event.waitUntil(
+        remember(
+          url,
+          new Response(bytes, {
+            headers: { "Content-Type": url.endsWith(".pdf") ? "application/pdf" : "application/json" },
+          }),
+        ).catch(() => {}),
+      )
+    return
+  }
   if (event.data !== "activate-idle") return
   event.waitUntil(
     (async () => {
@@ -88,8 +141,11 @@ worker.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url)
   url.hash = ""
   if (url.origin !== worker.location.origin) return
-  const navigation =
-    event.request.mode === "navigate" && [worker.registration.scope, entry].includes(`${url.origin}${url.pathname}`)
+  if (examples.has(url.href)) {
+    event.respondWith(example(event.request))
+    return
+  }
+  const navigation = event.request.mode === "navigate" && entries.includes(`${url.origin}${url.pathname}`)
   if (!navigation && !urls.includes(url.href)) return
   event.respondWith(
     (async () => {

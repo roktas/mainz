@@ -13,6 +13,7 @@
   import type { Recipe } from "./recipe.ts"
   import { maxInputBytes } from "./model.ts"
   import { Download } from "./download.ts"
+  import { fetchExample } from "./examples.ts"
   import { Processor } from "./processor.ts"
   import Guidance from "./Guidance.svelte"
   import Icon from "./Icon.svelte"
@@ -204,8 +205,7 @@
     failure = ""
     try {
       for (const [id, url] of Object.entries(example?.inputs ?? {})) {
-        const response = await fetch(url, { signal: controller.signal })
-        if (!response.ok) throw new Error("The sample PDF is unavailable. Choose a local PDF.")
+        const response = await fetchExample(url, controller.signal)
         const bytes = await response.arrayBuffer()
         if (generation !== revision) return
         busy = false
