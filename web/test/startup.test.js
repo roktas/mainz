@@ -1756,7 +1756,10 @@ test("Production demos download on demand and reuse verified files offline", { t
       await page.goto(`${url}?demo=toc${multiple ? "-multiple" : ""}`)
       await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
       assert.equal(await page.locator(".input-current").innerText(), "flatland.pdf")
-      assert.equal(await page.locator(".composition-output .list-row").count(), multiple ? 11 : 9)
+      assert.equal(
+        await page.locator(".composition-output .composition-totals strong").textContent(),
+        multiple ? "11 pages" : "9 pages",
+      )
       await page.getByRole("button", { name: "Input contents", exact: true }).click()
       assert.ok(
         await page
@@ -1768,7 +1771,10 @@ test("Production demos download on demand and reuse verified files offline", { t
       await page.context().setOffline(true)
       await page.reload()
       await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
-      assert.equal(await page.locator(".composition-output .list-row").count(), multiple ? 11 : 9)
+      assert.equal(
+        await page.locator(".composition-output .composition-totals strong").textContent(),
+        multiple ? "11 pages" : "9 pages",
+      )
       await page.context().setOffline(false)
     }
     await page.goto(`${url}?demo=recipe`)
@@ -2423,7 +2429,10 @@ test("Public TOC examples open on a fresh static-host visit without a service wo
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
         assert.equal((await page.goto(href)).status(), 200)
         await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
-        assert.equal(await page.locator(".composition-output .list-row").count(), demo === "toc" ? 9 : 11)
+        assert.equal(
+          await page.locator(".composition-output .composition-totals strong").textContent(),
+          demo === "toc" ? "9 pages" : "11 pages",
+        )
       } finally {
         await context.close()
       }
