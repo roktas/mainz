@@ -1,5 +1,6 @@
 // Checks native and touch transfer cancellation, large Output ordering, and workspace lifecycle boundaries.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
@@ -9,7 +10,7 @@ import { measure, gridDensity } from "./measure.js"
 
 test("Native page drags survive platform focus changes and cards respond on press", { timeout: 60000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
     for (const [width, height] of [
       [1920, 960],
@@ -69,7 +70,7 @@ test("Native page drags survive platform focus changes and cards respond on pres
 
 test("Touch grip press previews the card without editing and cancellation clears it", async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
     for (const reducedMotion of ["no-preference", "reduce"]) {
       const page = await browser.newPage({
@@ -118,7 +119,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       for (const method of ["native", "touch"]) {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -208,7 +209,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))

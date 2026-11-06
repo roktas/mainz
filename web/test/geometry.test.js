@@ -1,5 +1,6 @@
 // Checks Page frames, headings, and controls across viewports.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
@@ -10,7 +11,7 @@ import { measure, gridDensity } from "./measure.js"
 
 test("Geometry actions keep short labels and matching button bounds", { timeout: 30000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
     const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -63,7 +64,7 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
   const server = await serve()
   let browser, page
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ reducedMotion: "reduce", hasTouch: true, isMobile: true })
     const errors = []
     page.on("pageerror", (error) => errors.push(error.message))
@@ -325,7 +326,7 @@ test("Page headings and navigation share stable frame edges and centerlines", { 
   const server = await serve()
   let browser, page
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     const errors = []
     page.on("pageerror", (error) => errors.push(error.message))
@@ -503,7 +504,7 @@ test("Page controls retain space and alignment with wide fonts and enlarged mobi
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
@@ -560,7 +561,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const errors = []
       for (const [width, height, touch, enlarged] of [
         [375, 667, true, true],
@@ -785,7 +786,7 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>

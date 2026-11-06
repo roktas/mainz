@@ -92,8 +92,8 @@ Use focused development checks. Reserve long suites and full matrices for ship (
 
 Native, sanitizer, and WASM suites share `.local/tmp/test/lib/`. Run them sequentially within each checkout. Narrow
 tasks: `test:contract`, `test:imprinter`, `test:cli`, `test:inspector`, `test:parity`, `test:package`, and `test:web`.
-`test:parity` refreshes contract fixtures first. `MAINZ_CLI` defaults to `.local/var/cpp/build/native/mainz`. For C++
-changes, also run `cmake --build --preset format-check` and `cmake --build --preset lint`.
+`test:parity` builds only its shared parity fixtures first. `MAINZ_CLI` defaults to `.local/var/cpp/build/native/mainz`.
+For C++ changes, also run `cmake --build --preset format-check` and `cmake --build --preset lint`.
 
 Sanitizer/WASM need QPDF pinned by `Rakefile` at `.local/src/qpdf/` (`MAINZ_QPDF_SOURCE` overrides it). WASM needs
 Python and an activated Emscripten SDK outside Dropbox; `EMSDK` supplies its path.

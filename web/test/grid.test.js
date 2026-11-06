@@ -1,5 +1,6 @@
 // Checks Grid density, pagination, and viewport capacity; alignment.test.js owns theme and selection combinations.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
@@ -12,7 +13,7 @@ import { bounds as gridBounds, quality } from "./quality.ts"
 test("List keyboard ranges and inspection preserve their pane, selection, and focus", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -77,7 +78,7 @@ test("List keyboard ranges and inspection preserve their pane, selection, and fo
 test("List row actions preserve selection and move individual occurrences", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -194,7 +195,7 @@ test("List row actions preserve selection and move individual occurrences", { ti
 test("List details stay anchored and row highlights remain flat", { timeout: 90000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     let page
     try {
       page = await browser.newPage({ reducedMotion: "reduce" })
@@ -299,7 +300,7 @@ test("List details stay anchored and row highlights remain flat", { timeout: 900
 
 test("Page metadata retains physical selection through Grid, List, and captions", { timeout: 90000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   let page
   try {
     page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
@@ -374,7 +375,7 @@ test("Page metadata retains physical selection through Grid, List, and captions"
 
 test("Metadata-only Inputs expose every page in Grid, List, and Page", { timeout: 30000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
     const page = await browser.newPage({
       viewport: { width: 390, height: 1000 },
@@ -417,7 +418,7 @@ test("Metadata-only Inputs expose every page in Grid, List, and Page", { timeout
 test("Grid headers reveal page names without changing card geometry", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -478,7 +479,7 @@ test("Grid headers reveal page names without changing card geometry", { timeout:
 
 test("List bounds long sequences and restores the surviving Output row", { timeout: 30000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -518,7 +519,7 @@ test("List bounds long sequences and restores the surviving Output row", { timeo
 
 test("List rows contain long names and actions with enlarged text", { timeout: 60000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   let page, label
   try {
     page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
@@ -635,7 +636,7 @@ test("Normal card targets stay separate through phone pane and text transitions"
   const server = await serve()
   let browser, page, label
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
@@ -731,7 +732,7 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
   const server = await serve()
   let browser, page, label, targets
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
@@ -861,7 +862,7 @@ test("Workspace scrolling keeps Grid and Page controls clear of status", { timeo
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
@@ -922,7 +923,7 @@ test("Grid keeps feasible matrices across nearby desktop calibration boundaries"
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
@@ -973,7 +974,7 @@ test("Grid retains feasible matrices across fractional desktop pane widths", { t
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
@@ -1001,7 +1002,7 @@ test("Grid retains feasible matrices across fractional desktop pane widths", { t
 test("Touch portrait Normal Grid fits readable cards across nearby phone dimensions", { timeout: 120000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const page = await browser.newPage({
         viewport: { width: 440, height: 956 },
@@ -1054,7 +1055,7 @@ test("Phone Compact gaps keep the narrow-screen allowance below tablet widths", 
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 440, height: 956 },
       hasTouch: true,
@@ -1090,7 +1091,7 @@ test("Measured touch frames retain complete readable matrices", { timeout: 12000
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 360, height: 672 },
       hasTouch: true,
@@ -1140,7 +1141,7 @@ test("Measured touch calibrations isolate viewport bounds and primary input", { 
   ]
   try {
     for (const mode of ["touch", "mouse", "hybrid"]) {
-      browser = await chromium.launch({
+      browser = await launch(chromium, {
         channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
         args:
           mode === "hybrid"
@@ -1222,7 +1223,7 @@ test("Touch portrait pagination uses available height above the safe area", { ti
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
@@ -1286,7 +1287,7 @@ test("Touch Grid uses complete rows within the available viewport", { timeout: 1
   const server = await serve()
   let browser, page
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
@@ -1340,7 +1341,7 @@ test("Desktop Grid retains measured capacity within readable bounds", { timeout:
   const server = await serve()
   let browser, page
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
@@ -1389,7 +1390,7 @@ test("Grid fitting respects viewport bounds and input capabilities", { timeout: 
   let browser
   try {
     for (const mode of ["mouse", "hybrid", "touch"]) {
-      browser = await chromium.launch({
+      browser = await launch(chromium, {
         channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
         args:
           mode === "hybrid"
@@ -1663,7 +1664,7 @@ test("Partial Grid batches retain full-matrix card positions and dimensions", { 
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, hasTouch] of [
       [1537, 1001, false],
       [3840, 1922, false],
@@ -1728,7 +1729,7 @@ test("Partial Grid batches retain full-matrix card positions and dimensions", { 
 
 test("Grid density switches paint complete batches without intermediate overflow", { timeout: 90000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   let page, label
   try {
     for (const touch of [false, true]) {
@@ -1814,7 +1815,7 @@ test("Grid density switches paint complete batches without intermediate overflow
 test("Grid initializes density from the completed preparation", { timeout: 30000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       for (const [count, density] of [
         [4, "normal"],
@@ -1852,7 +1853,7 @@ test("Grid initializes density from the completed preparation", { timeout: 30000
 
 test("Grid density retains inspection and compact page commands", { timeout: 60000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1946,7 +1947,7 @@ test("Grid pagination bounds its marks and retains exact page navigation", { tim
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(server.resolvedUrls.local[0])
@@ -2019,7 +2020,7 @@ test("Compact pagination retains readable four- and five-digit numbers", { timeo
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const hasTouch of [false, true]) {
       const page = await browser.newPage({
         viewport: { width: 1920, height: 1080 },

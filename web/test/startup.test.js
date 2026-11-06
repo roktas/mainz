@@ -1,5 +1,6 @@
 // Checks opening, preview loading, assets, and offline updates.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
 import test, { after } from "node:test"
@@ -151,7 +152,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    const browser = await chromium.launch()
+    const browser = await launch(chromium)
     try {
       const page = await browser.newPage({ reducedMotion: "reduce" })
       await page.goto(server.resolvedUrls.local[0])
@@ -225,7 +226,7 @@ test("Landing compact headings fit phones and tablets and logos follow theme cha
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce", hasTouch: true })
     await page.goto(server.resolvedUrls.local[0])
     await page.evaluate(() => document.fonts.ready)
@@ -490,7 +491,7 @@ test("Landing top spacing stays bounded on wide coarse-pointer screens", async (
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce", hasTouch: true })
     await page.goto(server.resolvedUrls.local[0])
     await page.evaluate(() => document.fonts.ready)
@@ -530,7 +531,7 @@ test("Logo clicks choose Home, animation, or examples and retain landing paralla
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1100 },
       reducedMotion: "no-preference",
@@ -670,7 +671,7 @@ test("PDF opening and composition work over non-secure HTTP", { timeout: 60000 }
   let browser
   try {
     await server.listen()
-    browser = await chromium.launch({
+    browser = await launch(chromium, {
       channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
       args: ["--host-resolver-rules=MAP mainz.test 127.0.0.1"],
     })
@@ -704,7 +705,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.addInitScript(trackWorkers)
@@ -751,7 +752,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ reducedMotion: "reduce" })
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -819,7 +820,7 @@ test("Large failure batches announce a summary and retain every file error", { t
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" })
     page.setDefaultTimeout(10000)
     await page.addInitScript(() => {
@@ -921,7 +922,7 @@ test("The first PDF previews before validation and commits only after success", 
     for (const proceed of gates.splice(0)) proceed()
   }
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" })
     page.setDefaultTimeout(10000)
     const errors = []
@@ -997,7 +998,7 @@ test("Development assets remain available after a production build", { timeout: 
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     page.setDefaultTimeout(10000)
     const url = server.resolvedUrls.local[0]
@@ -1031,7 +1032,7 @@ test("Development assets remain available after a production build", { timeout: 
 
 test("Demo composition follows the opened page count", async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
     for (const query of ["", "=grid"]) {
       const page = await browser.newPage({ reducedMotion: "reduce" })
@@ -1059,7 +1060,7 @@ test("Demo variants open the maintained Input with populated or empty Output", a
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [query, pages, selected] of [
       ["", 8, 4],
       ["=empty", 0, 0],
@@ -1156,7 +1157,7 @@ test("Unknown demo variants report an error and permit opening a local PDF", asy
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     for (const value of ["missing", "<unknown>"]) {
@@ -1184,7 +1185,7 @@ test("A delayed demo cannot replace local pages or report obsolete failures", { 
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const status of [200, 503]) {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1226,7 +1227,7 @@ test("Input density starts from two Normal batches and retains each Source choic
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, small, large] of [
       [1920, 1080, 12, 13],
       [2560, 1440, 32, 33],
@@ -1308,7 +1309,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({
         viewport: { width: 2560, height: 1440 },
         deviceScaleFactor: 2,
@@ -1459,7 +1460,7 @@ test("Home asks once before discarding changes and cancellation retains the work
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
@@ -1509,7 +1510,7 @@ test("Input switching renders thumbnails and the lens from the selected PDF", { 
       preview: { host: "127.0.0.1", port: 0 },
       logLevel: "warn",
     })
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1000 },
       reducedMotion: "reduce",
@@ -1573,7 +1574,7 @@ test("Concurrent Source previews isolate resets and ignore obsolete worker repli
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" })
     const errors = []
     page.on("pageerror", (error) => errors.push(error.message))
@@ -1728,7 +1729,7 @@ test("Production demos download on demand and reuse verified files offline", { t
         },
       ],
     })
-    browser = await chromium.launch()
+    browser = await launch(chromium)
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     const url = server.resolvedUrls.local[0]
@@ -1748,11 +1749,11 @@ test("Production demos download on demand and reuse verified files offline", { t
     await page.waitForFunction(() => navigator.serviceWorker.controller)
     assert.deepEqual(requests, [], "Installing the app does not download demo documents")
     await page.context().setOffline(true)
-    await page.goto(`${url}demo=toc`)
+    await page.goto(`${url}?demo=toc`)
     await page.getByRole("alert").filter({ hasText: "Connect" }).waitFor()
     await page.context().setOffline(false)
     for (const multiple of [false, true]) {
-      await page.goto(`${url}demo=toc${multiple ? "-multiple" : ""}`)
+      await page.goto(`${url}?demo=toc${multiple ? "-multiple" : ""}`)
       await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
       assert.equal(await page.locator(".input-current").innerText(), "flatland.pdf")
       assert.equal(await page.locator(".composition-output .list-row").count(), multiple ? 11 : 9)
@@ -1834,7 +1835,7 @@ test("Production Grid demo repeats the bundled sample without another PDF asset"
   let server, browser
   try {
     server = await preview({ base: "/composer/", build: { outDir }, preview: { host: "127.0.0.1", port: 0 } })
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     page.setDefaultTimeout(60000)
     const requests = []
@@ -1874,7 +1875,7 @@ test("Offline reads do not recreate a retired cache", { timeout: 60000 }, async 
   let server, browser
   try {
     server = await preview({ base: "/composer/", build: { outDir }, preview: { host: "127.0.0.1", port: 0 } })
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.goto(server.resolvedUrls.local[0])
     await page.waitForFunction(() => !!navigator.serviceWorker.controller)
@@ -1943,7 +1944,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
         },
       ],
     })
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const context = await browser.newContext({ acceptDownloads: true })
     const page = await context.newPage()
     const url = server.resolvedUrls.local[0]
@@ -2313,3 +2314,114 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
       await new Promise((resolve, reject) => server.httpServer.close((error) => (error ? reject(error) : resolve())))
   }
 })
+
+test("Public TOC examples open on a fresh static-host visit without a service worker", { timeout: 60000 }, async () => {
+  const outDir = await production()
+  const server = await preview({
+    base: "/composer/",
+    appType: "mpa",
+    build: { outDir },
+    preview: { host: "127.0.0.1", port: 0 },
+  })
+  const browser = await launch(chromium)
+  try {
+    const url = server.resolvedUrls.local[0]
+    assert.equal((await fetch(`${url}missing-entry`)).status, 404, "The static server has no application fallback")
+    const landing = await browser.newPage({ serviceWorkers: "block" })
+    await landing.goto(url)
+    const logo = landing.getByRole("link", { name: "PDF Composer home", exact: true })
+    for (let click = 0; click < 3; click++) await logo.click()
+    const examples = landing.getByRole("dialog", { name: "Explore the app", exact: true })
+    await examples.waitFor()
+    const links = await examples.locator("a").evaluateAll((entries) => entries.map((entry) => entry.href))
+    await landing.close()
+    for (const demo of ["toc", "toc-multiple"]) {
+      const href = links.find((link) => new URL(link).searchParams.get("demo") === demo)
+      assert.equal(href, `${url}?demo=${demo}`)
+      const context = await browser.newContext({ serviceWorkers: "block" })
+      try {
+        const page = await context.newPage()
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        assert.equal((await page.goto(href)).status(), 200)
+        await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
+        assert.equal(await page.locator(".composition-output .list-row").count(), demo === "toc" ? 9 : 11)
+      } finally {
+        await context.close()
+      }
+    }
+  } finally {
+    await browser.close()
+    await server.httpServer.close()
+  }
+})
+
+test(
+  "Opening cancellation during file reads or page labels cannot adopt an obsolete Input",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve(),
+      browser = await launch(chromium)
+    try {
+      for (const stage of ["read", "labels"]) {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+        await page.getByText("Demo workspace ready.", { exact: true }).waitFor()
+        const original = await page.locator(".input-current").textContent()
+        await page.evaluate(
+          async ({ stage, bytes }) => {
+            const suspend = async () => {
+              document.documentElement.dataset.openPending = "true"
+              await new Promise((resolve) => window.addEventListener("release-open", resolve, { once: true }))
+              document.documentElement.dataset.openPending = "false"
+            }
+            if (stage === "read") {
+              const read = File.prototype.arrayBuffer
+              File.prototype.arrayBuffer = async function () {
+                File.prototype.arrayBuffer = read
+                await suspend()
+                return read.call(this)
+              }
+            } else {
+              const { openPDF } = await import("/src/pdf.ts")
+              const task = await openPDF(Uint8Array.from(bytes)),
+                pdf = await task.promise
+              const prototype = Object.getPrototypeOf(pdf),
+                labels = prototype.getPageLabels
+              prototype.getPageLabels = async function () {
+                prototype.getPageLabels = labels
+                const value = await labels.call(this)
+                await suspend()
+                return value
+              }
+              await task.destroy()
+            }
+          },
+          { stage, bytes: Array.from(fixture({ prepared: false })) },
+        )
+        const input = page.locator(".input-heading input[type=file]")
+        await input.setInputFiles({
+          name: "Cancelled.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture({ prepared: false }),
+        })
+        await page.waitForFunction(() => document.documentElement.dataset.openPending === "true")
+        await page.getByRole("button", { name: "Cancel", exact: true }).click()
+        assert.equal(await page.locator(".input-current").textContent(), original)
+        await input.setInputFiles({
+          name: "Retry.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture({ prepared: false }),
+        })
+        await page.locator(".input-current").filter({ hasText: "Retry.pdf" }).waitFor()
+        await page.evaluate(() => window.dispatchEvent(new Event("release-open")))
+        await page.waitForFunction(() => document.documentElement.dataset.openPending === "false")
+        assert.equal(await page.locator(".input-current").textContent(), "Retry.pdf")
+        assert.equal(await page.locator(".input-list button[data-source]").count(), 2)
+        await page.close()
+      }
+    } finally {
+      await browser.close()
+    }
+  },
+)

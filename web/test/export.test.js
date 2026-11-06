@@ -1,5 +1,6 @@
 // Checks named Output PDFs, native sharing and printing, and floating Style editors through the workspace.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { readFile, mkdir, writeFile, mkdtemp, rm } from "node:fs/promises"
@@ -14,7 +15,7 @@ const inventory = JSON.parse(await readFile(new URL("./viewports.json", import.m
 
 test("Recipe details retain opaque metadata keys as literal labels", async () => {
   const server = await serve()
-  const browser = await chromium.launch()
+  const browser = await launch(chromium)
   try {
     const page = await browser.newPage()
     const recipe = JSON.parse(await readFile(new URL("./fixtures/recipe/session.json", import.meta.url), "utf8"))
@@ -56,7 +57,7 @@ test(
       buffer: Buffer.from(JSON.stringify(recipe)),
     }
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
         await page.goto(server.resolvedUrls.local[0])
@@ -254,7 +255,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    const browser = await chromium.launch()
+    const browser = await launch(chromium)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       await page.goto(`${server.resolvedUrls.local[0]}?demo=recipe`)
@@ -568,7 +569,7 @@ test("Recipe batches match named PDFs first and discard abandoned reads", { time
       },
     ],
   }
-  const browser = await chromium.launch()
+  const browser = await launch(chromium)
   try {
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -686,7 +687,7 @@ test("Recipe batches match named PDFs first and discard abandoned reads", { time
 
 test("Opaque Input names load and export without optional cover previews", { timeout: 30000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch()
+  const browser = await launch(chromium)
   try {
     const page = await browser.newPage({ reducedMotion: "reduce" })
     page.setDefaultTimeout(5000)
@@ -756,7 +757,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    const browser = await chromium.launch()
+    const browser = await launch(chromium)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -822,7 +823,7 @@ test(
     const screenshots = resolvePath("../.local/tmp/web/recipe-review")
     await mkdir(screenshots, { recursive: true })
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         for (const [width, height, text] of [
           [1440, 1000, 1],
@@ -936,7 +937,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    const browser = await chromium.launch({ channel: "chromium" })
+    const browser = await launch(chromium, { channel: "chromium" })
     const directory = await mkdtemp(resolvePath("../.local/tmp/web/recipe-"))
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
@@ -1118,7 +1119,7 @@ test(
   { timeout: 90000 },
   async () => {
     const server = await serve()
-    const browser = await chromium.launch({ channel: "chromium" })
+    const browser = await launch(chromium, { channel: "chromium" })
     try {
       const page = await browser.newPage({ reducedMotion: "reduce" })
       await page.addInitScript(() => {
@@ -1197,7 +1198,7 @@ test(
 
 test("iPad Chrome View opens without another confirmation or download", { timeout: 30000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: "chromium" })
+  const browser = await launch(chromium, { channel: "chromium" })
   try {
     const page = await browser.newPage({
       viewport: { width: 810, height: 1080 },
@@ -1227,7 +1228,7 @@ test("iPad Chrome View opens without another confirmation or download", { timeou
 
 test("Installed View opens the native PDF viewer without another confirmation", { timeout: 30000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: "chromium" })
+  const browser = await launch(chromium, { channel: "chromium" })
   try {
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => {
@@ -1266,7 +1267,7 @@ test("Installed View opens the native PDF viewer without another confirmation", 
 
 test("Mobile Share preserves named PDFs and desktop Download", { timeout: 60000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: "chromium" })
+  const browser = await launch(chromium, { channel: "chromium" })
   try {
     for (const entry of [
       {
@@ -1399,7 +1400,7 @@ test(
   { timeout: 30000 },
   async () => {
     const server = await serve()
-    const browser = await chromium.launch({ channel: "chromium" })
+    const browser = await launch(chromium, { channel: "chromium" })
     try {
       const page = await browser.newPage({
         viewport: { width: 810, height: 1080 },
@@ -1494,7 +1495,7 @@ test(
 
 test("Output actions stay reachable with enlarged text", { timeout: 30000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch()
+  const browser = await launch(chromium)
   try {
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1590,7 +1591,7 @@ test("Mobile Output keeps Print, View, and Download on one row", { timeout: 9000
   const cases = inventory.cases.filter((entry) => entry.pointer === "coarse")
   await mkdir("../.local/tmp/web/layout/export", { recursive: true })
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1648,7 +1649,7 @@ test("Mobile Output keeps Print, View, and Download on one row", { timeout: 9000
 test("Print receives the generated Output PDF and its selected filename", { timeout: 90000 }, async () => {
   const server = await serve()
   for (const touch of [false, true]) {
-    const browser = await chromium.launch({ channel: "chromium" })
+    const browser = await launch(chromium, { channel: "chromium" })
     try {
       const page = await browser.newPage({
         viewport: { width: 1440, height: 1000 },
@@ -1827,7 +1828,7 @@ test(
   async () => {
     const server = await serve()
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1874,7 +1875,7 @@ test(
 
 test("Recipe file details align optional author and copyright fields without colons", async () => {
   const server = await serve()
-  const browser = await chromium.launch()
+  const browser = await launch(chromium)
   try {
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.goto(server.resolvedUrls.local[0])
@@ -1913,3 +1914,49 @@ test("Recipe file details align optional author and copyright fields without col
     await browser.close()
   }
 })
+
+test(
+  "Downloading used Inputs retains warnings for unused style changes and invalid drafts",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve(),
+      browser = await launch(chromium)
+    try {
+      for (const value of ["#884488", "invalid"]) {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        const input = page.locator(".selection-panel"),
+          output = page.locator(".composition-output")
+        const open = async (name, buffer) => {
+          await page.locator("input[type=file]").first().setInputFiles({ name, mimeType: "application/pdf", buffer })
+          await page.waitForFunction(
+            (expected) => document.querySelector(".input-current")?.textContent === expected,
+            name,
+          )
+        }
+        await open("Unused.pdf", fixture())
+        await input.getByLabel("Page selection", { exact: true }).fill("1")
+        await input.getByLabel("Page selection", { exact: true }).press("Enter")
+        await tab(input, "Style")
+        await input.getByRole("textbox", { name: "Guide Color", exact: true }).fill(value)
+        await page.getByRole("button", { name: "Cancel style processing", exact: true }).waitFor({ state: "hidden" })
+        await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
+        await open("Used.pdf", fixture({ prepared: false }))
+        await input.getByLabel("Page selection", { exact: true }).fill("1")
+        await input.getByLabel("Page selection", { exact: true }).press("Enter")
+        const pending = page.waitForEvent("download")
+        await output.getByRole("button", { name: "Download", exact: true }).click()
+        assert.equal(await (await pending).failure(), null)
+        page.once("dialog", (dialog) => dialog.dismiss())
+        const confirmation = page.waitForEvent("dialog")
+        await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
+        assert.equal((await confirmation).type(), "confirm")
+        assert.equal(await input.locator(".input-current").textContent(), "Used.pdf")
+        await page.close()
+      }
+    } finally {
+      await browser.close()
+    }
+  },
+)

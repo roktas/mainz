@@ -1,5 +1,6 @@
 // Checks optional installation guidance, startup sequencing, and browser install outcomes.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
@@ -10,7 +11,7 @@ test("Installation guidance stays optional and independent of the product tour",
   let browser
 
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const colorScheme of ["light", "dark"]) {
       const context = await browser.newContext({ ...devices["iPhone 13"], colorScheme, reducedMotion: "reduce" })
       try {

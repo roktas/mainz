@@ -35,7 +35,7 @@ Local evidence lives outside Git:
 ### 1. Reuse Inputs across Recipes
 
 The first priority is one CLI invocation for several Recipes, with reuse of immutable Inputs. The current
-[Recipe command](cli/src/command/apply.cpp) reads and opens its Inputs for each invocation. Parallel processes shorten
+[Recipe command](cli/src/command/recipe.cpp) reads and opens its Inputs for each invocation. Parallel processes shorten
 elapsed time but retain this repeated work.
 
 The library already supports [composition from immutable Documents](lib/doc/SPEC.md#64-composition-adapters) through

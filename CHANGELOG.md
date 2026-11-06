@@ -95,6 +95,9 @@
 
 ### Fixed
 
+- TOC examples open on a fresh static-host visit through query URLs.
+- Contents reveals the current section in long outlines and announces one current location.
+
 - TOC containers with unusable headings or targets retain their navigable children without extending unrelated sections.
 - Large outlines reuse indexed title lookups and bounded breadcrumb caches; closed Contents trees mount only when
   opened.

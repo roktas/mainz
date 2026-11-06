@@ -1,5 +1,6 @@
 // Checks full-page List inspection, whole-row focus, edit feedback, and native/touch transfers.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { mkdir, writeFile } from "node:fs/promises"
@@ -11,7 +12,7 @@ import { gridDensity } from "./measure.js"
 test("List section summaries reveal every same-page section across hierarchy levels", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -88,7 +89,7 @@ test("List section summaries reveal every same-page section across hierarchy lev
 test("Contents titles are a per-Input display preference with authored-name fallback", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -159,7 +160,7 @@ test("Contents titles are a per-Input display preference with authored-name fall
 test("Contents keeps compact rows and fixed width across disclosure states", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       for (const hasTouch of [false, true]) {
         const page = await browser.newPage({
@@ -288,7 +289,7 @@ test("Contents keeps compact rows and fixed width across disclosure states", { t
 
 test("List strips stay flat and follow their original grab point", { timeout: 30000 }, async () => {
   const server = await serve(),
-    browser = await chromium.launch()
+    browser = await launch(chromium)
   try {
     const { page, input } = await lists(browser, server.resolvedUrls.local[0], { reducedMotion: "no-preference" })
     const selection = input.getByRole("textbox", { name: "Page selection", exact: true })
@@ -352,7 +353,7 @@ test("List strips stay flat and follow their original grab point", { timeout: 30
 test("List aligns plain and actionable page numbers in shared columns", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const { page, input, output } = await lists(browser, server.resolvedUrls.local[0])
       await output.getByLabel("Page selection", { exact: true }).fill("1")
@@ -417,7 +418,7 @@ test("List aligns plain and actionable page numbers in shared columns", { timeou
 
 test("List neighbors move around a stationary insertion slot", { timeout: 30000 }, async () => {
   const server = await serve(),
-    browser = await chromium.launch()
+    browser = await launch(chromium)
   try {
     const { page, output } = await lists(browser, server.resolvedUrls.local[0], {
       hasTouch: true,
@@ -484,7 +485,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve(),
-      browser = await chromium.launch()
+      browser = await launch(chromium)
     try {
       for (const view of ["Normal", "Compact", "List"]) {
         const { page, input, output } = await lists(browser, server.resolvedUrls.local[0], {
@@ -678,7 +679,7 @@ test(
   async () => {
     const server = await serve()
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         const { page, input, output } = await lists(browser, server.resolvedUrls.local[0])
         await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("")
@@ -784,7 +785,7 @@ test(
   async () => {
     const server = await serve()
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         for (const touch of [false, true]) {
           const { page, input, output } = await lists(browser, server.resolvedUrls.local[0], { hasTouch: touch })
@@ -849,7 +850,7 @@ test(
   async () => {
     const server = await serve()
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         for (const mode of ["List", "Grid"]) {
           const { page, input, output } = await lists(browser, server.resolvedUrls.local[0])
@@ -914,7 +915,7 @@ test(
   async () => {
     const server = await serve()
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         const page = await browser.newPage({
           viewport: { width: 1440, height: 1100 },
@@ -1036,7 +1037,7 @@ test(
   async () => {
     const server = await serve()
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         const { page, input, output } = await lists(browser, server.resolvedUrls.local[0])
         const preparation = input.getByRole("textbox", { name: "Page selection", exact: true }),
@@ -1111,7 +1112,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve(),
-      browser = await chromium.launch()
+      browser = await launch(chromium)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       page.setDefaultTimeout(10000)
@@ -1165,7 +1166,7 @@ test(
   { timeout: 30000 },
   async () => {
     const server = await serve(),
-      browser = await chromium.launch()
+      browser = await launch(chromium)
     try {
       const { page, input, output } = await lists(browser, server.resolvedUrls.local[0], {
         hasTouch: true,
@@ -1228,7 +1229,7 @@ test(
   async () => {
     const server = await serve()
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
         page.setDefaultTimeout(10000)
@@ -1318,7 +1319,7 @@ test(
 test("List previews whole pages and returns to its row without changing selection", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const { page, input, output } = await lists(browser, server.resolvedUrls.local[0])
       const errors = []
@@ -1414,7 +1415,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve(),
-      browser = await chromium.launch()
+      browser = await launch(chromium)
     try {
       const { page, input, output } = await lists(browser, server.resolvedUrls.local[0], {
         reducedMotion: "no-preference",
@@ -1516,7 +1517,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve(),
-      browser = await chromium.launch()
+      browser = await launch(chromium)
     try {
       for (const touch of [false, true]) {
         const { page, input, output } = await lists(browser, server.resolvedUrls.local[0], { hasTouch: touch })
@@ -1555,7 +1556,18 @@ test(
               row.getAnimations().every((animation) => animation.playState === "finished"),
             ),
           )
-          const settled = await target.locator(".list-choice").boundingBox(),
+          const settled = await target.locator(".list-choice").evaluate((choice) => {
+              const row = choice.closest(".list-row"),
+                list = row.closest(".page-list")
+              const bounds = choice.getBoundingClientRect()
+              // Drop hit testing uses layout coordinates while neighboring rows animate.
+              return {
+                x: bounds.x,
+                width: bounds.width,
+                y: list.getBoundingClientRect().top - list.scrollTop + row.offsetTop + choice.offsetTop,
+                height: choice.offsetHeight,
+              }
+            }),
             landing = { x: settled.x + settled.width / 2, y: settled.y + settled.height * (after ? 0.8 : 0.2) }
           if (touch)
             await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...landing, id: 1 }] })
@@ -1650,7 +1662,7 @@ test(
   { timeout: 90000 },
   async () => {
     const server = await serve(),
-      browser = await chromium.launch(),
+      browser = await launch(chromium),
       observations = []
     try {
       for (const count of [1000, 10000]) {
@@ -1752,7 +1764,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve(),
-      browser = await chromium.launch()
+      browser = await launch(chromium)
     try {
       const { page, output } = await blankList(browser, server.resolvedUrls.local[0], 1000, "no-preference")
       await tab(output, "List")
@@ -1782,7 +1794,7 @@ test(
 
 test("Escape and scrolling cancel pending List previews without changing selection", { timeout: 30000 }, async () => {
   const server = await serve(),
-    browser = await chromium.launch()
+    browser = await launch(chromium)
   try {
     const { page, output } = await lists(browser, server.resolvedUrls.local[0])
     const selection = output.getByLabel("Page selection", { exact: true })
@@ -1821,7 +1833,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve(),
-      browser = await chromium.launch()
+      browser = await launch(chromium)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
       page.setDefaultTimeout(10000)
@@ -1914,7 +1926,7 @@ test(
   async () => {
     const server = await serve()
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
         page.setDefaultTimeout(10000)
@@ -1972,7 +1984,7 @@ test(
 test("Unmounted List details release preview ownership without clearing selection", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const { page, output } = await blankList(browser, server.resolvedUrls.local[0], 1000)
       await tab(output, "List")
@@ -2018,7 +2030,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve(),
-      browser = await chromium.launch()
+      browser = await launch(chromium)
     try {
       const { page, output } = await blankList(browser, server.resolvedUrls.local[0], 10000)
       await tab(output, "List")
@@ -2072,6 +2084,64 @@ test(
       assert.ok((await list.locator(".list-row").count()) < 80)
     } finally {
       await browser.close()
+    }
+  },
+)
+
+test(
+  "Contents reveals the current leaf or its collapsed ancestor without selecting pages",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    for (const engine of [chromium, webkit]) {
+      const browser = await launch(engine)
+      try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        await page
+          .locator("input[type=file]")
+          .first()
+          .setInputFiles({
+            name: "Chapters.pdf",
+            mimeType: "application/pdf",
+            buffer: fixture({
+              prepared: false,
+              count: 100,
+              outline: [
+                { title: "Book", page: 0 },
+                ...Array.from({ length: 100 }, (_, page) => ({ title: `Chapter ${page + 1}`, page, parent: 0 })),
+              ],
+            }),
+          })
+        const input = page.locator(".selection-panel")
+        await tab(input, "List")
+        await input.locator('.list-choice[data-page="0"]').focus()
+        await page.keyboard.press("End")
+        const contents = page.locator(".contents:popover-open")
+        const open = () => input.getByRole("button", { name: "Input contents", exact: true }).click()
+        await open()
+        const current = contents.locator('[aria-current="location"]')
+        assert.equal(await current.count(), 1)
+        assert.match(await current.innerText(), /Chapter 100/)
+        await page.waitForFunction(() => {
+          const entry = document.querySelector('.contents:popover-open [aria-current="location"]')
+          if (!entry) return false
+          const box = entry.getBoundingClientRect(),
+            nav = entry.closest("nav").getBoundingClientRect()
+          return box.top >= nav.top - 1 && box.bottom <= nav.bottom + 1
+        })
+        await contents.getByRole("button", { name: "Collapse Book", exact: true }).click()
+        await page.keyboard.press("Escape")
+        await open()
+        assert.match(await current.innerText(), /^Book/)
+        await page.keyboard.press("Escape")
+        assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "")
+        await tab(input, "Page")
+        assert.match(await input.locator(".inspection-heading .page-position").innerText(), /100/)
+      } finally {
+        await browser.close()
+      }
     }
   },
 )

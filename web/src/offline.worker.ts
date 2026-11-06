@@ -11,11 +11,7 @@ const examples = new Map(EXAMPLES.map((asset) => [new URL(asset.path, worker.reg
 const exampleKeys = new Map([...examples].map(([url, asset]) => [url, `${url}?sha256=${asset.sha256}`]))
 const urls = ASSETS.map((asset) => new URL(asset.path, worker.registration.scope).href)
 const entry = new URL("index.html", worker.registration.scope).href
-const entries = [
-  worker.registration.scope,
-  entry,
-  ...["demo=toc", "demo=toc-multiple"].map((path) => new URL(path, worker.registration.scope).href),
-]
+const entries = [worker.registration.scope, entry]
 
 async function remember(url: string, response: Response) {
   const asset = examples.get(url)!

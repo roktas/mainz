@@ -1,12 +1,13 @@
 // Checks Output edits, page transfers, and edit feedback.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { mkdir, readFile } from "node:fs/promises"
 import { chromium, webkit } from "playwright"
 import { zoom } from "./workspace.js"
-import { tab, fixture, image, pagePosition, gridPage } from "./browser.js"
+import { tab, fixture, image, pagePosition, gridPage, trackWorkers } from "./browser.js"
 import { measure, gridDensity } from "./measure.js"
 
 const standard = process.env.MAINZ_TEST_MODE === "standard"
@@ -18,7 +19,7 @@ test(
     const server = await serve()
     await mkdir("../.local/tmp/web/layout/actions", { recursive: true })
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -89,7 +90,7 @@ test(
 
 test("Dense page edits keep layout work bounded while animating complete batches", { timeout: 60000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
     const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "no-preference" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -147,7 +148,7 @@ test("Output Page removes the current occurrence, including Blank and the final 
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
@@ -199,7 +200,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       await page.addInitScript(() => {
         localStorage.setItem("mainz:onboarding", "19")
@@ -324,7 +325,7 @@ test("Grid navigation retains physical page positions during additions", { timeo
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, density, colorScheme] of [
       [1440, 1100, "Normal", "light"],
       [1440, 1100, "Compact", "dark"],
@@ -395,7 +396,7 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, hasTouch, colorScheme] of [
       [1920, 1080, false, "light"],
       [1920, 1080, false, "dark"],
@@ -660,7 +661,7 @@ test("Addition previews use their target image or the action area", { timeout: 9
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, touch] of [
       [1440, 1100, false],
       [390, 844, true],
@@ -818,7 +819,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       for (const [width, height, hasTouch, colorScheme, cpu] of [
         [1440, 1100, false, "light", 4],
         [1024, 768, true, "dark", 1],
@@ -1238,7 +1239,7 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(server.resolvedUrls.local[0])
@@ -1457,7 +1458,7 @@ test("Edited Padding retains its dimensions and page order in the downloaded PDF
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion: "reduce" })
     const errors = []
     page.on("pageerror", (error) => errors.push(error.message))
@@ -1583,7 +1584,7 @@ test("Grid boundary duplication focuses the final new Output occurrence", async 
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
@@ -1610,3 +1611,51 @@ test("Grid boundary duplication focuses the final new Output occurrence", async 
     await browser?.close()
   }
 })
+
+test(
+  "Removing the final Input retains Blank dimensions, Page view, zoom, and selection",
+  { timeout: 30000 },
+  async () => {
+    const server = await serve(),
+      browser = await launch(chromium)
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+      await page.addInitScript(trackWorkers)
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=empty`)
+      await page.getByText("Demo workspace ready.", { exact: true }).waitFor()
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output")
+      await input.getByLabel("Page selection", { exact: true }).fill("1")
+      await input.getByLabel("Page selection", { exact: true }).press("Enter")
+      await output.locator(".output-options > summary").click()
+      await output.getByRole("button", { name: "At end", exact: true }).click()
+      await output.getByLabel("Page selection", { exact: true }).fill("1")
+      await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
+      await tab(output, "Page")
+      await output.locator(".page-scroll").focus()
+      await page.keyboard.press("+")
+      await output.getByLabel("Page selection", { exact: true }).fill("1")
+      await input.locator(".input-picker > summary").click()
+      await input.getByRole("button", { name: "Remove Input", exact: true }).click()
+      await input.waitFor({ state: "hidden" })
+      assert.equal(await output.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected"), "true")
+      assert.equal(await output.getByLabel("Output page zoom", { exact: true }).innerText(), "150%")
+      assert.equal(await output.getByLabel("Page selection", { exact: true }).inputValue(), "1")
+      assert.equal(
+        await page.locator(".empty-input input[type=file]").evaluate((field) => field === document.activeElement),
+        true,
+      )
+      const box = await output.locator(".blank-sheet").boundingBox()
+      assert.ok(Math.abs(box.width / box.height - 210 / 297) < 0.01)
+      assert.equal(
+        await page.evaluate(
+          () => window.workers.filter((worker) => worker.url.includes("processor.worker") && !worker.terminated).length,
+        ),
+        0,
+      )
+    } finally {
+      await browser.close()
+    }
+  },
+)

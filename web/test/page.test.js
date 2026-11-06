@@ -1,5 +1,6 @@
 // Checks Page navigation, zoom, inspection, and shared Grid state.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
@@ -17,7 +18,7 @@ test("Long Page counters keep enlarged text and reachable zoom actions", { timeo
   try {
     await mkdir("../.local/tmp/web/layout/page-counter", { recursive: true })
     for (const engine of [chromium, webkit]) {
-      browser = await engine.launch()
+      browser = await launch(engine)
       page = await browser.newPage({
         viewport: { width: 1440, height: 900 },
         hasTouch: true,
@@ -134,7 +135,7 @@ test("Arrows enter Grid without selection and Page keys change thumbnail groups"
   const server = await serve()
   let browser, page, scenario, batch
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [density, width, theme, textSize] of [
       ["Normal", 1440, "light", "100%"],
       ["Compact", 1440, "dark", "100%"],
@@ -323,7 +324,7 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, reducedMotion: "reduce" })
     const errors = []
     page.on("pageerror", (error) => errors.push(error.message))
@@ -485,7 +486,7 @@ test("Page pinch zoom preserves its anchor and shares the button zoom range", { 
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, colorScheme] of [
       [810, 1080, "light"],
       [390, 844, "dark"],
@@ -623,7 +624,7 @@ test("Page cancellation clears a pending pinch before the next render", { timeou
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
     const errors = []
     page.on("pageerror", (error) => errors.push(error.message))
@@ -683,7 +684,7 @@ test("The lens waits for a settled mouse and cancels pending openings", { timeou
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, theme, textSize] of [
       [1440, "light", "100%"],
       [390, "dark", "200%"],
@@ -772,7 +773,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({
+      browser = await launch(chromium, {
         channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
         ignoreDefaultArgs: ["--hide-scrollbars"],
       })
@@ -1321,7 +1322,7 @@ test(
 
 test("Touch Page swipes navigate only without horizontal overflow", { timeout: 120000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
     for (const [width, height, colorScheme] of [
       [390, 844, "dark"],
@@ -1476,7 +1477,7 @@ test("Touch Page swipes navigate only without horizontal overflow", { timeout: 1
 test("Page width fitting and horizontal keys preserve composition and focus", { timeout: 120000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch({ ignoreDefaultArgs: ["--hide-scrollbars"] })
+    const browser = await launch(engine, { ignoreDefaultArgs: ["--hide-scrollbars"] })
     try {
       for (const touch of [false, true]) {
         const page = await browser.newPage({
@@ -1550,7 +1551,7 @@ test("Page width fitting and horizontal keys preserve composition and focus", { 
 test("Page uses one frame contour for keyboard focus and none for pointer zoom", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     let page, label
     try {
       page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
@@ -1619,7 +1620,7 @@ test(
   async () => {
     const server = await serve()
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         const page = await browser.newPage({
           viewport: { width: 1440, height: 1000 },
@@ -1676,7 +1677,7 @@ test(
 test("Page double activation toggles anchored zoom and preserves composition", { timeout: 120000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch({ channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL : undefined })
+    const browser = await launch(engine, { channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL : undefined })
     try {
       for (const [width, height, hasTouch, colorScheme] of [
         [1440, 1100, false, "light"],
@@ -1769,7 +1770,7 @@ test("Repeated Page copies emphasize status without changing focus or geometry",
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, height, colorScheme, hasTouch, reducedMotion] of [
       [1440, 1100, "light", false, "no-preference"],
       [810, 1080, "dark", true, "no-preference"],
@@ -1875,7 +1876,7 @@ test("Output Page keeps original PDF labels through composition and Input change
     .map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`)
     .join("")}trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
     page.setDefaultTimeout(10000)
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -2024,7 +2025,7 @@ test("Grid and Page switches preserve selections, zoom, and the inspected page",
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1100 },
       hasTouch: true,
@@ -2140,7 +2141,7 @@ test("Grid selection keeps painted pages in place", { timeout: 60000 }, async ()
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [width, theme, textSize] of [
       [2560, "light", "100%"],
       [390, "dark", "200%"],
@@ -2275,7 +2276,7 @@ test("Unused and modified Grid keys preserve pointer controls and native shortcu
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
@@ -2361,7 +2362,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -2553,7 +2554,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
       page.setDefaultTimeout(10000)
       const errors = []

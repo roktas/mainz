@@ -1,5 +1,6 @@
 // Checks worker ownership, failure recovery, and immutable page and style reuse.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { crc32, deflateSync } from "node:zlib"
@@ -22,7 +23,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    const browser = await chromium.launch()
+    const browser = await launch(chromium)
     try {
       const page = await browser.newPage()
       await page.goto(server.resolvedUrls.local[0])
@@ -114,7 +115,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    const browser = await chromium.launch()
+    const browser = await launch(chromium)
     try {
       const page = await browser.newPage()
       await page.goto(server.resolvedUrls.local[0])
@@ -188,7 +189,7 @@ test(
 test("Processor failures remain recoverable in Chromium and WebKit", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch({ channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL : undefined })
+    const browser = await launch(engine, { channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL : undefined })
     try {
       const page = await browser.newPage()
       await page.goto(server.resolvedUrls.local[0])
@@ -316,7 +317,7 @@ test("Processor workers pin their module and recover from failed document cleanu
   let browser
   try {
     await server.listen()
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.addInitScript(() => {
       const Original = Worker
@@ -381,7 +382,7 @@ test("Processors bound idle runtimes and reuse immutable page buffers across ret
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.addInitScript(trackWorkers)
     await page.addInitScript(() => {
@@ -467,7 +468,7 @@ test("Style updates combine resets with overrides and preserve their immutable I
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.route("**/sample.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 3 }) }),
@@ -555,7 +556,7 @@ test("Composition reuse preserves bytes, Provenance, and exact Input bindings", 
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.route("**/sample.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 3 }) }),
@@ -645,7 +646,7 @@ test(
     })
     const replacement = fixture({ prepared: false, count: 1 })
     const server = await serve()
-    const browser = await chromium.launch()
+    const browser = await launch(chromium)
     try {
       const page = await browser.newPage()
       await page.addInitScript(() => {

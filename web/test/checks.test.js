@@ -1,5 +1,6 @@
 // Exercises shared Recipe cases through loading, explicit review, and reference alignment.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { readFile, mkdir } from "node:fs/promises"
@@ -13,7 +14,7 @@ test(
     const server = await serve()
     const base = server.resolvedUrls.local[0]
     const original = await (await fetch(`${base}checks/review.json`)).text()
-    const browser = await chromium.launch()
+    const browser = await launch(chromium)
     try {
       const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })
       page.setDefaultTimeout(10000)
@@ -127,7 +128,7 @@ test("Recipe Apply errors use the header without moving matched PDF rows", { tim
   recipe.metadata = { title: "Recipe checks", coverPage: 3 }
   const pdf = Buffer.from(await (await fetch(`${base}checks/count.pdf`)).arrayBuffer())
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })
       await page.goto(base)
@@ -179,7 +180,7 @@ test("Recipe Input checks share policy and preserve explicit alignment intent", 
   const screenshots = new URL("../../.local/tmp/web/layout/recipe/", import.meta.url)
   await mkdir(screenshots, { recursive: true })
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })
       page.setDefaultTimeout(10000)
@@ -327,7 +328,7 @@ test(
     const screenshots = new URL("../../.local/tmp/web/layout/recipe/", import.meta.url)
     await mkdir(screenshots, { recursive: true })
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })
         page.setDefaultTimeout(10000)
@@ -622,3 +623,22 @@ test(
     }
   },
 )
+
+test("Shared browser processes isolate scenario storage and close only their own contexts", async () => {
+  const first = await launch(chromium),
+    second = await launch(chromium)
+  const a = await first.newContext(),
+    b = await second.newContext()
+  try {
+    assert.equal(a.browser(), b.browser())
+    await a.addCookies([{ name: "scenario", value: "first", url: "http://localhost" }])
+    assert.deepEqual(await b.cookies(), [])
+    await first.close()
+    const page = await b.newPage()
+    await page.setContent("<p>Second scenario remains usable</p>")
+    assert.equal(await page.locator("p").innerText(), "Second scenario remains usable")
+  } finally {
+    await first.close()
+    await second.close()
+  }
+})

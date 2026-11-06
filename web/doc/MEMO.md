@@ -45,9 +45,10 @@ deleting obsolete download archives or caches. Preserve retained measurements be
 ## Browser checks
 
 Use the pinned Node version and the root commands in [AGENTS](../../AGENTS.md#setup-and-checks). Run one browser suite
-per host at a time. Standard fixtures reuse one Vite server per file through `test/server.ts`. Each scenario keeps its
-own browser contexts and storage. Production startup scenarios share one scoped build and keep separate preview servers.
-Custom server scenarios own their server lifecycle. Install a missing browser with:
+per host at a time. Standard fixtures reuse one Vite server per file through `test/server.ts`. `test/browsers.js` reuses
+one default browser process per engine and file. Each scenario closes its own contexts and storage. Custom launch
+requirements retain separate processes. Production startup scenarios share one scoped build and keep separate preview
+servers. Custom server scenarios own their server lifecycle. Install a missing browser with:
 
 ```sh
 npm --prefix web exec -- playwright install chromium webkit
@@ -64,7 +65,8 @@ keyboard, touch, offline use, updates, and large Output pagination. Animation ch
 throttling. Standard uses representative desktop and touch cases for batch navigation, shared frames, partial batches,
 and Normal card hit targets. The hit-target checks cover consecutive rows and measure pagination after pane and
 text-size transitions. Standard omits the full alignment and Page geometry matrices, Grid capacity/calibration matrices,
-and calibration tools.
+and calibration tools. Opacity layout checks use representative phone and desktop widths; full mode retains all four
+widths.
 
 Before a release, run `npm run test:full`. It includes every application browser scenario, complete animation matrices
 with CPU throttling, and both viewport measurement and candidate-search scenarios. Animation command entrypoints run

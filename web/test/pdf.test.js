@@ -1,5 +1,6 @@
 // Checks preview raster ownership and eviction in the browser canvas implementation.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
@@ -9,7 +10,7 @@ import { gridDensity } from "./measure.js"
 
 test("The maintained demo declares its book title and physical page names", { timeout: 30000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch()
+  const browser = await launch(chromium)
   try {
     const page = await browser.newPage()
     await page.goto(server.resolvedUrls.local[0])
@@ -46,7 +47,7 @@ test("The maintained demo declares its book title and physical page names", { ti
 
 test("Input metadata keeps bounded fields and uses valid title fallbacks", async () => {
   const server = await serve()
-  const browser = await chromium.launch()
+  const browser = await launch(chromium)
   try {
     const page = await browser.newPage()
     await page.goto(server.resolvedUrls.local[0])
@@ -114,7 +115,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     try {
       for (const failure of [false, true]) {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
@@ -214,7 +215,7 @@ test(
   { timeout: 30000 },
   async () => {
     const server = await serve(),
-      browser = await chromium.launch()
+      browser = await launch(chromium)
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgYGAAAAAEAAH2FzhVAAAAAElFTkSuQmCC",
       "base64",
@@ -275,7 +276,7 @@ test("Overlapping preview generations release their own pages and never paint st
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.goto(server.resolvedUrls.local[0])
     const result = await page.evaluate(async () => {
@@ -423,7 +424,7 @@ test(
     const server = await serve()
     for (const engine of [chromium, webkit])
       for (const dpr of [0.5, 1, 1.5, 2]) {
-        const browser = await engine.launch()
+        const browser = await launch(engine)
         try {
           const page = await browser.newPage({ deviceScaleFactor: dpr })
           await page.goto(server.resolvedUrls.local[0])
@@ -494,7 +495,7 @@ test("Input inspection bounds pending metadata and releases pages on completion,
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.goto(server.resolvedUrls.local[0])
     const result = await page.evaluate(async () => {
@@ -576,7 +577,7 @@ test("Input inspection bounds pending metadata and releases pages on completion,
 
 test("Thumbnail allocation stays within its pixel limit and releases failed renders", { timeout: 30000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch()
+  const browser = await launch(chromium)
   try {
     const page = await browser.newPage()
     await page.goto(server.resolvedUrls.local[0])
@@ -655,7 +656,7 @@ test(
   { timeout: 30000 },
   async () => {
     const server = await serve()
-    const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     try {
       const page = await browser.newPage()
       await page.goto(server.resolvedUrls.local[0])
@@ -722,7 +723,7 @@ test("Document ownership releases tasks and rasters once, including validation f
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.goto(server.resolvedUrls.local[0])
     const result = await page.evaluate(async () => {
@@ -780,7 +781,7 @@ test("Releasing PDF rasters clears only that document and preserves the shared c
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     await page.goto(server.resolvedUrls.local[0])
     const result = await page.evaluate(async () => {
@@ -840,7 +841,7 @@ test("Source replacement retains opened rasters for comparison and releases them
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     page.setDefaultTimeout(10000)
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))

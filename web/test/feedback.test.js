@@ -1,5 +1,6 @@
 // Checks header feedback geometry, cancellation, and compact Download recovery.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { mkdir, readFile } from "node:fs/promises"
@@ -11,7 +12,7 @@ import { fixture } from "./browser.js"
 test("Landing and workspace share desktop edges", { timeout: 120000 }, async () => {
   const server = await serve()
   for (const mode of ["mouse", "hybrid"]) {
-    const browser = await chromium.launch({
+    const browser = await launch(chromium, {
       channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
       args:
         mode === "hybrid"
@@ -135,7 +136,7 @@ test("Header messages fit representative Apple touch layouts", { timeout: 90000 
   const directory = resolve("../.local/tmp/web/layout/feedback")
   await mkdir(directory, { recursive: true })
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       for (const [device, reference, landscape] of [
         ["iPhone SE (3rd gen)", "375x667-coarse", true],
@@ -285,7 +286,7 @@ test(
   async () => {
     const server = await serve()
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -350,7 +351,7 @@ test(
 test("Touch dialog focus stays quiet and keyboard focus stays visible", { timeout: 30000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const page = await browser.newPage({
         viewport: { width: 810, height: 1080 },
@@ -406,7 +407,7 @@ test("Touch dialog focus stays quiet and keyboard focus stays visible", { timeou
 test("Header progress preserves workspace bounds and scroll at narrow widths", { timeout: 120000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const page = await browser.newPage({ hasTouch: true, reducedMotion: "reduce" })
       await page.addInitScript(() => {
@@ -500,7 +501,7 @@ test(
   async () => {
     const server = await serve()
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch({
+      const browser = await launch(engine, {
         channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL || undefined : undefined,
       })
       try {
@@ -562,7 +563,7 @@ test(
     const server = await serve()
     await mkdir(resolve("../.local/var/web/feedback"), { recursive: true })
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch({
+      const browser = await launch(engine, {
         channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL || undefined : undefined,
       })
       try {
@@ -636,7 +637,7 @@ test(
   async () => {
     const server = await serve()
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch({
+      const browser = await launch(engine, {
         channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL || undefined : undefined,
       })
       try {

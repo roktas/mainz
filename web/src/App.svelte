@@ -1,4 +1,4 @@
-<!-- Coordinates Input opening, workspace choices, preview owners, and header feedback. -->
+<!-- Coordinates Input opening, workspace choices, and preview owners. -->
 
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte"
@@ -22,6 +22,7 @@
     resetStyles,
     sharedProfiles,
     usage,
+    visibleProfiles,
   } from "./styles.ts"
   import { cover, Documents, Opening } from "./pdf.ts"
   import { Processor } from "./processor.ts"
@@ -41,8 +42,8 @@
   import Theme from "./Theme.svelte"
   import Logo from "./Logo.svelte"
   import Icon from "./Icon.svelte"
-  import Feedback, { provideFeedback } from "./Feedback.svelte"
-  import type { Report } from "./Feedback.svelte"
+  import { provideFeedback } from "./Feedback.svelte"
+  import Header from "./Header.svelte"
   import Align from "./Align.svelte"
   import Offline from "./Offline.svelte"
   import Style from "./Style.svelte"
@@ -67,26 +68,12 @@
   let magnification = $state<Magnification>(16)
   let message = $state("")
   let notice = $state("")
-  let noticeTimer: ReturnType<typeof setTimeout> | undefined
   let messageRevision = $state(0)
   const firstAction = "Select pages · Use + to add to Output."
   let failure = $state.raw<string | string[]>("")
-  let reports = $state.raw<Report[]>([])
-  const activeReport = $derived(
-    reports.findLast((item) => item.kind === "progress") ??
-      reports.findLast((item) => item.kind === "error") ??
-      reports.at(-1),
-  )
-  const reportBusy = $derived(activeReport?.kind === "progress")
-  provideFeedback((item) => {
-    reports = [...reports, item]
-    const remove = () => (reports = reports.filter((entry) => entry !== item))
-    const timer = item.kind === "notice" && !item.actions && !item.children ? setTimeout(remove, 10000) : undefined
-    return () => {
-      clearTimeout(timer)
-      remove()
-    }
-  })
+  let header = $state<ReturnType<typeof Header>>(null!)
+  let headerActive = $state(false)
+  provideFeedback((item) => header.report(item))
   let loading = $state(false)
   let updating = $state(false)
   let openingStatus = $state("")
@@ -121,17 +108,11 @@
   const outputSources = $derived(sources.filter((source) => counts.has(source.id)))
   const controls = $derived(description && sourceId ? applicable(description, counts.get(sourceId)?.keys() ?? []) : [])
   const styleable = $derived(controls.length > 0)
-  const hasProfiles = $derived(
-    (active?.input.description.profileSets ?? []).some(
-      (set) => set.profiles.length > 1 && set.parameters.some((id) => controls.includes(id)),
-    ),
-  )
+  const profiles = $derived(visibleProfiles(description, controls))
+  const hasProfiles = $derived(profiles.length > 0)
   const shareable = $derived.by(() => {
     if (!active || sources.length < 2) return false
     const ids = [...new Set([...controls, ...Object.keys(active.overrides)])]
-    const sets = (active.input.description.profileSets ?? []).filter(
-      (set) => set.profiles.length > 1 && set.parameters.some((id) => controls.includes(id)),
-    )
     return sources.some((source) => {
       if (source.id === active.id) return false
       const families = new Map<string, Set<string>>()
@@ -142,7 +123,7 @@
         families.set(set.family, names)
       }
       return (
-        sets.some(
+        profiles.some(
           (set) => set.family && set.profiles.some((profile) => families.get(set.family!)?.has(profile.name)),
         ) || counterparts(active, source, ids).pairs.length > 0
       )
@@ -161,9 +142,6 @@
       return reason instanceof Error ? reason.message : "Invalid Download inputs."
     }
   })
-  const headerError = $derived(!!(failure || failedSources.length || downloadError || activeReport?.kind === "error"))
-  const headerBusy = $derived(!!(loading || processingSource || offlineStatus || exportStatus))
-  const headerActive = $derived(!!(headerError || headerBusy || notice || activeReport))
   const inspection: Inspection | undefined = $derived.by(() => {
     const page = output.pages[output.position]
     if (!page) return
@@ -199,37 +177,7 @@
     return ++messageRevision
   }
   function notify(text: string) {
-    clearTimeout(noticeTimer)
-    notice = text
-    if (text) noticeTimer = setTimeout(() => (notice = ""), 10000)
-  }
-  function present(element: HTMLDivElement) {
-    const marker = document.createComment("Header feedback")
-    element.before(marker)
-    function place() {
-      const modal = [...document.querySelectorAll<HTMLDialogElement>("dialog:modal")].at(-1)
-      const editor = document.querySelector<HTMLElement>(".filename-panel:popover-open")
-      const parent = editor ?? modal ?? marker.parentElement!
-      if (element.parentElement !== parent) {
-        element.hidePopover()
-        if (editor || modal) parent.append(element)
-        else marker.after(element)
-      }
-      if (!element.matches(":popover-open")) element.showPopover()
-    }
-    const observer = new MutationObserver(place)
-    observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ["open"] })
-    const toggle = (event: Event) => {
-      if (event.target instanceof Element && event.target.matches(".filename-panel")) place()
-    }
-    document.addEventListener("toggle", toggle, true)
-    place()
-    return () => {
-      document.removeEventListener("toggle", toggle, true)
-      observer.disconnect()
-      element.remove()
-      marker.remove()
-    }
+    header.notify(text)
   }
   function error(text: string | string[]) {
     failure = text
@@ -702,7 +650,6 @@
   onDestroy(() => {
     disposed = true
     clearTimeout(logoTimer)
-    clearTimeout(noticeTimer)
     openingProcessor?.dispose()
     openingJob?.dispose()
     for (const source of sources) source.preview.dispose()
@@ -799,11 +746,6 @@
     if (unsaved && !approved) event.preventDefault()
   }}
 />
-{#snippet dismissReport()}<button
-    type="button"
-    aria-label={activeReport?.kind === "error" ? "Dismiss error" : "Dismiss notification"}
-    onclick={() => (reports = reports.filter((item) => item !== activeReport))}>Dismiss</button
-  >{/snippet}
 <header class="masthead">
   <div class="header-inner" data-feedback={headerActive || undefined}>
     <a
@@ -815,93 +757,24 @@
       onclick={logo}
       >{#key logoReplay}<Logo />{/key}</a
     >
-    {#if headerActive}
-      <div class="header-feedback" popover="manual" {@attach present}>
-        {#if activeReport && !headerBusy && (reportBusy || activeReport.kind === "error" || !headerError)}<Feedback
-            {...activeReport}
-            actions={activeReport?.actions ??
-              (activeReport?.kind === "progress" || activeReport?.children ? undefined : dismissReport)}
-          />{/if}
-        {#if exportStatus}<Feedback kind="progress" text={exportStatus}>
-            {#snippet actions()}<button
-                type="button"
-                class="icon-button"
-                aria-label="Cancel"
-                title="Cancel"
-                onclick={() => exporter.cancel()}><Icon name="close" /></button
-              >{/snippet}
-          </Feedback>{:else if loading}<Feedback
-            kind="progress"
-            class="opening-progress"
-            text={openingStatus}
-            summary={matching ? "Opening recipe…" : "Opening PDF…"}
-          >
-            {#snippet actions()}<button
-                type="button"
-                class="icon-button"
-                aria-label="Cancel"
-                title="Cancel"
-                onclick={cancelOpen}><Icon name="close" /></button
-              >{/snippet}
-          </Feedback>{:else if processingSource}<Feedback
-            kind="progress"
-            class="style-progress"
-            text={`Updating styles · ${processingSource.input.name}`}
-            summary="Updating styles…"
-          >
-            {#snippet actions()}<button
-                type="button"
-                class="icon-button"
-                aria-label="Cancel style processing"
-                title="Cancel"
-                onclick={() => processingSource?.preview.cancel()}><Icon name="close" /></button
-              >{/snippet}
-          </Feedback>{/if}
-        {#if !exportStatus && !loading && !processingSource && offlineStatus}<Feedback
-            kind="progress"
-            class="offline-progress"
-            text={offlineStatus}
-          />{/if}
-        {#if !activeReport && !headerError && !headerBusy && notice}<Feedback
-            kind="notice"
-            class="notice"
-            text={notice}
-          >
-            {#snippet actions()}<button type="button" aria-label="Dismiss notification" onclick={() => notify("")}
-                >Dismiss</button
-              >{/snippet}
-          </Feedback>{/if}
-        {#if failure && !headerBusy && !reportBusy && activeReport?.kind !== "error"}<Feedback
-            kind="error"
-            text={Array.isArray(failure)
-              ? `${failure.length} ${failure.length === 1 ? "file" : "files"} failed`
-              : failure}
-            details={Array.isArray(failure) ? failure : undefined}
-            summary={typeof failure === "string" && failure.length > 80 ? "Action failed." : undefined}
-          >
-            {#snippet actions()}<button type="button" aria-label="Dismiss error" onclick={() => (failure = "")}
-                >Dismiss</button
-              >{/snippet}
-          </Feedback>{/if}
-        {#if downloadError && !headerBusy && !reportBusy && activeReport?.kind !== "error" && !failure && !failedSources.length}<Feedback
-            kind="error"
-            text={downloadError}
-            summary="Check Output Inputs."
-          />{/if}
-        {#if !failure && !headerBusy && !reportBusy && activeReport?.kind !== "error"}{#each failedSources.slice(0, 1) as source (source.id)}<Feedback
-              kind="error"
-              text={`${source.input.name}: ${source.preview.error} The last completed preview is shown.`}
-              summary="Style update failed."
-            >
-              {#snippet actions()}<button
-                  type="button"
-                  aria-label="Retry Input styles"
-                  title="Retry styles"
-                  onclick={() => schedule(source.id)}>Retry</button
-                >{/snippet}
-            </Feedback>{/each}{/if}
-      </div>
-    {/if}
+    <Header
+      bind:this={header}
+      bind:active={headerActive}
+      bind:notice
+      bind:failure
+      {loading}
+      {openingStatus}
+      {matching}
+      {offlineStatus}
+      {exportStatus}
+      {processingSource}
+      {failedSources}
+      {downloadError}
+      {cancelOpen}
+      cancelExport={() => exporter.cancel()}
+      cancelStyle={() => processingSource?.preview.cancel()}
+      retry={schedule}
+    />
     <div class="header-actions">
       <span class="header-note" title="Processed on your device. No uploads."><Icon name="lock" />On your device</span
       ><Help

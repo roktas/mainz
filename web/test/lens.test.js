@@ -1,5 +1,6 @@
 // Checks optional lens rendering against delayed and failed PDF.js operations.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { chromium, webkit } from "playwright"
@@ -95,7 +96,7 @@ test("Lens retains a stationary hover through raster refresh and respects dismis
   try {
     await server.listen()
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
         await fixture(page, server.resolvedUrls.local[0])
@@ -146,7 +147,7 @@ test("Lens names stay centered and truncate within short viewports and enlarged 
   try {
     await server.listen()
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         for (const hasTouch of [false, true]) {
           const page = await browser.newPage({ viewport: { width: 667, height: 250 }, hasTouch, isMobile: hasTouch })
@@ -205,7 +206,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    const browser = await chromium.launch()
+    const browser = await launch(chromium)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -248,7 +249,7 @@ test("Lens fits short viewports at every edge for mouse and touch", { timeout: 6
   let browser
   try {
     await server.listen()
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const hasTouch of [false, true]) {
       const page = await browser.newPage({ hasTouch, isMobile: hasTouch })
       for (const [width, height] of [
@@ -310,7 +311,7 @@ test("Lens teardown releases acquired pages after delayed or failed renderer loa
   let browser
   try {
     await server.listen()
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const stage of ["page", "renderer", "failure", "render"]) {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
       page.setDefaultTimeout(10000)
@@ -360,7 +361,7 @@ test(
     let browser
     try {
       await server.listen()
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
       await fixture(page, server.resolvedUrls.local[0])
       await page.evaluate(async () => (await import("/src/pdf.ts")).loadRenderer())

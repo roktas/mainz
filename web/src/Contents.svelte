@@ -8,6 +8,7 @@
 
 <script lang="ts">
   import { tick } from "svelte"
+  import { sectionsAt } from "./outline.ts"
   import Icon from "./Icon.svelte"
 
   let {
@@ -42,6 +43,16 @@
     }
     return roots
   })
+  const current = $derived.by(() => {
+    const leaf = sectionsAt(items, position)[0]
+    if (!leaf) return
+    const ancestors: Entry[] = []
+    for (const item of items) {
+      while (ancestors.length && ancestors.at(-1)!.depth >= item.depth) ancestors.pop()
+      if (item === leaf) return ancestors.find((entry) => collapsed.has(entry.key))?.key ?? item.key
+      ancestors.push(item)
+    }
+  })
   const parents = $derived(items.filter((item, index) => items[index + 1]?.depth > item.depth))
   const canExpand = $derived(parents.some((item) => collapsed.has(item.key)))
   function jump(page: number) {
@@ -59,12 +70,11 @@
   class="contents"
   popover="auto"
   aria-label="Input contents"
-  onbeforetoggle={async (event) => {
-    opened = event.newState === "open"
-    if (event.newState === "open") {
-      await tick()
-      panel.querySelector('[aria-current="location"]')?.scrollIntoView({ block: "nearest" })
-    }
+  onbeforetoggle={(event) => (opened = event.newState === "open")}
+  ontoggle={async (event) => {
+    if (event.newState !== "open") return
+    await tick()
+    panel.querySelector('[aria-current="location"]')?.scrollIntoView({ block: "nearest" })
   }}
 >
   <header>
@@ -103,7 +113,8 @@
             >{:else}<span></span>{/if}
           <button
             class="destination"
-            aria-current={item.page <= position && item.end >= position ? "location" : undefined}
+            class:current={item.page <= position && item.end >= position}
+            aria-current={item.key === current ? "location" : undefined}
             onclick={() => jump(item.page)}
             ><span>{item.title}</span><span class="positions">{item.page + 1}</span></button
           >
@@ -265,7 +276,7 @@
   .destination > span:first-child {
     overflow-wrap: anywhere;
   }
-  .destination[aria-current] {
+  .destination.current {
     border-inline-start-color: var(--accent);
     color: var(--accent);
   }
@@ -291,7 +302,7 @@
       border-color: transparent;
       box-shadow: none;
     }
-    .destination[aria-current]:hover {
+    .destination.current:hover {
       border-inline-start-color: var(--accent);
     }
   }

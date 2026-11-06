@@ -10,6 +10,8 @@ export async function readOutline(
   cancelled = () => false,
 ): Promise<Outline[]> {
   const result: Outline[] = []
+  const destinations = new Map<string, ReturnType<typeof pdf.getDestination>>()
+  const pages = new Map<string, ReturnType<typeof pdf.getPageIndex>>()
   try {
     const pending = ((await pdf.getOutline()) ?? [])
       .map((node) => ({ node, path: [] as string[], depth: 0 }))
@@ -23,10 +25,24 @@ export async function readOutline(
       let retained = false
       if (title)
         try {
-          const destination = typeof node.dest === "string" ? await pdf.getDestination(node.dest) : node.dest
-          const page =
-            destination &&
-            (typeof destination[0] === "number" ? destination[0] : await pdf.getPageIndex(destination[0]))
+          let destination = node.dest
+          if (typeof destination === "string") {
+            const name = destination
+            if (!destinations.has(name)) destinations.set(name, pdf.getDestination(name))
+            destination = await destinations.get(name)!
+          }
+          if (cancelled()) return []
+          let page: number | undefined
+          if (destination) {
+            const target = destination[0]
+            if (typeof target === "number") page = target
+            else {
+              const key = `${target.num}:${target.gen}`
+              if (!pages.has(key)) pages.set(key, pdf.getPageIndex(target))
+              page = await pages.get(key)
+            }
+          }
+          if (cancelled()) return []
           if (typeof page === "number" && Number.isInteger(page) && page >= 0 && page < pdf.numPages) {
             result.push({ title, path: next, depth, page, end: pdf.numPages - 1 })
             retained = true

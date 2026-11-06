@@ -1,5 +1,6 @@
 // Checks shared frames, centered grips, and Page thumbnails across distinct card calibrations.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
@@ -11,7 +12,7 @@ test("Style retains a Compact companion frame on short touch landscapes", { time
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
@@ -52,7 +53,7 @@ test("Style scrolling preserves its companion Grid capacity and Page frame", { t
   const server = await serve()
   let browser, page
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
@@ -169,7 +170,7 @@ for (const hasTouch of [false, true])
       const server = await serve()
       let browser, page, label
       try {
-        browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+        browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
         page = await browser.newPage({ hasTouch, isMobile: hasTouch, reducedMotion: "reduce" })
         page.setDefaultTimeout(45000)
         // Capacity and calibration boundaries belong to grid.test.js; alignment needs only a few complete columns.
@@ -269,7 +270,7 @@ test("App header uses available width before wrapping its actions", { timeout: 4
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
@@ -312,7 +313,7 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
   const server = await serve()
   let browser, page, label
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const hasTouch of [true, false]) {
       page = await browser.newPage({
         viewport: { width: 744, height: 1047 },

@@ -47,7 +47,7 @@ const minimal = {
   ],
   startup: ["The first PDF previews before validation and commits only after success"],
   workspace: [
-    "Opacity percentages preserve precision and leave room for their sliders",
+    "Opacity percentages preserve precision, invalid entry, reset, and saved values",
     "Opaque parameter IDs retain style edits, draft errors, and downloaded values",
     "Style and Download cancellation release preview workers and retain choices",
     "Download reuses completed full-document styles and invalidates changed Output",

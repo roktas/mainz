@@ -1,7 +1,7 @@
 <!-- Shows the active Source's Style profiles, their guidance, and parameter groups. -->
 
 <script lang="ts">
-  import { groups, matchingProfile, objects, resolve } from "./styles.ts"
+  import { groups, matchingProfile, objects, resolve, visibleProfiles } from "./styles.ts"
   import { pageRanges } from "./pages.ts"
   import type { Entry } from "./styles.ts"
   import type { Source } from "./model.ts"
@@ -36,11 +36,7 @@
   const key = $props.id()
   const definition = $derived(source.input.description)
   const groupObjects = $derived(objects(definition))
-  const profiles = $derived(
-    (definition.profileSets ?? []).filter(
-      (set) => set.profiles.length > 1 && set.parameters.some((id) => controls.includes(id)),
-    ),
-  )
+  const profiles = $derived(visibleProfiles(definition, controls))
   const sections = $derived(
     groups(definition)
       .map((group) => ({

@@ -385,6 +385,12 @@ end
 ENV["MAINZ_CLI"] ||= Mainz::ROOT.join(".local/var/cpp/build/native/mainz").to_s
 
 namespace(:fixtures) do
+  desc("Build only the native inputs and expected outputs consumed by WASM parity")
+  task(:parity) do
+    require_relative "lib/test/fixtures"
+    Mainz::ParityFixtures.new(Mainz.workspace("tmp/test/lib"), File.expand_path(ENV.fetch("MAINZ_CLI"))).build_parity
+  end
+
   desc("Build shared Recipe assessment examples for CLI, WASM, and development UI checks")
   task(:recipe) do
     puts(Mainz.run(Mainz::ROOT.join("lib/test/fixtures/build.rb"), ENV.fetch("MAINZ_CLI")))
@@ -432,7 +438,7 @@ namespace(:test) do
     end
   end
 
-  task(parity: :contract)
+  task(parity: "fixtures:parity")
   %w[native sanitize wasm].each do |preset|
     desc("Run the #{preset} CTest suite")
     task(preset) do

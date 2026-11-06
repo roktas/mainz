@@ -1,5 +1,6 @@
 // Checks shared geometry exports against desktop and touch fixture references.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
@@ -13,7 +14,7 @@ test("Stable geometry retains fresh viewport metadata after resizing", { timeout
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
@@ -42,7 +43,7 @@ test("Grid measurement refreshes stylesheet preferences within the same frame", 
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
@@ -78,7 +79,7 @@ test("One geometry schema captures desktop and touch without changing Grid choic
       response.json(),
     )
     assert.equal(ordinary.start_url, "./")
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const records = []
     for (const [viewport, touch, normal, compact] of [
       [[1920, 961], false, [3, 2, 6], [6, 4, 24]],
@@ -280,7 +281,7 @@ test("Measured frames gain rows or columns while keeping balanced readable image
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     let page = await browser.newPage({
       viewport: { width: 744, height: 1047 },
       hasTouch: true,

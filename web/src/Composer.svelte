@@ -11,7 +11,8 @@
   import * as composition from "./composition.ts"
   import type { Edit, Output } from "./output.svelte.ts"
   import { pageRanges, parseSequence, toggleSequence } from "./pages.ts"
-  import { shortcut, shortcutContext } from "./keyboard.ts"
+  import { Interaction } from "./interaction.svelte.ts"
+  import type { InputView } from "./interaction.svelte.ts"
   import type { Sequence } from "./pages.ts"
   import Pdf from "./Pdf.svelte"
   import { retainFocus } from "./drag.ts"
@@ -107,19 +108,6 @@
       observer.disconnect()
     }
   }
-  type InputView = {
-    grouped: boolean
-    tocTitles: boolean
-    returnTo: "grid" | "list"
-    tab: "grid" | "list" | "page" | "style"
-    density?: "normal" | "compact"
-    position: number
-    zoom: number
-    pageInitialized?: boolean
-    offset: number
-    region: Region
-    alignment?: Region
-  }
   const initialView: InputView = {
     grouped: false,
     tocTitles: false,
@@ -152,17 +140,12 @@
   let outputTab = $state<"grid" | "list" | "page">(untrack(() => initial.output))
   let outputRegion = $state<Region>({ x: 0, y: 0 })
   let view = $state<"input" | "output">("input")
-  let usingKeyboard = $state(false)
-  let touchPointer = $state(false)
   let touchTap: { pane: "Input" | "Output"; element: EventTarget | null; time: number; restore: () => void } | undefined
-  let pointerX: number | undefined
   let inputCounter: ReturnType<typeof Counter> | undefined
   let outputCounter: ReturnType<typeof Counter> | undefined
   let originOpen = $state<string>()
   let outputReturn = $state<"grid" | "list">("grid")
   const peeks = new Peeks()
-  let returning = $state<{ kind: "source"; source: string; page: number } | { kind: "output"; id: string }>()
-  let returnTimeout: ReturnType<typeof setTimeout> | undefined
   let inputMenu = $state<HTMLDetailsElement>(null!)
   let outputMenu = $state<HTMLDetailsElement>(null!)
   let outputTarget = $state<HTMLButtonElement>()
@@ -300,6 +283,102 @@
       view = "output"
     },
   })
+  const interaction = new Interaction({
+    get key() {
+      return key
+    },
+    get source() {
+      return source
+    },
+    get activeTab() {
+      return activeTab
+    },
+    get activeOutputTab() {
+      return activeOutputTab
+    },
+    get activeView() {
+      return activeView
+    },
+    get inputPosition() {
+      return inputPosition
+    },
+    get output() {
+      return output
+    },
+    get inputView() {
+      return inputView
+    },
+    get outputReturn() {
+      return outputReturn
+    },
+    get draft() {
+      return draft
+    },
+    get count() {
+      return count
+    },
+    get opening() {
+      return opening
+    },
+    get transfer() {
+      return transfer
+    },
+    get peeks() {
+      return peeks
+    },
+    resetPointer() {
+      touchTap = undefined
+    },
+    get inputMenu() {
+      return inputMenu
+    },
+    get outputMenu() {
+      return outputMenu
+    },
+    get originOpen() {
+      return originOpen
+    },
+    set originOpen(value) {
+      originOpen = value
+    },
+    get outputText() {
+      return outputText
+    },
+    get repetitions() {
+      return repetitions
+    },
+    get front() {
+      return front
+    },
+    get outputSelectionError() {
+      return outputSelectionError
+    },
+    get outputOffset() {
+      return outputOffset
+    },
+    set outputOffset(value) {
+      outputOffset = value
+    },
+    get pendingAddition() {
+      return pendingAddition
+    },
+    get styleable() {
+      return styleable
+    },
+    inputTab,
+    setOutputTab,
+    inspectInput,
+    selectAll,
+    zoomBy,
+    setZoom,
+    editPage,
+    copyCurrent,
+    clearInput,
+    clearOutput,
+    outputTargets,
+    remove,
+    order,
+  })
   const listPreview = $derived(activeOutputTab === "list" && transfer.destination !== undefined)
   const skippedRows = $derived(
     listPreview && transfer.value?.kind === "output"
@@ -330,7 +409,7 @@
     cancelMotion()
     if (pane === "Input") inspectInput({ density: value })
     else outputDensity = value
-    void reveal(pane)
+    void interaction.reveal(pane)
   }
   function initializeDensity(capacity: number) {
     if (inputView.density === undefined) inspectInput({ density: count > 2 * capacity ? "compact" : "normal" })
@@ -343,7 +422,7 @@
       ...(tab === "page" && activeTab !== "page" ? { returnTo: activeTab === "list" ? "list" : "grid" } : {}),
       ...(tab === "grid" ? { offset: inputPosition } : {}),
     })
-    if (changed) void reveal("Input", event)
+    if (changed) void interaction.reveal("Input", event)
   }
   const outputBooks = $derived(
     new Set(output.pages.flatMap((page) => ("source" in page.content ? [page.content.source] : []))),
@@ -394,57 +473,9 @@
     if (tab === "page" && activeOutputTab !== "page") outputReturn = activeOutputTab === "list" ? "list" : "grid"
     outputTab = tab
     if (tab === "grid") outputOffset = output.position
-    if (changed) void reveal("Output", event)
+    if (changed) void interaction.reveal("Output", event)
   }
-  async function reveal(pane: "Input" | "Output", event?: MouseEvent | KeyboardEvent) {
-    const tab = pane === "Input" ? activeTab : activeOutputTab
-    const expectedSource = source?.id
-    if (tab === "style") return
-    await tick()
-    if (tab === "list") await tick()
-    if (tab !== (pane === "Input" ? activeTab : activeOutputTab) || (pane === "Input" && expectedSource !== source?.id))
-      return
-    const position = pane === "Input" ? inputPosition : output.position,
-      panel = document.getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`),
-      control =
-        tab === "page"
-          ? panel?.querySelector<HTMLElement>(".page-scroll")
-          : panel?.querySelector<HTMLElement>(
-              `.${tab === "list" ? "list-choice" : "page-image"}[data-page="${position}"]`,
-            )
-    control?.scrollIntoView({ block: "nearest" })
-    if (event) control?.focus({ preventScroll: true })
-    if (!control || tab === "page" || event instanceof KeyboardEvent || event?.detail === 0) return
-    clearTimeout(returnTimeout)
-    returning =
-      pane === "Input" && source
-        ? { kind: "source", source: source.id, page: position }
-        : output.pages[position]
-          ? { kind: "output", id: output.pages[position].id }
-          : undefined
-    returnTimeout = setTimeout(() => (returning = undefined), 1200)
-  }
-  function focusPage(control: HTMLElement) {
-    const page = control
-      .closest(".composition-card, .page-view")
-      ?.querySelector<HTMLElement>(".page-image, .page-scroll")
-    page?.focus({ preventScroll: true })
-  }
-  function focusAfterSelection(pane: "Input" | "Output", event?: MouseEvent) {
-    const control =
-      touchPointer && event?.detail !== 0
-        ? document
-            .getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`)
-            ?.querySelector<HTMLElement>(".composition-grid, .page-list, .page-scroll")
-        : document.getElementById(`${key}-${pane === "Input" ? "input" : "output"}-selection`)
-    control?.focus({ preventScroll: true })
-  }
-  function toggleView(pane: "Input" | "Output", event: MouseEvent | KeyboardEvent) {
-    const previous = pane === "Input" ? activeTab : activeOutputTab
-    const tab = previous === "page" ? (pane === "Input" ? inputView.returnTo : outputReturn) : "page"
-    if (pane === "Input") inputTab(tab, event)
-    else setOutputTab(tab, event)
-  }
+
   function setZoom(pane: "Input" | "Output", zoom: number) {
     if (pane === "Input") inspectInput({ zoom, pageInitialized: true, alignment: undefined })
     else {
@@ -459,141 +490,7 @@
       (offset > 0 ? zoomLevels.find((level) => level > zoom) : zoomLevels.findLast((level) => level < zoom)) ?? zoom,
     )
   }
-  function shortcutPane(page = false) {
-    const inputAvailable =
-      !!source && (!page || activeTab === "page") && !!document.getElementById(`${key}-source-panel`)?.clientWidth
-    const outputAvailable =
-      (!page || (!!inspected && activeOutputTab === "page")) &&
-      !!document.getElementById(`${key}-output-panel`)?.clientWidth
-    const focused = document.activeElement
-    const preferred =
-      pointerX === undefined
-        ? focused?.closest(".composition-output")
-          ? "output"
-          : focused?.closest(".selection-panel")
-            ? "input"
-            : activeView
-        : pointerX < innerWidth / 2
-          ? "input"
-          : "output"
-    if (preferred === "input" && inputAvailable) return "Input"
-    if (preferred === "output" && outputAvailable) return "Output"
-    return inputAvailable ? "Input" : outputAvailable ? "Output" : undefined
-  }
-  function shortcuts(event: KeyboardEvent) {
-    const preferred = shortcutPane()
-    const context = shortcutContext(event, {
-      pane: preferred,
-      view: preferred === "Input" ? activeTab : activeOutputTab,
-    })
-    const action = shortcut(event, context, "workspace")
-    if (!action) return false
-    const all = action === "all"
-    const pressed = event.key.toLowerCase()
-    const focused = document.activeElement
-    if ((action === "left" || action === "right") && !(usingKeyboard && focused?.closest(".composition-grid"))) {
-      const pane = shortcutPane()
-      const grid = document
-        .getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`)
-        ?.querySelector<HTMLElement>(".composition-grid")
-      const hasSelection = pane === "Input" ? !!draft.pages.length : !!chosen.length
-      if (grid && !hasSelection) {
-        event.preventDefault()
-        if (event.repeat) return true
-        const images = grid.querySelectorAll<HTMLButtonElement>(".composition-card:not([inert]) > .page-image")
-        const image = action === "left" ? images[images.length - 1] : images[0]
-        if (!image) return true
-        const position = Number(image.dataset.page)
-        if (pane === "Input") inspectInput({ position })
-        else output.position = position
-        usingKeyboard = true
-        image.focus()
-        return true
-      }
-    }
-    if (
-      (focused?.closest(".grid-view") && ["pageup", "pagedown"].includes(pressed)) ||
-      (["pageup", "pagedown"].includes(pressed) &&
-        document
-          .getElementById(`${key}-${shortcutPane() === "Input" ? "source" : "output"}-panel`)
-          ?.querySelector(".grid-view")) ||
-      (focused?.closest(".composition-grid") &&
-        ["left", "right", "up", "down", "first", "last", "next", "previous", "copy"].includes(action)) ||
-      (focused?.closest(".composition-grid") && ["zoomIn", "zoomOut"].includes(action)) ||
-      (focused?.closest(".page-list") &&
-        [
-          "left",
-          "right",
-          "up",
-          "down",
-          "first",
-          "last",
-          "next",
-          "previous",
-          "copy",
-          "zoomIn",
-          "zoomOut",
-          "resetZoom",
-          "entry",
-        ].includes(action))
-    )
-      return false
-    event.preventDefault()
-    const pane = shortcutPane(!all && action !== "view")
-    if (!pane) return true
-    const panel = document.getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`)
-    if (all) {
-      if (!event.repeat) {
-        selectAll(pane)
-        void tick().then(() => {
-          if (focused instanceof HTMLElement && !focused.isConnected)
-            document
-              .getElementById(`${key}-${pane === "Input" ? "input" : "output"}-selection`)
-              ?.focus({ preventScroll: true })
-        })
-      }
-      return true
-    }
-    if (action === "view") {
-      if (!event.repeat) {
-        usingKeyboard = true
-        if (focused instanceof HTMLElement && focused.matches(".page-image") && panel?.contains(focused)) {
-          const position = Number(focused.dataset.page)
-          if (pane === "Input") inspectInput({ position })
-          else output.position = position
-        }
-        void toggleView(pane, event)
-      }
-      return true
-    }
-    usingKeyboard = true
-    const position = pane === "Input" ? inputPosition : output.position
-    const total = pane === "Input" ? count : output.pages.length
-    const viewport = panel?.querySelector<HTMLElement>(".page-scroll")
-    const turn = ["left", "right"].includes(action) && !!viewport && viewport.scrollWidth - viewport.clientWidth <= 1
-    if (turn || ["next", "previous", "first", "last"].includes(action)) {
-      const next =
-        action === "first"
-          ? 0
-          : action === "last"
-            ? total - 1
-            : Math.max(0, Math.min(total - 1, position + (["previous", "left"].includes(action) ? -1 : 1)))
-      if (pane === "Input") inspectInput({ position: next, alignment: undefined })
-      else output.position = next
-    } else if (["left", "right", "up", "down"].includes(action)) {
-      viewport?.scrollBy({
-        left: action === "left" ? -40 : action === "right" ? 40 : 0,
-        top: action === "up" ? -40 : action === "down" ? 40 : 0,
-      })
-    } else if (["zoomIn", "zoomOut"].includes(action)) zoomBy(pane, action === "zoomOut" ? -1 : 1)
-    else if (action === "resetZoom") setZoom(pane, 100)
-    else if (action === "entry") {
-      if (!event.repeat) editPage(pane)
-    } else if (!event.repeat) {
-      copyCurrent(pane)
-    }
-    return true
-  }
+
   function editPage(pane: "Input" | "Output") {
     originOpen = undefined
     ;(pane === "Input" ? inputCounter : outputCounter)?.edit()
@@ -627,7 +524,7 @@
     sourceAnchor = undefined
   }
   function touchPage(pane: "Input" | "Output", event: MouseEvent) {
-    if (!touchPointer || !event.detail || event.ctrlKey || event.metaKey || event.altKey) {
+    if (!interaction.touchPointer || !event.detail || event.ctrlKey || event.metaKey || event.altKey) {
       touchTap = undefined
       return false
     }
@@ -635,7 +532,7 @@
     if (touchTap?.element === event.currentTarget && now - touchTap.time < 350) {
       touchTap.restore()
       touchTap = undefined
-      void toggleView(pane, event)
+      void interaction.toggleView(pane, event)
       return true
     }
     const preparation = draft,
@@ -712,7 +609,7 @@
     inspectInput({ position: page })
     if (touchPage("Input", event)) return
     if (event.ctrlKey || event.metaKey) {
-      void toggleView("Input", event)
+      void interaction.toggleView("Input", event)
       return
     }
     if (event.detail > 1) return
@@ -731,8 +628,7 @@
     return feedback.transition(node, id)
   }
   function cancelMotion() {
-    clearTimeout(returnTimeout)
-    returning = undefined
+    interaction.cancelReturn()
     peeks.dismiss()
     feedback.stop()
   }
@@ -808,73 +704,7 @@
       if (grid) feedback.move = animateOrder(grid, undefined, true)
     }
   }
-  function captureEditFocus(selecting: boolean) {
-    const focused = document.activeElement as HTMLElement | null
-    const card = focused?.closest<HTMLElement>(".output-pages .composition-card, .composition-output .page-list > li")
-    const grid = focused?.matches(".output-pages")
-    const pageAction = focused?.closest(".composition-output .page-actions")
-    const selectionAction = focused?.closest(".composition-output .sequence-entry") ?? grid
-    const menu = focused?.closest<HTMLDetailsElement>(".sequence-options[open]")
-    const index = output.pages.findIndex((page) => `${key}-${page.id}` === card?.id)
-    const inspect = output.pages[index]?.id
-    const focusSelection = selecting && !!(card || grid)
-    return {
-      inspect,
-      focusSelection,
-      restore(edit: Edit) {
-        const expanded = edit.pages
-        const selection = edit.selected
-        const destination = card || focusSelection ? edit.position : undefined
-        if (destination !== undefined) outputOffset = destination
-        if (transfer.touching) return
-        if (menu) menu.querySelector("summary")?.focus()
-        else if (selectionAction)
-          void tick().then(() => {
-            if (touchPointer && expanded.length) {
-              focusAfterSelection("Output")
-              return
-            }
-            if (grid && selecting && destination !== undefined && destination >= 0) {
-              ;(pendingAddition.has(selection.at(-1)!)
-                ? focused
-                : document.getElementById(`${key}-${selection.at(-1)}`)?.querySelector<HTMLElement>(".page-image")
-              )?.focus({ preventScroll: true })
-              return
-            }
-            if (!selection.length || !focused?.isConnected || focused.matches(":disabled")) {
-              if (expanded.length) focusAfterSelection("Output")
-              else document.getElementById(`${key}-output-${activeOutputTab}`)?.focus({ preventScroll: true })
-            } else focused.focus({ preventScroll: true })
-          })
-        else if (card || pageAction)
-          void tick().then(() => {
-            if (
-              !selecting &&
-              focused?.matches(".page-image, .list-choice") &&
-              focused?.isConnected &&
-              !focused.matches(":disabled") &&
-              (!card || expanded.some((page) => `${key}-${page.id}` === card.id))
-            ) {
-              focused.focus()
-              return
-            }
-            const page = output.pages[destination ?? Math.min(index, output.pages.length - 1)]
-            const neighbor = page && document.getElementById(`${key}-${page.id}`)
-            const viewport =
-              !card && output.pages.length
-                ? document.getElementById(`${key}-output-panel`)?.querySelector<HTMLElement>(".page-scroll")
-                : undefined
-            ;(
-              (page && pendingAddition.has(page.id)
-                ? document.getElementById(`${key}-output-panel`)?.querySelector<HTMLElement>(".composition-grid")
-                : neighbor?.querySelector<HTMLButtonElement>(".page-image, .list-choice")) ??
-              viewport ??
-              document.getElementById(`${key}-output-${activeOutputTab}`)
-            )?.focus({ preventScroll: !!pageAction || pendingAddition.size > 0 })
-          })
-      },
-    }
-  }
+
   function commit(
     next: readonly Part[],
     text: string,
@@ -883,7 +713,7 @@
     inspect?: string,
   ) {
     try {
-      const focus = captureEditFocus(!!select)
+      const focus = interaction.captureEditFocus(!!select)
       const edit = output.commit(
         next,
         { select, inspect: inspect ?? focus.inspect, focusSelection: focus.focusSelection },
@@ -960,7 +790,7 @@
     )
     if (completed && pages === undefined) {
       clearInput()
-      if (inputBar && !transfer.touching) focusAfterSelection("Input")
+      if (inputBar && !transfer.touching) interaction.focusAfterSelection("Input")
     }
     return completed
   }
@@ -1054,7 +884,7 @@
     return completed
   }
   function start(event: DragEvent | PointerEvent, value: Payload, control = event.currentTarget as HTMLElement) {
-    if ("dataTransfer" in event && touchPointer) {
+    if ("dataTransfer" in event && interaction.touchPointer) {
       event.preventDefault()
       return
     }
@@ -1134,22 +964,6 @@
     view = activeView
     document.querySelector<HTMLElement>(".help-tour:popover-open")?.hidePopover()
   }
-  function tabKey(event: KeyboardEvent, pane: "Input" | "Output" = "Input") {
-    if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
-    event.preventDefault()
-    const tabs: InputView["tab"][] = pane === "Input" && styleable ? [...viewTabs, "style"] : [...viewTabs]
-    const index = tabs.indexOf(pane === "Input" ? activeTab : activeOutputTab)
-    const tab =
-      event.key === "Home"
-        ? tabs[0]
-        : event.key === "End"
-          ? tabs.at(-1)!
-          : tabs[(index + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]
-    if (pane === "Input") inputTab(tab)
-    else if (tab !== "style") setOutputTab(tab)
-    document.getElementById(`${key}-${pane === "Input" ? "" : "output-"}${tab}`)?.focus()
-  }
 </script>
 
 <svelte:window
@@ -1160,108 +974,6 @@
   onresize={() => transfer.end()}
   onclickcapture={transfer.click}
   ondragend={() => transfer.end()}
-  onkeydowncapture={(event) => {
-    touchTap = undefined
-    touchPointer = false
-    if (event.key === "Escape" && (transfer.value || transfer.pressing)) {
-      transfer.end()
-      event.preventDefault()
-      event.stopPropagation()
-      return
-    }
-    if (peeks.dismiss(event)) return
-    if (
-      !event.ctrlKey &&
-      !event.metaKey &&
-      event.target instanceof Element &&
-      event.target.closest(".page-list") &&
-      [
-        "arrowup",
-        "arrowdown",
-        "arrowleft",
-        "arrowright",
-        "pageup",
-        "pagedown",
-        "home",
-        "end",
-        " ",
-        "enter",
-        "n",
-        "p",
-        "+",
-        "=",
-        "-",
-      ].includes(event.key.toLowerCase())
-    )
-      return
-    if (opening || (event.target instanceof Element && event.target.closest(".message-details"))) return
-    if (event.key === "Escape" && event.target instanceof HTMLElement && event.target.closest(".page-jump")) return
-    if (shortcuts(event)) return
-    if (
-      ["Tab", "Enter", " "].includes(event.key) &&
-      (!event.shiftKey || event.key === "Tab") &&
-      !event.isComposing &&
-      !event.altKey &&
-      !event.ctrlKey &&
-      !event.metaKey
-    )
-      usingKeyboard = true
-    const context = shortcutContext(event, {
-      overlay: !!document.querySelector(
-        "dialog[open], [popover]:popover-open:not(.header-feedback), .input-picker[open], .lens, .quartet-panel, .control details:is([open], [data-hover-pending])",
-      ),
-    })
-    if (shortcut(event, context, "escape") !== "clear") return
-    const dismissing =
-      !!transfer.value || !!document.querySelector(".page-origin[open]") || inputMenu?.open || outputMenu?.open
-    transfer.end()
-    originOpen = undefined
-    if (inputMenu?.open) {
-      inputMenu.open = false
-      inputMenu.querySelector("summary")?.focus()
-    }
-    if (outputMenu?.open) {
-      outputMenu.open = false
-      outputMenu.querySelector("summary")?.focus()
-    }
-    if (dismissing) return
-    const pane = shortcutPane()
-    if (!pane) return
-    const hasSelection =
-      pane === "Input"
-        ? !!draft.text || !!draft.pages.length || draft.repeat !== "1" || draft.front
-        : !!chosen.length || !!outputText || repetitions !== "2" || front
-    const panel = document.getElementById(`${key}-${pane === "Input" ? "source" : "output"}-panel`)
-    if (!hasSelection && !panel?.querySelector(".composition-grid")?.contains(document.activeElement)) return
-    if (pane === "Input") clearInput()
-    else clearOutput()
-    event.preventDefault()
-    document
-      .getElementById(pane === "Output" ? `${key}-output-${activeOutputTab}` : `${key}-${activeTab}`)
-      ?.focus({ preventScroll: true })
-  }}
-  onkeydown={(event) => {
-    if (opening) return
-    const action = shortcut(event, shortcutContext(event, { view: activeOutputTab }), "output")
-    if (!action) return
-    const control = event.target
-    if (
-      !(control instanceof HTMLElement) ||
-      (!control.closest(".composer") && control !== document.body) ||
-      control.closest("details[open]")
-    )
-      return
-    const row = control.closest(".composition-output .composition-card, .composition-output .list-row")
-    const focusedId = row && output.pages.find((page) => `${key}-${page.id}` === row.id)?.id
-    const ids =
-      chosen.length || action === "remove" ? outputTargets() : !outputSelectionError && focusedId ? [focusedId] : []
-    if (!ids.length) return
-    event.preventDefault()
-    usingKeyboard = true
-    if (action === "remove") {
-      if (!event.repeat) remove(ids)
-    } else order(action === "earlier" ? -1 : 1, ids)
-  }}
 />
 <svelte:document
   onvisibilitychange={() => {
@@ -1270,16 +982,16 @@
   onfocusin={interact}
   onpointermove={(event) => {
     if (event.pointerType === "mouse") {
-      pointerX = event.clientX
-      if (event.movementX || event.movementY) usingKeyboard = false
+      interaction.pointerX = event.clientX
+      if (event.movementX || event.movementY) interaction.usingKeyboard = false
     }
   }}
   onpointerdown={(event) => {
     transfer.pointer(event)
-    touchPointer = event.pointerType === "touch" || event.pointerType === "pen"
+    interaction.touchPointer = event.pointerType === "touch" || event.pointerType === "pen"
     if (!(event.target as Element).closest(".page-image")) touchTap = undefined
-    if (event.pointerType === "mouse") pointerX = event.clientX
-    usingKeyboard = false
+    if (event.pointerType === "mouse") interaction.pointerX = event.clientX
+    interaction.usingKeyboard = false
     interact(event)
     if (!(event.target as Element).closest(".page-origin")) originOpen = undefined
     if (inputMenu && !inputMenu.contains(event.target as Node)) inputMenu.open = false
@@ -1405,7 +1117,7 @@
     onmousedown={retainFocus}
     onclick={(event) => {
       toggle(inputPosition, event.shiftKey)
-      focusPage(event.currentTarget)
+      interaction.focusPage(event.currentTarget)
     }}
     ondragstart={(event) => start(event, inputPayload(inputView.position))}
     onpointerdown={(event) => transfer.press(event, inputPayload(inputView.position))}
@@ -1424,7 +1136,7 @@
       event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
       if (add(undefined, [page], "keep")) {
         inspectInput({ position: page })
-        focusPage(event.currentTarget)
+        interaction.focusPage(event.currentTarget)
       }
     }}><Icon name="add" /></button
   >
@@ -1488,7 +1200,7 @@
         owner={peeks}
         open={(event) => {
           inspectInput({ position: page })
-          void toggleView("Input", event)
+          void interaction.toggleView("Input", event)
         }}
       >
         <Pdf pdf={source.input.pdf} {page} pageNumber={page + 1} thumbnail {error} />
@@ -1509,7 +1221,7 @@
     owner={peeks}
     open={(event) => {
       output.position = index
-      void toggleView("Output", event)
+      void interaction.toggleView("Output", event)
     }}
   >
     {#if origin && "page" in page.content}
@@ -1538,7 +1250,7 @@
     onmousedown={retainFocus}
     onclick={(event) => {
       selectOutput(page.id, event.shiftKey)
-      focusPage(event.currentTarget)
+      interaction.focusPage(event.currentTarget)
     }}
     ondragstart={(event) => start(event, { kind: "output", ids: [page.id] })}
     onpointerdown={(event) => transfer.press(event, { kind: "output", ids: [page.id] })}
@@ -1737,9 +1449,9 @@
   style:--page-heading-height={frameHeadingHeight ? `${frameHeadingHeight + 1}px` : undefined}
   data-view={activeView}
   data-drag={transfer.value?.kind}
-  data-touch={touchPointer || undefined}
+  data-touch={interaction.touchPointer || undefined}
   data-touch-drag={transfer.touching || undefined}
-  data-keyboard={usingKeyboard}
+  data-keyboard={interaction.usingKeyboard}
   inert={opening}
   aria-busy={opening}
   {@attach transfer.track}
@@ -1790,7 +1502,7 @@
                 aria-selected={activeTab === tab}
                 aria-controls={`${key}-source-panel`}
                 tabindex={activeTab === tab ? 0 : -1}
-                onkeydown={(event) => tabKey(event)}
+                onkeydown={(event) => interaction.tabKey(event)}
                 onclick={() => inputTab(tab)}
                 title={`${viewLabels[tab]} view`}
                 data-tour-tab={`input-${tab}`}
@@ -1803,7 +1515,7 @@
                 aria-selected={activeTab === "style"}
                 aria-controls={`${key}-source-panel`}
                 tabindex={activeTab === "style" ? 0 : -1}
-                onkeydown={tabKey}
+                onkeydown={interaction.tabKey}
                 onclick={() => inputTab("style")}
                 disabled={!styleable}
                 aria-describedby={!styleable ? `${key}-style-unavailable` : undefined}
@@ -1824,7 +1536,7 @@
               title={inputView.grouped ? "Hide section headings" : "Show section headings"}
               onclick={() => {
                 inspectInput({ grouped: !inputView.grouped })
-                void reveal("Input")
+                void interaction.reveal("Input")
               }}><Icon name="sections" /></button
             >{/if}
           {#if activeTab === "grid"}{@render gridDensity("Input", inputCompact)}{/if}
@@ -1837,7 +1549,7 @@
               bind:tocTitles={() => inputView.tocTitles, (tocTitles) => inspectInput({ tocTitles })}
               navigate={(position) => {
                 inspectInput({ position })
-                void reveal("Input")
+                void interaction.reveal("Input")
               }}
             />{/if}
         </div>
@@ -1873,7 +1585,7 @@
                     aria-keyshortcuts="Control+A Meta+A"
                     onclick={(event) => {
                       selectAll("Input")
-                      focusAfterSelection("Input", event)
+                      interaction.focusAfterSelection("Input", event)
                     }}><Icon name="select" /></button
                   >{/if}
                 {#if draft.text || draft.pages.length || draft.repeat !== "1" || draft.front}<button
@@ -1882,7 +1594,7 @@
                     title="Clear"
                     onclick={(event) => {
                       clearInput()
-                      focusAfterSelection("Input", event)
+                      interaction.focusAfterSelection("Input", event)
                     }}><Icon name="close" /></button
                   >{/if}
                 {#if draft.pages.length}<button
@@ -1936,7 +1648,7 @@
                     alignment={inputView.alignment}
                     heading={inputPageHeading}
                     actions={!draft.pages.length ? inputPageActions : undefined}
-                    grid={(event) => void toggleView("Input", event)}
+                    grid={(event) => void interaction.toggleView("Input", event)}
                     selected={inputSelected.has(inputPosition)}
                     {error}
                     {magnification}
@@ -1957,9 +1669,9 @@
                           data-retained={page === retained || undefined}
                           aria-setsize={count}
                           aria-posinset={page + 1}
-                          data-returning={(returning?.kind === "source" &&
-                            returning.source === source.id &&
-                            returning.page === page) ||
+                          data-returning={(interaction.returning?.kind === "source" &&
+                            interaction.returning.source === source.id &&
+                            interaction.returning.page === page) ||
                             undefined}
                           class:selected={inputSelected.has(page)}
                           data-dragging={(transfer.value?.kind === "source" &&
@@ -1982,7 +1694,7 @@
                               ? inputHeading(page)
                               : undefined}
                             selected={inputSelected.has(page)}
-                            touch={touchPointer}
+                            touch={interaction.touchPointer}
                             {transfer}
                             payload={inputPayload(page)}
                             {start}
@@ -2001,7 +1713,7 @@
                                 highlightRange()
                               }
                             }}
-                            open={(event) => void toggleView("Input", event)}
+                            open={(event) => void interaction.toggleView("Input", event)}
                           >
                             {#snippet origin()}{@render inputOrigin(page, `${key}-list-input-${page}`)}{/snippet}
                             {#snippet actions()}{@render inputPageActions(page)}{/snippet}
@@ -2014,13 +1726,13 @@
               {:else}
                 <Grid
                   pane="Input"
-                  active={() => shortcutPane() === "Input"}
+                  active={() => interaction.shortcutPane() === "Input"}
                   compact={inputCompact}
                   {count}
                   initialize={!opening && inputView.density === undefined ? initializeDensity : undefined}
                   bind:position={() => inputView.position, (position) => inspectInput({ position })}
                   bind:offset={() => inputView.offset, (offset) => inspectInput({ offset })}
-                  bind:keyboard={usingKeyboard}
+                  bind:keyboard={interaction.usingKeyboard}
                   selected={(position) => inputSelected.has(position)}
                   toggle={(page) => toggle(page, false)}
                   edit={(action) => action === "add" && !!add()}
@@ -2032,9 +1744,9 @@
                       {@const detail = `${key}-input-${source.id}-${page}`}
                       <li
                         class={["composition-card", { selected: inputSelected.has(page) }]}
-                        data-returning={(returning?.kind === "source" &&
-                          returning.source === source.id &&
-                          returning.page === page) ||
+                        data-returning={(interaction.returning?.kind === "source" &&
+                          interaction.returning.source === source.id &&
+                          interaction.returning.page === page) ||
                           undefined}
                         class:range-highlight={highlight?.kind === "source" &&
                           highlight.source === source.id &&
@@ -2061,7 +1773,7 @@
                             onclick={(event) => {
                               toggle(page, event.shiftKey)
                               inspectInput({ position: page })
-                              focusPage(event.currentTarget)
+                              interaction.focusPage(event.currentTarget)
                             }}
                             ondragstart={(event) => start(event, inputPayload(page))}
                             onpointerdown={(event) => transfer.press(event, inputPayload(page))}
@@ -2081,7 +1793,7 @@
                           onclick={(event) => selectInput(page, event)}
                           ondblclick={(event) => {
                             if (
-                              touchPointer ||
+                              interaction.touchPointer ||
                               event.ctrlKey ||
                               event.metaKey ||
                               !source ||
@@ -2200,7 +1912,7 @@
               aria-selected={activeOutputTab === tab}
               aria-controls={`${key}-output-panel`}
               tabindex={activeOutputTab === tab ? 0 : -1}
-              onkeydown={(event) => tabKey(event, "Output")}
+              onkeydown={(event) => interaction.tabKey(event, "Output")}
               onclick={() => setOutputTab(tab)}
               title={`${viewLabels[tab]} view`}
               data-tour-tab={`output-${tab}`}
@@ -2214,7 +1926,7 @@
             title={outputGrouped ? "Hide section headings" : "Show section headings"}
             onclick={() => {
               outputGrouped = !outputGrouped
-              void reveal("Output")
+              void interaction.reveal("Output")
             }}><Icon name="sections" /></button
           >{/if}
         {#if activeOutputTab === "grid"}{@render gridDensity("Output", outputCompact)}{/if}
@@ -2252,7 +1964,7 @@
                 aria-keyshortcuts="Control+A Meta+A"
                 onclick={(event) => {
                   selectAll("Output")
-                  focusAfterSelection("Output", event)
+                  interaction.focusAfterSelection("Output", event)
                 }}><Icon name="select" /></button
               >{/if}
             {#if chosen.length || outputText}<button
@@ -2261,7 +1973,7 @@
                 title="Clear selection to use page actions"
                 onclick={(event) => {
                   clearOutput()
-                  focusAfterSelection("Output", event)
+                  interaction.focusAfterSelection("Output", event)
                 }}><Icon name="close" /></button
               >{/if}
             {#if chosen.length || tour === "output-selection"}
@@ -2340,7 +2052,7 @@
                 heading={inspected ? outputPageHeading : undefined}
                 actions={inspected && !chosen.length ? outputPageActions : undefined}
                 copyable={!outputSelectionError}
-                grid={(event) => void toggleView("Output", event)}
+                grid={(event) => void interaction.toggleView("Output", event)}
                 selected={!!inspected && selectedIds.has(inspected.id)}
                 navigationOver={transfer.navigate}
                 navigationLeave={transfer.leave}
@@ -2383,7 +2095,9 @@
                     aria-setsize={output.pages.length}
                     aria-posinset={index + 1}
                     data-retained={index === retained || undefined}
-                    data-returning={(returning?.kind === "output" && returning.id === page.id) || undefined}
+                    data-returning={(interaction.returning?.kind === "output" &&
+                      interaction.returning.id === page.id) ||
+                      undefined}
                     class:range-highlight={highlight?.kind === "output" && highlight.ids.has(page.id)}
                     data-index={index}
                     class:selected={selectedIds.has(page.id)}
@@ -2433,7 +2147,7 @@
                             : "Blank"
                           : `Page ${page.content.page + 1}`)}
                       selected={selectedIds.has(page.id)}
-                      touch={touchPointer}
+                      touch={interaction.touchPointer}
                       {transfer}
                       payload={{ kind: "output", ids: [page.id] }}
                       {start}
@@ -2443,7 +2157,7 @@
                         output.position = index
                         if (touchPage("Output", event)) return
                         if (event.ctrlKey || event.metaKey) {
-                          void toggleView("Output", event)
+                          void interaction.toggleView("Output", event)
                           return
                         }
                         const selected = output.selection
@@ -2456,7 +2170,7 @@
                           highlightRange()
                         }
                       }}
-                      open={(event) => void toggleView("Output", event)}
+                      open={(event) => void interaction.toggleView("Output", event)}
                     >
                       {#snippet origin()}{@render outputOrigin(page, index)}{/snippet}
                       {#snippet actions()}{@render occurrenceActions(page, index, true)}{/snippet}
@@ -2470,12 +2184,12 @@
             {#if output.pages.length}
               <Grid
                 pane="Output"
-                active={() => shortcutPane() === "Output"}
+                active={() => interaction.shortcutPane() === "Output"}
                 compact={outputCompact}
                 count={output.pages.length}
                 bind:position={output.position}
                 bind:offset={outputOffset}
-                bind:keyboard={usingKeyboard}
+                bind:keyboard={interaction.usingKeyboard}
                 selected={(position) => selectedIds.has(output.pages[position]?.id)}
                 toggle={(position) => selectOutput(output.pages[position].id, false)}
                 edit={(action) => !!(action === "remove" ? remove() : duplicate())}
@@ -2490,7 +2204,9 @@
                       data-adding={pendingAddition.has(page.id) || undefined}
                       inert={pendingAddition.has(page.id)}
                       class={["composition-card", { selected: selectedIds.has(page.id) }]}
-                      data-returning={(returning?.kind === "output" && returning.id === page.id) || undefined}
+                      data-returning={(interaction.returning?.kind === "output" &&
+                        interaction.returning.id === page.id) ||
+                        undefined}
                       class:range-highlight={highlight?.kind === "output" && highlight.ids.has(page.id)}
                       out:removal|global={page.id}
                       onoutrostart={(event) => {
@@ -2534,7 +2250,7 @@
                           output.position = index
                           if (touchPage("Output", event)) return
                           if (event.ctrlKey || event.metaKey) {
-                            void toggleView("Output", event)
+                            void interaction.toggleView("Output", event)
                             return
                           }
                           if (event.detail <= 1) selectOutput(page.id, event.shiftKey)

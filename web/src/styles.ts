@@ -269,6 +269,12 @@ export function objects(description: Description) {
   }
 }
 
+export function visibleProfiles(description: Description | undefined, controls: readonly string[]): ProfileSet[] {
+  return (description?.profileSets ?? []).filter(
+    (set) => set.profiles.length > 1 && set.parameters.some((id) => controls.includes(id)),
+  )
+}
+
 export function applicable(description: Description, pages: Iterable<number>): string[] {
   const scope = new Set(pages)
   return groups(description)

@@ -8,11 +8,6 @@ import { Processor } from "./processor.ts"
 import gridPlan from "../test/fixtures/grid-plan.json"
 
 export const query = new URLSearchParams(location.search)
-const route = location.pathname.match(/\/demo=(toc(?:-multiple)?)$/)
-if (route && !query.has("demo")) {
-  query.set("demo", route[1])
-}
-
 const toc = query.get("demo") === "toc" || query.get("demo") === "toc-multiple"
 export const initialViews = {
   input: toc

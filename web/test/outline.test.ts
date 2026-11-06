@@ -162,3 +162,61 @@ test("Non-monotonic bookmarks retain every overlapping section and the final pag
   assert.equal(titles.at(999).sectionCount, 1000)
   assert.equal(titles.at(1999).name, "B999")
 })
+
+test("Repeated named and indirect targets resolve once per numeric identity", async () => {
+  let destinations = 0,
+    pages = 0
+  const outline = await readOutline({
+    ...pdf([]),
+    getOutline: async () => [
+      { ...node("Named", null), dest: "chapter" },
+      { ...node("Repeated name", null), dest: "chapter" },
+      { ...node("Same page", null), dest: [{ num: 7, gen: 0 }] },
+      { ...node("Different generation", null), dest: [{ num: 7, gen: 1 }] },
+    ],
+    getDestination: async () => {
+      destinations++
+      return [{ num: 7, gen: 0 }]
+    },
+    getPageIndex: async (reference) => {
+      pages++
+      return reference.gen === 0 ? 2 : 4
+    },
+  })
+  assert.deepEqual(
+    outline.map(({ title, page }) => [title, page]),
+    [
+      ["Named", 2],
+      ["Repeated name", 2],
+      ["Same page", 2],
+      ["Different generation", 4],
+    ],
+  )
+  assert.equal(destinations, 1)
+  assert.equal(pages, 2)
+})
+
+test("Outline traversal bounds nodes and depth and cancels awaited targets", async () => {
+  assert.equal((await readOutline(pdf(Array.from({ length: 10001 }, () => node("Section", 0))))).length, 10000)
+  let branch = node("Leaf", 0)
+  for (let depth = 0; depth < 70; depth++) branch = node(`Level ${depth}`, 0, [branch])
+  assert.equal((await readOutline(pdf([branch]))).length, 64)
+  for (const stage of ["destination", "page"]) {
+    let cancelled = false
+    const outline = await readOutline(
+      {
+        ...pdf([{ ...node("Section", null), dest: "chapter" }]),
+        getDestination: async () => {
+          cancelled = stage === "destination"
+          return [{ num: 7, gen: 0 }]
+        },
+        getPageIndex: async () => {
+          cancelled = true
+          return 0
+        },
+      },
+      () => cancelled,
+    )
+    assert.deepEqual(outline, [])
+  }
+})

@@ -1,18 +1,18 @@
 // Checks workspace controls, styles, onboarding, and responsive behavior.
 
+import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { mkdir, readFile } from "node:fs/promises"
 import { measure, gridDensity } from "./measure.js"
 import { chromium, webkit } from "playwright"
-import { checkWorkspace } from "./workspace.js"
 import { tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
 
 test("Parameter hover waits, cancels on leaving or Escape, and keeps click immediate", { timeout: 30000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -50,7 +50,7 @@ test("Parameter hover waits, cancels on leaving or Escape, and keeps click immed
 
 test("Profile options require compatible peers and consider future profile choices", { timeout: 60000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch()
+  const browser = await launch(chromium)
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -121,7 +121,7 @@ test(
     const server = await serve()
     await mkdir("../.local/tmp/web/layout/profiles", { recursive: true })
     for (const engine of [chromium, webkit]) {
-      const browser = await engine.launch()
+      const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -376,7 +376,7 @@ test("Opaque profile-set IDs keep their annotations across Input switches", { ti
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(server.resolvedUrls.local[0])
@@ -499,7 +499,7 @@ test("Authored details share one panel across Style owners and omit blank guidan
   const server = await serve()
   await mkdir("../.local/tmp/web/profiles", { recursive: true })
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     const annotations = {
       group: { description: "Guide controls.", details: "Group guidance.\n\n<b>Text</b> remains plain." },
       parameters: {
@@ -689,7 +689,7 @@ test("Profile details stay readable and aligned across layouts", { timeout: 1800
   const server = await serve()
   await mkdir("../.local/tmp/web/profiles", { recursive: true })
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     let page
     try {
       page = await browser.newPage({ viewport: { width: 1440, height: 1080 }, reducedMotion: "reduce", hasTouch: true })
@@ -839,7 +839,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.goto(server.resolvedUrls.local[0])
@@ -883,7 +883,7 @@ test("Style reset clears saved overrides and retains keyboard focus", { timeout:
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 768, height: 1024 },
       hasTouch: true,
@@ -931,7 +931,7 @@ test("Dialogs dismiss outside taps without native light dismissal", { timeout: 6
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
@@ -975,7 +975,7 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
@@ -1160,7 +1160,7 @@ test("Help stays available across pointer types and tours retain visible focus",
   await mkdir("../.local/tmp/web/layout/tour", { recursive: true })
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const hasTouch of [false, true]) {
       const page = await browser.newPage({ hasTouch, reducedMotion: "reduce" })
       await page.goto(`${server.resolvedUrls.local[0]}?demo=empty`)
@@ -1220,7 +1220,7 @@ test("Help stays available across pointer types and tours retain visible focus",
 test("Help fits its content and keeps its navigation above scrolling panels", { timeout: 120000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch({ channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL : undefined })
+    const browser = await launch(engine, { channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL : undefined })
     try {
       for (const hasTouch of [false, true]) {
         const page = await browser.newPage({ hasTouch, isMobile: hasTouch, reducedMotion: "reduce" })
@@ -1292,7 +1292,7 @@ test("Help fits its content and keeps its navigation above scrolling panels", { 
 
 test("Keyboard starts at the logo and uses thin secondary focus contours", { timeout: 60000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
     for (const colorScheme of ["light", "dark"]) {
       const page = await browser.newPage({
@@ -1343,7 +1343,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       const errors = []
       page.on("pageerror", (error) => errors.push(error.message))
@@ -1399,7 +1399,7 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(server.resolvedUrls.local[0])
@@ -1633,7 +1633,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => {
@@ -1743,7 +1743,7 @@ test("Download reuses completed full-document styles and invalidates changed Out
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => {
       localStorage.setItem("mainz:onboarding", "19")
@@ -1821,7 +1821,7 @@ test("Download reuses completed full-document styles and invalidates changed Out
 
 test("Cancelling a paused batch inspection releases the next Source", { timeout: 60000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch()
+  const browser = await launch(chromium)
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1883,7 +1883,7 @@ test("Style and Download cancellation release preview workers and retain choices
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     page.setDefaultTimeout(10000)
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -2040,7 +2040,7 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -2189,7 +2189,7 @@ test("Style selectors retain touch height and inset arrows across workspace widt
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo&paint`)
@@ -2281,12 +2281,17 @@ test(
     const server = await serve()
     let browser
     try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
       const settings = page.getByRole("dialog", { name: "Settings", exact: true })
       await page.getByRole("button", { name: "Settings", exact: true }).click()
+      assert.match(await settings.locator("dl").innerText(), /Version[\s\S]+Build ID/)
+      const repository = settings.getByRole("link", { name: "Mainz on GitHub (opens in a new tab)", exact: true })
+      assert.equal(await repository.getAttribute("href"), "https://github.com/roktas/mainz")
+      const repositoryBounds = await repository.boundingBox()
+      assert.ok(repositoryBounds.width >= 44 && repositoryBounds.height >= 44)
       const value = settings.getByLabel("Lens magnification", { exact: true })
       const close = settings.getByRole("button", { name: "Close Settings", exact: true })
       assert.equal(
@@ -2420,7 +2425,7 @@ test(
 
 test("Demo Cover is first and its fill survives Download and reopening", { timeout: 60000 }, async () => {
   const server = await serve()
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+  const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
@@ -2598,7 +2603,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1000 },
       acceptDownloads: true,
@@ -2939,55 +2944,111 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
   }
 })
 
-test("Opacity percentages preserve precision and leave room for their sliders", { timeout: 120000 }, async () => {
+async function opacityPage(browser, server) {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+  await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+  await page.goto(server.resolvedUrls.local[0])
+  await page
+    .locator("input[type=file]")
+    .first()
+    .setInputFiles({
+      name: "Opacity.pdf",
+      mimeType: "application/pdf",
+      buffer: fixture({
+        grouped: true,
+        profileSets: [
+          {
+            id: "opacity",
+            name: "Opacity profile",
+            parameters: ["guides-stroke-opacity"],
+            profiles: [
+              { id: "original", name: "Original", overrides: {} },
+              { id: "precise", name: "Precise", overrides: { "guides-stroke-opacity": 0.789764747191011 } },
+            ],
+          },
+        ],
+      }),
+    })
+  const input = page.locator(".selection-panel")
+  await tab(input, "List")
+  await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+  await tab(input, "Style")
+  return { page, input }
+}
+
+test(
+  "Opacity percentages preserve precision, invalid entry, reset, and saved values",
+  { timeout: 120000 },
+  async () => {
+    const server = await serve()
+    await mkdir("../.local/tmp/web/layout/opacity", { recursive: true })
+    for (const engine of [chromium, webkit]) {
+      const browser = await launch(engine)
+      try {
+        const { page, input } = await opacityPage(browser, server)
+        const profile = input.getByRole("combobox", { name: "Opacity profile", exact: true })
+        await profile.selectOption("precise")
+        await input.getByRole("button", { name: "Edit Stroke", exact: true }).click()
+        const field = input.getByRole("spinbutton", { name: "Guide Opacity (%)", exact: true })
+        const slider = input.getByRole("slider", { name: "Adjust Guide Opacity", exact: true })
+        assert.equal(await field.inputValue(), "79")
+        assert.equal(await slider.getAttribute("aria-valuetext"), "79%")
+        await field.focus()
+        assert.equal(await field.inputValue(), "79")
+        assert.ok(Math.abs(parseFloat(await field.getAttribute("title")) - 78.9764747191011) < 1e-12)
+        await field.press("Tab")
+        assert.equal(await field.inputValue(), "79")
+        assert.equal(await slider.inputValue(), "0.789764747191011")
+        assert.equal(await profile.inputValue(), "precise", "Focus and display rounding assign nothing")
+        await field.fill("7")
+        assert.equal(await field.inputValue(), "7", "Typing does not expose floating-point conversion noise")
+        const compact = await field.boundingBox()
+        await field.fill("12.3456789")
+        assert.ok(Math.abs((await field.boundingBox()).width - compact.width) < 1, "Precise entry keeps the same width")
+        await field.press("Tab")
+        assert.equal(await field.inputValue(), "12.3")
+        assert.equal(await slider.inputValue(), "0.123456789")
+        await page.getByRole("button", { name: "Edit Stroke", exact: true }).click()
+        const download = page.waitForEvent("download")
+        await page.locator(".composition-output").getByRole("button", { name: "Download", exact: true }).click()
+        const saved = await download
+        await input.locator("input[type=file]").setInputFiles({
+          name: "Saved opacity.pdf",
+          mimeType: "application/pdf",
+          buffer: await readFile(await saved.path()),
+        })
+        await input.locator(".input-current").filter({ hasText: "Saved opacity.pdf" }).waitFor()
+        await tab(input, "List")
+        await input.getByLabel("Page selection", { exact: true }).fill("1")
+        await input.getByLabel("Page selection", { exact: true }).press("Enter")
+        await tab(input, "Style")
+        await input.getByRole("button", { name: "Edit Stroke", exact: true }).click()
+        assert.equal(await slider.inputValue(), "0.123456789")
+        await field.fill("101")
+        assert.equal(await field.getAttribute("aria-invalid"), "true")
+        await page.locator(".header-feedback [role=alert]").waitFor()
+        assert.match(await page.locator(".header-feedback .message-details").textContent(), /between 0% and 100%/)
+        await input.getByRole("button", { name: "Reset Guide Opacity", exact: true }).click()
+        assert.equal(await field.inputValue(), "100")
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
+
+test("Opacity sliders retain alignment across text sizes and themes", { timeout: 120000 }, async () => {
   const server = await serve()
   await mkdir("../.local/tmp/web/layout/opacity", { recursive: true })
   for (const engine of [chromium, webkit]) {
-    const browser = await engine.launch()
+    const browser = await launch(engine)
     try {
-      const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
-      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(server.resolvedUrls.local[0])
-      await page
-        .locator("input[type=file]")
-        .first()
-        .setInputFiles({
-          name: "Opacity.pdf",
-          mimeType: "application/pdf",
-          buffer: fixture({
-            grouped: true,
-            profileSets: [
-              {
-                id: "opacity",
-                name: "Opacity profile",
-                parameters: ["guides-stroke-opacity"],
-                profiles: [
-                  { id: "original", name: "Original", overrides: {} },
-                  { id: "precise", name: "Precise", overrides: { "guides-stroke-opacity": 0.789764747191011 } },
-                ],
-              },
-            ],
-          }),
-        })
-      const input = page.locator(".selection-panel")
-      await tab(input, "List")
-      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
-      await tab(input, "Style")
+      const { page, input } = await opacityPage(browser, server)
       const profile = input.getByRole("combobox", { name: "Opacity profile", exact: true })
       await profile.selectOption("precise")
       await input.getByRole("button", { name: "Edit Stroke", exact: true }).click()
       const field = input.getByRole("spinbutton", { name: "Guide Opacity (%)", exact: true })
-      const slider = input.getByRole("slider", { name: "Adjust Guide Opacity", exact: true })
-      assert.equal(await field.inputValue(), "79")
-      assert.equal(await slider.getAttribute("aria-valuetext"), "79%")
-      await field.focus()
-      assert.equal(await field.inputValue(), "79")
-      assert.ok(Math.abs(parseFloat(await field.getAttribute("title")) - 78.9764747191011) < 1e-12)
-      await field.press("Tab")
-      assert.equal(await field.inputValue(), "79")
-      assert.equal(await slider.inputValue(), "0.789764747191011")
-      assert.equal(await profile.inputValue(), "precise", "Focus and display rounding assign nothing")
-      for (const width of [320, 390, 768, 1440]) {
+      for (const width of process.env.MAINZ_TEST_MODE === "full" ? [320, 390, 768, 1440] : [390, 1440]) {
         await page.setViewportSize({ width, height: 1100 })
         for (const text of ["100%", "200%"]) {
           await page.evaluate((size) => (document.documentElement.style.fontSize = size), text)
@@ -3027,20 +3088,6 @@ test("Opacity percentages preserve precision and leave room for their sliders", 
           }
         }
       }
-      await field.fill("7")
-      assert.equal(await field.inputValue(), "7", "Typing does not expose floating-point conversion noise")
-      const compact = await field.boundingBox()
-      await field.fill("12.3456789")
-      assert.ok(Math.abs((await field.boundingBox()).width - compact.width) < 1, "Precise entry keeps the same width")
-      await field.press("Tab")
-      assert.equal(await field.inputValue(), "12.3")
-      assert.equal(await slider.inputValue(), "0.123456789")
-      await field.fill("101")
-      assert.equal(await field.getAttribute("aria-invalid"), "true")
-      await page.locator(".header-feedback [role=alert]").waitFor()
-      assert.match(await page.locator(".header-feedback .message-details").textContent(), /between 0% and 100%/)
-      await input.getByRole("button", { name: "Reset Guide Opacity", exact: true }).click()
-      assert.equal(await field.inputValue(), "100")
     } finally {
       await browser.close()
     }
@@ -3051,7 +3098,7 @@ test("Opaque parameter IDs retain style edits, draft errors, and downloaded valu
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     const errors = []
@@ -3122,7 +3169,7 @@ test("Page addition hint skips on any click", { timeout: 60000 }, async () => {
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1100 },
       hasTouch: true,
@@ -3180,7 +3227,7 @@ test("Onboarding reset is consumed once and preserves other preferences", { time
   const server = await serve()
   let browser
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage()
     const url = server.resolvedUrls.local[0]
     await page.goto(url)
@@ -3218,120 +3265,485 @@ test("Onboarding reset is consumed once and preserves other preferences", { time
   }
 })
 
-test(
-  "PDF workspace preserves composition, styles, focus, and responsive controls",
-  { timeout: 240000 },
-  async (context) => {
-    const server = await serve()
-    let browser
-    let page
-    try {
-      browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-      page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
-      await page.addInitScript(() => {
-        const Original = Worker
-        window.Worker = class extends Original {
-          #processor = false
-          constructor(url, options) {
-            super(url, options)
-            if (String(url).includes("processor.worker")) {
-              this.#processor = true
-              const root = document.documentElement
-              root.dataset.processors = String(Number(root.dataset.processors ?? 0) + 1)
-              root.dataset.activeProcessors = String(Number(root.dataset.activeProcessors ?? 0) + 1)
-            }
-          }
-          terminate() {
-            if (this.#processor) {
-              const root = document.documentElement
-              root.dataset.activeProcessors = String(Number(root.dataset.activeProcessors) - 1)
-              this.#processor = false
-            }
-            super.terminate()
-          }
-        }
-      })
-      await page.goto(server.resolvedUrls.local[0])
-      await page.evaluate(() => localStorage.setItem("mainz:onboarding", "18"))
-      await page.reload()
-      await checkWorkspace(page, fixture(), fixture({ prepared: false }))
-      page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
-      await page.goto(server.resolvedUrls.local[0])
+test("Tours reveal their targets and restore pane views, preparation, and focus", { timeout: 90000 }, async () => {
+  const server = await serve(),
+    browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    const prepared = fixture()
+    await page.goto(server.resolvedUrls.local[0])
+    const errors = []
+    const recordError = (error) => errors.push(error.message)
+    page.on("pageerror", recordError)
+    await page.setViewportSize({ width: 1440, height: 1100 })
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    const welcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true })
+    const tour = page.getByRole("dialog", { name: "Product tour", exact: true })
+    const help = page.getByRole("button", { name: "Help", exact: true })
+    const startTour = async () => {
+      await help.click()
       await page
-        .locator("input[type=file]")
-        .first()
-        .setInputFiles({
-          name: "Mixed visibility.pdf",
-          mimeType: "application/pdf",
-          buffer: fixture({ mixedDisplay: true }),
-        })
-      await page.getByRole("button", { name: "Skip", exact: true }).click()
-      assert.equal(await page.getByRole("dialog", { name: "Product tour", exact: true }).isVisible(), false)
-      await page.locator(".selection-panel").getByRole("textbox", { name: "Page selection", exact: true }).fill("1-7")
-      await page.getByRole("button", { name: "Add to Output", exact: true }).click()
-      await page.getByRole("tab", { name: "Style", exact: true }).click()
-      const visibility = page.getByRole("article", { name: "Show Guides", exact: true })
-      const show = visibility.getByRole("radio", { name: "Show", exact: true })
-      const hide = visibility.getByRole("radio", { name: "Hide", exact: true })
-      const reset = visibility.getByRole("button", { name: "Reset Show Guides", exact: true })
-      assert.equal(await show.isChecked(), false)
-      assert.equal(await hide.isChecked(), false)
-      assert.match(await visibility.innerText(), /No single value/)
-      assert.equal(await reset.isDisabled(), true)
-      await hide.check()
-      assert.equal(await hide.isChecked(), true)
-      assert.equal(await show.isChecked(), false)
-      await hide.press("ArrowLeft")
-      assert.equal(await show.isChecked(), true)
-      assert.equal(await hide.isChecked(), false)
-      await page.getByRole("button", { name: "Cancel style processing", exact: true }).waitFor({ state: "hidden" })
-      assert.equal(await page.locator(".header-feedback .feedback[data-kind=error]").count(), 0)
-      await reset.click()
-      assert.equal(await show.isChecked(), false)
-      assert.equal(await hide.isChecked(), false)
-      assert.match(await visibility.innerText(), /No single value/)
-      assert.equal(await reset.isDisabled(), true)
-      await page.getByRole("button", { name: "Cancel style processing", exact: true }).waitFor({ state: "hidden" })
-      assert.equal(await page.locator(".header-feedback .feedback[data-kind=error]").count(), 0)
-
-      const blankOutput = page.locator(".composition-output")
-      await blankOutput.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
-      await page.locator(".selection-panel").getByRole("tab", { name: "Grid", exact: true }).click()
-      await page.getByRole("button", { name: "Select Input page 1", exact: true }).dblclick()
-      await blankOutput.locator(".output-options > summary").click()
-      await blankOutput.getByRole("button", { name: "At end", exact: true }).click()
-      await blankOutput.getByRole("button", { name: "Clear Output selection", exact: true }).click()
-      await blankOutput.getByRole("button", { name: "Remove Output page 1", exact: true }).click()
-      await page.locator(".input-picker > summary h2").click()
-      await page.locator(".input-picker").getByRole("button", { name: "Remove Input", exact: true }).click()
-      await page.locator(".selection-panel").waitFor({ state: "hidden" })
-      await page.getByRole("button", { name: "Help", exact: true }).click()
-      await page.getByRole("button", { name: "Start Tour", exact: true }).click()
-      const blankTour = page.getByRole("dialog", { name: "Product tour", exact: true })
-      await blankTour.waitFor()
-      for (const key of [
-        "output-density",
-        "output-grid",
-        "output-list",
-        "output-selection",
-        "output-page",
-        "download",
-      ]) {
-        await page.waitForFunction(
-          (value) => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === value,
-          key,
+        .getByRole("dialog", { name: "Help", exact: true })
+        .getByRole("button", { name: "Start Tour", exact: true })
+        .click()
+    }
+    const workspaceSteps = [
+      "input-grid",
+      "input-density",
+      "input-list",
+      "input-page",
+      "style",
+      "output-grid",
+      "output-list",
+      "output-selection",
+      "output-page",
+      "download",
+    ]
+    await page.getByRole("heading", { name: "Select pages and style prepared PDFs.", exact: true }).waitFor()
+    assert.ok(!(await welcome.isVisible()), "Onboarding waits for a successfully opened PDF")
+    assert.ok(
+      (await page.locator(".header-note").getAttribute("title")) === "Processed on your device. No uploads.",
+      "The header note explains local processing on hover",
+    )
+    const step = async (key) => {
+      await page.waitForFunction(
+        (value) => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === value,
+        key,
+      )
+      const target = page.locator(`[data-tour-target="${key}"]`)
+      await target.waitFor()
+      assert.ok(await target.isVisible(), `Tour target ${key} is visible`)
+      await page.waitForFunction((value) => {
+        const guide = document.querySelector(".help-tour:popover-open")
+        const control = document.querySelector(`[data-tour-target="${value}"]`)
+        if (!guide || !control) return false
+        const backdrop = getComputedStyle(guide, "::backdrop")
+        const width = parseFloat(backdrop.width)
+        const height = parseFloat(backdrop.height)
+        const left = parseFloat(backdrop.left) - width / 2
+        const top = parseFloat(backdrop.top) - height / 2
+        const tab = document.querySelector(`[data-tour-tab="${value}"]`)
+        const parts = [control, ...(tab ? [tab] : [])].map((part) => part.getBoundingClientRect())
+        return (
+          parts.every(
+            (part) =>
+              left <= Math.max(0, part.left - 16) + 1 &&
+              top <= Math.max(0, part.top - 16) + 1 &&
+              left + width >= Math.min(innerWidth, part.right + 16) - 1 &&
+              top + height >= Math.min(innerHeight, part.bottom + 16) - 1,
+          ) &&
+          width <= Math.max(...parts.map((part) => part.right)) - Math.min(...parts.map((part) => part.left)) + 64 &&
+          height <= Math.max(...parts.map((part) => part.bottom)) - Math.min(...parts.map((part) => part.top)) + 64
         )
-        assert.equal(await page.locator(`[data-tour-target="${key}"]`).isVisible(), true)
-        if (key !== "download") await blankTour.getByRole("button", { name: "Next", exact: true }).click()
+      }, key)
+      assert.ok(
+        await tour.getByRole("heading", { level: 2 }).evaluate((heading) => {
+          const title = heading.getBoundingClientRect()
+          const card = heading.closest(".help-tour").getBoundingClientRect()
+          return title.top >= card.top && title.bottom <= card.bottom
+        }),
+        `Tour ${key} starts with its title visible`,
+      )
+      assert.ok(
+        await tour.evaluate((guide) => {
+          const backdrop = getComputedStyle(guide, "::backdrop")
+          return (
+            backdrop.filter.startsWith("blur(") && backdrop.boxShadow !== "none" && backdrop.pointerEvents === "none"
+          )
+        }),
+        `Tour ${key} has a soft spotlight without blocking controls`,
+      )
+      const tab = page.locator(`[data-tour-tab="${key}"]`)
+      if (await tab.count()) {
+        assert.ok(
+          (await tab.getAttribute("aria-selected")) === "true" &&
+            (await tab.getAttribute("data-tour-active")) === "true",
+          `Tour ${key} illuminates the selected tab together with its content`,
+        )
       }
-      assert.match(await blankTour.locator(".tour-progress").textContent(), /\/ 6/)
-      for (const action of ["Export recipe", "Print", "View PDF"])
-        assert.ok((await blankTour.innerText()).includes(action), `Tour explains ${action}`)
-      await blankTour.getByRole("button", { name: "Finish", exact: true }).click()
-      assert.equal(await blankOutput.locator(".composition-totals strong").textContent(), "1 page")
-      assert.equal((await blankOutput.locator(".composition-totals").innerText()).trim(), "1 page, 1 sheet")
+      if (await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches))
+        assert.ok(
+          await tour.evaluate((guide) => guide.getAnimations({ subtree: true }).length === 0),
+          `Tour ${key} honors reduced motion`,
+        )
+      if (key.endsWith("-density")) {
+        assert.ok(await target.evaluate((element) => element.matches("button")), "Tour reveals the density button")
+        assert.match(await target.getAttribute("aria-label"), /^Switch to (Normal|Compact) (Input|Output) grid$/)
+      }
+      if (key === "output-selection") {
+        const unselected =
+          (await target.getByRole("textbox", { name: "Page selection", exact: true }).inputValue()) === ""
+        for (const name of ["Remove selected Output pages", "Duplicate selected Output pages"])
+          assert.ok(
+            (await target.getByRole("button", { name, exact: true }).isDisabled()) === unselected,
+            `Tour shows ${name}, disabled without a selection`,
+          )
+      }
+      if (key === "download")
+        for (const action of ["Export recipe", "Print", "View PDF"])
+          assert.ok((await tour.innerText()).includes(action), `Tour explains ${action}`)
+    }
+    const open = async (name, buffer) => {
+      const count = await page.locator(".input-list button[data-source]").count()
+      await page.locator("input[type=file]").first().setInputFiles({ name, mimeType: "application/pdf", buffer })
+      await page.waitForFunction(
+        ({ label, previous }) =>
+          (document.querySelector(".composer:not([inert]) .input-current")?.textContent === label &&
+            document.querySelectorAll(".input-list button[data-source]").length === previous + 1) ||
+          document.querySelector(".header-feedback .feedback[data-kind=error]"),
+        { label: name, previous: count },
+        { timeout: 60000 },
+      )
+      assert.ok(
+        (await page.locator(".input-current").count()) > 0 &&
+          (await page.locator(".input-current").textContent()) === name &&
+          (await page.locator(".input-list button[data-source]").count()) === count + 1,
+        `Open ${name}: ${(await page.locator("[role=alert]").allTextContents()).join("; ")}`,
+      )
+    }
+    assert.ok(
+      await page.locator(".footnote").evaluate((footer) => getComputedStyle(footer).borderTopWidth === "0px"),
+      "Landing status has no divider",
+    )
+    const fileDrag = await page.evaluateHandle((bytes) => {
+      const data = new DataTransfer()
+      data.items.add(new File([Uint8Array.from(bytes)], "Practice book.pdf", { type: "application/pdf" }))
+      return data
+    }, Array.from(prepared))
+    const landing = page.locator(".drop-zone")
+    const landingHeight = (await landing.boundingBox()).height
+    await landing.dispatchEvent("dragenter", { dataTransfer: fileDrag })
+    assert.ok(
+      await landing.getByText("Drop a PDF to open", { exact: true }).isVisible(),
+      "PDF drag shows an explicit file target",
+    )
+    await landing.locator(".welcome").dispatchEvent("dragenter", { dataTransfer: fileDrag })
+    await landing.locator(".welcome").dispatchEvent("dragleave", { dataTransfer: fileDrag })
+    assert.ok(
+      (await landing.getByText("Drop a PDF to open", { exact: true }).isVisible()) &&
+        (await landing.boundingBox()).height === landingHeight,
+      "Nested file drag events preserve the target and layout",
+    )
+    await landing.dispatchEvent("drop", { dataTransfer: fileDrag })
+    await fileDrag.dispose()
+    await page.waitForFunction(
+      () => document.querySelector(".input-current")?.textContent === "Practice book.pdf",
+      null,
+      { timeout: 60000 },
+    )
+    assert.ok(!(await page.locator(".drop-prompt").count()), "Opening the dropped PDF clears file drag feedback")
+    await welcome.waitFor()
+    assert.ok(
+      await welcome
+        .getByRole("button", { name: "Skip", exact: true })
+        .evaluate((button) => button === document.activeElement),
+      "The first opened PDF shows onboarding with a focused primary action",
+    )
+    await welcome.getByRole("button", { name: "Take a tour", exact: true }).click()
+    await step("input")
+    await page.emulateMedia({ reducedMotion: "no-preference" })
+    await tour.getByRole("button", { name: "Next", exact: true }).click()
+    await step("input-grid")
+    await page.waitForFunction(() =>
+      document
+        .querySelector(".help-tour")
+        .getAnimations({ subtree: true })
+        .some((animation) => animation.effect.pseudoElement === "::backdrop"),
+    )
+    assert.ok(
+      await tour.evaluate(async (guide) => {
+        const pulse = guide
+          .getAnimations({ subtree: true })
+          .find((animation) => animation.effect.pseudoElement === "::backdrop")
+        const valid = pulse.effect.getTiming().duration === 280
+        await pulse.finished
+        return valid
+      }),
+      "A new tour target briefly fades the spotlight backdrop",
+    )
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await tour.getByRole("button", { name: "Back", exact: true }).click()
+    await step("input")
+    for (const key of [
+      "input-grid",
+      "input-density",
+      "input-list",
+      "input-page",
+      "output-grid",
+      "output-list",
+      "output-selection",
+      "output-page",
+      "download",
+    ]) {
+      await tour.getByRole("button", { name: "Next", exact: true }).click()
+      await step(key)
+    }
+    assert.ok(
+      (await tour.locator(".tour-progress").textContent()).includes("/ 10"),
+      "Empty Output shows density and selection actions without adding sample pages",
+    )
+    await page.keyboard.press("Escape")
+    await tour.waitFor({ state: "hidden" })
+    assert.ok(
+      await help.evaluate((button) => button === document.activeElement),
+      "Escape dismisses the tour and returns focus to Help",
+    )
+    await page.reload()
+    await open("Practice book.pdf", prepared)
+    assert.ok(!(await welcome.isVisible()), "Onboarding dismissal persists after reopening a PDF")
+    await page
+      .locator(".selection-panel")
+      .getByRole("textbox", { name: "Page selection", exact: true })
+      .fill("3-5,2,2,7")
+    await page.locator(".selection-panel").getByRole("textbox", { name: "Page selection", exact: true }).press("Enter")
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "6 pages")
+    const input = page.locator(".selection-panel"),
+      output = page.locator(".composition-output")
+    assert.ok(
+      (await input.getByRole("textbox", { name: "Page selection", exact: true }).inputValue()) === "",
+      "Bulk addition clears the Input preparation",
+    )
+    assert.ok(
+      (await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue()) === "1-6",
+      "Bulk addition selects the new Output block",
+    )
+    await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("3-5,2,2,7")
+    await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
+    const inputPages = () => input.getByRole("tab", { name: "Grid", exact: true })
+    const inputStyle = () => input.getByRole("tab", { name: "Style", exact: true })
+    const outputPages = () => output.getByRole("tab", { name: "Grid", exact: true })
+    const outputPage = () => output.getByRole("tab", { name: "Page", exact: true })
+    await inputStyle().click()
+    await outputPage().click()
+    await startTour()
+    await step("input")
+    assert.ok(
+      await page.locator('[data-tour-target="input"] input').evaluate((field) => field.multiple),
+      "The Input step includes the file chooser that accepts several PDFs",
+    )
+    for (const key of workspaceSteps) {
+      await tour.getByRole("button", { name: "Next", exact: true }).click()
+      await step(key)
+      if (key === "input-grid")
+        assert.ok((await inputPages().getAttribute("aria-selected")) === "true", "Tour opens Input Grid")
+      if (key === "input-page")
+        assert.ok(
+          (await input.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected")) === "true",
+          "Tour opens Input Page",
+        )
+      if (key === "style")
+        assert.ok(
+          (await inputStyle().getAttribute("aria-selected")) === "true" &&
+            (await inputStyle().getAttribute("data-tour-active")) === "true",
+          "Tour selects and highlights Style",
+        )
+      if (key === "output-grid")
+        assert.ok((await outputPages().getAttribute("aria-selected")) === "true", "Tour opens Output Grid")
+      if (key === "output-page")
+        assert.ok((await outputPage().getAttribute("aria-selected")) === "true", "Tour opens Output Page")
+    }
+    assert.ok(
+      (await tour.locator(".tour-progress").textContent()).includes("/ 11"),
+      "Style adds one step to the ten-step tour",
+    )
+    await tour.getByRole("button", { name: "Finish", exact: true }).click()
+    assert.ok(
+      (await inputStyle().getAttribute("aria-selected")) === "true" &&
+        (await outputPage().getAttribute("aria-selected")) === "true",
+      "Tour restores the previous workspace tabs",
+    )
+    assert.ok((await output.locator(".composition-totals strong").textContent()) === "6 pages", "Tour preserves Output")
+    await startTour()
+    await step("input")
+    await tour.getByRole("button", { name: "Next", exact: true }).click()
+    await step("input-grid")
+    await page.evaluate(() => window.scrollBy(0, 32))
+    await step("input-grid")
+    await page.setViewportSize({ width: 390, height: 900 })
+    await step("input-grid")
+    await page.setViewportSize({ width: 1440, height: 1100 })
+    await step("input-grid")
+    await tour.getByRole("button", { name: "End tour", exact: true }).click()
+    await tour.waitFor({ state: "hidden" })
+    assert.ok(
+      (await inputStyle().getAttribute("aria-selected")) === "true" &&
+        (await outputPage().getAttribute("aria-selected")) === "true" &&
+        (await output.locator(".composition-totals strong").textContent()) === "6 pages" &&
+        (await help.evaluate((button) => button === document.activeElement)),
+      "End tour restores the previous tabs and focus without changing Output",
+    )
+    await startTour()
+    await step("input")
+    await tour.getByRole("button", { name: "Next", exact: true }).click()
+    await step("input-grid")
+    await page.getByRole("button", { name: "Select or drag Input page 1 to Output", exact: true }).click()
+    await tour.waitFor({ state: "hidden" })
+    const selectedSequence = page
+      .locator(".selection-panel")
+      .getByRole("textbox", { name: "Page selection", exact: true })
+    assert.ok(
+      (await selectedSequence.inputValue()) === "3-5, 2, 2, 7, 1",
+      "Clicking a toured grip selects its page without restoring Style over the click",
+    )
+    assert.ok(
+      (await inputPages().getAttribute("aria-selected")) === "true",
+      "Workspace interaction retains the pane and tab being used",
+    )
+    await selectedSequence.fill("3-5,2,2,7")
+    await inputStyle().click()
+    await startTour()
+    await step("input")
+    await tour.getByRole("button", { name: "Next", exact: true }).click()
+    await step("input-grid")
+    await selectedSequence.focus()
+    await tour.waitFor({ state: "hidden" })
+    assert.ok(
+      await selectedSequence.evaluate((field) => field === document.activeElement),
+      "Keyboard focus can leave the tour for a workspace control without losing its tab",
+    )
+    await inputPages().click()
+    await outputPages().click()
+    assert.ok(
+      (await page
+        .locator(".selection-panel")
+        .getByRole("textbox", { name: "Page selection", exact: true })
+        .inputValue()) === "3-5,2,2,7",
+      "Tour preserves the exact page sequence",
+    )
+    for (const [width, size] of [
+      [390, "100%"],
+      [320, "200%"],
+    ]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.evaluate((value) => (document.documentElement.style.fontSize = value), size)
+      await startTour()
+      await step("input")
+      for (const key of workspaceSteps) {
+        await tour.getByRole("button", { name: "Next", exact: true }).click()
+        await step(key)
+        assert.ok(
+          await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+          `Workspace tour ${key} fits ${width}px with ${size} text`,
+        )
+        const exit = await tour.getByRole("button", { name: "End tour", exact: true }).boundingBox()
+        const card = await tour.boundingBox()
+        assert.ok(
+          exit.y >= card.y && exit.y + exit.height <= card.y + card.height,
+          `End tour stays visible at ${key} with ${size} text`,
+        )
+      }
+      await tour.getByRole("button", { name: "Finish", exact: true }).click()
+      assert.ok(
+        (await page.locator(".composer").getAttribute("data-view")) === "input",
+        "Tour restores the mobile Input view",
+      )
+    }
+    await page.evaluate(() => (document.documentElement.style.fontSize = ""))
+    await page.setViewportSize({ width: 1440, height: 1100 })
+  } finally {
+    await browser.close()
+  }
+})
 
-      page = await browser.newPage({
+test("Mixed visibility retains its unset baseline through keyboard changes and reset", { timeout: 30000 }, async () => {
+  const server = await serve(),
+    browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    await page.goto(server.resolvedUrls.local[0])
+    await page
+      .locator("input[type=file]")
+      .first()
+      .setInputFiles({
+        name: "Mixed visibility.pdf",
+        mimeType: "application/pdf",
+        buffer: fixture({ mixedDisplay: true }),
+      })
+    await page.getByRole("button", { name: "Skip", exact: true }).click()
+    assert.equal(await page.getByRole("dialog", { name: "Product tour", exact: true }).isVisible(), false)
+    await page.locator(".selection-panel").getByRole("textbox", { name: "Page selection", exact: true }).fill("1-7")
+    await page.getByRole("button", { name: "Add to Output", exact: true }).click()
+    await page.getByRole("tab", { name: "Style", exact: true }).click()
+    const visibility = page.getByRole("article", { name: "Show Guides", exact: true })
+    const show = visibility.getByRole("radio", { name: "Show", exact: true })
+    const hide = visibility.getByRole("radio", { name: "Hide", exact: true })
+    const reset = visibility.getByRole("button", { name: "Reset Show Guides", exact: true })
+    assert.equal(await show.isChecked(), false)
+    assert.equal(await hide.isChecked(), false)
+    assert.match(await visibility.innerText(), /No single value/)
+    assert.equal(await reset.isDisabled(), true)
+    await hide.check()
+    assert.equal(await hide.isChecked(), true)
+    assert.equal(await show.isChecked(), false)
+    await hide.press("ArrowLeft")
+    assert.equal(await show.isChecked(), true)
+    assert.equal(await hide.isChecked(), false)
+    await page.getByRole("button", { name: "Cancel style processing", exact: true }).waitFor({ state: "hidden" })
+    assert.equal(await page.locator(".header-feedback .feedback[data-kind=error]").count(), 0)
+    await reset.click()
+    assert.equal(await show.isChecked(), false)
+    assert.equal(await hide.isChecked(), false)
+    assert.match(await visibility.innerText(), /No single value/)
+    assert.equal(await reset.isDisabled(), true)
+    await page.getByRole("button", { name: "Cancel style processing", exact: true }).waitFor({ state: "hidden" })
+    assert.equal(await page.locator(".header-feedback .feedback[data-kind=error]").count(), 0)
+  } finally {
+    await browser.close()
+  }
+})
+
+test("Blank-only Output offers its six-step tour without adding pages", { timeout: 30000 }, async () => {
+  const server = await serve(),
+    browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    await page.locator(".landing-recipe input[type=file]").setInputFiles({
+      name: "Blank.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(
+        JSON.stringify({
+          version: 1,
+          inputs: {},
+          sources: {},
+          parts: [{ pages: [{ blank: { width: 210, height: 297 } }] }],
+        }),
+      ),
+    })
+    await page.getByRole("button", { name: "Apply recipe", exact: true }).click()
+    const blankOutput = page.locator(".composition-output")
+    await page.getByRole("button", { name: "Help", exact: true }).click()
+    await page.getByRole("button", { name: "Start Tour", exact: true }).click()
+    const blankTour = page.getByRole("dialog", { name: "Product tour", exact: true })
+    await blankTour.waitFor()
+    for (const key of ["output-density", "output-grid", "output-list", "output-selection", "output-page", "download"]) {
+      await page.waitForFunction(
+        (value) => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === value,
+        key,
+      )
+      assert.equal(await page.locator(`[data-tour-target="${key}"]`).isVisible(), true)
+      if (key !== "download") await blankTour.getByRole("button", { name: "Next", exact: true }).click()
+    }
+    assert.match(await blankTour.locator(".tour-progress").textContent(), /\/ 6/)
+    for (const action of ["Export recipe", "Print", "View PDF"])
+      assert.ok((await blankTour.innerText()).includes(action), `Tour explains ${action}`)
+    await blankTour.getByRole("button", { name: "Finish", exact: true }).click()
+    assert.equal(await blankOutput.locator(".composition-totals strong").textContent(), "1 page")
+    assert.equal((await blankOutput.locator(".composition-totals").innerText()).trim(), "1 page, 1 sheet")
+  } finally {
+    await browser.close()
+  }
+})
+
+test(
+  "The first-action hint waits for onboarding and keeps its timing and notice contrast",
+  { timeout: 45000 },
+  async () => {
+    const server = await serve(),
+      browser = await launch(chromium)
+    try {
+      const page = await browser.newPage({
         viewport: { width: 1440, height: 1100 },
         reducedMotion: "no-preference",
       })
@@ -3356,12 +3768,6 @@ test(
       const hintWelcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true })
       const hintTour = page.getByRole("dialog", { name: "Product tour", exact: true })
       await hintWelcome.waitFor()
-      const statusStyle = await status.evaluate((element) => ({
-        font: getComputedStyle(element).fontSize,
-        color: getComputedStyle(element).color,
-        weight: getComputedStyle(element).fontWeight,
-        background: getComputedStyle(element).backgroundColor,
-      }))
       assert.equal(await notice.count(), 0)
       await hintWelcome.getByRole("button", { name: "Take a tour", exact: true }).click()
       await hintTour.waitFor()
@@ -3436,76 +3842,108 @@ test(
       assert.match(await status.textContent(), /Opened 1 page/)
       await notice.waitFor({ state: "hidden", timeout: 15000 })
       assert.match(await status.textContent(), /Opened 1 page/)
-      await page.getByRole("button", { name: "Help", exact: true }).click()
-      await page.getByRole("button", { name: "Start Tour", exact: true }).click()
-      await hintTour.getByRole("button", { name: "End tour", exact: true }).click()
-      assert.equal(await flight.isVisible(), false)
-      await page.reload()
-      await openHintInput()
-      await flight.waitFor()
-      await page.getByRole("button", { name: "Select Input page 1", exact: true }).dblclick()
-      await flight.waitFor({ state: "hidden" })
-      assert.match(await status.textContent(), /Added 1 page to Output/)
-      await notice.waitFor({ state: "detached" })
-      assert.equal(await notice.count(), 0)
-      assert.deepEqual(
-        await status.evaluate((element) => ({
-          font: getComputedStyle(element).fontSize,
-          color: getComputedStyle(element).color,
-          weight: getComputedStyle(element).fontWeight,
-          background: getComputedStyle(element).backgroundColor,
-        })),
-        statusStyle,
-      )
-      await page.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
-      assert.equal(await flight.isVisible(), false)
-      assert.equal(await page.locator(".composition-empty").isVisible(), true)
-      await page.reload()
-      await openHintInput()
-      await flight.waitFor()
-      await page.emulateMedia({ reducedMotion: "reduce" })
-      await flight.waitFor({ state: "hidden" })
-      assert.equal((await instructionText.textContent()).trim(), instruction)
-      assert.equal(await page.locator(".composition-totals strong").textContent(), "0 pages")
-      await page.reload()
-      await openHintInput()
-      await notice.filter({ hasText: instruction }).waitFor()
-      assert.equal(await flight.isVisible(), false)
-      await page.getByRole("button", { name: "Select Input page 1", exact: true }).dblclick()
-      assert.match(await status.textContent(), /Added 1 page to Output/)
-      await page.setViewportSize({ width: 390, height: 900 })
-      await page.emulateMedia({ reducedMotion: "no-preference" })
-      await page.reload()
-      await openHintInput()
-      await flight.waitFor()
-      const bounds = await notice.boundingBox()
-      assert(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 391)
-      assert(bounds.y >= 0 && bounds.y + bounds.height <= 901)
-      await page.getByRole("button", { name: "Select Input page 1", exact: true }).dblclick()
-      await flight.waitFor({ state: "hidden" })
-      assert.match(await status.textContent(), /Added 1 page to Output/)
-      await page.setViewportSize({ width: 390, height: 650 })
-      await page.reload()
-      await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
-      await openHintInput()
-      assert.equal(await notice.count(), 0)
-      await page.getByRole("button", { name: "Select Input page 1", exact: true }).scrollIntoViewIfNeeded()
-      await notice.filter({ hasText: instruction }).waitFor()
-      await notice.scrollIntoViewIfNeeded()
-      const enlarged = await notice.boundingBox()
-      assert(enlarged && enlarged.x >= 0 && enlarged.x + enlarged.width <= 391)
-      assert(enlarged.y >= 0 && enlarged.y + enlarged.height <= 651, JSON.stringify(enlarged))
-      await page.locator(".selection-panel").getByRole("tab", { name: "Grid", exact: true }).focus()
-      await page.keyboard.press("Enter")
-      await notice.waitFor({ state: "hidden" })
-      assert.equal(await notice.count(), 0)
-      assert.match(await status.textContent(), /Opened 1 page/)
-    } catch (error) {
-      if (page) context.diagnostic((await page.locator("[role=alert], .footnote").allTextContents()).join("\n"))
-      if (page) context.diagnostic(await captureLayout(page, "workspace"))
-      throw error
     } finally {
-      await browser?.close()
+      await browser.close()
     }
   },
 )
+
+test("Opening, editing, and Download preserve arranged pages and accepted styles", { timeout: 30000 }, async () => {
+  const server = await serve(),
+    browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    await page
+      .locator("input[type=file]")
+      .first()
+      .setInputFiles({
+        name: "Journey.pdf",
+        mimeType: "application/pdf",
+        buffer: fixture({ metadata: [{ name: "Cover" }, {}, { name: "Chapter" }] }),
+      })
+    const input = page.locator(".selection-panel"),
+      output = page.locator(".composition-output")
+    await input.getByLabel("Page selection", { exact: true }).fill("3,1,3")
+    await input.getByLabel("Page selection", { exact: true }).press("Enter")
+    await tab(input, "Style")
+    await input.getByRole("textbox", { name: "Guide Color", exact: true }).fill("#884488")
+    await page.getByRole("button", { name: "Cancel style processing", exact: true }).waitFor({ state: "hidden" })
+    const pending = page.waitForEvent("download")
+    await output.getByRole("button", { name: "Download", exact: true }).click()
+    const download = await pending,
+      bytes = await readFile(await download.path())
+    const inspected = await page.evaluate(async (bytes) => {
+      const { Processor } = await import("/src/processor.ts")
+      const worker = new Processor()
+      try {
+        return (await worker.run(Uint8Array.from(bytes), 1)).description
+      } finally {
+        worker.dispose()
+      }
+    }, Array.from(bytes))
+    assert.equal(inspected.pageCount, 3)
+    assert.equal(
+      inspected.parameters[
+        Object.keys(inspected.parameters).find(
+          (id) => inspected.parameters[id].parameter.binding.property === "stroke-color",
+        )
+      ].parameter.value,
+      "#884488",
+    )
+    assert.deepEqual(
+      inspected.pages.map((page) => page.name),
+      ["Chapter", "Cover", "Chapter"],
+    )
+    assert.equal(await output.locator(".composition-totals strong").textContent(), "3 pages")
+    const warnings = []
+    page.on("dialog", async (dialog) => {
+      warnings.push(dialog.type())
+      await dialog.dismiss()
+    })
+    await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
+    await page.locator(".drop-zone").waitFor()
+    assert.deepEqual(warnings, [], "Downloaded choices return Home without an unsaved warning")
+  } finally {
+    await browser.close()
+  }
+})
+
+test("First-action feedback respects reduced motion and enlarged phone text", { timeout: 30000 }, async () => {
+  const server = await serve(),
+    browser = await launch(chromium)
+  try {
+    for (const [width, text, reducedMotion] of [
+      [1440, "100%", "reduce"],
+      [390, "200%", "no-preference"],
+    ]) {
+      const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(server.resolvedUrls.local[0])
+      await page.evaluate((size) => (document.documentElement.style.fontSize = size), text)
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({ name: "Hint.pdf", mimeType: "application/pdf", buffer: fixture({ prepared: false }) })
+      await page.getByRole("button", { name: "Select Input page 1", exact: true }).scrollIntoViewIfNeeded()
+      const notice = page.locator(".header-feedback [role=status]").filter({ hasText: "Select pages" })
+      await notice.waitFor()
+      const bounds = await notice.boundingBox()
+      assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width + 1)
+      const flight = page.locator(".page-flight:popover-open")
+      if (reducedMotion === "reduce") assert.equal(await flight.count(), 0)
+      else {
+        await flight.waitFor()
+        await page.emulateMedia({ reducedMotion: "reduce" })
+        await flight.waitFor({ state: "hidden" })
+      }
+      await page.getByRole("button", { name: "Select Input page 1", exact: true }).dblclick()
+      await notice.waitFor({ state: "hidden" })
+      assert.match(await page.locator(".footnote [role=status]").innerText(), /Added 1 page/)
+      await page.close()
+    }
+  } finally {
+    await browser.close()
+  }
+})

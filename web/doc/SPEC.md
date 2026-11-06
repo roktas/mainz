@@ -126,9 +126,11 @@ TOC-derived Input detail headings show breadcrumbs; authored names retain a flat
 headings, filename and original page number, and the document Title when several Inputs contribute pages.
 
 The open-book Contents control navigates the Input outline in Grid, List, and Page without changing selection. Output
-has no Contents control. The independent Section headings button adds breadcrumb dividers at List section transitions in
-either pane. Output dividers include the document Title when several Inputs contribute pages. Dividers never merge rows
-or occurrences. The default List has no dividers.
+has no Contents control. Opening Contents reveals the current leaf, or its visible ancestor when the branch is
+collapsed. Only that entry announces the current location. Ancestors retain their visual emphasis. The independent
+Section headings button adds breadcrumb dividers at List section transitions in either pane. Output dividers include the
+document Title when several Inputs contribute pages. Dividers never merge rows or occurrences. The default List has no
+dividers.
 
 When several Inputs contribute to Output, List occurrence numbers have small source-color dots between the number and
 grip. Input's current file and chooser use the matching colors. Colors remain stable for each workspace source across
@@ -191,12 +193,11 @@ or dynamic Recipe lookup.
 | `?demo=empty`        | The same Input with no Selection and empty Output, including onboarding and the addition hint. |
 | `?demo=grid`         | 240-page Input and Output from 60 repetitions of the four sample pages.                        |
 | `?demo&paint`        | Style with the Filled profile, available only in development.                                  |
-| `/demo=toc`          | Flatland excerpts with hierarchical Contents and arranged Output.                              |
-| `/demo=toc-multiple` | Flatland and An Occurrence at Owl Creek Bridge, with pages from both Inputs in Output.         |
+| `?demo=toc`          | Flatland excerpts with hierarchical Contents and arranged Output.                              |
+| `?demo=toc-multiple` | Flatland and An Occurrence at Owl Creek Bridge, with pages from both Inputs in Output.         |
 
-Both TOC demos start with the default List and offer optional Section headings. Their query equivalents are `?demo=toc`
-and `?demo=toc-multiple`. The maintained public-domain reading PDFs have real embedded outlines and no authored page
-names.
+Both TOC demos start with the default List and offer optional Section headings. The maintained public-domain reading
+PDFs have real embedded outlines and no authored page names.
 
 On every screen, three or more quick clicks or taps on the upper-left logo open the examples dialog. It lists Single
 demo, Large demo, TOC demo, TOCs demo, Recipe demo, and Empty demo, in that order. The workspace also offers Welcome
