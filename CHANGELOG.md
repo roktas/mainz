@@ -4,8 +4,10 @@
 
 ### Added
 
-- TOC display titles, compact Input navigation, optional List section breadcrumbs, and source-color dots for
-  multiple-Input Output, with single and multiple demos.
+- Collapsible List sections with block selection and dragging, section addition or copying, and first-page viewing.
+  Sections start closed when the expanded list exceeds the pane height, with a toolbar toggle for all sections.
+- TOC display titles, compact Input navigation, List section headings, and source-color dots for multiple-Input Output,
+  with single and multiple demos.
 - Compact public-domain TOC samples. All demo documents download on demand and use a separate, bounded offline cache.
 - Recipe loading from the landing page, with saved Input titles, embedded covers, XMP details, local PDF matching, and a
   separate Recipe demo. Loaded profiles, manual edits, and baseline resets remain editable and exportable.

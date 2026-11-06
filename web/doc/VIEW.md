@@ -415,14 +415,26 @@ with the first text line and the Contents heading edge in both states. Use TOC t
 it changes a page's display title. When enlarged text leaves insufficient header width, move the complete Expand all /
 Collapse all control below the title and close button.
 
-List defaults to uninterrupted page rows. Section headings adds breadcrumb dividers in List only, independently in each
-pane. Its icon sits immediately left of Input Contents; its active state uses color without an underline. Long
-breadcrumb segments use an ellipsis and open their full title on click, touch, or keyboard activation. TOC-derived Input
-detail headings use the same breadcrumbs. Output details retain flat headings. Copy mappings use one line such as
-`Output · 2× → 2, 9`, without repeated leaf titles or inferred-range explanations. When a TOC-derived Input row covers
-several sections, a separate small `3 sections` button follows the page name. It opens all section paths in the page
-details and remains visible when the name truncates. Its text uses normal casing, without becoming part of the page name
-or changing selection.
+List shows collapsible section headings when section titles are available. Section rows use the page rows' columns: a
+filled disclosure triangle, a drag grip, the heading, and + and View actions. Heading text uses the same size and small
+caps as page names, with the same starting edge. Its disclosure arrow shows expansion, and its soft background separates
+the section. Text and disclosure glyphs share the row's vertical center. The triangle uses the primary color and points
+right to expand a closed section or down to collapse an open section. It retains a transparent 44 px interaction target.
+The List reserves scrollbar space so that folding does not move its columns. The toolbar uses overlapping pages with a
+minus or plus to collapse or expand all sections.
+
+The heading button toggles selection, including with Enter or Space. A fully selected closed section uses the primary
+background. A fully selected open section keeps secondary text, a soft primary tint, and a narrow primary leading mark.
+Its members retain their selected page appearance. The grip only starts dragging; a drag selects the group and shows a
+page stack. The + action appears on hover or keyboard focus and stays visible with a touch pointer. Mouse focus alone
+does not keep it visible. An always-visible Unselect tick replaces + when all members are selected. View remains visible
+and shares the page rows' trailing column. Long headings wrap.
+
+TOC-derived Input detail headings retain breadcrumbs with full-title popovers. Output details retain flat headings. Copy
+mappings use one line such as `Output · 2× → 2, 9`, without repeated leaf titles or inferred-range explanations. When a
+TOC-derived Input row covers several sections, a separate small `3 sections` button follows the page name. It opens all
+section paths in the page details and remains visible when the name truncates. Its text uses normal casing, without
+becoming part of the page name or changing selection.
 
 The section used as the display title remains the bold detail heading. Other paths follow below its separator in
 regular-weight, muted text, so the distinction survives without color.
@@ -1145,7 +1157,7 @@ Grid density controls sit outside the tab list. The mobile view switcher uses bu
 | List view         | Liste görünümü       | The row view of Input pages or Output occurrences with page numbers and supplied names. |
 | Page name caption | Sayfa adı açıklaması | The supplied page name below the Page image frame, or in a Grid header tooltip.         |
 | Contents          | İçindekiler          | Input's embedded PDF outline navigation, opened with the open-book icon.                |
-| Section headings  | Bölüm başlıkları     | The optional List breadcrumb dividers and their toolbar toggle.                         |
+| Section headings  | Bölüm başlıkları     | The collapsible List section rows with block selection, addition or copying, and View.  |
 | Section path      | Bölüm yolu           | A breadcrumb from ancestor headings to a section, with expandable full titles.          |
 | Section count     | Bölüm sayacı         | The List button that opens all section paths sharing one Input page.                    |
 | Source marker     | Kaynak işareti       | A small color dot identifying an Input and its Output List occurrences.                 |

@@ -109,7 +109,6 @@
     }
   }
   const initialView: InputView = {
-    grouped: false,
     tocTitles: false,
     returnTo: "grid",
     tab: untrack(() => initial.input),
@@ -126,12 +125,14 @@
   let inputControls = $state<Controls>("all")
   let outputControls = $state<Controls>("all")
   let inputPage = $state<ReturnType<typeof PageView>>()
+  let inputList = $state<ReturnType<typeof List>>()
+  let outputList = $state<ReturnType<typeof List>>()
+  let outputFolds = $state<ReadonlySet<string>>()
   let outputPage = $state<ReturnType<typeof PageView>>()
   let outputPageInitialized = $state(false)
   let outputDensity = $state<"normal" | "compact">("normal")
-  let outputGrouped = $state(false)
   const tocTitlesRevision = $derived(sources.map((item) => !!inputViews[item.id]?.tocTitles).join(","))
-  const outputListRevision = $derived({ pages: output.pages, grouped: outputGrouped, titles: tocTitlesRevision })
+  const outputListRevision = $derived({ pages: output.pages, titles: tocTitlesRevision })
   const outputCompact = $derived(outputDensity === "compact")
   let outputOffset = $state(0)
   let outputText = $state<string>()
@@ -440,7 +441,7 @@
     return "source" in content ? displayName(provenance(content), content.page) : undefined
   }
   function inputHeading(page: number) {
-    return inputTitle(page)?.heading ?? []
+    return source ? titlesOf(source.input).at(page).heading : []
   }
   function outputHeading(content: Content) {
     if (!("source" in content)) return []
@@ -453,7 +454,12 @@
     const value = transfer.value
     if (!value) return ""
     if (value.kind === "source") {
-      const page = value.choice.kind === "page" ? value.choice.page : parsed.pages[0]
+      const page =
+        value.choice.kind === "page"
+          ? value.choice.page
+          : value.choice.kind === "pages"
+            ? value.choice.pages[0]
+            : parsed.pages[0]
       return (
         displayName(
           sources.find((item) => item.id === value.source),
@@ -567,6 +573,29 @@
       outputText = undefined
     }
   }
+  function sectionSelected(pane: "Input" | "Output", first: number, end: number) {
+    for (let index = first; index < end; index++)
+      if (pane === "Input" ? !inputSelected.has(index) : !selectedIds.has(output.pages[index]?.id)) return false
+    return true
+  }
+  function selectSection(pane: "Input" | "Output", first: number, end: number) {
+    const indices = Array.from({ length: end - first }, (_, index) => first + index)
+    if (pane === "Input") {
+      const deselect = indices.every((index) => inputSelected.has(index))
+      const retained = draft.pages.filter((index) => index < first || index >= end)
+      numbers(pageRanges(deselect ? retained : [...retained, ...indices]))
+    } else {
+      const selected = new Set(output.selection)
+      const ids = indices.map((index) => output.pages[index].id)
+      const deselect = ids.every((id) => selected.has(id))
+      for (const id of ids) {
+        if (deselect) selected.delete(id)
+        else selected.add(id)
+      }
+      output.select(selected)
+      outputText = undefined
+    }
+  }
   function clearInput() {
     if (!source) return
     if (highlight?.kind === "source") highlightRange()
@@ -624,7 +653,14 @@
     highlightRange()
     inputClick = undefined
   }
-  function removal(node: Element, id: string) {
+  function removal(node: HTMLElement) {
+    // A virtual row's reactive scope can be gone before its exit starts.
+    const id = node.id.slice(key.length + 1)
+    if (removing.has(id)) {
+      node.inert = true
+      node.setAttribute("aria-hidden", "true")
+      node.classList.add("removing")
+    }
     return feedback.transition(node, id)
   }
   function cancelMotion() {
@@ -865,7 +901,15 @@
   function drop(value: Payload, at: number) {
     if (value.kind === "source")
       return (
-        value.source === source?.id && !!add(at, value.choice.kind === "preparation" ? undefined : [value.choice.page])
+        value.source === source?.id &&
+        !!add(
+          at,
+          value.choice.kind === "preparation"
+            ? undefined
+            : value.choice.kind === "pages"
+              ? value.choice.pages
+              : [value.choice.page],
+        )
       )
     if (transfer.blocked) return true
     const id = value.ids[0]
@@ -889,10 +933,18 @@
       return
     }
     if (value.kind === "source" && value.source !== source?.id) return
-    if (value.kind === "source" && value.choice.kind === "page" && inputSelected.has(value.choice.page)) {
+    const section = control.closest(".list-section")
+    if (section) {
+      if (value.kind === "source" && value.choice.kind === "pages") numbers(pageRanges(value.choice.pages))
+      else if (value.kind === "output") {
+        output.select(value.ids)
+        outputText = undefined
+      }
+    }
+    if (!section && value.kind === "source" && value.choice.kind === "page" && inputSelected.has(value.choice.page)) {
       if (activeTab === "grid") inspectInput({ position: value.choice.page })
       value = inputPayload()
-    } else if (value.kind === "output" && selectedIds.has(value.ids[0])) {
+    } else if (!section && value.kind === "output" && selectedIds.has(value.ids[0])) {
       if (outputSelectionError) {
         event.preventDefault()
         return
@@ -909,12 +961,20 @@
     const quantity =
       value.kind === "output"
         ? value.ids.length
-        : value.choice.kind === "preparation"
-          ? parsed.pages.length * parseCopies(draft.repeat)!
-          : 1
+        : value.choice.kind === "pages"
+          ? value.choice.pages.length
+          : value.choice.kind === "preparation"
+            ? parsed.pages.length * parseCopies(draft.repeat)!
+            : 1
     const size =
       value.kind === "source"
-        ? source?.input.sizes[value.choice.kind === "page" ? value.choice.page : parsed.pages[0]]
+        ? source?.input.sizes[
+            value.choice.kind === "page"
+              ? value.choice.page
+              : value.choice.kind === "pages"
+                ? value.choice.pages[0]
+                : parsed.pages[0]
+          ]
         : output.pages.find((page) => value.kind === "output" && value.ids.includes(page.id))?.content
     const preparation = value.kind === "source" && value.choice.kind === "preparation"
     const draggingPage = Number(
@@ -965,6 +1025,99 @@
     document.querySelector<HTMLElement>(".help-tour:popover-open")?.hidePopover()
   }
 </script>
+
+{#snippet dropPreview(after: boolean)}
+  <div
+    class="list-drop-preview"
+    data-drop={after ? "after" : "before"}
+    aria-hidden="true"
+    style:--drop-height={`${transfer.stripHeight}px`}
+  >
+    <strong class="drop-number">{transfer.destination! + 1}</strong>
+    <span class="drop-name">{transferName()}</span>{#if transfer.quantity > 1}<span>×{transfer.quantity}</span>{/if}
+  </div>
+{/snippet}
+
+{#snippet sectionRow(
+  pane: "Input" | "Output",
+  first: number,
+  end: number,
+  path: readonly string[],
+  expanded: boolean,
+  toggle: () => void,
+)}
+  {@const name = path.join(" › ")}
+  {@const indices = Array.from({ length: end - first }, (_, index) => first + index)}
+  {@const selected = sectionSelected(pane, first, end)}
+  {@const payload: Payload = pane === "Input" ? { kind: "source", source: source!.id, choice: { kind: "pages", pages: indices } } : { kind: "output", ids: indices.map((index) => output.pages[index].id) }}
+  {#if pane === "Output" && !expanded && transfer.inside && !transfer.blocked && ((transfer.targetIndex === first && !transfer.targetAfter) || (transfer.targetIndex === end - 1 && transfer.targetAfter))}
+    {@render dropPreview(transfer.targetAfter)}
+  {/if}
+  <button
+    type="button"
+    class="list-disclosure icon-button"
+    aria-label={`${expanded ? "Collapse" : "Expand"} ${pane} section: ${name}`}
+    aria-expanded={expanded}
+    title={`${expanded ? "Collapse" : "Expand"} section`}
+    onclick={toggle}><Icon name="triangle" /></button
+  >
+  <button
+    type="button"
+    class="page-grip icon-button"
+    aria-label={`Drag ${pane} section: ${name}`}
+    title={pane === "Input" ? "Drag section to Output" : "Drag to move section"}
+    draggable="true"
+    onmousedown={retainFocus}
+    ondragstart={(event) => start(event, payload)}
+    onpointerdown={(event) => transfer.press(event, payload)}
+    ondragend={() => transfer.end()}><Icon name="reorder" /></button
+  >
+  <button
+    type="button"
+    class="list-heading"
+    aria-pressed={selected}
+    title={`Select or unselect section: ${name}`}
+    onclick={() => selectSection(pane, first, end)}><span>{name}</span></button
+  >
+  <div class="list-actions">
+    {#if selected}<button
+        type="button"
+        class="icon-button list-unselect"
+        aria-label={`Unselect ${pane} section: ${name}`}
+        aria-pressed="true"
+        title="Unselect section"
+        onclick={() => selectSection(pane, first, end)}><Icon name="select" /></button
+      >{:else}<button
+        type="button"
+        class="icon-button list-add"
+        aria-label={`${pane === "Input" ? "Add Input" : "Copy Output"} section: ${name}`}
+        title={pane === "Input" ? "Add section to Output" : "Copy section"}
+        disabled={pane === "Output" && !!outputSelectionError}
+        onclick={() =>
+          pane === "Input"
+            ? add(undefined, indices, "keep")
+            : duplicate(
+                indices.map((index) => output.pages[index].id),
+                "keep",
+              )}><Icon name="add" /></button
+      >{/if}
+    <button
+      type="button"
+      class="icon-button"
+      aria-label={`View ${pane} section: ${name}`}
+      title="View first page of section"
+      onclick={(event) => {
+        if (pane === "Input") {
+          inspectInput({ position: first })
+          inputTab("page", event)
+        } else {
+          output.position = first
+          setOutputTab("page", event)
+        }
+      }}><Icon name="eye" /></button
+    >
+  </div>
+{/snippet}
 
 <svelte:window
   onpointermove={transfer.moveTouch}
@@ -1529,15 +1682,15 @@
                   ></span>{/if}</button
               >{/if}
           </div>
-          {#if activeTab === "list" && source.input.outline?.length}<button
+          {#if activeTab === "list" && inputList && inputList.sectionState() !== "none"}<button
+              type="button"
               class="icon-button"
-              aria-label="Section headings"
-              aria-pressed={inputView.grouped}
-              title={inputView.grouped ? "Hide section headings" : "Show section headings"}
-              onclick={() => {
-                inspectInput({ grouped: !inputView.grouped })
-                void interaction.reveal("Input")
-              }}><Icon name="sections" /></button
+              aria-label={inputList?.sectionState() === "closed"
+                ? "Expand all Input sections"
+                : "Collapse all Input sections"}
+              title={inputList?.sectionState() === "closed" ? "Expand all sections" : "Collapse all sections"}
+              onclick={() => inputList?.toggleSections()}
+              ><Icon name={inputList?.sectionState() === "closed" ? "expand" : "collapse"} /></button
             >{/if}
           {#if activeTab === "grid"}{@render gridDensity("Input", inputCompact)}{/if}
           {#if activeTab === "style" && styling}{@render styling(true)}{/if}
@@ -1548,6 +1701,7 @@
               {titleChoice}
               bind:tocTitles={() => inputView.tocTitles, (tocTitles) => inspectInput({ tocTitles })}
               navigate={(position) => {
+                inputList?.expand(position)
                 inspectInput({ position })
                 void interaction.reveal("Input")
               }}
@@ -1655,72 +1809,75 @@
                   />{/key}
               {:else if activeTab === "list"}
                 {#key source.id}<List
+                    bind:this={inputList}
+                    bind:folds={() => inputView.folds, (folds) => inspectInput({ folds })}
                     pane="Input"
-                    revision={`${inputView.grouped}:${inputView.tocTitles}`}
+                    revision={inputView.tocTitles}
+                    heading={inputHeading}
+                    selected={(first, end) => sectionSelected("Input", first, end)}
                     {count}
                     bind:position={() => inputPosition, (position) => inspectInput({ position })}
                     select={toggle}
                     edit={(action, page) => action === "add" && !!add(undefined, inputTargets(page))}
                   >
-                    {#snippet children(indices, retained)}
-                      {#each indices as page (page)}
-                        <li
-                          class="list-row"
-                          data-retained={page === retained || undefined}
-                          aria-setsize={count}
-                          aria-posinset={page + 1}
-                          data-returning={(interaction.returning?.kind === "source" &&
-                            interaction.returning.source === source.id &&
-                            interaction.returning.page === page) ||
-                            undefined}
-                          class:selected={inputSelected.has(page)}
-                          data-dragging={(transfer.value?.kind === "source" &&
-                            transfer.value.source === source.id &&
-                            (transfer.value.choice.kind === "preparation"
-                              ? inputSelected.has(page)
-                              : transfer.value.choice.page === page)) ||
-                            undefined}
+                    {#snippet section(start, end, path, expanded, toggle)}
+                      {@render sectionRow("Input", start, end, path, expanded, toggle)}
+                    {/snippet}
+                    {#snippet children(page, retained)}
+                      <li
+                        class="list-row"
+                        data-retained={page === retained || undefined}
+                        aria-setsize={count}
+                        aria-posinset={page + 1}
+                        data-returning={(interaction.returning?.kind === "source" &&
+                          interaction.returning.source === source.id &&
+                          interaction.returning.page === page) ||
+                          undefined}
+                        class:selected={inputSelected.has(page)}
+                        data-dragging={(transfer.value?.kind === "source" &&
+                          transfer.value.source === source.id &&
+                          (transfer.value.choice.kind === "page"
+                            ? transfer.value.choice.page === page
+                            : transfer.value.choice.kind === "pages"
+                              ? transfer.value.choice.pages.includes(page)
+                              : inputSelected.has(page))) ||
+                          undefined}
+                      >
+                        <Row
+                          pane="Input"
+                          number={page + 1}
+                          index={page}
+                          id={`${key}-list-input-${page}`}
+                          name={inputName(page)}
+                          label={inputName(page) ?? `Page ${page + 1}`}
+                          sections={inputTitle(page)?.paths?.length ?? 0}
+                          selected={inputSelected.has(page)}
+                          touch={interaction.touchPointer}
+                          {transfer}
+                          payload={inputPayload(page)}
+                          {start}
+                          inspect={() => inspectInput({ position: page })}
+                          toggle={(range) => toggle(page, range)}
+                          select={(event) => {
+                            if (!source) return
+                            const id = source.id
+                            const previous = draft
+                            const anchor = sourceAnchor
+                            selectInput(page, event)
+                            return () => {
+                              if (source?.id !== id) return
+                              choose(id, previous)
+                              sourceAnchor = anchor
+                              highlightRange()
+                            }
+                          }}
+                          open={(event) => void interaction.toggleView("Input", event)}
                         >
-                          <Row
-                            pane="Input"
-                            number={page + 1}
-                            index={page}
-                            id={`${key}-list-input-${page}`}
-                            name={inputName(page)}
-                            label={inputName(page) ?? `Page ${page + 1}`}
-                            sections={inputTitle(page)?.paths?.length ?? 0}
-                            heading={inputView.grouped &&
-                            (page === 0 || inputHeading(page).join(" › ") !== inputHeading(page - 1).join(" › "))
-                              ? inputHeading(page)
-                              : undefined}
-                            selected={inputSelected.has(page)}
-                            touch={interaction.touchPointer}
-                            {transfer}
-                            payload={inputPayload(page)}
-                            {start}
-                            inspect={() => inspectInput({ position: page })}
-                            toggle={(range) => toggle(page, range)}
-                            select={(event) => {
-                              if (!source) return
-                              const id = source.id
-                              const previous = draft
-                              const anchor = sourceAnchor
-                              selectInput(page, event)
-                              return () => {
-                                if (source?.id !== id) return
-                                choose(id, previous)
-                                sourceAnchor = anchor
-                                highlightRange()
-                              }
-                            }}
-                            open={(event) => void interaction.toggleView("Input", event)}
-                          >
-                            {#snippet origin()}{@render inputOrigin(page, `${key}-list-input-${page}`)}{/snippet}
-                            {#snippet actions()}{@render inputPageActions(page)}{/snippet}
-                            {#snippet preview()}{@render inputPeek(page)}{/snippet}
-                          </Row>
-                        </li>
-                      {/each}
+                          {#snippet origin()}{@render inputOrigin(page, `${key}-list-input-${page}`)}{/snippet}
+                          {#snippet actions()}{@render inputPageActions(page)}{/snippet}
+                          {#snippet preview()}{@render inputPeek(page)}{/snippet}
+                        </Row>
+                      </li>
                     {/snippet}
                   </List>{/key}
               {:else}
@@ -1919,15 +2076,15 @@
               data-tour-active={tour === `output-${tab}`}><Icon name={tab} /><span>{viewLabels[tab]}</span></button
             >{/each}
         </div>
-        {#if activeOutputTab === "list"}<button
+        {#if activeOutputTab === "list" && outputList && outputList.sectionState() !== "none"}<button
+            type="button"
             class="icon-button"
-            aria-label="Section headings"
-            aria-pressed={outputGrouped}
-            title={outputGrouped ? "Hide section headings" : "Show section headings"}
-            onclick={() => {
-              outputGrouped = !outputGrouped
-              void interaction.reveal("Output")
-            }}><Icon name="sections" /></button
+            aria-label={outputList?.sectionState() === "closed"
+              ? "Expand all Output sections"
+              : "Collapse all Output sections"}
+            title={outputList?.sectionState() === "closed" ? "Expand all sections" : "Collapse all sections"}
+            onclick={() => outputList?.toggleSections()}
+            ><Icon name={outputList?.sectionState() === "closed" ? "expand" : "collapse"} /></button
           >{/if}
         {#if activeOutputTab === "grid"}{@render gridDensity("Output", outputCompact)}{/if}
       </div>
@@ -2009,7 +2166,9 @@
                       : `Move ${transfer.value.ids.length} pages`
                     : transfer.value.choice.kind === "preparation"
                       ? "Add sequence"
-                      : `Add Input page ${transfer.value.choice.page + 1}`}</strong
+                      : transfer.value.choice.kind === "pages"
+                        ? `Add ${transfer.value.choice.pages.length} pages`
+                        : `Add Input page ${transfer.value.choice.page + 1}`}</strong
                 >
                 <span class="drop-description">
                   · {transfer.blocked
@@ -2067,9 +2226,14 @@
             </div>
           {:else if activeOutputTab === "list" && output.pages.length}
             <List
+              bind:this={outputList}
+              bind:folds={outputFolds}
               pane="Output"
               count={output.pages.length}
               revision={outputListRevision}
+              heading={(index) => outputHeading(output.pages[index].content)}
+              selected={(first, end) => sectionSelected("Output", first, end)}
+              identity={(index) => output.pages[index].id}
               skipped={skippedRows}
               retained={retainedRow}
               bind:position={output.position}
@@ -2080,104 +2244,86 @@
                 return !!(action === "remove" ? remove(ids) : duplicate(ids))
               }}
             >
-              {#snippet children(indices, retained)}
-                {#each indices.map((index) => output.pages[index]) as page (page.id)}
-                  {@const index = output.positions.get(page.id)!}
-                  {@const dropHere =
-                    !transfer.blocked &&
-                    transfer.inside &&
-                    (transfer.targetIndex === index ||
-                      (transfer.target.kind === "append" && index === output.pages.length - 1))}
-                  {@const dropAfter = transfer.targetAfter || transfer.target.kind === "append"}
-                  <li
+              {#snippet section(start, end, path, expanded, toggle)}
+                {@render sectionRow("Output", start, end, path, expanded, toggle)}
+              {/snippet}
+              {#snippet children(index, retained)}
+                {@const page = output.pages[index]}
+                {@const dropHere =
+                  !transfer.blocked &&
+                  transfer.inside &&
+                  (transfer.targetIndex === index ||
+                    (transfer.target.kind === "append" && index === output.pages.length - 1))}
+                {@const dropAfter = transfer.targetAfter || transfer.target.kind === "append"}
+                <li
+                  id={`${key}-${page.id}`}
+                  class="list-row"
+                  aria-setsize={output.pages.length}
+                  aria-posinset={index + 1}
+                  data-retained={index === retained || undefined}
+                  data-returning={(interaction.returning?.kind === "output" && interaction.returning.id === page.id) ||
+                    undefined}
+                  class:range-highlight={highlight?.kind === "output" && highlight.ids.has(page.id)}
+                  data-index={index}
+                  class:selected={selectedIds.has(page.id)}
+                  data-dragging={transfer.moving(page.id) || undefined}
+                  data-drop={dropHere ? (dropAfter ? "after" : "before") : undefined}
+                  data-arriving={arriving.has(page.id) || undefined}
+                  style:--drop-height={`${transfer.stripHeight}px`}
+                  onanimationend={(event) => {
+                    if (event.target === event.currentTarget && event.animationName === "row-enter")
+                      arriving.delete(page.id)
+                  }}
+                  out:removal|global
+                  ondragover={(event) => transfer.over(event, index)}
+                  ondrop={(event) => transfer.drop(event)}
+                >
+                  {#if dropHere}
+                    {@render dropPreview(dropAfter)}
+                  {/if}
+                  <Row
+                    pane="Output"
+                    number={index + 1}
+                    {index}
                     id={`${key}-${page.id}`}
-                    class="list-row"
-                    aria-setsize={output.pages.length}
-                    aria-posinset={index + 1}
-                    data-retained={index === retained || undefined}
-                    data-returning={(interaction.returning?.kind === "output" &&
-                      interaction.returning.id === page.id) ||
-                      undefined}
-                    class:range-highlight={highlight?.kind === "output" && highlight.ids.has(page.id)}
-                    data-index={index}
-                    class:selected={selectedIds.has(page.id)}
-                    data-dragging={transfer.moving(page.id) || undefined}
-                    data-drop={dropHere ? (dropAfter ? "after" : "before") : undefined}
-                    data-arriving={arriving.has(page.id) || undefined}
-                    style:--drop-height={`${transfer.stripHeight}px`}
-                    onanimationend={(event) => {
-                      if (event.target === event.currentTarget && event.animationName === "row-enter")
-                        arriving.delete(page.id)
-                    }}
-                    out:removal|global={page.id}
-                    onoutrostart={(event) => {
-                      if (removing.has(page.id)) {
-                        event.currentTarget.inert = true
-                        event.currentTarget.setAttribute("aria-hidden", "true")
-                        event.currentTarget.classList.add("removing")
+                    name={pageName(page.content)}
+                    label={pageName(page.content) ??
+                      ("blank" in page.content
+                        ? page.padding
+                          ? "Padding"
+                          : "Blank"
+                        : `Page ${page.content.page + 1}`)}
+                    selected={selectedIds.has(page.id)}
+                    touch={interaction.touchPointer}
+                    {transfer}
+                    payload={{ kind: "output", ids: [page.id] }}
+                    {start}
+                    inspect={() => (output.position = index)}
+                    toggle={(range) => selectOutput(page.id, range)}
+                    select={(event) => {
+                      output.position = index
+                      if (touchPage("Output", event)) return
+                      if (event.ctrlKey || event.metaKey) {
+                        void interaction.toggleView("Output", event)
+                        return
+                      }
+                      const selected = output.selection
+                      const anchor = output.anchor
+                      const text = outputText
+                      selectOutput(page.id, event.shiftKey)
+                      return () => {
+                        output.select([...selected], anchor)
+                        outputText = text
+                        highlightRange()
                       }
                     }}
-                    ondragover={(event) => transfer.over(event, index)}
-                    ondrop={(event) => transfer.drop(event)}
+                    open={(event) => void interaction.toggleView("Output", event)}
                   >
-                    {#if dropHere}
-                      <div class="list-drop-preview" aria-hidden="true">
-                        <strong class="drop-number">{transfer.destination! + 1}</strong>
-                        <span class="drop-name">{transferName()}</span>{#if transfer.quantity > 1}<span
-                            >×{transfer.quantity}</span
-                          >{/if}
-                      </div>
-                    {/if}
-                    <Row
-                      pane="Output"
-                      number={index + 1}
-                      {index}
-                      id={`${key}-${page.id}`}
-                      name={pageName(page.content)}
-                      heading={outputGrouped &&
-                      (index === 0 ||
-                        outputHeading(page.content).join(" › ") !==
-                          outputHeading(output.pages[index - 1].content).join(" › "))
-                        ? outputHeading(page.content)
-                        : undefined}
-                      label={pageName(page.content) ??
-                        ("blank" in page.content
-                          ? page.padding
-                            ? "Padding"
-                            : "Blank"
-                          : `Page ${page.content.page + 1}`)}
-                      selected={selectedIds.has(page.id)}
-                      touch={interaction.touchPointer}
-                      {transfer}
-                      payload={{ kind: "output", ids: [page.id] }}
-                      {start}
-                      inspect={() => (output.position = index)}
-                      toggle={(range) => selectOutput(page.id, range)}
-                      select={(event) => {
-                        output.position = index
-                        if (touchPage("Output", event)) return
-                        if (event.ctrlKey || event.metaKey) {
-                          void interaction.toggleView("Output", event)
-                          return
-                        }
-                        const selected = output.selection
-                        const anchor = output.anchor
-                        const text = outputText
-                        selectOutput(page.id, event.shiftKey)
-                        return () => {
-                          output.select([...selected], anchor)
-                          outputText = text
-                          highlightRange()
-                        }
-                      }}
-                      open={(event) => void interaction.toggleView("Output", event)}
-                    >
-                      {#snippet origin()}{@render outputOrigin(page, index)}{/snippet}
-                      {#snippet actions()}{@render occurrenceActions(page, index, true)}{/snippet}
-                      {#snippet preview()}{@render outputPeek(page, index)}{/snippet}
-                    </Row>
-                  </li>
-                {/each}
+                    {#snippet origin()}{@render outputOrigin(page, index)}{/snippet}
+                    {#snippet actions()}{@render occurrenceActions(page, index, true)}{/snippet}
+                    {#snippet preview()}{@render outputPeek(page, index)}{/snippet}
+                  </Row>
+                </li>
               {/snippet}
             </List>
           {:else}
@@ -2208,14 +2354,7 @@
                         interaction.returning.id === page.id) ||
                         undefined}
                       class:range-highlight={highlight?.kind === "output" && highlight.ids.has(page.id)}
-                      out:removal|global={page.id}
-                      onoutrostart={(event) => {
-                        if (removing.has(page.id)) {
-                          event.currentTarget.inert = true
-                          event.currentTarget.setAttribute("aria-hidden", "true")
-                          event.currentTarget.classList.add("removing")
-                        }
-                      }}
+                      out:removal|global
                       onoutroend={(event) => {
                         const grid = event.currentTarget.parentElement
                         if (grid && removing.has(page.id) && !feedback.move) feedback.move = animateOrder(grid, 350)

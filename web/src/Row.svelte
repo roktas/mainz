@@ -5,7 +5,6 @@
   import { retainFocus } from "./drag.ts"
   import type { Transfer, Payload } from "./transfer.svelte.ts"
   import Icon from "./Icon.svelte"
-  import Breadcrumb from "./Breadcrumb.svelte"
 
   let {
     pane,
@@ -15,7 +14,6 @@
     name,
     label,
     sections = 0,
-    heading,
     selected,
     touch,
     transfer,
@@ -36,7 +34,6 @@
     name?: string
     label: string
     sections?: number
-    heading?: readonly string[]
     selected: boolean
     touch: boolean
     transfer: Transfer
@@ -58,7 +55,6 @@
   }
 </script>
 
-{#if heading?.length}<div class="list-section"><Breadcrumb path={heading} /></div>{/if}
 <div class="list-number">{@render origin()}</div>
 <button
   class="page-grip icon-button"

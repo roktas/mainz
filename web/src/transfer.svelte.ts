@@ -4,7 +4,11 @@ import { createDragImage } from "./drag.ts"
 import type { Page, Size } from "./model.ts"
 
 export type Payload =
-  | { kind: "source"; source: string; choice: { kind: "preparation" } | { kind: "page"; page: number } }
+  | {
+      kind: "source"
+      source: string
+      choice: { kind: "preparation" } | { kind: "page"; page: number } | { kind: "pages"; pages: readonly number[] }
+    }
   | { kind: "output"; ids: readonly string[] }
 
 type Contact = {
@@ -327,24 +331,29 @@ export class Transfer {
       list.scrollBy({ top: delta, behavior: "instant" })
       if (list.scrollTop === before) return
       const row = this.#rowAt(list, point.y)
-      if (row) {
-        const box = this.#choiceBounds(list, row)
-        this.#place(Number(row.dataset.index), point.y >= box.top + box.height / 2)
-      }
+      if (row) this.#placeRow(list, row, point.y)
       this.#scrollFrame = requestAnimationFrame(scroll)
     }
     this.#scrollFrame = requestAnimationFrame(scroll)
   }
   #choiceBounds(list: HTMLElement, row: HTMLElement) {
-    const choice = row.querySelector<HTMLElement>(".list-choice")!
+    const choice = row.querySelector<HTMLElement>(".list-choice, .list-heading")!
     return {
       top: list.getBoundingClientRect().top - list.scrollTop + row.offsetTop + choice.offsetTop,
       height: choice.offsetHeight,
     }
   }
+  #placeRow(list: HTMLElement, row: HTMLElement, y: number) {
+    const bounds = this.#choiceBounds(list, row)
+    const after =
+      y >= bounds.top + bounds.height / 2 && (!row.matches(".list-section") || row.dataset.end !== undefined)
+    this.#place(Number(after ? (row.dataset.end ?? row.dataset.index) : row.dataset.index), after)
+  }
   #rowAt(list: HTMLElement, y: number) {
     const local = y - list.getBoundingClientRect().top + list.scrollTop
-    const rows = list.querySelectorAll<HTMLElement>(":scope > .list-row:not(.removing):not([data-dragging])")
+    const rows = list.querySelectorAll<HTMLElement>(
+      ":scope > :is(.list-row, .list-section):not(.removing):not([data-dragging])",
+    )
     let first = 0,
       last = rows.length
     while (first < last) {
@@ -371,10 +380,8 @@ export class Transfer {
       // Keep an open insertion slot stable while its neighbors are moving.
       if (!slot || event.clientY < top! || event.clientY > top! + slot.offsetHeight) {
         const row = this.#rowAt(list, event.clientY)
-        if (row) {
-          const bounds = this.#choiceBounds(list, row)
-          this.#place(Number(row.dataset.index), event.clientY >= bounds.top + bounds.height / 2)
-        } else this.#place()
+        if (row) this.#placeRow(list, row, event.clientY)
+        else this.#place()
       }
       this.#scrollList(list, event)
       if (this.#active?.image?.image.hasAttribute("data-strip")) this.#placeImage(event.clientX, event.clientY)

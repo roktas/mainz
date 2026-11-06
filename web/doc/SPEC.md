@@ -127,10 +127,18 @@ headings, filename and original page number, and the document Title when several
 
 The open-book Contents control navigates the Input outline in Grid, List, and Page without changing selection. Output
 has no Contents control. Opening Contents reveals the current leaf, or its visible ancestor when the branch is
-collapsed. Only that entry announces the current location. Ancestors retain their visual emphasis. The independent
-Section headings button adds breadcrumb dividers at List section transitions in either pane. Output dividers include the
-document Title when several Inputs contribute pages. Dividers never merge rows or occurrences. The default List has no
-dividers.
+collapsed. Only that entry announces the current location. Ancestors retain their visual emphasis. List adds collapsible
+headings at section transitions in either pane. Output headings include the document Title when several Inputs
+contribute pages. A heading controls the consecutive rows until the next section. Its triangle hides or reveals those
+rows without changing selection, page numbers, or Output. Clicking the heading text selects or unselects all section
+members. Its grip starts a drag that selects the complete section and shows a page stack. Input sections copy to Output;
+Output sections move together. A closed section accepts a drop before or after its complete group.
+
+The + action adds an Input section to Output or copies an Output section. When all members are selected, an Unselect
+action replaces +. View opens the section's first page without changing selection. On the first List opening, sections
+start closed if the expanded list exceeds the pane height. Otherwise, sections start open. Each pane retains expansion
+choices across view changes and resizing. The toolbar button toggles all sections between open and closed. Contents
+navigation reveals a collapsed destination. Lists without sections retain uninterrupted page rows.
 
 When several Inputs contribute to Output, List occurrence numbers have small source-color dots between the number and
 grip. Input's current file and chooser use the matching colors. Colors remain stable for each workspace source across
@@ -196,8 +204,8 @@ or dynamic Recipe lookup.
 | `?demo=toc`          | Flatland excerpts with hierarchical Contents and arranged Output.                              |
 | `?demo=toc-multiple` | Flatland and An Occurrence at Owl Creek Bridge, with pages from both Inputs in Output.         |
 
-Both TOC demos start with the default List and offer optional Section headings. The maintained public-domain reading
-PDFs have real embedded outlines and no authored page names.
+Both TOC demos start in List with section headings. The maintained public-domain reading PDFs have real embedded
+outlines and no authored page names.
 
 On every screen, three or more quick clicks or taps on the upper-left logo open the examples dialog. It lists Single
 demo, Large demo, TOC demo, TOCs demo, Recipe demo, and Empty demo, in that order. The workspace also offers Welcome

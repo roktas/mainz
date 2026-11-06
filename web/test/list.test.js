@@ -9,6 +9,302 @@ import { serve } from "./server.ts"
 import { tab, fixture } from "./browser.js"
 import { gridDensity } from "./measure.js"
 
+test(
+  "List section controls fold rows, select blocks, copy pages, and open their first page",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    for (const engine of [chromium, webkit]) {
+      const browser = await launch(engine)
+      try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        await page
+          .locator('input[type="file"]')
+          .first()
+          .setInputFiles({
+            name: "Sections.pdf",
+            mimeType: "application/pdf",
+            buffer: fixture({
+              prepared: false,
+              count: 104,
+              outline: [
+                { title: "Part One", page: 2 },
+                { title: "First chapter", page: 2, parent: 0 },
+                { title: "Second chapter", page: 32, parent: 0 },
+                { title: "Part Two", page: 62 },
+                { title: "Last chapter", page: 62, parent: 3 },
+              ],
+            }),
+          })
+        const input = page.locator(".selection-panel"),
+          output = page.locator(".composition-output")
+        await tab(input, "List")
+        const fold = input.getByRole("button", { name: "Part One", exact: true })
+        await fold.waitFor()
+        const disclosure = fold.locator("..").locator(".list-disclosure")
+        const selection = input.getByLabel("Page selection", { exact: true })
+        assert.equal(await disclosure.getAttribute("aria-expanded"), "false")
+        await input.getByRole("button", { name: "Expand all Input sections", exact: true }).click()
+        assert.equal(await disclosure.getAttribute("aria-expanded"), "true")
+        const listWidth = await input.locator(".page-list").evaluate((list) => list.clientWidth)
+        await selection.fill("1,1,4")
+        await input.getByRole("button", { name: "Collapse Input section: Part One", exact: true }).click()
+        assert.equal(await disclosure.getAttribute("aria-expanded"), "false")
+        assert.equal(await input.locator('.list-choice[data-page="2"]').count(), 0)
+        assert.equal(await selection.inputValue(), "1,1,4")
+        const secondFold = input.getByRole("button", { name: "Part Two", exact: true })
+        await secondFold.locator("..").locator(".list-disclosure").click()
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+        assert.equal(await input.locator(".page-list").evaluate((list) => list.clientWidth), listWidth)
+        assert.equal(await input.locator(".list-choice").count(), 2)
+        await secondFold.locator("..").locator(".list-disclosure").click()
+        await disclosure.press("Enter")
+        assert.equal(await disclosure.getAttribute("aria-expanded"), "true")
+        await input.locator('.list-choice[data-page="2"]').waitFor()
+        await input.locator('.list-choice[data-page="2"]').focus()
+        await disclosure.click()
+        await input.getByRole("button", { name: "Input contents", exact: true }).click()
+        await page
+          .locator(".contents:popover-open")
+          .getByRole("button", { name: /First chapter/ })
+          .click()
+        assert.equal(await disclosure.getAttribute("aria-expanded"), "true")
+        assert.equal(await selection.inputValue(), "1,1,4")
+        const grip = input.getByRole("button", { name: "Drag Input section: Part One", exact: true })
+        await grip.click()
+        assert.equal(await selection.inputValue(), "1,1,4")
+        await fold.click()
+        assert.equal(await selection.inputValue(), "1, 1, 3-62")
+        await fold.click()
+        assert.equal(await selection.inputValue(), "1, 1")
+        await fold.click()
+        assert.equal(await fold.getAttribute("aria-pressed"), "true")
+        assert.equal(await fold.locator("..").evaluate((row) => row.classList.contains("selected")), false)
+        assert.equal(await fold.locator("..").getAttribute("data-selected"), "true")
+        assert.equal(await fold.locator("..").evaluate((row) => getComputedStyle(row, "::before").width), "2px")
+        await mkdir("../.local/tmp/web/layout/sections", { recursive: true })
+        await fold
+          .locator("..")
+          .screenshot({ path: `../.local/tmp/web/layout/sections/${engine.name()}-selected-open.png` })
+        assert.equal(await input.getByRole("button", { name: "Add Input section: Part One", exact: true }).count(), 0)
+        await disclosure.click()
+        assert.equal(await fold.locator("..").evaluate((row) => row.classList.contains("selected")), true)
+        await fold
+          .locator("..")
+          .screenshot({ path: `../.local/tmp/web/layout/sections/${engine.name()}-selected-closed.png` })
+        await input.getByRole("button", { name: "Unselect Input section: Part One", exact: true }).click()
+        await input.getByRole("button", { name: "Add Input section: Part One", exact: true }).click()
+        assert.equal(await output.locator(".composition-totals strong").textContent(), "60 pages")
+        const before = await selection.inputValue()
+        await input.getByRole("button", { name: "View Input section: Part One", exact: true }).click()
+        assert.match(await input.locator(".inspection-heading .page-position").innerText(), /3/)
+        assert.equal(await selection.inputValue(), before)
+        await tab(input, "List")
+        assert.equal(await disclosure.getAttribute("aria-expanded"), "false")
+        await disclosure.click()
+        const addSection = input.getByRole("button", { name: "Add Input section: Part One", exact: true })
+        await page.mouse.move(5, 5)
+        assert.equal(await addSection.evaluate((button) => getComputedStyle(button).opacity), "0")
+        await fold.hover()
+        assert.equal(await addSection.evaluate((button) => getComputedStyle(button).opacity), "1")
+        await fold.click()
+        await input.getByRole("button", { name: "Unselect Input section: Part One", exact: true }).click()
+        await page.mouse.move(5, 5)
+        assert.equal(await addSection.evaluate((button) => getComputedStyle(button).opacity), "0")
+        const aligned = await input
+          .locator(".list-heading span")
+          .first()
+          .evaluate((label) => {
+            const row = document.querySelector('.selection-panel .list-choice[data-page="2"]')
+            const range = document.createRange()
+            range.selectNodeContents(row)
+            return {
+              heading: label.getBoundingClientRect().left,
+              page: range.getBoundingClientRect().left,
+              headingSize: getComputedStyle(label).fontSize,
+              pageSize: getComputedStyle(row).fontSize,
+            }
+          })
+        assert.ok(Math.abs(aligned.heading - aligned.page) < 1, JSON.stringify(aligned))
+        assert.equal(aligned.headingSize, aligned.pageSize)
+        for (const [width, text, colorScheme] of [
+          [1440, "100%", "light"],
+          [320, "200%", "dark"],
+          [390, "100%", "light"],
+          [768, "100%", "dark"],
+        ]) {
+          await page.setViewportSize({ width, height: 1000 })
+          await page.emulateMedia({ colorScheme })
+          await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+          await fold.scrollIntoViewIfNeeded()
+          assert.equal(await disclosure.getAttribute("aria-expanded"), "true")
+          const layout = await fold.evaluate((button) => {
+            const row = button.closest("li")
+            const frame = row.getBoundingClientRect()
+            const label = button.querySelector("span").getBoundingClientRect()
+            const icon = row.querySelector(".list-disclosure svg")
+            const glyph = icon.getBBox()
+            const center = new DOMPoint(glyph.x + glyph.width / 2, glyph.y + glyph.height / 2).matrixTransform(
+              icon.getScreenCTM(),
+            )
+            const controls = [...row.querySelectorAll("button")].map((control) => control.getBoundingClientRect())
+            return {
+              fits:
+                row.scrollWidth <= row.clientWidth &&
+                controls.every(
+                  (box, index) =>
+                    box.left >= frame.left &&
+                    box.right <= frame.right + 1 &&
+                    (!index || box.left >= controls[index - 1].right - 1),
+                ),
+              count: controls.length,
+              centered:
+                Math.abs(label.y + label.height / 2 - frame.y - frame.height / 2) < 1 &&
+                Math.abs(center.y - frame.y - frame.height / 2) < 1,
+            }
+          })
+          assert.ok(layout.fits && layout.centered && layout.count === 5, JSON.stringify({ width, text, layout }))
+          await mkdir("../.local/tmp/web/layout/sections", { recursive: true })
+          await input
+            .locator(".list-section")
+            .first()
+            .screenshot({ path: `../.local/tmp/web/layout/sections/${engine.name()}-${width}.png` })
+        }
+        await page.setViewportSize({ width: 1440, height: 1000 })
+        await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+        await tab(output, "List")
+        assert.equal(await output.locator(".list-disclosure").first().getAttribute("aria-expanded"), "false")
+        assert.equal(await output.locator(".list-choice").count(), 0)
+        await output.getByRole("button", { name: "Copy Output section: Part One", exact: true }).click()
+        assert.equal(await output.locator(".composition-totals strong").textContent(), "120 pages")
+        const outputDisclosure = output.locator(".list-disclosure").first()
+        if ((await outputDisclosure.getAttribute("aria-expanded")) === "false") await outputDisclosure.click()
+        const viewColumn = await output
+          .getByRole("button", { name: "View Output section: Part One", exact: true })
+          .evaluate((button) => {
+            const other = document.querySelector(".composition-output .list-row .list-peek > button")
+            return { heading: button.getBoundingClientRect().right, other: other.getBoundingClientRect().right }
+          })
+        assert.ok(Math.abs(viewColumn.heading - viewColumn.other) < 1, JSON.stringify(viewColumn))
+        await output.getByRole("button", { name: "View Output section: Part One", exact: true }).click()
+        assert.match((await output.locator(".inspection-heading .page-position").innerText()).trim(), /^1\s*\/ 120$/)
+        await page.close()
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
+
+test("Section grips drag complete blocks with a page stack through mouse and touch", { timeout: 60000 }, async () => {
+  const server = await serve(),
+    browser = await launch(chromium)
+  try {
+    for (const touch of [false, true]) {
+      const page = await browser.newPage({
+        viewport: { width: 1440, height: 1000 },
+        hasTouch: touch,
+        reducedMotion: "reduce",
+      })
+      const errors = []
+      page.on("pageerror", (error) => errors.push(error.message))
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(server.resolvedUrls.local[0])
+      await page
+        .locator('input[type="file"]')
+        .first()
+        .setInputFiles({
+          name: "Blocks.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture({
+            prepared: false,
+            count: 8,
+            outline: [
+              { title: "First group", page: 0 },
+              { title: "First chapter", page: 0, parent: 0 },
+              { title: "Second group", page: 4 },
+              { title: "Second chapter", page: 4, parent: 2 },
+            ],
+          }),
+        })
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output")
+      await tab(input, "List")
+      await tab(output, "List")
+      const selection = input.getByLabel("Page selection", { exact: true })
+      await selection.fill("8")
+      const session = touch ? await page.context().newCDPSession(page) : undefined
+      const move = async (x, y, first = false) => {
+        if (touch)
+          await session.send("Input.dispatchTouchEvent", {
+            type: first ? "touchStart" : "touchMove",
+            touchPoints: [{ x, y, id: 1 }],
+          })
+        else {
+          await page.mouse.move(x, y, { steps: first ? 1 : 4 })
+          if (first) await page.mouse.down()
+        }
+      }
+      const begin = async (control) => {
+        await control.scrollIntoViewIfNeeded()
+        const box = await control.boundingBox()
+        await move(box.x + box.width / 2, box.y + box.height / 2, true)
+        await move(box.x + box.width / 2 + 14, box.y + box.height / 2)
+        await page.locator(".composer[data-drag]").waitFor()
+        await page.locator(".drag-image[data-card]").waitFor()
+        assert.equal(await page.locator(".drag-image .drag-count").innerText(), "×4")
+      }
+      const finish = async (target, fraction = 0.5) => {
+        const box = await target.boundingBox()
+        await move(box.x + box.width / 2, box.y + box.height * fraction)
+        await move(box.x + box.width / 2, box.y + box.height * fraction)
+        await page.locator(".composition-output[data-drop], .composition-output [data-drop]").first().waitFor()
+        if (await output.locator(".page-list").count())
+          assert.equal(await output.locator(".list-drop-preview").count(), 1)
+        if (touch) await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+        else await page.mouse.up()
+        await page.locator(".composer[data-drag]").waitFor({ state: "hidden" })
+      }
+      const drag = input.getByRole("button", { name: "Drag Input section: First group", exact: true })
+      assert.equal(await input.locator(".list-disclosure").first().getAttribute("aria-expanded"), "true")
+      await begin(drag)
+      assert.equal(await selection.inputValue(), "1-4")
+      await finish(output.locator(".composition-empty"))
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "4 pages")
+      await input.getByRole("button", { name: "Add Input section: Second group", exact: true }).click()
+      await output.getByLabel("Page selection", { exact: true }).fill("")
+      const original = await output.locator(".list-row").evaluateAll((rows) => rows.map((row) => row.id))
+      await output.getByRole("button", { name: "Collapse all Output sections", exact: true }).click()
+      await begin(output.getByRole("button", { name: "Drag Output section: Second group", exact: true }))
+      const target = output.getByRole("button", { name: "First group", exact: true })
+      await finish(target, 0.2)
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
+      await output.getByRole("button", { name: "Expand all Output sections", exact: true }).click()
+      const moved = await output.locator(".list-row").evaluateAll((rows) => rows.map((row) => row.id))
+      assert.deepEqual(moved, [...original.slice(4), ...original.slice(0, 4)])
+      await output.getByRole("button", { name: "Collapse all Output sections", exact: true }).click()
+      await begin(output.getByRole("button", { name: "Drag Output section: Second group", exact: true }))
+      await finish(target, 0.8)
+      await output.getByRole("button", { name: "Expand all Output sections", exact: true }).click()
+      assert.deepEqual(await output.locator(".list-row").evaluateAll((rows) => rows.map((row) => row.id)), original)
+      await begin(output.getByRole("button", { name: "Drag Output section: Second group", exact: true }))
+      await finish(output.locator('.list-choice[data-page="1"]'), 0.8)
+      assert.deepEqual(await output.locator(".list-row").evaluateAll((rows) => rows.map((row) => row.id)), [
+        ...original.slice(0, 2),
+        ...original.slice(4),
+        ...original.slice(2, 4),
+      ])
+      assert.equal(await output.locator(".list-section").count(), 3)
+      assert.deepEqual(errors, [], "Moving a block into another section keeps every row valid")
+      await page.close()
+    }
+  } finally {
+    await browser.close()
+  }
+})
+
 test("List section summaries reveal every same-page section across hierarchy levels", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of [chromium, webkit]) {
@@ -1040,6 +1336,10 @@ test(
       const browser = await launch(engine)
       try {
         const { page, input, output } = await lists(browser, server.resolvedUrls.local[0])
+        const warnings = []
+        page.on("console", (message) => {
+          if (message.type() === "warning") warnings.push(message.text())
+        })
         const preparation = input.getByRole("textbox", { name: "Page selection", exact: true }),
           selection = output.getByRole("textbox", { name: "Page selection", exact: true }),
           rows = output.locator(".list-row")
@@ -1100,6 +1400,7 @@ test(
         assert.equal(await cards.nth(1).getAttribute("id"), first)
         await page.keyboard.press("Control+ArrowLeft")
         assert.equal(await cards.first().getAttribute("id"), first)
+        assert.deepEqual(warnings, [], "Removed row scopes do not leave stale transition reads")
       } finally {
         await browser.close()
       }

@@ -10,7 +10,7 @@ import type { Sequence } from "./pages.ts"
 import type { Region } from "./Page.svelte"
 
 export type InputView = {
-  grouped: boolean
+  folds?: ReadonlySet<string>
   tocTitles: boolean
   returnTo: "grid" | "list"
   tab: "grid" | "list" | "page" | "style"

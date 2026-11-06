@@ -5,7 +5,6 @@
     input: "M5 17H3V2h8l4 4v1M11 2v4h4M8 7h9l4 4v11H8V7Zm9 0v4h4",
     grid: "M3 2h7v9H3V2Zm11 0h7v9h-7V2ZM3 14h7v9H3v-9Zm11 0h7v9h-7v-9Z",
     list: "M4 6h.01M8 6h12M4 12h.01M8 12h12M4 18h.01M8 18h12",
-    sections: "M3 3h18M3 12h18M3 21h18M6 6v3m0 6v3M10 7.5h8M10 16.5h8",
     // Lucide book-open-text (ISC); see public/notices/lucide.txt.
     toc: "M12 5v16M16 13h2M16 9h2M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2ZM6 13h2M6 9h2",
     normal: "M3 4h7v16H3ZM14 4h7v16h-7Z",
@@ -43,6 +42,9 @@
     trash: "M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7",
     blank: "M5 3h10l4 4v14H5V3Zm10 0v5h4",
     next: "m9 6 6 6-6 6",
+    triangle: "M4 3 20 12 4 21Z",
+    collapse: "M3 16V3h13M7 7h14v14H7V7Zm4 7h6",
+    expand: "M3 16V3h13M7 7h14v14H7V7Zm4 7h6m-3-3v6",
     previous: "m15 6-6 6 6 6",
     reorder: "M8 5h1m6 0h1M8 12h1m6 0h1M8 19h1m6 0h1",
     lock: "M6 11h12v10H6V11Zm2 0V7a4 4 0 0 1 8 0v4",
@@ -56,13 +58,14 @@
 
 <script lang="ts">
   let { name }: { name: Name } = $props()
+  const filled = $derived(name === "pdf" || name === "triangle")
 </script>
 
 <svg
   class={{ "workspace-icon": name === "input" || name === "output", "pdf-icon": name === "pdf" }}
   viewBox="0 0 24 24"
-  fill={name === "pdf" ? "currentColor" : "none"}
-  stroke={name === "pdf" ? "none" : "currentColor"}
+  fill={filled ? "currentColor" : "none"}
+  stroke={filled ? "none" : "currentColor"}
   stroke-width={name === "more" ? 3 : 1.6}
   stroke-linecap="round"
   stroke-linejoin="round"

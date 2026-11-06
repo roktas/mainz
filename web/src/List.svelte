@@ -1,4 +1,4 @@
-<!-- Windows page rows and owns List scrolling and keyboard navigation. -->
+<!-- Windows page rows and section disclosures, and owns List scrolling and keyboard navigation. -->
 
 <script lang="ts">
   import { tick, untrack } from "svelte"
@@ -9,6 +9,11 @@
     pane,
     count,
     revision,
+    heading,
+    identity,
+    section,
+    selected,
+    folds = $bindable(),
     skipped,
     retained,
     position = $bindable(0),
@@ -19,12 +24,17 @@
     pane: "Input" | "Output"
     count: number
     revision?: unknown
+    heading?: (position: number) => readonly string[]
+    identity?: (position: number) => string
+    section?: Snippet<[start: number, end: number, path: readonly string[], expanded: boolean, toggle: () => void]>
+    selected?: (first: number, end: number) => boolean
+    folds?: ReadonlySet<string>
     skipped?: ReadonlySet<number>
     retained?: number
     position?: number
     select: (position: number, range: boolean, anchor?: number) => void
     edit: (action: "add" | "duplicate" | "remove", position: number) => boolean
-    children: Snippet<[indices: readonly number[], retained?: number]>
+    children: Snippet<[index: number, retained?: number]>
   } = $props()
   let viewport = $state(0)
   let scroll = $state(0)
@@ -38,7 +48,54 @@
     sizes: ReadonlyMap<number, number>
   }>()
   let width = $state(0)
-  const order = $derived(Array.from({ length: count }, (_, index) => index).filter((index) => !skipped?.has(index)))
+  const empty = new Set<string>()
+  const collapsed = $derived(folds ?? empty)
+  export function sectionState() {
+    if (!sections.size) return "none"
+    return [...sections.values()].some((entry) => !collapsed.has(entry.key)) ? "open" : "closed"
+  }
+  export function toggleSections() {
+    folds = sectionState() === "closed" ? new Set() : new Set([...sections.values()].map((entry) => entry.key))
+  }
+  export function expand(index: number) {
+    for (const [start, entry] of sections)
+      if (start <= index && index < entry.end && collapsed.has(entry.key)) {
+        const next = new Set(collapsed)
+        next.delete(entry.key)
+        folds = next
+      }
+  }
+  const sections = $derived.by(() => {
+    const result = new Map<number, { path: readonly string[]; key: string; end: number }>()
+    let previous: readonly string[] = []
+    let current: { path: readonly string[]; key: string; end: number } | undefined
+    if (!heading) return result
+    for (let index = 0; index < count; index++) {
+      const path = heading(index)
+      if (path.length === previous.length && path.every((part, depth) => part === previous[depth])) continue
+      if (current) current.end = index
+      current = path.length ? { path, key: identity?.(index) ?? String(index), end: count } : undefined
+      if (current) result.set(index, current)
+      previous = path
+    }
+    return result
+  })
+  const hidden = $derived.by(() => {
+    const result = new Set<number>()
+    for (const [start, entry] of sections)
+      if (collapsed.has(entry.key)) for (let index = start; index < entry.end; index++) result.add(index)
+    return result
+  })
+  const order = $derived.by(() => {
+    const result: number[] = []
+    // Negative entries place section headings before their first physical page.
+    for (let index = 0; index < count; index++) {
+      if (sections.has(index)) result.push(-index - 1)
+      if (!hidden.has(index) && !skipped?.has(index)) result.push(index)
+    }
+    return result
+  })
+  const pages = $derived(order.filter((index) => index >= 0))
   const ranks = $derived(new Map(order.map((index, rank) => [index, rank])))
   const offsets = $derived.by(() => {
     const sizes = measured?.revision === revision && measured?.width === width ? measured.sizes : undefined
@@ -67,22 +124,26 @@
   const from = $derived(Math.max(0, Math.min(Math.max(0, order.length - 1), locate(start) - 8)))
   const to = $derived(Math.min(order.length, Math.max(from + 1, locate(start + viewport) + 9)))
 
-  const retainedIndex = $derived(retained ?? dragged)
+  const retainedIndex = $derived(dragged !== undefined && dragged < 0 ? dragged : (retained ?? dragged))
   const pin = $derived(
-    retainedIndex !== undefined && retainedIndex < count && !order.slice(from, to).includes(retainedIndex)
+    retainedIndex !== undefined &&
+      retainedIndex < count &&
+      (retainedIndex >= 0 || sections.has(-retainedIndex - 1)) &&
+      !hidden.has(retainedIndex) &&
+      !order.slice(from, to).includes(retainedIndex)
       ? retainedIndex
       : undefined,
   )
   const rows = $derived.by(() => {
     const window = order.slice(from, to)
     if (pin !== undefined) window.push(pin)
-    return window.toSorted((a, b) => a - b)
+    return window.toSorted((a, b) => (a < 0 ? -a - 1.5 : a) - (b < 0 ? -b - 1.5 : b))
   })
   function scrolling(element: HTMLElement) {
     scroll = element.scrollTop
     const focused =
       document.activeElement instanceof HTMLElement
-        ? document.activeElement.closest<HTMLElement>(".list-row")
+        ? document.activeElement.closest<HTMLElement>(".list-row, .list-section")
         : undefined
     if (!focused || !element.contains(focused)) return
     const bounds = focused.getBoundingClientRect(),
@@ -94,6 +155,8 @@
     element.addEventListener("keydown", keys)
     let disposed = false
     let frame = 0
+    let following = false
+    let followedRevision: unknown
     const measure = () => {
       if (disposed) return
       viewport = element.clientHeight
@@ -102,14 +165,20 @@
       const sizes = new Map(previous)
       let changed = false
       for (const row of element.querySelectorAll<HTMLElement>(
-        ".list-row:not(.removing):not([data-drop]):not([data-dragging])",
+        ".list-row:not(.removing):not([data-drop]):not([data-dragging]), .list-section:not(:has(> .list-drop-preview))",
       )) {
-        const index = Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
+        const index = row.matches(".list-section")
+          ? -Number(row.dataset.section) - 1
+          : Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
         if (!Number.isFinite(index) || !row.offsetHeight || sizes.get(index) === row.offsetHeight) continue
         sizes.set(index, row.offsetHeight)
         changed = true
       }
       if (changed) measured = { revision, width, sizes }
+      if (folds === undefined && sections.size && viewport && width)
+        folds = new Set(
+          element.scrollHeight > element.clientHeight + 1 ? [...sections.values()].map((entry) => entry.key) : [],
+        )
     }
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(frame)
@@ -123,12 +192,15 @@
         measure()
         observer.disconnect()
         observer.observe(element)
-        for (const row of element.querySelectorAll(".list-row")) observer.observe(row)
+        for (const row of element.querySelectorAll(".list-row, .list-section")) observer.observe(row)
       })
     })
     $effect(() => {
       const index = position
       untrack(() => {
+        if (following && followedRevision === revision) expand(index)
+        following = true
+        followedRevision = revision
         const rank = ranks.get(index)
         if (rank === undefined) return
         seeking = index
@@ -168,10 +240,10 @@
       event.preventDefault()
       return
     }
-    if (!action || !count) return
+    if (!action || !pages.length) return
     const element = event.currentTarget as HTMLElement
-    const index = Math.max(0, position)
-    position = index
+    const index = Math.max(0, pages.indexOf(position))
+    position = pages[index]
     if (action === "add" || action === "duplicate" || action === "remove") {
       event.preventDefault()
       if (!event.repeat) edit(action, position)
@@ -202,11 +274,11 @@
       action === "first"
         ? 0
         : action === "last"
-          ? count - 1
+          ? pages.length - 1
           : Math.max(
               0,
               Math.min(
-                count - 1,
+                pages.length - 1,
                 index +
                   (action === "batchPrevious"
                     ? -stride
@@ -218,7 +290,7 @@
               ),
             )
     const anchor = position
-    position = next
+    position = pages[next]
     if (event.shiftKey && !["next", "previous"].includes(action)) select(position, true, anchor)
     const target = position
     await tick()
@@ -237,13 +309,37 @@
   tabindex="-1"
   onscroll={(event) => scrolling(event.currentTarget)}
   ondragstartcapture={(event) => {
-    const row = event.target instanceof Element ? event.target.closest(".list-row") : undefined
-    const page = Number(row?.querySelector<HTMLElement>("[data-page]")?.dataset.page)
+    const row =
+      event.target instanceof Element ? event.target.closest<HTMLElement>(".list-row, .list-section") : undefined
+    const page = row?.matches(".list-section")
+      ? -Number(row.dataset.section) - 1
+      : Number(row?.querySelector<HTMLElement>("[data-page]")?.dataset.page)
     dragged = Number.isFinite(page) ? page : undefined
   }}
   {@attach reveal}
 >
   <li class="list-spacer" aria-hidden="true" style:block-size={`${offsets[from]}px`}></li>
-  {@render children(rows, pin)}
+  {#each rows as index (index < 0 ? `section:${identity?.(-index - 1) ?? -index - 1}` : (identity?.(index) ?? index))}
+    {#if index < 0}
+      {@const entry = sections.get(-index - 1)!}
+      <li
+        class="list-section"
+        class:selected={collapsed.has(entry.key) && selected?.(-index - 1, entry.end)}
+        data-selected={selected?.(-index - 1, entry.end) || undefined}
+        data-section={-index - 1}
+        data-index={-index - 1}
+        data-end={collapsed.has(entry.key) ? entry.end - 1 : undefined}
+        data-dragging={dragged === index || undefined}
+        data-retained={index === pin || undefined}
+      >
+        {@render section?.(-index - 1, entry.end, entry.path, !collapsed.has(entry.key), () => {
+          const next = new Set(collapsed)
+          if (next.has(entry.key)) next.delete(entry.key)
+          else next.add(entry.key)
+          folds = next
+        })}
+      </li>
+    {:else}{@render children(index, pin)}{/if}
+  {/each}
   <li class="list-spacer" aria-hidden="true" style:block-size={`${offsets[order.length] - offsets[to]}px`}></li>
 </ul>
