@@ -122,7 +122,7 @@ export class Edits {
 
 function visibleBounds(sheet: HTMLElement) {
   const bounds = sheet.getBoundingClientRect()
-  const viewport = sheet.closest(".page-scroll")?.getBoundingClientRect()
+  const viewport = sheet.closest(".page-scroll, .page-list")?.getBoundingClientRect()
   const left = Math.max(0, bounds.left, viewport?.left ?? 0),
     right = Math.min(innerWidth, bounds.right, viewport?.right ?? innerWidth),
     top = Math.max(0, bounds.top, viewport?.top ?? 0),
@@ -159,6 +159,16 @@ function snapshot(
         image.height,
       )
     }
+  }
+  if (sheet?.matches(".list-choice")) {
+    const style = getComputedStyle(sheet)
+    paint.scale(image.width / width, image.height / height)
+    paint.fillStyle = getComputedStyle(sheet.closest(".list-row")!).backgroundColor
+    paint.fillRect(0, 0, width, height)
+    paint.fillStyle = style.color
+    paint.font = `${style.fontSize} ${style.fontFamily}`
+    paint.textBaseline = "middle"
+    paint.fillText(sheet.textContent ?? "", 8, height / 2, width - 16)
   }
   image.setAttribute("aria-hidden", "true")
   image.style.inlineSize = `${width}px`
@@ -260,7 +270,9 @@ export function animateAddition(
       animation.addEventListener("finish", stop, { once: true, signal: events.signal })
       animation.addEventListener("cancel", stop, { once: true, signal: events.signal })
       window.addEventListener("resize", stop, { once: true, signal: events.signal })
-      window.addEventListener("scroll", stop, { once: true, capture: true, signal: events.signal })
+      frame = requestAnimationFrame(() => {
+        if (!disposed) window.addEventListener("scroll", stop, { once: true, capture: true, signal: events.signal })
+      })
     })
   })
   return stop

@@ -324,6 +324,8 @@
         color: inherit;
         transition: none;
         &:has([data-provenance]) {
+          filter: none;
+          text-shadow: none;
           position: static;
           & > [data-provenance] {
             position: absolute;
@@ -811,6 +813,38 @@
       background: var(--secondary);
       opacity: 0;
       pointer-events: none;
+    }
+
+    [data-face="back"]::after {
+      clip-path: polygon(0 0, calc(100% - var(--fold)) 0, 100% var(--fold), 100% 100%, 0 100%);
+    }
+
+    .composition-card:has(> .grid-pdf-label) > .occurrence-actions {
+      & .card-inline-actions {
+        display: none;
+      }
+      & .card-menu {
+        display: inline flex;
+      }
+    }
+
+    .grid-pdf-label {
+      position: absolute;
+      inset-inline-start: 8px;
+      inset-block-end: 0;
+      max-inline-size: calc(50% - 24px);
+      block-size: calc(var(--card-tools-height) / 2);
+      display: block;
+      align-content: center;
+      overflow: clip;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: var(--small);
+      color: var(--muted);
+      pointer-events: none;
+      [data-density="compact"] & {
+        display: none;
+      }
     }
 
     .list-peek {

@@ -45,7 +45,7 @@
           2 * var(--thumbnail-padding)
       );
       --compact-number-size: 0.6875rem;
-      --compact-number-inset: 5px;
+      --compact-number-inset: 8px;
       --compact-grip-size: 15px;
 
       @media (hover: hover) and (pointer: fine) {
@@ -70,7 +70,7 @@
         --grid-min-width: max(
           calc(3 * (0.65 * var(--grid-digits, 1) * var(--compact-number-size) + 3px)),
           calc(
-            2 * (0.65 * var(--grid-digits, 1) * var(--compact-number-size) + var(--compact-number-inset) + 3px) +
+            2 * (0.65 * var(--grid-digits, 1) * var(--compact-number-size) + var(--compact-number-inset)) +
               var(--compact-grip-size)
           )
         );

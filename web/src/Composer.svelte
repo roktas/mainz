@@ -686,7 +686,7 @@
           : undefined
         : document
             .getElementById(`${key}-${id}`)
-            ?.querySelector<HTMLElement>(".page-image :is(canvas, .composition-blank)")
+            ?.querySelector<HTMLElement>(".page-image :is(canvas, .composition-blank), .list-choice")
     return image ?? panel?.querySelector<HTMLElement>(".sequence-entry")
   }
   function animateEdit(edit: Edit, origin?: HTMLElement | null) {
@@ -700,7 +700,6 @@
     if (activeOutputTab === "list") {
       const list = panel?.querySelector<HTMLElement>(".page-list")
       if (list) feedback.move = animateOrder(list, 240, reordering)
-      return
     }
     if (added.length && !transfer.value) {
       const sheet = origin ?? additionOrigin("blank" in added[0].content ? undefined : chosen[0]?.id)
@@ -712,7 +711,9 @@
           added.length,
           () => {
             const button = outputTarget
-            const image = panel?.querySelector<HTMLElement>(".composition-card[data-adding] .page-image")
+            const image = panel?.querySelector<HTMLElement>(
+              ".composition-card[data-adding] .page-image, .list-row[data-arriving]",
+            )
             if (button?.offsetWidth && (origin?.closest(".selection-panel") || !image)) return button
             return image ?? document.getElementById(`${key}-output`)
           },
@@ -732,7 +733,7 @@
           },
         )
       }
-      if (feedback.addition) for (const page of added) pendingAddition.add(page.id)
+      if (feedback.addition && activeOutputTab !== "list") for (const page of added) pendingAddition.add(page.id)
     }
     if (inspected && removing.has(inspected.id) && activeOutputTab === "page") {
       const sheet = panel?.querySelector<HTMLElement>(".page-scroll canvas, .blank-sheet")
@@ -819,8 +820,9 @@
         ? first === inputPosition
           ? panel?.querySelector<HTMLElement>(".page-scroll canvas")
           : undefined
-        : panel?.querySelector<HTMLElement>(`.page-image[data-page="${first}"] canvas`)) ??
-      panel?.querySelector<HTMLElement>(".sequence-entry")
+        : panel?.querySelector<HTMLElement>(
+            `.page-image[data-page="${first}"] canvas, .list-choice[data-page="${first}"]`,
+          )) ?? panel?.querySelector<HTMLElement>(".sequence-entry")
     const completed = commit(
       updated,
       at === undefined
@@ -1143,7 +1145,7 @@
     onclick={toggle}><Icon name={dragging ? "reorder" : "ribbon"} /></button
   >
   <div class="list-number"><strong>{first + 1}</strong></div>
-  {#if pane === "Input" && source?.input.labels[first] !== undefined}<span
+  {#if pane === "Input" && source?.input.labels[first] && source.input.labels[first] !== String(first + 1)}<span
       class="list-pdf-label"
       aria-label={`Page Label: ${source.input.labels[first]}`}
       title={source.input.labels[first]}>{source.input.labels[first]}</span
@@ -2072,6 +2074,10 @@
                           />
                         </button>
                         <div class="input-footer">
+                          {#if source.input.labels[page] && source.input.labels[page] !== String(page + 1)}<span
+                              class="grid-pdf-label"
+                              title={`Page Label: ${source.input.labels[page]}`}>{source.input.labels[page]}</span
+                            >{/if}
                           {#if !draft.pages.length}{@render inputPageActions(page)}{/if}
                         </div>
                         {@render pageFace(page)}
@@ -2527,6 +2533,11 @@
                       </button>
 
                       {@render occurrenceActions(page, index, !chosen.length)}
+                      {#if origin && "page" in page.content && origin.input.labels[page.content.page] && origin.input.labels[page.content.page] !== String(page.content.page + 1)}<span
+                          class="grid-pdf-label"
+                          title={`Page Label: ${origin.input.labels[page.content.page]}`}
+                          >{origin.input.labels[page.content.page]}</span
+                        >{/if}
                     </li>
                   {/each}
                   {#if transfer.preview && transfer.grid && transfer.preview.slot < transfer.grid.limit}

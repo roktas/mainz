@@ -1797,6 +1797,7 @@ test("Production demos download on demand and reuse verified files offline", { t
     await page.goto(url)
     const before = [...requests]
     changed = true
+    const reloaded = page.waitForEvent("load")
     await page.evaluate(async () => {
       const registration = await navigator.serviceWorker.getRegistration()
       await registration.update()
@@ -1818,7 +1819,7 @@ test("Production demos download on demand and reuse verified files offline", { t
         (await (await caches.open(cacheName)).keys()).length === 4
       )
     })
-    await page.reload()
+    await reloaded
     assert.deepEqual(requests, before, "Updating the demo catalog does not prefetch its files")
     const retained = await page.evaluate(async () => {
       const cacheName = (await caches.keys()).find((name) => name.endsWith(":examples"))

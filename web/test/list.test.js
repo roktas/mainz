@@ -76,6 +76,11 @@ test(
                 .some((animation) => animation.id === "jump"),
             selector,
           )
+          if (view === "Grid")
+            assert.notEqual(
+              await page.locator(selector).evaluate((element) => getComputedStyle(element, "::after").clipPath),
+              "none",
+            )
           assert.equal(
             await input.getByRole("tab", { name: view, exact: true }).getAttribute("aria-selected"),
             "true",
@@ -639,12 +644,15 @@ test("Input List gives defined PDF page labels their own column before page name
           })
         await input.locator(".input-current").filter({ hasText: name }).waitFor()
         await tab(input, "List")
-        assert.deepEqual(await input.locator(".list-row .list-pdf-label").allTextContents(), labels ?? [])
+        assert.deepEqual(
+          await input.locator(".list-row .list-pdf-label").allTextContents(),
+          labels?.filter((label, index) => label !== String(index + 1)) ?? [],
+        )
         assert.deepEqual(await input.locator(".list-row .list-number strong").allTextContents(), ["1", "2", "3", "4"])
         assert.deepEqual(await input.locator(".list-section .list-number strong").allTextContents(), ["1", "2", "2"])
         assert.deepEqual(
           await input.locator(".list-section .list-pdf-label").allTextContents(),
-          labels ? [labels[0], labels[1], labels[1]] : [],
+          labels && labels[0] !== "1" ? [labels[0], labels[1], labels[1]] : [],
         )
         for (const [width, scheme, text] of [
           [1920, "light", "100%"],
@@ -677,13 +685,13 @@ test("Input List gives defined PDF page labels their own column before page name
             assert.ok(row.grip.right <= row.number.left + 1)
             if (width === 1920)
               assert.ok(row.grip.width <= 32.1 && row.number.width <= 32.1, "Compact identity columns")
-            if (labels) {
+            if (labels && row.label) {
               assert.ok(row.number.right <= row.label.left + 1 && row.label.right <= row.name.left + 1)
               assert.ok(Math.abs(row.label.width - bounds.rows[0].label.width) < 1)
-            } else assert.ok(Math.abs(row.number.right - row.name.left) < 1, "No empty label column")
+            } else if (!labels) assert.ok(Math.abs(row.number.right - row.name.left) < 1, "No empty label column")
             assert.ok(Math.abs(row.name.left - bounds.heading.left) < 1, "Headers retain the name column")
           }
-          if (labels) {
+          if (labels && labels[1] !== "2") {
             const cell = input.locator(".list-row").getByLabel(`Page Label: ${labels[1]}`, { exact: true })
             const colors = await cell.evaluate((element) => ({
               label: getComputedStyle(element).color,
@@ -698,6 +706,24 @@ test("Input List gives defined PDF page labels their own column before page name
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
         await tab(output, "List")
         assert.equal(await output.locator(".list-pdf-label").count(), 0, "Output retains occurrence numbers")
+        const dots = output.locator(".provenance i")
+        const colors = await dots.evaluateAll((elements) =>
+          elements.map((element) => getComputedStyle(element).backgroundColor),
+        )
+        await output.getByLabel("Page selection", { exact: true }).fill("1")
+        assert.deepEqual(
+          await dots.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor)),
+          colors,
+        )
+        assert.ok(
+          await dots.evaluateAll((elements) =>
+            elements.every(
+              (element) =>
+                getComputedStyle(element).outlineStyle === "none" &&
+                getComputedStyle(element.closest("button")).filter === "none",
+            ),
+          ),
+        )
         const markers = await output.locator(".list-row:has([data-provenance])").evaluateAll((rows) =>
           rows.map((row) => {
             const center = (selector) => {
@@ -3389,3 +3415,78 @@ test(
     }
   },
 )
+
+test("Input additions fly from Grid and List to visible Output in both pane layouts", { timeout: 120000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await launch(engine)
+    try {
+      for (const width of [390, 1440])
+        for (const outputView of ["Grid", "List"]) {
+          const page = await browser.newPage({
+            viewport: { width, height: 1000 },
+            hasTouch: width === 390,
+            reducedMotion: "no-preference",
+          })
+          page.setDefaultTimeout(10000)
+          await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+          await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+          await page.locator(".composer[aria-busy=false]").waitFor()
+          await page.evaluate(() => {
+            new MutationObserver(() =>
+              document.querySelectorAll(".addition-preview").forEach((element) =>
+                element.getAnimations().forEach((animation) => {
+                  animation.pause()
+                  animation.currentTime = 0
+                }),
+              ),
+            ).observe(document.body, { childList: true })
+          })
+          const input = page.locator(".selection-panel"),
+            output = page.locator(".composition-output")
+          const switcher = page.getByRole("button", { name: "Output", exact: true })
+          if (await switcher.isVisible()) await switcher.click()
+          await tab(output, outputView)
+          const back = page.getByRole("button", { name: "Input", exact: true })
+          if (await back.isVisible()) await back.click()
+          for (const view of ["Grid", "List"]) {
+            await tab(input, view)
+            await input.getByLabel("Page selection", { exact: true }).fill("1-2")
+            await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+            const flight = page.locator(".addition-preview")
+            await flight.waitFor()
+            if (view === "List")
+              assert.ok(
+                await flight.evaluate((canvas) =>
+                  canvas
+                    .getContext("2d")
+                    .getImageData(0, 0, canvas.width, canvas.height)
+                    .data.some((value, index) => index % 4 === 3 && value > 0),
+                ),
+                "List flights retain their page title",
+              )
+            const box = await flight.boundingBox()
+            assert.ok(box.width > 0 && box.y < 1000 && box.y + box.height > 0, JSON.stringify({ width, view, box }))
+            assert.equal(
+              await output.locator(".composition-totals strong").innerText(),
+              view === "Grid" ? "10 pages" : "12 pages",
+            )
+            if (width === 390)
+              assert.ok(
+                await switcher.evaluate((button) => button.getAnimations().length > 0),
+                "The visible Output button receives the flight",
+              )
+            await flight.evaluate((element) => element.getAnimations().forEach((animation) => animation.finish()))
+            await flight.waitFor({ state: "detached" })
+          }
+          await page.emulateMedia({ reducedMotion: "reduce" })
+          await input.getByLabel("Page selection", { exact: true }).fill("1")
+          await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+          assert.equal(await page.locator(".addition-preview").count(), 0)
+          await page.close()
+        }
+    } finally {
+      await browser.close()
+    }
+  }
+})

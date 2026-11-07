@@ -58,12 +58,10 @@
     block-size: 8px;
     border-radius: 50%;
     background: var(--source-color);
-    outline: 1px solid var(--paper);
   }
   @media (forced-colors: active) {
     i {
       background: CanvasText;
-      outline-color: Canvas;
     }
   }
 </style>

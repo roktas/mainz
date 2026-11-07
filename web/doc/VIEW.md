@@ -430,12 +430,12 @@ points right to expand a closed section or down to collapse an open section. Its
 tall and uses the grip column's width: 32 px for fine pointers, 44 px for touch. It uses a transparent background
 without a border, rounded corners, or shadow. It fills the section row's height. Section rows retain the page rows' thin
 bottom separator. The List reserves native scrollbar space outside the row width, so rows align with the selection bar
-and folding does not move columns. The toolbar separator extends by the measured gutter equally on both sides. The
-toolbar uses overlapping pages with a minus or plus to collapse or expand all sections. A separate Section headings
-toggle follows it and stays in place when the expand/collapse control disappears. On narrow screens, toolbar icons have
-no gap between their 44 px targets. The visible Grid and Contents glyphs sit 4 px inside the toolbar's outer edges;
-wider layouts retain normal spacing. It shows or hides headings, with shown as its default. Hiding headings produces
-uninterrupted page rows and hides the expand/collapse toolbar control.
+and folding does not move columns. Header, footer, and toolbar separators extend by half the workspace gutter equally on
+both sides in Grid, List, and Page. The toolbar uses overlapping pages with a minus or plus to collapse or expand all
+sections. A separate Section headings toggle follows it and stays in place when the expand/collapse control disappears.
+On narrow screens, toolbar icons have no gap between their 44 px targets. The visible Grid and Contents glyphs sit 4 px
+inside the toolbar's outer edges; wider layouts retain normal spacing. It shows or hides headings, with shown as its
+default. Hiding headings produces uninterrupted page rows and hides the expand/collapse toolbar control.
 
 The heading button toggles selection, including with Enter or Space. A fully selected closed section uses the primary
 background. A fully selected open section uses a stronger primary tint and retains its primary-colored current title.
@@ -479,9 +479,10 @@ The section used as the display title remains the bold detail heading. Other pat
 regular-weight, muted text, so the distinction survives without color.
 
 Multiple-source Output List rows show an 8 px source-color dot centered exactly between the number and grip. The same
-dot identifies Input's current file and chooser entries. Dots have a paper-colored halo, distinct light/dark colors, and
-accessible source names. No visible source number, colored row background, or colored page-name text is added. In the
-single-pane layout, Input carries the active accent and the current filename uses normal text color.
+dot identifies Input's current file and chooser entries. Dots have no contour, retain their colors during selection, use
+distinct light/dark colors, and expose accessible source names. No visible source number, colored row background, or
+colored page-name text is added. In the single-pane layout, Input carries the active accent and the current filename
+uses normal text color.
 
 Page rows start with the drag grip, then the physical number. Section rows place the combined ribbon control in the grip
 column and the starting position in the number column. Fine pointers use a 32 px base grip column and a 28 px number
@@ -489,8 +490,11 @@ column; touch keeps 44 px targets. Ribbons use a proportionate 1.5em square SVG 
 column reserves an extra 0.25em from the title column to retain the surrounding gaps. Input List places PDF page labels
 immediately before the page name in a muted, centered 4ch column with 0.125em side padding. This column exists only when
 the PDF defines labels, and its width stays fixed across scrolling and folding. Long labels truncate with ellipsis and
-retain their full text in accessible text and the hover title. Selected labels inherit the row color. Section headings
-keep their text in the page-name column and show the starting page's label when Input defines one.
+retain their full text in accessible text and the hover title. Labels identical to physical page numbers remain hidden
+in every view and detail. Normal Grid places differing labels at the bottom start of the card. Labeled Output cards use
+the centered action menu to keep the label clear of controls. Selected labels inherit the row color. Section headings
+keep their text in the page-name column and show the starting page's label only when it differs from the physical
+number.
 
 List rows align page numbers, supplied names, and page actions in stable columns. Keep number and action columns visible
 in narrow panes. Plain numbers and detail buttons use the same type size and column center. Names wrap in the remaining

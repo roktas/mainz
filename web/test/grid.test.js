@@ -2230,3 +2230,104 @@ test("Compact pagination retains readable four- and five-digit numbers", { timeo
     await browser?.close()
   }
 })
+
+test(
+  "Page labels and compact details retain aligned controls across themes and views",
+  { timeout: 120000 },
+  async () => {
+    const server = await serve()
+    for (const engine of [chromium, webkit]) {
+      const browser = await launch(engine)
+      try {
+        const page = await browser.newPage({ reducedMotion: "reduce" })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        await page
+          .locator('input[type="file"]')
+          .first()
+          .setInputFiles({
+            name: "Labels.pdf",
+            mimeType: "application/pdf",
+            buffer: fixture({ prepared: false, count: 4, labels: ["i", "2", "iii", "4"] }),
+          })
+        const input = page.locator(".selection-panel")
+        for (const width of [320, 390, 768, 1440])
+          for (const colorScheme of ["light", "dark"])
+            for (const text of ["100%", "200%"]) {
+              await page.setViewportSize({ width, height: 1100 })
+              await page.emulateMedia({ colorScheme })
+              await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+              await tab(input, "Grid")
+              await gridDensity(input, "Normal Input grid")
+              const card = input.locator(".composition-card").first()
+              const label = card.locator(".grid-pdf-label")
+              assert.equal(await label.textContent(), "i")
+              assert.equal(
+                await input.locator('.composition-card:has(.page-image[data-page="1"]) .grid-pdf-label').count(),
+                0,
+              )
+              const position = await label.evaluate((element) => {
+                const box = element.getBoundingClientRect(),
+                  frame = element.closest(".composition-card").getBoundingClientRect()
+                return { inset: box.x - frame.x, bottom: frame.bottom - box.bottom }
+              })
+              assert.ok(
+                position.inset >= 8 && position.inset <= 10 && Math.abs(position.bottom) <= 2,
+                JSON.stringify(position),
+              )
+              await gridDensity(input, "Compact Input grid")
+              const inset = await input
+                .getByLabel("Details for Input page 1", { exact: true })
+                .evaluate(
+                  (button) =>
+                    button.querySelector("strong").getBoundingClientRect().left -
+                    button.closest(".composition-card").getBoundingClientRect().left,
+                )
+              assert.ok(inset >= 8, String(inset))
+              await input.getByLabel("Details for Input page 1", { exact: true }).click()
+              const detail = input.locator(".card-menu-options:popover-open")
+              const control = detail.getByRole("button", { name: "Add Input page 1 to Output", exact: true })
+              const alignment = await control.evaluate((button) => {
+                const box = button.getBoundingClientRect(),
+                  panel = button.closest("[popover]").getBoundingClientRect(),
+                  icon = button.querySelector("svg").getBoundingClientRect()
+                return {
+                  center: Math.abs(box.x + box.width / 2 - panel.x - panel.width / 2),
+                  iconCenter: Math.abs(icon.y + icon.height / 2 - box.y - box.height / 2),
+                  size: icon.width,
+                }
+              })
+              assert.ok(
+                alignment.center < 1 && alignment.iconCenter < 1 && alignment.size >= 24,
+                JSON.stringify(alignment),
+              )
+              await page.keyboard.press("Escape")
+              for (const view of ["Grid", "List", "Page"]) {
+                await tab(input, view)
+                if ([390, 1440].includes(width) && text === "100%")
+                  await captureLayout(page, `todo-${engine.name()}-${width}-${colorScheme}-${view}`)
+                const separators = await page.evaluate(() => {
+                  const edges = (selector) => {
+                    const element = document.querySelector(selector),
+                      box = element.getBoundingClientRect(),
+                      style = getComputedStyle(element),
+                      outset = parseFloat(style.borderImageOutset.split(" ")[1])
+                    return [box.left - outset, box.right + outset]
+                  }
+                  return { header: edges(".header-inner"), tabs: edges(".source-tabs"), footer: edges(".footnote") }
+                })
+                assert.ok(
+                  Math.abs(separators.header[0] - separators.tabs[0]) < 1 &&
+                    Math.abs(separators.footer[0] - separators.tabs[0]) < 1,
+                  JSON.stringify({ width, text, view, separators }),
+                )
+                assert.ok(Math.abs(separators.header[1] - separators.footer[1]) < 1, JSON.stringify(separators))
+              }
+              assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+            }
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)

@@ -107,7 +107,7 @@ workspace fields.
 
 List shows one row per physical Input page or expanded Output occurrence, in the same order as the pane's page sequence.
 Each row retains its physical number or Output position and supplied page name. When an Input defines PDF page labels,
-List shows them in a separate column between the physical number and page name, including labels that match physical
+List shows them in a separate column between the physical number and page name, only when they differ from physical
 numbers. Inputs without page labels reserve no label column. Labels come from the PDF and do not replace physical
 selection or navigation numbers. Output rows show one position and keep original page numbers and differing PDF labels
 in details. Pages without names remain available by number. Repeated names do not merge rows or occurrences. Blank and

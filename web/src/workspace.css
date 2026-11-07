@@ -968,7 +968,7 @@
         container: toolbar / inline-size;
         flex-wrap: nowrap;
         border-block-end: 1px solid var(--border);
-        border-image: linear-gradient(var(--border), var(--border)) 0 0 1 / 0 0 1px / 0 var(--list-gutter, 0px);
+        border-image: linear-gradient(var(--border), var(--border)) 0 0 1 / 0 0 1px / 0 calc(var(--gutter) / 2);
         margin-block-start: var(--gap);
         margin-block-end: calc(var(--gap) / 2);
         padding-block-end: calc(var(--gap) / 2);

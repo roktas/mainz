@@ -595,8 +595,17 @@
         box-shadow: 0 0 12px 0.35em transparent;
       }
     }
+    .masthead:has(~ main .composer) {
+      padding-inline-start: max(min(var(--gutter), max(0px, (100% - 266px) / 2)), env(safe-area-inset-left, 0px));
+      padding-inline-end: max(min(var(--gutter), max(0px, (100% - 266px) / 2)), env(safe-area-inset-right, 0px));
+    }
+    .masthead:has(~ main .composer) .header-inner {
+      border-image: linear-gradient(var(--border), var(--border)) 0 0 1 / 0 0 1px / 0 calc(var(--gutter) / 2);
+    }
     main:has(.composer) + .footnote {
+      inline-size: calc(100% - 2 * min(var(--gutter), max(0px, (100% - 266px) / 2)));
       border-block-start: 1px solid var(--border);
+      border-image: linear-gradient(var(--border), var(--border)) 1 0 0 / 1px 0 0 / 0 calc(var(--gutter) / 2);
     }
     main:has(.load-panel) + .footnote {
       position: static;
@@ -785,10 +794,6 @@
         display: none;
       }
       main:has(.composer) + .footnote {
-        inline-size: 100%;
-        max-inline-size: none;
-        padding-inline-start: max(var(--gutter), env(safe-area-inset-left, 0px));
-        padding-inline-end: max(var(--gutter), env(safe-area-inset-right, 0px));
         padding-block: var(--gap);
         padding-block-end: calc(var(--gap) + env(safe-area-inset-bottom, 0px));
         font-size: var(--body);

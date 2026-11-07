@@ -587,7 +587,7 @@
   </div>
   {#if sheet}
     <nav class="page-navigation" aria-label={`${pane} page navigation`}>
-      {#if label && label !== String(index + 1)}<span
+      {#if label && label !== String(physicalPage! + 1)}<span
           class="page-context"
           role="note"
           aria-label={`Page Label: ${label}`}

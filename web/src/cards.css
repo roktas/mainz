@@ -289,6 +289,7 @@
         color: var(--muted);
         & button {
           grid-column: 2 / span 2;
+          grid-row: 1;
           & svg {
             inline-size: 14px;
             block-size: 14px;
@@ -308,6 +309,8 @@
     }
     .page-origin {
       & > summary {
+        display: block grid;
+        place-items: center;
         min-inline-size: 44px;
         min-block-size: 44px;
         padding-inline: 0.25em;
@@ -513,6 +516,15 @@
           &::after {
             content: none;
           }
+        }
+      }
+
+      & .input-menu-action {
+        grid-template-columns: 44px;
+        justify-content: center;
+        & svg {
+          inline-size: 24px;
+          block-size: 24px;
         }
       }
 

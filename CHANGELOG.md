@@ -113,6 +113,9 @@
 
 ### Fixed
 
+- Align workspace separators and Grid page controls, hide redundant PDF labels, and preserve source-dot colors.
+- Restore Input addition feedback in List and narrow layouts, and clip jump feedback to folded page corners.
+
 - Clearing a header report cannot crash child effects during teardown.
 - Normal Grid keeps physical numbers centered and shows page labels in a detail table; long section paths stay inside
   the detail panel.

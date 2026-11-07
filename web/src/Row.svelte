@@ -74,8 +74,10 @@
   ondragend={() => transfer.end()}><Icon name="reorder" /></button
 >
 <div class="list-number">{@render origin()}</div>
-{#if pdfLabel !== undefined}<span class="list-pdf-label" aria-label={`Page Label: ${pdfLabel}`} title={pdfLabel}
-    >{pdfLabel}</span
+{#if pdfLabel && pdfLabel !== String(index + 1)}<span
+    class="list-pdf-label"
+    aria-label={`Page Label: ${pdfLabel}`}
+    title={pdfLabel}>{pdfLabel}</span
   >{/if}
 <div class="list-label">
   <button
