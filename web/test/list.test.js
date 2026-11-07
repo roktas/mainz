@@ -3265,23 +3265,16 @@ test("Unmounted List details release preview ownership without clearing selectio
       await output
         .getByRole("button", { name: "Details for Output page 1", exact: true })
         .waitFor({ state: "detached" })
-      await page.waitForFunction(() => {
+      const visible = await page.waitForFunction(() => {
         const list = document.querySelector(".composition-output .page-list")
         const frame = list.getBoundingClientRect()
-        return [...list.querySelectorAll(".list-choice")].some((row) => {
+        return [...list.querySelectorAll(".list-choice")].find((row) => {
           const bounds = row.getBoundingClientRect()
           return bounds.top >= frame.top && bounds.bottom <= frame.bottom
-        })
+        })?.dataset.page
       })
-      const index = await list.evaluate((element) => {
-        const frame = element.getBoundingClientRect()
-        return Number(
-          [...element.querySelectorAll(".list-choice")].find((row) => {
-            const bounds = row.getBoundingClientRect()
-            return bounds.top >= frame.top && bounds.bottom <= frame.bottom
-          }).dataset.page,
-        )
-      })
+      const index = Number(await visible.jsonValue())
+      await visible.dispose()
       await output.getByRole("button", { name: `View Output page ${index + 1}`, exact: true }).hover()
       await page.locator(".page-peek:popover-open").waitFor()
       await page.keyboard.press("Escape")

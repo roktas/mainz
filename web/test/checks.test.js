@@ -528,6 +528,9 @@ test(
           await page.setViewportSize({ width, height: 900 })
           await page.evaluate((size) => (document.documentElement.style.fontSize = size), text)
           await page.emulateMedia({ colorScheme })
+          await page.evaluate(
+            () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+          )
           const buttons = await panel.locator("form > button").evaluateAll((elements) =>
             elements.map((button) => {
               const range = document.createRange()
@@ -574,7 +577,10 @@ test(
               ownsField: element.contains(document.querySelector(".message-details:popover-open input")),
             }
           })
-          assert.ok(geometry.center < 1 && geometry.message < 1 && !geometry.overflow, JSON.stringify(geometry))
+          assert.ok(
+            geometry.center < 1 && geometry.message < 1 && !geometry.overflow,
+            JSON.stringify({ engine: engine.name(), width, text, ...geometry }),
+          )
           assert.ok(geometry.top >= 0 && geometry.bottom <= geometry.headerBottom + 1, JSON.stringify(geometry))
           assert.ok(geometry.ownsField, "The filename editor stays within the active header message")
           assert.ok(

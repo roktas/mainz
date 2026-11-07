@@ -3,7 +3,8 @@
 import { geometry } from "../src/geometry.ts"
 
 export async function gridDensity(pane, label, activate = (control) => control.click()) {
-  const control = pane.locator(".grid-density")
+  // Input chooses its initial density only after measuring the first complete batch.
+  const control = pane.locator(":scope[data-density] .grid-density")
   await control.waitFor()
   if ((await control.getAttribute("aria-label")) === `Switch to ${label}`) return activate(control)
   const opposite = label.startsWith("Compact ")
