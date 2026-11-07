@@ -71,10 +71,18 @@ Grid and List interactions establish the page inspected in Page. Returning to Gr
 List reveals the inspected row. Output inspection follows occurrence identity through movement. Removal chooses the next
 surviving neighbor, or the previous neighbor at the end. Input switching does not move Output inspection.
 
+Each Input and Output retains its List viewport and measured row heights across view changes. Returning to the same
+inspected page restores its visible offset. A different inspected page is revealed with minimal scrolling.
+
 View changes and Grid density changes reveal the inspected item. Page navigation updates the item revealed on return. A
 tab or density control retains focus and briefly marks that item with secondary emphasis. Content gestures return focus
 to the corresponding item. Keyboard returns use its focus contour without the temporary pointer cue. These returns
 preserve selection. Page retains the originating Grid or List for V and modified-click return gestures.
+
+Grid, List, and Page offer Go to page in their view toolbar. Its temporary number field accepts one physical Input page
+or one Output position. Enter navigates and focuses that page without changing Selection or Output. Escape or outside
+click cancels navigation. First and last page shortcuts navigate directly. Invalid numbers and ranges keep the field
+open with an error.
 
 Both panes offer Normal and Compact density for Grid. Output starts in Normal. After opening completes, an Input's first
 visible Input Grid measures Normal batch capacity. Above twice that capacity, it starts in Compact. Otherwise it starts

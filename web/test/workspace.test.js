@@ -3947,3 +3947,48 @@ test("First-action feedback respects reduced motion and enlarged phone text", { 
     await browser.close()
   }
 })
+
+test("Input file details stay below their trigger in single-pane tablet layouts", { timeout: 60000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await launch(engine)
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 810, height: 1080 },
+        hasTouch: true,
+        reducedMotion: "reduce",
+      })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=toc`)
+      await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
+      const trigger = page.locator(".input-information > .guidance-trigger")
+      for (const width of [390, 810])
+        for (const colorScheme of ["light", "dark"]) {
+          await page.setViewportSize({ width, height: 1080 })
+          await page.emulateMedia({ colorScheme })
+          await trigger.tap()
+          const panel = page.locator(".input-information > .guidance:popover-open")
+          const box = await panel.boundingBox(),
+            button = await trigger.boundingBox()
+          assert.ok(
+            box.y >= button.y + button.height - 1 && box.y - button.y - button.height < 24,
+            JSON.stringify({ engine: engine.name(), width, box, button }),
+          )
+          assert.ok(box.x >= 0 && box.x + box.width <= width + 1 && box.y + box.height <= 1080 + 1, JSON.stringify(box))
+          await panel
+            .locator("td")
+            .first()
+            .evaluate((element) => (element.textContent = "A long metadata value ".repeat(300)))
+          const expanded = await panel.boundingBox()
+          assert.ok(expanded.y + expanded.height <= 1080, JSON.stringify(expanded))
+          assert.ok(
+            await panel.evaluate((element) => element.scrollHeight > element.clientHeight),
+            "Long details scroll inside the anchored panel",
+          )
+          await page.keyboard.press("Escape")
+        }
+    } finally {
+      await browser.close()
+    }
+  }
+})

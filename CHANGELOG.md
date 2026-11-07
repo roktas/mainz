@@ -4,6 +4,7 @@
 
 ### Added
 
+- Go to page in the view toolbar, with a temporary number field and first/last shortcuts that preserve Selection.
 - Input List shows PDF page labels in their own column before page names when the document defines them.
 - Collapsible List sections with block selection and dragging, section addition or copying, and first-page viewing.
   Sections start closed when the expanded list exceeds the pane height, with a toolbar toggle for all sections and
@@ -113,6 +114,10 @@
 
 ### Fixed
 
+- Retain List viewport positions across view returns and let touch drag strips move freely in both directions.
+- Align section navigation markers, anchor tablet Input details to their trigger, and restore Output Grid footer
+  actions.
+- Use icon-only view tabs in narrow toolbars.
 - Align workspace separators and Grid page controls, hide redundant PDF labels, and preserve source-dot colors.
 - Restore Input addition feedback in List and narrow layouts, and clip jump feedback to folded page corners.
 

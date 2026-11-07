@@ -25,12 +25,14 @@
   import Origin from "./Origin.svelte"
   import Grid from "./Grid.svelte"
   import List from "./List.svelte"
+  import type { Viewport } from "./List.svelte"
   import Row from "./Row.svelte"
   import Peek, { Peeks } from "./Peek.svelte"
   import PageView, { controlCapabilities, zoomLevels } from "./Page.svelte"
   import type { Inspection, Region, Controls } from "./Page.svelte"
   import type { Magnification } from "./Lens.svelte"
   import Counter from "./Counter.svelte"
+  import Jump from "./Jump.svelte"
   import Icon from "./Icon.svelte"
   import type { TourStep } from "./Tour.svelte"
   let {
@@ -130,6 +132,16 @@
   let inputList = $state<ReturnType<typeof List>>()
   let outputList = $state<ReturnType<typeof List>>()
   let outputFolds = $state<ReadonlySet<string>>()
+  const outputListViewport: Viewport = { scroll: 0 }
+  const inputListViewports = new Map<string, Viewport>()
+  function listViewport(id: string) {
+    let value = inputListViewports.get(id)
+    if (!value) {
+      value = { scroll: 0 }
+      inputListViewports.set(id, value)
+    }
+    return value
+  }
   let outputGrouped = $state(true)
   let outputPage = $state<ReturnType<typeof PageView>>()
   let outputPageInitialized = $state(false)
@@ -418,8 +430,20 @@
   function initializeDensity(capacity: number) {
     if (inputView.density === undefined) inspectInput({ density: count > 2 * capacity ? "compact" : "normal" })
   }
+  async function goTo(pane: "Input" | "Output", position: number, event: MouseEvent) {
+    if (pane === "Input") inspectInput({ position, offset: position, alignment: undefined })
+    else {
+      output.position = position
+      outputOffset = position
+    }
+    await tick()
+    const list = pane === "Input" ? inputList : outputList
+    await list?.revealPage(position)
+    await interaction.reveal(pane, event, true)
+  }
   function inputTab(tab: InputView["tab"], event?: MouseEvent | KeyboardEvent) {
     const changed = tab !== activeTab
+    if (changed && activeTab === "list") inputList?.remember()
     cancelMotion()
     inspectInput({
       tab,
@@ -484,6 +508,7 @@
   }
   function setOutputTab(tab: typeof outputTab, event?: MouseEvent | KeyboardEvent) {
     const changed = tab !== activeOutputTab
+    if (changed && activeOutputTab === "list") outputList?.remember()
     cancelMotion()
     if (tab === "page" && activeOutputTab !== "page") outputReturn = activeOutputTab === "list" ? "list" : "grid"
     outputTab = tab
@@ -1801,6 +1826,12 @@
                 void interaction.reveal("Input", undefined, true)
               }}
             />{/if}
+          {#if activeTab !== "style"}<Jump
+              pane="Input"
+              {count}
+              position={inputPosition}
+              navigate={(position, event) => void goTo("Input", position, event)}
+            />{/if}
         </div>
 
         <div
@@ -1904,7 +1935,9 @@
                     {magnification}
                   />{/key}
               {:else if activeTab === "list"}
-                {#key source.id}<List
+                {#key source.id}
+                  <List
+                    viewport={listViewport(source.id)}
                     bind:this={inputList}
                     bind:folds={() => inputView.folds, (folds) => inspectInput({ folds })}
                     pane="Input"
@@ -2200,6 +2233,12 @@
             }}><Icon name="sections" /></button
           >{/if}
         {#if activeOutputTab === "grid"}{@render gridDensity("Output", outputCompact)}{/if}
+        <Jump
+          pane="Output"
+          count={output.pages.length}
+          position={output.position}
+          navigate={(position, event) => void goTo("Output", position, event)}
+        />
       </div>
 
       <div
@@ -2342,6 +2381,7 @@
             </div>
           {:else if activeOutputTab === "list" && output.pages.length}
             <List
+              viewport={outputListViewport}
               bind:this={outputList}
               bind:folds={outputFolds}
               pane="Output"
@@ -2533,11 +2573,6 @@
                       </button>
 
                       {@render occurrenceActions(page, index, !chosen.length)}
-                      {#if origin && "page" in page.content && origin.input.labels[page.content.page] && origin.input.labels[page.content.page] !== String(page.content.page + 1)}<span
-                          class="grid-pdf-label"
-                          title={`Page Label: ${origin.input.labels[page.content.page]}`}
-                          >{origin.input.labels[page.content.page]}</span
-                        >{/if}
                     </li>
                   {/each}
                   {#if transfer.preview && transfer.grid && transfer.preview.slot < transfer.grid.limit}

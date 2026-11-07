@@ -220,7 +220,7 @@ export class Transfer {
     this.#clearPress()
     this.#target = { kind: "outside" }
     this.#active?.image?.image.remove()
-    const image = createDragImage(control, quantity, size)
+    const image = createDragImage(control, quantity, size, !("dataTransfer" in event))
     this.#interaction = {
       kind: "active",
       control,
@@ -487,7 +487,7 @@ export class Transfer {
       control.setAttribute("data-press", "")
     }
     if (control.closest(".list-row")) {
-      this.#pressed = createDragImage(control, 1)
+      this.#pressed = createDragImage(control, 1, undefined, event.pointerType !== "mouse")
       this.#placeImage(event.clientX, event.clientY)
       this.#pressEvents = new AbortController()
       for (const name of ["pointerup", "pointercancel", "blur"])
@@ -609,7 +609,7 @@ export class Transfer {
       image.style.translate = `${Math.max(4, Math.min(innerWidth - drag.width - 4, x - drag.width / 2))}px ${Math.max(4, Math.min(innerHeight - drag.height - 4, y - 12))}px`
       return
     }
-    this.#grab ??= { x: x - drag.origin!.x, y: y - drag.origin!.y }
+    this.#grab ??= { x: Math.min(drag.width - 12, Math.max(12, x - drag.origin!.x)), y: y - drag.origin!.y }
     const left = Math.max(4, Math.min(x - this.#grab.x, innerWidth - drag.width - 4))
     const top = Math.max(4, Math.min(y - this.#grab.y, innerHeight - drag.height - 4))
     image.style.translate = `${left}px ${top}px`

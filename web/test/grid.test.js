@@ -2331,3 +2331,131 @@ test(
     }
   },
 )
+
+test(
+  "Toolbar page navigation preserves Selection and keeps narrow view tabs readable",
+  { timeout: 180000 },
+  async () => {
+    const server = await serve()
+    for (const engine of [chromium, webkit]) {
+      const browser = await launch(engine)
+      try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+        page.setDefaultTimeout(10000)
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        await page
+          .locator('input[type="file"]')
+          .first()
+          .setInputFiles({
+            name: "Navigate.pdf",
+            mimeType: "application/pdf",
+            buffer: fixture({
+              prepared: false,
+              count: 30,
+              labels: Array.from({ length: 30 }, (_, i) => `Label ${i + 1}`),
+              outline: [
+                { title: "Start", page: 0 },
+                { title: "End", page: 29 },
+              ],
+            }),
+          })
+        const input = page.locator(".selection-panel"),
+          output = page.locator(".composition-output")
+        await input.getByLabel("Page selection", { exact: true }).fill("1-30")
+        await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+        for (const width of engine === chromium ? [320, 375, 390, 810, 1440] : [375, 810])
+          for (const text of ["100%", "200%"]) {
+            await page.setViewportSize({ width, height: 1100 })
+            await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+            await page.emulateMedia({ colorScheme: text === "100%" ? "light" : "dark" })
+            for (const [pane, name] of [
+              [input, "Input"],
+              [output, "Output"],
+            ]) {
+              const switcher = page
+                .getByRole("navigation", { name: "Workspace view", exact: true })
+                .getByRole("button", { name, exact: true })
+              if (await switcher.isVisible()) await switcher.click()
+              const selection = pane.getByLabel("Page selection", { exact: true })
+              await selection.fill("1,3")
+              for (const view of ["Grid", "List", "Page"]) {
+                await tab(pane, view)
+                const trigger = pane.getByRole("button", { name: `Go to page in ${name}`, exact: true })
+                await trigger.click()
+                const popup = pane.locator(".page-destination-panel:popover-open")
+                const bounds = await popup.boundingBox(),
+                  anchor = await trigger.boundingBox()
+                assert.ok(
+                  bounds.x >= 8 && bounds.x + bounds.width <= width - 8,
+                  JSON.stringify({ width, text, bounds }),
+                )
+                assert.ok(
+                  bounds.y >= anchor.y + anchor.height && bounds.y - anchor.y - anchor.height < 8,
+                  JSON.stringify({ bounds, anchor }),
+                )
+                const field = pane.getByRole("textbox", { name: `${name} page number`, exact: true })
+                if (width === 375 && text === "100%")
+                  for (const invalid of ["0", "31", "2-3", "2,2", "2.0"]) {
+                    await field.fill(invalid)
+                    await field.press("Enter")
+                    assert.equal(await field.getAttribute("aria-invalid"), "true")
+                    assert.equal(await selection.inputValue(), "1,3")
+                  }
+                await field.fill("20")
+                await field.press("Enter")
+                await field.waitFor({ state: "hidden" })
+                if (view === "Page") assert.match(await pane.locator(".page-position").innerText(), /^20\s*\//)
+                else
+                  await pane
+                    .locator(`.${view === "List" ? "list-choice" : "page-image"}[data-page="19"]`)
+                    .waitFor({ state: "visible" })
+                assert.equal(await selection.inputValue(), "1,3")
+                assert.equal(await output.locator(".composition-totals strong").textContent(), "30 pages")
+                assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+                if (width === 375 && text === "100%")
+                  assert.equal(
+                    await pane.getByRole("tab", { name: view, exact: true }).locator("span:not(.edit-dot)").isVisible(),
+                    false,
+                  )
+                if (width !== 375 || text !== "100%") continue
+                await trigger.click()
+                await field.fill("4")
+                await page.keyboard.press("Escape")
+                await field.waitFor({ state: "hidden" })
+                assert.equal(await selection.inputValue(), "1,3")
+                for (const [shortcut, position] of [
+                  ["First", 0],
+                  ["Last", 29],
+                ]) {
+                  await trigger.click()
+                  await pane.getByRole("button", { name: `${shortcut} ${name} page`, exact: true }).click()
+                  if (view === "Page")
+                    assert.equal(parseInt(await pane.locator(".page-position").innerText(), 10), position + 1)
+                  else
+                    await pane
+                      .locator(`.${view === "List" ? "list-choice" : "page-image"}[data-page="${position}"]`)
+                      .waitFor({ state: "visible" })
+                  assert.equal(await selection.inputValue(), "1,3")
+                }
+              }
+            }
+          }
+        await page.setViewportSize({ width: 1440, height: 1100 })
+        await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+        await tab(output, "Grid")
+        await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
+        await gridDensity(output, "Normal Output grid")
+        const card = output.locator(".composition-card").first()
+        await card.hover()
+        assert.equal(await card.locator(".card-inline-actions button").count(), 4)
+        assert.equal(
+          await card.locator(".card-inline-actions").evaluate((node) => getComputedStyle(node).display),
+          "contents",
+        )
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)

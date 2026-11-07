@@ -167,6 +167,9 @@ focus identify the action. Its panel uses the standard full-height entry and equ
 the cover thumbnail and field share a row, the number entry ends at Use default's end edge. Wrapped fields retain a
 usable width. Invalid fields retain their error state without adding layout space.
 
+In single-pane layouts, Input file details open below their information trigger and remain within the viewport. Long
+details scroll within the available space below the trigger.
+
 Each pane header, view toolbar, and selection bar stays on one control row at every supported width and text size.
 Controls never wrap or move to another row. Preserve usable gaps, full-size touch targets, and shared vertical
 alignment. The Input selector gives space to Open PDF and truncates long filenames; the Input list retains each full
@@ -273,14 +276,19 @@ Tabs use square corners and an accent underline. Unselected tabs gain color on h
 and one border, without glow. Grid, List, Page, and Style use outlined icons. Disabled Style retains its crossed-out
 brush and explanatory hint. One 46 × 46 CSS px density action button sits beside the Grid tabs, outside the tablist, at
 every width. Its icon, hover text, and accessible name show the density that activation selects. The button keeps focus
-after switching. Narrow panes reduce tab padding, then use icon-only tabs if the labels still do not fit. With visible
-labels, keep at least 12 CSS px between adjacent tab contents. Keep accessible names and explanatory titles. Tabs,
-density controls, and Style tools never wrap or overlap. Reserve space for adjacent controls across views. The toolbar
-retains its height in Grid, List, Page, and Style so content frames do not shift. Keep at least 8 CSS px between its
-controls and bottom separator. Take added space from the gap below the separator; retain the total vertical space so the
-selection bar, content frame, and Grid capacity do not move.
+after switching. Toolbars at or below 26 em use icon-only view tabs with no gap between their targets. Wider panes
+retain tab text. With visible labels, keep at least 12 CSS px between adjacent tab contents. Keep accessible names and
+explanatory titles. Tabs, density controls, and Style tools never wrap or overlap. Reserve space for adjacent controls
+across views. The toolbar retains its height in Grid, List, Page, and Style so content frames do not shift. Keep at
+least 8 CSS px between its controls and bottom separator. Take added space from the gap below the separator; retain the
+total vertical space so the selection bar, content frame, and Grid capacity do not move.
 
 Inset the selected tab underline by 4 CSS px at each end at every width.
+
+Go to page sits at the end of the Grid/List/Page toolbar. Its icon opens a compact panel centered below the trigger
+within the viewport gutters. The panel has one numeric-keyboard field, a Go action, first and last page icons, the valid
+page range, and a Close target. Opening selects the current page number. Enter confirms valid input; Escape cancels.
+Navigation preserves Selection. The Selection bar and its hints retain their selection role.
 
 Routine hints, empty states, and tour steps describe controls and results without assuming a mouse or keyboard. Keep
 input-specific instructions in Help's Keyboard and Mouse sections.
@@ -433,9 +441,11 @@ bottom separator. The List reserves native scrollbar space outside the row width
 and folding does not move columns. Header, footer, and toolbar separators extend by half the workspace gutter equally on
 both sides in Grid, List, and Page. The toolbar uses overlapping pages with a minus or plus to collapse or expand all
 sections. A separate Section headings toggle follows it and stays in place when the expand/collapse control disappears.
-On narrow screens, toolbar icons have no gap between their 44 px targets. The visible Grid and Contents glyphs sit 4 px
-inside the toolbar's outer edges; wider layouts retain normal spacing. It shows or hides headings, with shown as its
-default. Hiding headings produces uninterrupted page rows and hides the expand/collapse toolbar control.
+Section headings are shown by default. Hiding them produces uninterrupted page rows and hides the expand/collapse
+toolbar control.
+
+On narrow screens, toolbar icons have no gap between their 44 px targets. The visible Grid and Go to page glyphs sit 4
+px inside the toolbar's outer edges; wider layouts retain normal spacing.
 
 The heading button toggles selection, including with Enter or Space. A fully selected closed section uses the primary
 background. A fully selected open section uses a stronger primary tint and retains its primary-colored current title.
@@ -459,10 +469,11 @@ root headers with no ancestor target, it remains present but disabled. Page-row 
 pointers, it appears on hover, keyboard focus, or while its panel is open; touch keeps it visible. Its compact panel has
 16 px padding, a short heading row with a 44 px Close target, and a numbered vertical trail from root to current
 section. Each trail entry is a navigation button with an inset level marker, a physical-page column, and a visible
-keyboard focus outline. Trail text wraps; the current level uses the primary color. Activating an entry closes the panel
-and focuses its header in the same pane. Jump targets briefly fade in and out with a 3000 ms secondary highlight. Grid
-and Page use a translucent overlay across the complete target, without dimming content or adding a contour. Reduced
-motion disables this animation. Escape and outside click dismiss the panel.
+keyboard focus outline. Level markers, physical page numbers, and title blocks share their vertical center, including
+wrapped titles. Trail text wraps; the current level uses the primary color. Activating an entry closes the panel and
+focuses its header in the same pane. Jump targets briefly fade in and out with a 3000 ms secondary highlight. Grid and
+Page use a translucent overlay across the complete target, without dimming content or adding a contour. Reduced motion
+disables this animation. Escape and outside click dismiss the panel.
 
 The Contents toolbar icon uses the primary color while its panel is open. Selecting an entry reveals its exact physical
 page in Grid, List, or Page, including Grid pages outside the current batch.
@@ -491,10 +502,10 @@ column reserves an extra 0.25em from the title column to retain the surrounding 
 immediately before the page name in a muted, centered 4ch column with 0.125em side padding. This column exists only when
 the PDF defines labels, and its width stays fixed across scrolling and folding. Long labels truncate with ellipsis and
 retain their full text in accessible text and the hover title. Labels identical to physical page numbers remain hidden
-in every view and detail. Normal Grid places differing labels at the bottom start of the card. Labeled Output cards use
-the centered action menu to keep the label clear of controls. Selected labels inherit the row color. Section headings
-keep their text in the page-name column and show the starting page's label only when it differs from the physical
-number.
+in every view and detail. Normal Input Grid places differing labels at the bottom start of the card. Output Grid keeps
+its footer for page actions; PDF labels remain available in page details. Selected labels inherit the row color. Section
+headings keep their text in the page-name column and show the starting page's label only when it differs from the
+physical number.
 
 List rows align page numbers, supplied names, and page actions in stable columns. Keep number and action columns visible
 in narrow panes. Plain numbers and detail buttons use the same type size and column center. Names wrap in the remaining

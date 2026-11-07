@@ -3483,3 +3483,183 @@ test("Input additions fly from Grid and List to visible Output in both pane layo
     }
   }
 })
+
+test(
+  "List keeps a page at its previous viewport position after Page and Grid returns",
+  { timeout: 120000 },
+  async () => {
+    const server = await serve()
+    for (const engine of [chromium, webkit]) {
+      const browser = await launch(engine)
+      try {
+        for (const width of [810, 1440]) {
+          const page = await browser.newPage({
+            viewport: { width, height: 1080 },
+            hasTouch: width === 810,
+            reducedMotion: "reduce",
+          })
+          page.setDefaultTimeout(10000)
+          await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+          await page.goto(server.resolvedUrls.local[0])
+          await page
+            .locator('input[type="file"]')
+            .first()
+            .setInputFiles({
+              name: "Return.pdf",
+              mimeType: "application/pdf",
+              buffer: fixture({ prepared: false, count: 300 }),
+            })
+          const input = page.locator(".selection-panel"),
+            output = page.locator(".composition-output")
+          await input.getByLabel("Page selection", { exact: true }).fill("1-300")
+          await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+          for (const [pane, name] of [
+            [input, "Input"],
+            [output, "Output"],
+          ]) {
+            const switcher = page
+              .getByRole("navigation", { name: "Workspace view", exact: true })
+              .getByRole("button", { name, exact: true })
+            if (await switcher.isVisible()) await switcher.click()
+            await tab(pane, "List")
+            const field = pane.getByLabel("Page selection", { exact: true })
+            await field.fill("209")
+            await pane.getByRole("button", { name: `Go to page in ${name}`, exact: true }).click()
+            await pane.getByRole("textbox", { name: `${name} page number`, exact: true }).fill("209")
+            await pane.getByRole("textbox", { name: `${name} page number`, exact: true }).press("Enter")
+            const row = pane.locator('.list-row:has(.list-choice[data-page="208"])')
+            await row.waitFor()
+            await row.evaluate((element) => {
+              const list = element.closest(".page-list")
+              list.scrollTop +=
+                element.getBoundingClientRect().top - list.getBoundingClientRect().top - list.clientHeight / 3
+            })
+            await page.evaluate(
+              () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+            )
+            const before = await row.evaluate(
+              (element) =>
+                element.getBoundingClientRect().top - element.closest(".page-list").getBoundingClientRect().top,
+            )
+            for (const view of ["Page", "Grid"]) {
+              if (view === "Page") await row.getByRole("button", { name: `View ${name} page 209`, exact: true }).click()
+              else await tab(pane, view)
+              await tab(pane, "List")
+              await row.waitFor()
+              await page.evaluate(
+                () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+              )
+              const after = await row.evaluate(
+                (element) =>
+                  element.getBoundingClientRect().top - element.closest(".page-list").getBoundingClientRect().top,
+              )
+              assert.ok(
+                Math.abs(after - before) < 1,
+                JSON.stringify({ engine: engine.name(), width, name, view, before, after }),
+              )
+              assert.equal(await field.inputValue(), "209")
+            }
+          }
+          await page.close()
+        }
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
+
+test(
+  "Touch List strips float horizontally and section path nodes share their title centers",
+  { timeout: 120000 },
+  async () => {
+    const server = await serve()
+    for (const engine of [chromium, webkit]) {
+      const browser = await launch(engine)
+      try {
+        const page = await browser.newPage({
+          viewport: { width: 810, height: 1080 },
+          hasTouch: true,
+          reducedMotion: "reduce",
+        })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        await page
+          .locator('input[type="file"]')
+          .first()
+          .setInputFiles({
+            name: "Paths.pdf",
+            mimeType: "application/pdf",
+            buffer: fixture({
+              prepared: false,
+              count: 4,
+              outline: [
+                { title: "Chapter", page: 0 },
+                { title: "A long section title that wraps when the panel narrows ".repeat(3), page: 1, parent: 0 },
+              ],
+            }),
+          })
+        const input = page.locator(".selection-panel")
+        await tab(input, "List")
+        const collapsed = input.getByRole("button", { name: /Expand Input section/ })
+        if (await collapsed.count())
+          await input.getByRole("button", { name: "Expand all Input sections", exact: true }).click()
+        await input.locator('.list-row:has(.list-choice[data-page="1"]) .list-jump').click()
+        const panel = input.locator(".section-path:popover-open")
+        for (const colorScheme of ["light", "dark"])
+          for (const text of ["100%", "200%"]) {
+            await page.emulateMedia({ colorScheme })
+            await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+            const centers = await panel.locator(".path-step").evaluateAll((buttons) => {
+              const center = (element) => {
+                const box = element.getBoundingClientRect()
+                return box.y + box.height / 2
+              }
+              return buttons.map((button) => [
+                center(button.querySelector(".path-level")),
+                center(button.lastElementChild),
+                center(button.querySelector(".path-page")),
+              ])
+            })
+            assert.ok(
+              centers.every((values) => Math.max(...values) - Math.min(...values) < 1),
+              JSON.stringify(centers),
+            )
+          }
+        await page.keyboard.press("Escape")
+        await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+        const grip = input.getByRole("button", { name: "Select or drag Input page 2 to Output", exact: true })
+        const box = await grip.boundingBox(),
+          point = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+        await grip.dispatchEvent("pointerdown", {
+          pointerType: "touch",
+          pointerId: 9,
+          isPrimary: true,
+          button: 0,
+          clientX: point.x,
+          clientY: point.y,
+        })
+        const strip = page.locator(".drag-image[data-strip]")
+        const start = await strip.boundingBox()
+        assert.ok(start.width <= 320)
+        await page.dispatchEvent("body", "pointermove", {
+          pointerType: "touch",
+          pointerId: 9,
+          isPrimary: true,
+          clientX: point.x + 120,
+          clientY: point.y + 50,
+        })
+        await page.waitForFunction(
+          (x) => document.querySelector(".drag-image[data-strip]")?.getBoundingClientRect().x > x + 90,
+          start.x,
+        )
+        const end = await strip.boundingBox()
+        assert.ok(end.x - start.x > 90 && end.y - start.y > 25, JSON.stringify({ start, end }))
+        await page.dispatchEvent("body", "pointercancel", { pointerType: "touch", pointerId: 9, isPrimary: true })
+        assert.equal(await strip.count(), 0)
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)

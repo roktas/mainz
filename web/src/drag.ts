@@ -36,7 +36,7 @@ export function retainFocus(event: MouseEvent) {
   frame = requestAnimationFrame(restore)
 }
 
-export function createDragImage(control: HTMLElement, quantity: number, size?: Size) {
+export function createDragImage(control: HTMLElement, quantity: number, size?: Size, floating = false) {
   const row = control.closest<HTMLElement>(".list-row")
   if (row) {
     const bounds = row.getBoundingClientRect(),
@@ -44,7 +44,7 @@ export function createDragImage(control: HTMLElement, quantity: number, size?: S
       choice = row.querySelector<HTMLElement>(".list-choice")!,
       text = choice.textContent?.trim() ?? "",
       font = getComputedStyle(choice),
-      width = Math.min(bounds.width, innerWidth - 24),
+      width = Math.min(bounds.width, innerWidth - 24, floating ? 320 : Infinity),
       height = bounds.height,
       numberCell = row.querySelector<HTMLElement>(".list-number")!,
       numberWidth = numberCell.getBoundingClientRect().width,

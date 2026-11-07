@@ -1,5 +1,10 @@
 <!-- Windows page rows and section disclosures, and owns List scrolling and keyboard navigation. -->
 
+<script module lang="ts">
+  type Measurements = { revision: unknown; width: number; sizes: ReadonlyMap<number, number> }
+  export type Viewport = { scroll: number; measured?: Measurements; position?: number; offset?: number }
+</script>
+
 <script lang="ts">
   import { tick, untrack } from "svelte"
   import type { Snippet } from "svelte"
@@ -10,6 +15,7 @@
 
   let {
     pane,
+    viewport: saved = { scroll: 0 },
     count,
     labeled = false,
     revision,
@@ -26,6 +32,7 @@
     children,
   }: {
     pane: "Input" | "Output"
+    viewport?: Viewport
     count: number
     labeled?: boolean
     revision?: unknown
@@ -44,17 +51,13 @@
     children: Snippet<[index: number, retained?: number]>
   } = $props()
   let viewport = $state(0)
-  let scroll = $state(0)
+  let scroll = $state(untrack(() => saved.scroll))
   let dragged = $state<number>()
   let seeking = $state<number>()
   let settling = Promise.resolve()
   let list: HTMLUListElement | undefined
   const rowHeight = 44
-  let measured = $state.raw<{
-    revision: unknown
-    width: number
-    sizes: ReadonlyMap<number, number>
-  }>()
+  let measured = $state.raw<Measurements | undefined>(untrack(() => saved.measured))
   let width = $state(0)
   const empty = new Set<string>()
   const collapsed = $derived(folds ?? empty)
@@ -141,11 +144,7 @@
     return first
   }
   const start = $derived(
-    seeking !== undefined
-      ? Math.max(0, (offsets[(ranks.get(seeking) ?? 0) + 1] ?? 0) - viewport)
-      : viewport
-        ? scroll
-        : (offsets[ranks.get(Math.max(0, position)) ?? 0] ?? 0),
+    seeking !== undefined ? Math.max(0, (offsets[(ranks.get(seeking) ?? 0) + 1] ?? 0) - viewport) : scroll,
   )
   const from = $derived(Math.max(0, Math.min(Math.max(0, order.length - 1), locate(start) - 8)))
   const to = $derived(Math.min(order.length, Math.max(from + 1, locate(start + viewport) + 9)))
@@ -161,8 +160,15 @@
     if (pin !== undefined) window.push(pin)
     return window.toSorted((a, b) => sequenceRanks.get(a)! - sequenceRanks.get(b)!)
   })
+  export function remember() {
+    if (!list) return
+    const row = list.querySelector<HTMLElement>(`[data-page="${position}"]`)?.closest("li")
+    saved.position = row ? position : undefined
+    saved.offset = row ? row.getBoundingClientRect().top - list.getBoundingClientRect().top : undefined
+  }
   function scrolling(element: HTMLElement) {
     scroll = element.scrollTop
+    remember()
     const focused =
       document.activeElement instanceof HTMLElement
         ? document.activeElement.closest<HTMLElement>(".list-row, .list-section")
@@ -210,6 +216,10 @@
       frame = requestAnimationFrame(measure)
     })
     observer.observe(element)
+    untrack(() => {
+      measure()
+      element.scrollTop = scroll
+    })
     $effect(() => {
       void rows
       void tick().then(() => {
@@ -223,14 +233,15 @@
     $effect(() => {
       const index = position
       untrack(() => {
+        const offset = !following && saved.position === index ? saved.offset : undefined
         if (following && followedRevision === revision) expand(index)
         following = true
         followedRevision = revision
         const rank = ranks.get(index)
         if (rank === undefined) return
-        seeking = index
         const top = offsets[rank]
         const bottom = offsets[rank + 1]
+        seeking = top < element.scrollTop || bottom > element.scrollTop + element.clientHeight ? index : undefined
         if (top < element.scrollTop) element.scrollTop = top
         else if (bottom > element.scrollTop + element.clientHeight) element.scrollTop = bottom - element.clientHeight
         scroll = element.scrollTop
@@ -239,10 +250,10 @@
           measure()
           await tick()
           if (!disposed && position === index) {
-            element
-              .querySelector<HTMLElement>(`[data-page="${position}"]`)
-              ?.closest("li")
-              ?.scrollIntoView({ block: "nearest" })
+            const row = element.querySelector<HTMLElement>(`[data-page="${position}"]`)?.closest("li")
+            if (row && offset !== undefined)
+              element.scrollTop += row.getBoundingClientRect().top - element.getBoundingClientRect().top - offset
+            row?.scrollIntoView({ block: "nearest" })
             scroll = element.scrollTop
             seeking = undefined
             await tick()
@@ -251,6 +262,9 @@
       })
     })
     return () => {
+      // A detached list can already report a zero DOM scroll offset here.
+      saved.scroll = untrack(() => scroll)
+      saved.measured = untrack(() => measured)
       list = undefined
       owner?.style.removeProperty("--list-gutter")
       disposed = true
