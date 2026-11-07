@@ -1958,21 +1958,22 @@ test("Output Page keeps original PDF labels through composition and Input change
       assert.ok(labelBounds.aligned && labelBounds.separate, JSON.stringify(labelBounds))
       const navigation = await labels.evaluate((element) => {
         const nav = element.closest(".page-navigation")
-        const frame = nav.getBoundingClientRect()
-        const style = getComputedStyle(nav)
+        const gap = parseFloat(getComputedStyle(nav.querySelector(".page-actions")).columnGap)
         const actions = nav.querySelector(".page-actions").getBoundingClientRect()
         const previous = nav.querySelector('[data-step="-1"]').getBoundingClientRect()
         const next = nav.querySelector('[data-step="1"]').getBoundingClientRect()
         return {
-          previous: Math.abs(
-            previous.x + previous.width / 2 - (frame.left + parseFloat(style.paddingInlineStart) + actions.left) / 2,
-          ),
-          next: Math.abs(
-            next.x + next.width / 2 - (actions.right + frame.right - parseFloat(style.paddingInlineEnd)) / 2,
-          ),
+          previous: actions.left - previous.right,
+          next: next.left - actions.right,
+          gap,
         }
       })
-      assert.ok(navigation.previous < 1 && navigation.next < 1, JSON.stringify(navigation))
+      assert.ok(
+        navigation.previous >= -1 &&
+          navigation.previous <= navigation.gap + 1 &&
+          Math.abs(navigation.previous - navigation.next) < 1,
+        JSON.stringify(navigation),
+      )
       await aligned(output)
       if ((await output.locator(".page-view").getAttribute("data-controls")) !== "all") {
         await output.getByLabel("Output page actions", { exact: true }).click()

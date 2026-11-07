@@ -53,6 +53,7 @@
       reports.at(-1),
   )
   export function report(item: Report) {
+    notify("")
     reports = [...reports, item]
     const remove = () => {
       reports = reports.filter((entry) => entry !== item)
@@ -70,6 +71,9 @@
   const visible = $derived(!!(headerError || headerBusy || notice || activeReport))
   $effect(() => {
     active = visible
+  })
+  $effect(() => {
+    if (headerBusy || headerError) notify("")
   })
   onDestroy(() => {
     clearTimeout(noticeTimer)

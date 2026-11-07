@@ -824,7 +824,7 @@ test("List section headings default to shown and toggle independently without ch
           const box = toolbar.getBoundingClientRect()
           return {
             start: bounds(".tabs > button:first-child svg")[0] - box.left,
-            end: box.right - bounds("[popovertarget] svg")[1],
+            end: box.right - bounds(".page-destination > button svg")[1],
           }
         })
         if (width === 375)

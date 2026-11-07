@@ -1578,11 +1578,6 @@ test("Output actions stay reachable with enlarged text", { timeout: 30000 }, asy
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
       }
     }
-    await page.setViewportSize({ width: 390, height: 1000 })
-    await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
-    await output.getByLabel("Output page actions", { exact: true }).click()
-    await output.getByRole("button", { name: "Filename", exact: true }).click()
-    await page.locator(".filename-panel").waitFor({ state: "visible" })
   } finally {
     await browser.close()
   }
@@ -1957,6 +1952,65 @@ test(
         assert.equal(await input.locator(".input-current").textContent(), "Used.pdf")
         await page.close()
       }
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test(
+  "iPhone Home Screen Print shares the generated PDF and retains recovery after cancellation",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await launch(webkit)
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 428, height: 926 },
+        hasTouch: true,
+        isMobile: true,
+        reducedMotion: "reduce",
+      })
+      await page.addInitScript(() => {
+        localStorage.setItem("mainz:onboarding", "19")
+        Object.defineProperty(navigator, "userAgent", { value: "iPhone" })
+        Object.defineProperty(navigator, "standalone", { value: true })
+        Object.defineProperty(navigator, "vendor", { value: "Apple Computer, Inc." })
+        navigator.canShare = ({ files }) => files.length === 1 && files[0].type === "application/pdf"
+        navigator.share = async ({ files }) => {
+          window.shared = { name: files[0].name, bytes: [...new Uint8Array(await files[0].arrayBuffer())] }
+          if (window.shareFailure) throw new Error("Share unavailable")
+          throw new DOMException("Cancelled", "AbortError")
+        }
+      })
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).click()
+      const output = page.locator(".composition-output")
+      const popups = []
+      page.on("popup", (popup) => popups.push(popup))
+      await output.getByRole("button", { name: "Print", exact: true }).click()
+      const dialog = page.getByRole("dialog", { name: "Print", exact: true })
+      const share = dialog.getByRole("button", { name: "Share PDF to print", exact: true })
+      await share.click()
+      await page.waitForFunction(() => window.shared)
+      await share.waitFor({ state: "visible" })
+      const shared = await page.evaluate(() => window.shared)
+      assert.match(shared.name, /\.pdf$/)
+      assert.equal(Buffer.from(shared.bytes).subarray(0, 5).toString(), "%PDF-")
+      assert.equal(popups.length, 0, "Print stays in the installed app until the system menu opens")
+      assert.equal(await dialog.isVisible(), true, "Cancellation retains the prepared PDF")
+      assert.equal(await page.locator('.header-feedback .feedback[data-kind="error"]').count(), 0)
+      await page.evaluate(() => (window.shareFailure = true))
+      await share.click()
+      await page
+        .getByText("Could not open the print menu. Open or download the PDF to print it", { exact: true })
+        .waitFor()
+      const pending = page.waitForEvent("download")
+      await dialog.getByRole("link", { name: "Download PDF", exact: true }).click()
+      const downloaded = await pending
+      assert.ok((await readFile(await downloaded.path())).equals(Buffer.from(shared.bytes)))
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
     } finally {
       await browser.close()
     }

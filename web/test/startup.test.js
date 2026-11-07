@@ -162,6 +162,7 @@ test(
         [375, "100%"],
         [768, "100%"],
         [390, "100%"],
+        [428, "100%"],
         [320, "200%"],
         [320, "200%", "DejaVu Sans"],
       ]) {
@@ -213,6 +214,21 @@ test(
           )
           if (text === "100%") assert.ok(Math.abs(actions[0].center - actions[1].center) < 1)
           if (width === 1920) assert.ok(actions.every((action) => action.width >= 120))
+          if (width === 428) {
+            const spacing = await page.locator(".drop-zone").evaluate((element) => {
+              const box = element.getBoundingClientRect()
+              const buttons = element.querySelector(".buttons").getBoundingClientRect()
+              const style = getComputedStyle(element)
+              return {
+                padding: parseFloat(style.paddingInlineStart),
+                width: box.width,
+                start: buttons.left - box.left,
+                end: box.right - buttons.right,
+              }
+            })
+            assert.ok(spacing.padding <= 0.027 * width, JSON.stringify(spacing))
+            assert.ok(Math.abs(spacing.start - spacing.end) < 1 && spacing.start <= spacing.padding + 1)
+          }
           assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
         }
       }
@@ -2285,6 +2301,10 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     await other.goto(url)
     await update.click()
     await page.getByText("Close other PDF Composer tabs before updating", { exact: true }).waitFor()
+    assert.equal(await page.locator(".header-feedback > .feedback").count(), 1)
+    assert.equal(await page.locator(".header-feedback .notice").count(), 0)
+    await page.clock.fastForward(11000)
+    assert.equal(await page.locator(".header-feedback .notice").count(), 0)
     assert.notEqual(
       await page
         .locator(".header-feedback .feedback[data-kind=error]")

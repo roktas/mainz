@@ -1,9 +1,10 @@
-<!-- Hands completed Output PDF bytes to native PDF printing and owns the viewer's temporary resources. -->
+<!-- Hands completed Output PDFs to native printing or sharing and owns temporary viewer resources. -->
 
 <script lang="ts">
   import { onDestroy } from "svelte"
   import type { Prepared } from "./Export.svelte"
   import Icon from "./Icon.svelte"
+  import Feedback from "./Feedback.svelte"
   let { info }: { info: (text: string) => void } = $props()
   let dialog: HTMLDialogElement
   let frame = $state<HTMLIFrameElement>()
@@ -12,9 +13,20 @@
   let timer: ReturnType<typeof setInterval> | undefined
   const direct = navigator.pdfViewerEnabled
   const separate = navigator.vendor.includes("Apple")
+  const phoneApp =
+    /iPhone/.test(navigator.userAgent) &&
+    (matchMedia("(display-mode: standalone)").matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true)
+  const file = $derived(phoneApp && pdf ? new File([pdf.bytes], pdf.name, { type: "application/pdf" }) : undefined)
+  const shareable = $derived(
+    !!file && typeof navigator.share === "function" && !!navigator.canShare?.({ files: [file] }),
+  )
+  let sharing = $state(false)
+  let failure = $state("")
   function release() {
     clearInterval(timer)
     pdf = undefined
+    failure = ""
     if (url) URL.revokeObjectURL(url)
     url = ""
   }
@@ -23,7 +35,7 @@
     if (viewer?.closed) return
     pdf = prepared
     url = URL.createObjectURL(new Blob([prepared.bytes], { type: "application/pdf" }))
-    if (!direct) dialog.showModal()
+    if (!direct || phoneApp) dialog.showModal()
     else if (separate) open(viewer)
   }
   function open(reserved?: Window) {
@@ -54,6 +66,19 @@
       }
     }, 250)
   }
+  async function share() {
+    if (!file || sharing) return
+    sharing = true
+    failure = ""
+    try {
+      await navigator.share({ files: [file] })
+    } catch (reason) {
+      if (!(reason instanceof DOMException && reason.name === "AbortError"))
+        failure = "Could not open the print menu. Open or download the PDF to print it."
+    } finally {
+      sharing = false
+    }
+  }
   function print() {
     if (!pdf || !frame || !url) return
     try {
@@ -74,7 +99,7 @@
   onDestroy(release)
 </script>
 
-{#if direct && !separate && url}
+{#if direct && !separate && !phoneApp && url}
   <iframe
     bind:this={frame}
     class="print-frame"
@@ -95,8 +120,15 @@
       >
     </div>
     <p class="print-name">{pdf.name}</p>
-    <p>Open the prepared PDF in your browser or PDF app, then choose Print.</p>
+    <p>
+      {phoneApp && shareable
+        ? "Open the system share menu, then choose Print."
+        : "Open the prepared PDF in your browser or PDF app, then choose Print."}
+    </p>
+    <Feedback header kind="error" text={failure} />
     <div class="print-actions">
+      {#if phoneApp && shareable}<button type="button" disabled={sharing} onclick={share}>Share PDF to print</button
+        >{/if}
       <a href={url} target="_blank" rel="noopener">Open PDF to print</a>
       <a
         href={url}

@@ -736,9 +736,9 @@ headings, view toolbars, and pagination captions outside cards follow their own 
 
 Selection hides individual actions without moving the image or changing card dimensions. Normal footers keep their
 height and separator. Input centers addition. Output uses the same 32 px controls and paired spacing as List on a fine
-pointer, with left/right movement before removal/duplication. Touch uses a visible menu with 44 px actions. Page places
-navigation chevrons at the outer edges around these actions. Movement actions use stemmed arrows, distinct from
-navigation chevrons. All action targets remain usable with keyboard and touch.
+pointer, with left/right movement before removal/duplication. Touch uses a visible menu with 44 px actions. Page groups
+navigation chevrons directly around these actions. Movement actions use stemmed arrows, distinct from navigation
+chevrons. All action targets remain usable with keyboard and touch.
 
 PDF content, Blank, and Padding keep physical proportions and the same fit rules. Neutral image frames distinguish white
 page edges in light mode. Resizing and density changes keep completed pixels visible until replacement renders finish.
@@ -749,16 +749,15 @@ Page headings and navigation stay outside the image viewport. All Page layouts u
 reference. Leave equal inline insets between visible content and the frame's inner edges. The inset also clears the
 back-page fold: visible control content stays at least 8 CSS px inside the fold's inner edge. Use the same inset on both
 sides and in both rows, including on front pages. Counter text and the footer Page Label share the start reference.
-Visible zoom reset content uses the end reference. Navigation arrows stay centered between the frame insets and the
-middle action group. Center visible content vertically in its own row. Keep the Input grip and footer actions on the
-frame's true centerline, independent of side-group widths. Output has no grip. Zoom, panning, page proportions, and
-selection do not move these references. Keep targets separate and inside the frame, with at least 44 CSS px of target
-height.
+Visible zoom reset content uses the end reference. Navigation arrows flank the middle action group with one standard gap
+that can shrink when enlarged text leaves insufficient space. Center visible content vertically in its own row. Keep the
+Input grip and footer actions on the frame's true centerline, independent of side-group widths. Output has no grip.
+Zoom, panning, page proportions, and selection do not move these references. Keep targets separate and inside the frame,
+with at least 44 CSS px of target height.
 
 The measured Page-heading budget includes the counter before inline zoom actions. Page Label sits at the footer's
-leading edge, aligned with the counter. Previous and Next sit at the centers of the spaces on either side of the
-centered page actions. Long labels truncate before reaching Previous and retain their full value in the tooltip and
-accessible name.
+leading edge, aligned with the counter. Previous and Next sit at most one standard gap from the centered page actions.
+Long labels truncate before reaching Previous and retain their full value in the tooltip and accessible name.
 
 On desktop, retain native scrollbars when the Page image overflows. They show the available range and support mouse
 navigation. Hide them when the image fits that axis. Scrollbar visibility does not change the control references.
@@ -942,7 +941,8 @@ installation action has secondary emphasis. The title and visible close icon sha
 and enlarged text retain scrolling within the dialog. Installation guidance does not change workspace geometry or Grid
 capacity. [SPEC.md](SPEC.md#help-and-onboarding) owns startup eligibility, dismissal, and access through Help → App.
 
-Landing PDF and Recipe actions share one row with equal widths. Enlarged text can stack them when space is insufficient.
+Landing PDF and Recipe actions share one row with equal widths. On phones, they fill the available content width, with
+inline frame padding capped at 2.5% of the container width. Enlarged text can stack them when space is insufficient.
 Inline padding grows on wide screens. File details use a table with end-aligned field names, start-aligned values, and a
 gap instead of colons.
 

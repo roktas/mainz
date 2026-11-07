@@ -995,8 +995,8 @@ test("Output menu labels fit one line with narrow and enlarged text", { timeout:
               })
           })
           assert.deepEqual(
-            controls.slice(-4).map((button) => button.label),
-            ["Before", "At end", "Filename", "Repeat"],
+            controls.slice(-3).map((button) => button.label),
+            ["Before", "At end", "Repeat"],
           )
           assert.ok(
             controls.every((button) => button.lines === 1 && button.fits),
@@ -1268,6 +1268,13 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     assert.equal(await add.count(), 0)
     await inputClear.click()
     await input.getByLabel("Input page actions", { exact: true }).click()
+    const menu = input.locator(".menu-options")
+    const compact = await menu.evaluate((element) => {
+      const checkbox = element.querySelector(".align").getBoundingClientRect()
+      return { height: element.getBoundingClientRect().height, checkbox: checkbox.height }
+    })
+    assert.ok(compact.height <= 220, JSON.stringify(compact))
+    assert.ok(compact.checkbox >= 44, "The compact menu retains a full checkbox target")
     await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill("2")
     await page.keyboard.press("Escape")
     assert.equal(await inputClear.count(), 1, "Configuration can be cleared before selecting pages")

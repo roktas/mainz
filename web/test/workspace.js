@@ -41,17 +41,17 @@ export async function aligned(pane) {
     const grip = handle?.checkVisibility() ? handle.getBoundingClientRect() : undefined
     const actions = navigation.querySelector(".page-actions")?.getBoundingClientRect()
     const leading = grip ?? heading.querySelector(".page-number-control").getBoundingClientRect()
-    const footer = navigation.getBoundingClientRect()
-    const padding = getComputedStyle(navigation)
-    const previousCenter = (footer.left + parseFloat(padding.paddingInlineStart) + actions.left) / 2
-    const nextCenter = (actions.right + footer.right - parseFloat(padding.paddingInlineEnd)) / 2
+    const gap = parseFloat(getComputedStyle(navigation.querySelector(".page-actions")).columnGap)
+    const previousGap = actions.left - previous.left - previous.width / 2 - 22
+    const nextGap = next.left + next.width / 2 - actions.right - 22
     const tools = [...heading.querySelectorAll(".page-tools button")]
       .filter((el) => el.checkVisibility() && getComputedStyle(el).visibility !== "hidden")
       .map((el) => el.getBoundingClientRect())
     const edges =
       Math.abs(current.left - frame.left - 32) < 1 &&
-      Math.abs(previous.left + previous.width / 2 - previousCenter) < 1 &&
-      Math.abs(next.left + next.width / 2 - nextCenter) < 1 &&
+      previousGap >= -1 &&
+      previousGap <= gap + 1 &&
+      Math.abs(previousGap - nextGap) < 1 &&
       (!fit || Math.abs(fit.getBoundingClientRect().right - frame.right + 32) < 1)
     const centered = [heading, navigation].every((row) => {
       const bounds = row.getBoundingClientRect()
@@ -64,6 +64,7 @@ export async function aligned(pane) {
     return (
       edges &&
       centered &&
+      Math.abs(actions.x + actions.width / 2 - frame.x - frame.width / 2) < 1 &&
       (!grip ||
         (Math.abs(grip.x + grip.width / 2 - frame.x - frame.width / 2) < 1 &&
           Math.abs(grip.x + grip.width / 2 - actions.x - actions.width / 2) < 1)) &&

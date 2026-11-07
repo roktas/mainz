@@ -47,6 +47,8 @@
 
 ### Changed
 
+- Remove Filename from Output page actions.
+
 - List retains every TOC entry as a separate header, including entries without children, and folds, selects, or copies
   its subtree.
 - The TOC demo uses the complete public-domain _Advanced Bash-Scripting Guide_, with three outline levels.
@@ -113,6 +115,11 @@
 - Compact mobile Output actions, with a square Download icon button and totals beside the icons.
 
 ### Fixed
+
+- Compact repetition menus and Page navigation, widen phone landing actions, and clear stale notices when new work
+  starts.
+- Offer native PDF sharing for printing from iPhone Home Screen apps, with cancellation and download recovery.
+- Align the first narrow view icon and measure the trailing Go to page control in browser regressions.
 
 - Retain List viewport positions across view returns and let touch drag strips move freely in both directions.
 - Align section navigation markers, anchor tablet Input details to their trigger, and restore Output Grid footer

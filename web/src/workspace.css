@@ -1209,6 +1209,7 @@
       .composer :is(.source-tabs, .output-tabs) {
         column-gap: 0;
         & .tabs > button:first-child {
+          justify-content: start;
           padding-inline-start: 4px;
           & svg {
             /* Compensate for the Grid path's inset within its viewBox. */

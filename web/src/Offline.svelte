@@ -19,6 +19,7 @@
   const updateReady = $derived(busy ? "Update ready. Download and close your PDF." : "Update ready.")
   const installFailed = "Offline setup failed. Reload this page in a moment. If it keeps failing, report it."
   function report(text: string, kind: "info" | "notice" | "error" = "info") {
+    notify("")
     status = kind === "info" ? text : ""
     if (kind === "notice") notify(text)
     if (kind === "error") error(text)

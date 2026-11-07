@@ -663,8 +663,8 @@
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
           gap: calc(var(--gap) / 2);
-          & a {
-            display: flex;
+          & :is(a, button) {
+            display: block flex;
             align-items: center;
             justify-content: center;
             min-block-size: 46px;

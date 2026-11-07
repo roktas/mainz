@@ -842,10 +842,10 @@ The default filename is `<input-name>_YYYY-MMDD-HHmm-sscc.pdf`, using the first 
 without its `.pdf` extension. Automatic naming removes all consecutive trailing `_YYYY-MMDD-HHmm-sscc` suffixes before
 it adds the new timestamp. Other parts of the name remain unchanged. An empty stem uses `blank-pages`. The timestamp
 uses local time when the PDF is ready. `ss` means seconds and `cc` hundredths. Unused Inputs do not affect the name.
-Blank-only Output uses `blank-pages`. The Output heading opens the filename editor; the Output page actions menu also
-provides it. A custom name applies to Download, Share, and Print and remains in the workspace until Home. The editor
-rejects empty names, path separators, and control characters, and adds `.pdf` when needed. Use default restores
-automatic naming. The header does not display the filename beside its controls.
+Blank-only Output uses `blank-pages`. In wide layouts, the Output heading opens the filename editor. A custom name
+applies to Download, Share, and Print and remains in the workspace until Home. The editor rejects empty names, path
+separators, and control characters, and adds `.pdf` when needed. Use default restores automatic naming. The header does
+not display the filename beside its controls.
 
 The same editor contains the Output title and cover-page choice, with a preview of that page. The title defaults to the
 first contributing Input's title, or its filename stem when no authored title exists. Empty stems retain the opened
@@ -858,14 +858,15 @@ UTF-8 bytes. Composition writes the title to XMP `dc:title` and PDF Info `Title`
 Print captures the same Plan and uses the same preparation, validation, inspection, and cancellation as Download. It
 hands the completed PDF bytes to the browser's PDF viewer, preserving the Output pages and styles. Browsers with native
 PDF viewing receive a print request with the Output filename as the viewer document title, without an application viewer
-panel. Apple browsers use a separate PDF window because embedded iOS PDF printing can omit pages. Print reserves that
-window during the user action, before asynchronous preparation. Cancellation or preparation failure closes the reserved
-window. Browsers without native PDF viewing use a panel with Open PDF to print and Download PDF. A rejected or
-inaccessible print API also opens that panel. The browser can silently ignore a print request; Download remains
-available. Paper, scaling, printer selection, and the choice of system dialog belong to the browser or PDF application,
-which also controls the print-job name. A print request does not prove that printing completed and does not clear the
-unsaved warning. Downloading the prepared PDF clears the downloaded choices' warning. Unused Input changes and invalid
-drafts retain their warning.
+panel. iPhone Home Screen apps offer the system file-sharing menu, where users choose Print. Cancellation retains the
+prepared PDF; unavailable sharing retains Open PDF and Download recovery. Other Apple browsers use a separate PDF window
+because embedded iOS PDF printing can omit pages. Print reserves that window during the user action, before asynchronous
+preparation. Cancellation or preparation failure closes the reserved window. Browsers without native PDF viewing use a
+panel with Open PDF to print and Download PDF. A rejected or inaccessible print API also opens that panel. The browser
+can silently ignore a print request; Download remains available. Paper, scaling, printer selection, and the choice of
+system dialog belong to the browser or PDF application, which also controls the print-job name. A print request does not
+prove that printing completed and does not clear the unsaved warning. Downloading the prepared PDF clears the downloaded
+choices' warning. Unused Input changes and invalid drafts retain their warning.
 
 View captures and inspects the same Output PDF. Preparation and Cancel appear in the app header. View opens the
 completed PDF without a second application confirmation. iPad Chrome follows a native PDF link after preparation.
@@ -935,16 +936,17 @@ keeps the instruction without animation.
 | Notice  | Guidance or an event announcement.           | Ten seconds, dismissal, or resolution.    |
 | Error   | A failure with its next action.              | Until dismissal or resolution.            |
 
-A new Notice replaces the old timed Notice and restarts its timer without replacing operation status. The optional
-updated-Recipe offer lasts until export or dismissal. The header presents notifications, warnings, errors, active
-operations, and recovery actions. The footer retains workspace status, completed results, and cancellations. Active
-opening and Style progress do not repeat in the footer. The header shows one message group at a time. Active operations
-keep Cancel available. Errors take priority over notices after active work ends. Header messages have no final period.
-Clicking a message opens its available actions or full explanation, or navigates to the affected item. Separate Details
-controls do not repeat this trigger. Dialog errors use the same visible, operable header area. Field errors retain
-accessible descriptions and invalid states. Local cues can identify an affected item without moving controls, resizing
-rows, or changing scroll position. Closing a dialog clears its field errors from the header. Delayed completion cannot
-replace newer operation feedback. Selection, navigation, and hover retain their local state cues.
+A new Notice replaces the old timed Notice and restarts its timer without replacing operation status. New work or error
+feedback clears the timed Notice, so it cannot reappear after the newer message ends. The optional updated-Recipe offer
+lasts until export or dismissal. The header presents notifications, warnings, errors, active operations, and recovery
+actions. The footer retains workspace status, completed results, and cancellations. Active opening and Style progress do
+not repeat in the footer. The header shows one message group at a time. Active operations keep Cancel available. Errors
+take priority over notices after active work ends. Header messages have no final period. Clicking a message opens its
+available actions or full explanation, or navigates to the affected item. Separate Details controls do not repeat this
+trigger. Dialog errors use the same visible, operable header area. Field errors retain accessible descriptions and
+invalid states. Local cues can identify an affected item without moving controls, resizing rows, or changing scroll
+position. Closing a dialog clears its field errors from the header. Delayed completion cannot replace newer operation
+feedback. Selection, navigation, and hover retain their local state cues.
 
 Opening, Style processing, offline installation, and new Download preparation use an indeterminate busy indicator and
 action text. Download distinguishes preparation from inspection. These operations report no percentage or remaining time

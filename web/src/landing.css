@@ -277,7 +277,7 @@
         margin-block-start: calc(2 * var(--gap));
         @media (width <= 30em) {
           margin-inline: clamp(0px, 30cqi - 3rem, var(--gap));
-          padding-inline: min(var(--inset), 4cqi);
+          padding-inline: min(var(--inset), 2.5cqi);
           padding-block-start: calc(2 * var(--gap));
           & .hero-mark {
             inline-size: min(100%, clamp(11rem, 5.5rem + 40cqi, 15.5rem));
@@ -291,6 +291,7 @@
           --title: clamp(1.125rem, 18cqi - 2rem, 1.5rem);
         }
         & .welcome .buttons {
+          inline-size: 100%;
           justify-content: center;
         }
       }

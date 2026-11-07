@@ -1687,13 +1687,6 @@
           onclick={() => blank(output.pages.length)}
           title="Add a blank page at the end"><Icon name="blank" />At end</button
         >
-        <button
-          onclick={() => {
-            const source = outputMenu.querySelector<HTMLElement>("summary")!
-            outputMenu.open = false
-            rename(source)
-          }}><Icon name="page" />Filename</button
-        >
       </div>
       {#if chosen.length && adjacent}
         <Repetition pane="Output" bind:value={repetitions} bind:front />

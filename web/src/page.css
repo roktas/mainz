@@ -412,7 +412,7 @@
     }
     .page-navigation {
       display: block grid;
-      grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr) auto minmax(0, 1fr) 44px minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr) 44px minmax(0, var(--gap)) auto minmax(0, var(--gap)) 44px minmax(0, 1fr);
       grid-template-rows: minmax(0, 1fr);
       align-items: center;
       padding-inline: var(--controls-inset);

@@ -156,7 +156,10 @@
       const { plan, inputs, expected } = snapshot
       running = true
       if (
-        (action === "Print" && navigator.pdfViewerEnabled && navigator.vendor.includes("Apple")) ||
+        (action === "Print" &&
+          navigator.pdfViewerEnabled &&
+          navigator.vendor.includes("Apple") &&
+          !(standalone && /iPhone/.test(navigator.userAgent))) ||
         (action === "View" && standalone)
       ) {
         // Home Screen Safari needs the viewer window reserved during the tap.
