@@ -55,56 +55,45 @@ fields add no empty placeholders. Details include Author and Copyright when decl
 the author when XMP has none. The declared XMP `mainz:coverPage` selects the cover when it is a valid physical page;
 otherwise the first page is used.
 
-The Input chooser switches Inputs. Each retains its view, inspected page, zoom, Grid density, and preparation. Home
-requests confirmation before discarding undownloaded style or Output changes. Acceptance suppresses the browser exit
-warning for that navigation. Cancellation retains the workspace. Opening an Input or changing Selection alone does not
-mark Output as changed.
+The Input chooser switches Inputs. Each retains its view, inspected page, zoom, Flow mode, scroll position, and
+preparation. Home requests confirmation before discarding undownloaded style or Output changes. Acceptance suppresses
+the browser exit warning for that navigation. Cancellation retains the workspace. Opening an Input or changing Selection
+alone does not mark Output as changed.
 
-### Views and density
+### Views and Flow
 
-Input has Grid, List, and Page, plus Style for prepared PDFs. Output has Grid, List, and Page. Grid, List, and Page
-share selection and page operations. Input Grid and List include every physical page in PDF order. Input Page browses
-every original physical page once, regardless of Selection. Output browses every expanded occurrence, including Blank
-and Padding. Navigation does not change selection. Selection does not move the inspected page or narrow style scope.
+Input offers Flow and Page, plus Style for prepared PDFs. Output offers Flow and Page. Each Flow has a labeled Grid/List
+switch. Grid shows scrollable thumbnails, and List shows page numbers, names, and section headings. Both use one shared
+selection model. Input includes every physical page in PDF order. Output includes every expanded occurrence, including
+Blank and Padding. Page shows one enlarged page at a time without narrowing the current selection.
 
-Grid and List interactions establish the page inspected in Page. Returning to Grid reveals that page's batch. Entering
-List reveals the inspected row. Output inspection follows occurrence identity through movement. Removal chooses the next
-surviving neighbor, or the previous neighbor at the end. Input switching does not move Output inspection.
+Grid scrolls within the fixed pane frame and keeps one readable card geometry. It renders a bounded window of visible
+rows for long documents. The scrollbar sits in the pane's right gutter. Wheel and touch gestures scroll the full
+sequence without pagination. The first and last physical pages remain reachable.
 
-Each Input and Output retains its List viewport and measured row heights across view changes. Returning to the same
-inspected page restores its visible offset. A different inspected page is revealed with minimal scrolling.
+Each Input retains its Flow presentation and its Grid and List scroll positions. Output keeps independent settings.
+Changing the Flow presentation preserves selection, inspected page, and Output order. List keeps expanded sections.
+Changing browser size preserves the first visible page when the number of columns changes. Page returns to the previous
+Flow presentation and reveals its inspected page.
 
-View changes and Grid density changes reveal the inspected item. Page navigation updates the item revealed on return. A
-tab or density control retains focus and briefly marks that item with secondary emphasis. Content gestures return focus
-to the corresponding item. Keyboard returns use its focus contour without the temporary pointer cue. These returns
-preserve selection. Page retains the originating Grid or List for V and modified-click return gestures.
+Grid and List interactions set the page that Page inspects. Output inspection follows occurrence identity through edits.
+Removal chooses the next surviving neighbor, or the previous neighbor at the end. Switching Inputs does not change
+Output inspection. Changing a view does not change page selection.
 
-Grid, List, and Page offer Go to page in their view toolbar. Its temporary number field accepts one physical Input page
-or one Output position. Enter navigates and focuses that page without changing Selection or Output. Escape or outside
-click cancels navigation. First and last page shortcuts navigate directly. Invalid numbers and ranges keep the field
-open with an error.
+Flow and Page offer Go to page in their toolbar. Its temporary number field accepts one physical Input page or one
+Output position. Enter navigates without changing selection. Escape or an outside click cancels navigation. First and
+last page controls navigate directly. Invalid numbers keep the field open with an error.
 
-Both panes offer Normal and Compact density for Grid. Output starts in Normal. After opening completes, an Input's first
-visible Input Grid measures Normal batch capacity. Above twice that capacity, it starts in Compact. Otherwise it starts
-in Normal. Each Input retains that choice, including manual changes. Resizing, browser zoom, List, Page, and Style do
-not reevaluate it. Density changes preserve selections, inspection, and operations. Both densities use the remaining
-viewport height and show complete rows. Short viewports retain one complete row and usable controls through document
-scrolling. [VIEW.md](VIEW.md#workspace) defines capacity references and calibration limits.
+Page preserves the originating Grid or List presentation for V and modified-click return gestures. Flow switches retain
+toolbar focus. Pointer returns briefly emphasize the inspected card or row. Keyboard returns use a separate focus
+contour. Selection does not change during these transitions.
 
-Every pane width offers one button whose icon and label describe the density selected by activation. Each activation
-switches directly to that density and retains focus on the button.
+In two-pane layouts, Style groups scroll below profile selectors while both pane frames retain their height. In a
+single-pane layout, Style uses document scrolling.
 
-Density changes show a complete batch without intermediate overflow. Restored cards show cached thumbnails immediately.
-New sizes can need a new raster. Pages absent from the bounded cache can show loading feedback.
-
-In two-pane layout, Style groups scroll below the profile selectors while the workspace headings, tabs, profiles, and
-Output controls remain visible. Switching Input to Style preserves Output's Grid capacity and Page frame. Single-pane
-Style uses document scrolling.
-
-When copies exist, Input page numbers open copy counts and Output positions. Output page numbers open the Input filename
-and original page number. Mappings distinguish independent Inputs and follow edits. Compact details also provide a
-larger preview and individual actions. Outside click or Escape closes details. PDF labels supplement physical numbers.
-If a PDF label differs from its physical number, Page shows both.
+Input page numbers show copy counts and Output positions when copies exist. Output numbers show their source Input and
+original page. Mappings distinguish Inputs and follow edits. Outside click or Escape closes details. PDF labels
+supplement physical numbers. Page shows both when they differ.
 
 ### Named pages and List
 
@@ -183,7 +172,7 @@ when their menu opens.
 
 List choices use the existing Selection and page-action model. They resolve to physical indexes or Output occurrence
 identities. List does not own another selection state or change the numeric Selection grammar. View changes retain the
-selection, inspection, Output, styles, and each pane's Grid density. The numeric field retains its touch keyboard
+selection, inspection, Output, styles, and each pane's Flow presentation. The numeric field retains its touch keyboard
 behavior.
 
 List uses one keyboard cursor per pane, shared with Grid and Page inspection. Arrow Up/Down moves one row; Home/End
@@ -258,7 +247,8 @@ demo still opens. Core offline installation and updates do not depend on demo do
 [fixture guide](../test/fixtures/README.md) owns its contents and rebuild procedure.
 
 Production builds prepare Grid demo in the browser from the downloaded four-page sample. After that sample is cached,
-Grid demo works offline without another PDF download. Development uses the equivalent native fixture for calibration.
+Grid demo works offline without another PDF download. Development uses the equivalent native fixture for geometry
+measurements.
 
 ## Selection and addition
 
@@ -428,8 +418,8 @@ scroll outside document bounds.
 | Left/right                    | Moves the cursor in page order without changing selection.                                                 |
 | Up/down                       | Moves through rendered columns without changing selection.                                                 |
 | N/P                           | Moves in page order. Letter shortcuts accept either case.                                                  |
-| Home/End                      | Focuses the first/last physical page across batches without changing selection.                            |
-| PageUp/PageDown               | Shows the previous/next batch and focuses its first page, including from pagination controls.              |
+| Home/End                      | Focuses the first/last physical page without changing selection.                                           |
+| PageUp/PageDown               | Moves the Grid cursor by one viewport of rows and reveals the target page.                                 |
 | Space                         | Toggles the cursor's page, then advances right. At a boundary it preserves selection and workspace scroll. |
 | Shift+right                   | Toggles the cursor's page, then advances right.                                                            |
 | Shift+left                    | Retreats, then toggles that page.                                                                          |
@@ -437,9 +427,8 @@ scroll outside document bounds.
 | Enter                         | Adds prepared Input pages or duplicates selected Output occurrences.                                       |
 | + / − in Output               | Duplicates/removes the selection. Input Grid gives these keys no page action.                              |
 
-With no selection and inactive Grid navigation, right starts at the current batch's first page and left at its last. The
-first press retains the batch and selection. PageUp/PageDown outside Grid target the mouse-side Grid, with the visible
-pane as fallback. They stop at the first and last batch.
+Without active Grid navigation, right starts at the first mounted page and left starts at the last mounted page.
+PageUp/PageDown target the mouse-side Grid, with the visible pane as fallback. They stop at the sequence boundaries.
 
 Plain arrows can visit selected pages. Shift steps can select or unselect. Reversing a step restores membership,
 including across gaps and after plain navigation. Unselecting an Input page removes all its prepared occurrences. Other
@@ -911,11 +900,11 @@ action. Supported desktop Safari versions show Add to Dock instructions. Unsuppo
 button. Continuing in the browser remains available after dismissal or failure.
 
 The tour explains actual controls without changing document choices or adding pages. Its core steps cover Input, Input
-Grid, Grid density, Input List, Input Page, Output Grid, Output List, Output selection actions, Output Page, and Output
-delivery. The final step explains Download or Share, Print, View PDF, and Export recipe. Grid density points to Input's
-Grid density button when Input exists, otherwise to Output's button. The Output selection step explains earlier/later
-moves, duplication, and removal. Without a selection, that step shows the real actions disabled and keeps the selection
-empty. Applicable Style and profile controls add at most two steps. Without Input, the six Output steps remain. Steps
+Grid, the Flow presentation switch, Input List, Input Page, Output Grid, Output List, Output selection actions, Output
+Page, and Output delivery. The final step explains Download or Share, Print, View PDF, and Export recipe. The Flow
+switch step uses Input when present and Output otherwise. The Output selection step explains earlier/later moves,
+duplication, and removal. Without a selection, that step shows the real actions disabled and keeps the selection empty.
+Applicable Style and profile controls add at most two steps. Without Input, the six Output steps remain. Steps
 temporarily reveal their pane and tab. Each new step starts at the beginning of its explanation. Closing restores
 previous views and returns focus to a visible header control. Using a workspace control ends the tour and retains that
 action's pane and tab. Workspace or style availability changes dismiss the tour. Back, Next, Finish, End tour, Escape,
@@ -1086,7 +1075,7 @@ The [library glossary](../../lib/doc/SPEC.md#glossary) owns PDF and painting ter
 | Copy count         | Number of repetitions of one complete Part.                                                                              |
 | Error              | Failure message retained until dismissal or resolution.                                                                  |
 | Grid               | Thumbnail view of Input or Output.                                                                                       |
-| Grid density       | Normal or Compact layout chosen independently for each pane and retained for each open Input.                            |
+| Flow presentation  | Grid or List layout retained independently for each pane and each open Input.                                            |
 | Help               | Dialog with App help, input-specific workspace instructions, and access to the Product tour.                             |
 | Info               | Operation progress, result, or cancellation message.                                                                     |
 | Input              | Opened PDF with independent styles and page choices. Recipe IDs bind its immutable bytes.                                |

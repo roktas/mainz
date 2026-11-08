@@ -20,7 +20,6 @@ const { values } = parseArgs({
     case: { type: "string" },
     mode: { type: "string" },
     orientation: { type: "string" },
-    search: { type: "boolean", default: false },
   },
 })
 if (process.platform !== "darwin") throw new Error("Run the Simulator collector on the Mac test host.")
@@ -54,7 +53,6 @@ const manifest = {
       [
         "./simulator.js",
         "./simulator/Probe.swift",
-        "./calibration.ts",
         "./quality.ts",
         "../src/Geometry.svelte",
         "../src/geometry.ts",
@@ -96,7 +94,7 @@ async function xcode(action, device, name, test) {
     await new Promise((done, reject) => {
       const child = spawn("xcodebuild", args, {
         stdio: ["ignore", log, log],
-        timeout: test === "testInstall" ? 120000 : values.search ? 180000 : 150000,
+        timeout: test === "testInstall" ? 120000 : 150000,
         killSignal: "SIGKILL",
       })
       child.on("error", reject)
@@ -175,16 +173,11 @@ for (const [group, screen] of groups.flatMap((item) => item.screens.map((display
         }
         if (mode === "standalone-pwa" && !installed) throw new Error("Standalone installation did not complete.")
         const startedAt = Date.now()
-        const seconds = await xcode(
-          "test-without-building",
-          device,
-          id,
-          values.search ? method.replace("test", "testSearch") : method,
-        )
+        const seconds = await xcode("test-without-building", device, id, method)
         const exported = JSON.parse(simctl("pbpaste", device))
-        const sample = values.search ? exported.baseline : exported
+        const sample = exported
         if (
-          sample.schemaVersion !== 1 ||
+          sample.schemaVersion !== 2 ||
           sample.environment.presentationMode !== mode ||
           sample.environment.orientation !== orientation ||
           sample.viewport.visualScale !== 1 ||
@@ -232,10 +225,7 @@ for (const [group, screen] of groups.flatMap((item) => item.screens.map((display
           revision: manifest.revision,
           collectorSha256: manifest.sources["../src/geometry.ts"],
           nativeUiScreenshot: id + ".png",
-          notes:
-            "Fixture reloaded after native rotation. Named native baseline/candidate screenshots are retained in " +
-            id +
-            ".xcresult",
+          notes: "Fixture reloaded after native rotation. Native Grid screenshots are retained in " + id + ".xcresult",
         })
         simctl("io", device, "screenshot", "--display=" + screen.display, join(directory, id + ".png"))
         const screenshots = {}
@@ -254,9 +244,7 @@ for (const [group, screen] of groups.flatMap((item) => item.screens.map((display
           ])
           const attachments = JSON.parse(await readFile(join(images, "manifest.json"), "utf8"))
           for (const attachment of attachments.flatMap((item) => item.attachments)) {
-            const match = attachment.suggestedHumanReadableName.match(
-              /^(baseline|candidate)-(Input|Output)-(Normal|Compact)_/,
-            )
+            const match = attachment.suggestedHumanReadableName.match(/^(baseline)-(Input|Output)-(Normal)_/)
             if (!match) continue
             const key = match.slice(1).join("-").toLowerCase()
             const file = id + "-" + key + ".png"
@@ -273,15 +261,10 @@ for (const [group, screen] of groups.flatMap((item) => item.screens.map((display
             screenshots[key] = file
           }
         }
-        for (const prefix of values.search && exported.recommendation ? ["baseline", "candidate"] : ["baseline"])
-          for (const pane of ["input", "output"])
-            for (const density of ["normal", "compact"])
-              if (!screenshots[`${prefix}-${pane}-${density}`])
-                throw new Error("A required native Grid screenshot is missing.")
+        for (const pane of ["input", "output"])
+          if (!screenshots[`baseline-${pane}-normal`]) throw new Error("A required native Grid screenshot is missing.")
         await writeFile(join(directory, id + ".json"), JSON.stringify(sample, null, 2) + "\n")
         await writeFile(join(directory, id + ".csv"), csv(sample))
-        if (values.search)
-          await writeFile(join(directory, id + "-search.json"), JSON.stringify(exported, null, 2) + "\n")
         const entry = {
           id,
           file: id + ".json",
@@ -293,14 +276,6 @@ for (const [group, screen] of groups.flatMap((item) => item.screens.map((display
           evidenceClass: "ios-simulator-ui",
           failures: quality(sample),
           screenshots,
-          search: values.search
-            ? {
-                file: id + "-search.json",
-                candidates: exported.candidates.length,
-                recommendation: exported.recommendation,
-                decision: exported.decision,
-              }
-            : null,
         }
         manifest.samples.push(entry)
         console.log(JSON.stringify(entry))

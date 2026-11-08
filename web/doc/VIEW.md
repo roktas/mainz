@@ -42,17 +42,17 @@ margins. Its maintained PNG renditions supply the 180 px iOS touch icon and the 
 512 px icon also supports Android launcher masks. All renditions use the same artwork scale. Visible curves reach
 approximately 39.7% of the canvas width from its center, inside the central safe circle with radius 40%.
 
-Page-selection hints and Style descriptions use the body text size. Compact numbers and secondary metadata retain
-smaller text. The landing's prepared-PDF link uses a thin dotted underline with clear space between dots and below the
-text. The underline is black in light mode and white in dark mode. Forced colors retain the underline. The purpose
-heading uses a neutral tone between primary and muted text, with at least 7:1 contrast and an accent link. Supporting
-copy distinguishes PDF page selection and repetition from styling prepared PDFs. It fits on one line on wide desktops
-and wraps on narrower layouts. Narrow layouts retain a single-line purpose heading at normal text size.
+Page-selection hints and Style descriptions use the body text size. Small numbers and secondary metadata retain smaller
+text. The landing's prepared-PDF link uses a thin dotted underline with clear space between dots and below the text. The
+underline is black in light mode and white in dark mode. Forced colors retain the underline. The purpose heading uses a
+neutral tone between primary and muted text, with at least 7:1 contrast and an accent link. Supporting copy
+distinguishes PDF page selection and repetition from styling prepared PDFs. It fits on one line on wide desktops and
+wraps on narrower layouts. Narrow layouts retain a single-line purpose heading at normal text size.
 
 The spacing scale uses a 28 px workspace gutter and fluid control gaps of 12–16 px at normal text size. Narrow layouts
 reduce gutters before reducing usable control space. Standard controls use 4 px corners. The landing frame uses softer
-12 px corners. Primary buttons are at least 104 × 46 px. Interactive targets are at least 44 px. Compact headers and
-single-pane Grid pagination use the target sizes in [Grid and Page](#grid-and-page).
+12 px corners. Primary buttons are at least 104 × 46 px. Interactive targets are at least 44 px. Grid headers and Page
+controls use the target sizes in [Grid and Page](#grid-and-page).
 
 Controls of the same type in a visible panel, toolbar, or action group must have the same width and height unless this
 document defines an explicit exception. Type means interaction role, such as a selection row, action button, icon
@@ -105,8 +105,8 @@ states at phone, tablet, and desktop widths.
 Stacked rows with corresponding controls share column widths and gaps. Align each control's start and end edges with the
 controls above and below it. Apply the same tracks to buttons and selectors; their labels do not set independent widths.
 
-Grid grips use the card's inline center and the header's block center in both densities. Page numbers, folded corners,
-digit counts, and interaction target sizes do not move these references. Size text and interaction areas around them.
+Grid grips use the card's inline center and the header's block center. Page numbers, folded corners, digit counts, and
+interaction target sizes do not move these references. Size text and interaction areas around them.
 
 Use the visible content as the reference when controls belong to an image or document. Use the frame reference below for
 Page layouts. Do not infer alignment from invisible control boxes or incidental padding. Keep usable interaction targets
@@ -130,15 +130,15 @@ viewport stays neutral. Border, header, footer, and padding compensation prevent
 their images. Keyboard focus on the Page viewport uses the complete frame's secondary contour. Pointer zoom focuses the
 viewport for navigation without showing that contour or a clipped inner outline.
 
-Returning through view tabs or Grid density controls briefly marks the inspected item with a 30% secondary tint. Keep
-the cue for 1200 ms, with a longer fade after the initial hold. Hold the final color until the cue clears. Reduced
-motion uses the same static cue without fading. The active tab or density control retains focus. Keyboard content
-returns focus the inspected item without this cue. The cue does not select the item or reopen its preview.
+Returning through view tabs or the Flow presentation switch briefly marks the inspected item with a 30% secondary tint.
+Keep the cue for 1200 ms, with a longer fade after the initial hold. Hold the final color until the cue clears. Reduced
+motion uses the same static cue without fading. The active tab or Flow switch retains focus. Keyboard content returns
+focus the inspected item without this cue. The cue does not select the item or reopen its preview.
 
 Motion follows reduced-motion preferences. Hover lifts, drag tilt, parallax, fades, and animated movement disappear
 under reduced motion. Static selection and operation highlights remain. Loading indicators retain a visible busy state
 without rotation. Animations do not delay document edits, capture input, or change operation targets. Outgoing cards
-cannot receive input. Removal can fade outgoing cards. Batch and view switches retain their ordinary transitions.
+cannot receive input. Removal can fade outgoing cards. View switches retain their ordinary transitions.
 
 Use short feedback for controls and more time for large movements, following
 [Fluent's motion guidance](https://fluent2.microsoft.design/motion) and
@@ -273,117 +273,49 @@ Pointer opening places initial focus on the Settings drawer. Keyboard opening fo
 navigation keeps a visible focus indicator on each control.
 
 Tabs use square corners and an accent underline. Unselected tabs gain color on hover. Keyboard focus uses a soft tint
-and one border, without glow. Grid, List, Page, and Style use outlined icons. Disabled Style retains its crossed-out
-brush and explanatory hint. One 46 × 46 CSS px density action button sits beside the Grid tabs, outside the tablist, at
-every width. Its icon, hover text, and accessible name show the density that activation selects. The button keeps focus
-after switching. Toolbars at or below 26 em use icon-only view tabs with no gap between their targets. Wider panes
-retain tab text. With visible labels, keep at least 12 CSS px between adjacent tab contents. Keep accessible names and
-explanatory titles. Tabs, density controls, and Style tools never wrap or overlap. Reserve space for adjacent controls
-across views. The toolbar retains its height in Grid, List, Page, and Style so content frames do not shift. Keep at
-least 8 CSS px between its controls and bottom separator. Take added space from the gap below the separator; retain the
-total vertical space so the selection bar, content frame, and Grid capacity do not move.
+and one border, without glow. Input offers Flow, Page, and eligible Style tabs. Output offers Flow and Page. Each Flow
+toolbar includes a labeled Grid/List switch outside the tablist. This switch has a 46 × 46 CSS px target. Its icon,
+title, and accessible name identify the presentation that activation selects. Each Input and Output retains its Flow
+presentation. Focus stays on the switch after activation.
 
-Inset the selected tab underline by 4 CSS px at each end at every width.
+Toolbars at or below 26 em use icon-only tabs. Wider panes show text. Keep at least 12 CSS px between adjacent tab
+contents when labels are visible. Tabs, the Flow switch, and Style tools must not wrap or overlap. Keep their height
+consistent across views so that the pane content frame does not move. Inset each active tab underline by 4 CSS px.
 
-Go to page sits at the end of the Grid/List/Page toolbar. Its icon opens a compact panel centered below the trigger
-within the viewport gutters. The panel has one numeric-keyboard field, a Go action, first and last page icons, the valid
-page range, and a Close target. Opening selects the current page number. Enter confirms valid input; Escape cancels.
+Go to page sits at the end of the Flow/Page toolbar. Its icon opens a compact panel centered below the trigger within
+the viewport gutters. The panel has one numeric-keyboard field, a Go action, first and last page icons, the valid page
+range, and a Close target. Opening selects the current page number. Enter confirms valid input; Escape cancels.
 Navigation preserves Selection. The Selection bar and its hints retain their selection role.
 
 Routine hints, empty states, and tour steps describe controls and results without assuming a mouse or keyboard. Keep
 input-specific instructions in Help's Keyboard and Mouse sections.
 
-Grid and Page use the remaining viewport height after the header, workspace controls, page fields, and status bar.
-Normal and Compact share that height. Density changes card dimensions and complete row capacity. Both Input and Output
-use the same capacity policy. Pagination stays inside the available screen at ordinary text size.
+Grid and Page use the remaining viewport height after the header, workspace controls, page fields, and status bar. Grid
+scrolls vertically inside its fixed frame. The scrollbar occupies the pane's right gutter and does not reduce card
+width. List uses the same gutter policy. Grid never clips pages into fixed batches and has no pager.
 
-A frame reserves at least one complete card row and usable pagination. If these minimums cannot fit, the document
-scrolls. It does not shrink controls or show a partial final row. Enlarged text and short landscape screens can require
-this exception. Page also reserves a usable image area below its heading. Its header and footer each retain one complete
-control row, including with enlarged text. Do not increase image height to make a narrow header fit. In two-pane layout,
-Style groups scroll below the profile selector and its separator. The selector retains the full pane width. The thin
-scrollbar uses the pane gutter, with at least 8 CSS px between the fields and its track. Input headings, tabs, and
-profile selectors stay visible. Output keeps the same remaining viewport height, Grid capacity, and Page frame when
-Input switches to Style. In single-pane layout, Style fields use document scrolling.
+Keep the full card geometry at every scroll position. On short screens, the document scrolls when the minimum usable
+frame does not fit. Page reserves a usable image area below its heading. Its header and footer each retain one complete
+control row, including with enlarged text. In two-pane layout, Style groups scroll below their profile selector. The
+selector retains full pane width. Single-pane Style fields use document scrolling.
 
-The workspace status bar follows the content in document order. It stays at the viewport bottom when the workspace fits.
-When enlarged text or a minimum usable frame requires document scrolling, the status bar scrolls too. It must not cover
-cards, pagination, Page controls, or Style fields at any viewport height.
+The workspace status bar follows content in document order. It stays at the viewport bottom when the workspace fits. If
+document scrolling is required, the status bar scrolls with the document. It must not cover Grid cards, Page controls,
+or Style fields.
 
 Two-pane Grid and Page frames align at the top and bottom. The pane divider reaches the same edge. Shorter PDF pages
-center within the shared image area. Application zoom changes the PDF inside that frame. The browser viewport already
-excludes browser controls. The application does not estimate or subtract them again.
+center within the shared image area. Application zoom changes the PDF inside that frame. The application does not
+subtract browser controls from the viewport a second time.
 
-The portrait [Grid fixture](../test/fixtures/README.md#grid-fixture) has these desktop references at 100% browser zoom
-and normal text size. Dimensions describe the browser viewport, not the physical monitor. Each matrix gives columns ×
-rows = pages and applies to both Input and Output.
-
-| Viewport                  | Workspace width | Normal     | Compact       |
-| ------------------------- | --------------- | ---------- | ------------- |
-| FHD-, 1920 × 960          | 1232 px         | 3 × 2 = 6  | 6 × 4 = 24    |
-| FHD observed, 1920 × 961  | 1232 px         | 3 × 2 = 6  | 6 × 4 = 24    |
-| Full HD, 1920 × 1080      | 1232 px         | 3 × 2 = 6  | 6 × 4 = 24    |
-| QHD window, 2560 × 1280   | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48    |
-| QHD-, 2560 × 1320         | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
-| QHD observed, 2560 × 1310 | 1472 px         | 4 × 3 = 12 | 8 × 6 = 48    |
-| QHD observed, 2560 × 1318 | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
-| QHD observed, 2560 × 1323 | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
-| Safari, 2200 × 1298       | 1265 px         | 3 × 3 = 9  | 6 × 6 = 36    |
-| Safari, 2400 × 1358       | 1380 px         | 4 × 3 = 12 | 7 × 7 = 49    |
-| Safari, 2560 × 1358       | 1472 px         | 4 × 3 = 12 | 8 × 7 = 56    |
-| QHD PWA, 2560 × 1440      | 1472 px         | 4 × 4 = 16 | 8 × 8 = 64    |
-| UHD-, 3840 × 2040         | 2208 px         | 6 × 6 = 36 | 12 × 12 = 144 |
-| UHD, 3840 × 2160          | 2208 px         | 7 × 7 = 49 | 12 × 14 = 168 |
-
-Desktop references ending in `-` keep the nominal width. Their estimated height is `screenHeight - 120 CSS px`. The
-fixed allowance approximates browser and desktop controls at ordinary scale. These estimates are synthetic test inputs.
-The viewport inventory also covers distinct Mac notebook and display geometries in fullscreen and at the estimated
-browser height. Panel resolution and logical CSS dimensions remain separate metadata.
-
-The measured FHD reference is 1920 × 961 at DPR 1. Native QHD references include 2560 × 1310, 2560 × 1318, and 2560
-× 1323. Measured viewports remain separate references. The 120 CSS px allowance is a test assumption, not a measurement
-of browser controls on every screen. UHD measurements remain pending. Replace estimates with measured references when
-available, and retain the corresponding evidence.
-
-Runtime measurements count complete rows within the CSS frame. Compact has no arbitrary row limit. More space can admit
-more rows without enlarging cards or concealing pagination. Browser zoom changes available CSS dimensions.
-
-Touch references use the same fixture, nominal CSS dimensions, 100% browser zoom, and normal text size. Each matrix
-applies to both Input and Output. Short screens retain one complete row and scroll when necessary.
-
-Manual tablet profiles use nominal dimensions in both orientations. Physical-device measurements in standalone mode are
-pending. Phone profiles ending in `-` keep the nominal width and estimate the available height as
-`2 * floor(height * 0.85 / 2)`. Calculate each orientation from its nominal dimensions. These estimates define test
-viewports; the application does not subtract the estimated browser controls again.
-
-| Device         | CSS viewport | Normal     | Compact    |
-| -------------- | ------------ | ---------- | ---------- |
-| Narrow phone   | 320 × 568    | 1 × 1 = 1  | 3 × 1 = 3  |
-| iPhone         | 375 × 667    | 2 × 1 = 2  | 4 × 1 = 4  |
-| iPhone         | 667 × 375    | 4 × 1 = 4  | 7 × 1 = 7  |
-| iPhone         | 390 × 844    | 2 × 1 = 2  | 4 × 2 = 8  |
-| iPhone         | 844 × 390    | 5 × 1 = 5  | 9 × 1 = 9  |
-| iPhone         | 393 × 852    | 2 × 1 = 2  | 4 × 3 = 12 |
-| iPhone         | 852 × 393    | 5 × 1 = 5  | 9 × 1 = 9  |
-| iPhone         | 440 × 956    | 2 × 2 = 4  | 4 × 3 = 12 |
-| iPhone         | 956 × 440    | 2 × 1 = 2  | 5 × 1 = 5  |
-| Pixel          | 412 × 924    | 2 × 1 = 2  | 4 × 3 = 12 |
-| Pixel Pro      | 427 × 952    | 2 × 2 = 4  | 4 × 3 = 12 |
-| iPad mini 6    | 744 × 1133   | 4 × 2 = 8  | 8 × 5 = 40 |
-| iPad mini 6    | 1133 × 744   | 3 × 1 = 3  | 6 × 2 = 12 |
-| iPad / mini    | 768 × 1024   | 4 × 2 = 8  | 8 × 4 = 32 |
-| iPad           | 1024 × 768   | 2 × 1 = 2  | 5 × 2 = 10 |
-| iPad gen 9     | 810 × 1080   | 5 × 2 = 10 | 9 × 4 = 36 |
-| iPad gen 9     | 1080 × 810   | 3 × 1 = 3  | 5 × 2 = 10 |
-| iPad Pro 13    | 1032 × 1376  | 3 × 3 = 9  | 5 × 7 = 35 |
-| Surface Pro 10 | 960 × 1440   | 2 × 3 = 6  | 5 × 8 = 40 |
-| Galaxy A55     | 360 × 800    | 2 × 1 = 2  | 3 × 2 = 6  |
+Retain native measurements and calibration evidence in [MEMO](MEMO.md#retained-evidence) and the viewport inventory. The
+former Normal/Compact capacity tables do not describe the current scrollable Grid. Current tests measure card geometry
+and scroll access, not the number of cards visible in a fixed-height frame.
 
 Mobile has a persistent one-tap Input/Output switch and preserves pane state. Headings retain the chooser or totals
 beside Open PDF or the Print and Download actions on one row, including with enlarged text. Labels stay complete. Long
 filenames truncate, with their full text available through hover and the chooser. Remove Input remains available in the
-chooser at every width. Tabs and shared page fields remain usable in Page. Both densities fill complete rows within the
-available pane height. Input and Output do not use fixed thumbnail counts.
+chooser at every width. Tabs and shared page fields remain usable in Page. Grid scrolls the complete page sequence
+inside the pane frame. Input and Output do not use fixed thumbnail counts.
 
 ## Page fields
 
@@ -408,8 +340,8 @@ images. Input and Output use the same control dimensions. Preserve usable field 
 
 ## List
 
-Contents uses an open-book icon distinct from List, fixed at the far right of Input's Grid, List, and Page toolbar. Grid
-density sits immediately to its left. Its tree uses indentation, fine branch lines, quiet page positions, and a thin
+Contents uses an open-book icon distinct from List, fixed at the far right of Input's Flow and Page toolbar. The Flow
+switch sits beside the tabs. Its tree uses indentation, fine branch lines, quiet page positions, and a thin
 current-section marker. Nodes have no individual boxes or filled cards. Full titles wrap, and navigation preserves
 selection. Output has no Contents control.
 
@@ -476,7 +408,7 @@ Page use a translucent overlay across the complete target, without dimming conte
 disables this animation. Escape and outside click dismiss the panel.
 
 The Contents toolbar icon uses the primary color while its panel is open. Selecting an entry reveals its exact physical
-page in Grid, List, or Page, including Grid pages outside the current batch.
+page in Grid, List, or Page, including Grid pages outside the visible scroll window.
 
 Grid headers show only physical page numbers. Page Label and Output mappings appear in a two-column detail table. Normal
 Grid detail columns shrink within the viewport even when breadcrumb titles are long.
@@ -520,8 +452,8 @@ removal/duplication into two contiguous pairs, with 6 px between the pairs and n
 and the Output pairs appear on row hover or focus. Hover changes the icon color without boxes or glow. Eye and the
 selection tick remain visible. Row actions use 32 px targets with a fine pointer and 44 px targets for touch, in both
 themes. Coarse pointers keep Input Add visible. Output uses a row-menu button for coarse pointers and narrow panes. Page
-details use a compact, start-aligned popover beside the number, including in narrow panes. List has no Grid density
-control. Switching views retains the toolbar height and content-frame position.
+details use a compact, start-aligned popover beside the number, including in narrow panes. List uses the same Flow
+switch as Grid. Switching views retains the toolbar height and content-frame position.
 
 Each row has a grip beside its number and a View icon at the trailing edge. View hover or keyboard focus shows a large
 full-page preview beside the row. Keep the preview within the viewport and preserve the page's aspect ratio. It does not
@@ -542,280 +474,85 @@ across the row's top or bottom edge.
 
 ## Grid and Page
 
-Normal Grid footer actions appear on card hover or keyboard focus with a fine pointer. Their layout space remains
-reserved. Hover emphasizes the icon without button boxes or glow. On touch, Input Add stays visible; Output provides the
-same paired actions through a visible footer menu. Page numbers and grips remain visible. Compact Grid retains its
-detail menu.
+Grid renders page cards in continuous rows inside its fixed viewport. Input uses an HTML list, and Output uses an
+ordered list. Long documents mount a bounded row window and spacer rows. The scrollbar stays in the pane gutter. Wheel,
+touch, and keyboard navigation reach the full sequence. Responsive columns preserve the first visible page. Changing
+Flow presentation restores the previous Grid or List scroll position.
 
-Normal and Compact Grid show the name in a tooltip when the page number receives hover or keyboard focus. The tooltip
-uses one horizontal line outside the number cell and reserves no caption row. Anchor it to the number and flip it inside
-the viewport at its edges. Long names truncate at the viewport limit. Hidden names must not add horizontal scrolling.
-Page uses the same number tooltip and leaves its footer for navigation and page actions. List shows the name inline.
-Clicking replaces the name tooltip with one detail panel directly below the number. A supplied name becomes its first
-row, separated from the details by a light divider. Prepare the panel before opening it so the transition has no empty
-frame. Missing names add no caption. Both themes, narrow panes, and enlarged text retain usable controls and complete
-PDF images. Normal Input footers retain their centered Add action when no pages are selected.
+Grid footer actions appear on hover or focus with a fine pointer. Input's Add action stays visible on touch. Output
+touch actions use the existing menu. The card footer design is separate from the Flow layout. Do not change its content
+or targets while changing scroll behavior.
 
-Page names use all small caps in List, captions, details, previews, and drag strips. Keep their authored text unchanged.
+A page name appears in a one-line tooltip when a Grid or Page number receives hover or keyboard focus. Long names
+truncate inside the viewport. Clicking the number opens details beneath it. The page name appears first when present.
+List shows names inline. Page retains its own controls and navigation.
 
-Review thumbnail sampling at the actual Normal and Compact image sizes. Fine guides must remain visible on guide-only
-pages while full and partial pattern pages remain distinguishable. Compare the cover, text, raster images, and authored
-colors with the same saved appearance. Sampling changes preserve card geometry, image proportions, and Page and lens
-detail views. A larger raster or a passing pixel assertion alone does not establish a useful visual improvement.
+Grid back pages use a 12 px folded corner; Page keeps a 24 px fold. The fold follows the selected contour without
+covering page controls. Front pages retain their ordinary corners. Page faces remain identifiable through their labels.
+
+Review thumbnail sampling at the actual rendered image size. Fine guides remain visible on guide-only pages. Compare
+text, raster, and authored colors with saved appearance. Sampling must not change the card geometry or aspect ratio.
 
 ### Card proportions and spacing
 
-These rules apply to shared layouts and viewport calibrations in both densities. Card count does not override them.
+Keep the existing readable Normal geometry, without a second density. The common reference is a 148 × 240 CSS px card at
+ordinary text size. Other calibrated sizes retain their current preferred dimensions and minimum readability. Do not
+shrink or stretch cards to fit an extra row. Additional pages scroll instead.
 
-Apply these priorities in order: usable controls and complete PDF images; the required visual bounds below; then card
-count optimization within a calibration. If a complete usable row cannot fit, permit document scrolling. Do not reduce
-image legibility or control sizes to avoid that exception. Shared layouts do not need to maximize card count.
+The full card includes its header, thumbnail, and footer. For a portrait reference, the accepted height-to-width range
+is `sqrt(2)` through `280 / 150`, about 1.41–1.87. Controls can make the card taller than paper. PDF content retains its
+own aspect ratio, including landscape and square pages. Keep the portrait image at least 128 CSS px high at normal text
+size, except where enlarged controls require the document to scroll.
 
-Keep Grid capacity stable across neighboring viewport sizes when the same matrix still fits within these visual limits.
-Before removing a row or column, fit card dimensions and gaps within their permitted ranges using the actual pane space.
-Apply the existing 80% gap ratio only to phone Compact layouts; other layouts retain 85%. A calibration boundary alone
-does not justify losing a row. Genuine fit thresholds can change the matrix when its readable cards and usable controls
-no longer fit. Equal geometry must produce equal results, independent of resize history and device names.
+Grid's card width is at least 136 CSS px to fit three 44 px header cells and their separation. The number occupies the
+first cell, and the grip stays on the centerline. The face indicator stays at the upper-right edge. Selected cards keep
+their dimensions; expanded touch targets must not overlap. Four- and five-digit numbers use tabular digits and must not
+move the grip.
 
-Start boundary checks within three CSS px on each side, including one-pixel steps and fractional browser-zoom sizes.
-This is an initial test neighborhood, not an extra layout tolerance or a replacement breakpoint. Follow a discontinuity
-farther when needed to establish the actual fit limit. Retain image-size floors, margins, minimum gaps, and clear
-pagination.
+Image margins are measured between the page and its thumbnail area. Exclude card borders and padding inside the PDF. Top
+and bottom margins match. Side margins match and can be moderately wider. Keep at least 85% of the vertical image
+padding as a gap between cards. Minimum gaps are 9 px across columns and 10.5 px between rows. Fine-pointer hover
+requires at least 12 px where cards can lift. Extra pane width is distributed between columns and outer edges without
+stretching the cards.
 
-Ratios use width:height. The A4 target `1:sqrt(2)` describes the full card, including its header and actions. Controls
-can make the card taller than paper. At ordinary text size, the required portrait-reference bounds are
-`sqrt(2) <= height / width <= 280 / 150`, approximately 1.41–1.87. The upper bound includes the accepted tall QHD card;
-it is not another paper standard. Aim toward A4 when control space permits. Enlarged text can require more height. The
-PDF image always keeps its original proportions, including landscape and square pages.
+A partial final row preserves the same card widths, positions, and gaps. Grid computes the visible window from measured
+columns and row strides. Card count changes the scroll height, not card geometry. The stable scrollbar gutter must not
+reduce the thumbnail's measured width. The Grid's internal layout remains independent of Page's reference fitting.
 
-Use the maintained A4 portrait fixture to check image legibility at ordinary text size. Its rendered page height must be
-at least 128 CSS px in Normal and 69.5 CSS px in Compact. These floors retain the smallest accepted calibration images.
-They prevent both densities from shrinking together while still passing the relative-scale rule. They do not set the
-height of landscape or square PDFs. On short screens, keep a usable row and scroll rather than reduce these reference
-sizes.
+### Page alignment and controls
 
-Image margins measure the space between the rendered PDF page and its image area. They exclude header and action rows,
-card borders, and white space inside the PDF. Upper and lower margins match. Side margins match and can exceed the
-vertical margins moderately. For an A4 portrait reference, a side margin around one to two vertical margins is a visual
-review guide, not a universal acceptance ratio. A larger difference needs rendered measurements and a reason, such as
-the PDF's own proportions. Extra card count alone is not a reason. Do not force this multiplier onto all page shapes or
-enlarged text.
+Page headings and navigation stay outside the image viewport. The frame provides the alignment reference for both rows.
+Counter and Page Label share the start edge; zoom reset uses the end edge. Keep visible control content at least 8 CSS
+px inside the folded corner's inner edge. Center the complete action group on the frame's true centerline.
 
-The minimum card gap must reach 85% of the image's vertical margin. Remaining width is shared equally between columns
-and at both outside edges. Prefer the same gap between rows. Calibrations can adjust row spacing within the tolerance:
-`min(a, b) / max(a, b) >= 0.85` for horizontal and vertical gaps. For example, 16 and 14 px pass, but 16 and 12 px do
-not. This 15% tolerance is a project design rule, not an external standard. It applies to gap comparisons and the image
-scale rule below, not to every proportion in this section. Rendered bounds permit 1 CSS px for fractional layout.
-Authored geometry still meets each required bound; the pixel allowance is not an extra design tolerance. Measure an A4
-portrait reference at ordinary text size. Extra space from other PDF proportions does not increase the minimum. The
-side-margin guide above does not use this tolerance.
+Page headers and footers occupy one row. Never wrap controls, counters, or text into another row. If controls do not
+fit, put excess Page actions in the existing page-actions menu. Targets remain at least 44 CSS px high and stay within
+the frame. Short labels can truncate with their full accessible name retained. Selection hides individual actions
+without shifting the image or its controls.
 
-Compact Grid on phone-sized touch portrait viewports below 600 CSS px permits `min(a, b) / max(a, b) >= 0.80`. This
-narrow-screen exception allows tighter row spacing without losing visual balance. It preserves the minimum card
-separation, image margins, readable preview size, and image-scale tolerance. Normal Grid, tablet layouts, and other
-input/orientation conditions retain the 0.85 gap ratio.
+On desktop, keep native scrollbars when the enlarged Page image overflows. Center the image in the remaining area and
+reserve scrollbar space before fitting. Touch Page hides its grip when the primary pointer is coarse and has no hover.
+Page selection remains available through its selection bar. Touch Page has a minimum image gutter of 2 rem on all four
+sides, independent of PDF size. Wider manual zoom levels can require horizontal scrolling.
 
-At ordinary text size, compare the same portrait PDF image in both densities within one viewport and pane. The target
-Normal/Compact linear scale ratio is 2. For the measured ratio `r`, require `min(r, 2) / max(r, 2) >= 0.85`,
-approximately 1.70 to 2.35. Use the rendered PDF image, excluding card controls and margins. Card area does not need to
-have a fixed ratio. This rule applies to shared geometry and calibrations. Enlarged text preserves readable content and
-usable controls before this ordinary-size target.
+Compare and Show original precede zoom controls when they fit. Wide panes show the percentage, minus, plus, and zoom
+reset. Narrow panes show minus, plus, and one reset/width-fit button. The counter and tools stay on one row. Missing
+space moves reset/width-fit into the page-actions menu. At 100%, zoom reset fits to width.
 
-Separate usable targets remain necessary around adjacent cards. Selection does not change these dimensions. Partial
-final rows keep the same card widths, column positions, and gaps as complete rows. Rows start at the top of the card
-area. Remaining height stays below them; it does not spread rows apart or vertically center a sparse batch.
+Where the minimum frame fits the screen, Page navigation stays above status. Short screens use document scrolling rather
+than shrinking the minimum usable image frame.
 
-Viewport calibration optimizes the number of complete cards within these constraints. Excess bottom space can justify
-different card or image dimensions, column counts, or spacing. An extra row or column must preserve the portrait
-silhouette, balanced margins, image legibility, and control sizes. If another row does not fit, balanced unused space is
-permitted. Shared layouts prioritize readable images, stable spacing, and reachable pagination on unknown screens. They
-do not need to find the greatest possible card count.
+### Lens
 
-Matching Input and Output cards use equal base image and control geometry at the same density, including sparse rows.
-Names do not change card dimensions. Normal cards place numbers at the start, grips in the center, and face information
-at the upper-right corner. Back uses a curved folded corner. Front retains its normal corner. The fold continues the
-current contour without leaving a rectangular border behind it. Accessible labels and hover help identify both faces.
-Page corners do not intercept tool interactions.
-
-Normal headers reserve three separate 44 px cells around the centered grip, with 1 px gaps to guard native
-touch-coordinate rounding. Expanded targets can cover the contour while remaining inside the card's outer bounds. Their
-shared card width is at least 136 px, including the selected contour.
-
-Expanded targets remain above the image in hit testing and separate across consecutive rows. Normal reserves at least 9
-px between columns and 10.5 px between rows. The extra 0.5 px prevents touch contact and coordinate rounding from
-reaching the next target. Fine-pointer layouts with hover reserve at least 12 px gaps for the lower card's 2 px lift.
-These minima retain the required 85% gap ratio. Capacity yields to these targets.
-
-Compact physical numbers use a 5 px leading inset. The shared minimum card width keeps at least 2 px between the number
-and the centered grip, with equal space on the opposite side.
-
-Compact page identities use at least 0.6875 rem text, or 11 CSS px at ordinary text size. Four- and five-digit counts
-reserve wider equal header cells for the whole pane. These counts can reduce capacity and increase Compact image size
-beyond the ordinary two-to-one image-scale target. The text floor also scales with enlarged text.
-
-The shared Normal reference uses 148 × 240 px cards; Compact uses 74 × 125 px cards at ordinary text size. In touch
-portrait layouts, Normal retains the 136 px control-width floor, a complete image at least 128 px high, and balanced
-image margins. Below 600 CSS px, fitting can reduce Normal header and footer controls to 28 px while retaining separate
-44 px targets, balanced image margins, and the 0.85 gap ratio, only when another complete row fits. Narrow phones can
-show one column. Wider phones show two columns until a third usable card fits. The retained geometry bands supply
-preferred dimensions within these constraints. Touch portrait Compact uses a 0.9 row-gap factor, reduced to 0.8 below
-600 CSS px. Image padding is 6–7.5 px. Card height is at least 109.5 px. If a wider calibrated card needs the required
-portrait silhouette, increase its height. Below a 336 px workspace, three Compact columns grow to at most 88 × 125 px
-with 7.5 px image padding. These content thresholds retain readable previews when another column cannot fit. They apply
-between measured viewport bands. The minimum gap is 85% of the authored vertical image padding, with a 0.5 rem floor for
-usable separation. Normal also retains its minimum gaps for separate targets. Actual distributed spacing drives both row
-capacity and calibrated card height. Do not calculate one from the minimum gap and the other from the distributed gap.
-
-The QHD preferences use 150 px Normal widths, 14–16 px image padding, and 224–280 px height limits across viewport
-bands. Desktop fitting can reduce these preferred dimensions within the visual limits to retain complete rows across
-band boundaries. At 2560 × 1440, Normal cards are 150 × 229.125 px with 133 px images; Compact cards are 75 × 112.5 px
-with 69.5 px images. Heading and footer controls retain their ordinary size and at least 44 px targets.
-Viewport-specific preferred card dimensions and spacing belong in `frame.css`. `fit.ts` fits the desktop and phone Grid
-and Page reference from their shared measured frame, within the readability and gap limits above. It resolves dimensions
-before cards inherit them, so nested CSS expressions do not repeat across every card. Card styles consume the resolved
-values. Fine-pointer calibration padding and tool heights use fixed px or rem values.
-
-The calibration table requires viewport width, viewport height, primary pointer, orientation where relevant, and pane
-layout. Upper bounds are exclusive. Entries do not override another entry at the same density. Each entry changes only
-preferred card dimensions and spacing. Shared target, text, and image minima take priority over smaller preferences. The
-shared frame budget and pagination placement stay independent of calibration.
-
-| Reference                  | Width, CSS px | Height, CSS px | Input condition          | Pane layout | Preferred card geometry                                                                                                                                                       |
-| -------------------------- | ------------- | -------------- | ------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Desktop Compact            | 1280–2140     | 700–1200       | Fine pointer with hover  | Two panes   | Compact: six fitted columns, 121 px high, 6.4 px image padding; images stay within 1 px of the shared reference.                                                              |
-| FHD-                       | 1800–2000     | 950–1000       | Fine pointer with hover  | Two panes   | Normal: 148 × 224 px. Compact: 78 × 110.5 px. Image padding remains 14 px and 6.4 px. This entry replaces Desktop Compact within these bounds.                                |
-| Medium desktop             | 2200–2560     | 1100–1420      | Fine pointer with hover  | Two panes   | Normal: up to four fitted columns, 128–134 × 236 px, 12 px padding. Compact: shared readable widths, 112.5 px high, 7.5 px padding.                                           |
-| Large desktop              | 2960–3200     | 1500–1750      | Fine pointer with hover  | Two panes   | Normal: up to five fitted columns, 134–150 × 235 px, 11.5 px padding. Compact: up to nine fitted columns, 124.625 px high, 8 px padding.                                      |
-| QHD short                  | 2560–2880     | 1280–1315      | Fine pointer with hover  | Two panes   | Normal: 240–280 px high, 150 px wide, 16 px image padding, 14 px minimum gaps.                                                                                                |
-| QHD browser                | 2560–2880     | 1315–1420      | Fine pointer with hover  | Two panes   | Normal: 150 × 240–260 px, 16 px padding, 14 px minimum gaps. Compact: 75 × 112.5 px, 7.5 px padding.                                                                          |
-| QHD tall                   | 2560–2880     | 1420–1800      | Fine pointer with hover  | Two panes   | Normal: 150 × 224–256 px, four fitted rows, 14 px image padding, 14 px minimum gaps. Compact: 75 × 112.5 px, 7.5 px padding.                                                  |
-| UHD-                       | 3840–4160     | 1900–2050      | Fine pointer with hover  | Two panes   | Normal: up to seven fitted columns, 134–140 × 229–240 px, 14.5 px padding. Compact: 74 × 120 px, 7.5 px padding. Both densities retain a 0.9 row-gap factor.                  |
-| UHD                        | 3840–4160     | 2050–2250      | Fine pointer with hover  | Two panes   | Normal: up to seven fitted columns, 134–140 × 233 px, 10.5 px padding. Compact: up to twelve fitted columns, 121.625 px high, 6.5 px padding.                                 |
-| Short touch landscape      | 667–1000      | 250–500        | Coarse pointer, no hover | One pane    | Normal: up to five fitted columns, 134–142 × 232 px, 10 px padding. Safe-area insets reduce the available column budget.                                                      |
-| Small touch landscape      | 1000–1080     | 450–650        | Coarse pointer, no hover | Two panes   | Normal: 134 × 232 px, 10 px image padding. The 1006 × 481 Chrome sample fits three columns per pane.                                                                          |
-| Tall touch portrait        | 860–900       | 1280–1320      | Coarse pointer, no hover | One pane    | Normal: 134 × 217 px, 10.5 px image padding. The 876 × 1280 Chrome sample fits three Normal rows.                                                                             |
-| Wide landscape, Compact    | 1380–1450     | 740–800        | Coarse pointer, no hover | Two panes   | Compact: 74 × 110 px, 6 px image padding. The 1400 × 756 Chrome sample fits two rows per pane.                                                                                |
-| Small touch portrait       | 740–750       | 1047–1090      | Coarse pointer, no hover | One pane    | Normal: 137 × 226 px, 9 px image padding. The 744 × 1047 Simulator Safari sample fits two rows with a 140 px portrait image.                                                  |
-| Medium touch portrait      | 805–835       | 980–1220       | Coarse pointer, no hover | One pane    | Normal: 142 × 231 px, 9.5 px image padding. The 810 × 994 Simulator Safari sample fits five columns with a 144 px portrait image.                                             |
-| Small touch portrait, tall | 740–750       | 1100–1160      | Coarse pointer, no hover | One pane    | Compact: 77.7 px wide at ordinary text size. Height and image padding follow the shared touch portrait rule.                                                                  |
-| Medium touch landscape     | 1080–1133     | 700–900        | Coarse pointer, no hover | Two panes   | Normal: 234 px high, 136 px wide, 11 px image padding, 12 px minimum gaps. Compact: 74.57 × 116.5 px, 4 px padding. The 1080 × 778 web-app sample gains a second Compact row. |
-| Wide touch landscape       | 1180–1220     | 730–900        | Coarse pointer, no hover | Two panes   | Compact: 79 × 119 px, 5 px padding. The 1180 × 734 Safari sample gains a second row with an 80 px portrait image.                                                             |
-| Large touch portrait       | 1000–1050     | 1200–1400      | Coarse pointer, no hover | Two panes   | Normal: 142 × 231 px, 9.5 px padding. The 1024 × 1280 Safari candidate grows from 2 × 2 to 3 × 3 with the same 144 px image.                                                  |
-| Large touch portrait, tall | 1024–1050     | 1300–1400      | Coarse pointer, no hover | Two panes   | Compact: 81 px wide; height and image padding follow the shared touch portrait rule.                                                                                          |
-| Large touch landscape      | 1360–1380     | 980–1060       | Coarse pointer, no hover | Two panes   | Normal: 152 × 236 px, 12 px padding. Compact: 83 × 120.625 px, 6 px padding, with a 0.9 row-gap factor.                                                                       |
-
-A mouse with a secondary touch input keeps the desktop calibration. A primary touch pointer uses touch conditions.
-Unmatched screens use the shared dimensions. Device names describe measured references, not hardware detection. New
-measurements can establish another disjoint entry. A new entry must not change defaults to tune one screen. Use
-DevTools' Desktop device type for desktop references. Mobile or touch emulation changes the primary-input match, even
-when its viewport dimensions equal a desktop reference.
-
-CSS fits complete columns at the chosen card width, including minimum outside gaps. It distributes remaining width
-without stretching cards into squares. Input, Output, and Page's thumbnail reference use the same column policy. Shared
-dimensions and calibration entries belong in `frame.css`. Card styles consume these values. Keep an exception in its
-entry rather than in another component stylesheet. Drop previews use the same outside inset and the actual column and
-row strides, including fractional card dimensions.
-
-Page's lens reference and drop previews use the card's fitted image dimensions. They do not define separate density
-sizes. Selection keeps the same image bounds when border emphasis changes.
-
-Compact headers use three equal cells. The number occupies the first cell and the grip occupies the center cell. Both
-targets are at least 24 px wide and 44 px tall, without overlap. Page numbers fit their cell through smaller text.
-Numbers through 10,000 keep at least 2 px of separation without moving the grip or widening the card. Tabular digits
-keep semibold weight. Hover changes their color without changing geometry.
-
-Viewport calibrations can choose narrower cards within the visual rules above. Enlarged text keeps control targets and
-complete labels usable. It can reduce capacity and require document scrolling.
-
-Every card header and footer occupies one row, on every device and in both densities. This rule includes Page headers
-and bottom navigation. Controls, counters, and their text never wrap or stack inside these rows. Preserve usable targets
-and readable text. Grid reduces column capacity when its card controls need more width. Page uses compact controls and
-smaller gaps first. If controls still do not fit, put the excess Page actions in the existing pane page-actions menu.
-Keep every action accessible; do not clip controls, overlap targets, or introduce horizontal scrolling. Workspace
-headings, view toolbars, and pagination captions outside cards follow their own layout rules.
-
-Selection hides individual actions without moving the image or changing card dimensions. Normal footers keep their
-height and separator. Input centers addition. Output uses the same 32 px controls and paired spacing as List on a fine
-pointer, with left/right movement before removal/duplication. Touch uses a visible menu with 44 px actions. Page groups
-navigation chevrons directly around these actions. Movement actions use stemmed arrows, distinct from navigation
-chevrons. All action targets remain usable with keyboard and touch.
+The square lens fits within the viewport with 12 px margins, including its border and optional name caption. The caption
+occupies one line and truncates long names. The lens overlays the image without receiving input. Touch holds place the
+lens above or below the finger. Grip dragging responds directly to finger movement. Grid images suppress native
+selection and touch callouts while preserving ordinary scrolling.
 
 PDF content, Blank, and Padding keep physical proportions and the same fit rules. Neutral image frames distinguish white
-page edges in light mode. Resizing and density changes keep completed pixels visible until replacement renders finish.
-Selection does not clear or repaint unchanged images. Initial previews show a small centered loading ring with an
-accessible busy state. Rendering does not stretch unfinished canvases.
-
-Page headings and navigation stay outside the image viewport. All Page layouts use the frame as their alignment
-reference. Leave equal inline insets between visible content and the frame's inner edges. The inset also clears the
-back-page fold: visible control content stays at least 8 CSS px inside the fold's inner edge. Use the same inset on both
-sides and in both rows, including on front pages. Counter text and the footer Page Label share the start reference.
-Visible zoom reset content uses the end reference. Navigation arrows flank the middle action group with one standard gap
-that can shrink when enlarged text leaves insufficient space. Center visible content vertically in its own row. Keep the
-Input grip and footer actions on the frame's true centerline, independent of side-group widths. Output has no grip.
-Zoom, panning, page proportions, and selection do not move these references. Keep targets separate and inside the frame,
-with at least 44 CSS px of target height.
-
-The measured Page-heading budget includes the counter before inline zoom actions. Page Label sits at the footer's
-leading edge, aligned with the counter. Previous and Next sit at most one standard gap from the centered page actions.
-Long labels truncate before reaching Previous and retain their full value in the tooltip and accessible name.
-
-On desktop, retain native scrollbars when the Page image overflows. They show the available range and support mouse
-navigation. Hide them when the image fits that axis. Scrollbar visibility does not change the control references.
-Reserve native scrollbar space before fitting the image. Center the image in the remaining content area, with equal
-image gutters. A vertical scrollbar must not make width fitting overflow horizontally.
-
-Touch Page has a coarse primary pointer without hover, in either one-pane or two-pane layout. Use input capabilities,
-not device names or orientation, to determine this scope. In these layouts, neither Input Page nor Output Page exposes a
-grip. Remove its reserved space and interaction target. Grid grips retain their existing behavior. Page selection
-remains available through the page-selection bar.
-
-Fit centers the complete image in the available image viewport. At enlarged zoom, use equal inline gutters of at least
-1.5 times the shared gap. Touch Page uses a minimum image gutter of 2 rem on all four sides: 32 CSS px at ordinary text
-size. The enlarged image starts with the full top gutter and retains the same bottom gutter at the scroll end. Wider
-manual zoom levels can require horizontal scrolling. These gutters belong to the image area, outside the PDF; they do
-not increase header or footer height. [SPEC](SPEC.md#page-preview-and-comparison) owns initial zoom and retained zoom
-choices.
-
-Where the minimum frame fits the screen, its navigation stays visible above status. The image frame uses the same
-available-height budget as Grid. On short screens, document scrolling preserves the minimum usable frame and exposes
-bottom navigation without the status bar covering it. Control placement and initial zoom do not change frame sizes,
-header/footer heights, card dimensions, gaps, calibration values, or Normal/Compact Grid capacities.
-
-Compare and Show original page precede the zoom controls when they fit inline. Larger panes show the percentage, minus,
-plus, and zoom reset as four evenly spaced items. Narrow panes show three: minus, plus, and one reset/width-fit button.
-At 100%, that button shows the existing icon; at other zoom levels, it shows the percentage. Its accessible name and
-tooltip identify the current action defined in [SPEC](SPEC.md#page-preview-and-comparison). The zoom value remains
-available to screen readers in both layouts. Equal control cells keep visible item centers evenly spaced. The counter
-and tools share one row; the complete tools group never moves to a second row. If the complete counter and the remaining
-reset target cannot fit together, the reset/width-fit action also moves into the pane's page-actions menu. Keep the
-counter's text size, frame insets, and target sizes unchanged.
-
-Counters keep their dimensions during inline page entry. Current values use stronger text and totals muted text. Spaces
-separate each slash from both numbers. Grid's caption uses `4 / 27 · 28–36 / 240`, with accessible names describing both
-ranges. Its native slider has one stop per batch, gray group markers, and previous/next buttons. At most 64 markers
-sample the full range, including its endpoints. The slider and caption retain exact batch and page positions. Wide
-layouts align Grid and Page navigation. The caption always stays below the slider in both densities and both pane
-layouts. It stays close to the slider and clear of the status bar. Two-pane layouts use the bottom gutter for captions.
-Calibration entries change card dimensions without changing this shared placement rule.
-
-Single-pane layouts use one pagination layout for Normal and Compact: the caption sits directly below the slider row,
-with previous/next buttons at the row's outer edges. The visible arrow centers align with the pane's content edges, as
-do its heading and page fields. The row can extend into available side margins while all targets stay inside the
-viewport. Pagination stays clear of the status bar within the shared bottom gutter. Its arrows use separate 32 × 44 px
-targets; the slider retains a 44 px height. Reserve one caption line below it; wrapped captions can increase the row
-height. Page totals stay beside the current number. The page-entry field does not cover another control.
-
-The square lens fits both viewport dimensions with 12 px margins, including its border and optional name caption. The
-caption sits below the crop with centered text and padding. It uses one line and an ellipsis for long names. The crop
-uses the remaining height, so enlarged text does not push the lens outside the viewport.
-[SPEC](SPEC.md#page-preview-and-comparison) owns lens dismissal and interaction.
-
-The lens overlays the image without receiving input. Its magnifier cursor remains visible over light and dark page
-content. Inherited image tooltips stay out of the lens. Page details use a click interaction, leaving image hover
-available for inspection.
-
-Touch holds place the lens above or below the finger within the viewport. Grip dragging responds directly to finger
-movement. Grid text and page images suppress native selection and touch callouts while retaining ordinary scrolling.
+page edges in light mode. Resizing and Flow presentation changes keep completed pixels visible until replacement renders
+finish. Selection does not clear or repaint unchanged images. Initial previews show a small centered loading ring with
+an accessible busy state. Rendering does not stretch unfinished canvases.
 
 ## Style presentation
 
@@ -1064,11 +801,11 @@ list has a bounded height and supports keyboard scrolling.
 The [browser suites](../test/) own automated visual and interaction assertions. [AGENTS.md](../../AGENTS.md#web) owns
 execution commands. Layout changes exercise both themes, keyboard focus, normal and 200% text, and widths of 320, 390,
 and 768 px. The [feedback tests](../test/feedback.test.js) also cover header layout boundaries, long filenames, modal
-cancellation and recovery, and matching desktop landing/workspace edges. Desktop changes exercise the
-[capacity references](#workspace), mixed page sizes, both densities, and Grid/Page alignment. Relevant cases include
-empty and selected states, long filenames, five-digit page numbers, loading, errors, cancellation, and reduced motion.
-No layout introduces horizontal overflow or conceals an action behind a fold, toolbar, or fixed status row. Touch
-emulation covers taps and scrolling. Physical-device drag behavior and assistive technology require separate evidence.
+cancellation and recovery, and matching desktop landing/workspace edges. Desktop changes exercise scroll geometry, mixed
+page sizes, Flow presentations, and Grid/Page alignment. Relevant cases include empty and selected states, long
+filenames, five-digit page numbers, loading, errors, cancellation, and reduced motion. No layout introduces horizontal
+overflow or conceals an action behind a fold, toolbar, or fixed status row. Touch emulation covers taps and scrolling.
+Physical-device drag behavior and assistive technology require separate evidence.
 
 Physical iOS acceptance includes a fresh Home Screen installation, the icon on light and dark wallpaper, and paired
 heading alignment in Chrome landscape tabbed mode. Record the OS/browser versions, presentation mode, actual CSS
@@ -1078,31 +815,26 @@ These cases remain open until their physical evidence exists.
 
 Animation assertions wait for the rendered effect to start before checking its duration or geometry. Updated document
 totals do not prove that a transition has started. Full mode runs edit feedback checks with CPU throttling and
-identifies the viewport and density in its diagnostics. Do not use fixed sleeps or automatic retries to hide timing
-failures.
+identifies the viewport and Flow presentation in its diagnostics. Do not use fixed sleeps or automatic retries to hide
+timing failures.
 
-Alignment is an acceptance gate for every layout change. Exercise every affected width range from the
-[capacity references](#workspace), including both ends when a range changes. Check Input and Output in Normal and
-Compact, both themes, normal and 200% text, selected and unselected cards, and one- through five-digit numbers. Measure
-visible icon bounds against their declared references on both axes. Center offsets must stay below 1 CSS px; targets
-must remain separate and usable. Compare Grid with Page's thumbnail reference. At each desktop reference, assert the
-rendered Normal and Compact column × row matrices against the table. Apply the touch references in both orientations,
-including Input/Output page counts and partial rows. Screenshots confirm the surrounding visual groups. Passing column
-counts, target sizes, or overflow checks alone does not pass this gate.
+Alignment is an acceptance gate for every layout change. Exercise each affected width range, including both sides of its
+responsive boundaries. Check both panes in Grid, List, and Page, with both themes, normal and 200% text, selected and
+unselected cards, and one- through five-digit numbers. Measure visible icon bounds against their references on both
+axes. Center offsets must remain below 1 CSS px. Interaction targets must remain separate and usable. Compare Grid with
+Page's thumbnail reference. Verify scroll reachability, card dimensions, and incomplete final rows. Screenshots confirm
+surrounding visual groups. Passing column counts and overflow checks alone does not pass this gate.
 
 For action buttons, measure the rendered label as well as the control. At normal and 200% text, each label must occupy
 one line and fit inside its button. Check peer dimensions, centers, and gaps after shortening labels or changing their
 layout. A no-wrap declaration alone does not prove that a label fits.
 
-Check calibration boundaries in both viewport dimensions and in each applicable orientation. Include a fine pointer with
-secondary touch input, a primary touch pointer, and unmatched viewport dimensions. Verify that only the matching entry
-changes card geometry. Both densities must use the available height and keep pagination reachable. Measure portrait card
-proportions, image margins, distributed column gaps, and row gaps against the
-[card rules](#card-proportions-and-spacing). Check partial final batches without changing their column positions or row
-spacing. Compare Normal/Compact image scale for the same portrait page against the 2× target and its 15% tolerance. The
-[Grid tests](../test/grid.test.js) check these bounds, image-size floors, calibration isolation, and stable partial
-batches. The [Page geometry tests](../test/geometry.test.js) check fitted image and control alignment. Keep these checks
-aligned with this document when a reference changes.
+Check responsive boundaries in both viewport dimensions and each applicable orientation. Include fine and coarse primary
+pointers. Verify that only matching calibration entries change card geometry. Measure portrait proportions, image
+margins, distributed column gaps, and row gaps against the [card rules](#card-proportions-and-spacing). Keep card
+positions and widths stable across scroll windows and partial final rows. Test documents above 240 pages to verify
+window bounds, keyboard navigation, and the final page. Compare Grid and Page alignment. The
+[Grid tests](../test/grid.test.js) own scroll geometry; the [Page tests](../test/geometry.test.js) own fitted images.
 
 Page zoom items share one centerline, with less than 1 CSS px of vertical deviation. Control targets stay inside their
 heading and do not overlap. Card headers and footers each occupy one row, including counters and inline page entry.
@@ -1209,18 +941,18 @@ Tab, tab list, and tab panel follow the [W3C tabs terminology](https://www.w3.or
 
 | English term                 | Turkish equivalent                   | UI element                                                                     |
 | ---------------------------- | ------------------------------------ | ------------------------------------------------------------------------------ |
-| View toolbar                 | Görünüm araç çubuğu                  | The row with view tabs and the adjacent density controls or Style actions.     |
-| Tab list                     | Sekme çubuğu                         | The Grid, List, Page, and Style tabs. Help groups Keyboard and Mouse.          |
-| Tab                          | Sekme                                | One Grid, List, Page, Style, Keyboard, or Mouse choice.                        |
+| View toolbar                 | Görünüm araç çubuğu                  | The row with view tabs, the Flow switch, and Style actions.                    |
+| Tab list                     | Sekme çubuğu                         | The Flow, Page, and Style tabs. Help groups Keyboard and Mouse.                |
+| Tab                          | Sekme                                | One Flow, Page, Style, Keyboard, or Mouse choice.                              |
 | Tab panel                    | Sekme içerik paneli                  | The content area associated with the active tab.                               |
 | Active tab indicator         | Etkin sekme göstergesi               | The accent underline beneath the active tab.                                   |
-| Grid density control         | Izgara yoğunluğu denetimi            | One button that switches directly between Normal and Compact.                  |
+| Flow presentation switch     | Akış görünümü anahtarı               | One button that toggles Grid and List inside Flow.                             |
 | Export recipe button / panel | Recipe dışa aktarma düğmesi / paneli | The arrow-out-of-square icon and the panel for saving portable Recipe JSON.    |
 | View switcher                | Görünüm değiştirici                  | The mobile Input/Output switch. Its buttons expose their pressed state.        |
 | Modified indicator           | Değişiklik göstergesi                | The small dot on the Style tab that indicates overrides or drafts.             |
 | Unavailable indicator        | Kullanılamazlık göstergesi           | The crossed-out brush and explanation for a visible but unavailable Style tab. |
 
-Grid density controls sit outside the tab list. The mobile view switcher uses buttons rather than tab roles.
+Flow presentation switches sit outside the tab list. The mobile view switcher uses buttons rather than tab roles.
 
 | English term      | Turkish equivalent   | UI element                                                                              |
 | ----------------- | -------------------- | --------------------------------------------------------------------------------------- |
@@ -1268,39 +1000,35 @@ The bar is the complete bordered row. The field is only the text-entry area with
 
 #### Cards and previews
 
-| English term         | Turkish equivalent                | UI element                                                                                              |
-| -------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Thumbnail grid       | Küçük resim ızgarası              | The area that arranges page cards in rows and columns.                                                  |
-| Page card            | Sayfa kartı                       | One complete card with its header, body, image, footer, and outer boundary.                             |
-| Card header          | Kart üst alanı                    | The upper section with the page number, drag handle, and page face indicator.                           |
-| Page number          | Sayfa numarası                    | The physical page position in the pane's sequence.                                                      |
-| Page label           | Sayfa etiketi                     | An optional PDF-authored page identifier, independent of its physical position.                         |
-| Drag handle / Grip   | Sürükleme tutamacı                | The dotted handle in the card header. A click also selects or unselects the page.                       |
-| Page face indicator  | Sayfa yüzü göstergesi             | The corner indicator that identifies the front or back side.                                            |
-| Folded corner        | Katlanmış köşe                    | The curved corner that marks a back side.                                                               |
-| Card body            | Kart gövdesi                      | The main image section between the header and footer.                                                   |
-| Thumbnail frame      | Küçük resim çerçevesi             | The neutral area around the small page image.                                                           |
-| Page thumbnail       | Sayfa küçük resmi                 | The small page image inside the frame, from a producer PNG or PDF rendering.                            |
-| Card footer          | Kart alt alanı                    | The section below the image that reserves space for card actions.                                       |
-| Card actions         | Kart işlemleri                    | Input addition or Output movement, removal, and duplication controls.                                   |
-| Page details trigger | Sayfa ayrıntılarını açma denetimi | The interactive page number that opens page details.                                                    |
-| Page details popover | Sayfa ayrıntı paneli              | Input details or Output-copy information. Compact also includes a larger preview and available actions. |
-| Blank page preview   | Boş sayfa önizlemesi              | The content-free page appearance with a Blank or Padding label.                                         |
+| English term         | Turkish equivalent                | UI element                                                                        |
+| -------------------- | --------------------------------- | --------------------------------------------------------------------------------- |
+| Thumbnail grid       | Küçük resim ızgarası              | The area that arranges page cards in rows and columns.                            |
+| Page card            | Sayfa kartı                       | One complete card with its header, body, image, footer, and outer boundary.       |
+| Card header          | Kart üst alanı                    | The upper section with the page number, drag handle, and page face indicator.     |
+| Page number          | Sayfa numarası                    | The physical page position in the pane's sequence.                                |
+| Page label           | Sayfa etiketi                     | An optional PDF-authored page identifier, independent of its physical position.   |
+| Drag handle / Grip   | Sürükleme tutamacı                | The dotted handle in the card header. A click also selects or unselects the page. |
+| Page face indicator  | Sayfa yüzü göstergesi             | The corner indicator that identifies the front or back side.                      |
+| Folded corner        | Katlanmış köşe                    | The curved corner that marks a back side.                                         |
+| Card body            | Kart gövdesi                      | The main image section between the header and footer.                             |
+| Thumbnail frame      | Küçük resim çerçevesi             | The neutral area around the small page image.                                     |
+| Page thumbnail       | Sayfa küçük resmi                 | The small page image inside the frame, from a producer PNG or PDF rendering.      |
+| Card footer          | Kart alt alanı                    | The section below the image that reserves space for card actions.                 |
+| Card actions         | Kart işlemleri                    | Input addition or Output movement, removal, and duplication controls.             |
+| Page details trigger | Sayfa ayrıntılarını açma denetimi | The interactive page number that opens page details.                              |
+| Page details popover | Sayfa ayrıntı paneli              | Input details or Output-copy information, including available actions.            |
+| Blank page preview   | Boş sayfa önizlemesi              | The content-free page appearance with a Blank or Padding label.                   |
 
 Grid is the view name. Input uses an HTML list, and Output uses an ordered list. The view name does not imply an ARIA
 `grid` role.
 
-#### Pagination
+#### Scrolling
 
-| English term         | Turkish equivalent               | UI element                                                               |
-| -------------------- | -------------------------------- | ------------------------------------------------------------------------ |
-| Grid pagination      | Izgara sayfalaması               | The complete navigation area for thumbnail groups.                       |
-| Pagination buttons   | Sayfalama düğmeleri              | The arrows that show the previous or next thumbnail group.               |
-| Pagination slider    | Sayfalama kaydırıcısı            | The horizontal control that selects a thumbnail group directly.          |
-| Batch counter        | Önizleme grubu sayacı            | The current group and total group count, such as `1 / 2`.                |
-| Page range indicator | Görünen sayfa aralığı göstergesi | The visible physical page range and total page count, such as `1–6 / 7`. |
-
-The pagination slider changes thumbnail groups. A scrollbar changes the visible position within content.
+| English term       | Turkish equivalent      | UI element                                                       |
+| ------------------ | ----------------------- | ---------------------------------------------------------------- |
+| Grid viewport      | Izgara görüntü alanı    | The fixed-height area that scrolls the continuous page sequence. |
+| Scrollbar gutter   | Kaydırma çubuğu boşluğu | The reserved edge outside the page cards.                        |
+| Visible row window | Görünür satır penceresi | The mounted Grid rows and their scroll spacers.                  |
 
 ### Page
 
@@ -1408,7 +1136,6 @@ Slider track, thumb, and tick marks use standard slider terminology.
 | Slider                          | Kaydırıcı                      | The control that selects a value within a range, such as opacity or a thumbnail group.          |
 | Slider track                    | Kaydırıcı yolu                 | The horizontal path along which the slider thumb moves.                                         |
 | Slider thumb                    | Kaydırıcı tutamacı             | The movable part of the slider.                                                                 |
-| Tick marks                      | Kademe işaretleri              | The marks that indicate group positions on the Grid pagination slider.                          |
 
 #### Buttons and supporting text
 
@@ -1555,7 +1282,7 @@ terms.
 | [Design rules](#tokens-and-assets)                                                                                                                   | Visual rules and layout references.                                                  |
 | [App](../src/App.svelte), [Landing](../src/Landing.svelte), and [Theme](../src/Theme.svelte)                                                         | Application shell, pane header controls, landing page, and theme control.            |
 | [Composer](../src/Composer.svelte), [Selection](../src/Selection.svelte), [Origin](../src/Origin.svelte), and [Repetition](../src/Repetition.svelte) | Panes, view controls, selection bars, page actions, and repetition.                  |
-| [Grid](../src/Grid.svelte), [Page](../src/Page.svelte), [Counter](../src/Counter.svelte), [Pdf](../src/Pdf.svelte), and [Lens](../src/Lens.svelte)   | Thumbnail pagination, page viewer, page entry, page images, and magnifier.           |
+| [Grid](../src/Grid.svelte), [Page](../src/Page.svelte), [Counter](../src/Counter.svelte), [Pdf](../src/Pdf.svelte), and [Lens](../src/Lens.svelte)   | Scrollable thumbnails, page viewer, page entry, page images, and magnifier.          |
 | [Style](../src/Style.svelte), [Quartet](../src/Quartet.svelte), [Control](../src/Control.svelte), and [Guidance](../src/Guidance.svelte)             | Profiles, groups, Style objects, property summaries, editors, and authored guidance. |
 | [Help](../src/Help.svelte), [Tour](../src/Tour.svelte), [Settings](../src/Settings.svelte), and [Examples](../src/Examples.svelte)                   | Help, welcome, Product tour, Settings, and examples.                                 |
 | [Export](../src/Export.svelte), [Print](../src/Print.svelte), and [Filename](../src/Filename.svelte)                                                 | Shared Output preparation, download, native PDF printing, and filename editing.      |

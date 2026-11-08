@@ -1,15 +1,15 @@
-# Viewport measurement and calibration
+# Viewport measurement and evidence
 
-This document owns platform setup, viewport acquisition, calibration, and retained evidence. Read only the relevant
-section. [SPEC](SPEC.md) owns product behavior. [VIEW](VIEW.md#grid-and-page) owns visual limits and calibration rules.
-The maintained [inventory](../test/viewports.json) owns device groups, source attribution, and reference matrices.
+This document owns platform setup, viewport acquisition, geometry checks, and retained evidence. Read only the relevant
+section. [SPEC](SPEC.md) owns product behavior. [VIEW](VIEW.md#grid-and-page) owns visual limits for the scrollable
+Grid. The maintained [inventory](../test/viewports.json) owns device groups, source attribution, and reference matrices.
 
 - [Tool storage](#tool-storage): SDK locations, moves, and cleanup boundaries.
 - [Browser checks](#browser-checks): pinned tools and cross-platform test behavior.
 - [Visual regression](#visual-regression): routine checks and native sampling.
 - [Native mobile setup](#native-mobile-setup): Xcode, Simulator, and Android prerequisites.
 - [Coverage](#coverage): representative groups and evidence limits.
-- [Collection and calibration](#collection-and-calibration): capture commands and acceptance.
+- [Collection and geometry](#collection-and-geometry): capture commands and acceptance.
 - [Retained evidence](#retained-evidence): archive contents and completed measurement scope.
 
 ## Tool storage
@@ -56,12 +56,12 @@ npm --prefix web exec -- playwright install chromium webkit
 
 During development, run focused checks for the affected behavior. `npm run test:minimal` groups formatting, lint, types,
 unit tests, and critical browser scenarios. Those scenarios cover PDF opening, render ownership, metadata cleanup,
-Style, Download, cancellation, keyboard, touch, pinch zoom, and large Output pagination. Reserve long suites and
-complete matrices for ship.
+Style, Download, cancellation, keyboard, touch, pinch zoom, and long Output scrolling. Reserve long suites and complete
+matrices for ship.
 
 Before ship, run `npm run test:standard`. It adds asset publication checks, a production build, and the functional
 browser regressions. Standard covers opening, editing, Style, Download, cancellation, PDF ownership, selection,
-keyboard, touch, offline use, updates, and large Output pagination. Animation checks use a desktop and phone without CPU
+keyboard, touch, offline use, updates, and long Output scrolling. Animation checks use a desktop and phone without CPU
 throttling. Standard uses representative desktop and touch cases for batch navigation, shared frames, partial batches,
 and Normal card hit targets. The hit-target checks cover consecutive rows and measure pagination after pane and
 text-size transitions. Standard omits the full alignment and Page geometry matrices, Grid capacity/calibration matrices,
@@ -69,10 +69,9 @@ and calibration tools. Opacity layout checks use representative phone and deskto
 widths.
 
 Before a release, run `npm run test:full`. It includes every application browser scenario, complete animation matrices
-with CPU throttling, and both viewport measurement and candidate-search scenarios. Animation command entrypoints run
-once. Core addition, removal, movement, and reduced-motion operations cover each viewport and density. All modes include
-the same static rules and unit tests. Native, WASM, sanitizer, and package tasks remain subject to
-[AGENTS](../../AGENTS.md#build-and-validation).
+with CPU throttling, and viewport geometry checks. Animation command entrypoints run once. Core addition, removal,
+movement, and reduced-motion operations cover each affected viewport. All modes include the same static rules and unit
+tests. Native, WASM, sanitizer, and package tasks remain subject to [AGENTS](../../AGENTS.md#build-and-validation).
 
 The workspace suite checks Help sizing, panel scrolling, and PDF export in Chromium and WebKit. Its native PDF printing
 scenario launches full Chromium with `channel: "chromium"`; CI installs that browser for the workspace group. The Grid
@@ -94,26 +93,25 @@ content, geometry, or interaction requirements.
 
 `npm run test:browser` defaults to standard mode. Add a mode and group to run focused checks, for example
 `npm run test:browser -- full grid`. Append Node test flags after the group, for example
-`npm run test:browser -- standard grid --test-name-pattern='pagination'`. The runner checks that every browser file
-belongs to exactly one group. Add new files to `test/run.ts`. Tests keep separate servers, browser contexts, and storage
-between files. The `grid` group also runs List interactions, PDF ownership, processor-worker recovery, and lens tests.
-The `composition` group also runs transfer tests. The `startup` group also runs installation and asset publication
-tests. The `workspace` group runs workspace, header feedback, and Output export tests.
+`npm run test:browser -- standard grid --test-name-pattern='scroll'`. The runner checks that every browser file belongs
+to exactly one group. Add new files to `test/run.ts`. Tests keep separate servers, browser contexts, and storage between
+files. The `grid` group also runs List interactions, PDF ownership, processor-worker recovery, and lens tests. The
+`composition` group also runs transfer tests. The `startup` group also runs installation and asset publication tests.
+The `workspace` group runs workspace, header feedback, and Output export tests.
 
 `npm test` selects the fast `.test.ts` files. The browser runner selects `.test.js` integration files, including asset
 verification. Minimal mode omits the asset case; standard and full include it. Both runners use Node's test runner. The
 extension split is an existing selection convention. Node can also run TypeScript integration tests. A conversion must
 update file selection and enable type checking for those tests.
 
-Grid tests own the full viewport matrices and calibration boundaries. Boundary sweeps omit exact mouse viewports already
-covered by desktop references. Desktop reference matrices set minimum capacities; extra complete rows or columns must
-still pass all visual bounds. Capacity sweeps use the light theme. Alignment tests cover each distinct card calibration,
-both themes, both panes and densities, normal/200% text, selected states, and long page numbers. They do not repeat
-every nearby calibration boundary. Geometry setup dispatches clicks directly to prevent incidental pointer effects.
-Interaction tests retain real pointer and keyboard actions. Page geometry tests own fitted image and control alignment.
-They cover fitted and enlarged pages across the matrix, with zoom limits at representative phone and desktop widths.
-Production smoke tests cover enlarged phone text and a tablet. The development suites own the larger interaction and
-layout matrices. Failure screenshots and asserted raster captures remain part of the suites.
+Grid tests own viewport boundaries and continuous scrolling. Boundary sweeps omit mouse viewports already covered by
+desktop references. Historical reference matrices remain evidence, not current capacity requirements. Alignment tests
+cover each distinct card geometry, both themes and panes, normal/200% text, selected states, and long page numbers. They
+do not repeat every nearby calibration boundary. Geometry setup dispatches clicks directly to prevent incidental pointer
+effects. Interaction tests retain real pointer and keyboard actions. Page geometry tests own fitted image and control
+alignment. They cover fitted and enlarged pages across the matrix, with zoom limits at representative phone and desktop
+widths. Production smoke tests cover enlarged phone text and a tablet. The development suites own the larger interaction
+and layout matrices. Failure screenshots and asserted raster captures remain part of the suites.
 
 ### Output printing checks
 
@@ -153,7 +151,7 @@ Before merging changes to shared layout, Grid/Page geometry, or calibration rule
 the PR or handoff. Documentation-only changes do not require these matrices. Standard CI remains the functional gate for
 ordinary PRs and pushes.
 
-`npm run test:viewport` runs only the full measurement and candidate-search checks. Keep the native calibration evidence
+`npm run test:viewport` runs the full current Grid geometry and viewport checks. Keep the native measurement evidence
 required below.
 
 CI runs standard in six browser groups for main pushes and pull requests. A `v*` version tag runs full in nine groups,
@@ -269,14 +267,14 @@ circle with radius 40% of the image width. See the [maskable icon guidance](http
 Keep iOS touch icons and the in-page logo separate. Android installation evidence does not establish iOS behavior.
 
 For Grid acquisition, use four primary environments per configured display: Chrome with expanded controls and an
-installed app in `standalone` display mode, each in portrait and landscape. Export Input and Output in Normal and
-Compact for each environment. Keep text size, zoom, theme, and navigation configuration fixed. Standalone mode can
-retain Android status and navigation bars; it does not mean the Fullscreen API or an immersive window.
+installed app in `standalone` display mode, each in portrait and landscape. Export Input and Output Grid in each
+environment. Keep text size, zoom, theme, and navigation configuration fixed. Standalone mode can retain Android status
+and navigation bars; it does not mean the Fullscreen API or an immersive window.
 
 Use native rotation and `adb` framebuffer screenshots. Attach to the guest Chrome through its remote debugging socket
 for the existing geometry probe. Select the requested display mode and verify active animation frames: a background
 Chrome target can report itself as visible while its frames are suspended. Check the exported mode, orientation, DPR,
-visual scale, viewport units, and native browser controls before accepting a capture. Keep all four views at the same
+visual scale, viewport units, and native browser controls before accepting a capture. Keep both pane views at the same
 viewport. For the expanded-control reference, the content height must match the small viewport height (`svh`).
 
 Set panel dimensions and density in a dedicated AVD configuration before boot. Verify the resulting native PNG
@@ -390,47 +388,38 @@ mode; native window fullscreen does not require a DOM fullscreen element. These 
 Studio Display or iMac coverage. Separate DPR 2 replay covers their logical viewports in Chromium and Playwright WebKit;
 those exports remain synthetic. Keep physical panel, logical scaling, and DPR separate when those displays are measured.
 
-## Collection and calibration
+## Collection and geometry
 
 The development-only `?geometry` entry opens the Grid fixture and provides local JSON/CSV exports. Keep both panes in
 Grid and wait for loading to finish before capture. The probe records rendered CSS bounds, viewport units, safe areas,
-matching media queries, and all four pane/density combinations. Capture restores the previous pane, densities, focus,
-and scroll. The export contains no PDF content. Device labels are explicit metadata. The probe leaves unknown hardware
-and browser configuration values unknown.
+matching media queries, and one Normal Grid measurement per pane. Captures include the total page count, mounted card
+count, visible rows, internal scroll extent, and page geometry. The capture restores the previous pane, Flow
+presentation, focus, and scroll. Exported measurements contain no PDF content. Device labels are explicit metadata. The
+probe leaves unknown hardware and browser configuration values unknown.
 
 The probe page uses a development-only manifest that preserves its fixture URL when installed. Its separate Mainz
 geometry app opens the probe again. The production manifest and normal installation start URL remain unchanged.
 
-With the development server running, collect the maintained viewport references from the repository root:
+With the development server running, collect maintained viewport samples from the repository root:
 
 ```sh
 npm run measure
-npm run calibrate
 ```
 
-The collector writes `.local/tmp/web/viewport/synthetic/`. The search writes `.local/tmp/web/viewport/search/`.
-`inventory.json` records source hashes, fixture digest, software versions, coverage, and failed rules. Each sample has
-JSON, CSV, and four screenshots. `search.json` retains every candidate and rejection. `index.html` compares shortlisted
-screenshots. Command arguments that name files are relative to `web/`.
+The collector writes `.local/tmp/web/viewport/synthetic/`. Its `inventory.json` records source hashes, fixture digests,
+software versions, coverage, and failed rules. Each sample has JSON, CSV, and two Grid screenshots. The current
+measurement schema is version 2. Old measurements and candidate-search reports remain retained evidence, but no longer
+provide current capacity acceptance criteria.
 
 Screenshots capture the visible viewport. Full-page capture can change Chromium's emulated input capabilities on a
-scrolling document. The collector rejects a capture that changes pointer or hover capabilities.
-
-The search tries 27 deterministic combinations of card width, height, and spacing, plus up to four measured fits for an
-extra row or column in either density. Fits use the available column budget while preserving image-size floors, balanced
-margins, card proportions, and control space. Their dimensions are constrained by VIEW's rendered bounds. It evaluates
-Normal and Compact together through the actual renderer. VIEW bounds reject candidates before ranking. The report
-retains the Pareto frontier. A recommendation must increase capacity without a density losing cards, reduce unused
-height without a material image-size loss, or correct a failing baseline. Current reference matrices verify the
-baseline. Candidate counts can improve; frame budgets remain acceptance gates. The search writes no production CSS.
-Native rendered review and boundary tests precede a calibration change.
+scrolling document. The collector rejects captures that change pointer or hover capabilities. New calibrations must
+preserve the Normal Grid image dimensions and scroll behavior; do not optimize the number of visible rows.
 
 To collect one reference or use installed Chrome on a logged-in desktop, run:
 
 ```sh
 npm run measure -- --case 810x1080-coarse
 npm run measure -- --native --channel chrome --environment ../.local/tmp/web/viewport/host.json --out ../.local/tmp/web/viewport/native
-npm run calibrate -- --input ../.local/tmp/web/viewport/native --out ../.local/tmp/web/viewport/native-search
 ```
 
 The optional host JSON supplies known `source`, `device`, and `display` values. For a verified physical display, use
@@ -457,10 +446,10 @@ On a Mac with full Xcode and compatible Simulator runtimes, make the development
 the representative native sweep from the repository root:
 
 ```sh
-npm run measure:simulator -- --search
-npm run measure:simulator -- --case 744x1133-coarse,810x1080-coarse --search --out ../.local/tmp/web/viewport/tablets
+npm run measure:simulator --
+npm run measure:simulator -- --case 744x1133-coarse,810x1080-coarse --out ../.local/tmp/web/viewport/tablets
 npm run measure:simulator -- --case 375x667-coarse --orientation landscape --mode browser-tabbed --out ../.local/tmp/web/viewport/phone
-npm run measure:simulator -- --case 744x1133-coarse --mode standalone-pwa --search --out ../.local/tmp/web/viewport/pwa
+npm run measure:simulator -- --case 744x1133-coarse --mode standalone-pwa --out ../.local/tmp/web/viewport/pwa
 ```
 
 The collector reuses one UI-test build. It creates dedicated simulators for the selected groups in

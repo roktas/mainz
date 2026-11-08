@@ -2,7 +2,6 @@
   "name": "mainz",
   "private": true,
   "scripts": {
-    "calibrate": "npm --prefix web run calibrate --",
     "measure": "npm --prefix web run measure --",
     "measure:simulator": "npm --prefix web run measure:simulator --",
     "test:viewport": "npm --prefix web run test:viewport --",

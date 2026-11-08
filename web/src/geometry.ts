@@ -25,19 +25,18 @@ export function geometry(viewport = true) {
     const thumbnail = query(element, ".thumbnail")
     if (!card || !image || !thumbnail || !image.width || !image.height) return null
     const bounds = rect(area)
-    const columns = new Set(cards.map((item) => item.left)).size
+    const columns = Number(element.dataset.columns)
+    const rows = Number(element.dataset.rows)
+    const total = Number(area.getAttribute("aria-setsize")) || cards.length
     const pane = element.closest<HTMLElement>(".selection-panel, .composition-output")!
     const style = getComputedStyle(pane)
     const computed = getComputedStyle(area)
     const thumbnailStyle = getComputedStyle(element.querySelector(".thumbnail")!)
-    const slider = query(element, ".batch-slider")
-    const caption = query(element, ".batch-caption")
-    const cardsBottom = Math.max(...cards.map((item) => item.bottom))
-    const status = query(document, ".footnote")
     return {
       available: [innerWidth, innerHeight],
-      matrix: [columns, new Set(cards.map((item) => item.top)).size, cards.length],
-      capacity: [Number(element.dataset.columns), Number(element.dataset.rows), Number(element.dataset.batch)],
+      matrix: [columns, rows, Math.min(total, columns * rows)],
+      mounted: cards.length,
+      total,
       frame: rect(element),
       grid: bounds,
       card,
@@ -55,15 +54,11 @@ export function geometry(viewport = true) {
         columns > 1 ? cards[1].left - card.right : null,
         cards.length > columns ? cards[columns].top - card.bottom : null,
       ],
-      slider,
-      caption,
-      pager: query(element, ".page-batches"),
-      cardsBottom,
-      status: status?.top ?? null,
-      clearance: slider ? slider.top - cardsBottom : null,
-      scroll: document.documentElement.scrollHeight - innerHeight,
-      scrollPosition: [scrollX, scrollY],
-      horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
+      scroll: Math.max(0, element.scrollHeight - element.clientHeight),
+      scrollTop: element.scrollTop,
+      documentScroll: Math.max(0, document.documentElement.scrollHeight - innerHeight),
+      horizontalOverflow:
+        document.documentElement.scrollWidth > innerWidth || element.scrollWidth > element.clientWidth + 1,
       ready: [...element.querySelectorAll(".thumbnail")].every((item) => item.getAttribute("aria-busy") === "false"),
       computed: {
         columns: computed.gridTemplateColumns,
@@ -87,7 +82,6 @@ export function geometry(viewport = true) {
           "--grid-column-gap",
           "--grid-row-factor",
           "--thumbnail-padding",
-          "--grid-pager-height",
         ].map((name) => [name, style.getPropertyValue(name).trim()]),
       ),
     }
@@ -182,7 +176,7 @@ export function geometry(viewport = true) {
   const chrome = ua.match(/(?:Chrome|CriOS)\/([\d.]+)/)
   const safari = !chrome && ua.match(/Version\/([\d.]+).*Safari/)
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     environment: {
       source: "unknown",
       device: null as string | null,
@@ -270,20 +264,23 @@ function mode(pane: HTMLElement) {
   return "grid"
 }
 
-function show(name: "Input" | "Output", next: "grid" | "list" | "page") {
+async function show(name: "Input" | "Output", next: "grid" | "list" | "page") {
   choose(name)
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
   const pane = document.querySelector<HTMLElement>(name === "Input" ? ".selection-panel" : ".composition-output")
   if (!pane) throw new Error(`${name} is unavailable for geometry capture.`)
   const tab = pane.querySelector<HTMLButtonElement>(`[role="tab"][aria-label="${next === "page" ? "Page" : "Flow"}"]`)
   tab?.click()
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
   if (next !== "page") {
     const toggle = pane.querySelector<HTMLButtonElement>(".flow-toggle")
     if (toggle?.getAttribute("aria-label") === `Show ${name} ${next === "grid" ? "Grid" : "List"}`) toggle.click()
   }
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
 }
 
 export async function view(name: "Input" | "Output"): Promise<Geometry> {
-  show(name, "grid")
+  await show(name, "grid")
   return stable()
 }
 
@@ -311,21 +308,19 @@ export async function capture(): Promise<Geometry> {
     }
     return sample!
   } finally {
-    if (previous.input) show("Input", modes.input)
-    if (previous.output) show("Output", modes.output)
+    if (previous.input) await show("Input", modes.input)
+    if (previous.output) await show("Output", modes.output)
     choose(previous.pane === "output" ? "Output" : "Input")
-    await stable()
-    if (previous.focus instanceof HTMLElement) previous.focus.focus({ preventScroll: true })
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+    if (previous.focus instanceof HTMLElement && previous.focus.isConnected)
+      previous.focus.focus({ preventScroll: true })
     scrollTo(previous.scroll[0], previous.scroll[1])
   }
 }
 
 export async function stable(timeout = 45000): Promise<Geometry> {
-  if (
-    [...document.querySelectorAll(".page-view")].some((element) => element.checkVisibility()) &&
-    ![...document.querySelectorAll(".grid-view")].some((element) => element.checkVisibility())
-  )
-    throw new Error("Open Input and Output in Grid before capturing geometry.")
+  if (![...document.querySelectorAll(".grid-view")].some((element) => element.checkVisibility()))
+    throw new Error("Open a pane in Grid before capturing geometry.")
   // Stylesheet candidates can change preferred cards without resizing their shared frame.
   window.dispatchEvent(new Event("resize"))
   const deadline = performance.now() + timeout
@@ -348,7 +343,7 @@ export async function stable(timeout = 45000): Promise<Geometry> {
     const signature = JSON.stringify(sample.layout)
     matches = signature === previous ? matches + 1 : 0
     previous = signature
-    if (grids.length && grids.every((grid) => grid.ready && grid.capacity[2] > 0) && matches >= 3) return geometry()
+    if (grids.length && grids.every((grid) => grid.ready && grid.matrix[2] > 0) && matches >= 3) return geometry()
   }
   throw new Error("Grid geometry did not stabilize before the capture deadline.")
 }
@@ -371,12 +366,13 @@ export function csv(sample: Geometry): string {
     "orientation",
     "evidenceClass",
     "pane",
-    "density",
     "viewportWidth",
     "viewportHeight",
     "columns",
     "rows",
-    "batch",
+    "visibleCards",
+    "mountedCards",
+    "totalCards",
     "frameWidth",
     "frameHeight",
     "cardWidth",
@@ -385,20 +381,21 @@ export function csv(sample: Geometry): string {
     "imageHeight",
     "gapHorizontal",
     "gapVertical",
-    "pagerClearance",
     "marginTop",
     "marginBottom",
     "marginLeft",
     "marginRight",
     "outsideLeft",
     "outsideRight",
-    "scrollHeight",
+    "contentScrollHeight",
+    "contentScrollTop",
+    "documentScrollHeight",
     "dpr",
     "visualScale",
   ]
   const rows: unknown[][] = [columns]
   for (const pane of ["input", "output"] as const)
-    for (const [mode, grid] of Object.entries(sample.layout[pane]))
+    for (const grid of Object.values(sample.layout[pane]))
       rows.push([
         sample.environment.source,
         sample.environment.device,
@@ -411,9 +408,10 @@ export function csv(sample: Geometry): string {
         sample.environment.orientation,
         sample.provenance.evidenceClass,
         pane,
-        mode,
         ...sample.viewport.inner,
-        ...grid.capacity,
+        ...grid.matrix,
+        grid.mounted,
+        grid.total,
         grid.frame.width,
         grid.frame.height,
         grid.card.width,
@@ -421,10 +419,11 @@ export function csv(sample: Geometry): string {
         grid.image.width,
         grid.image.height,
         ...grid.gaps,
-        grid.clearance,
         ...grid.margins,
         ...grid.edges,
         grid.scroll,
+        grid.scrollTop,
+        grid.documentScroll,
         sample.viewport.dpr,
         sample.viewport.visualScale,
       ])

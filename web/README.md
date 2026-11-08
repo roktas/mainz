@@ -11,12 +11,13 @@ The application's offline-ready notice confirms that the assets are available.
 PDF Composer uses modern browser features. Older systems, including iOS 16, can show a broken layout or fail to open
 PDFs. We do not claim a tested minimum OS or browser version.
 
-Grid shows thumbnails, List shows page names and numbers, and Page shows one large page. These views share selections
-and page operations. Input shows the PDF as opened. Style changes applicable Output pages from the active Input.
+Flow switches between a scrollable thumbnail Grid and a virtualized List of page names and numbers. Page shows one large
+page. These views share selections and page operations. Each Input and Output retains its Flow presentation and scroll
+position. Input shows the PDF as opened. Style changes applicable Output pages from the active Input.
 
-Each pane offers Normal and Compact Grid density. Selection actions use the shared bar. Without a selection, Output card
-buttons, List actions, and Page actions use their own page. Grid headers reveal page names on hover or focus. Help
-explains keyboard, mouse, and touch controls and opens the Product tour.
+Grid uses one readable card size. Selection actions use the shared bar. Without a selection, Output card buttons, List
+actions, and Page actions use their own page. Grid headers reveal page names on hover or focus. Help explains keyboard,
+mouse, and touch controls and opens the Product tour.
 
 Named pages, List, and supplied PNG thumbnails follow the [workspace specification](doc/SPEC.md#implementation-status).
 Page metadata comes from the shared physical-page array. Tags classify content. Input Grid and List show every physical

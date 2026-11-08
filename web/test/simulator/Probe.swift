@@ -39,22 +39,20 @@ final class Probe: XCTestCase {
 
     @MainActor private func images(_ app: XCUIApplication, _ prefix: String) {
         for pane in ["Input", "Output"] {
-            for density in ["Normal", "Compact"] {
-                open(app)
-                app.descendants(matching: .any).matching(identifier: "Grid views").firstMatch.tap()
-                app.buttons["Show \(pane) \(density)"].tap()
-                let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: app.buttons["Geometry"])
-                XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 45), .completed)
-                XCTAssertFalse(app.buttons["Close geometry"].exists)
-                let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-                image.name = "\(prefix)-\(pane)-\(density)"
-                image.lifetime = .keepAlways
-                add(image)
-            }
+            open(app)
+            app.descendants(matching: .any).matching(identifier: "Grid views").firstMatch.tap()
+            app.buttons["Show \(pane) Grid"].tap()
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: app.buttons["Geometry"])
+            XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 45), .completed)
+            XCTAssertFalse(app.buttons["Close geometry"].exists)
+            let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            image.name = "\(prefix)-\(pane)-Normal"
+            image.lifetime = .keepAlways
+            add(image)
         }
     }
 
-    @MainActor private func capture(_ standalone: Bool, _ landscape: Bool, _ searching: Bool = false, _ fullscreen: Bool = false) {
+    @MainActor private func capture(_ standalone: Bool, _ landscape: Bool, _ fullscreen: Bool = false) {
         continueAfterFailure = false
         if fullscreen {
             addUIInterruptionMonitor(withDescription: "Safari fullscreen typing") { alert in
@@ -91,15 +89,12 @@ final class Probe: XCTestCase {
         }
         images(app, "baseline")
         open(app)
-        app.buttons[searching ? "Calibrate" : "Capture"].tap()
+        app.buttons["Capture"].tap()
         let copy = app.buttons["Copy JSON"]
-        XCTAssertTrue(wait(copy, app, timeout: searching ? 180 : 45))
+        XCTAssertTrue(wait(copy, app, timeout: 45))
         copy.tap()
         XCTAssertTrue(app.buttons["Geometry copied"].waitForExistence(timeout: 10))
-        if searching && app.buttons["Preview"].exists {
-            app.buttons["Preview"].tap()
-            images(app, "candidate")
-        } else { app.buttons["Close geometry"].tap() }
+        app.buttons["Close geometry"].tap()
         let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         image.name = "native-grid"
         image.lifetime = .keepAlways
@@ -110,14 +105,8 @@ final class Probe: XCTestCase {
     @MainActor func testSafariLandscape() { capture(false, true) }
     @MainActor func testStandalonePortrait() { capture(true, false) }
     @MainActor func testStandaloneLandscape() { capture(true, true) }
-    @MainActor func testSearchSafariPortrait() { capture(false, false, true) }
-    @MainActor func testSearchSafariLandscape() { capture(false, true, true) }
-    @MainActor func testSearchStandalonePortrait() { capture(true, false, true) }
-    @MainActor func testSearchStandaloneLandscape() { capture(true, true, true) }
-    @MainActor func testFullscreenPortrait() { capture(false, false, false, true) }
-    @MainActor func testFullscreenLandscape() { capture(false, true, false, true) }
-    @MainActor func testSearchFullscreenPortrait() { capture(false, false, true, true) }
-    @MainActor func testSearchFullscreenLandscape() { capture(false, true, true, true) }
+    @MainActor func testFullscreenPortrait() { capture(false, false, true) }
+    @MainActor func testFullscreenLandscape() { capture(false, true, true) }
 
     @MainActor func testInstall() {
         continueAfterFailure = false

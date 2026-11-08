@@ -3,8 +3,6 @@
 <script lang="ts">
   import { capture, csv, stable, view } from "./geometry.ts"
   import type { Geometry } from "./geometry.ts"
-  import { search } from "../test/calibration.ts"
-  import type { Calibration } from "../test/calibration.ts"
   import Icon from "./Icon.svelte"
   import { dismiss } from "./dismiss.ts"
   import Feedback from "./Feedback.svelte"
@@ -12,8 +10,6 @@
   let dialog: HTMLDialogElement
   let chooser: HTMLDetailsElement
   let sample = $state<Geometry>()
-  let report = $state<Calibration>()
-  let preview = $state<HTMLStyleElement>()
   let source = $state("unknown")
   let device = $state("")
   let osVersion = $state("")
@@ -74,7 +70,6 @@
     failed = false
     busy = true
     sample = undefined
-    report = undefined
     message = ""
     dialog.close()
     try {
@@ -95,44 +90,10 @@
       dialog.showModal()
     }
   }
-  async function calibrate() {
-    failed = false
-    busy = true
-    sample = undefined
-    report = undefined
-    message = ""
-    preview?.remove()
-    dialog.close()
-    const style = document.createElement("style")
-    document.head.append(style)
-    try {
-      report = await search(capture, (css) => {
-        style.textContent = css
-      })
-      sample = report.baseline
-      message = `Searched ${report.candidates.length} candidates.`
-    } catch (reason) {
-      failed = true
-      message = reason instanceof Error ? reason.message : "Candidate search failed."
-    } finally {
-      style.remove()
-      busy = false
-      dialog.showModal()
-    }
-  }
-  function inspect() {
-    const candidate = report?.candidates.find((item) => item.name === report?.recommendation)
-    if (!candidate) return
-    preview?.remove()
-    preview = document.createElement("style")
-    preview.textContent = candidate.css
-    document.head.append(preview)
-    dialog.close()
-  }
   function download(kind: "json" | "csv") {
     if (!sample) return
     const url = URL.createObjectURL(
-      new Blob([kind === "json" ? JSON.stringify(report ?? sample, null, 2) : csv(sample)], {
+      new Blob([kind === "json" ? JSON.stringify(sample, null, 2) : csv(sample)], {
         type: kind === "json" ? "application/json" : "text/csv;charset=utf-8",
       }),
     )
@@ -146,7 +107,7 @@
     failed = false
     if (!sample) return
     try {
-      await navigator.clipboard.writeText(JSON.stringify(report ?? sample, null, 2))
+      await navigator.clipboard.writeText(JSON.stringify(sample, null, 2))
       message = "Geometry copied."
     } catch {
       failed = true
@@ -188,16 +149,7 @@
   <div class="geometry-actions">
     <button onclick={() => location.reload()}>Reload</button>
     <button onclick={collect} disabled={busy}>Capture</button>
-    <button onclick={calibrate} disabled={busy}>Calibrate</button>
     {#if document.fullscreenEnabled}<button onclick={toggleFullscreen}>{fullscreen ? "Windowed" : "Fullscreen"}</button
-      >{/if}
-    {#if report?.recommendation}<button onclick={inspect}>Preview</button>{/if}
-    {#if preview}<button
-        onclick={() => {
-          preview?.remove()
-          preview = undefined
-          dialog.close()
-        }}>Restore</button
       >{/if}
   </div>
   {#if sample}<div class="geometry-actions">
@@ -206,7 +158,6 @@
       ><button onclick={copy}>Copy JSON</button>
     </div>
     <p>{sample.viewport.inner.join(" × ")} CSS px · {sample.environment.presentationMode}</p>{/if}
-  {#if report}<p>{report.decision}</p>{/if}
   <p>Measures the local 240-page fixture. No PDF content is exported.</p>
   <label
     >Evidence source<select bind:value={source}

@@ -1,18 +1,4 @@
-// Acquires shared geometry samples, selects Grid density, and groups measured environments.
-
-import { geometry } from "../src/geometry.ts"
-
-export async function gridDensity(pane, label, activate = (control) => control.click()) {
-  // Input chooses its initial density only after measuring the first complete batch.
-  const control = pane.locator(":scope[data-density] .grid-density")
-  await control.waitFor()
-  if ((await control.getAttribute("aria-label")) === `Switch to ${label}`) return activate(control)
-  const opposite = label.startsWith("Compact ")
-    ? label.replace("Compact ", "Normal ")
-    : label.replace("Normal ", "Compact ")
-  if ((await control.getAttribute("aria-label")) !== `Switch to ${opposite}`)
-    throw new Error(`Unavailable density: ${label}`)
-}
+// Collects current Grid geometry and groups viewport samples by rendered frame.
 
 export function environments(records) {
   const groups = new Map()
@@ -24,15 +10,10 @@ export function environments(records) {
       hover: sample.environment.hover,
       paneMode: sample.layout.paneMode,
       frames: Object.fromEntries(
-        ["input", "output"].map((pane) => [
-          pane,
-          Object.fromEntries(
-            ["normal", "compact"].map((density) => {
-              const frame = sample.layout[pane][density].frame
-              return [density, [frame.width, frame.height].map((value) => Math.round(value * 1000) / 1000)]
-            }),
-          ),
-        ]),
+        ["input", "output"].map((pane) => {
+          const frame = sample.layout[pane].normal.frame
+          return [pane, [frame.width, frame.height].map((value) => Math.round(value * 1000) / 1000)]
+        }),
       ),
     }
     const key = JSON.stringify(bounds)
@@ -54,59 +35,49 @@ export async function measure(pane) {
     const { stable } = await import("/src/geometry.ts")
     const sample = await stable()
     const name = element.matches(".selection-panel") ? "input" : "output"
-    return sample.layout[name][element.dataset.density || "normal"]
+    return sample.layout[name].normal
   })
 }
 
-export async function collect(page, capture) {
-  const sample = await page.evaluate(geometry)
-  sample.layout.input = {}
-  sample.layout.output = {}
-  const views = page.locator(".mobile-workspace-tabs")
-  const previous = {
-    pane: await page.locator(".composer").getAttribute("data-view"),
-    input: (await page.locator(".selection-panel").getAttribute("data-density")) || "normal",
-    output: (await page.locator(".composition-output").getAttribute("data-density")) || "normal",
-    scroll: await page.evaluate(() => [scrollX, scrollY]),
-  }
+export async function collect(page, screenshot) {
+  const sample = await page.evaluate(async () => (await import("/src/geometry.ts")).capture())
+  if (!screenshot) return sample
+  const original = await page.evaluate(() => {
+    const pane = (selector) => {
+      const element = document.querySelector(selector)
+      return element?.querySelector(".page-view") ? "page" : element?.querySelector(".page-list") ? "list" : "grid"
+    }
+    return {
+      pane: document.querySelector(".composer")?.getAttribute("data-view"),
+      input: pane(".selection-panel"),
+      output: pane(".composition-output"),
+    }
+  })
   const focus = await page.evaluateHandle(() => document.activeElement)
   try {
     for (const name of ["Input", "Output"]) {
-      if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
-      const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-      for (const density of ["Normal", "Compact"]) {
-        await gridDensity(pane, `${density} ${name} grid`)
-        const grid = await measure(pane)
-        if (!Object.keys(sample.layout.input).length) sample.viewport = (await page.evaluate(geometry)).viewport
-        grid.capturedAt = new Date().toISOString()
-        if (capture) grid.screenshot = await capture(name.toLowerCase(), density.toLowerCase())
-        const current = await page.evaluate(geometry)
-        if (
-          current.environment.pointer !== sample.environment.pointer ||
-          current.environment.hover !== sample.environment.hover
-        )
-          throw new Error("Capture changed the browser's pointer or hover capabilities.")
-        sample.layout[name.toLowerCase()][density.toLowerCase()] = grid
-      }
+      await page.evaluate(async (pane) => (await import("/src/geometry.ts")).view(pane), name)
+      const result = sample.layout[name.toLowerCase()].normal
+      result.screenshot = await screenshot(name.toLowerCase(), "normal")
     }
-    return sample
   } finally {
     for (const name of ["Input", "Output"]) {
-      if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
+      const mode = original[name.toLowerCase()]
       const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-      const density = previous[name.toLowerCase()] === "compact" ? "Compact" : "Normal"
-      await gridDensity(pane, `${density} ${name} grid`)
+      if (mode === "page") await pane.getByRole("tab", { name: "Page", exact: true }).click()
+      else if (mode === "list") {
+        await pane.getByRole("tab", { name: "Flow", exact: true }).click()
+        const toggle = pane.getByRole("button", { name: `Show ${name} List`, exact: true })
+        if (await toggle.count()) await toggle.click()
+      }
     }
+    const views = page.getByRole("navigation", { name: "Workspace view", exact: true })
     if (await views.isVisible())
-      await views.getByRole("button", { name: previous.pane === "output" ? "Output" : "Input", exact: true }).click()
-    for (const selector of [".selection-panel", ".composition-output"]) {
-      const pane = page.locator(selector)
-      if (await pane.isVisible()) await measure(pane)
-    }
+      await views.getByRole("button", { name: original.pane === "output" ? "Output" : "Input", exact: true }).click()
     await focus.evaluate((element) => {
       if (element instanceof HTMLElement && element.isConnected) element.focus({ preventScroll: true })
     })
     await focus.dispose()
-    await page.evaluate(([x, y]) => scrollTo(x, y), previous.scroll)
   }
+  return sample
 }

@@ -162,18 +162,6 @@ try {
         const failures = quality(sample)
         if (item.windowMode === "standalone" && sample.environment.presentationMode !== "standalone-pwa")
           failures.push({ rule: "installed PWA mode" })
-        if (item.matrices)
-          for (const pane of ["input", "output"])
-            for (const density of ["normal", "compact"]) {
-              if (JSON.stringify(sample.layout[pane][density].matrix) !== JSON.stringify(item.matrices[density]))
-                failures.push({
-                  pane,
-                  density,
-                  rule: "reference matrix",
-                  expected: item.matrices[density],
-                  actual: sample.layout[pane][density].matrix,
-                })
-            }
         await writeFile(join(directory, `${id}.json`), JSON.stringify(sample, null, 2) + "\n")
         await writeFile(join(directory, `${id}.csv`), csv(sample))
         manifest.samples.push({
