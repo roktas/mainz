@@ -323,7 +323,7 @@ export class Interaction {
               if (expanded.length) this.focusAfterSelection("Output")
               else
                 document
-                  .getElementById(`${this.host.key}-output-${this.host.activeOutputTab}`)
+                  .getElementById(`${this.host.key}-output-${this.host.activeOutputTab === "page" ? "page" : "flow"}`)
                   ?.focus({ preventScroll: true })
             } else focused.focus({ preventScroll: true })
           })
@@ -352,7 +352,7 @@ export class Interaction {
                     ?.querySelector<HTMLElement>(".composition-grid")
                 : neighbor?.querySelector<HTMLButtonElement>(".page-image, .list-choice")) ??
               viewport ??
-              document.getElementById(`${this.host.key}-output-${this.host.activeOutputTab}`)
+              document.getElementById(`${this.host.key}-output-${this.host.activeOutputTab === "page" ? "page" : "flow"}`)
             )?.focus({ preventScroll: !!pageAction || this.host.pendingAddition.size > 0 })
           })
       },
@@ -447,8 +447,8 @@ export class Interaction {
     document
       .getElementById(
         pane === "Output"
-          ? `${this.host.key}-output-${this.host.activeOutputTab}`
-          : `${this.host.key}-${this.host.activeTab}`,
+          ? `${this.host.key}-output-${this.host.activeOutputTab === "page" ? "page" : "flow"}`
+          : `${this.host.key}-${this.host.inputView.tab}`,
       )
       ?.focus({ preventScroll: true })
   }

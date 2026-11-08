@@ -1041,7 +1041,6 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
         })
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
-      await gridDensity(input, "Normal Input grid")
       const prepared = input.getByLabel("Page selection", { exact: true })
       await prepared.fill("1-14")
       await prepared.press("Enter")
@@ -1115,9 +1114,12 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
             }
           }
         }
-        const range = panel.getByRole("slider", { name: `${name} thumbnail range`, exact: true })
-        const firstBatch = () => range.press("Home")
-        await firstBatch()
+        const resetScroll = async () => {
+          const grid = panel.locator(".grid-view")
+          await grid.evaluate((element) => (element.scrollTop = 0))
+          await grid.locator('.page-image[data-page="0"]').waitFor()
+        }
+        await resetScroll()
         await selection.fill("")
         await cards.first().click()
         assert.equal(await cards.first().evaluate(hasCursor), false, "Pointer selection has no page cursor")
@@ -1162,17 +1164,15 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
           ["Shift+ArrowRight", name === "Input" ? "7, 7" : "7", 3],
         ])
         await selection.fill("")
-        await firstBatch()
-        await cards.last().focus()
-        const boundary = Number(await panel.locator(".grid-view").getAttribute("data-batch"))
+        await resetScroll()
+        await (await gridPage(panel, 4)).focus()
         await steps([
-          ["Shift+ArrowRight", String(boundary), boundary + 1],
-          ["Shift+ArrowRight", `${boundary}-${boundary + 1}`, boundary + 2],
-          ["Shift+ArrowLeft", String(boundary), boundary + 1],
-          ["Shift+ArrowLeft", "", boundary === 1 ? 0 : boundary],
+          ["Shift+ArrowRight", "4", 5],
+          ["Shift+ArrowRight", "4-5", 6],
+          ["Shift+ArrowLeft", "4", 5],
+          ["Shift+ArrowLeft", "", 4],
         ])
-        await range.press("End")
-        await panel.getByRole("button", { name: `Select ${name} page 14`, exact: true }).focus()
+        await (await gridPage(panel, 14)).focus()
         await steps([
           ["Shift+ArrowRight", "14", 15],
           ["Shift+ArrowRight", "14", 15],
@@ -1182,7 +1182,7 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
           ["ArrowLeft", "14", 14],
         ])
         await selection.fill("")
-        await firstBatch()
+        await resetScroll()
         await cards.first().focus()
         for (let number = 1; number <= 14; number++) await page.keyboard.press("Shift+ArrowRight")
         assert.equal(await selection.inputValue(), "1-14")
@@ -1216,7 +1216,7 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
           await output.locator(".composition-empty").waitFor()
           assert.equal(
             await output
-              .getByRole("tab", { name: "Grid", exact: true })
+              .getByRole("tab", { name: "Flow", exact: true })
               .evaluate((element) => element === document.activeElement),
             true,
             "Removing every page from a boundary returns focus to its view tab",

@@ -98,6 +98,8 @@ relevant viewport.
       navigation, Page return, selection navigation, and Input changes without unnecessary scroll jumps.
 - [ ] Adapt arrow, Home/End, PageUp/PageDown, V, focus recovery, and Shift selection to a continuous Grid. Keep keyboard
       navigation across unmounted windows and enable native wheel/touch scroll.
+  - [x] Chromium verified Shift ranges, scroll-window navigation, and empty-Output focus recovery across Input and
+        Output at 1440/390 px. Touch and WebKit checks remain open.
 - [ ] Update drag/drop hit testing, insertion previews, movement feedback, and edge autoscroll for a
       scrolling/virtualized Grid. Do not assume that a batch start, page-range attribute, or currently mounted card
       bounds the Output.
@@ -173,4 +175,4 @@ Implementation was approved on 2026-11-08. Push validated checkpoints to `next` 
 
 Progress: Flow modes and compact removal compile. Chromium passed Grid virtualization for 250/300 pages, responsive
 scroll retention, Flow switching, fold, and two drag tests. `npm run check`, lint, format and unit tests pass. Broader
-legacy browser tests and WebKit remain pending; WebKit lacks libicudata.so.78.
+legacy browser tests and WebKit remain pending. WebKit requires GLIBC_2.43 and cannot run on this Debian 13 host.
