@@ -1097,15 +1097,16 @@ test("Demo variants open the maintained Input with populated or empty Output", a
       assert.equal(await input.locator(".page-image[aria-pressed=true]").count(), selected)
       if (!query) {
         const output = page.locator(".composition-output")
-        const order = await output
-          .locator('.page-origin-info .page-details tr:has(th:text-is("Original page")) td')
-          .allTextContents()
-        await gridPage(output, 8)
-        order.push(
-          ...(await output
-            .locator('.page-origin-info .page-details tr:has(th:text-is("Original page")) td')
-            .allTextContents()),
-        )
+        const order = []
+        for (let number = 1; number <= 8; number++) {
+          const thumbnail = await gridPage(output, number)
+          order.push(
+            await thumbnail
+              .locator('xpath=ancestor::*[contains(@class, "composition-card")][1]')
+              .locator('.page-origin-info .page-details tr:has(th:text-is("Original page")) td')
+              .textContent(),
+          )
+        }
         assert.deepEqual(order, [1, 2, 3, 4, 3, 4, 3, 4].map(String))
         await gridPage(output, 1)
         assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "1-4")
@@ -1117,7 +1118,7 @@ test("Demo variants open the maintained Input with populated or empty Output", a
           true,
         )
         await input.locator(".page-scroll").press("Home")
-        await input.getByRole("tab", { name: "Grid", exact: true }).click()
+        await tab(input, "Grid")
         await output.getByLabel("Page selection", { exact: true }).fill("1")
         for (const button of [
           input.getByRole("button", { name: "Add to Output", exact: true }),
