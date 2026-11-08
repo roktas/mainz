@@ -96,6 +96,8 @@ relevant viewport.
       measured card geometry; preserve physical Input order and Output occurrence identity.
 - [ ] Store and restore scroll position for each Input and Output; reveal the inspected item on Go to page, Contents
       navigation, Page return, selection navigation, and Input changes without unnecessary scroll jumps.
+  - [x] Chromium verified Page-to-List and Page-to-Grid return, inspected-page highlight, and independent Grid/List
+        scroll restoration in both panes. WebKit remains unverified.
 - [ ] Adapt arrow, Home/End, PageUp/PageDown, V, focus recovery, and Shift selection to a continuous Grid. Keep keyboard
       navigation across unmounted windows and enable native wheel/touch scroll.
   - [x] Chromium verified Shift ranges, scroll-window navigation, and empty-Output focus recovery across Input and

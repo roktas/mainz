@@ -6,7 +6,7 @@ import test from "node:test"
 import { mkdir, writeFile } from "node:fs/promises"
 import { chromium, webkit } from "playwright"
 import { serve } from "./server.ts"
-import { tab, fixture } from "./browser.js"
+import { tab, fixture, gridPage } from "./browser.js"
 import { gridDensity } from "./measure.js"
 
 test(
@@ -2172,127 +2172,125 @@ test(
   },
 )
 
-test(
-  "View returns reveal the inspected page across panes, Grid densities, tabs, and keyboard gestures",
-  { timeout: 90000 },
-  async () => {
-    const server = await serve()
-    for (const engine of [chromium, webkit]) {
-      const browser = await launch(engine)
-      try {
-        const page = await browser.newPage({
-          viewport: { width: 1440, height: 1100 },
-          reducedMotion: engine === chromium ? "no-preference" : "reduce",
-        })
-        page.setDefaultTimeout(10000)
-        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        await page.route("**/grid.pdf", (route) =>
-          route.fulfill({ contentType: "application/pdf", body: fixture({ count: 60 }) }),
+test("Flow view returns reveal the inspected page across panes and keyboard gestures", { timeout: 90000 }, async () => {
+  const server = await serve()
+  for (const engine of [chromium, webkit]) {
+    const browser = await launch(engine)
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 1440, height: 1100 },
+        reducedMotion: engine === chromium ? "no-preference" : "reduce",
+      })
+      page.setDefaultTimeout(10000)
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.route("**/grid.pdf", (route) =>
+        route.fulfill({ contentType: "application/pdf", body: fixture({ count: 60 }) }),
+      )
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+      await page.locator('.composer[aria-busy="false"]').waitFor()
+      for (const [pane, name] of [
+        [page.locator(".selection-panel"), "Input"],
+        [page.locator(".composition-output"), "Output"],
+      ]) {
+        await tab(pane, "List")
+        const selection = pane.getByRole("textbox", { name: "Page selection", exact: true })
+        await selection.fill("1,3")
+        await pane.locator(".page-list").focus()
+        await page.keyboard.press("End")
+        for (let index = 0; index < 13; index++) await page.keyboard.press("ArrowUp")
+        await pane.getByRole("button", { name: `View ${name} page 47`, exact: true }).click()
+        await pane.getByRole("button", { name: `Next ${name} page`, exact: true }).click()
+        const listTab = pane.getByRole("tab", { name: "Flow", exact: true })
+        await listTab.click()
+        const row = pane.locator('.list-choice[data-page="47"]'),
+          item = row.locator("xpath=ancestor::li[1]")
+        await item.locator(":scope[data-returning]").waitFor()
+        assert.equal(await listTab.evaluate((element) => element === document.activeElement), true)
+        const bounds = await item.boundingBox(),
+          area = await pane.locator(".page-list").boundingBox()
+        assert.ok(
+          bounds.y >= area.y - 1 && bounds.y + bounds.height <= area.y + area.height + 1,
+          JSON.stringify({ bounds, area }),
         )
-        await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-        await page.locator('.composer[aria-busy="false"]').waitFor()
-        for (const [pane, name] of [
-          [page.locator(".selection-panel"), "Input"],
-          [page.locator(".composition-output"), "Output"],
-        ]) {
-          await tab(pane, "List")
-          const selection = pane.getByRole("textbox", { name: "Page selection", exact: true })
-          await selection.fill("1,3")
-          await pane.locator(".page-list").focus()
-          await page.keyboard.press("End")
-          for (let index = 0; index < 13; index++) await page.keyboard.press("ArrowUp")
-          await pane.getByRole("button", { name: `View ${name} page 47`, exact: true }).click()
-          await pane.getByRole("button", { name: `Next ${name} page`, exact: true }).click()
-          const listTab = pane.getByRole("tab", { name: "List", exact: true })
-          await listTab.click()
-          const row = pane.locator('.list-choice[data-page="47"]'),
-            item = row.locator("xpath=ancestor::li[1]")
-          await item.locator(":scope[data-returning]").waitFor()
-          assert.equal(await listTab.evaluate((element) => element === document.activeElement), true)
-          const bounds = await item.boundingBox(),
-            area = await pane.locator(".page-list").boundingBox()
-          assert.ok(
-            bounds.y >= area.y - 1 && bounds.y + bounds.height <= area.y + area.height + 1,
-            JSON.stringify({ bounds, area }),
-          )
-          assert.equal(await selection.inputValue(), "1,3")
-          assert.equal(await page.locator(".page-peek:popover-open").count(), 0)
+        assert.equal(await selection.inputValue(), "1,3")
+        assert.equal(await page.locator(".page-peek:popover-open").count(), 0)
+        assert.equal(
+          await item.evaluate((element) => {
+            const reference = document.createElement("span")
+            reference.style.background = "var(--return-surface)"
+            element.append(reference)
+            const highlighted =
+              getComputedStyle(element).backgroundColor !== getComputedStyle(reference).backgroundColor
+            reference.remove()
+            return highlighted
+          }),
+          true,
+        )
+        if (engine === webkit) assert.equal(await item.evaluate((element) => element.getAnimations().length), 0)
+        else {
+          await page.waitForFunction(() => document.querySelector("[data-returning]")?.getAnimations().length > 0)
+          assert.equal(await item.evaluate((element) => element.getAnimations()[0].effect.getTiming().duration), 1200)
           assert.equal(
             await item.evaluate((element) => {
-              const reference = document.createElement("span")
-              reference.style.background = "var(--return-surface)"
-              element.append(reference)
-              const highlighted =
-                getComputedStyle(element).backgroundColor !== getComputedStyle(reference).backgroundColor
-              reference.remove()
-              return highlighted
+              element.getAnimations()[0].finish()
+              const animation = element.getAnimations()[0]
+              return (
+                animation.effect.getComputedTiming().progress === 1 && animation.effect.getTiming().fill === "forwards"
+              )
             }),
             true,
           )
-          if (engine === webkit) assert.equal(await item.evaluate((element) => element.getAnimations().length), 0)
-          else {
-            await page.waitForFunction(() => document.querySelector("[data-returning]")?.getAnimations().length > 0)
-            assert.equal(await item.evaluate((element) => element.getAnimations()[0].effect.getTiming().duration), 1200)
-            assert.equal(
-              await item.evaluate((element) => {
-                element.getAnimations()[0].finish()
-                const animation = element.getAnimations()[0]
-                return (
-                  animation.effect.getComputedTiming().progress === 1 &&
-                  animation.effect.getTiming().fill === "forwards"
-                )
-              }),
-              true,
-            )
-          }
-          await item.locator(":scope[data-returning]").waitFor({ state: "detached" })
-          await row.focus()
-          await page.keyboard.press("v")
-          await pane.getByRole("button", { name: `Previous ${name} page`, exact: true }).click()
-          await pane.locator(".page-scroll").focus()
-          await page.keyboard.press("v")
-          let current = 46
-          const choice = pane.locator(`.list-choice[data-page="${current}"]`)
-          assert.equal(await choice.evaluate((element) => element === document.activeElement), true)
-          assert.equal(await pane.locator("[data-returning]").count(), 0)
-          assert.equal(await selection.inputValue(), "1,3")
-          await tab(pane, "Grid")
-          for (const density of ["Normal", "Compact"]) {
-            await gridDensity(pane, `${density} ${name} grid`)
-            let card = pane.locator(`.page-image[data-page="${current}"]`)
-            await card.click({ modifiers: ["Control"] })
-            assert.equal(await selection.inputValue(), "1,3")
-            await pane.getByRole("button", { name: `Next ${name} page`, exact: true }).click()
-            current++
-            const gridTab = pane.getByRole("tab", { name: "Grid", exact: true })
-            await gridTab.click()
-            card = pane.locator(`.page-image[data-page="${current}"]`)
-            await card.locator("..").locator(":scope[data-returning]").waitFor()
-            assert.equal(await gridTab.evaluate((element) => element === document.activeElement), true)
-            assert.equal(await pane.getAttribute("data-density"), density.toLowerCase())
-            await card.click({ modifiers: ["Meta"] })
-            await pane.locator(".page-scroll").focus()
-            await page.keyboard.press("v")
-            assert.equal(await card.evaluate((element) => element === document.activeElement), true)
-            assert.equal(await pane.locator("[data-returning]").count(), 0)
-            assert.equal(await selection.inputValue(), "1,3")
-          }
-          await listTab.click()
-          await pane
-            .locator(`.list-choice[data-page="${current}"]`)
-            .locator("xpath=ancestor::li[1]")
-            .locator(":scope[data-returning]")
-            .waitFor()
-          assert.equal(await listTab.evaluate((element) => element === document.activeElement), true)
-          assert.equal(await selection.inputValue(), "1,3")
         }
-        await page.close()
-      } finally {
-        await browser.close()
+        await item.locator(":scope[data-returning]").waitFor({ state: "detached" })
+        await row.focus()
+        await page.keyboard.press("v")
+        await pane.getByRole("button", { name: `Previous ${name} page`, exact: true }).click()
+        await pane.locator(".page-scroll").focus()
+        await page.keyboard.press("v")
+        let current = 46
+        const choice = pane.locator(`.list-choice[data-page="${current}"]`)
+        assert.equal(await choice.evaluate((element) => element === document.activeElement), true)
+        assert.equal(await pane.locator("[data-returning]").count(), 0)
+        assert.equal(await selection.inputValue(), "1,3")
+        const rememberedScroll = await pane.locator(".page-list").evaluate((element) => element.scrollTop)
+        await tab(pane, "Grid")
+        let card = await gridPage(pane, current + 1)
+        await card.click({ modifiers: ["Control"] })
+        assert.equal(await selection.inputValue(), "1,3")
+        await pane.getByRole("button", { name: `Next ${name} page`, exact: true }).click()
+        current++
+        const gridTab = pane.getByRole("tab", { name: "Flow", exact: true })
+        await gridTab.click()
+        card = pane.locator(`.page-image[data-page="${current}"]`)
+        await card.locator("..").locator(":scope[data-returning]").waitFor()
+        assert.equal(await gridTab.evaluate((element) => element === document.activeElement), true)
+        assert.equal(
+          await card
+            .locator('xpath=ancestor::*[contains(@class, "composition-card")][1]')
+            .evaluate((element) => Math.round(element.getBoundingClientRect().width)),
+          148,
+        )
+        await card.click({ modifiers: ["Meta"] })
+        await pane.locator(".page-scroll").focus()
+        await page.keyboard.press("v")
+        assert.equal(await card.evaluate((element) => element === document.activeElement), true)
+        assert.equal(await pane.locator("[data-returning]").count(), 0)
+        assert.equal(await selection.inputValue(), "1,3")
+        await tab(pane, "List")
+        await pane.locator(".page-list").waitFor()
+        assert.ok(
+          Math.abs((await pane.locator(".page-list").evaluate((element) => element.scrollTop)) - rememberedScroll) < 2,
+          `${name} List restores its own scroll position after Grid`,
+        )
+        assert.equal(await pane.locator(".flow-toggle").evaluate((element) => element === document.activeElement), true)
+        assert.equal(await selection.inputValue(), "1,3")
       }
+      await page.close()
+    } finally {
+      await browser.close()
     }
-  },
-)
+  }
+})
 
 test(
   "List keys share Grid edits and modified arrows move the focused Output occurrence",
