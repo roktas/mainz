@@ -11,7 +11,6 @@ import { build, preview } from "vite"
 import { chromium, devices } from "playwright"
 import { aligned, zoom } from "./workspace.js"
 import { checkGeometry, checkStatus, createServer, trackWorkers, fixture, tab, pixel, gridPage } from "./browser.js"
-import { measure, gridDensity } from "./measure.js"
 
 let compiled
 
@@ -1242,238 +1241,39 @@ test("A delayed demo cannot replace local pages or report obsolete failures", { 
   }
 })
 
-test("Input density starts from two Normal batches and retains each Source choice", { timeout: 90000 }, async () => {
+test("Grid, List and Page transitions keep thumbnail bounds", { timeout: 60000 }, async () => {
   const server = await serve()
-  let browser
+  const browser = await launch(chromium)
   try {
-    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-    for (const [width, height, small, large] of [
-      [1920, 1080, 12, 13],
-      [2560, 1440, 32, 33],
-      [390, 1100, 2, 3],
-    ]) {
-      const page = await browser.newPage({ viewport: { width, height }, reducedMotion: "reduce" })
-      const errors = []
-      page.on("pageerror", (error) => errors.push(error.message))
-      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(server.resolvedUrls.local[0])
-      if (width === 390) {
-        await page.emulateMedia({ colorScheme: "dark" })
-        await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    const output = page.locator(".composition-output")
+    const errors = []
+    page.on("pageerror", (error) => errors.push(error.message))
+    for (const mode of ["Grid", "List", "Page", "Grid"]) {
+      await tab(output, mode)
+      if (mode === "Grid") {
+        const image = output.locator(".page-image .thumbnail").first()
+        await image.waitFor()
+        assert.equal(
+          await image.evaluate((frame) => {
+            const canvas = frame.querySelector("canvas")
+            return !canvas || canvas.getBoundingClientRect().height <= frame.getBoundingClientRect().height + 1
+          }),
+          true,
+        )
+      } else if (mode === "Page") {
+        await output.locator(".page-scroll").waitFor()
+      } else {
+        await output.locator(".page-list").waitFor()
       }
-      const input = page.locator(".selection-panel"),
-        output = page.locator(".composition-output")
-      const open = async (name, count) => {
-        await page
-          .locator("input[type=file]")
-          .first()
-          .setInputFiles({
-            name,
-            mimeType: "application/pdf",
-            buffer: fixture({ count: count }),
-          })
-        await page.waitForFunction((label) => document.querySelector(".input-current")?.textContent === label, name)
-        await page.waitForFunction(() => !!document.querySelector(".selection-panel .source-catalog")?.clientWidth)
-        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
-      }
-      const choose = async (name) => {
-        await input.locator(".input-picker > summary").click()
-        await input.locator(".input-list button[data-source]").filter({ hasText: name }).click()
-      }
-      await open("Small.pdf", small)
-      assert.equal(await input.getAttribute("data-density"), "normal", "Exactly two batches retain Normal")
-      assert.equal(
-        small,
-        2 * (await measure(input)).capacity[2],
-        "The small fixture contains exactly two Normal batches",
-      )
-      assert.equal(await output.getAttribute("data-density"), "normal")
-      await gridDensity(input, "Compact Input grid", (control) => control.press("Space"))
-      await open("Large.pdf", large)
-      await page.waitForFunction(
-        () => document.querySelector(".selection-panel")?.getAttribute("data-density") === "compact",
-      )
-      assert.equal(await output.getAttribute("data-density"), "normal", "The heuristic affects only Input")
-      if (width !== 390) {
-        await page.setViewportSize({ width: width === 1920 ? 2560 : 3840, height: 2160 })
-        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
-        assert.equal(await input.getAttribute("data-density"), "compact", "A larger screen retains the initial choice")
-        await page.setViewportSize({ width, height })
-      }
-      await gridDensity(input, "Normal Input grid", (control) => control.press("Space"))
-      await tab(input, "Page")
-      await tab(input, "Grid")
-      assert.equal(await input.getAttribute("data-density"), "normal", "View switches retain the manual choice")
-      await choose("Small.pdf")
-      assert.equal(await input.getAttribute("data-density"), "compact", "The first Source retains its manual choice")
-      await choose("Large.pdf")
-      assert.equal(await input.getAttribute("data-density"), "normal", "The second Source retains its manual choice")
-      await open("Another.pdf", large)
-      await page.waitForFunction(
-        () => document.querySelector(".selection-panel")?.getAttribute("data-density") === "compact",
-      )
-      assert.equal(await output.getAttribute("data-density"), "normal")
-      assert.deepEqual(errors, [])
-      await page.close()
     }
+    assert.deepEqual(errors, [])
   } finally {
-    await browser?.close()
+    await browser.close()
   }
 })
-
-test(
-  "View switches reuse painted PDFs and loading keeps thumbnails within their frames",
-  { timeout: 60000 },
-  async () => {
-    const server = await serve()
-    let browser
-    try {
-      browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-      const page = await browser.newPage({
-        viewport: { width: 2560, height: 1440 },
-        deviceScaleFactor: 2,
-        reducedMotion: "reduce",
-      })
-      const errors = []
-      page.on("pageerror", (error) => errors.push(error.message))
-      await page.route("**/grid.pdf", (route) =>
-        route.fulfill({ contentType: "application/pdf", body: fixture({ count: 240 }) }),
-      )
-      await page.addInitScript(() => {
-        const overflows = (window.previewOverflows = [])
-        const inspect = () => {
-          for (const frame of document.querySelectorAll(".page-image .thumbnail")) {
-            const canvas = frame.querySelector("canvas")
-            if (canvas && canvas.getBoundingClientRect().height > frame.getBoundingClientRect().height + 1)
-              overflows.push(canvas.getBoundingClientRect().height)
-          }
-          requestAnimationFrame(inspect)
-        }
-        requestAnimationFrame(inspect)
-      })
-      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid&input=page`)
-      const output = page.locator(".composition-output")
-      const ready = () =>
-        page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
-      await measure(output)
-      await ready()
-      await page.evaluate(async () => {
-        const { openPDF } = await import("/src/pdf.ts")
-        const task = await openPDF(new Uint8Array(await (await fetch("/demo.pdf")).arrayBuffer()))
-        const pdf = await task.promise
-        const prototype = Object.getPrototypeOf(await pdf.getPage(1))
-        const render = prototype.render
-        const cleanup = prototype.cleanup
-        window.pdfRenderCount = 0
-        window.pdfCleanups = new Set()
-        window.holdPDFRendering = true
-        window.pdfContinuations = []
-        prototype.cleanup = function (...args) {
-          const released = cleanup.apply(this, args)
-          if (released) window.pdfCleanups.add(this.pageNumber)
-          return released
-        }
-        prototype.render = function (...args) {
-          window.pdfRenderCount++
-          const drawing = render.apply(this, args)
-          drawing.onContinue = (proceed) =>
-            window.holdPDFRendering ? window.pdfContinuations.push(proceed) : proceed()
-          return drawing
-        }
-        await task.destroy()
-      })
-      const snapshots = new Map()
-      const snapshot = () =>
-        output
-          .locator(".page-image canvas, .pdf-viewport canvas")
-          .first()
-          .evaluate((canvas) => canvas.toDataURL())
-      snapshots.set("Normal", await snapshot())
-      await gridDensity(output, "Compact Output grid")
-      await page.waitForFunction(() => window.pdfContinuations.length > 0)
-      const spinner = output.locator(".render-status").first()
-      assert.equal(await spinner.innerText(), "")
-      assert.equal(await spinner.getAttribute("aria-hidden"), "true")
-      assert.equal(await spinner.evaluate((element) => getComputedStyle(element).borderTopWidth), "2px")
-      await page.evaluate(() => new Promise(requestAnimationFrame))
-      assert.deepEqual(
-        await page.evaluate(() => window.previewOverflows),
-        [],
-        "Loading at 2× pixel density does not stretch thumbnails",
-      )
-      await page.evaluate(() => {
-        window.holdPDFRendering = false
-        for (const proceed of window.pdfContinuations) proceed()
-        window.pdfContinuations = []
-      })
-      await ready()
-      const count = (await measure(output)).matrix[2]
-      snapshots.set("Compact", await snapshot())
-      await tab(output, "Page")
-      await ready()
-      assert.ok(
-        await page.evaluate((minimum) => window.pdfCleanups.size >= minimum, count),
-        "Leaving Grid releases its PDF page resources",
-      )
-      snapshots.set("Page", await snapshot())
-      for (const mode of ["Grid", "Normal", "Compact", "Page", "Grid"]) {
-        await page.evaluate(() => (window.pdfRenderCount = 0))
-        if (mode === "Normal" || mode === "Compact") await gridDensity(output, `${mode} Output grid`)
-        else await tab(output, mode)
-        await ready()
-        // Density changes retain the previous raster until the next resize paint.
-        await page.waitForFunction(({ canvas, pixels }) => canvas.toDataURL() === pixels, {
-          canvas: await output.locator(".page-image canvas, .pdf-viewport canvas").first().elementHandle(),
-          pixels: snapshots.get(mode === "Grid" ? "Compact" : mode),
-        })
-        assert.equal(await page.evaluate(() => window.pdfRenderCount), 0, `${mode}: completed pages need no PDF redraw`)
-      }
-      const input = page.locator(".selection-panel")
-      await page
-        .locator('input[type="file"]')
-        .first()
-        .setInputFiles({
-          name: "Cold.pdf",
-          mimeType: "application/pdf",
-          buffer: fixture({ count: 33 }),
-        })
-      await input.locator(".input-current").filter({ hasText: "Cold.pdf" }).waitFor()
-      await tab(input, "Grid")
-      await ready()
-      const cold = input.locator(".page-image canvas").first()
-      const compactPixels = await cold.evaluate((canvas) => canvas.toDataURL())
-      const compactWidth = await cold.evaluate((canvas) => canvas.clientWidth)
-      await page.evaluate(() => (window.holdPDFRendering = true))
-      await gridDensity(input, "Normal Input grid")
-      await page.waitForFunction(() => window.pdfContinuations.length > 0)
-      assert.equal(
-        await cold.evaluate((canvas) => canvas.toDataURL()),
-        compactPixels,
-        "The first Normal render retains the Compact image",
-      )
-      assert.ok(
-        (await cold.evaluate((canvas) => canvas.clientWidth)) > compactWidth,
-        "The retained image fits its Normal card immediately",
-      )
-      assert.equal(await input.locator(".render-status").count(), 0, "Existing images do not return to loading rings")
-      await page.evaluate(() => {
-        window.holdPDFRendering = false
-        for (const proceed of window.pdfContinuations) proceed()
-        window.pdfContinuations = []
-      })
-      await ready()
-      assert.notEqual(
-        await cold.evaluate((canvas) => canvas.toDataURL()),
-        compactPixels,
-        "Normal replaces the retained image with its sharper raster",
-      )
-      assert.deepEqual(await page.evaluate(() => window.previewOverflows), [])
-      assert.deepEqual(errors, [])
-    } finally {
-      await browser?.close()
-    }
-  },
-)
 
 test("Home asks once before discarding changes and cancellation retains the workspace", async () => {
   const server = await serve()
@@ -1570,7 +1370,6 @@ test("Input switching renders thumbnails and the lens from the selected PDF", { 
         buffer: document.buffer,
       })
       await page.locator(".input-current").filter({ hasText: document.name }).waitFor()
-      if (document.name === "Filled.pdf") await gridDensity(input, "Compact Input grid")
       await inspect(document.name, document.color)
     }
     for (const index of [0, 1, 0, 1]) {

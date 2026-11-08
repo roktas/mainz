@@ -365,61 +365,30 @@ export async function checkStatus(page) {
   }
 }
 
-export async function checkPagination(pane, label) {
+export async function checkGridScroll(pane, label) {
   await measure(pane)
-  const bounds = await pane.evaluate((element) => {
-    const rect = (selector) => {
-      const { left, right, top, bottom } = element.querySelector(selector).getBoundingClientRect()
-      return { left, right, top, bottom }
-    }
+  const bounds = await pane.locator(".grid-view").evaluate((element) => {
+    const frame = element.getBoundingClientRect()
+    const grid = element.querySelector(".composition-grid").getBoundingClientRect()
+    const page = element.querySelector(".composition-card").getBoundingClientRect()
     return {
-      grid: rect(".composition-grid"),
-      pager: rect(".page-batches"),
-      slider: rect('.page-batches input[type="range"]'),
-      previous: rect(".page-batches > button:first-child"),
-      next: rect(".page-batches > button:last-of-type"),
-      previousIcon: rect(".page-batches > button:first-child svg"),
-      nextIcon: rect(".page-batches > button:last-of-type svg"),
-      caption: rect(".batch-caption"),
-      viewport: document.documentElement.clientWidth,
+      frame: frame.toJSON(),
+      grid: grid.toJSON(),
+      page: page.toJSON(),
+      overflow: element.scrollHeight - element.clientHeight,
+      horizontal: element.scrollWidth - element.clientWidth,
+      width: document.documentElement.clientWidth,
     }
   })
   try {
-    assert.ok(
-      Math.abs((bounds.previousIcon.left + bounds.previousIcon.right) / 2 - bounds.grid.left) < 1,
-      "Previous aligns with the content's left edge",
-    )
-    assert.ok(
-      Math.abs((bounds.nextIcon.left + bounds.nextIcon.right) / 2 - bounds.grid.right) < 1,
-      "Next aligns with the content's right edge",
-    )
-    for (const button of [bounds.previous, bounds.next]) {
-      assert.ok(Math.abs(button.top - bounds.slider.top) < 1, "Arrows share the slider's row")
-      assert.ok(button.right - button.left >= 32 && button.bottom - button.top >= 44, "Arrow targets stay usable")
-      assert.ok(button.left >= 0 && button.right <= bounds.viewport, "Arrow targets stay inside the viewport")
-    }
-    for (const icon of [bounds.previousIcon, bounds.nextIcon])
-      assert.ok(
-        Math.abs((icon.top + icon.bottom - bounds.slider.top - bounds.slider.bottom) / 2) < 1,
-        "Arrows stay on the slider's centerline",
-      )
-    assert.ok(
-      bounds.previous.right <= bounds.slider.left && bounds.slider.right <= bounds.next.left,
-      "Targets stay separate",
-    )
-    assert.ok(Math.abs(bounds.slider.top - bounds.pager.top) < 1, "The slider starts the pagination row")
-    assert.ok(Math.abs(bounds.caption.top + 3 - bounds.slider.bottom) < 1, "The caption stays close below the slider")
-    if (pane.page().viewportSize().width <= 480) {
-      await pane.page().evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
-      const gap = await pane.evaluate(
-        (element) =>
-          document.querySelector(".footnote").getBoundingClientRect().top -
-          element.querySelector(".page-batches").getBoundingClientRect().bottom,
-      )
-      assert.ok(gap >= -1, "Grid pagination stays clear of the status bar")
-    }
+    assert.ok(bounds.frame.height > 0 && bounds.frame.width > 0, `${label}: Grid frame is measurable`)
+    assert.ok(bounds.page.width > 0 && bounds.page.height > 0, `${label}: cards remain measurable`)
+    assert.ok(bounds.horizontal <= 1, `${label}: Grid has no horizontal overflow`)
+    assert.ok(bounds.frame.left >= -1 && bounds.frame.right <= bounds.width + 1, `${label}: frame fits viewport`)
+    assert.ok(bounds.page.left >= bounds.frame.left - 1, `${label}: cards remain inside the scroll frame`)
+    assert.ok(bounds.page.right <= bounds.frame.right + 1, `${label}: cards clear the scrollbar`)
   } catch (error) {
-    const screenshot = await captureLayout(pane.page(), "pagination", { label, bounds })
+    const screenshot = await captureLayout(pane.page(), "grid-scroll", { label, bounds })
     error.message += `\nLayout: ${label}\nBounds: ${JSON.stringify(bounds)}\nScreenshot: ${screenshot}`
     throw error
   }

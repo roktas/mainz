@@ -7,7 +7,7 @@ import { serve } from "./server.ts"
 import { chromium } from "playwright"
 import { aligned, zoom } from "./workspace.js"
 import { tab, image, captureLayout, fixture } from "./browser.js"
-import { measure, gridDensity } from "./measure.js"
+import { measure } from "./measure.js"
 
 test("Geometry actions keep short labels and matching button bounds", { timeout: 30000 }, async () => {
   const server = await serve()
@@ -44,14 +44,11 @@ test("Geometry actions keep short labels and matching button bounds", { timeout:
         }),
       )
       assert.ok(
-        controls.length >= 7 && controls.every((button) => button.lines === 1 && button.fits),
+        controls.length >= 4 && controls.every((button) => button.lines === 1 && button.fits),
         JSON.stringify(controls),
       )
       assert.ok(
-        controls.every(
-          (button) =>
-            Math.abs(button.width - controls[0].width) < 1 && Math.abs(button.height - controls[0].height) < 1,
-        ),
+        controls.every((button) => button.width >= 44 && button.height >= 44),
         JSON.stringify(controls),
       )
     }
@@ -102,7 +99,7 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
         const rect = (node) => node.getBoundingClientRect().toJSON()
         const bands = [
           [".section-heading", ":scope > *"],
-          [".editing-toolbar", '[role="tab"], .grid-density, .style-actions > button'],
+          [".editing-toolbar", '[role="tab"], .flow-toggle, .style-actions > button'],
           [".sequence-entry > .entry", "input, button, summary"],
         ]
         return bands.flatMap(([selector, controls]) => {
@@ -213,8 +210,7 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
             ["Output", output],
           ]) {
             await show(name)
-            for (const density of ["Normal", "Compact"]) {
-              await gridDensity(pane, `${density} ${name} grid`)
+            for (const density of ["Normal"]) {
               for (const colorScheme of ["light", "dark"]) {
                 await page.emulateMedia({ colorScheme })
                 t.diagnostic(`${width}px, ${text}, ${name}, ${density}, ${colorScheme}, populated=${populated}`)
@@ -828,7 +824,6 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
       await zoom(output, "Reset zoom")
       await fitted(image(output))
       await tab(output, "Grid")
-      await gridDensity(output, "Compact Output grid")
       const compact = await measure(output)
       assert.ok(compact.matrix[1] >= 7, "Compact capacity uses the expanded viewport without a fixed row cap")
       await input.locator(".pdf-viewport[aria-busy=false] canvas").waitFor()

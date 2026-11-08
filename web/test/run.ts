@@ -65,13 +65,8 @@ const minimal = {
 }
 const matrices = {
   grid: [
-    "Grid keeps feasible matrices across nearby desktop calibration boundaries",
-    "Grid retains feasible matrices across fractional desktop pane widths",
-    "Measured touch frames retain complete readable matrices",
-    "Measured touch calibrations isolate viewport bounds and primary input",
-    "Touch Grid uses complete rows within the available viewport",
-    "Desktop Grid retains measured capacity within readable bounds",
-    "Grid fitting respects viewport bounds and input capabilities",
+    "Grid layout stays within bounds at responsive widths",
+    "Touch Grid keeps full pages reachable across orientations",
   ],
 }
 for (const [file, names] of [...Object.entries(minimal), ...Object.entries(matrices)]) {

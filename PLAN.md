@@ -81,6 +81,8 @@ In particular, avoid another large state machine inside `Composer.svelte` or unr
       retained measurement evidence distinct from live assertions.
   - [x] Replace the geometry capture and viewport probes with current single-Grid measurements. Three Chromium viewport
         tests passed across phone, tablet, and split-view sizes; historical calibration references remain evidence.
+  - [x] Replace the retired capacity matrices with responsive and touch scroll assertions (2/2 Chromium). Verify the
+        card bounds and scrollbar frame (1/1 Chromium). Remaining browser groups require broader regression coverage.
 - [ ] Run focused Grid, geometry, touch, and alignment checks.
 
 **Gate:** one Grid density remains; Normal card width, height, image bounds, and column spacing match baseline at each

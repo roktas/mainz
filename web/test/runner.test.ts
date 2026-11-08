@@ -19,7 +19,7 @@ test("Browser modes retain critical regressions and reserve calibration matrices
     assert.equal(full.files.includes(`test/${group}.test.js`), true)
   }
   const skipped = new RegExp(standard.flags[0].slice("--test-skip-pattern=".length))
-  assert.equal(skipped.test("Measured touch calibrations isolate viewport bounds and primary input"), true)
+  assert.equal(skipped.test("Touch Grid keeps full pages reachable across orientations"), true)
   assert.equal(skipped.test("Grid scroll windows keep 300 pages reachable with stable card geometry"), false)
   assert.equal(skipped.test("Normal card targets stay separate through phone pane and text transitions"), false)
   assert.equal(skipped.test("Partial Grid batches retain full-matrix card positions and dimensions"), false)

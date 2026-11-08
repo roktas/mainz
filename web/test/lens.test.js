@@ -6,7 +6,6 @@ import test from "node:test"
 import { chromium, webkit } from "playwright"
 import { createServer, tab } from "./browser.js"
 import { serve } from "./server.ts"
-import { gridDensity } from "./measure.js"
 
 const harness = {
   name: "lens-fixture",
@@ -201,48 +200,38 @@ test("Lens names stay centered and truncate within short viewports and enlarged 
   }
 })
 
-test(
-  "Input and Output lenses retain physical page names in both Grid densities and Page",
-  { timeout: 60000 },
-  async () => {
-    const server = await serve()
-    const browser = await launch(chromium)
-    try {
-      const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
-      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-      await page.locator('.composer[aria-busy="false"]').waitFor()
-      for (const [pane, name] of [
-        [page.locator(".selection-panel"), "Input"],
-        [page.locator(".composition-output"), "Output"],
-      ]) {
-        for (const density of ["Normal", "Compact"]) {
-          await gridDensity(pane, `${density} ${name} grid`)
-          const canvas = pane.locator('.page-image[data-page="1"] canvas')
-          await page.waitForFunction(() => !document.querySelector('.composer [aria-busy="true"]'))
-          await page.mouse.move(0, 0)
-          await canvas.hover()
-          await page.locator('.lens[aria-busy="false"]').waitFor()
-          assert.equal(await page.locator(".lens-name").innerText(), "ITAL-GUID-79A4-WXGX")
-          await page.keyboard.press("Escape")
-        }
-        await pane.locator('.page-image[data-page="1"]').click()
-        await tab(pane, "Page")
-        const canvas = pane.locator('.pdf-viewport[aria-busy="false"] canvas')
-        await canvas.scrollIntoViewIfNeeded()
-        await page.waitForFunction(() => !document.querySelector('.composer [aria-busy="true"]'))
-        await page.mouse.move(0, 0)
-        await canvas.hover({ position: { x: 10, y: 10 } })
-        await page.locator('.lens[aria-busy="false"]').waitFor()
-        assert.equal(await page.locator(".lens-name").innerText(), "ITAL-GUID-79A4-WXGX")
-        await page.keyboard.press("Escape")
-        await tab(pane, "Grid")
-      }
-    } finally {
-      await browser.close()
+test("Input and Output lenses retain physical page names in Grid and Page", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.locator('.composer[aria-busy="false"]').waitFor()
+    for (const pane of [page.locator(".selection-panel"), page.locator(".composition-output")]) {
+      const previewCanvas = pane.locator('.page-image[data-page="1"] canvas')
+      await page.waitForFunction(() => !document.querySelector('.composer [aria-busy="true"]'))
+      await page.mouse.move(0, 0)
+      await previewCanvas.hover()
+      await page.locator('.lens[aria-busy="false"]').waitFor()
+      assert.equal(await page.locator(".lens-name").innerText(), "ITAL-GUID-79A4-WXGX")
+      await page.keyboard.press("Escape")
+      await pane.locator('.page-image[data-page="1"]').click()
+      await tab(pane, "Page")
+      const canvas = pane.locator('.pdf-viewport[aria-busy="false"] canvas')
+      await canvas.scrollIntoViewIfNeeded()
+      await page.waitForFunction(() => !document.querySelector('.composer [aria-busy="true"]'))
+      await page.mouse.move(0, 0)
+      await canvas.hover({ position: { x: 10, y: 10 } })
+      await page.locator('.lens[aria-busy="false"]').waitFor()
+      assert.equal(await page.locator(".lens-name").innerText(), "ITAL-GUID-79A4-WXGX")
+      await page.keyboard.press("Escape")
+      await tab(pane, "Grid")
     }
-  },
-)
+  } finally {
+    await browser.close()
+  }
+})
 
 test("Lens fits short viewports at every edge for mouse and touch", { timeout: 60000 }, async () => {
   const server = await createServer({ plugins: [harness], server: { port: 0, host: "127.0.0.1" } })
