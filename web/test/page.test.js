@@ -8,7 +8,7 @@ import { mkdir, readFile } from "node:fs/promises"
 import { measure, gridDensity } from "./measure.js"
 import { chromium, webkit } from "playwright"
 import { aligned, zoom } from "./workspace.js"
-import { fixture, hasCursor, tab, pagePosition, image, pixel, captureLayout } from "./browser.js"
+import { fixture, hasCursor, tab, gridPage, pagePosition, image, pixel, captureLayout } from "./browser.js"
 
 const standard = process.env.MAINZ_TEST_MODE === "standard"
 
@@ -2073,8 +2073,7 @@ test("Grid and Page switches preserve selections, zoom, and the inspected page",
     await prepared.press("Enter")
     await selected.fill("2,15")
     await prepared.fill("2,4")
-    await input.getByRole("slider", { name: "Input thumbnail range", exact: true }).press("End")
-    const inputImage = input.getByRole("button", { name: "Select Input page 16", exact: true })
+    const inputImage = await gridPage(input, 16)
     await modifiedClick(inputImage)
     await ready()
     assert.match(await pagePosition(input), /16\s*\/ 17/)
@@ -2103,7 +2102,7 @@ test("Grid and Page switches preserve selections, zoom, and the inspected page",
     assert.equal(await inputImage.evaluate((element) => element === document.activeElement), true)
     await prepared.press("v")
     assert.equal(
-      await input.getByRole("tab", { name: "Grid", exact: true }).getAttribute("aria-selected"),
+      await input.getByRole("tab", { name: "Flow", exact: true }).getAttribute("aria-selected"),
       "true",
       "Typing V in a field does not switch views",
     )

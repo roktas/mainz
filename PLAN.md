@@ -109,6 +109,8 @@ relevant viewport.
       intact.
 - [ ] Align integration tests for scroll range, exact Go to page, continuity, long Input/Output, edits at window
       boundaries, and no horizontal overflow. Check Grid/List/Page shared frame alignment.
+  - [x] Chromium Grid/Page selection, zoom, inspection, and focus regression uses virtual page reveal instead of
+        the removed thumbnail range slider; focused test passed.
 
 **Gate:** the full sequence is reachable, including 240+ pages; selection, editing, keyboard, touch, and drag/drop still
 work across scroll windows, with unchanged card geometry.
