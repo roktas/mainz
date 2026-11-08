@@ -477,7 +477,7 @@ test("Grid images and grips share selection and ordinary page focus", { timeout:
           const reset = pane.getByRole("button", { name: clear, exact: true })
           if (await reset.count()) await reset.click()
           const selection = pane.getByRole("textbox", { name: "Page selection", exact: true })
-          await pane.getByRole("slider").press("Home")
+          await pane.locator(".grid-view").evaluate((element) => (element.scrollTop = 0))
           const cards = pane.locator(".composition-card")
           const frame = await cards.first().boundingBox()
           const colors = () => cards.evaluateAll((items) => items.map((item) => getComputedStyle(item).backgroundColor))
@@ -855,7 +855,7 @@ test("Dragging page images and grips preserves selection and page focus", { time
     const selected = output.getByLabel("Page selection", { exact: true })
     await prepared.fill("1-7")
     await prepared.press("Enter")
-    await output.getByRole("slider").press("Home")
+    await output.locator(".grid-view").evaluate((element) => (element.scrollTop = 0))
     await prepared.fill("1,3,3")
     await selected.fill("1,3")
     for (const pane of [input, output]) {

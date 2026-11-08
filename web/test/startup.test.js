@@ -1340,11 +1340,9 @@ test("Input switching renders thumbnails and the lens from the selected PDF", { 
     const lens = page.getByRole("region", { name: "Magnified page 1 at 16×", exact: true })
     const inspect = async (name, color) => {
       assert.equal(await page.locator(".input-current").textContent(), name)
-      assert.equal(
-        await input.getAttribute("data-density"),
-        name === "Filled.pdf" ? "compact" : "normal",
-        "Production retains each Source's grid density",
-      )
+      assert.equal(await input.getByRole("tab", { name: "Flow", exact: true }).getAttribute("aria-selected"), "true")
+      const card = await input.locator(".composition-card").first().boundingBox()
+      assert.equal(Math.round(card.width), 148, "Sources share the Normal card width")
       await input.locator(".page-image .thumbnail[aria-busy=false]").waitFor()
       const expected = [color, color, color, 255]
       assert.deepEqual(await pixel(thumbnail, 0.7), expected, `${name}: thumbnail content`)

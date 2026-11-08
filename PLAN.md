@@ -138,6 +138,8 @@ work across scroll windows, with unchanged card geometry.
 - [x] Reduce the back-page fold in Grid only; keep the Page fold and the card's page-number/grip alignment unchanged.
 - [ ] Add focused browser assertions for control visibility, glyph centers, clickable bounds, keyboard focus, touch
       targets, selected/unselected states, and the smaller fold.
+  - [ ] Chromium exposed a touch hit-area failure at 440 px: a tap at the upper 1 px of the page-3 grip reaches the
+        grip on pointerdown/up, but the generated click targets the Grid element. Keep this test open until fixed.
 
 **Gate:** Grid fold is smaller with unchanged Page fold and card geometry. Footer redesign is deferred.
 
@@ -180,6 +182,8 @@ files or new slop.
 ### 7. Validation and handoff
 
 - [ ] Run formatting, lint, type checks, unit tests, and `npm run test:minimal`.
+  - [x] Chromium passed Grid image/grip selection, selection-preserving drags, and production Input-switch thumbnail/Lens
+        rendering (3/3 focused tests). Legacy Grid sliders were replaced with native scroll-to-start.
   - [x] Node 24: format and type checks passed, lint reported 0 errors (26 existing warnings), 52/52 unit tests passed.
         Full minimal/standard suites and WebKit are still open.
   - [x] Chromium startup regression verified early PDF preview, cancellation, invalid PDF rejection, and completed Flow
