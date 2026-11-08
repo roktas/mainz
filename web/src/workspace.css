@@ -1208,14 +1208,6 @@
     @container composer (width <= 30em) {
       .composer :is(.source-tabs, .output-tabs) {
         column-gap: 0;
-        & .tabs > button:first-child {
-          justify-content: start;
-          padding-inline-start: 4px;
-          & svg {
-            /* Compensate for the Grid path's inset within its viewBox. */
-            margin-inline-start: -0.1875em;
-          }
-        }
       }
       .composer .page-destination {
         flex: none;
