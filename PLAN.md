@@ -110,10 +110,14 @@ relevant viewport.
 - [ ] Update drag/drop hit testing, insertion previews, movement feedback, and edge autoscroll for a
       scrolling/virtualized Grid. Do not assume that a batch start, page-range attribute, or currently mounted card
       bounds the Output.
+  - [x] Chromium verified native and touch transfers across 10,000 Output occurrences, including offscreen selected
+        pages, cancellation, and drop (1 focused regression).
 - [ ] Remove batch-specific `keyboard.ts` and transfer paths only after all callers are mapped; keep List/Page semantics
       intact.
 - [ ] Align integration tests for scroll range, exact Go to page, continuity, long Input/Output, edits at window
       boundaries, and no horizontal overflow. Check Grid/List/Page shared frame alignment.
+  - [x] Chromium verified 1,000/10,000-row List virtualization, ranges, Page returns, and removal (1/1). Contents
+        jumps to exact pages across Grid, Page, and List without changing selection (1/1).
   - [x] Chromium checked Grid scrolling to the last page and status clearance at six viewport/text sizes (7/7);
         expanded desktop Page fitting and Input-to-Output copy previews passed (1/1).
   - [x] Chromium verified PageUp/PageDown, Home/End, Input/Output selection independence (1 test), and shared
