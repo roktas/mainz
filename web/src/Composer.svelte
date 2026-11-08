@@ -114,8 +114,8 @@
   const initialView: InputView = {
     grouped: true,
     tocTitles: false,
-    returnTo: "grid",
-    tab: untrack(() => initial.input),
+    tab: untrack(() => (initial.input === "grid" || initial.input === "list" ? "flow" : initial.input)),
+    flow: untrack(() => (initial.input === "list" ? "list" : "grid")),
     position: 0,
     zoom: 100,
     offset: 0,
@@ -153,14 +153,14 @@
   let outputText = $state<string>()
   let repetitions = $state("2")
   let front = $state(false)
-  let outputTab = $state<"grid" | "list" | "page">(untrack(() => initial.output))
+  let outputTab = $state<"flow" | "page">(untrack(() => (initial.output === "page" ? "page" : "flow")))
+  let outputFlow = $state<"grid" | "list">(untrack(() => (initial.output === "list" ? "list" : "grid")))
   let outputRegion = $state<Region>({ x: 0, y: 0 })
   let view = $state<"input" | "output">("input")
   let touchTap: { pane: "Input" | "Output"; element: EventTarget | null; time: number; restore: () => void } | undefined
   let inputCounter: ReturnType<typeof Counter> | undefined
   let outputCounter: ReturnType<typeof Counter> | undefined
   let originOpen = $state<string>()
-  let outputReturn = $state<"grid" | "list">("grid")
   const peeks = new Peeks()
   let inputMenu = $state<HTMLDetailsElement>(null!)
   let outputMenu = $state<HTMLDetailsElement>(null!)
@@ -199,8 +199,10 @@
           : tour === "input-grid" || tour === "input-density"
             ? "grid"
             : inputView.tab === "style" && !styleable
-              ? "grid"
-              : inputView.tab,
+              ? inputView.flow
+              : inputView.tab === "flow"
+                ? inputView.flow
+                : inputView.tab,
   )
   const activeOutputTab = $derived(
     tour === "output-page"
@@ -209,7 +211,9 @@
         ? "list"
         : tour === "output-grid" || tour === "output-density" || tour === "output-selection"
           ? "grid"
-          : outputTab,
+          : outputTab === "flow"
+            ? outputFlow
+            : outputTab,
   )
   const activeView = $derived(
     !source || tour?.startsWith("output-") || tour === "download"
@@ -324,8 +328,8 @@
     get inputView() {
       return inputView
     },
-    get outputReturn() {
-      return outputReturn
+    get outputFlow() {
+      return outputFlow
     },
     get draft() {
       return draft
@@ -441,14 +445,15 @@
     await list?.revealPage(position)
     await interaction.reveal(pane, event, true)
   }
-  function inputTab(tab: InputView["tab"], event?: MouseEvent | KeyboardEvent) {
-    const changed = tab !== activeTab
+  function inputTab(tab: InputView["flow"] | InputView["tab"], event?: MouseEvent | KeyboardEvent) {
+    const mode = tab === "flow" ? inputView.flow : tab
+    const changed = mode !== activeTab
     if (changed && activeTab === "list") inputList?.remember()
     cancelMotion()
     inspectInput({
-      tab,
-      ...(tab === "page" && activeTab !== "page" ? { returnTo: activeTab === "list" ? "list" : "grid" } : {}),
-      ...(tab === "grid" ? { offset: inputPosition } : {}),
+      tab: mode === "grid" || mode === "list" ? "flow" : mode,
+      ...(mode === "grid" || mode === "list" ? { flow: mode } : {}),
+      ...(mode === "grid" ? { offset: inputPosition } : {}),
     })
     if (changed) void interaction.reveal("Input", event)
   }
@@ -506,13 +511,14 @@
           ("page" in page.content ? `Page ${page.content.page + 1}` : page.padding ? "Padding" : "Blank"))
       : ""
   }
-  function setOutputTab(tab: typeof outputTab, event?: MouseEvent | KeyboardEvent) {
-    const changed = tab !== activeOutputTab
+  function setOutputTab(tab: "grid" | "list" | "page" | "flow", event?: MouseEvent | KeyboardEvent) {
+    const mode = tab === "flow" ? outputFlow : tab
+    const changed = mode !== activeOutputTab
     if (changed && activeOutputTab === "list") outputList?.remember()
     cancelMotion()
-    if (tab === "page" && activeOutputTab !== "page") outputReturn = activeOutputTab === "list" ? "list" : "grid"
-    outputTab = tab
-    if (tab === "grid") outputOffset = output.position
+    outputTab = mode === "grid" || mode === "list" ? "flow" : mode
+    if (mode === "grid" || mode === "list") outputFlow = mode
+    if (mode === "grid") outputOffset = output.position
     if (changed) void interaction.reveal("Output", event)
   }
 
@@ -1056,7 +1062,8 @@
     )
       return
     inputTab(activeTab)
-    outputTab = activeOutputTab
+    outputTab = activeOutputTab === "page" ? "page" : "flow"
+    if (activeOutputTab !== "page") outputFlow = activeOutputTab
     view = activeView
     document.querySelector<HTMLElement>(".help-tour:popover-open")?.hidePopover()
   }

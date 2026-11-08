@@ -65,15 +65,18 @@ In particular, avoid another large state machine inside `Composer.svelte` or unr
 
 ### 1. Simplify view ownership before feature changes
 
-- [ ] Audit the current `grid/list/page/style` tab state, Page return targets, per-Input state, Output state, demo/tour
+- [x] Audit the current `grid/list/page/style` tab state, Page return targets, per-Input state, Output state, demo/tour
       setup, and focus-routing callers.
-- [ ] Define one canonical pane view (`flow/page/style` for Input, `flow/page` for Output) and one Flow presentation
+- [x] Define one canonical pane view (`flow/page/style` for Input, `flow/page` for Output) and one Flow presentation
       mode (`grid/list`) per pane. Preserve independent inspection and viewport state.
-- [ ] Refactor only the state and routing boundaries needed for this distinction. Keep externally visible behavior
+- [x] Refactor only the state and routing boundaries needed for this distinction. Keep externally visible behavior
       unchanged until the tab change is enabled.
-- [ ] Align focused view-return, keyboard, input switching, and state-retention tests.
+- [x] Align focused view-return, keyboard, input switching, and state-retention tests.
 
-**Gate:** existing transitions, selection, Page return, and input switching still pass; no duplicate source of truth.
+**Gate:** current UI still shows Grid/List separately; internal tab state is `flow/page/style` for Input and `flow/page`
+for Output. Presentation is stored independently per pane and per Input. Chromium checked Page return, keyboard
+shortcuts, tour restoration, and Input switching (4/4 focused tests). All 52 unit tests, Svelte/TS, lint, and format
+checks passed.
 
 ### 2. Retire Compact density
 

@@ -14,8 +14,8 @@ export type InputView = {
   grouped: boolean
   folds?: ReadonlySet<string>
   tocTitles: boolean
-  returnTo: "grid" | "list"
-  tab: "grid" | "list" | "page" | "style"
+  tab: "flow" | "page" | "style"
+  flow: "grid" | "list"
   density?: "normal" | "compact"
   position: number
   zoom: number
@@ -28,13 +28,13 @@ export type InputView = {
 type Host = {
   key: string
   source: Source | undefined
-  activeTab: InputView["tab"]
+  activeTab: "grid" | "list" | "page" | "style"
   activeOutputTab: "grid" | "list" | "page"
   activeView: "input" | "output"
   inputPosition: number
   output: Output
   inputView: InputView
-  outputReturn: "grid" | "list"
+  outputFlow: "grid" | "list"
   draft: Sequence
   count: number
   opening: boolean
@@ -51,8 +51,8 @@ type Host = {
   outputOffset: number
   pendingAddition: ReadonlySet<string>
   styleable: boolean
-  inputTab: (tab: InputView["tab"], event?: MouseEvent | KeyboardEvent) => void
-  setOutputTab: (tab: "grid" | "list" | "page", event?: MouseEvent | KeyboardEvent) => void
+  inputTab: (tab: InputView["flow"] | InputView["tab"], event?: MouseEvent | KeyboardEvent) => void
+  setOutputTab: (tab: "grid" | "list" | "page" | "flow", event?: MouseEvent | KeyboardEvent) => void
   inspectInput: (patch: Partial<InputView>) => void
   selectAll: (pane: "Input" | "Output") => void
   zoomBy: (pane: "Input" | "Output", offset: number) => void
@@ -142,8 +142,7 @@ export class Interaction {
   }
   toggleView(pane: "Input" | "Output", event: MouseEvent | KeyboardEvent) {
     const previous = pane === "Input" ? this.host.activeTab : this.host.activeOutputTab
-    const tab =
-      previous === "page" ? (pane === "Input" ? this.host.inputView.returnTo : this.host.outputReturn) : "page"
+    const tab = previous === "page" ? (pane === "Input" ? this.host.inputView.flow : this.host.outputFlow) : "page"
     if (pane === "Input") this.host.inputTab(tab, event)
     else this.host.setOutputTab(tab, event)
   }
@@ -363,7 +362,8 @@ export class Interaction {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
     event.preventDefault()
     const viewTabs = ["grid", "list", "page"] as const
-    const tabs: InputView["tab"][] = pane === "Input" && this.host.styleable ? [...viewTabs, "style"] : [...viewTabs]
+    const tabs: ("grid" | "list" | "page" | "style")[] =
+      pane === "Input" && this.host.styleable ? [...viewTabs, "style"] : [...viewTabs]
     const index = tabs.indexOf(pane === "Input" ? this.host.activeTab : this.host.activeOutputTab)
     const tab =
       event.key === "Home"

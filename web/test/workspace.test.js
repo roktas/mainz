@@ -48,6 +48,59 @@ test("Parameter hover waits, cancels on leaving or Escape, and keeps click immed
   }
 })
 
+test("Input and Output retain independent Flow presentations through Page returns", async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    const input = page.locator(".selection-panel")
+    const output = page.locator(".composition-output")
+    await tab(input, "List")
+    await tab(output, "Page")
+    await output.locator(".page-scroll").press("v")
+    assert.equal(await output.locator(".composition-grid").isVisible(), true)
+    assert.equal(await input.locator(".page-list").isVisible(), true)
+    await tab(output, "List")
+    await tab(input, "Page")
+    await input.locator(".page-scroll").press("v")
+    assert.equal(await input.locator(".page-list").isVisible(), true)
+    assert.equal(await output.locator(".page-list").isVisible(), true)
+  } finally {
+    await browser.close()
+  }
+})
+
+test("Each Input retains its Flow presentation after switching Inputs", async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    await page.locator('input[type="file"]').first().setInputFiles({
+      name: "First.pdf",
+      mimeType: "application/pdf",
+      buffer: fixture(),
+    })
+    const input = page.locator(".selection-panel")
+    const upload = input.locator('input[type="file"]')
+    await tab(input, "List")
+    await upload.setInputFiles({ name: "Second.pdf", mimeType: "application/pdf", buffer: fixture() })
+    await input.locator(".input-current").filter({ hasText: "Second.pdf" }).waitFor()
+    assert.equal(await input.locator(".composition-grid").isVisible(), true)
+    await input.locator(".input-picker > summary h2").click()
+    await input.locator(".input-list button[data-source]").filter({ hasText: "First.pdf" }).click()
+    assert.equal(await input.locator(".page-list").isVisible(), true)
+    await input.locator(".input-picker > summary h2").click()
+    await input.locator(".input-list button[data-source]").filter({ hasText: "Second.pdf" }).click()
+    assert.equal(await input.locator(".composition-grid").isVisible(), true)
+  } finally {
+    await browser.close()
+  }
+})
+
 test("Profile options require compatible peers and consider future profile choices", { timeout: 60000 }, async () => {
   const server = await serve()
   const browser = await launch(chromium)
