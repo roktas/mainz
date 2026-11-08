@@ -84,9 +84,9 @@ In particular, avoid another large state machine inside `Composer.svelte` or unr
   - [x] Replace the retired capacity matrices with responsive and touch scroll assertions (2/2 Chromium). Verify the
         card bounds and scrollbar frame (1/1 Chromium). Remaining browser groups require broader regression coverage.
 - [ ] Run focused Grid, geometry, touch, and alignment checks.
-  - [x] Chromium alignment tests passed for mouse (12 widths) and touch (26 widths), plus Style/Page frame,
-        app header, and 10,000-page number/grip geometry. Removed the Page-only row-capacity width reduction.
-        Page/Grid reference widths agree within 1 CSS px across checked sizes.
+  - [x] Chromium alignment tests passed for mouse (12 widths) and touch (26 widths), plus Style/Page frame, app header,
+        and 10,000-page number/grip geometry. Removed the Page-only row-capacity width reduction. Page/Grid reference
+        widths agree within 1 CSS px across checked sizes.
 
 **Gate:** one Grid density remains; Normal card width, height, image bounds, and column spacing match baseline at each
 relevant viewport.
@@ -105,8 +105,8 @@ relevant viewport.
       navigation across unmounted windows and enable native wheel/touch scroll.
   - [x] Chromium verified Shift ranges, scroll-window navigation, and empty-Output focus recovery across Input and
         Output at 1440/390 px. Further touch and WebKit checks remain open.
-  - [x] Chromium Touch Selection passed at 810/390 px, 100/200% text, and light/dark themes; broader
-        touch and WebKit checks remain open.
+  - [x] Chromium Touch Selection passed at 810/390 px, 100/200% text, and light/dark themes; broader touch and WebKit
+        checks remain open.
 - [ ] Update drag/drop hit testing, insertion previews, movement feedback, and edge autoscroll for a
       scrolling/virtualized Grid. Do not assume that a batch start, page-range attribute, or currently mounted card
       bounds the Output.
@@ -116,20 +116,20 @@ relevant viewport.
       intact.
 - [ ] Align integration tests for scroll range, exact Go to page, continuity, long Input/Output, edits at window
       boundaries, and no horizontal overflow. Check Grid/List/Page shared frame alignment.
-  - [x] Chromium verified 1,000/10,000-row List virtualization, ranges, Page returns, and removal (1/1). Contents
-        jumps to exact pages across Grid, Page, and List without changing selection (1/1).
-  - [x] Chromium checked Grid scrolling to the last page and status clearance at six viewport/text sizes (7/7);
-        expanded desktop Page fitting and Input-to-Output copy previews passed (1/1).
-  - [x] Chromium verified PageUp/PageDown, Home/End, Input/Output selection independence (1 test), and shared
-        Grid/Page frame, fitted PDF geometry, themes, responsive zoom, and empty Output (10 subtests).
-  - [x] Chromium verified Contents jumps, touch drag previews, Grid/List/Page return, footer hover/touch controls,
-        and page-name disclosure layout (5 focused regressions). WebKit remains pending on Ubuntu 26.04.
-  - [x] Chromium Grid/Page selection, zoom, inspection, and focus regression uses virtual page reveal instead of
-        the removed thumbnail range slider; focused test passed.
-  - [x] Chromium verified unused and modified Grid keys, native shortcut priority, focus, and pane isolation with
-        Flow tab selectors.
-  - [x] Chromium selection menus, toolbar actions, and mouse/keyboard shortcut priorities passed (3 focused tests).
-        Flow tab takes focus after Escape and after removing the last Output page.
+  - [x] Chromium verified 1,000/10,000-row List virtualization, ranges, Page returns, and removal (1/1). Contents jumps
+        to exact pages across Grid, Page, and List without changing selection (1/1).
+  - [x] Chromium checked Grid scrolling to the last page and status clearance at six viewport/text sizes (7/7); expanded
+        desktop Page fitting and Input-to-Output copy previews passed (1/1).
+  - [x] Chromium verified PageUp/PageDown, Home/End, Input/Output selection independence (1 test), and shared Grid/Page
+        frame, fitted PDF geometry, themes, responsive zoom, and empty Output (10 subtests).
+  - [x] Chromium verified Contents jumps, touch drag previews, Grid/List/Page return, footer hover/touch controls, and
+        page-name disclosure layout (5 focused regressions). WebKit remains pending on Ubuntu 26.04.
+  - [x] Chromium Grid/Page selection, zoom, inspection, and focus regression uses virtual page reveal instead of the
+        removed thumbnail range slider; focused test passed.
+  - [x] Chromium verified unused and modified Grid keys, native shortcut priority, focus, and pane isolation with Flow
+        tab selectors.
+  - [x] Chromium selection menus, toolbar actions, and mouse/keyboard shortcut priorities passed (3 focused tests). Flow
+        tab takes focus after Escape and after removing the last Output page.
   - [x] Chromium verified demo Output order by physical occurrence across the scroll window and Input gesture
         cancellation after switching Inputs; both focused browser tests passed.
 
@@ -159,25 +159,32 @@ work across scroll windows, with unchanged card geometry.
       layouts.
 - [ ] Align browser tests for toggle activation, focus, keyboard navigation, Input switching, Output independence, Page
       return, both themes, and normal/200% text.
-  - [x] Chromium workspace toolbar alignment passed across 9 viewport, theme, text-size, and font combinations;
-        the test now checks the Flow toggle instead of the retired Compact density switch.
-  - [x] Chromium pane-toolbar alignment passed at 320–951 px, both themes, 100/200% text, and empty/populated
-        Output. Removed stale narrow-screen Grid-icon offset after Flow replaced Grid/List tabs.
-  - [x] Chromium tour regression passed including 320 px width with 200% text. Reset scroll when a tour step
-        changes, even if the next target reuses the same pane element.
+  - [x] Chromium workspace toolbar alignment passed across 9 viewport, theme, text-size, and font combinations; the test
+        now checks the Flow toggle instead of the retired Compact density switch.
+  - [x] Chromium pane-toolbar alignment passed at 320–951 px, both themes, 100/200% text, and empty/populated Output.
+        Removed stale narrow-screen Grid-icon offset after Flow replaced Grid/List tabs.
+  - [x] Chromium tour regression passed including 320 px width with 200% text. Reset scroll when a tour step changes,
+        even if the next target reuses the same pane element.
 
 **Gate:** one Flow tab per pane, two reliable presentation modes, no lost workspace state, and no toolbar wrapping.
 
-### 5a. Rename Flow tab to Pages (owner decision, 2026-11-09)
+### 5a. Refactor Flow view vocabulary to Pages (owner decision, 2026-11-09)
 
-- [ ] Rename the visible **Flow** tab to **Pages** in Input and Output. **Pages** presents the full document
-      as Grid or List; **Page** inspects one page. Preserve the existing view and mode state, selections, and return
-      targets; this is a terminology change, not a new view.
-- [ ] Align accessible tab names, Help, Product Tour, UI glossary, product docs, and user-facing browser assertions.
-      Keep internal `flow` keys and stable tour target identifiers unless a behavior change requires replacing them.
-- [ ] Verify Pages/Page tab focus, Grid/List toggle, inspection returns, narrow layouts, and Tour in Chromium.
+- [ ] Rename the **Flow** view concept to **Pages** throughout the application, not only the visible tab text. **Pages**
+      manages all document pages in Grid or List; **Page** inspects one page. Preserve behavior, page identity,
+      selection, Input/Output independence, inspection returns, and scroll restoration.
+- [ ] Refactor the complete workspace-view lexicon: internal view values, types, fields, functions, local variables,
+      constants, selectors, tour targets, accessible names, keyboard and test helpers, test descriptions, and any
+      related CSS class names. Replace rather than alias retired view names; do not retain compatibility shims without a
+      real external or persisted contract.
+- [ ] Align Help, Product Tour, UI glossary, `SPEC.md`, `VIEW.md`, `MEMO.md`, Web README, and relevant tests with
+      **Pages** and **Page**. Search case-insensitively for the former view name across the affected repository. Keep
+      unrelated terms such as CSS normal flow, reflow, and general data/control flow unchanged.
+- [ ] Verify Pages/Page tab focus, Grid/List switching, Page returns, Input switching, Output independence, keyboard
+      navigation, Tour, accessibility, narrow layouts, and both themes in Chromium.
 
-**Gate:** Both panes show **Pages** and **Page** with correct behavior and no remaining user-facing **Flow** label.
+**Gate:** The view has one canonical name, **Pages**, in code, tests, and current product documentation. No stale
+**Flow**-view identifier or user-facing label remains; behavior and geometry stay unchanged.
 
 ### 6. Aggressive stale-code and document audit
 
@@ -189,8 +196,8 @@ work across scroll windows, with unchanged card geometry.
 - [ ] Update `SPEC.md`, `VIEW.md`, `MEMO.md`, Web README, UI glossary, keyboard/help descriptions, test runner groups,
       and relevant layout references to **current** behavior. Do not document migration history.
   - [x] Replaced active Compact/pagination test guidance in Web MEMO and the large Grid fixture README.
-  - [x] Removed obsolete Compact advice from Help and updated the Grid keyboard measurement comment.
-        Node 24 checks and focused Chromium Page regressions passed (2/2).
+  - [x] Removed obsolete Compact advice from Help and updated the Grid keyboard measurement comment. Node 24 checks and
+        focused Chromium Page regressions passed (2/2).
 - [ ] Review the bounded affected surface, not just edited lines, for redundant state, accidental churn, unclear
       ownership, and unnecessary Svelte/CSS abstractions.
 - [ ] Run narrow checks after each cleanup and inspect the final diff for unrelated changes.
@@ -201,14 +208,14 @@ files or new slop.
 ### 7. Validation and handoff
 
 - [ ] Run formatting, lint, type checks, unit tests, and `npm run test:minimal`.
-  - [x] Chromium passed Grid image/grip selection, selection-preserving drags, and production Input-switch thumbnail/Lens
-        rendering (3/3 focused tests). Legacy Grid sliders were replaced with native scroll-to-start.
+  - [x] Chromium passed Grid image/grip selection, selection-preserving drags, and production Input-switch
+        thumbnail/Lens rendering (3/3 focused tests). Legacy Grid sliders were replaced with native scroll-to-start.
   - [x] Node 24: format and type checks passed, lint reported 0 errors (26 existing warnings), 52/52 unit tests passed.
         Full minimal/standard suites and WebKit are still open.
   - [x] Chromium startup regression verified early PDF preview, cancellation, invalid PDF rejection, and completed Flow
         initialization (1/1 focused test). Retired Compact density and unconditional Origin-detail expectations removed.
-  - [x] Chromium verified large-Input PDF reuse, provenance, Page/Compare returns, and Output edits (1/1 focused
-        test). Removed two obsolete direct Grid tab selectors.
+  - [x] Chromium verified large-Input PDF reuse, provenance, Page/Compare returns, and Output edits (1/1 focused test).
+        Removed two obsolete direct Grid tab selectors.
 - [ ] Run `npm run test:standard` and focused Full browser matrices for Grid, List, transfer, Page, alignment, geometry,
       and viewport calibration where affected.
 - [ ] Validate light/dark, keyboard, touch, fine pointer, reduced motion, 100%/200% text, 320/390/768 px and
@@ -217,6 +224,56 @@ files or new slop.
       resolve it before handoff.
 - [ ] Review the complete diff and docs once; remove disposable outputs and retain only required evidence in `.local/`.
 - [ ] Mark each completed checkpoint here, report actual commands/results and any unverified physical-device behavior.
+
+### 8. Final adversarial review and performance audit (owner request, 2026-11-09)
+
+Preserve every owner question as an explicit review item. Inspect the affected code and its callers, not only the
+changes in this branch. Record each finding with file/line evidence, impact, proposed action, and the tests or
+measurements that support the judgment. Do not report a hypothetical cost as a measured defect.
+
+#### Code quality, data structures, and ownership
+
+- [ ] **Is there slop code?**
+- [ ] **Which parts of the code have low quality?**
+- [ ] **Can the data structures be enriched?**
+- [ ] **Are concerns separated correctly?**
+- [ ] **Is there duplicate code?**
+- [ ] **Is common logic managed in the right place?**
+- [ ] **Does the implementation follow Svelte, TypeScript, and CSS best practices?**
+- [ ] **Are there hidden state machines? If so, can their states and transitions be managed more correctly?**
+
+#### Leftovers and documentation
+
+- [ ] **Is there leftover or stale code?**
+- [ ] **Is there leftover or stale content?**
+- [ ] **Are the documents aligned?**
+
+#### Tests
+
+- [ ] **Are any tests missing or inadequate?**
+- [ ] **Are any tests unnecessary or useless?**
+
+#### Performance and cost
+
+- [ ] **Are there obvious performance problems?**
+- [ ] **Is the code suboptimal?**
+- [ ] **Are there unnecessary costs?**
+- [ ] Review Grid/List virtualization, large Inputs and Output occurrences, repeated computations, Svelte reactive
+      dependencies, DOM measurements, mounting and rendering, scroll/drag handling, worker interactions, PDF preview
+      memory, and cleanup. Measure reproducible problems before optimizing; retain useful baseline and after-change
+      evidence for any performance claim.
+
+#### Closure
+
+- [ ] Fix confirmed defects and unnecessary complexity with small, behavior-preserving changes. Add or repair tests at
+      stable user-visible seams. Do not add abstractions or data fields without a demonstrated need.
+- [ ] Record positive findings and unresolved risks as well as defects. Distinguish verified behavior, partial evidence,
+      untested physical-device behavior, and performance hypotheses.
+- [ ] Update this plan after each validated checkpoint and immediately commit and push that checkpoint to `next`. Review
+      the final diff for stale vocabulary, leftover code/content, unrelated churn, and documentation drift.
+
+**Gate:** Every question above has an evidence-based answer. Confirmed in-scope issues are corrected and validated;
+remaining risks are explicit. WebKit remains deferred by owner decision.
 
 ## Acceptance
 
