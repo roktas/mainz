@@ -7,7 +7,6 @@ import { mkdir, writeFile } from "node:fs/promises"
 import { chromium, webkit } from "playwright"
 import { serve } from "./server.ts"
 import { tab, fixture, gridPage } from "./browser.js"
-import { gridDensity } from "./measure.js"
 
 test(
   "Contents jumps to the exact page in Grid, Page, and List without changing selection",
@@ -39,7 +38,6 @@ test(
         await input.getByLabel("Page selection", { exact: true }).fill("2,4")
         for (const view of ["Grid", "Page", "List"]) {
           await tab(input, view)
-          if (view === "Grid") await gridDensity(input, "Compact Input grid")
           const toc = input.getByRole("button", { name: "Input contents", exact: true })
           await toc.click()
           assert.equal(await toc.getAttribute("aria-expanded"), "true")
@@ -51,7 +49,7 @@ test(
           assert.equal(
             await toc.evaluate((button) => getComputedStyle(button).color),
             await input
-              .getByRole("tab", { name: view, exact: true })
+              .getByRole("tab", { name: view === "Page" ? "Page" : "Flow", exact: true })
               .evaluate((button) => getComputedStyle(button).color),
           )
           await page
@@ -82,7 +80,9 @@ test(
               "none",
             )
           assert.equal(
-            await input.getByRole("tab", { name: view, exact: true }).getAttribute("aria-selected"),
+            await input
+              .getByRole("tab", { name: view === "Page" ? "Page" : "Flow", exact: true })
+              .getAttribute("aria-selected"),
             "true",
             "Contents preserves the active view",
           )
@@ -1750,14 +1750,13 @@ test(
     const server = await serve(),
       browser = await launch(chromium)
     try {
-      for (const view of ["Normal", "Compact", "List"]) {
+      for (const view of ["Grid", "List"]) {
         const { page, input, output } = await lists(browser, server.resolvedUrls.local[0], {
           hasTouch: true,
           viewport: { width: 1920, height: 1200 },
         })
         if (view !== "List") {
           await tab(output, "Grid")
-          await gridDensity(output, `${view} Output grid`)
         }
         const rows = output.locator(view !== "List" ? ".composition-card" : ".list-row"),
           selection = output.getByRole("textbox", { name: "Page selection", exact: true }),
@@ -2059,7 +2058,6 @@ test(
             [output, "Output"],
           ]) {
             await tab(pane, "Grid")
-            await gridDensity(pane, `Normal ${name} grid`)
             await pane.getByRole("textbox", { name: "Page selection", exact: true }).focus()
             await page.mouse.move(0, 0)
             const card = pane.locator(".composition-card").nth(1),
@@ -2512,9 +2510,7 @@ test(
         const input = page.locator(".selection-panel"),
           output = page.locator(".composition-output")
         for (const pane of [input, output]) {
-          for (const density of ["Normal", "Compact"]) {
-            const title = pane === input ? "Input" : "Output"
-            await gridDensity(pane, `${density} ${title} grid`)
+          {
             const row = pane.locator(".composition-card").nth(1),
               number = row.locator(".page-origin > button, .page-origin > summary")
             await number.hover()
