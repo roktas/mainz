@@ -1026,6 +1026,51 @@ test("Normal card targets stay separate through phone pane and text transitions"
   }
 })
 
+test("Touch Grid grips select at extended bounds without toggling twice", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    for (const width of [390, 440]) {
+      const page = await browser.newPage({
+        viewport: { width, height: 956 },
+        hasTouch: true,
+        isMobile: true,
+        reducedMotion: "reduce",
+      })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      for (const name of ["Input", "Output"]) {
+        const switcher = page.locator(".mobile-workspace-tabs")
+        if (await switcher.isVisible()) await switcher.getByRole("button", { name, exact: true }).click()
+        const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+        await tab(pane, "Grid")
+        const card = pane.locator('.composition-card:has(.page-image[data-page="2"])')
+        await card.scrollIntoViewIfNeeded()
+        const grip = card.locator(".page-grip")
+        const target = await grip.evaluate((element) => {
+          const box = element.getBoundingClientRect()
+          const pseudo = getComputedStyle(element, "::after")
+          return {
+            x: box.left + box.width / 2,
+            upper: box.top + parseFloat(pseudo.top) + 1,
+            center: box.top + box.height / 2,
+          }
+        })
+        const selection = pane.getByRole("textbox", { name: "Page selection", exact: true })
+        await selection.fill("")
+        await page.touchscreen.tap(target.x, target.upper)
+        assert.equal(await selection.inputValue(), "3", `${width}px ${name}: upper hit area selects`)
+        await page.touchscreen.tap(target.x, target.center)
+        assert.equal(await selection.inputValue(), "", `${width}px ${name}: center tap deselects once`)
+      }
+      await page.close()
+    }
+  } finally {
+    await browser.close()
+  }
+})
+
 test("Normal card targets route footer and grip taps across consecutive rows", { timeout: 180000 }, async () => {
   const server = await serve()
   let browser, page, label, targets
@@ -1047,7 +1092,7 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
           const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
           const field = pane.getByRole("textbox", { name: "Page selection", exact: true })
           await field.fill("")
-          await pane.getByRole("slider").press("Home")
+          await pane.locator(".grid-view").evaluate((element) => (element.scrollTop = 0))
           const grid = await measure(pane)
           assert.ok(grid.matrix[1] >= 2, `${width}px, ${text}, ${name}: two complete rows`)
           const lower = grid.matrix[0] + 1

@@ -138,8 +138,10 @@ work across scroll windows, with unchanged card geometry.
 - [x] Reduce the back-page fold in Grid only; keep the Page fold and the card's page-number/grip alignment unchanged.
 - [ ] Add focused browser assertions for control visibility, glyph centers, clickable bounds, keyboard focus, touch
       targets, selected/unselected states, and the smaller fold.
-  - [ ] Chromium exposed a touch hit-area failure at 440 px: a tap at the upper 1 px of the page-3 grip reaches the
-        grip on pointerdown/up, but the generated click targets the Grid element. Keep this test open until fixed.
+  - [x] Chromium Grid grip touch hit area passed at 390/440 px: Input and Output upper-edge/center taps select exactly
+        once; existing grip, drag, and press regressions passed (4/4). WebKit remains unverified.
+  - [ ] Output footer action hit testing at 440 px fails at its lower one-pixel boundary. The footer redesign remains
+        deferred pending the owner's two-control decision.
 
 **Gate:** Grid fold is smaller with unchanged Page fold and card geometry. Footer redesign is deferred.
 
