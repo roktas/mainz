@@ -1107,12 +1107,12 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
           )
           if (view === "Grid") {
             const tabs = await pane.locator(".tabs").boundingBox()
-            const density = await pane.locator(".grid-density").boundingBox()
-            assert.ok(density.x >= tabs.x + tabs.width - 1, `${label}: density controls do not cover tabs`)
-            assert.ok(density.x >= 0 && density.x + density.width <= width, `${label}: density controls fit`)
+            const switcher = await pane.locator(".flow-toggle").boundingBox()
+            assert.ok(switcher.x >= tabs.x + tabs.width - 1, `${label}: Flow switch does not cover tabs`)
+            assert.ok(switcher.x >= 0 && switcher.x + switcher.width <= width, `${label}: Flow switch fits`)
             assert.ok(
-              Math.abs(density.y + density.height / 2 - tabs.y - tabs.height / 2) < 1,
-              `${label}: tabs and density controls share one centerline`,
+              Math.abs(switcher.y + switcher.height / 2 - tabs.y - tabs.height / 2) < 1,
+              `${label}: tabs and Flow switch share one centerline`,
             )
           }
           if (text === "100%" && view !== "Style")

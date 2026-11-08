@@ -146,6 +146,8 @@ work across scroll windows, with unchanged card geometry.
       layouts.
 - [ ] Align browser tests for toggle activation, focus, keyboard navigation, Input switching, Output independence, Page
       return, both themes, and normal/200% text.
+  - [x] Chromium workspace toolbar alignment passed across 9 viewport, theme, text-size, and font combinations;
+        the test now checks the Flow toggle instead of the retired Compact density switch.
   - [x] Chromium pane-toolbar alignment passed at 320–951 px, both themes, 100/200% text, and empty/populated
         Output. Removed stale narrow-screen Grid-icon offset after Flow replaced Grid/List tabs.
   - [x] Chromium tour regression passed including 320 px width with 200% text. Reset scroll when a tour step
