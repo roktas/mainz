@@ -2313,7 +2313,7 @@ test("Unused and modified Grid keys preserve pointer controls and native shortcu
       for (const key of ["Control+Space", "Control+Enter", "Alt+Space", "Shift+Space", "Shift+Enter"]) {
         await page.keyboard.press(key)
         assert.equal(await thumbnail.evaluate(hasCursor), false, `${name}: ${key} does not create a page cursor`)
-        assert.equal(await pane.getByRole("tab", { name: "Grid", exact: true }).getAttribute("aria-selected"), "true")
+        assert.equal(await pane.getByRole("tab", { name: "Flow", exact: true }).getAttribute("aria-selected"), "true")
         assert.equal(await thumbnail.evaluate((element) => element === document.activeElement), true)
         assert.equal(await (name === "Input" ? prepared : selected).inputValue(), "")
       }
@@ -2328,10 +2328,10 @@ test("Unused and modified Grid keys preserve pointer controls and native shortcu
     }
     await selected.fill("2")
     for (const pane of [input, output]) {
-      await pane.getByRole("tab", { name: "Grid", exact: true }).focus()
+      await pane.getByRole("tab", { name: "Flow", exact: true }).focus()
       await page.keyboard.press("Control+ArrowLeft")
       assert.equal(await selected.inputValue(), "1", "Ctrl+arrows move Output while focus is on a view tab")
-      assert.equal(await pane.getByRole("tab", { name: "Grid", exact: true }).getAttribute("aria-selected"), "true")
+      assert.equal(await pane.getByRole("tab", { name: "Flow", exact: true }).getAttribute("aria-selected"), "true")
       await page.keyboard.press("Control+ArrowRight")
       assert.equal(await selected.inputValue(), "2")
     }
