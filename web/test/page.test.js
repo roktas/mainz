@@ -2603,7 +2603,7 @@ test(
           .filter({ has: page.locator("code.parameter-id", { hasText: "guides-stroke-color" }) })
           .locator("input[type=text]")
       const add = async (selection) => {
-        await input.getByRole("tab", { name: "Grid", exact: true }).click()
+        await tab(input, "Grid")
         await input.getByRole("textbox", { name: "Page selection", exact: true }).fill(selection)
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
         await output.locator('button[aria-label="Download"]:enabled').waitFor()
@@ -2640,7 +2640,7 @@ test(
       await input.locator(".page-scroll .pdf-viewport[aria-busy=false]").waitFor()
       assert.match(await pagePosition(input), /47\s*\/ 51/)
       assert.equal(await input.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "")
-      await input.getByRole("tab", { name: "Grid", exact: true }).click()
+      await tab(input, "Grid")
       assert.equal(await input.getByRole("button", { name: "Select Input page 47", exact: true }).isVisible(), true)
       await output.getByRole("button", { name: "Compare page", exact: true }).click()
       await change("#654321")
