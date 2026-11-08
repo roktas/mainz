@@ -7,7 +7,7 @@ import { serve } from "./server.ts"
 import { chromium } from "playwright"
 import { zoom } from "./workspace.js"
 import { tab, pagePosition, gridPage, fixture, hasCursor, captureLayout } from "./browser.js"
-import { measure, gridDensity } from "./measure.js"
+import { measure } from "./measure.js"
 
 test("Input clicks retain the last valid sequence at the page limit", async () => {
   const server = await serve()
@@ -97,7 +97,6 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
       await output.locator(".composition-totals strong").waitFor({ state: "attached" })
       const views = page.locator(".mobile-workspace-tabs")
       if (await views.isVisible()) await views.getByRole("button", { name: "Output", exact: true }).tap()
-      await gridDensity(output, "Compact Output grid", (control) => control.tap())
       await measure(output)
       const cards = output.locator(".composition-card")
       const ids = () => cards.evaluateAll((items) => items.map((item) => item.id))
@@ -170,7 +169,6 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
 
       if (await views.isVisible()) {
         await views.getByRole("button", { name: "Input", exact: true }).tap()
-        await gridDensity(input, "Compact Input grid", (control) => control.tap())
         const preparation = input.getByRole("textbox", { name: "Page selection", exact: true })
         await preparation.fill("1")
         const grip = input.getByRole("button", { name: "Select or drag Input page 1 to Output", exact: true })
@@ -314,7 +312,6 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
         const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
         const field = pane.getByRole("textbox", { name: "Page selection", exact: true })
         assert.equal(await field.getAttribute("inputmode"), "numeric")
-        await gridDensity(pane, `Compact ${name} grid`, (control) => control.tap())
         const cards = pane.locator(".composition-card")
         const clear = pane.getByRole("button", {
           name: name === "Input" ? "Clear page sequence" : "Clear Output selection",
@@ -348,7 +345,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
           assert.equal(await page.evaluate(() => document.activeElement instanceof HTMLInputElement), false)
         }
         await field.fill("2,4")
-        await pane.getByRole("tab", { name: "Grid", exact: true }).tap()
+        await tab(pane, "Grid")
         const before = await total()
         const target = (await gridPage(pane, 1)).locator('.thumbnail[aria-busy="false"] canvas')
         await page.waitForFunction(
@@ -359,7 +356,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
           await pane.elementHandle(),
         )
         // Native touch dispatch does not avoid the sticky status bar.
-        await measure(pane)
+        await target.waitFor()
         await target.evaluate((element) => element.scrollIntoView({ block: "center" }))
         await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
         const bounds = await target.boundingBox()
@@ -599,7 +596,7 @@ test("Dragging opens stable page slots, previews density, and commits only on dr
   try {
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const sizes = new Map()
-    for (const density of ["Normal", "Compact"]) {
+    for (const density of ["Normal"]) {
       for (const reducedMotion of ["no-preference", "reduce"]) {
         const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion })
         const errors = []
@@ -622,10 +619,6 @@ test("Dragging opens stable page slots, previews density, and commits only on dr
         await measure(output)
         await output.locator(".composition-card").nth(6).waitFor()
         await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
-        if (density === "Compact") {
-          await gridDensity(input, "Compact Input grid")
-          await gridDensity(output, "Compact Output grid")
-        }
         if (reducedMotion === "reduce")
           await page.setViewportSize({ width: 1920, height: density === "Compact" ? 1080 : 1440 })
         await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
@@ -2051,7 +2044,6 @@ test("Selection and view shortcuts target the mouse pane and preserve native key
       })
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
-    await gridDensity(input, "Normal Input grid", (control) => control.press("Space"))
     const prepared = input.getByLabel("Page selection", { exact: true })
     const selected = output.getByLabel("Page selection", { exact: true })
     await prepared.fill("1-13")
@@ -2529,8 +2521,7 @@ test("Output movement keeps direction buttons fixed at selection boundaries", { 
         const views = page.locator(".mobile-workspace-tabs")
         if (await views.isVisible()) await views.getByRole("button", { name: "Output", exact: true }).click()
         await tab(output, "Grid")
-        for (const density of ["Normal", "Compact"]) {
-          await gridDensity(output, `${density} Output grid`)
+        for (const density of ["Normal"]) {
           for (const [start, direction] of [
             [8, -1],
             [1, 1],

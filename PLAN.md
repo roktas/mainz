@@ -99,7 +99,9 @@ relevant viewport.
 - [ ] Adapt arrow, Home/End, PageUp/PageDown, V, focus recovery, and Shift selection to a continuous Grid. Keep keyboard
       navigation across unmounted windows and enable native wheel/touch scroll.
   - [x] Chromium verified Shift ranges, scroll-window navigation, and empty-Output focus recovery across Input and
-        Output at 1440/390 px. Touch and WebKit checks remain open.
+        Output at 1440/390 px. Further touch and WebKit checks remain open.
+  - [x] Chromium Touch Selection passed at 810/390 px, 100/200% text, and light/dark themes; broader
+        touch and WebKit checks remain open.
 - [ ] Update drag/drop hit testing, insertion previews, movement feedback, and edge autoscroll for a
       scrolling/virtualized Grid. Do not assume that a batch start, page-range attribute, or currently mounted card
       bounds the Output.
