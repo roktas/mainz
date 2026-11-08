@@ -113,6 +113,8 @@ relevant viewport.
         the removed thumbnail range slider; focused test passed.
   - [x] Chromium verified unused and modified Grid keys, native shortcut priority, focus, and pane isolation with
         Flow tab selectors.
+  - [x] Chromium selection menus, toolbar actions, and mouse/keyboard shortcut priorities passed (3 focused tests).
+        Flow tab takes focus after Escape and after removing the last Output page.
   - [x] Chromium verified demo Output order by physical occurrence across the scroll window and Input gesture
         cancellation after switching Inputs; both focused browser tests passed.
 
