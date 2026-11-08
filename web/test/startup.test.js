@@ -948,7 +948,7 @@ test("The first PDF previews before validation and commits only after success", 
       await route.continue().catch(() => {})
     })
     await page.goto(server.resolvedUrls.local[0])
-    // More than two Normal QHD batches selects Compact after validation.
+    // The preview is visible before validation, with the same Grid presentation after commit.
     const bytes = fixture({ count: 33 })
     const input = page.locator(".selection-panel")
     const open = async (name, buffer) => {
@@ -987,15 +987,10 @@ test("The first PDF previews before validation and commits only after success", 
     release()
     await page.locator(".composer:not([inert])").waitFor()
     await input.getByRole("tab", { name: "Style", exact: true }).waitFor()
-    assert.equal(await input.getAttribute("data-density"), "compact")
+    assert.equal(await input.getByRole("tab", { name: "Flow", exact: true }).getAttribute("aria-selected"), "true")
+    assert.equal(await input.locator(".composition-card").first().isVisible(), true)
     assert.equal(await input.locator(".input-picker .count").innerText(), "1")
     assert.equal(await page.locator(".header-feedback .opening-progress").count(), 0)
-    assert.equal(await input.locator(".card-menu-options canvas").count(), 0, "Closed details do not build previews")
-    const details = input.getByRole("button", { name: "Details for Input page 1", exact: true })
-    await details.press("Space")
-    await input.locator(".card-menu-options:popover-open .thumbnail[aria-busy=false]").waitFor()
-    await page.keyboard.press("Escape")
-    await page.waitForFunction(() => !document.querySelector(".card-menu-options canvas"))
     await input.getByLabel("Page selection", { exact: true }).fill("1")
     await input.getByLabel("Page selection", { exact: true }).press("Enter")
     assert.equal(await page.locator(".composition-totals strong").textContent(), "1 page")

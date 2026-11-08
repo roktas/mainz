@@ -166,6 +166,8 @@ files or new slop.
 ### 7. Validation and handoff
 
 - [ ] Run formatting, lint, type checks, unit tests, and `npm run test:minimal`.
+  - [x] Chromium startup regression verified early PDF preview, cancellation, invalid PDF rejection, and completed Flow
+        initialization (1/1 focused test). Retired Compact density and unconditional Origin-detail expectations removed.
 - [ ] Run `npm run test:standard` and focused Full browser matrices for Grid, List, transfer, Page, alignment, geometry,
       and viewport calibration where affected.
 - [ ] Validate light/dark, keyboard, touch, fine pointer, reduced motion, 100%/200% text, 320/390/768 px and
