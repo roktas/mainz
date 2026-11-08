@@ -10,6 +10,28 @@ import { measure, gridDensity } from "./measure.js"
 import inventory from "./viewports.json" with { type: "json" }
 import { bounds as gridBounds, quality } from "./quality.ts"
 
+test("Grid back folds stay smaller than Page folds", async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    const input = page.locator(".selection-panel")
+    const grid = input.locator('.composition-card[data-face="back"]').first()
+    await grid.waitFor()
+    const gridFold = await grid.evaluate((element) => parseFloat(getComputedStyle(element).getPropertyValue("--fold")))
+    await tab(input, "Page")
+    const pageFold = await input
+      .locator(".page-view")
+      .evaluate((element) => parseFloat(getComputedStyle(element).getPropertyValue("--fold")))
+    assert.equal(gridFold, 12)
+    assert.equal(pageFold, 24)
+  } finally {
+    await browser.close()
+  }
+})
+
 test(
   "Normal Grid centers physical numbers and bounds long section details with page labels",
   { timeout: 60000 },

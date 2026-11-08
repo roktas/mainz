@@ -41,7 +41,7 @@
     }
     .composition-card {
       --card-inset: calc(0.35rem + 1px - var(--page-stroke));
-      --fold: 18px;
+      --fold: 12px;
       --page-stroke: 1px;
       --page-border: var(--border);
       min-inline-size: var(--grid-min-width);
