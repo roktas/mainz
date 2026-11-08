@@ -815,8 +815,10 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
       await zoom(output, "Reset zoom")
       await fitted(image(output))
       await tab(output, "Grid")
-      const compact = await measure(output)
-      assert.ok(compact.matrix[1] >= 7, "Compact capacity uses the expanded viewport without a fixed row cap")
+      const grid = await measure(output)
+      assert.ok(grid.total > grid.mounted, "Grid virtualizes pages beyond the visible scroll window")
+      assert.ok(grid.scroll > 0, "Grid preserves scrolling at expanded desktop sizes")
+      assert.equal(grid.horizontalOverflow, false, "Grid keeps full card width without horizontal overflow")
       await input.locator(".pdf-viewport[aria-busy=false] canvas").waitFor()
       await fitted(image(input))
       const surround = await input.locator(".page-scroll").boundingBox()
@@ -838,10 +840,11 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
         clientY: destination.y + destination.height / 2,
       })
       await output.locator(".drop-placeholder").waitFor()
+      assert.equal(await output.locator(".drop-placeholder").count(), 1, "Grid shows one insertion preview")
       assert.equal(
         await output.locator("[data-preview-hidden]").count(),
-        1,
-        "The drag preview stays within the visible Compact batch at every browser zoom",
+        0,
+        "Copying an Input page does not hide existing Output cards",
       )
       await page.keyboard.press("Escape")
       await transfer.dispose()

@@ -1175,15 +1175,18 @@ test("Workspace scrolling keeps Grid and Page controls clear of status", { timeo
           const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
           await tab(pane, "Grid")
           await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill("56-62")
-          for (const density of ["Normal"]) {
-            const grid = await measure(pane)
-            assert.ok(grid.caption.bottom <= grid.status + 1, `${name} ${density}: status clears pagination`)
-            await checkStatus(page)
-            const slider = pane.getByRole("slider")
-            await slider.focus()
-            await slider.press("End")
-            assert.equal(await slider.inputValue(), await slider.getAttribute("max"))
-          }
+          const grid = await measure(pane)
+          assert.ok(grid.scroll > 0, `${name}: Grid has a vertical scroll range`)
+          assert.equal(grid.horizontalOverflow, false, `${name}: Grid has no horizontal overflow`)
+          await checkStatus(page)
+          const viewport = pane.locator(".grid-view")
+          await viewport.evaluate((element) => (element.scrollTop = element.scrollHeight))
+          await viewport.locator('.page-image[data-page="61"]').waitFor()
+          const end = await viewport.evaluate((element) => ({
+            top: element.scrollTop,
+            max: element.scrollHeight - element.clientHeight,
+          }))
+          assert.ok(end.top >= end.max - 2, `${name}: Grid reaches the last page`)
           await tab(pane, "Page")
           await pane.locator(".page-scroll canvas").waitFor()
           await checkStatus(page)

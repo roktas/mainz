@@ -51,7 +51,7 @@ build.
 
 Grid demo contains 240 physical pages: 60 repetitions of the four pages in `demo.pdf`. Its maintained Plan and Input
 bindings are [`grid-plan.json`](grid-plan.json) and [`grid-inputs.json`](grid-inputs.json).
-[`VIEW.md`](../../doc/VIEW.md#workspace) defines Normal and Compact geometry and expected desktop capacities.
+[`VIEW.md`](../../doc/VIEW.md#workspace) defines the single Normal card geometry and scrollable Grid frame.
 
 If `.local/tmp/web/grid/sample.pdf` is absent, run these commands from the repository root after building the native
 CLI:

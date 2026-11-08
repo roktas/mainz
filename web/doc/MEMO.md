@@ -62,11 +62,11 @@ matrices for ship.
 Before ship, run `npm run test:standard`. It adds asset publication checks, a production build, and the functional
 browser regressions. Standard covers opening, editing, Style, Download, cancellation, PDF ownership, selection,
 keyboard, touch, offline use, updates, and long Output scrolling. Animation checks use a desktop and phone without CPU
-throttling. Standard uses representative desktop and touch cases for batch navigation, shared frames, partial batches,
-and Normal card hit targets. The hit-target checks cover consecutive rows and measure pagination after pane and
-text-size transitions. Standard omits the full alignment and Page geometry matrices, Grid capacity/calibration matrices,
-and calibration tools. Opacity layout checks use representative phone and desktop widths; full mode retains all four
-widths.
+throttling. Standard uses representative desktop and touch cases for continuous Grid scrolling, shared frames, and
+Normal card hit targets. The hit-target checks cover consecutive rows and verify that the scroll frame clears the status
+bar after pane and text-size transitions. Standard omits the full alignment and Page geometry matrices, Grid viewport
+matrices, and calibration tools. Opacity layout checks use representative phone and desktop widths; full mode retains
+all four widths.
 
 Before a release, run `npm run test:full`. It includes every application browser scenario, complete animation matrices
 with CPU throttling, and viewport geometry checks. Animation command entrypoints run once. Core addition, removal,

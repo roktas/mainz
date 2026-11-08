@@ -114,6 +114,8 @@ relevant viewport.
       intact.
 - [ ] Align integration tests for scroll range, exact Go to page, continuity, long Input/Output, edits at window
       boundaries, and no horizontal overflow. Check Grid/List/Page shared frame alignment.
+  - [x] Chromium checked Grid scrolling to the last page and status clearance at six viewport/text sizes (7/7);
+        expanded desktop Page fitting and Input-to-Output copy previews passed (1/1).
   - [x] Chromium verified PageUp/PageDown, Home/End, Input/Output selection independence (1 test), and shared
         Grid/Page frame, fitted PDF geometry, themes, responsive zoom, and empty Output (10 subtests).
   - [x] Chromium verified Contents jumps, touch drag previews, Grid/List/Page return, footer hover/touch controls,
@@ -167,6 +169,7 @@ work across scroll windows, with unchanged card geometry.
       or historical calibration evidence without separating it from active requirements.
 - [ ] Update `SPEC.md`, `VIEW.md`, `MEMO.md`, Web README, UI glossary, keyboard/help descriptions, test runner groups,
       and relevant layout references to **current** behavior. Do not document migration history.
+  - [x] Replaced active Compact/pagination test guidance in Web MEMO and the large Grid fixture README.
 - [ ] Review the bounded affected surface, not just edited lines, for redundant state, accidental churn, unclear
       ownership, and unnecessary Svelte/CSS abstractions.
 - [ ] Run narrow checks after each cleanup and inspect the final diff for unrelated changes.
@@ -177,6 +180,8 @@ files or new slop.
 ### 7. Validation and handoff
 
 - [ ] Run formatting, lint, type checks, unit tests, and `npm run test:minimal`.
+  - [x] Node 24: format and type checks passed, lint reported 0 errors (26 existing warnings), 52/52 unit tests passed.
+        Full minimal/standard suites and WebKit are still open.
   - [x] Chromium startup regression verified early PDF preview, cancellation, invalid PDF rejection, and completed Flow
         initialization (1/1 focused test). Retired Compact density and unconditional Origin-detail expectations removed.
   - [x] Chromium verified large-Input PDF reuse, provenance, Page/Compare returns, and Output edits (1/1 focused
