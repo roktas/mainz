@@ -47,7 +47,7 @@
 
 ### Changed
 
-- Rename the combined Grid/List tab from Flow to Pages, beside the single-page Page tab.
+- Rename the combined Grid/List tab from Flow to Pages, beside the single-page Page tab, with a stacked-page icon.
 
 - Remove Filename from Output page actions.
 

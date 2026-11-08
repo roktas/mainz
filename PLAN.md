@@ -194,10 +194,14 @@ work across scroll windows, with unchanged card geometry.
 
 ### 5b. Represent Pages with a multi-page icon (owner decision, 2026-11-09)
 
-- [ ] Replace the Pages tab icon with a recognizable stack of document pages, distinct from the single-page **Page**
+- [x] Replace the Pages tab icon with a recognizable stack of document pages, distinct from the single-page **Page**
       icon. Keep the existing icon name, accessible tab label, SVG size, and focus and interaction behavior.
-- [ ] Verify the Input and Output Pages icons in Chromium at narrow and wide widths, both themes, and enlarged text.
+- [x] Verify the Input and Output Pages icons in Chromium at narrow and wide widths, both themes, and enlarged text.
       Compare icon and label alignment, and run the relevant focused checks.
+
+  - [x] Chromium checked visible glyph alignment and overflow in 32 states: 320/390/768/1440 px, 100%/200% text,
+        light/dark themes, and both panes. The focused workspace toolbar regression passed (1/1). Node 24 formatting,
+        type checks, and 52/52 unit tests passed; lint reported 0 errors and 26 existing warnings.
 
 **Gate:** Both Pages tabs use the same page-stack glyph without layout or behavior regressions.
 

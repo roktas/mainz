@@ -272,7 +272,8 @@ chooser controls do not select text or open native touch callouts during a hold.
 Pointer opening places initial focus on the Settings drawer. Keyboard opening focuses its Close button. Keyboard
 navigation keeps a visible focus indicator on each control.
 
-Tabs use square corners and an accent underline. Unselected tabs gain color on hover. Keyboard focus uses a soft tint
+Tabs use square corners and an accent underline. The Pages tab uses stacked document sheets; Page uses a single sheet.
+The glyphs retain the same size and visible center. Unselected tabs gain color on hover. Keyboard focus uses a soft tint
 and one border, without glow. Input offers Pages, Page, and eligible Style tabs. Output offers Pages and Page. Each
 Pages toolbar includes a labeled Grid/List switch outside the tablist. This switch has a 46 × 46 CSS px target. Its
 icon, title, and accessible name identify the presentation that activation selects. Each Input and Output retains its
