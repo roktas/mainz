@@ -168,6 +168,17 @@ work across scroll windows, with unchanged card geometry.
 
 **Gate:** one Flow tab per pane, two reliable presentation modes, no lost workspace state, and no toolbar wrapping.
 
+### 5a. Rename Flow tab to Pages (owner decision, 2026-11-09)
+
+- [ ] Rename the visible **Flow** tab to **Pages** in Input and Output. **Pages** presents the full document
+      as Grid or List; **Page** inspects one page. Preserve the existing view and mode state, selections, and return
+      targets; this is a terminology change, not a new view.
+- [ ] Align accessible tab names, Help, Product Tour, UI glossary, product docs, and user-facing browser assertions.
+      Keep internal `flow` keys and stable tour target identifiers unless a behavior change requires replacing them.
+- [ ] Verify Pages/Page tab focus, Grid/List toggle, inspection returns, narrow layouts, and Tour in Chromium.
+
+**Gate:** Both panes show **Pages** and **Page** with correct behavior and no remaining user-facing **Flow** label.
+
 ### 6. Aggressive stale-code and document audit
 
 - [ ] Search all affected code, tests, fixtures, CSS, docs, icons, Help, tours, measurement/calibration scripts, and
