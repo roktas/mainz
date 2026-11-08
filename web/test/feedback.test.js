@@ -1,11 +1,11 @@
 // Checks header feedback geometry, cancellation, and compact Download recovery.
 
-import { launch } from "./browsers.js"
+import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { mkdir, readFile } from "node:fs/promises"
 import { resolve } from "node:path"
-import { chromium, webkit, devices } from "playwright"
+import { chromium, devices } from "playwright"
 import { serve } from "./server.ts"
 import { fixture } from "./browser.js"
 
@@ -135,7 +135,7 @@ test("Header messages fit representative Apple touch layouts", { timeout: 90000 
   const inventory = JSON.parse(await readFile(new URL("./viewports.json", import.meta.url), "utf8"))
   const directory = resolve("../.local/tmp/web/layout/feedback")
   await mkdir(directory, { recursive: true })
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       for (const [device, reference, landscape] of [
@@ -285,7 +285,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })
@@ -350,7 +350,7 @@ test(
 
 test("Touch dialog focus stays quiet and keyboard focus stays visible", { timeout: 30000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({
@@ -406,7 +406,7 @@ test("Touch dialog focus stays quiet and keyboard focus stays visible", { timeou
 
 test("Header progress preserves workspace bounds and scroll at narrow widths", { timeout: 120000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ hasTouch: true, reducedMotion: "reduce" })
@@ -500,7 +500,7 @@ test(
   { timeout: 120000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine, {
         channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL || undefined : undefined,
       })
@@ -562,7 +562,7 @@ test(
   async () => {
     const server = await serve()
     await mkdir(resolve("../.local/var/web/feedback"), { recursive: true })
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine, {
         channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL || undefined : undefined,
       })
@@ -636,7 +636,7 @@ test(
   { timeout: 120000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine, {
         channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL || undefined : undefined,
       })

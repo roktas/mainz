@@ -1,10 +1,10 @@
 // Checks scrollable Grid, virtualized pages, and frame geometry; alignment owns theme and selection combinations.
 
-import { launch } from "./browsers.js"
+import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
-import { chromium, webkit } from "playwright"
+import { chromium } from "playwright"
 import { fixture, captureLayout, tab, checkStatus, checkGridScroll } from "./browser.js"
 import { measure } from "./measure.js"
 import { quality } from "./quality.ts"
@@ -139,7 +139,7 @@ test("Grid scroll windows keep 300 pages reachable with stable card geometry", {
 })
 
 test(
-  "Grid preserves the first visible page through Flow switches and responsive resizing",
+  "Grid preserves the first visible page through Pages switches and responsive resizing",
   { timeout: 60000 },
   async () => {
     const server = await serve()
@@ -236,7 +236,7 @@ test(
     const server = await serve()
     const chapter = "Chapter 16. External filters, programs and commands " + "Long title ".repeat(6)
     const section = "16.6. Communications commands " + "Long section ".repeat(6)
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
@@ -319,7 +319,7 @@ test(
 
 test("List keyboard ranges and inspection preserve their pane, selection, and focus", { timeout: 60000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
@@ -384,7 +384,7 @@ test("List keyboard ranges and inspection preserve their pane, selection, and fo
 
 test("List row actions preserve selection and move individual occurrences", { timeout: 60000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
@@ -501,7 +501,7 @@ test("List row actions preserve selection and move individual occurrences", { ti
 
 test("List details stay anchored and row highlights remain flat", { timeout: 90000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     let page
     try {
@@ -727,7 +727,7 @@ test("Metadata-only Inputs expose every page in Grid, List, and Page", { timeout
 
 test("Grid headers reveal page names without changing card geometry", { timeout: 60000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
@@ -1338,7 +1338,7 @@ test("Touch Grid keeps full pages reachable across orientations", { timeout: 120
 
 test("Page labels and details retain aligned controls across themes and views", { timeout: 120000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ reducedMotion: "reduce" })
@@ -1436,7 +1436,7 @@ test(
   { timeout: 180000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })

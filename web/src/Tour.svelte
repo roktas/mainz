@@ -4,14 +4,14 @@
   export type TourStep =
     | "input"
     | "input-grid"
-    | "input-flow-toggle"
+    | "input-pages-toggle"
     | "input-list"
     | "input-page"
     | "style"
     | "style-profile"
     | "output-grid"
     | "output-list"
-    | "output-flow-toggle"
+    | "output-pages-toggle"
     | "output-selection"
     | "output-page"
     | "download"
@@ -73,10 +73,10 @@
         ]
       : []),
     {
-      key: hasInput ? "input-flow-toggle" : "output-flow-toggle",
-      title: "Switch Flow layouts",
+      key: hasInput ? "input-pages-toggle" : "output-pages-toggle",
+      title: "Switch Grid and List layouts",
       text: [
-        "Flow has Grid and List layouts. Use the button next to the Flow tab to switch between them.",
+        "Pages has Grid and List layouts. Use the button next to the Pages tab to switch between them.",
         "Each Input and Output keeps its own layout choice. Switching layouts does not change page order or selection.",
       ],
     },
@@ -86,9 +86,9 @@
             key: "input-list" as const,
             title: "Find pages in List",
             text: [
-              "Flow can show page numbers and names as a List. It shares selection with Grid and Page.",
+              "Pages can show page numbers and names as a List. It shares selection with Grid and Page.",
               "Select rows, then use the bar’s + to add them to Output. A row’s + adds that page without changing your selection.",
-              "The eye opens Page. Return with Flow to find the inspected row. The page number opens its details.",
+              "The eye opens Page. Return with Pages to find the inspected row. The page number opens its details.",
             ],
           },
           {
@@ -145,7 +145,7 @@
       key: "output-list",
       title: "Arrange Output in List",
       text: [
-        "Flow can show each Output copy in List order. Page numbers open source details, and the eye opens Page.",
+        "Pages can show each Output copy in List order. Page numbers open source details, and the eye opens Page.",
         "Drag a row’s grip to move it. Row actions move one page earlier or later, remove it, or duplicate it.",
         "Selected rows show a tick. The page field and bar apply actions to your selection across List, Grid, and Page.",
       ],

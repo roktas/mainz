@@ -47,6 +47,8 @@
 
 ### Changed
 
+- Rename the combined Grid/List tab from Flow to Pages, beside the single-page Page tab.
+
 - Remove Filename from Output page actions.
 
 - List retains every TOC entry as a separate header, including entries without children, and folds, selects, or copies

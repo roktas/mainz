@@ -1,12 +1,12 @@
 // Checks Page navigation, zoom, inspection, and shared Grid state.
 
-import { launch } from "./browsers.js"
+import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { mkdir, readFile } from "node:fs/promises"
-import { measure, gridDensity } from "./measure.js"
-import { chromium, webkit } from "playwright"
+import { measure } from "./measure.js"
+import { chromium } from "playwright"
 import { aligned, zoom } from "./workspace.js"
 import { fixture, hasCursor, tab, gridPage, pagePosition, image, pixel, captureLayout } from "./browser.js"
 
@@ -17,7 +17,7 @@ test("Long Page counters keep enlarged text and reachable zoom actions", { timeo
   let browser, page
   try {
     await mkdir("../.local/tmp/web/layout/page-counter", { recursive: true })
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       browser = await launch(engine)
       page = await browser.newPage({
         viewport: { width: 1440, height: 900 },
@@ -44,80 +44,75 @@ test("Long Page counters keep enlarged text and reachable zoom actions", { timeo
       await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill("1000")
       await input.getByLabel("Input page actions", { exact: true }).click()
       await input.getByRole("button", { name: "Add to Output", exact: true }).click()
-      for (const density of ["Normal", "Compact"]) {
-        await page.setViewportSize({ width: 1440, height: 900 })
-        await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
-        await tab(output, "Grid")
-        await gridDensity(output, `${density} Output grid`)
-        await tab(output, "Page")
-        if (density === "Compact")
-          await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
+      await page.setViewportSize({ width: 1440, height: 900 })
+      await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+      await tab(output, "Grid")
+      await tab(output, "Page")
+      await output.locator(".page-scroll").press("End")
+      assert.match(await pagePosition(output), /10000\s*\/ 10000/)
+      for (const [width, text, theme] of [
+        [320, "200%", "light"],
+        [320, "200%", "dark"],
+        [390, "200%", "dark"],
+        [768, "200%", "light"],
+        [320, "100%", "dark"],
+      ]) {
+        await page.setViewportSize({ width, height: 844 })
+        await page.evaluate((size) => (document.documentElement.style.fontSize = size), text)
+        await page.emulateMedia({ colorScheme: theme })
+        const views = page.locator(".mobile-workspace-tabs")
+        if (await views.isVisible()) await views.getByRole("button", { name: "Output", exact: true }).click()
+        await output.locator(".page-scroll").press("Home")
+        await aligned(output)
         await output.locator(".page-scroll").press("End")
-        assert.match(await pagePosition(output), /10000\s*\/ 10000/)
-        for (const [width, text, theme] of [
-          [320, "200%", "light"],
-          [320, "200%", "dark"],
-          [390, "200%", "dark"],
-          [768, "200%", "light"],
-          [320, "100%", "dark"],
-        ]) {
-          await page.setViewportSize({ width, height: 844 })
-          await page.evaluate((size) => (document.documentElement.style.fontSize = size), text)
-          await page.emulateMedia({ colorScheme: theme })
-          const views = page.locator(".mobile-workspace-tabs")
-          if (await views.isVisible()) await views.getByRole("button", { name: "Output", exact: true }).click()
-          await output.locator(".page-scroll").press("Home")
-          await aligned(output)
-          await output.locator(".page-scroll").press("End")
-          await aligned(output)
-          const geometry = await output.locator(".inspection-heading").evaluate((heading) => {
-            const counter = heading.querySelector(".page-number-control")
-            const bounds = counter.getBoundingClientRect()
-            const frame = heading.getBoundingClientRect()
-            const tools = [...heading.querySelectorAll(".page-tools button")]
-              .filter((button) => button.checkVisibility({ visibilityProperty: true }))
-              .map((button) => button.getBoundingClientRect())
-            return {
-              separate: tools.every((tool) => tool.left >= bounds.right),
-              contained: bounds.left >= frame.left && bounds.right <= frame.right,
-              font: getComputedStyle(counter.querySelector(".page-position")).fontSize,
-              expectedFont: getComputedStyle(
-                heading.closest(".composition-output").querySelector(".page-navigation button"),
-              ).fontSize,
-            }
-          })
-          const diagnostic = `${engine.name()}, ${density}, ${width}, ${text}, ${theme}`
-          assert.equal(geometry.separate && geometry.contained, true, diagnostic)
-          assert.equal(geometry.font, geometry.expectedFont, `${diagnostic}: counter retains full text size`)
-          if (width === 320 && text === "200%") {
-            assert.equal(await output.locator(".page-view").getAttribute("data-controls"), "menu", diagnostic)
-            await output.locator(".page-view").screenshot({
-              path: `../.local/tmp/web/layout/page-counter/${engine.name()}-${density}-${theme}.png`,
-            })
-            await output.locator(".page-scroll").press("+")
-            const trigger = output.getByLabel("Output page actions", { exact: true })
-            await trigger.click()
-            const menu = output.locator(".sequence-options")
-            const reset = menu.getByRole("button", { name: "Reset zoom", exact: true })
-            const target = await reset.boundingBox()
-            assert.ok(target.width >= 44 && target.height >= 44 && target.x >= 0 && target.x + target.width <= width)
-            await reset.press("Enter")
-            assert.equal((await output.getByLabel("Output page zoom", { exact: true }).textContent()).trim(), "100%")
-            await menu.getByRole("button", { name: "Fit width", exact: true }).click()
-            await trigger.click()
-            await aligned(output)
-            const fitted = await output.locator(".page-scroll").evaluate((viewport) => {
-              const canvas = viewport.querySelector("canvas").getBoundingClientRect()
-              const gutter = parseFloat(getComputedStyle(viewport.firstElementChild).paddingBlockStart)
-              return { image: canvas.width, available: viewport.clientWidth - 2 * gutter }
-            })
-            assert.ok(
-              fitted.image <= fitted.available + 1 && fitted.available - fitted.image < 4,
-              `${diagnostic}: menu fits the page width (${JSON.stringify(fitted)})`,
-            )
-          } else {
-            assert.notEqual(await output.locator(".page-view").getAttribute("data-controls"), "menu", diagnostic)
+        await aligned(output)
+        const geometry = await output.locator(".inspection-heading").evaluate((heading) => {
+          const counter = heading.querySelector(".page-number-control")
+          const bounds = counter.getBoundingClientRect()
+          const frame = heading.getBoundingClientRect()
+          const tools = [...heading.querySelectorAll(".page-tools button")]
+            .filter((button) => button.checkVisibility({ visibilityProperty: true }))
+            .map((button) => button.getBoundingClientRect())
+          return {
+            separate: tools.every((tool) => tool.left >= bounds.right),
+            contained: bounds.left >= frame.left && bounds.right <= frame.right,
+            font: getComputedStyle(counter.querySelector(".page-position")).fontSize,
+            expectedFont: getComputedStyle(
+              heading.closest(".composition-output").querySelector(".page-navigation button"),
+            ).fontSize,
           }
+        })
+        const diagnostic = `${engine.name()}, ${width}, ${text}, ${theme}`
+        assert.equal(geometry.separate && geometry.contained, true, diagnostic)
+        assert.equal(geometry.font, geometry.expectedFont, `${diagnostic}: counter retains full text size`)
+        if (width === 320 && text === "200%") {
+          assert.equal(await output.locator(".page-view").getAttribute("data-controls"), "menu", diagnostic)
+          await output.locator(".page-view").screenshot({
+            path: `../.local/tmp/web/layout/page-counter/${engine.name()}-${density}-${theme}.png`,
+          })
+          await output.locator(".page-scroll").press("+")
+          const trigger = output.getByLabel("Output page actions", { exact: true })
+          await trigger.click()
+          const menu = output.locator(".sequence-options")
+          const reset = menu.getByRole("button", { name: "Reset zoom", exact: true })
+          const target = await reset.boundingBox()
+          assert.ok(target.width >= 44 && target.height >= 44 && target.x >= 0 && target.x + target.width <= width)
+          await reset.press("Enter")
+          assert.equal((await output.getByLabel("Output page zoom", { exact: true }).textContent()).trim(), "100%")
+          await menu.getByRole("button", { name: "Fit width", exact: true }).click()
+          await trigger.click()
+          await aligned(output)
+          const fitted = await output.locator(".page-scroll").evaluate((viewport) => {
+            const canvas = viewport.querySelector("canvas").getBoundingClientRect()
+            const gutter = parseFloat(getComputedStyle(viewport.firstElementChild).paddingBlockStart)
+            return { image: canvas.width, available: viewport.clientWidth - 2 * gutter }
+          })
+          assert.ok(
+            fitted.image <= fitted.available + 1 && fitted.available - fitted.image < 4,
+            `${diagnostic}: menu fits the page width (${JSON.stringify(fitted)})`,
+          )
+        } else {
+          assert.notEqual(await output.locator(".page-view").getAttribute("data-controls"), "menu", diagnostic)
         }
       }
       await browser.close()
@@ -313,7 +308,7 @@ test("Page and Grid share viewport bounds and preserve fitted image sizes", { ti
       const returned = await image(output).boundingBox()
       assert.ok(
         Math.abs(returned.width - natural.width) < 1 && Math.abs(returned.height - natural.height) < 1,
-        "Flow changes preserve the fitted PDF at 200% text",
+        "Pages changes preserve the fitted PDF at 200% text",
       )
       await page.evaluate(() => (document.documentElement.style.fontSize = ""))
       await page.setViewportSize({ width: 1920, height: 1080 })
@@ -515,7 +510,7 @@ test("Page cancellation clears a pending pinch before the next render", { timeou
         else if (action === "navigate")
           viewport.closest(".page-view").querySelector('button[aria-label="Next Output page"]').click()
         else if (action === "detach")
-          [...pane.querySelectorAll('[role="tab"]')].find((tab) => tab.textContent.trim() === "Grid").click()
+          [...pane.querySelectorAll('[role="tab"]')].find((tab) => tab.textContent.trim() === "Pages").click()
         else pane.style.display = "none"
         if (action === "navigate") await new Promise((resolve) => requestAnimationFrame(resolve))
         if (action === "hidden" || action === "detach")
@@ -861,7 +856,6 @@ test(
         await page.setViewportSize({ width, height })
         await zoom(output, "Reset zoom")
         await tab(output, "Grid")
-        await gridDensity(output, "Normal Output grid")
         await ready()
         const edge = await lensEdge(output.locator(".thumbnail canvas").nth(2))
         assert.ok(edge > 160 && edge < 320)
@@ -907,18 +901,9 @@ test(
           `${width}: zoom retains balanced gutters at the scroll end (${trailingGap}, expected ${second[0]})`,
         )
         await tab(output, "Grid")
-        await gridDensity(output, "Compact Output grid")
         await ready()
-        const compactEdge = await lensEdge(output.locator(".page-image canvas").nth(2))
-        await tab(output, "Page")
-        await ready()
-        assert.ok(
-          Math.abs((await lensEdge(image(output))) - compactEdge) < 8,
-          "Page lens uses the enlarged Compact image scale",
-        )
       }
       await tab(output, "Grid")
-      await gridDensity(output, "Normal Output grid")
       await tab(output, "Page")
       await ready()
       await output.locator(".page-scroll").evaluate((element) => {
@@ -1328,7 +1313,7 @@ test("Touch Page swipes navigate only without horizontal overflow", { timeout: 1
 
 test("Page width fitting and horizontal keys preserve composition and focus", { timeout: 120000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine, { ignoreDefaultArgs: ["--hide-scrollbars"] })
     try {
       for (const touch of [false, true]) {
@@ -1402,7 +1387,7 @@ test("Page width fitting and horizontal keys preserve composition and focus", { 
 
 test("Page uses one frame contour for keyboard focus and none for pointer zoom", { timeout: 60000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     let page, label
     try {
@@ -1471,7 +1456,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({
@@ -1528,7 +1513,7 @@ test(
 
 test("Page double activation toggles anchored zoom and preserves composition", { timeout: 120000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine, { channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL : undefined })
     try {
       for (const [width, height, hasTouch, colorScheme] of [
@@ -1749,7 +1734,6 @@ test("Output Page keeps original PDF labels through composition and Input change
       assert.match(await pagePosition(output), new RegExp(`^${position}\\s*/ ${count}$`))
       assert.deepEqual(await labels.allTextContents(), label ? [label] : [])
     }
-    await gridDensity(input, "Compact Input grid")
     await tab(input, "List")
     assert.deepEqual(await input.locator(".list-pdf-label").allTextContents(), ["i", "ii", long])
     await tab(input, "Page")
@@ -1933,7 +1917,7 @@ test("Grid and Page switches preserve selections, zoom, and the inspected page",
     await zoom(input, "Zoom in")
     await ready()
     await image(input).click({ modifiers: ["ControlOrMeta"], position: { x: 100, y: 100 } })
-    assert.equal(await inputImage.isVisible(), true, "Grid returns to the inspected thumbnail batch")
+    assert.equal(await inputImage.isVisible(), true, "Grid returns to the inspected thumbnail")
     assert.equal(await pageFocused(), true)
     await inputImage.click({ modifiers: ["Meta"] })
     await ready()
@@ -1954,7 +1938,7 @@ test("Grid and Page switches preserve selections, zoom, and the inspected page",
     assert.equal(await inputImage.evaluate((element) => element === document.activeElement), true)
     await prepared.press("v")
     assert.equal(
-      await input.getByRole("tab", { name: "Flow", exact: true }).getAttribute("aria-selected"),
+      await input.getByRole("tab", { name: "Pages", exact: true }).getAttribute("aria-selected"),
       "true",
       "Typing V in a field does not switch views",
     )
@@ -2025,102 +2009,96 @@ test("Grid selection keeps painted pages in place", { timeout: 60000 }, async ()
             .getByRole("button", { name, exact: true })
             .click()
         const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-        for (const density of ["Normal", "Compact"]) {
-          const field = pane.getByLabel("Page selection", { exact: true })
-          await gridDensity(pane, `${density} ${name} grid`)
-          await field.fill("")
-          const range = pane.getByRole("slider", { name: `${name} thumbnail range`, exact: true })
-          if (await range.count()) await range.press("Home")
-          await page.waitForFunction(
-            (selector) => {
-              const panel = document.querySelector(selector)
-              const canvases = [...panel.querySelectorAll(".composition-card canvas")]
-              return (
-                canvases.length > 0 &&
-                canvases.length === panel.querySelectorAll(".composition-card").length &&
-                canvases.every((canvas) => canvas.width && canvas.height) &&
-                !panel.querySelector("[aria-busy=true]")
-              )
-            },
-            name === "Input" ? ".selection-panel" : ".composition-output",
+        const field = pane.getByLabel("Page selection", { exact: true })
+        await field.fill("")
+        await pane.locator(".grid-view").evaluate((element) => (element.scrollTop = 0))
+        await page.waitForFunction(
+          (selector) => {
+            const panel = document.querySelector(selector)
+            const canvases = [...panel.querySelectorAll(".composition-card canvas")]
+            return (
+              canvases.length > 0 &&
+              canvases.length === panel.querySelectorAll(".composition-card").length &&
+              canvases.every((canvas) => canvas.width && canvas.height) &&
+              !panel.querySelector("[aria-busy=true]")
+            )
+          },
+          name === "Input" ? ".selection-panel" : ".composition-output",
+        )
+        const painted = () =>
+          pane.locator(".composition-card canvas").evaluateAll((canvases) =>
+            canvases.map((canvas) => {
+              const card = canvas.closest(".composition-card").getBoundingClientRect()
+              const rectangle = canvas.getBoundingClientRect()
+              const area = canvas.closest(".thumbnail").getBoundingClientRect()
+              return {
+                x: rectangle.x - card.x,
+                y: rectangle.y - card.y,
+                width: rectangle.width,
+                height: rectangle.height,
+                centered: Math.abs(rectangle.top - area.top - (area.bottom - rectangle.bottom)) < 1,
+                pixels: canvas.toDataURL(),
+              }
+            }),
           )
-          const painted = () =>
-            pane.locator(".composition-card canvas").evaluateAll((canvases) =>
-              canvases.map((canvas) => {
-                const card = canvas.closest(".composition-card").getBoundingClientRect()
-                const rectangle = canvas.getBoundingClientRect()
-                const area = canvas.closest(".thumbnail").getBoundingClientRect()
-                return {
-                  x: rectangle.x - card.x,
-                  y: rectangle.y - card.y,
-                  width: rectangle.width,
-                  height: rectangle.height,
-                  centered: Math.abs(rectangle.top - area.top - (area.bottom - rectangle.bottom)) < 1,
-                  pixels: canvas.toDataURL(),
-                }
+        await measure(pane)
+        const count = await pane.locator(".composition-card").count()
+        const footers = pane.locator(".composition-card > .input-footer, .composition-card > .occurrence-actions")
+        const footerLines = async () => {
+          assert.equal(await footers.count(), count, `${name}: every visible card retains its footer`)
+          assert.equal(
+            await footers.evaluateAll((elements) =>
+              elements.every((element) => {
+                const style = getComputedStyle(element)
+                return parseFloat(style.borderBlockStartWidth) > 0 && element.getBoundingClientRect().height > 0
               }),
-            )
-          await measure(pane)
-          const count = await pane.locator(".composition-card").count()
-          const footers = pane.locator(".composition-card > .input-footer, .composition-card > .occurrence-actions")
-          const footerLines = async () => {
-            if (density === "Compact") return
-            assert.equal(await footers.count(), count, `${name}: every visible card retains its footer`)
-            assert.equal(
-              await footers.evaluateAll((elements) =>
-                elements.every((element) => {
-                  const style = getComputedStyle(element)
-                  return parseFloat(style.borderBlockStartWidth) > 0 && element.getBoundingClientRect().height > 0
-                }),
-              ),
-              true,
-              `${name}: footer lines and space remain available`,
-            )
-          }
-          const before = await painted()
-          assert.ok(
-            before.every((item) => item.centered),
-            "Images keep equal upper and lower margins",
+            ),
+            true,
+            `${name}: footer lines and space remain available`,
           )
-          await footerLines()
-          await pane.evaluate((element) => {
-            element.dataset.loading = "false"
-            const observer = new MutationObserver((mutations) => {
-              if (
-                mutations.some((mutation) =>
-                  [...mutation.addedNodes].some(
-                    (node) =>
-                      node instanceof Element &&
-                      (node.matches(".render-status") || node.querySelector(".render-status")),
-                  ),
-                )
+        }
+        const before = await painted()
+        assert.ok(
+          before.every((item) => item.centered),
+          "Images keep equal upper and lower margins",
+        )
+        await footerLines()
+        await pane.evaluate((element) => {
+          element.dataset.loading = "false"
+          const observer = new MutationObserver((mutations) => {
+            if (
+              mutations.some((mutation) =>
+                [...mutation.addedNodes].some(
+                  (node) =>
+                    node instanceof Element && (node.matches(".render-status") || node.querySelector(".render-status")),
+                ),
               )
-                element.dataset.loading = "true"
-            })
-            observer.observe(element, { childList: true, subtree: true })
-          })
-          for (const number of [1, count]) {
-            await pane.getByRole("button", { name: `Select ${name} page ${number}`, exact: true }).click()
-            await page.waitForFunction(
-              () => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"),
             )
-            const after = await painted()
-            await footerLines()
-            for (const [index, actual] of after.entries()) {
-              const { pixels, ...bounds } = actual
-              const { pixels: original, ...expected } = before[index]
-              assert.deepEqual(bounds, expected, `${name} ${density} page ${index + 1} keeps its position and size`)
-              assert.ok(pixels === original, `${name} page ${index + 1} keeps its painted content`)
-            }
-          }
-          await field.fill("")
+              element.dataset.loading = "true"
+          })
+          observer.observe(element, { childList: true, subtree: true })
+        })
+        for (const number of [1, count]) {
+          await pane.getByRole("button", { name: `Select ${name} page ${number}`, exact: true }).click()
           await page.waitForFunction(
             () => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"),
           )
-          assert.deepEqual(await painted(), before, `${name} restores controls without moving or repainting pages`)
+          const after = await painted()
           await footerLines()
-          assert.equal(await pane.getAttribute("data-loading"), "false", "Selection does not flash a loading indicator")
+          for (const [index, actual] of after.entries()) {
+            const { pixels, ...bounds } = actual
+            const { pixels: original, ...expected } = before[index]
+            assert.deepEqual(bounds, expected, `${name} page ${index + 1} keeps its position and size`)
+            assert.ok(pixels === original, `${name} page ${index + 1} keeps its painted content`)
+          }
         }
+        await field.fill("")
+        await page.waitForFunction(
+          () => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"),
+        )
+        assert.deepEqual(await painted(), before, `${name} restores controls without moving or repainting pages`)
+        await footerLines()
+        assert.equal(await pane.getAttribute("data-loading"), "false", "Selection does not flash a loading indicator")
       }
       await page.close()
     }
@@ -2165,7 +2143,7 @@ test("Unused and modified Grid keys preserve pointer controls and native shortcu
       for (const key of ["Control+Space", "Control+Enter", "Alt+Space", "Shift+Space", "Shift+Enter"]) {
         await page.keyboard.press(key)
         assert.equal(await thumbnail.evaluate(hasCursor), false, `${name}: ${key} does not create a page cursor`)
-        assert.equal(await pane.getByRole("tab", { name: "Flow", exact: true }).getAttribute("aria-selected"), "true")
+        assert.equal(await pane.getByRole("tab", { name: "Pages", exact: true }).getAttribute("aria-selected"), "true")
         assert.equal(await thumbnail.evaluate((element) => element === document.activeElement), true)
         assert.equal(await (name === "Input" ? prepared : selected).inputValue(), "")
       }
@@ -2180,10 +2158,10 @@ test("Unused and modified Grid keys preserve pointer controls and native shortcu
     }
     await selected.fill("2")
     for (const pane of [input, output]) {
-      await pane.getByRole("tab", { name: "Flow", exact: true }).focus()
+      await pane.getByRole("tab", { name: "Pages", exact: true }).focus()
       await page.keyboard.press("Control+ArrowLeft")
       assert.equal(await selected.inputValue(), "1", "Ctrl+arrows move Output while focus is on a view tab")
-      assert.equal(await pane.getByRole("tab", { name: "Flow", exact: true }).getAttribute("aria-selected"), "true")
+      assert.equal(await pane.getByRole("tab", { name: "Pages", exact: true }).getAttribute("aria-selected"), "true")
       await page.keyboard.press("Control+ArrowRight")
       assert.equal(await selected.inputValue(), "2")
     }
@@ -2448,7 +2426,6 @@ test(
       await page.locator(".input-current").filter({ hasText: "Large.pdf" }).waitFor()
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
-      await gridDensity(input, "Normal Input grid")
       const color = () =>
         input
           .locator("article.control")

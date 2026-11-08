@@ -1,6 +1,9 @@
 // Reuses default browser processes per file and closes each scenario's isolated contexts.
 
 import { after } from "node:test"
+import { chromium, webkit } from "playwright"
+
+export const engines = process.env.MAINZ_SKIP_WEBKIT === "1" ? [chromium] : [chromium, webkit]
 
 const processes = new Map()
 

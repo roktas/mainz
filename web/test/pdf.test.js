@@ -1,12 +1,11 @@
 // Checks preview raster ownership and eviction in the browser canvas implementation.
 
-import { launch } from "./browsers.js"
+import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
-import { chromium, webkit } from "playwright"
+import { chromium } from "playwright"
 import { fixture, tab, pixel, trackWorkers } from "./browser.js"
-import { gridDensity } from "./measure.js"
 
 test("The maintained demo declares its book title and physical page names", { timeout: 30000 }, async () => {
   const server = await serve()
@@ -192,7 +191,6 @@ test(
           assert.deepEqual(pattern.right, [0, 0, 255])
           assert.ok(Math.abs(pattern.width / pattern.height - 2) < 0.1, "PNG pixels retain their 2:1 proportions")
         }
-        await gridDensity(input, "Compact Input grid")
         await page.waitForFunction(() => !document.querySelector('.thumbnail[aria-busy="true"]'))
         assert.equal(await page.evaluate(() => window.previewDecodes), 1)
         await tab(input, "Page")
@@ -422,7 +420,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit])
+    for (const engine of engines)
       for (const dpr of [0.5, 1, 1.5, 2]) {
         const browser = await launch(engine)
         try {

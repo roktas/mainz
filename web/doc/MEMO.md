@@ -393,7 +393,7 @@ those exports remain synthetic. Keep physical panel, logical scaling, and DPR se
 The development-only `?geometry` entry opens the Grid fixture and provides local JSON/CSV exports. Keep both panes in
 Grid and wait for loading to finish before capture. The probe records rendered CSS bounds, viewport units, safe areas,
 matching media queries, and one Normal Grid measurement per pane. Captures include the total page count, mounted card
-count, visible rows, internal scroll extent, and page geometry. The capture restores the previous pane, Flow
+count, visible rows, internal scroll extent, and page geometry. The capture restores the previous pane, Pages
 presentation, focus, and scroll. Exported measurements contain no PDF content. Device labels are explicit metadata. The
 probe leaves unknown hardware and browser configuration values unknown.
 

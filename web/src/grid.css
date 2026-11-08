@@ -950,7 +950,7 @@
       rotate: 90deg;
     }
 
-    .flow-toggle {
+    .pages-toggle {
       display: inline grid;
       place-items: center;
       inline-size: 46px;

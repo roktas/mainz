@@ -130,10 +130,10 @@ viewport stays neutral. Border, header, footer, and padding compensation prevent
 their images. Keyboard focus on the Page viewport uses the complete frame's secondary contour. Pointer zoom focuses the
 viewport for navigation without showing that contour or a clipped inner outline.
 
-Returning through view tabs or the Flow presentation switch briefly marks the inspected item with a 30% secondary tint.
-Keep the cue for 1200 ms, with a longer fade after the initial hold. Hold the final color until the cue clears. Reduced
-motion uses the same static cue without fading. The active tab or Flow switch retains focus. Keyboard content returns
-focus the inspected item without this cue. The cue does not select the item or reopen its preview.
+Returning through view tabs or the Pages layout switch briefly marks the inspected item with a 30% secondary tint. Keep
+the cue for 1200 ms, with a longer fade after the initial hold. Hold the final color until the cue clears. Reduced
+motion uses the same static cue without fading. The active tab or Pages layout switch retains focus. Keyboard content
+returns focus the inspected item without this cue. The cue does not select the item or reopen its preview.
 
 Motion follows reduced-motion preferences. Hover lifts, drag tilt, parallax, fades, and animated movement disappear
 under reduced motion. Static selection and operation highlights remain. Loading indicators retain a visible busy state
@@ -273,16 +273,17 @@ Pointer opening places initial focus on the Settings drawer. Keyboard opening fo
 navigation keeps a visible focus indicator on each control.
 
 Tabs use square corners and an accent underline. Unselected tabs gain color on hover. Keyboard focus uses a soft tint
-and one border, without glow. Input offers Flow, Page, and eligible Style tabs. Output offers Flow and Page. Each Flow
-toolbar includes a labeled Grid/List switch outside the tablist. This switch has a 46 × 46 CSS px target. Its icon,
-title, and accessible name identify the presentation that activation selects. Each Input and Output retains its Flow
-presentation. Focus stays on the switch after activation.
+and one border, without glow. Input offers Pages, Page, and eligible Style tabs. Output offers Pages and Page. Each
+Pages toolbar includes a labeled Grid/List switch outside the tablist. This switch has a 46 × 46 CSS px target. Its
+icon, title, and accessible name identify the presentation that activation selects. Each Input and Output retains its
+Pages presentation. Focus stays on the switch after activation.
 
 Toolbars at or below 26 em use icon-only tabs. Wider panes show text. Keep at least 12 CSS px between adjacent tab
-contents when labels are visible. Tabs, the Flow switch, and Style tools must not wrap or overlap. Keep their height
-consistent across views so that the pane content frame does not move. Inset each active tab underline by 4 CSS px.
+contents when labels are visible. Tabs, the Pages layout switch, and Style tools must not wrap or overlap. Keep their
+height consistent across views so that the pane content frame does not move. Inset each active tab underline by 4 CSS
+px.
 
-Go to page sits at the end of the Flow/Page toolbar. Its icon opens a compact panel centered below the trigger within
+Go to page sits at the end of the Pages/Page toolbar. Its icon opens a compact panel centered below the trigger within
 the viewport gutters. The panel has one numeric-keyboard field, a Go action, first and last page icons, the valid page
 range, and a Close target. Opening selects the current page number. Enter confirms valid input; Escape cancels.
 Navigation preserves Selection. The Selection bar and its hints retain their selection role.
@@ -340,7 +341,7 @@ images. Input and Output use the same control dimensions. Preserve usable field 
 
 ## List
 
-Contents uses an open-book icon distinct from List, fixed at the far right of Input's Flow and Page toolbar. The Flow
+Contents uses an open-book icon distinct from List, fixed at the far right of Input's Pages and Page toolbar. The Pages
 switch sits beside the tabs. Its tree uses indentation, fine branch lines, quiet page positions, and a thin
 current-section marker. Nodes have no individual boxes or filled cards. Full titles wrap, and navigation preserves
 selection. Output has no Contents control.
@@ -452,7 +453,7 @@ removal/duplication into two contiguous pairs, with 6 px between the pairs and n
 and the Output pairs appear on row hover or focus. Hover changes the icon color without boxes or glow. Eye and the
 selection tick remain visible. Row actions use 32 px targets with a fine pointer and 44 px targets for touch, in both
 themes. Coarse pointers keep Input Add visible. Output uses a row-menu button for coarse pointers and narrow panes. Page
-details use a compact, start-aligned popover beside the number, including in narrow panes. List uses the same Flow
+details use a compact, start-aligned popover beside the number, including in narrow panes. List uses the same Pages
 switch as Grid. Switching views retains the toolbar height and content-frame position.
 
 Each row has a grip beside its number and a View icon at the trailing edge. View hover or keyboard focus shows a large
@@ -477,10 +478,10 @@ across the row's top or bottom edge.
 Grid renders page cards in continuous rows inside its fixed viewport. Input uses an HTML list, and Output uses an
 ordered list. Long documents mount a bounded row window and spacer rows. The scrollbar stays in the pane gutter. Wheel,
 touch, and keyboard navigation reach the full sequence. Responsive columns preserve the first visible page. Changing
-Flow presentation restores the previous Grid or List scroll position.
+Pages layout restores the previous Grid or List scroll position.
 
 Grid footer actions appear on hover or focus with a fine pointer. Input's Add action stays visible on touch. Output
-touch actions use the existing menu. The card footer design is separate from the Flow layout. Do not change its content
+touch actions use the existing menu. The card footer design is separate from the Pages layout. Do not change its content
 or targets while changing scroll behavior.
 
 A page name appears in a one-line tooltip when a Grid or Page number receives hover or keyboard focus. Long names
@@ -550,7 +551,7 @@ lens above or below the finger. Grip dragging responds directly to finger moveme
 selection and touch callouts while preserving ordinary scrolling.
 
 PDF content, Blank, and Padding keep physical proportions and the same fit rules. Neutral image frames distinguish white
-page edges in light mode. Resizing and Flow presentation changes keep completed pixels visible until replacement renders
+page edges in light mode. Resizing and Pages layout changes keep completed pixels visible until replacement renders
 finish. Selection does not clear or repaint unchanged images. Initial previews show a small centered loading ring with
 an accessible busy state. Rendering does not stretch unfinished canvases.
 
@@ -753,7 +754,7 @@ not change geometry.
 
 All page additions use a 600 ms preview along a shallow curve, including copies, repetition, and Blank insertion. A
 group uses a small page stack. Input additions use the Output workspace button on single-pane layouts. Otherwise, the
-preview moves toward a new Output image in the visible Grid batch, or the Output heading when no new image is displayed
+preview moves toward a new Output image in the visible Grid window, or the Output heading when no new image is displayed
 or Output is in Page. Single-pane layouts use the Output button when no new image is displayed. Preview centers follow
 the visible source image and target on both axes. Grid arrivals match the target image size across pane densities. A
 Blank uses a blank preview.
@@ -802,9 +803,9 @@ The [browser suites](../test/) own automated visual and interaction assertions. 
 execution commands. Layout changes exercise both themes, keyboard focus, normal and 200% text, and widths of 320, 390,
 and 768 px. The [feedback tests](../test/feedback.test.js) also cover header layout boundaries, long filenames, modal
 cancellation and recovery, and matching desktop landing/workspace edges. Desktop changes exercise scroll geometry, mixed
-page sizes, Flow presentations, and Grid/Page alignment. Relevant cases include empty and selected states, long
-filenames, five-digit page numbers, loading, errors, cancellation, and reduced motion. No layout introduces horizontal
-overflow or conceals an action behind a fold, toolbar, or fixed status row. Touch emulation covers taps and scrolling.
+page sizes, Pages layouts, and Grid/Page alignment. Relevant cases include empty and selected states, long filenames,
+five-digit page numbers, loading, errors, cancellation, and reduced motion. No layout introduces horizontal overflow or
+conceals an action behind a fold, toolbar, or fixed status row. Touch emulation covers taps and scrolling.
 Physical-device drag behavior and assistive technology require separate evidence.
 
 Physical iOS acceptance includes a fresh Home Screen installation, the icon on light and dark wallpaper, and paired
@@ -815,8 +816,8 @@ These cases remain open until their physical evidence exists.
 
 Animation assertions wait for the rendered effect to start before checking its duration or geometry. Updated document
 totals do not prove that a transition has started. Full mode runs edit feedback checks with CPU throttling and
-identifies the viewport and Flow presentation in its diagnostics. Do not use fixed sleeps or automatic retries to hide
-timing failures.
+identifies the viewport and Pages layout in its diagnostics. Do not use fixed sleeps or automatic retries to hide timing
+failures.
 
 Alignment is an acceptance gate for every layout change. Exercise each affected width range, including both sides of its
 responsive boundaries. Check both panes in Grid, List, and Page, with both themes, normal and 200% text, selected and
@@ -941,18 +942,18 @@ Tab, tab list, and tab panel follow the [W3C tabs terminology](https://www.w3.or
 
 | English term                 | Turkish equivalent                   | UI element                                                                     |
 | ---------------------------- | ------------------------------------ | ------------------------------------------------------------------------------ |
-| View toolbar                 | Görünüm araç çubuğu                  | The row with view tabs, the Flow switch, and Style actions.                    |
-| Tab list                     | Sekme çubuğu                         | The Flow, Page, and Style tabs. Help groups Keyboard and Mouse.                |
-| Tab                          | Sekme                                | One Flow, Page, Style, Keyboard, or Mouse choice.                              |
+| View toolbar                 | Görünüm araç çubuğu                  | The row with view tabs, the Pages layout switch, and Style actions.            |
+| Tab list                     | Sekme çubuğu                         | The Pages, Page, and Style tabs. Help groups Keyboard and Mouse.               |
+| Tab                          | Sekme                                | One Pages, Page, Style, Keyboard, or Mouse choice.                             |
 | Tab panel                    | Sekme içerik paneli                  | The content area associated with the active tab.                               |
 | Active tab indicator         | Etkin sekme göstergesi               | The accent underline beneath the active tab.                                   |
-| Flow presentation switch     | Akış görünümü anahtarı               | One button that toggles Grid and List inside Flow.                             |
+| Pages layout switch          | Sayfa düzeni anahtarı                | One button that toggles Grid and List inside Pages.                            |
 | Export recipe button / panel | Recipe dışa aktarma düğmesi / paneli | The arrow-out-of-square icon and the panel for saving portable Recipe JSON.    |
 | View switcher                | Görünüm değiştirici                  | The mobile Input/Output switch. Its buttons expose their pressed state.        |
 | Modified indicator           | Değişiklik göstergesi                | The small dot on the Style tab that indicates overrides or drafts.             |
 | Unavailable indicator        | Kullanılamazlık göstergesi           | The crossed-out brush and explanation for a visible but unavailable Style tab. |
 
-Flow presentation switches sit outside the tab list. The mobile view switcher uses buttons rather than tab roles.
+Pages layout switches sit outside the tab list. The mobile view switcher uses buttons rather than tab roles.
 
 | English term      | Turkish equivalent   | UI element                                                                              |
 | ----------------- | -------------------- | --------------------------------------------------------------------------------------- |

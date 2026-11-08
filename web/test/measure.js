@@ -66,7 +66,7 @@ export async function collect(page, screenshot) {
       const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
       if (mode === "page") await pane.getByRole("tab", { name: "Page", exact: true }).click()
       else if (mode === "list") {
-        await pane.getByRole("tab", { name: "Flow", exact: true }).click()
+        await pane.getByRole("tab", { name: "Pages", exact: true }).click()
         const toggle = pane.getByRole("button", { name: `Show ${name} List`, exact: true })
         if (await toggle.count()) await toggle.click()
       }

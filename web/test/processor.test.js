@@ -1,10 +1,10 @@
 // Checks worker ownership, failure recovery, and immutable page and style reuse.
 
-import { launch } from "./browsers.js"
+import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { crc32, deflateSync } from "node:zlib"
-import { chromium, webkit } from "playwright"
+import { chromium } from "playwright"
 import { createServer } from "vite"
 import { serve } from "./server.ts"
 import { fixture, trackWorkers } from "./browser.js"
@@ -188,7 +188,7 @@ test(
 
 test("Processor failures remain recoverable in Chromium and WebKit", { timeout: 60000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine, { channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL : undefined })
     try {
       const page = await browser.newPage()

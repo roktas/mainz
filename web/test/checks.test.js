@@ -1,10 +1,10 @@
 // Exercises shared Recipe cases through loading, explicit review, and reference alignment.
 
-import { launch } from "./browsers.js"
+import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { readFile, mkdir } from "node:fs/promises"
-import { chromium, webkit } from "playwright"
+import { chromium } from "playwright"
 import { serve } from "./server.ts"
 
 test(
@@ -127,7 +127,7 @@ test("Recipe Apply errors use the header without moving matched PDF rows", { tim
   const recipe = await (await fetch(`${base}checks/count.json`)).json()
   recipe.metadata = { title: "Recipe checks", coverPage: 3 }
   const pdf = Buffer.from(await (await fetch(`${base}checks/count.pdf`)).arrayBuffer())
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })
@@ -179,7 +179,7 @@ test("Recipe Input checks share policy and preserve explicit alignment intent", 
   const cases = await response.json()
   const screenshots = new URL("../../.local/tmp/web/layout/recipe/", import.meta.url)
   await mkdir(screenshots, { recursive: true })
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })
@@ -327,7 +327,7 @@ test(
     const base = server.resolvedUrls.local[0]
     const screenshots = new URL("../../.local/tmp/web/layout/recipe/", import.meta.url)
     await mkdir(screenshots, { recursive: true })
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })

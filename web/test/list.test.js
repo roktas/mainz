@@ -1,6 +1,6 @@
 // Checks full-page List inspection, whole-row focus, edit feedback, and native/touch transfers.
 
-import { launch } from "./browsers.js"
+import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { mkdir, writeFile } from "node:fs/promises"
@@ -13,7 +13,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "no-preference" })
@@ -49,7 +49,7 @@ test(
           assert.equal(
             await toc.evaluate((button) => getComputedStyle(button).color),
             await input
-              .getByRole("tab", { name: view === "Page" ? "Page" : "Flow", exact: true })
+              .getByRole("tab", { name: view === "Page" ? "Page" : "Pages", exact: true })
               .evaluate((button) => getComputedStyle(button).color),
           )
           await page
@@ -81,7 +81,7 @@ test(
             )
           assert.equal(
             await input
-              .getByRole("tab", { name: view === "Page" ? "Page" : "Flow", exact: true })
+              .getByRole("tab", { name: view === "Page" ? "Page" : "Pages", exact: true })
               .getAttribute("aria-selected"),
             "true",
             "Contents preserves the active view",
@@ -122,7 +122,7 @@ test("List section paths put the current title first and open details independen
     "Chapter One: Preparing Original Sources",
     "Section One: Page Ordering and Copies",
   ]
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, reducedMotion: "reduce" })
@@ -257,7 +257,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
@@ -317,7 +317,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1920, height: 1440 }, reducedMotion: "reduce" })
@@ -419,7 +419,7 @@ test(
 
 test("List flattens chapter trees and folds, selects, and copies complete subtrees", { timeout: 60000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1920, height: 1200 }, reducedMotion: "reduce" })
@@ -613,7 +613,7 @@ test("List flattens chapter trees and folds, selects, and copies complete subtre
 
 test("Input List gives defined PDF page labels their own column before page names", { timeout: 60000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, reducedMotion: "reduce" })
@@ -749,7 +749,7 @@ test("Input List gives defined PDF page labels their own column before page name
 
 test("List section headings default to shown and toggle independently without changing pages", async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
@@ -846,7 +846,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
@@ -1267,7 +1267,7 @@ test(
 
 test("List section summaries reveal every same-page section across hierarchy levels", { timeout: 60000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
@@ -1348,7 +1348,7 @@ test("List section summaries reveal every same-page section across hierarchy lev
 
 test("Contents titles are a per-Input display preference with authored-name fallback", { timeout: 60000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
@@ -1419,7 +1419,7 @@ test("Contents titles are a per-Input display preference with authored-name fall
 
 test("Contents keeps compact rows and fixed width across disclosure states", { timeout: 60000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       for (const hasTouch of [false, true]) {
@@ -1615,7 +1615,7 @@ test("List strips stay flat and follow their original grab point", { timeout: 30
 
 test("List aligns plain and actionable page numbers in shared columns", { timeout: 60000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const { page, input, output } = await lists(browser, server.resolvedUrls.local[0])
@@ -1940,7 +1940,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const { page, input, output } = await lists(browser, server.resolvedUrls.local[0])
@@ -2046,7 +2046,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         for (const touch of [false, true]) {
@@ -2110,7 +2110,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         for (const mode of ["List", "Grid"]) {
@@ -2170,132 +2170,141 @@ test(
   },
 )
 
-test("Flow view returns reveal the inspected page across panes and keyboard gestures", { timeout: 90000 }, async () => {
-  const server = await serve()
-  for (const engine of [chromium, webkit]) {
-    const browser = await launch(engine)
-    try {
-      const page = await browser.newPage({
-        viewport: { width: 1440, height: 1100 },
-        reducedMotion: engine === chromium ? "no-preference" : "reduce",
-      })
-      page.setDefaultTimeout(10000)
-      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.route("**/grid.pdf", (route) =>
-        route.fulfill({ contentType: "application/pdf", body: fixture({ count: 60 }) }),
-      )
-      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-      await page.locator('.composer[aria-busy="false"]').waitFor()
-      for (const [pane, name] of [
-        [page.locator(".selection-panel"), "Input"],
-        [page.locator(".composition-output"), "Output"],
-      ]) {
-        await tab(pane, "List")
-        const selection = pane.getByRole("textbox", { name: "Page selection", exact: true })
-        await selection.fill("1,3")
-        await pane.locator(".page-list").focus()
-        await page.keyboard.press("End")
-        for (let index = 0; index < 13; index++) await page.keyboard.press("ArrowUp")
-        await pane.getByRole("button", { name: `View ${name} page 47`, exact: true }).click()
-        await pane.getByRole("button", { name: `Next ${name} page`, exact: true }).click()
-        const listTab = pane.getByRole("tab", { name: "Flow", exact: true })
-        await listTab.click()
-        const row = pane.locator('.list-choice[data-page="47"]'),
-          item = row.locator("xpath=ancestor::li[1]")
-        await item.locator(":scope[data-returning]").waitFor()
-        assert.equal(await listTab.evaluate((element) => element === document.activeElement), true)
-        const bounds = await item.boundingBox(),
-          area = await pane.locator(".page-list").boundingBox()
-        assert.ok(
-          bounds.y >= area.y - 1 && bounds.y + bounds.height <= area.y + area.height + 1,
-          JSON.stringify({ bounds, area }),
+test(
+  "Pages view returns reveal the inspected page across panes and keyboard gestures",
+  { timeout: 90000 },
+  async () => {
+    const server = await serve()
+    for (const engine of engines) {
+      const browser = await launch(engine)
+      try {
+        const page = await browser.newPage({
+          viewport: { width: 1440, height: 1100 },
+          reducedMotion: engine === chromium ? "no-preference" : "reduce",
+        })
+        page.setDefaultTimeout(10000)
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.route("**/grid.pdf", (route) =>
+          route.fulfill({ contentType: "application/pdf", body: fixture({ count: 60 }) }),
         )
-        assert.equal(await selection.inputValue(), "1,3")
-        assert.equal(await page.locator(".page-peek:popover-open").count(), 0)
-        assert.equal(
-          await item.evaluate((element) => {
-            const reference = document.createElement("span")
-            reference.style.background = "var(--return-surface)"
-            element.append(reference)
-            const highlighted =
-              getComputedStyle(element).backgroundColor !== getComputedStyle(reference).backgroundColor
-            reference.remove()
-            return highlighted
-          }),
-          true,
-        )
-        if (engine === webkit) assert.equal(await item.evaluate((element) => element.getAnimations().length), 0)
-        else {
-          await page.waitForFunction(() => document.querySelector("[data-returning]")?.getAnimations().length > 0)
-          assert.equal(await item.evaluate((element) => element.getAnimations()[0].effect.getTiming().duration), 1200)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+        await page.locator('.composer[aria-busy="false"]').waitFor()
+        for (const [pane, name] of [
+          [page.locator(".selection-panel"), "Input"],
+          [page.locator(".composition-output"), "Output"],
+        ]) {
+          await tab(pane, "List")
+          const selection = pane.getByRole("textbox", { name: "Page selection", exact: true })
+          await selection.fill("1,3")
+          await pane.locator(".page-list").focus()
+          await page.keyboard.press("End")
+          for (let index = 0; index < 13; index++) await page.keyboard.press("ArrowUp")
+          await pane.getByRole("button", { name: `View ${name} page 47`, exact: true }).click()
+          await pane.getByRole("button", { name: `Next ${name} page`, exact: true }).click()
+          const listTab = pane.getByRole("tab", { name: "Pages", exact: true })
+          await listTab.click()
+          const row = pane.locator('.list-choice[data-page="47"]'),
+            item = row.locator("xpath=ancestor::li[1]")
+          await item.locator(":scope[data-returning]").waitFor()
+          assert.equal(await listTab.evaluate((element) => element === document.activeElement), true)
+          const bounds = await item.boundingBox(),
+            area = await pane.locator(".page-list").boundingBox()
+          assert.ok(
+            bounds.y >= area.y - 1 && bounds.y + bounds.height <= area.y + area.height + 1,
+            JSON.stringify({ bounds, area }),
+          )
+          assert.equal(await selection.inputValue(), "1,3")
+          assert.equal(await page.locator(".page-peek:popover-open").count(), 0)
           assert.equal(
             await item.evaluate((element) => {
-              element.getAnimations()[0].finish()
-              const animation = element.getAnimations()[0]
-              return (
-                animation.effect.getComputedTiming().progress === 1 && animation.effect.getTiming().fill === "forwards"
-              )
+              const reference = document.createElement("span")
+              reference.style.background = "var(--return-surface)"
+              element.append(reference)
+              const highlighted =
+                getComputedStyle(element).backgroundColor !== getComputedStyle(reference).backgroundColor
+              reference.remove()
+              return highlighted
             }),
             true,
           )
+          if (engine === webkit) assert.equal(await item.evaluate((element) => element.getAnimations().length), 0)
+          else {
+            await page.waitForFunction(() => document.querySelector("[data-returning]")?.getAnimations().length > 0)
+            assert.equal(await item.evaluate((element) => element.getAnimations()[0].effect.getTiming().duration), 1200)
+            assert.equal(
+              await item.evaluate((element) => {
+                element.getAnimations()[0].finish()
+                const animation = element.getAnimations()[0]
+                return (
+                  animation.effect.getComputedTiming().progress === 1 &&
+                  animation.effect.getTiming().fill === "forwards"
+                )
+              }),
+              true,
+            )
+          }
+          await item.locator(":scope[data-returning]").waitFor({ state: "detached" })
+          await row.focus()
+          await page.keyboard.press("v")
+          await pane.getByRole("button", { name: `Previous ${name} page`, exact: true }).click()
+          await pane.locator(".page-scroll").focus()
+          await page.keyboard.press("v")
+          let current = 46
+          const choice = pane.locator(`.list-choice[data-page="${current}"]`)
+          assert.equal(await choice.evaluate((element) => element === document.activeElement), true)
+          assert.equal(await pane.locator("[data-returning]").count(), 0)
+          assert.equal(await selection.inputValue(), "1,3")
+          const rememberedScroll = await pane.locator(".page-list").evaluate((element) => element.scrollTop)
+          await tab(pane, "Grid")
+          let card = await gridPage(pane, current + 1)
+          await card.click({ modifiers: ["Control"] })
+          assert.equal(await selection.inputValue(), "1,3")
+          await pane.getByRole("button", { name: `Next ${name} page`, exact: true }).click()
+          current++
+          const gridTab = pane.getByRole("tab", { name: "Pages", exact: true })
+          await gridTab.click()
+          card = pane.locator(`.page-image[data-page="${current}"]`)
+          await card.locator("..").locator(":scope[data-returning]").waitFor()
+          assert.equal(await gridTab.evaluate((element) => element === document.activeElement), true)
+          assert.equal(
+            await card
+              .locator('xpath=ancestor::*[contains(@class, "composition-card")][1]')
+              .evaluate((element) => Math.round(element.getBoundingClientRect().width)),
+            148,
+          )
+          await card.click({ modifiers: ["Meta"] })
+          await pane.locator(".page-scroll").focus()
+          await page.keyboard.press("v")
+          assert.equal(await card.evaluate((element) => element === document.activeElement), true)
+          assert.equal(await pane.locator("[data-returning]").count(), 0)
+          assert.equal(await selection.inputValue(), "1,3")
+          await tab(pane, "List")
+          await pane.locator(".page-list").waitFor()
+          assert.ok(
+            Math.abs((await pane.locator(".page-list").evaluate((element) => element.scrollTop)) - rememberedScroll) <
+              2,
+            `${name} List restores its own scroll position after Grid`,
+          )
+          assert.equal(
+            await pane.locator(".pages-toggle").evaluate((element) => element === document.activeElement),
+            true,
+          )
+          assert.equal(await selection.inputValue(), "1,3")
         }
-        await item.locator(":scope[data-returning]").waitFor({ state: "detached" })
-        await row.focus()
-        await page.keyboard.press("v")
-        await pane.getByRole("button", { name: `Previous ${name} page`, exact: true }).click()
-        await pane.locator(".page-scroll").focus()
-        await page.keyboard.press("v")
-        let current = 46
-        const choice = pane.locator(`.list-choice[data-page="${current}"]`)
-        assert.equal(await choice.evaluate((element) => element === document.activeElement), true)
-        assert.equal(await pane.locator("[data-returning]").count(), 0)
-        assert.equal(await selection.inputValue(), "1,3")
-        const rememberedScroll = await pane.locator(".page-list").evaluate((element) => element.scrollTop)
-        await tab(pane, "Grid")
-        let card = await gridPage(pane, current + 1)
-        await card.click({ modifiers: ["Control"] })
-        assert.equal(await selection.inputValue(), "1,3")
-        await pane.getByRole("button", { name: `Next ${name} page`, exact: true }).click()
-        current++
-        const gridTab = pane.getByRole("tab", { name: "Flow", exact: true })
-        await gridTab.click()
-        card = pane.locator(`.page-image[data-page="${current}"]`)
-        await card.locator("..").locator(":scope[data-returning]").waitFor()
-        assert.equal(await gridTab.evaluate((element) => element === document.activeElement), true)
-        assert.equal(
-          await card
-            .locator('xpath=ancestor::*[contains(@class, "composition-card")][1]')
-            .evaluate((element) => Math.round(element.getBoundingClientRect().width)),
-          148,
-        )
-        await card.click({ modifiers: ["Meta"] })
-        await pane.locator(".page-scroll").focus()
-        await page.keyboard.press("v")
-        assert.equal(await card.evaluate((element) => element === document.activeElement), true)
-        assert.equal(await pane.locator("[data-returning]").count(), 0)
-        assert.equal(await selection.inputValue(), "1,3")
-        await tab(pane, "List")
-        await pane.locator(".page-list").waitFor()
-        assert.ok(
-          Math.abs((await pane.locator(".page-list").evaluate((element) => element.scrollTop)) - rememberedScroll) < 2,
-          `${name} List restores its own scroll position after Grid`,
-        )
-        assert.equal(await pane.locator(".flow-toggle").evaluate((element) => element === document.activeElement), true)
-        assert.equal(await selection.inputValue(), "1,3")
+        await page.close()
+      } finally {
+        await browser.close()
       }
-      await page.close()
-    } finally {
-      await browser.close()
     }
-  }
-})
+  },
+)
 
 test(
   "List keys share Grid edits and modified arrows move the focused Output occurrence",
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const { page, input, output } = await lists(browser, server.resolvedUrls.local[0])
@@ -2492,7 +2501,7 @@ test(
   { timeout: 90000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
@@ -2580,7 +2589,7 @@ test(
 
 test("List previews whole pages and returns to its row without changing selection", { timeout: 60000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const { page, input, output } = await lists(browser, server.resolvedUrls.local[0])
@@ -3187,7 +3196,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
@@ -3245,7 +3254,7 @@ test(
 
 test("Unmounted List details release preview ownership without clearing selection", { timeout: 60000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const { page, output } = await blankList(browser, server.resolvedUrls.local[0], 1000)
@@ -3348,7 +3357,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
@@ -3405,7 +3414,7 @@ test(
 
 test("Input additions fly from Grid and List to visible Output in both pane layouts", { timeout: 120000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       for (const width of [390, 1440])
@@ -3483,7 +3492,7 @@ test(
   { timeout: 120000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         for (const width of [810, 1440]) {
@@ -3568,7 +3577,7 @@ test(
   { timeout: 120000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({

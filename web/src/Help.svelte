@@ -583,7 +583,8 @@
               <p>The zoom reset button returns to the complete page at 100%. At 100%, it fits the page to the width.</p>
               <p>
                 Double-tap a Grid image to open Page. In Page, double-tap to zoom to 200% at that point, or return an
-                enlarged page to 100%. Flow switches between Grid images and a List without changing your selection.
+                enlarged page to 100%. Pages lets you switch between Grid images and a List without changing your
+                selection.
               </p>
               <p>
                 Drag pages from their grips. In Page, swipe left or right to change pages when the image fits

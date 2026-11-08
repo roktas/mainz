@@ -92,8 +92,8 @@
   let outputZoom = $state(100)
   let comparing = $state(false)
   const key = $props.id()
-  const viewTabs = ["flow", "page"] as const
-  const viewLabels = { flow: "Flow", page: "Page" }
+  const viewTabs = ["pages", "page"] as const
+  const viewLabels = { pages: "Pages", page: "Page" }
   function summary(element: HTMLDivElement) {
     const counts = element.querySelector<HTMLElement>(".composition-totals")!
     let frame: number
@@ -115,8 +115,8 @@
   const initialView: InputView = {
     grouped: true,
     tocTitles: false,
-    tab: untrack(() => (initial.input === "grid" || initial.input === "list" ? "flow" : initial.input)),
-    flow: untrack(() => (initial.input === "list" ? "list" : "grid")),
+    tab: untrack(() => (initial.input === "grid" || initial.input === "list" ? "pages" : initial.input)),
+    pagesMode: untrack(() => (initial.input === "list" ? "list" : "grid")),
     position: 0,
     zoom: 100,
     offset: 0,
@@ -163,8 +163,8 @@
   let outputText = $state<string>()
   let repetitions = $state("2")
   let front = $state(false)
-  let outputTab = $state<"flow" | "page">(untrack(() => (initial.output === "page" ? "page" : "flow")))
-  let outputFlow = $state<"grid" | "list">(untrack(() => (initial.output === "list" ? "list" : "grid")))
+  let outputTab = $state<"pages" | "page">(untrack(() => (initial.output === "page" ? "page" : "pages")))
+  let outputPagesMode = $state<"grid" | "list">(untrack(() => (initial.output === "list" ? "list" : "grid")))
   let outputRegion = $state<Region>({ x: 0, y: 0 })
   let view = $state<"input" | "output">("input")
   let touchTap: { pane: "Input" | "Output"; element: EventTarget | null; time: number; restore: () => void } | undefined
@@ -206,12 +206,12 @@
         ? "page"
         : tour === "input-list"
           ? "list"
-          : tour === "input-grid" || tour === "input-flow-toggle"
+          : tour === "input-grid" || tour === "input-pages-toggle"
             ? "grid"
             : inputView.tab === "style" && !styleable
-              ? inputView.flow
-              : inputView.tab === "flow"
-                ? inputView.flow
+              ? inputView.pagesMode
+              : inputView.tab === "pages"
+                ? inputView.pagesMode
                 : inputView.tab,
   )
   const activeOutputTab = $derived(
@@ -219,10 +219,10 @@
       ? "page"
       : tour === "output-list"
         ? "list"
-        : tour === "output-grid" || tour === "output-flow-toggle" || tour === "output-selection"
+        : tour === "output-grid" || tour === "output-pages-toggle" || tour === "output-selection"
           ? "grid"
-          : outputTab === "flow"
-            ? outputFlow
+          : outputTab === "pages"
+            ? outputPagesMode
             : outputTab,
   )
   const activeView = $derived(
@@ -338,8 +338,8 @@
     get inputView() {
       return inputView
     },
-    get outputFlow() {
-      return outputFlow
+    get outputPagesMode() {
+      return outputPagesMode
     },
     revealGrid: (pane, index) => (pane === "Input" ? inputGrid : outputGrid)?.revealPage(index),
     get draft() {
@@ -448,15 +448,15 @@
     await grid?.revealPage(position)
     await interaction.reveal(pane, event, true)
   }
-  function inputTab(tab: InputView["flow"] | InputView["tab"], event?: MouseEvent | KeyboardEvent) {
-    const mode = tab === "flow" ? inputView.flow : tab
+  function inputTab(tab: InputView["pagesMode"] | InputView["tab"], event?: MouseEvent | KeyboardEvent) {
+    const mode = tab === "pages" ? inputView.pagesMode : tab
     const previous = activeTab
     const changed = mode !== previous
     if (changed && activeTab === "list") inputList?.remember()
     cancelMotion()
     inspectInput({
-      tab: mode === "grid" || mode === "list" ? "flow" : mode,
-      ...(mode === "grid" || mode === "list" ? { flow: mode } : {}),
+      tab: mode === "grid" || mode === "list" ? "pages" : mode,
+      ...(mode === "grid" || mode === "list" ? { pagesMode: mode } : {}),
       ...(mode === "grid" ? { offset: inputPosition } : {}),
     })
     if (changed && !((previous === "grid" || previous === "list") && (mode === "grid" || mode === "list")))
@@ -516,14 +516,14 @@
           ("page" in page.content ? `Page ${page.content.page + 1}` : page.padding ? "Padding" : "Blank"))
       : ""
   }
-  function setOutputTab(tab: "grid" | "list" | "page" | "flow", event?: MouseEvent | KeyboardEvent) {
-    const mode = tab === "flow" ? outputFlow : tab
+  function setOutputTab(tab: "grid" | "list" | "page" | "pages", event?: MouseEvent | KeyboardEvent) {
+    const mode = tab === "pages" ? outputPagesMode : tab
     const previous = activeOutputTab
     const changed = mode !== previous
     if (changed && activeOutputTab === "list") outputList?.remember()
     cancelMotion()
-    outputTab = mode === "grid" || mode === "list" ? "flow" : mode
-    if (mode === "grid" || mode === "list") outputFlow = mode
+    outputTab = mode === "grid" || mode === "list" ? "pages" : mode
+    if (mode === "grid" || mode === "list") outputPagesMode = mode
     if (mode === "grid") outputOffset = output.position
     if (changed && !((previous === "grid" || previous === "list") && (mode === "grid" || mode === "list")))
       void interaction.reveal("Output", event)
@@ -1069,8 +1069,8 @@
     )
       return
     inputTab(activeTab)
-    outputTab = activeOutputTab === "page" ? "page" : "flow"
-    if (activeOutputTab !== "page") outputFlow = activeOutputTab
+    outputTab = activeOutputTab === "page" ? "page" : "pages"
+    if (activeOutputTab !== "page") outputPagesMode = activeOutputTab
     view = activeView
     document.querySelector<HTMLElement>(".help-tour:popover-open")?.hidePopover()
   }
@@ -1451,14 +1451,14 @@
   </Origin>
 {/snippet}
 
-{#snippet flowToggle(pane: "Input" | "Output")}
-  {@const current = pane === "Input" ? inputView.flow : outputFlow}
+{#snippet pagesToggle(pane: "Input" | "Output")}
+  {@const current = pane === "Input" ? inputView.pagesMode : outputPagesMode}
   <button
     type="button"
-    class="icon-button flow-toggle"
+    class="icon-button pages-toggle"
     aria-label={`Show ${pane} ${current === "grid" ? "List" : "Grid"}`}
     title={`Switch to ${current === "grid" ? "List" : "Grid"}`}
-    data-tour-target={`${pane === "Input" ? "input" : "output"}-flow-toggle`}
+    data-tour-target={`${pane === "Input" ? "input" : "output"}-pages-toggle`}
     onclick={(event) =>
       pane === "Input"
         ? inputTab(current === "grid" ? "list" : "grid", event)
@@ -1771,22 +1771,34 @@
                 id={`${key}-${tab}`}
                 role="tab"
                 aria-label={viewLabels[tab]}
-                aria-selected={inputView.tab === tab}
+                aria-selected={tab === "pages" ? activeTab === "grid" || activeTab === "list" : activeTab === tab}
                 aria-controls={`${key}-source-panel`}
-                tabindex={inputView.tab === tab ? 0 : -1}
+                tabindex={tab === "pages"
+                  ? activeTab === "grid" || activeTab === "list"
+                    ? 0
+                    : -1
+                  : activeTab === tab
+                    ? 0
+                    : -1}
                 onkeydown={(event) => interaction.tabKey(event)}
                 onclick={() => inputTab(tab)}
                 title={`${viewLabels[tab]} view`}
-                data-tour-tab={tab === "flow" ? `input-${activeTab}` : `input-${tab}`}
-                data-tour-active={tour === `input-${tab}`}><Icon name={tab} /><span>{viewLabels[tab]}</span></button
+                data-tour-tab={tab === "pages"
+                  ? activeTab === "grid" || activeTab === "list"
+                    ? `input-${activeTab}`
+                    : undefined
+                  : `input-${tab}`}
+                data-tour-active={tab === "pages"
+                  ? tour === "input-grid" || tour === "input-list" || tour === "input-pages-toggle"
+                  : tour === `input-${tab}`}><Icon name={tab} /><span>{viewLabels[tab]}</span></button
               >{/each}
             {#if hasStyles}<button
                 id={`${key}-style`}
                 role="tab"
                 aria-label="Style"
-                aria-selected={inputView.tab === "style"}
+                aria-selected={activeTab === "style"}
                 aria-controls={`${key}-source-panel`}
-                tabindex={inputView.tab === "style" ? 0 : -1}
+                tabindex={activeTab === "style" ? 0 : -1}
                 onkeydown={interaction.tabKey}
                 onclick={() => inputTab("style")}
                 disabled={!styleable}
@@ -1822,7 +1834,7 @@
                 void interaction.reveal("Input")
               }}><Icon name="sections" /></button
             >{/if}
-          {#if inputView.tab === "flow"}{@render flowToggle("Input")}{/if}
+          {#if activeTab === "grid" || activeTab === "list"}{@render pagesToggle("Input")}{/if}
           {#if activeTab === "style" && styling}{@render styling(true)}{/if}
           {#if source.input.outline?.length}<Contents
               outline={source.input.outline}
@@ -2216,14 +2228,23 @@
               id={`${key}-output-${tab}`}
               role="tab"
               aria-label={viewLabels[tab]}
-              aria-selected={outputTab === tab}
+              aria-selected={tab === "pages" ? activeOutputTab !== "page" : activeOutputTab === "page"}
               aria-controls={`${key}-output-panel`}
-              tabindex={outputTab === tab ? 0 : -1}
+              tabindex={tab === "pages" ? (activeOutputTab === "page" ? -1 : 0) : activeOutputTab === "page" ? 0 : -1}
               onkeydown={(event) => interaction.tabKey(event, "Output")}
               onclick={() => setOutputTab(tab)}
               title={`${viewLabels[tab]} view`}
-              data-tour-tab={tab === "flow" ? `output-${activeOutputTab}` : `output-${tab}`}
-              data-tour-active={tour === `output-${tab}`}><Icon name={tab} /><span>{viewLabels[tab]}</span></button
+              data-tour-tab={tab === "pages"
+                ? activeOutputTab !== "page"
+                  ? `output-${activeOutputTab}`
+                  : undefined
+                : `output-${tab}`}
+              data-tour-active={tab === "pages"
+                ? tour === "output-grid" ||
+                  tour === "output-list" ||
+                  tour === "output-pages-toggle" ||
+                  tour === "output-selection"
+                : tour === `output-${tab}`}><Icon name={tab} /><span>{viewLabels[tab]}</span></button
             >{/each}
         </div>
         {#if activeOutputTab === "list" && outputList && outputList.sectionState() !== "none"}<button
@@ -2247,7 +2268,7 @@
               void interaction.reveal("Output")
             }}><Icon name="sections" /></button
           >{/if}
-        {#if outputTab === "flow"}{@render flowToggle("Output")}{/if}
+        {#if activeOutputTab === "grid" || activeOutputTab === "list"}{@render pagesToggle("Output")}{/if}
         <Jump
           pane="Output"
           count={output.pages.length}

@@ -1,6 +1,6 @@
 // Checks named Output PDFs, native sharing and printing, and floating Style editors through the workspace.
 
-import { launch } from "./browsers.js"
+import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { readFile, mkdir, writeFile, mkdtemp, rm } from "node:fs/promises"
@@ -56,7 +56,7 @@ test(
       mimeType: "application/json",
       buffer: Buffer.from(JSON.stringify(recipe)),
     }
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
@@ -824,7 +824,7 @@ test(
     const server = await serve()
     const screenshots = resolvePath("../.local/tmp/web/recipe-review")
     await mkdir(screenshots, { recursive: true })
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         for (const [width, height, text] of [
@@ -1587,7 +1587,7 @@ test("Mobile Output keeps Print, View, and Download on one row", { timeout: 9000
   const server = await serve()
   const cases = inventory.cases.filter((entry) => entry.pointer === "coarse")
   await mkdir("../.local/tmp/web/layout/export", { recursive: true })
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
@@ -1824,7 +1824,7 @@ test(
   { timeout: 60000 },
   async () => {
     const server = await serve()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
@@ -1960,7 +1960,7 @@ test(
 
 test(
   "iPhone Home Screen Print shares the generated PDF and retains recovery after cancellation",
-  { timeout: 60000 },
+  { timeout: 60000, skip: process.env.MAINZ_SKIP_WEBKIT === "1" },
   async () => {
     const server = await serve()
     const browser = await launch(webkit)

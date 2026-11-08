@@ -1,11 +1,11 @@
 // Checks Output edits, page transfers, and edit feedback.
 
-import { launch } from "./browsers.js"
+import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { mkdir, readFile } from "node:fs/promises"
-import { chromium, webkit } from "playwright"
+import { chromium } from "playwright"
 import { zoom } from "./workspace.js"
 import { tab, fixture, image, pagePosition, gridPage, trackWorkers } from "./browser.js"
 
@@ -17,7 +17,7 @@ test(
   async () => {
     const server = await serve()
     await mkdir("../.local/tmp/web/layout/actions", { recursive: true })
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
@@ -245,7 +245,7 @@ test(
       await thumbnail.dispatchEvent("pointerdown", contact)
       await thumbnail.dispatchEvent("click", { detail: 1 })
       await page.evaluate(() => delete performance.now)
-      assert.equal(await input.getByRole("tab", { name: "Flow", exact: true }).getAttribute("aria-selected"), "true")
+      assert.equal(await input.getByRole("tab", { name: "Pages", exact: true }).getAttribute("aria-selected"), "true")
       assert.equal(
         await input.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(),
         "1",

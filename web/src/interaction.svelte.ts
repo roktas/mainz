@@ -14,8 +14,8 @@ export type InputView = {
   grouped: boolean
   folds?: ReadonlySet<string>
   tocTitles: boolean
-  tab: "flow" | "page" | "style"
-  flow: "grid" | "list"
+  tab: "pages" | "page" | "style"
+  pagesMode: "grid" | "list"
   position: number
   zoom: number
   pageInitialized?: boolean
@@ -33,7 +33,7 @@ type Host = {
   inputPosition: number
   output: Output
   inputView: InputView
-  outputFlow: "grid" | "list"
+  outputPagesMode: "grid" | "list"
   revealGrid: (pane: "Input" | "Output", index: number) => Promise<void> | undefined
   draft: Sequence
   count: number
@@ -51,8 +51,8 @@ type Host = {
   outputOffset: number
   pendingAddition: ReadonlySet<string>
   styleable: boolean
-  inputTab: (tab: InputView["flow"] | InputView["tab"], event?: MouseEvent | KeyboardEvent) => void
-  setOutputTab: (tab: "grid" | "list" | "page" | "flow", event?: MouseEvent | KeyboardEvent) => void
+  inputTab: (tab: InputView["pagesMode"] | InputView["tab"], event?: MouseEvent | KeyboardEvent) => void
+  setOutputTab: (tab: "grid" | "list" | "page" | "pages", event?: MouseEvent | KeyboardEvent) => void
   inspectInput: (patch: Partial<InputView>) => void
   selectAll: (pane: "Input" | "Output") => void
   zoomBy: (pane: "Input" | "Output", offset: number) => void
@@ -143,7 +143,8 @@ export class Interaction {
   }
   toggleView(pane: "Input" | "Output", event: MouseEvent | KeyboardEvent) {
     const previous = pane === "Input" ? this.host.activeTab : this.host.activeOutputTab
-    const tab = previous === "page" ? (pane === "Input" ? this.host.inputView.flow : this.host.outputFlow) : "page"
+    const tab =
+      previous === "page" ? (pane === "Input" ? this.host.inputView.pagesMode : this.host.outputPagesMode) : "page"
     if (pane === "Input") this.host.inputTab(tab, event)
     else this.host.setOutputTab(tab, event)
   }
@@ -323,7 +324,7 @@ export class Interaction {
               if (expanded.length) this.focusAfterSelection("Output")
               else
                 document
-                  .getElementById(`${this.host.key}-output-${this.host.activeOutputTab === "page" ? "page" : "flow"}`)
+                  .getElementById(`${this.host.key}-output-${this.host.activeOutputTab === "page" ? "page" : "pages"}`)
                   ?.focus({ preventScroll: true })
             } else focused.focus({ preventScroll: true })
           })
@@ -352,7 +353,9 @@ export class Interaction {
                     ?.querySelector<HTMLElement>(".composition-grid")
                 : neighbor?.querySelector<HTMLButtonElement>(".page-image, .list-choice")) ??
               viewport ??
-              document.getElementById(`${this.host.key}-output-${this.host.activeOutputTab === "page" ? "page" : "flow"}`)
+              document.getElementById(
+                `${this.host.key}-output-${this.host.activeOutputTab === "page" ? "page" : "pages"}`,
+              )
             )?.focus({ preventScroll: !!pageAction || this.host.pendingAddition.size > 0 })
           })
       },
@@ -362,10 +365,10 @@ export class Interaction {
     if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
     event.preventDefault()
-    const viewTabs = ["flow", "page"] as const
+    const viewTabs = ["pages", "page"] as const
     const tabs: InputView["tab"][] = pane === "Input" && this.host.styleable ? [...viewTabs, "style"] : [...viewTabs]
     const index = tabs.indexOf(
-      pane === "Input" ? this.host.inputView.tab : this.host.activeOutputTab === "page" ? "page" : "flow",
+      pane === "Input" ? this.host.inputView.tab : this.host.activeOutputTab === "page" ? "page" : "pages",
     )
     const tab =
       event.key === "Home"
@@ -447,7 +450,7 @@ export class Interaction {
     document
       .getElementById(
         pane === "Output"
-          ? `${this.host.key}-output-${this.host.activeOutputTab === "page" ? "page" : "flow"}`
+          ? `${this.host.key}-output-${this.host.activeOutputTab === "page" ? "page" : "pages"}`
           : `${this.host.key}-${this.host.inputView.tab}`,
       )
       ?.focus({ preventScroll: true })

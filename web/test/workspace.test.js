@@ -1,17 +1,17 @@
 // Checks workspace controls, styles, onboarding, and responsive behavior.
 
-import { launch } from "./browsers.js"
+import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { mkdir, readFile } from "node:fs/promises"
-import { measure, gridDensity } from "./measure.js"
-import { chromium, webkit } from "playwright"
+import { measure } from "./measure.js"
+import { chromium } from "playwright"
 import { tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
 
 test("Parameter hover waits, cancels on leaving or Escape, and keeps click immediate", { timeout: 30000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
@@ -48,7 +48,7 @@ test("Parameter hover waits, cancels on leaving or Escape, and keeps click immed
   }
 })
 
-test("Input and Output retain independent Flow presentations through Page returns", async () => {
+test("Input and Output retain independent Pages presentations through Page returns", async () => {
   const server = await serve()
   const browser = await launch(chromium)
   try {
@@ -72,7 +72,7 @@ test("Input and Output retain independent Flow presentations through Page return
   }
 })
 
-test("Each Input retains its Flow presentation after switching Inputs", async () => {
+test("Each Input retains its Pages presentation after switching Inputs", async () => {
   const server = await serve()
   const browser = await launch(chromium)
   try {
@@ -173,7 +173,7 @@ test(
   async () => {
     const server = await serve()
     await mkdir("../.local/tmp/web/layout/profiles", { recursive: true })
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
@@ -551,7 +551,7 @@ test("Opaque profile-set IDs keep their annotations across Input switches", { ti
 test("Authored details share one panel across Style owners and omit blank guidance", { timeout: 60000 }, async () => {
   const server = await serve()
   await mkdir("../.local/tmp/web/profiles", { recursive: true })
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     const annotations = {
       group: { description: "Guide controls.", details: "Group guidance.\n\n<b>Text</b> remains plain." },
@@ -741,7 +741,7 @@ test("Authored details share one panel across Style owners and omit blank guidan
 test("Profile details stay readable and aligned across layouts", { timeout: 180000 }, async () => {
   const server = await serve()
   await mkdir("../.local/tmp/web/profiles", { recursive: true })
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     let page
     try {
@@ -759,112 +759,107 @@ test("Profile details stay readable and aligned across layouts", { timeout: 1800
         "Filled+",
       ])
       const information = input.getByRole("button", { name: "Details for Filled", exact: true })
-      for (const density of ["Normal", "Compact"]) {
-        await tab(input, "Grid")
-        await gridDensity(input, `${density} Input grid`)
-        await gridDensity(output, `${density} Output grid`)
-        await tab(input, "Style")
-        for (const [width, height] of [
-          [320, 568],
-          [390, 844],
-          [768, 1024],
-          [1440, 1080],
-        ])
-          for (const theme of ["light", "dark"])
-            for (const scale of [100, 200]) {
-              const label = `${engine.name()}-${density}-${width}-${theme}-${scale}`
-              await page.setViewportSize({ width, height })
-              await page.evaluate(
-                (value) => {
-                  document.documentElement.dataset.theme = value.theme
-                  document.documentElement.style.fontSize = `${value.scale}%`
-                },
-                { theme, scale },
+      await tab(input, "Grid")
+      await tab(input, "Style")
+      for (const [width, height] of [
+        [320, 568],
+        [390, 844],
+        [768, 1024],
+        [1440, 1080],
+      ])
+        for (const theme of ["light", "dark"])
+          for (const scale of [100, 200]) {
+            const label = `${engine.name()}-${width}-${theme}-${scale}`
+            await page.setViewportSize({ width, height })
+            await page.evaluate(
+              (value) => {
+                document.documentElement.dataset.theme = value.theme
+                document.documentElement.style.fontSize = `${value.scale}%`
+              },
+              { theme, scale },
+            )
+            await information.scrollIntoViewIfNeeded()
+            const geometry = await information.evaluate((button) => {
+              const target = button.getBoundingClientRect(),
+                text = button.previousElementSibling
+              const style = getComputedStyle(text),
+                paragraph = text.getBoundingClientRect()
+              const path = button.querySelector("path"),
+                bounds = path.getBBox()
+              const center = new DOMPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2).matrixTransform(
+                path.getScreenCTM(),
               )
-              await information.scrollIntoViewIfNeeded()
-              const geometry = await information.evaluate((button) => {
-                const target = button.getBoundingClientRect(),
-                  text = button.previousElementSibling
-                const style = getComputedStyle(text),
-                  paragraph = text.getBoundingClientRect()
-                const path = button.querySelector("path"),
-                  bounds = path.getBBox()
-                const center = new DOMPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2).matrixTransform(
-                  path.getScreenCTM(),
-                )
-                return {
-                  width: target.width,
-                  height: target.height,
-                  x: center.x - (target.x + target.width / 2),
-                  y: center.y - (paragraph.y + parseFloat(style.paddingBlockStart) + parseFloat(style.lineHeight) / 2),
-                }
-              })
-              assert.ok(geometry.width >= 44 && geometry.height >= 44, `${label}: usable information target`)
-              assert.ok(
-                Math.abs(geometry.x) < 1 && Math.abs(geometry.y) < 1,
-                `${label}: information icon shares the first text line's center`,
-              )
-              const before = await output.boundingBox()
-              await information.focus()
-              await information.press("Enter")
-              const panel = input.getByRole("region", { name: "Filled", exact: true })
-              await panel.waitFor()
-              await page.waitForFunction(() => document.activeElement?.matches(".guidance"))
-              assert.match(await panel.innerText(), /preferred starting point for inkjet printers/)
-              assert.equal(
-                await panel.evaluate((element) => element.scrollTop),
-                0,
-                `${label}: guidance starts at its title`,
-              )
-              const bounds = await panel.boundingBox()
-              assert.ok(
-                bounds.x >= 0 &&
-                  bounds.y >= 0 &&
-                  bounds.x + bounds.width <= width + 1 &&
-                  bounds.y + bounds.height <= height + 1,
-                JSON.stringify({ label, bounds, button: await information.boundingBox() }),
-              )
-              assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, label)
-              assert.deepEqual(await output.boundingBox(), before, `${label}: guidance does not move Output`)
-              if (await panel.evaluate((element) => element.scrollHeight - element.clientHeight > 1)) {
-                const ended = panel.evaluate(
-                  (element) => new Promise((resolve) => element.addEventListener("scrollend", resolve, { once: true })),
-                )
-                await panel.press("End")
-                await ended
-                const bottom = await panel.evaluate((element) => element.scrollTop)
-                assert.ok(bottom > 0, `${label}: End scrolls the guidance`)
-                const returned = panel.evaluate(
-                  (element) => new Promise((resolve) => element.addEventListener("scrollend", resolve, { once: true })),
-                )
-                await panel.press("PageUp")
-                await returned
-                assert.ok(
-                  await panel.evaluate((element, offset) => element.scrollTop < offset, bottom),
-                  `${label}: Page Up scrolls the guidance`,
-                )
+              return {
+                width: target.width,
+                height: target.height,
+                x: center.x - (target.x + target.width / 2),
+                y: center.y - (paragraph.y + parseFloat(style.paddingBlockStart) + parseFloat(style.lineHeight) / 2),
               }
-              if (
-                density === "Normal" &&
-                ((width === 390 && theme === "light" && scale === 100) ||
-                  (width === 1440 && theme === "dark" && scale === 200))
+            })
+            assert.ok(geometry.width >= 44 && geometry.height >= 44, `${label}: usable information target`)
+            assert.ok(
+              Math.abs(geometry.x) < 1 && Math.abs(geometry.y) < 1,
+              `${label}: information icon shares the first text line's center`,
+            )
+            const before = await output.boundingBox()
+            await information.focus()
+            await information.press("Enter")
+            const panel = input.getByRole("region", { name: "Filled", exact: true })
+            await panel.waitFor()
+            await page.waitForFunction(() => document.activeElement?.matches(".guidance"))
+            assert.match(await panel.innerText(), /preferred starting point for inkjet printers/)
+            assert.equal(
+              await panel.evaluate((element) => element.scrollTop),
+              0,
+              `${label}: guidance starts at its title`,
+            )
+            const bounds = await panel.boundingBox()
+            assert.ok(
+              bounds.x >= 0 &&
+                bounds.y >= 0 &&
+                bounds.x + bounds.width <= width + 1 &&
+                bounds.y + bounds.height <= height + 1,
+              JSON.stringify({ label, bounds, button: await information.boundingBox() }),
+            )
+            assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, label)
+            assert.deepEqual(await output.boundingBox(), before, `${label}: guidance does not move Output`)
+            if (await panel.evaluate((element) => element.scrollHeight - element.clientHeight > 1)) {
+              const ended = panel.evaluate(
+                (element) => new Promise((resolve) => element.addEventListener("scrollend", resolve, { once: true })),
               )
-                await page.screenshot({ path: `../.local/tmp/web/profiles/${label}.png` })
-              await page.keyboard.press("Escape")
-              await panel.waitFor({ state: "hidden" })
-              assert.equal(await information.evaluate((element) => element === document.activeElement), true, label)
+              await panel.press("End")
+              await ended
+              const bottom = await panel.evaluate((element) => element.scrollTop)
+              assert.ok(bottom > 0, `${label}: End scrolls the guidance`)
+              const returned = panel.evaluate(
+                (element) => new Promise((resolve) => element.addEventListener("scrollend", resolve, { once: true })),
+              )
+              await panel.press("PageUp")
+              await returned
+              assert.ok(
+                await panel.evaluate((element, offset) => element.scrollTop < offset, bottom),
+                `${label}: Page Up scrolls the guidance`,
+              )
             }
-        await page.setViewportSize({ width: 1440, height: 1080 })
-        await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
-        await information.click()
-        await input.getByRole("region", { name: "Filled", exact: true }).waitFor()
-        await input.getByRole("tab", { name: "Style", exact: true }).click()
-        assert.equal(await input.locator(".guidance:popover-open").count(), 0)
-        assert.equal(await chooser.inputValue(), "inkjet")
-        await information.click()
-        await input.getByRole("button", { name: "Close details", exact: true }).click()
-        assert.equal(await input.locator(".guidance:popover-open").count(), 0)
-      }
+            if (
+              (width === 390 && theme === "light" && scale === 100) ||
+              (width === 1440 && theme === "dark" && scale === 200)
+            )
+              await page.screenshot({ path: `../.local/tmp/web/profiles/${label}.png` })
+            await page.keyboard.press("Escape")
+            await panel.waitFor({ state: "hidden" })
+            assert.equal(await information.evaluate((element) => element === document.activeElement), true, label)
+          }
+      await page.setViewportSize({ width: 1440, height: 1080 })
+      await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+      await information.click()
+      await input.getByRole("region", { name: "Filled", exact: true }).waitFor()
+      await input.getByRole("tab", { name: "Style", exact: true }).click()
+      assert.equal(await input.locator(".guidance:popover-open").count(), 0)
+      assert.equal(await chooser.inputValue(), "inkjet")
+      await information.click()
+      await input.getByRole("button", { name: "Close details", exact: true }).click()
+      assert.equal(await input.locator(".guidance:popover-open").count(), 0)
     } catch (error) {
       if (page) {
         const details = await page.evaluate(() => ({
@@ -1107,12 +1102,12 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
           )
           if (view === "Grid") {
             const tabs = await pane.locator(".tabs").boundingBox()
-            const switcher = await pane.locator(".flow-toggle").boundingBox()
-            assert.ok(switcher.x >= tabs.x + tabs.width - 1, `${label}: Flow switch does not cover tabs`)
-            assert.ok(switcher.x >= 0 && switcher.x + switcher.width <= width, `${label}: Flow switch fits`)
+            const switcher = await pane.locator(".pages-toggle").boundingBox()
+            assert.ok(switcher.x >= tabs.x + tabs.width - 1, `${label}: Pages switch does not cover tabs`)
+            assert.ok(switcher.x >= 0 && switcher.x + switcher.width <= width, `${label}: Pages switch fits`)
             assert.ok(
               Math.abs(switcher.y + switcher.height / 2 - tabs.y - tabs.height / 2) < 1,
-              `${label}: tabs and Flow switch share one centerline`,
+              `${label}: tabs and Pages switch share one centerline`,
             )
           }
           if (text === "100%" && view !== "Style")
@@ -1220,7 +1215,7 @@ test("Help stays available across pointer types and tours retain visible focus",
       const welcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true })
       await welcome.getByRole("button", { name: "Take a tour", exact: true }).click()
       const tour = page.getByRole("dialog", { name: "Product tour", exact: true })
-      for (const step of ["input-grid", "input-density", "input-list", "input-page"]) {
+      for (const step of ["input-grid", "input-pages-toggle", "input-list", "input-page"]) {
         await tour.getByRole("button", { name: "Next", exact: true }).click()
         await page.waitForFunction(
           (key) => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === key,
@@ -1272,7 +1267,7 @@ test("Help stays available across pointer types and tours retain visible focus",
 
 test("Help fits its content and keeps its navigation above scrolling panels", { timeout: 120000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine, { channel: engine === chromium ? process.env.PLAYWRIGHT_CHANNEL : undefined })
     try {
       for (const hasTouch of [false, true]) {
@@ -1724,7 +1719,7 @@ test(
           .locator("input[type=text]")
       const ready = () => output.locator('button[aria-label="Download"]:enabled').waitFor()
       const add = async (selection) => {
-        await input.getByRole("tab", { name: "Grid", exact: true }).click()
+        await tab(input, "Grid")
         await input.getByRole("textbox", { name: "Page selection", exact: true }).fill(selection)
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
         await ready()
@@ -2694,7 +2689,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
       await page.waitForFunction(
         () => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === "input",
       )
-      for (const step of ["input-grid", "input-density", "input-list", "input-page", "style", "style-profile"]) {
+      for (const step of ["input-grid", "input-pages-toggle", "input-list", "input-page", "style", "style-profile"]) {
         await tour.getByRole("button", { name: "Next", exact: true }).click()
         await page.waitForFunction(
           (key) => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === key,
@@ -2715,7 +2710,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
       await page.waitForFunction(
         () => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === "output-list",
       )
-      assert.equal(await output.getByRole("tab", { name: "List", exact: true }).getAttribute("aria-selected"), "true")
+      assert.equal(await output.getByRole("tab", { name: "Pages", exact: true }).getAttribute("aria-selected"), "true")
       assert.equal(await output.locator(".page-list").isVisible(), true)
       await tour.getByRole("button", { name: "Next", exact: true }).click()
       await page.waitForFunction(
@@ -2879,7 +2874,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
     await output.getByRole("button", { name: "Remove Output page 2", exact: true }).click()
     await output.getByRole("button", { name: "Remove Output page 1", exact: true }).click()
-    await input.getByRole("tab", { name: "Grid", exact: true }).click()
+    await tab(input, "Grid")
     await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("1,2")
     await input.getByRole("button", { name: "Add to Output", exact: true }).click()
     await input.getByRole("tab", { name: "Style", exact: true }).click()
@@ -3035,7 +3030,7 @@ test(
   async () => {
     const server = await serve()
     await mkdir("../.local/tmp/web/layout/opacity", { recursive: true })
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const { page, input } = await opacityPage(browser, server)
@@ -3093,7 +3088,7 @@ test(
 test("Opacity sliders retain alignment across text sizes and themes", { timeout: 120000 }, async () => {
   const server = await serve()
   await mkdir("../.local/tmp/web/layout/opacity", { recursive: true })
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const { page, input } = await opacityPage(browser, server)
@@ -3342,7 +3337,7 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
     }
     const workspaceSteps = [
       "input-grid",
-      "input-density",
+      "input-pages-toggle",
       "input-list",
       "input-page",
       "style",
@@ -3419,9 +3414,9 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
           await tour.evaluate((guide) => guide.getAnimations({ subtree: true }).length === 0),
           `Tour ${key} honors reduced motion`,
         )
-      if (key.endsWith("-density")) {
-        assert.ok(await target.evaluate((element) => element.matches("button")), "Tour reveals the density button")
-        assert.match(await target.getAttribute("aria-label"), /^Switch to (Normal|Compact) (Input|Output) grid$/)
+      if (key.endsWith("-pages-toggle")) {
+        assert.ok(await target.evaluate((element) => element.matches("button")), "Tour reveals the Pages switch")
+        assert.match(await target.getAttribute("aria-label"), /^Show (Input|Output) List$/)
       }
       if (key === "output-selection") {
         const unselected =
@@ -3519,7 +3514,7 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
     await step("input")
     for (const key of [
       "input-grid",
-      "input-density",
+      "input-pages-toggle",
       "input-list",
       "input-page",
       "output-grid",
@@ -3533,7 +3528,7 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
     }
     assert.ok(
       (await tour.locator(".tour-progress").textContent()).includes("/ 10"),
-      "Empty Output shows density and selection actions without adding sample pages",
+      "Empty Output shows Pages and selection actions without adding sample pages",
     )
     await page.keyboard.press("Escape")
     await tour.waitFor({ state: "hidden" })
@@ -3562,9 +3557,9 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
     )
     await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("3-5,2,2,7")
     await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
-    const inputPages = () => input.getByRole("tab", { name: "Grid", exact: true })
+    const inputPages = () => input.getByRole("tab", { name: "Pages", exact: true })
     const inputStyle = () => input.getByRole("tab", { name: "Style", exact: true })
-    const outputPages = () => output.getByRole("tab", { name: "Grid", exact: true })
+    const outputPages = () => output.getByRole("tab", { name: "Pages", exact: true })
     const outputPage = () => output.getByRole("tab", { name: "Page", exact: true })
     await inputStyle().click()
     await outputPage().click()
@@ -3770,7 +3765,14 @@ test("Blank-only Output offers its six-step tour without adding pages", { timeou
     await page.getByRole("button", { name: "Start Tour", exact: true }).click()
     const blankTour = page.getByRole("dialog", { name: "Product tour", exact: true })
     await blankTour.waitFor()
-    for (const key of ["output-density", "output-grid", "output-list", "output-selection", "output-page", "download"]) {
+    for (const key of [
+      "output-pages-toggle",
+      "output-grid",
+      "output-list",
+      "output-selection",
+      "output-page",
+      "download",
+    ]) {
       await page.waitForFunction(
         (value) => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === value,
         key,
@@ -4003,7 +4005,7 @@ test("First-action feedback respects reduced motion and enlarged phone text", { 
 
 test("Input file details stay below their trigger in single-pane tablet layouts", { timeout: 60000 }, async () => {
   const server = await serve()
-  for (const engine of [chromium, webkit]) {
+  for (const engine of engines) {
     const browser = await launch(engine)
     try {
       const page = await browser.newPage({

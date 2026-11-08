@@ -29,8 +29,8 @@ export async function tab(pane, name) {
   if (name !== "Grid" && name !== "List") return pane.getByRole("tab", { name, exact: true }).click()
   const previous = pane.getByRole("tab", { name, exact: true })
   if (await previous.count()) return previous.click()
-  await pane.getByRole("tab", { name: "Flow", exact: true }).click()
-  const toggle = pane.locator(".flow-toggle")
+  await pane.getByRole("tab", { name: "Pages", exact: true }).click()
+  const toggle = pane.locator(".pages-toggle")
   if ((await toggle.getAttribute("aria-label"))?.endsWith(name)) await toggle.click()
 }
 

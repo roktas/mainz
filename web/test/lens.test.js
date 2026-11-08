@@ -1,9 +1,9 @@
 // Checks optional lens rendering against delayed and failed PDF.js operations.
 
-import { launch } from "./browsers.js"
+import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
-import { chromium, webkit } from "playwright"
+import { chromium } from "playwright"
 import { createServer, tab } from "./browser.js"
 import { serve } from "./server.ts"
 
@@ -94,7 +94,7 @@ test("Lens retains a stationary hover through raster refresh and respects dismis
   const server = await createServer({ plugins: [harness], server: { port: 0, host: "127.0.0.1" } })
   try {
     await server.listen()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
@@ -145,7 +145,7 @@ test("Lens names stay centered and truncate within short viewports and enlarged 
   const server = await createServer({ plugins: [harness], server: { port: 0, host: "127.0.0.1" } })
   try {
     await server.listen()
-    for (const engine of [chromium, webkit]) {
+    for (const engine of engines) {
       const browser = await launch(engine)
       try {
         for (const hasTouch of [false, true]) {

@@ -55,37 +55,37 @@ fields add no empty placeholders. Details include Author and Copyright when decl
 the author when XMP has none. The declared XMP `mainz:coverPage` selects the cover when it is a valid physical page;
 otherwise the first page is used.
 
-The Input chooser switches Inputs. Each retains its view, inspected page, zoom, Flow mode, scroll position, and
+The Input chooser switches Inputs. Each retains its view, inspected page, zoom, Pages layout, scroll position, and
 preparation. Home requests confirmation before discarding undownloaded style or Output changes. Acceptance suppresses
 the browser exit warning for that navigation. Cancellation retains the workspace. Opening an Input or changing Selection
 alone does not mark Output as changed.
 
-### Views and Flow
+### Views and Pages
 
-Input offers Flow and Page, plus Style for prepared PDFs. Output offers Flow and Page. Each Flow has a labeled Grid/List
-switch. Grid shows scrollable thumbnails, and List shows page numbers, names, and section headings. Both use one shared
-selection model. Input includes every physical page in PDF order. Output includes every expanded occurrence, including
-Blank and Padding. Page shows one enlarged page at a time without narrowing the current selection.
+Input offers Pages and Page, plus Style for prepared PDFs. Output offers Pages and Page. Each Pages tab has a labeled
+Grid/List switch. Grid shows scrollable thumbnails, and List shows page numbers, names, and section headings. Both use
+one shared selection model. Input includes every physical page in PDF order. Output includes every expanded occurrence,
+including Blank and Padding. Page shows one enlarged page at a time without narrowing the current selection.
 
 Grid scrolls within the fixed pane frame and keeps one readable card geometry. It renders a bounded window of visible
 rows for long documents. The scrollbar sits in the pane's right gutter. Wheel and touch gestures scroll the full
 sequence without pagination. The first and last physical pages remain reachable.
 
-Each Input retains its Flow presentation and its Grid and List scroll positions. Output keeps independent settings.
-Changing the Flow presentation preserves selection, inspected page, and Output order. List keeps expanded sections.
-Changing browser size preserves the first visible page when the number of columns changes. Page returns to the previous
-Flow presentation and reveals its inspected page.
+Each Input retains its Pages layout and its Grid and List scroll positions. Output keeps independent settings. Changing
+the Pages layout preserves selection, inspected page, and Output order. List keeps expanded sections. Changing browser
+size preserves the first visible page when the number of columns changes. Page returns to the previous Pages layout and
+reveals its inspected page.
 
 Grid and List interactions set the page that Page inspects. Output inspection follows occurrence identity through edits.
 Removal chooses the next surviving neighbor, or the previous neighbor at the end. Switching Inputs does not change
 Output inspection. Changing a view does not change page selection.
 
-Flow and Page offer Go to page in their toolbar. Its temporary number field accepts one physical Input page or one
+Pages and Page offer Go to page in their toolbar. Its temporary number field accepts one physical Input page or one
 Output position. Enter navigates without changing selection. Escape or an outside click cancels navigation. First and
 last page controls navigate directly. Invalid numbers keep the field open with an error.
 
-Page preserves the originating Grid or List presentation for V and modified-click return gestures. Flow switches retain
-toolbar focus. Pointer returns briefly emphasize the inspected card or row. Keyboard returns use a separate focus
+Page preserves the originating Grid or List presentation for V and modified-click return gestures. Pages layout switches
+retain toolbar focus. Pointer returns briefly emphasize the inspected card or row. Keyboard returns use a separate focus
 contour. Selection does not change during these transitions.
 
 In two-pane layouts, Style groups scroll below profile selectors while both pane frames retain their height. In a
@@ -172,7 +172,7 @@ when their menu opens.
 
 List choices use the existing Selection and page-action model. They resolve to physical indexes or Output occurrence
 identities. List does not own another selection state or change the numeric Selection grammar. View changes retain the
-selection, inspection, Output, styles, and each pane's Flow presentation. The numeric field retains its touch keyboard
+selection, inspection, Output, styles, and each pane's Pages layout. The numeric field retains its touch keyboard
 behavior.
 
 List uses one keyboard cursor per pane, shared with Grid and Page inspection. Arrow Up/Down moves one row; Home/End
@@ -900,8 +900,8 @@ action. Supported desktop Safari versions show Add to Dock instructions. Unsuppo
 button. Continuing in the browser remains available after dismissal or failure.
 
 The tour explains actual controls without changing document choices or adding pages. Its core steps cover Input, Input
-Grid, the Flow presentation switch, Input List, Input Page, Output Grid, Output List, Output selection actions, Output
-Page, and Output delivery. The final step explains Download or Share, Print, View PDF, and Export recipe. The Flow
+Grid, the Pages layout switch, Input List, Input Page, Output Grid, Output List, Output selection actions, Output Page,
+and Output delivery. The final step explains Download or Share, Print, View PDF, and Export recipe. The Pages layout
 switch step uses Input when present and Output otherwise. The Output selection step explains earlier/later moves,
 duplication, and removal. Without a selection, that step shows the real actions disabled and keeps the selection empty.
 Applicable Style and profile controls add at most two steps. Without Input, the six Output steps remain. Steps
@@ -1075,7 +1075,7 @@ The [library glossary](../../lib/doc/SPEC.md#glossary) owns PDF and painting ter
 | Copy count         | Number of repetitions of one complete Part.                                                                              |
 | Error              | Failure message retained until dismissal or resolution.                                                                  |
 | Grid               | Thumbnail view of Input or Output.                                                                                       |
-| Flow presentation  | Grid or List layout retained independently for each pane and each open Input.                                            |
+| Pages layout       | Grid or List layout retained independently for each pane and each open Input.                                            |
 | Help               | Dialog with App help, input-specific workspace instructions, and access to the Product tour.                             |
 | Info               | Operation progress, result, or cancellation message.                                                                     |
 | Input              | Opened PDF with independent styles and page choices. Recipe IDs bind its immutable bytes.                                |

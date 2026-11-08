@@ -1,4 +1,4 @@
-# Flow View and Grid Scrolling Plan
+# Pages View and Grid Scrolling Plan
 
 > Status: implementation approved. Validated changes are published to `next` in checkpoints.
 
@@ -18,9 +18,9 @@ frame. Remove the Compact Grid density entirely. Retain the existing **Normal** 
 columns, gaps, and shared Grid/Page alignment; do not optimize card size to fit extra rows. The visible frame, not the
 number of cards, limits height.
 
-Combine Grid and List into one **Flow** tab (four letters) with a Grid/List toggle inside that view's toolbar. Keep Page
-separate and Style available for eligible Inputs. The toggle selects presentation only. It must not change page
-identity, selection, Output, preparation, zoom, or inspect position. Each Input and Output retains its Flow mode and
+Combine Grid and List into one **Pages** tab (five letters) with a Grid/List toggle inside that view's toolbar. Keep
+Page separate and Style available for eligible Inputs. The toggle selects presentation only. It must not change page
+identity, selection, Output, preparation, zoom, or inspect position. Each Input and Output retains its Pages mode and
 relevant scroll positions.
 
 Defer the Grid card footer redesign until the owner chooses its two direct controls. Make the back-page fold smaller
@@ -32,15 +32,15 @@ speculative data models, or generic helpers without a second real owner.
 
 ## Owners and boundaries
 
-| Concern                                                        | Owner and review points                                                                                                        |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Per-pane active view, Flow mode, inspection, and return target | `interaction.svelte.ts`, with minimal orchestration in `Composer.svelte`; `App.svelte` only for the initial-view/tour boundary |
-| Grid scroll, visible window, measurements, and keyboard cursor | `Grid.svelte`; reuse List's proven viewport concepts only when they represent the same contract                                |
-| Card geometry and responsive frame limits                      | `frame.css`, `fit.ts`, `grid.css`; retain shared Page thumbnail/reference geometry                                             |
-| Grid footer and back-page fold                                 | `cards.css`, `workspace.css`, existing Composer card snippets                                                                  |
-| Page identity, selection, Output mutations                     | Existing Output/composition owners; no parallel view-specific selection state                                                  |
-| Drag/drop geometry, preview and edge scrolling                 | `transfer.svelte.ts`, `drag.ts`, and existing motion rules                                                                     |
-| Product behavior, visual requirements, test inventory          | `web/doc/SPEC.md`, `web/doc/VIEW.md`, `web/doc/MEMO.md`, Web README, Help/Tour, and existing browser tests                     |
+| Concern                                                         | Owner and review points                                                                                                        |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Per-pane active view, Pages mode, inspection, and return target | `interaction.svelte.ts`, with minimal orchestration in `Composer.svelte`; `App.svelte` only for the initial-view/tour boundary |
+| Grid scroll, visible window, measurements, and keyboard cursor  | `Grid.svelte`; reuse List's proven viewport concepts only when they represent the same contract                                |
+| Card geometry and responsive frame limits                       | `frame.css`, `fit.ts`, `grid.css`; retain shared Page thumbnail/reference geometry                                             |
+| Grid footer and back-page fold                                  | `cards.css`, `workspace.css`, existing Composer card snippets                                                                  |
+| Page identity, selection, Output mutations                      | Existing Output/composition owners; no parallel view-specific selection state                                                  |
+| Drag/drop geometry, preview and edge scrolling                  | `transfer.svelte.ts`, `drag.ts`, and existing motion rules                                                                     |
+| Product behavior, visual requirements, test inventory           | `web/doc/SPEC.md`, `web/doc/VIEW.md`, `web/doc/MEMO.md`, Web README, Help/Tour, and existing browser tests                     |
 
 Before splitting any file, map callers and data ownership. Extract only a cohesive responsibility that reduces coupling.
 In particular, avoid another large state machine inside `Composer.svelte` or unrelated edits to `App.svelte`.
@@ -63,7 +63,7 @@ In particular, avoid another large state machine inside `Composer.svelte` or unr
 
 - [x] Audit the current `grid/list/page/style` tab state, Page return targets, per-Input state, Output state, demo/tour
       setup, and focus-routing callers.
-- [x] Define one canonical pane view (`flow/page/style` for Input, `flow/page` for Output) and one Flow presentation
+- [x] Define one canonical pane view (`pages/page/style` for Input, `pages/page` for Output) and one Pages presentation
       mode (`grid/list`) per pane. Preserve independent inspection and viewport state.
 - [x] Refactor only the state and routing boundaries needed for this distinction. Keep externally visible behavior
       unchanged until the tab change is enabled.
@@ -126,10 +126,10 @@ relevant viewport.
         page-name disclosure layout (5 focused regressions). WebKit remains pending on Ubuntu 26.04.
   - [x] Chromium Grid/Page selection, zoom, inspection, and focus regression uses virtual page reveal instead of the
         removed thumbnail range slider; focused test passed.
-  - [x] Chromium verified unused and modified Grid keys, native shortcut priority, focus, and pane isolation with Flow
+  - [x] Chromium verified unused and modified Grid keys, native shortcut priority, focus, and pane isolation with Pages
         tab selectors.
-  - [x] Chromium selection menus, toolbar actions, and mouse/keyboard shortcut priorities passed (3 focused tests). Flow
-        tab takes focus after Escape and after removing the last Output page.
+  - [x] Chromium selection menus, toolbar actions, and mouse/keyboard shortcut priorities passed (3 focused tests).
+        Pages tab takes focus after Escape and after removing the last Output page.
   - [x] Chromium verified demo Output order by physical occurrence across the scroll window and Input gesture
         cancellation after switching Inputs; both focused browser tests passed.
 
@@ -149,10 +149,10 @@ work across scroll windows, with unchanged card geometry.
 
 **Gate:** Grid fold is smaller with unchanged Page fold and card geometry. Footer redesign is deferred.
 
-### 5. Enable the Flow tab and Grid/List toggle
+### 5. Enable the Pages tab and Grid/List toggle
 
-- [x] Replace separate Grid/List tabs with **Flow**, keeping Page and eligible Style tabs. Provide a labeled,
-      keyboard-accessible Grid/List toggle in the Flow toolbar, using existing control styles and symbols.
+- [x] Replace separate Grid/List tabs with **Pages**, keeping Page and eligible Style tabs. Provide a labeled,
+      keyboard-accessible Grid/List toggle in the Pages toolbar, using existing control styles and symbols.
 - [x] Wire the toggle to the canonical per-pane mode. Retain List folds/virtualized viewport and Grid scroll
       independently; preserve inspection, selection, and Page-to-origin return.
 - [ ] Update tab focus, shortcuts, ARIA relationships, Go to page, Contents, tour targets, and narrow single-pane
@@ -160,28 +160,34 @@ work across scroll windows, with unchanged card geometry.
 - [ ] Align browser tests for toggle activation, focus, keyboard navigation, Input switching, Output independence, Page
       return, both themes, and normal/200% text.
   - [x] Chromium workspace toolbar alignment passed across 9 viewport, theme, text-size, and font combinations; the test
-        now checks the Flow toggle instead of the retired Compact density switch.
+        now checks the Pages toggle instead of the retired Compact density switch.
   - [x] Chromium pane-toolbar alignment passed at 320–951 px, both themes, 100/200% text, and empty/populated Output.
-        Removed stale narrow-screen Grid-icon offset after Flow replaced Grid/List tabs.
+        Removed stale narrow-screen Grid-icon offset after Pages replaced Grid/List tabs.
   - [x] Chromium tour regression passed including 320 px width with 200% text. Reset scroll when a tour step changes,
         even if the next target reuses the same pane element.
 
-**Gate:** one Flow tab per pane, two reliable presentation modes, no lost workspace state, and no toolbar wrapping.
+**Gate:** one Pages tab per pane, two reliable presentation modes, no lost workspace state, and no toolbar wrapping.
 
 ### 5a. Refactor Flow view vocabulary to Pages (owner decision, 2026-11-09)
 
-- [ ] Rename the **Flow** view concept to **Pages** throughout the application, not only the visible tab text. **Pages**
+- [x] Rename the **Flow** view concept to **Pages** throughout the application, not only the visible tab text. **Pages**
       manages all document pages in Grid or List; **Page** inspects one page. Preserve behavior, page identity,
       selection, Input/Output independence, inspection returns, and scroll restoration.
-- [ ] Refactor the complete workspace-view lexicon: internal view values, types, fields, functions, local variables,
+- [x] Refactor the complete workspace-view lexicon: internal view values, types, fields, functions, local variables,
       constants, selectors, tour targets, accessible names, keyboard and test helpers, test descriptions, and any
       related CSS class names. Replace rather than alias retired view names; do not retain compatibility shims without a
       real external or persisted contract.
-- [ ] Align Help, Product Tour, UI glossary, `SPEC.md`, `VIEW.md`, `MEMO.md`, Web README, and relevant tests with
+- [x] Align Help, Product Tour, UI glossary, `SPEC.md`, `VIEW.md`, `MEMO.md`, Web README, and relevant tests with
       **Pages** and **Page**. Search case-insensitively for the former view name across the affected repository. Keep
       unrelated terms such as CSS normal flow, reflow, and general data/control flow unchanged.
-- [ ] Verify Pages/Page tab focus, Grid/List switching, Page returns, Input switching, Output independence, keyboard
+- [x] Verify Pages/Page tab focus, Grid/List switching, Page returns, Input switching, Output independence, keyboard
       navigation, Tour, accessibility, narrow layouts, and both themes in Chromium.
+
+  - [x] Eight focused Chromium regressions passed: independent Input/Output Pages layouts, switching Inputs, Tour
+        restoration, empty-Output tour, keyboard/selection returns, Page inspection, responsive toolbar geometry, and
+        shortcut Help. The toolbar matrix covered 320–1280 px, light/dark themes, and 100%/200% text. Node 24 format,
+        lint (0 errors, 26 existing warnings), type checks, and 52/52 unit tests passed. The Svelte autofixer CLI was
+        unavailable from the offline npm cache; `svelte-check` passed instead.
 
 **Gate:** The view has one canonical name, **Pages**, in code, tests, and current product documentation. No stale
 **Flow**-view identifier or user-facing label remains; behavior and geometry stay unchanged.
@@ -212,7 +218,7 @@ files or new slop.
         thumbnail/Lens rendering (3/3 focused tests). Legacy Grid sliders were replaced with native scroll-to-start.
   - [x] Node 24: format and type checks passed, lint reported 0 errors (26 existing warnings), 52/52 unit tests passed.
         Full minimal/standard suites and WebKit are still open.
-  - [x] Chromium startup regression verified early PDF preview, cancellation, invalid PDF rejection, and completed Flow
+  - [x] Chromium startup regression verified early PDF preview, cancellation, invalid PDF rejection, and completed Pages
         initialization (1/1 focused test). Retired Compact density and unconditional Origin-detail expectations removed.
   - [x] Chromium verified large-Input PDF reuse, provenance, Page/Compare returns, and Output edits (1/1 focused test).
         Removed two obsolete direct Grid tab selectors.
@@ -277,7 +283,7 @@ remaining risks are explicit. WebKit remains deferred by owner decision.
 
 ## Acceptance
 
-A single Flow tab toggles between Grid and List in both panes. Grid shows all pages by vertical scroll inside its
+A single Pages tab toggles between Grid and List in both panes. Grid shows all pages by vertical scroll inside its
 existing fixed frame with a thin scrollbar, no Compact density and no pagination. Its Normal card geometry remains
 unchanged and Grid back folds are smaller. The footer redesign is deferred. All page actions, selection, identity,
 drag/drop, inspection, keyboard navigation, focus, and independent Input/Output state remain correct. Automated tests
@@ -287,6 +293,6 @@ and project documentation describe the resulting behavior.
 
 Implementation was approved on 2026-11-08. Push validated checkpoints to `next` with the plan updated.
 
-Progress: Flow modes and compact removal compile. Chromium passed Grid virtualization for 250/300 pages, responsive
-scroll retention, Flow switching, fold, and two drag tests. `npm run check`, lint, format and unit tests pass. Broader
+Progress: Pages modes and compact removal compile. Chromium passed Grid virtualization for 250/300 pages, responsive
+scroll retention, Pages switching, fold, and two drag tests. `npm run check`, lint, format and unit tests pass. Broader
 legacy browser tests and WebKit remain pending. WebKit requires GLIBC_2.43 and cannot run on this Debian 13 host.

@@ -99,7 +99,7 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
         const rect = (node) => node.getBoundingClientRect().toJSON()
         const bands = [
           [".section-heading", ":scope > *"],
-          [".editing-toolbar", '[role="tab"], .flow-toggle, .style-actions > button'],
+          [".editing-toolbar", '[role="tab"], .pages-toggle, .style-actions > button'],
           [".sequence-entry > .entry", "input, button, summary"],
         ]
         return bands.flatMap(([selector, controls]) => {
@@ -269,12 +269,12 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
     await page.setViewportSize({ width: 951, height: 589 })
     await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
     await tab(input, "Grid")
-    await input.getByRole("tab", { name: "Flow", exact: true }).focus()
+    await input.getByRole("tab", { name: "Pages", exact: true }).focus()
     await page.keyboard.press("ArrowRight")
     assert.equal(await input.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected"), "true")
     await rows(input)
     await page.keyboard.press("ArrowLeft")
-    assert.equal(await input.getByRole("tab", { name: "Flow", exact: true }).getAttribute("aria-selected"), "true")
+    assert.equal(await input.getByRole("tab", { name: "Pages", exact: true }).getAttribute("aria-selected"), "true")
     await rows(input)
     await input
       .getByLabel("Select Input · Prepared pages with a very long descriptive input filename.pdf")
@@ -752,7 +752,7 @@ test(
       await keyboard.goto(`${server.resolvedUrls.local[0]}?demo`)
       await keyboard.locator(".composer:not([inert])").waitFor()
       const input = keyboard.locator(".selection-panel")
-      await input.getByRole("tab", { name: "Flow", exact: true }).focus()
+      await input.getByRole("tab", { name: "Pages", exact: true }).focus()
       await keyboard.keyboard.press("ArrowRight")
       await aligned(input)
       const focused = await input.getByRole("tab", { name: "Page", exact: true }).evaluate((element) => ({
