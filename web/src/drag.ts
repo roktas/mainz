@@ -120,8 +120,7 @@ export function createDragImage(control: HTMLElement, quantity: number, size?: S
   )
   const bounds = sheet?.getBoundingClientRect() ?? size
   if (bounds?.width && bounds.height) {
-    const compact = card?.classList.contains("composition-card") && card.closest('[data-density="compact"]')
-    const limit = compact ? { width: 84, height: 116 } : { width: 120, height: 160 }
+    const limit = { width: 120, height: 160 }
     const layers = Math.min(3, quantity)
     const offset = (layers - 1) * 6
     const scale = Math.min((limit.width - 2 - offset) / bounds.width, (limit.height - 2 - offset) / bounds.height)

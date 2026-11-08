@@ -4,14 +4,14 @@
   export type TourStep =
     | "input"
     | "input-grid"
-    | "input-density"
+    | "input-flow-toggle"
     | "input-list"
     | "input-page"
     | "style"
     | "style-profile"
     | "output-grid"
     | "output-list"
-    | "output-density"
+    | "output-flow-toggle"
     | "output-selection"
     | "output-page"
     | "download"
@@ -72,11 +72,11 @@
         ]
       : []),
     {
-      key: hasInput ? "input-density" : "output-density",
-      title: "Choose a Grid density",
+      key: hasInput ? "input-flow-toggle" : "output-flow-toggle",
+      title: "Switch Flow layouts",
       text: [
-        "Normal gives each page more space. Compact fits more thumbnails so you can scan and arrange a larger set.",
-        "Use the button beside the view tabs to switch between Normal and Compact. Its icon shows the next density. Input and Output keep separate choices; changing density keeps page order and selection.",
+        "Flow has Grid and List layouts. Use the button next to the Flow tab to switch between them.",
+        "Each Input and Output keeps its own layout choice. Switching layouts does not change page order or selection.",
       ],
     },
     ...(hasInput
@@ -85,9 +85,9 @@
             key: "input-list" as const,
             title: "Find pages in List",
             text: [
-              "List shows page numbers and names in rows. It shares the selection and page field with Grid and Page.",
+              "Flow can show page numbers and names as a List. It shares selection with Grid and Page.",
               "Select rows, then use the bar’s + to add them to Output. A row’s + adds that page without changing your selection.",
-              "The eye opens Page. Return with the List tab to find the inspected row. The page number opens its details.",
+              "The eye opens Page. Return with Flow to find the inspected row. The page number opens its details.",
             ],
           },
           {
@@ -144,7 +144,7 @@
       key: "output-list",
       title: "Arrange Output in List",
       text: [
-        "List shows each Output copy in print order. Page numbers open source details, and the eye opens Page.",
+        "Flow can show each Output copy in List order. Page numbers open source details, and the eye opens Page.",
         "Drag a row’s grip to move it. Row actions move one page earlier or later, remove it, or duplicate it.",
         "Selected rows show a tick. The page field and bar apply actions to your selection across List, Grid, and Page.",
       ],

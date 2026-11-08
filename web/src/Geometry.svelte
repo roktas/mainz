@@ -27,13 +27,13 @@
       .find((element) => element.checkVisibility())
       ?.scrollIntoView({ block: "start", behavior: "instant" })
   }
-  async function show(name: "Input" | "Output", compact: boolean) {
+  async function show(name: "Input" | "Output") {
     failed = false
     busy = true
     chooser.open = false
     dialog.close()
     try {
-      await view(name, compact)
+      await view(name)
       close()
     } catch (reason) {
       failed = true
@@ -180,11 +180,7 @@
       <fieldset>
         <legend>{name}</legend>
         <div class="geometry-actions">
-          {#each [false, true] as compact (compact)}
-            <button aria-label={`Show ${name} ${compact ? "Compact" : "Normal"}`} onclick={() => show(name, compact)}
-              >{compact ? "Compact" : "Normal"}</button
-            >
-          {/each}
+          <button aria-label={`Show ${name} Grid`} onclick={() => show(name)}>Grid</button>
         </div>
       </fieldset>
     {/each}

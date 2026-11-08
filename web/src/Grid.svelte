@@ -1,16 +1,19 @@
-<!-- Batches thumbnails and connects mouse selection with keyboard navigation. -->
+<!-- Windows scrollable Grid rows and owns keyboard navigation and viewport geometry. -->
+
+<script module lang="ts">
+  export type Viewport = { scroll: number; columns?: number; stride?: number }
+</script>
 
 <script lang="ts">
   import { tick, untrack } from "svelte"
   import type { Snippet } from "svelte"
-  import Icon from "./Icon.svelte"
   import { fields, shortcut, shortcutContext } from "./keyboard.ts"
   import { fit } from "./fit.ts"
 
   let {
     pane,
     active,
-    compact = false,
+    viewport: saved = { scroll: 0 },
     count,
     position = $bindable(0),
     offset = $bindable(0),
@@ -18,12 +21,11 @@
     selected,
     toggle,
     edit,
-    initialize,
     children,
   }: {
     pane: "Input" | "Output"
     active: () => boolean
-    compact?: boolean
+    viewport?: Viewport
     count: number
     position?: number
     offset?: number
@@ -31,109 +33,128 @@
     selected: (position: number) => boolean
     toggle: (position: number) => void
     edit: (action: "add" | "duplicate" | "remove") => boolean
-    initialize?: (capacity: number) => void
     children: Snippet<[start: number, end: number]>
   } = $props()
-  let columns = $state(1)
-  let rows = $state(1)
-  const batch = $derived(columns * rows)
-  const start = $derived(
-    Math.min(Math.floor(offset / batch) * batch, Math.max(0, Math.floor((count - 1) / batch) * batch)),
-  )
-  const batches = $derived(Math.max(1, Math.ceil(count / batch)))
-  const current = $derived(Math.floor(start / batch))
-  const marks = $derived(
-    Array.from({ length: Math.min(batches, 64) }, (_, mark) =>
-      batches <= 64 ? mark : Math.round((mark * (batches - 1)) / 63),
-    ),
-  )
+  let columns = $state(untrack(() => saved.columns ?? 1))
+  let rows = $state(2)
+  let height = $state(240)
+  let gap = $state(12)
+  let scroll = $state(untrack(() => saved.scroll))
+  let list: HTMLElement | undefined
+  const stride = $derived(height + gap)
+  const totalRows = $derived(Math.ceil(count / columns))
+  const firstRow = $derived(Math.max(0, Math.min(totalRows - 1, Math.floor(scroll / stride) - 2)))
+  const from = $derived(firstRow * columns)
+  const to = $derived(Math.min(count, (firstRow + rows + 4) * columns))
+  const bottomRows = $derived(Math.max(0, totalRows - Math.ceil(to / columns)))
+
+  function revealIndex(index: number) {
+    if (!list || !count) return
+    const top = Math.floor(Math.max(0, Math.min(index, count - 1)) / columns) * stride
+    const bottom = top + height
+    if (top < list.scrollTop) list.scrollTop = top
+    else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight
+    scroll = list.scrollTop
+    saved.scroll = scroll
+  }
+  export async function revealPage(index: number) {
+    revealIndex(index)
+    await tick()
+    list?.querySelector<HTMLElement>(`.page-image[data-page="${index}"]`)?.scrollIntoView({ block: "nearest" })
+    if (list) {
+      scroll = list.scrollTop
+      saved.scroll = scroll
+    }
+  }
+  function scrolling(element: HTMLElement) {
+    scroll = element.scrollTop
+    saved.scroll = scroll
+    const focused = document.activeElement?.closest<HTMLElement>(".composition-card")
+    if (!focused || !element.contains(focused)) return
+    const bounds = focused.getBoundingClientRect(),
+      frame = element.getBoundingClientRect()
+    if (bounds.bottom <= frame.top || bounds.top >= frame.bottom) element.focus({ preventScroll: true })
+  }
 
   function measure(element: HTMLDivElement) {
-    const notify = initialize
     const grid = element.querySelector<HTMLElement>(".composition-grid")!
-    let frame: number
+    list = element
+    const owner = element.closest<HTMLElement>(".selection-panel, .composition-output")!
+    let frame = 0
     let disposed = false
-    let reference: Element | null = null
-    const dimensions = new WeakMap<Element, { inlineSize: number; blockSize: number }>()
-    function resize() {
-      // Pending additions have final geometry before their arrival makes them interactive.
-      const card = grid.querySelector(
-        ".composition-card:not([inert]), .composition-card[data-adding]:not([aria-hidden=true])",
-      )
-      if (disposed || !card) return
-      if (card !== reference) {
-        if (reference) observer.unobserve(reference)
-        reference = card
-        observer.observe(card)
-      }
-      const previous = batch
-      const anchor = position >= start && position < start + batch ? position : offset
+    let previousColumns = untrack(() => saved.columns ?? columns)
+    let previousStride = untrack(() => saved.stride ?? stride)
+    let lastViewport = untrack(() => saved)
+    const resize = () => {
+      if (disposed || !grid.isConnected || !grid.querySelector(".composition-card")) return
+      // Preserve the visible page when a responsive layout changes columns.
+      const anchor = Math.floor(element.scrollTop / previousStride) * previousColumns
+      // Expand into the gutter before measuring responsive columns.
+      owner.style.setProperty("--grid-gutter", `${element.offsetWidth - element.clientWidth}px`)
       fit(grid)
-      if (!element.clientWidth) return
-      // The viewport budget is fixed in CSS; rendered cards cannot resize it.
       const style = getComputedStyle(grid)
-      columns = Math.max(1, style.gridTemplateColumns.split(" ").length)
+      const nextColumns = Math.max(1, style.gridTemplateColumns.split(" ").length)
+      const nextHeight = parseFloat(style.gridAutoRows)
+      const nextGap = parseFloat(style.rowGap) || 0
+      if (!nextHeight || !element.clientHeight) return
+      columns = nextColumns
+      height = nextHeight
+      gap = nextGap
+      rows = Math.max(1, Math.ceil(element.clientHeight / (nextHeight + nextGap)))
       const bounds = grid.getBoundingClientRect()
-      const outset = Math.max(0, Math.min(20, bounds.left, document.documentElement.clientWidth - bounds.right))
-      // Match the evenly distributed columns; unused vertical space stays below the rows.
-      const gap = (bounds.width - columns * parseFloat(style.gridTemplateColumns)) / (columns + 1)
-      element
-        .closest<HTMLElement>(".selection-panel, .composition-output")!
-        .style.setProperty("--grid-column-gap", `${gap}px`)
-      const measured = getComputedStyle(grid)
-      const height = parseFloat(measured.gridAutoRows)
-      const rowGap = parseFloat(measured.rowGap) || 0
-      if (!height) return
-      rows = Math.max(1, Math.floor((bounds.height + rowGap) / (height + rowGap)))
-      for (const observed of [element, grid, card]) {
-        const box = observed.getBoundingClientRect()
-        dimensions.set(observed, { inlineSize: box.width, blockSize: box.height })
-      }
-      element.style.setProperty("--pager-outset", `${outset}px`)
-      if (batch !== previous) offset = anchor
-      notify?.(batch)
+      const outset = (bounds.width - nextColumns * parseFloat(style.gridTemplateColumns)) / (nextColumns + 1)
+      owner.style.setProperty("--grid-column-gap", `${Math.max(0, outset)}px`)
+      const nextStride = nextHeight + nextGap
+      if (nextColumns !== previousColumns || nextStride !== previousStride)
+        element.scrollTop = Math.floor(anchor / nextColumns) * nextStride
+      previousColumns = nextColumns
+      previousStride = nextStride
+      scroll = element.scrollTop
+      saved.scroll = scroll
+      saved.columns = nextColumns
+      saved.stride = nextStride
     }
-    const scheduleResize = () => {
+    const schedule = () => {
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(resize)
     }
-    const observer = new ResizeObserver((entries) => {
-      // Our own fit has already accounted for these size changes.
-      if (
-        entries.some(({ target, borderBoxSize: [size] }) => {
-          const previous = dimensions.get(target)
-          return !previous || previous.inlineSize !== size.inlineSize || previous.blockSize !== size.blockSize
-        })
-      )
-        scheduleResize()
-    })
+    const observer = new ResizeObserver(schedule)
     observer.observe(element)
-    observer.observe(grid)
-    // Card geometry can change without resizing the frame.
-    const mutations = new MutationObserver(() => {
-      scheduleResize()
+    window.addEventListener("resize", schedule)
+    untrack(() => {
+      element.scrollTop = scroll
+      resize()
     })
-    mutations.observe(grid, { childList: true })
-    // Viewport queries can change columns without resizing the fitted frame.
-    window.addEventListener("resize", scheduleResize)
+    // Re-measure after the first page mounts and after the document size changes.
     $effect(() => {
-      // Fit the new density and batch before the browser paints either one.
-      void compact
-      // Initial preparation can still change the frame during the opening update.
-      if (!notify) untrack(resize)
+      if (count) schedule()
+    })
+    $effect(() => {
+      const viewport = saved
+      if (viewport === lastViewport) return
+      lastViewport = viewport
+      untrack(() => {
+        scroll = viewport.scroll
+        element.scrollTop = viewport.scroll
+        schedule()
+      })
+    })
+    // External Go-to-page and view-return requests retain the old anchor binding.
+    let lastOffset = untrack(() => offset)
+    $effect(() => {
+      const requested = offset
+      if (requested === lastOffset) return
+      lastOffset = requested
+      untrack(() => void revealPage(requested))
     })
     return () => {
       disposed = true
+      list = undefined
       cancelAnimationFrame(frame)
-      window.removeEventListener("resize", scheduleResize)
+      window.removeEventListener("resize", schedule)
       observer.disconnect()
-      mutations.disconnect()
+      owner.style.removeProperty("--grid-gutter")
     }
-  }
-
-  function move(next: number) {
-    offset = Math.max(0, Math.min(next, (batches - 1) * batch))
-    position = offset
   }
 
   function gridKeys(element: HTMLElement) {
@@ -162,7 +183,7 @@
       boundary = next < 0 ? -1 : next >= count ? 1 : 0
       const index = Math.max(0, Math.min(next, count - 1))
       position = index
-      offset = Math.floor(index / batch) * batch
+      revealIndex(index)
       await tick()
       if (element.isConnected) {
         if (boundary) {
@@ -229,9 +250,9 @@
         event.preventDefault()
         return
       }
-      if (action === "batchPrevious" || action === "batchNext") {
+      if (action === "viewportPrevious" || action === "viewportNext") {
         event.preventDefault()
-        const next = start + (action === "batchPrevious" ? -batch : batch)
+        const next = position + (action === "viewportPrevious" ? -columns * rows : columns * rows)
         if (next < 0 || next >= count) return
         keyboard = true
         reset()
@@ -261,7 +282,7 @@
         return
       }
       // A key can arrive before the resize observer updates batch capacity.
-      const stride = getComputedStyle(element).gridTemplateColumns.split(" ").length
+      const stride = columns
       const step =
         action === "left" || action === "previous"
           ? -1
@@ -303,62 +324,24 @@
   }
 </script>
 
-<div class="grid-view" data-columns={columns} data-rows={rows} data-batch={batch} {@attach measure}>
+<div
+  class="grid-view"
+  data-columns={columns}
+  data-rows={rows}
+  onscroll={(event) => scrolling(event.currentTarget)}
+  {@attach measure}
+>
   <svelte:element
     this={pane === "Input" ? "ul" : "ol"}
     class={["composition-grid", pane === "Input" ? "source-catalog" : "output-pages"]}
     aria-label={pane === "Input" ? "Input pages" : "Output page order"}
-    start={pane === "Output" ? start + 1 : undefined}
+    aria-setsize={count}
+    start={pane === "Output" ? from + 1 : undefined}
+    data-from={from}
+    style:padding-block-start={`${firstRow * stride}px`}
+    style:padding-block-end={`${bottomRows * stride}px`}
     {@attach gridKeys}
   >
-    {@render children(start, Math.min(start + batch, count))}
+    {@render children(from, to)}
   </svelte:element>
-  {#if compact || count > batch}
-    <nav class="page-batches" aria-label={`${pane} thumbnail pages`}>
-      <button
-        class="icon-button"
-        aria-label={`Previous ${pane} thumbnails`}
-        disabled={start === 0}
-        onclick={() => move(start - batch)}><Icon name="previous" /></button
-      >
-      <span class="batch-slider">
-        <input
-          type="range"
-          aria-label={`${pane} thumbnail range`}
-          aria-valuetext={`Grid page ${current + 1} of ${batches}, pages ${start + 1}–${Math.min(start + batch, count)} of ${count}`}
-          min="0"
-          max={batches - 1}
-          step="1"
-          value={current}
-          disabled={batches === 1}
-          oninput={(event) => move(Number(event.currentTarget.value) * batch)}
-        />
-        <span class="batch-marks" aria-hidden="true">
-          {#each marks as mark (mark)}
-            <span
-              class:current={mark === current}
-              class:passed={mark < current}
-              style:--position={batches === 1 ? 0 : mark / (batches - 1)}
-            ></span>
-          {/each}
-        </span>
-      </span>
-      <button
-        class="icon-button"
-        aria-label={`Next ${pane} thumbnails`}
-        disabled={start + batch >= count}
-        onclick={() => move(start + batch)}><Icon name="next" /></button
-      >
-      <span class="batch-caption">
-        <span class="batch-counter"
-          ><strong>{current + 1}</strong><span class="batch-total">&nbsp;/&nbsp;{batches}</span></span
-        >
-        <span class="batch-range"
-          ><span class="batch-separator" aria-hidden="true">·</span><strong
-            >{start + 1}–{Math.min(start + batch, count)}</strong
-          ><span class="batch-total">&nbsp;/&nbsp;{count}</span></span
-        >
-      </span>
-    </nav>
-  {/if}
 </div>

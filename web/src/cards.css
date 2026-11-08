@@ -1,4 +1,4 @@
-/* Styles page cards, density variants, and origin menus shared by the workspace. */
+/* Styles Grid cards, page controls, and origin menus shared by the workspace. */
 
 @layer layouts {
   @scope (#app) {
@@ -35,9 +35,6 @@
         padding-block: calc(var(--card-tools-height) / 2 + var(--thumbnail-padding));
         padding-inline: 3px;
       }
-    }
-    [data-density="compact"] .page-reference > span {
-      padding-inline: 8.5px;
     }
     .composition-card {
       --card-inset: calc(0.35rem + 1px - var(--page-stroke));
@@ -351,126 +348,6 @@
 
 @layer views {
   @scope (.composer) {
-    :is(.selection-panel, .composition-output)[data-density="compact"] {
-      .composition-card {
-        --fold: 15px;
-        block-size: var(--card-height);
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: calc(var(--card-tools-height) - 2 * var(--page-stroke)) minmax(0, 1fr);
-
-        & > :is(.input-footer, .occurrence-actions) {
-          display: none;
-        }
-
-        & > .page-label {
-          grid-template-columns: repeat(3, minmax(24px, 1fr));
-          grid-template-rows: minmax(0, 1fr);
-          margin-inline: calc(-1 * (var(--card-inset) + var(--page-stroke)));
-          block-size: 100%;
-          min-block-size: 0;
-          padding: 0;
-          position: relative;
-          border-block-end: 0;
-
-          &::after {
-            content: "";
-            position: absolute;
-            inset-inline: var(--page-stroke);
-            inset-block-end: 0;
-            block-size: 1px;
-            background: var(--border);
-            pointer-events: none;
-          }
-
-          & > .page-origin {
-            grid-column: 1;
-            grid-row: 1;
-            justify-self: stretch;
-            min-inline-size: 0;
-            block-size: 100%;
-            text-align: start;
-          }
-
-          & > .page-origin > button {
-            display: block flex;
-            inline-size: 100%;
-            min-inline-size: 0;
-            block-size: 100%;
-            min-block-size: 0;
-            justify-content: start;
-            padding: 0;
-            padding-inline-start: var(--compact-number-inset);
-            border: 0;
-            color: inherit;
-            background: transparent;
-            font-size: var(--compact-number-size);
-            font-variant-numeric: tabular-nums;
-            box-shadow: none;
-
-            & strong {
-              font-weight: inherit;
-            }
-
-            @media (hover: hover) and (pointer: fine) {
-              &:hover {
-                color: var(--accent);
-              }
-            }
-          }
-
-          & > .page-grip {
-            grid-column: 2;
-            grid-row: 1;
-            inline-size: 100%;
-            min-inline-size: 0;
-            block-size: 100%;
-            min-block-size: 0;
-            padding-inline: 0;
-
-            & svg {
-              inline-size: var(--compact-grip-size);
-              block-size: var(--compact-grip-size);
-            }
-
-            &::after {
-              inset-block-start: calc(-1 * (var(--grid-gap) + var(--page-stroke)));
-              inset-block-end: auto;
-              inset-inline: 0;
-              block-size: 44px;
-            }
-          }
-
-          & > .page-origin > button {
-            position: relative;
-
-            &::after {
-              content: "";
-              position: absolute;
-              inset-block-start: calc(-1 * (var(--grid-gap) + var(--page-stroke)));
-              inset-block-end: auto;
-              inset-inline: 0;
-              block-size: 44px;
-            }
-          }
-        }
-
-        & .thumbnail {
-          padding-block: var(--thumbnail-padding);
-          padding-inline: calc(8.5px - var(--page-stroke));
-        }
-
-        & > .page-image {
-          min-block-size: 0;
-          /* Keep the image area fixed when the centered header's border inset changes. */
-          margin-block: calc(var(--page-stroke) - 1px) calc(1px - var(--page-stroke));
-        }
-
-        & .page-face {
-          pointer-events: none;
-        }
-      }
-    }
-
     .card-menu-options[popover] {
       margin: 0;
       inset-block: auto;

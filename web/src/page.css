@@ -40,15 +40,6 @@
       font-size: var(--small);
       color: var(--muted);
     }
-    .page-batches {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: var(--gap);
-      margin-block: var(--gap);
-      color: var(--muted);
-      font-size: var(--small);
-    }
 
     .page-view {
       --fold: 24px;

@@ -12,12 +12,9 @@
   import type { Snippet } from "svelte"
   import Provenance from "./Provenance.svelte"
   import Breadcrumb from "./Breadcrumb.svelte"
-  import Pdf from "./Pdf.svelte"
-  import Icon from "./Icon.svelte"
   import { titleOf } from "./model.ts"
   import { titlesOf } from "./outline.ts"
   import { pageRanges } from "./pages.ts"
-  import type { Magnification } from "./Lens.svelte"
 
   let {
     id,
@@ -27,8 +24,6 @@
     multiple = false,
     mode,
     opened = $bindable(),
-    magnification = 16,
-    error,
     actions,
   }: {
     id: string
@@ -36,10 +31,8 @@
     number: number
     identity: Identity
     multiple?: boolean
-    mode: "normal" | "compact" | "list"
+    mode: "normal" | "list"
     opened?: string
-    magnification?: Magnification
-    error: (message: string) => void
     actions?: Snippet
   } = $props()
   const origin = $derived("source" in identity ? identity.source : undefined)
@@ -56,12 +49,6 @@
   const destinations = $derived("destinations" in identity ? (identity.destinations ?? []) : [])
   const details = $derived(
     pane === "Output" || destinations.length > 0 || !!title?.headings.length || (!!label && label !== String(page + 1)),
-  )
-  const appearance = $derived(
-    origin &&
-      (pane === "Input"
-        ? { pdf: origin.input.pdf, page, preview: origin.input.description.pages[page]?.preview }
-        : origin.preview.appearance(page)),
   )
   onDestroy(() => {
     if (opened === id) opened = undefined
@@ -99,25 +86,6 @@
   {:else if "blank" in identity}<strong>{identity.padding ? "Padding" : "Blank"}</strong>{/if}
   {@render pageDetails()}
 {/snippet}
-{#snippet compactBody()}
-  <div class="card-preview">
-    {#if appearance}<Pdf {...appearance} pageNumber={page + 1} {name} thumbnail {magnification} {error} />
-    {:else if "blank" in identity}<div
-        class="composition-blank"
-        style:--ratio={identity.blank.width / identity.blank.height}
-      >
-        <Icon name="blank" /><span>{identity.padding ? "Padding" : "Blank"}</span>
-      </div>{/if}
-  </div>
-  <p class="page-context">
-    {origin?.input.name ?? ("blank" in identity && identity.padding ? "Padding" : "Blank")}{#if origin}
-      · {pane === "Input" ? `${page % 2 ? "Back" : "Front"} side` : `original page ${page + 1}`}{/if}
-  </p>
-  {@render pageDetails()}
-  {#if actions}{#if pane === "Input"}<div class="occurrence-actions input-menu-action">
-        {@render actions()}
-      </div>{:else}{@render actions()}{/if}{/if}
-{/snippet}
 {#snippet caption()}
   {#if mode !== "list" && name && opened !== id}<p class="page-name">{name}</p>{/if}
 {/snippet}
@@ -131,21 +99,20 @@
   {:else if name}<p class="detail-name">{name}</p>{/if}
 {/snippet}
 
-{#if mode === "compact" || (mode === "list" && details)}
+{#if mode === "list" && details}
   <span class="page-origin">
     <button
-      class={mode === "list" ? "icon-button" : "card-number"}
+      class="icon-button"
       popovertarget={id}
       aria-label={`Details for ${pane} page ${number}`}
       aria-describedby={source ? `${id}-source` : undefined}
     >
-      {#if mode === "list"}{@render numberLabel()}{:else}<strong>{number}</strong>{/if}
+      {@render numberLabel()}
     </button>
     {@render caption()}
     <div
       {id}
       class="card-menu-options"
-      data-preview={mode === "compact" || undefined}
       popover="auto"
       onbeforetoggle={(event) => {
         if (event.newState === "open")
@@ -157,12 +124,7 @@
     >
       {#if opened === id}
         {@render detailHeading()}
-        {#if mode === "compact"}
-          <strong>{pane} · page {number}</strong>
-          {@render compactBody()}
-        {:else if details}
-          {@render detailBody()}
-        {/if}
+        {@render detailBody()}
       {/if}
     </div>
   </span>

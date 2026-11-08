@@ -24,6 +24,7 @@
   import Selection from "./Selection.svelte"
   import Origin from "./Origin.svelte"
   import Grid from "./Grid.svelte"
+  import type { Viewport as GridViewport } from "./Grid.svelte"
   import List from "./List.svelte"
   import type { Viewport } from "./List.svelte"
   import Row from "./Row.svelte"
@@ -91,8 +92,8 @@
   let outputZoom = $state(100)
   let comparing = $state(false)
   const key = $props.id()
-  const viewTabs = ["grid", "list", "page"] as const
-  const viewLabels = { grid: "Grid", list: "List", page: "Page" }
+  const viewTabs = ["flow", "page"] as const
+  const viewLabels = { flow: "Flow", page: "Page" }
   function summary(element: HTMLDivElement) {
     const counts = element.querySelector<HTMLElement>(".composition-totals")!
     let frame: number
@@ -125,15 +126,26 @@
   const inputView = $derived((source && inputViews[source.id]) ?? initialView)
   const titleChoice = $derived(source ? titlesOf(source.input).choice : false)
   const inputPosition = $derived(inputView.position)
-  const inputCompact = $derived(inputView.density === "compact")
   let inputControls = $state<Controls>("all")
   let outputControls = $state<Controls>("all")
   let inputPage = $state<ReturnType<typeof PageView>>()
+  let inputGrid = $state<ReturnType<typeof Grid>>()
+  let outputGrid = $state<ReturnType<typeof Grid>>()
   let inputList = $state<ReturnType<typeof List>>()
   let outputList = $state<ReturnType<typeof List>>()
   let outputFolds = $state<ReadonlySet<string>>()
   const outputListViewport: Viewport = { scroll: 0 }
+  const outputGridViewport: GridViewport = { scroll: 0 }
   const inputListViewports = new Map<string, Viewport>()
+  const inputGridViewports = new Map<string, GridViewport>()
+  function gridViewport(id: string) {
+    let value = inputGridViewports.get(id)
+    if (!value) {
+      value = { scroll: 0 }
+      inputGridViewports.set(id, value)
+    }
+    return value
+  }
   function listViewport(id: string) {
     let value = inputListViewports.get(id)
     if (!value) {
@@ -145,10 +157,8 @@
   let outputGrouped = $state(true)
   let outputPage = $state<ReturnType<typeof PageView>>()
   let outputPageInitialized = $state(false)
-  let outputDensity = $state<"normal" | "compact">("normal")
   const tocTitlesRevision = $derived(sources.map((item) => !!inputViews[item.id]?.tocTitles).join(","))
   const outputListRevision = $derived({ pages: output.pages, grouped: outputGrouped, titles: tocTitlesRevision })
-  const outputCompact = $derived(outputDensity === "compact")
   let outputOffset = $state(0)
   let outputText = $state<string>()
   let repetitions = $state("2")
@@ -196,7 +206,7 @@
         ? "page"
         : tour === "input-list"
           ? "list"
-          : tour === "input-grid" || tour === "input-density"
+          : tour === "input-grid" || tour === "input-flow-toggle"
             ? "grid"
             : inputView.tab === "style" && !styleable
               ? inputView.flow
@@ -209,7 +219,7 @@
       ? "page"
       : tour === "output-list"
         ? "list"
-        : tour === "output-grid" || tour === "output-density" || tour === "output-selection"
+        : tour === "output-grid" || tour === "output-flow-toggle" || tour === "output-selection"
           ? "grid"
           : outputTab === "flow"
             ? outputFlow
@@ -331,6 +341,7 @@
     get outputFlow() {
       return outputFlow
     },
+    revealGrid: (pane, index) => (pane === "Input" ? inputGrid : outputGrid)?.revealPage(index),
     get draft() {
       return draft
     },
@@ -424,16 +435,6 @@
     if (!id) return
     inputViews = { ...inputViews, [id]: { ...(inputViews[id] ?? initialView), ...patch } }
   }
-  function density(pane: "Input" | "Output", value: "normal" | "compact") {
-    originOpen = undefined
-    cancelMotion()
-    if (pane === "Input") inspectInput({ density: value })
-    else outputDensity = value
-    void interaction.reveal(pane)
-  }
-  function initializeDensity(capacity: number) {
-    if (inputView.density === undefined) inspectInput({ density: count > 2 * capacity ? "compact" : "normal" })
-  }
   async function goTo(pane: "Input" | "Output", position: number, event: MouseEvent) {
     if (pane === "Input") inspectInput({ position, offset: position, alignment: undefined })
     else {
@@ -442,12 +443,15 @@
     }
     await tick()
     const list = pane === "Input" ? inputList : outputList
+    const grid = pane === "Input" ? inputGrid : outputGrid
     await list?.revealPage(position)
+    await grid?.revealPage(position)
     await interaction.reveal(pane, event, true)
   }
   function inputTab(tab: InputView["flow"] | InputView["tab"], event?: MouseEvent | KeyboardEvent) {
     const mode = tab === "flow" ? inputView.flow : tab
-    const changed = mode !== activeTab
+    const previous = activeTab
+    const changed = mode !== previous
     if (changed && activeTab === "list") inputList?.remember()
     cancelMotion()
     inspectInput({
@@ -455,7 +459,8 @@
       ...(mode === "grid" || mode === "list" ? { flow: mode } : {}),
       ...(mode === "grid" ? { offset: inputPosition } : {}),
     })
-    if (changed) void interaction.reveal("Input", event)
+    if (changed && !((previous === "grid" || previous === "list") && (mode === "grid" || mode === "list")))
+      void interaction.reveal("Input", event)
   }
   const outputBooks = $derived(
     new Set(output.pages.flatMap((page) => ("source" in page.content ? [page.content.source] : []))),
@@ -513,13 +518,15 @@
   }
   function setOutputTab(tab: "grid" | "list" | "page" | "flow", event?: MouseEvent | KeyboardEvent) {
     const mode = tab === "flow" ? outputFlow : tab
-    const changed = mode !== activeOutputTab
+    const previous = activeOutputTab
+    const changed = mode !== previous
     if (changed && activeOutputTab === "list") outputList?.remember()
     cancelMotion()
     outputTab = mode === "grid" || mode === "list" ? "flow" : mode
     if (mode === "grid" || mode === "list") outputFlow = mode
     if (mode === "grid") outputOffset = output.position
-    if (changed) void interaction.reveal("Output", event)
+    if (changed && !((previous === "grid" || previous === "list") && (mode === "grid" || mode === "list")))
+      void interaction.reveal("Output", event)
   }
 
   function setZoom(pane: "Input" | "Output", zoom: number) {
@@ -1421,10 +1428,8 @@
       pane="Input"
       number={page + 1}
       identity={{ source, page, tocTitles: inputView.tocTitles, destinations: outputPositions.get(page) }}
-      mode={activeTab === "list" ? "list" : inputCompact ? "compact" : "normal"}
+      mode={activeTab === "list" ? "list" : "normal"}
       bind:opened={originOpen}
-      {magnification}
-      {error}
       actions={!draft.pages.length ? actions : undefined}
     />{/if}
 {/snippet}
@@ -1439,23 +1444,26 @@
       ? { source: origin, page: page.content.page, tocTitles: inputViews[origin.id]?.tocTitles }
       : { blank: sizeOf(page.content, sources), padding: page.padding }}
     multiple={outputBooks.size > 1}
-    mode={activeOutputTab === "list" ? "list" : outputCompact ? "compact" : "normal"}
+    mode={activeOutputTab === "list" ? "list" : "normal"}
     bind:opened={originOpen}
-    {magnification}
-    {error}
   >
     {#snippet actions()}{@render occurrenceActions(page, index, !chosen.length)}{/snippet}
   </Origin>
 {/snippet}
 
-{#snippet gridDensity(pane: "Input" | "Output", compact: boolean)}
+{#snippet flowToggle(pane: "Input" | "Output")}
+  {@const current = pane === "Input" ? inputView.flow : outputFlow}
   <button
-    class="grid-density icon-button"
-    aria-label={`Switch to ${compact ? "Normal" : "Compact"} ${pane} grid`}
-    title={`Switch to ${compact ? "Normal" : "Compact"} grid`}
-    data-tour-target={pane === "Input" ? "input-density" : "output-density"}
-    data-tour-active={tour === (pane === "Input" ? "input-density" : "output-density")}
-    onclick={() => density(pane, compact ? "normal" : "compact")}><Icon name={compact ? "normal" : "compact"} /></button
+    type="button"
+    class="icon-button flow-toggle"
+    aria-label={`Show ${pane} ${current === "grid" ? "List" : "Grid"}`}
+    title={`Switch to ${current === "grid" ? "List" : "Grid"}`}
+    data-tour-target={`${pane === "Input" ? "input" : "output"}-flow-toggle`}
+    onclick={(event) =>
+      pane === "Input"
+        ? inputTab(current === "grid" ? "list" : "grid", event)
+        : setOutputTab(current === "grid" ? "list" : "grid", event)}
+    ><Icon name={current === "grid" ? "list" : "grid"} /></button
   >
 {/snippet}
 
@@ -1580,7 +1588,7 @@
     {#if controls}
       {#if activeOutputTab === "list"}
         {@render pairs()}
-      {:else if !outputCompact}
+      {:else}
         <span class="card-inline-actions">{@render pairs()}</span>
         <button
           class="icon-button card-menu"
@@ -1590,8 +1598,6 @@
         <div id={`${key}-card-actions-${page.id}`} class="card-menu-options occurrence-menu" popover="auto">
           <div class="occurrence-actions">{@render pairs()}</div>
         </div>
-      {:else}
-        {@render move(-1)}{@render copies()}{@render move(1)}
       {/if}
     {/if}
   </div>
@@ -1747,8 +1753,6 @@
           transfer.value?.kind === "source" &&
           activeView === "input") ||
           undefined}
-        style:--grid-digits={String(count).length}
-        data-density={inputView.density}
         aria-labelledby={`${key}-selection`}
       >
         <div class="section-heading input-heading" data-tour-target="input" data-tour-active={tour === "input"}>
@@ -1761,22 +1765,22 @@
                 id={`${key}-${tab}`}
                 role="tab"
                 aria-label={viewLabels[tab]}
-                aria-selected={activeTab === tab}
+                aria-selected={inputView.tab === tab}
                 aria-controls={`${key}-source-panel`}
-                tabindex={activeTab === tab ? 0 : -1}
+                tabindex={inputView.tab === tab ? 0 : -1}
                 onkeydown={(event) => interaction.tabKey(event)}
                 onclick={() => inputTab(tab)}
                 title={`${viewLabels[tab]} view`}
-                data-tour-tab={`input-${tab}`}
+                data-tour-tab={tab === "flow" ? `input-${activeTab}` : `input-${tab}`}
                 data-tour-active={tour === `input-${tab}`}><Icon name={tab} /><span>{viewLabels[tab]}</span></button
               >{/each}
             {#if hasStyles}<button
                 id={`${key}-style`}
                 role="tab"
                 aria-label="Style"
-                aria-selected={activeTab === "style"}
+                aria-selected={inputView.tab === "style"}
                 aria-controls={`${key}-source-panel`}
-                tabindex={activeTab === "style" ? 0 : -1}
+                tabindex={inputView.tab === "style" ? 0 : -1}
                 onkeydown={interaction.tabKey}
                 onclick={() => inputTab("style")}
                 disabled={!styleable}
@@ -1812,7 +1816,7 @@
                 void interaction.reveal("Input")
               }}><Icon name="sections" /></button
             >{/if}
-          {#if activeTab === "grid"}{@render gridDensity("Input", inputCompact)}{/if}
+          {#if inputView.tab === "flow"}{@render flowToggle("Input")}{/if}
           {#if activeTab === "style" && styling}{@render styling(true)}{/if}
           {#if source.input.outline?.length}<Contents
               outline={source.input.outline}
@@ -1840,7 +1844,7 @@
           role="tabpanel"
           data-tour-target={activeTab === "style" ? "style" : `input-${activeTab}`}
           data-tour-active={tour === "style" || tour?.startsWith("input-")}
-          aria-labelledby={`${key}-${activeTab}`}
+          aria-labelledby={`${key}-${inputView.tab}`}
         >
           {#if activeTab === "style" && styling}
             <div class="page-content">
@@ -2013,11 +2017,11 @@
                   </List>{/key}
               {:else}
                 <Grid
+                  bind:this={inputGrid}
+                  viewport={gridViewport(source.id)}
                   pane="Input"
                   active={() => interaction.shortcutPane() === "Input"}
-                  compact={inputCompact}
                   {count}
-                  initialize={!opening && inputView.density === undefined ? initializeDensity : undefined}
                   bind:position={() => inputView.position, (position) => inspectInput({ position })}
                   bind:offset={() => inputView.offset, (offset) => inspectInput({ offset })}
                   bind:keyboard={interaction.usingKeyboard}
@@ -2073,7 +2077,7 @@
                           data-page={page}
                           aria-label={`Select Input page ${page + 1}`}
                           aria-pressed={inputSelected.has(page)}
-                          aria-describedby={!inputCompact && destinations.length ? detail : undefined}
+                          aria-describedby={destinations.length ? detail : undefined}
                           title="Select pages for Output."
                           aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Home End N P V Control+A Meta+A Escape Control+ArrowLeft Control+ArrowRight Meta+ArrowLeft Meta+ArrowRight Space Enter Delete"
                           draggable="true"
@@ -2126,8 +2130,6 @@
 
     <section
       class="composition-output"
-      style:--grid-digits={String(output.pages.length).length}
-      data-density={outputDensity}
       data-preview={transfer.preview || (activeOutputTab === "list" && transfer.destination !== undefined)
         ? true
         : undefined}
@@ -2201,13 +2203,13 @@
               id={`${key}-output-${tab}`}
               role="tab"
               aria-label={viewLabels[tab]}
-              aria-selected={activeOutputTab === tab}
+              aria-selected={outputTab === tab}
               aria-controls={`${key}-output-panel`}
-              tabindex={activeOutputTab === tab ? 0 : -1}
+              tabindex={outputTab === tab ? 0 : -1}
               onkeydown={(event) => interaction.tabKey(event, "Output")}
               onclick={() => setOutputTab(tab)}
               title={`${viewLabels[tab]} view`}
-              data-tour-tab={`output-${tab}`}
+              data-tour-tab={tab === "flow" ? `output-${activeOutputTab}` : `output-${tab}`}
               data-tour-active={tour === `output-${tab}`}><Icon name={tab} /><span>{viewLabels[tab]}</span></button
             >{/each}
         </div>
@@ -2232,7 +2234,7 @@
               void interaction.reveal("Output")
             }}><Icon name="sections" /></button
           >{/if}
-        {#if activeOutputTab === "grid"}{@render gridDensity("Output", outputCompact)}{/if}
+        {#if outputTab === "flow"}{@render flowToggle("Output")}{/if}
         <Jump
           pane="Output"
           count={output.pages.length}
@@ -2247,7 +2249,7 @@
         data-tour-active={tour?.startsWith("output-")}
         id={`${key}-output-panel`}
         role="tabpanel"
-        aria-labelledby={`${key}-output-${activeOutputTab}`}
+        aria-labelledby={`${key}-output-${outputTab}`}
       >
         <Selection
           id={`${key}-output-selection`}
@@ -2486,9 +2488,10 @@
           {:else}
             {#if output.pages.length}
               <Grid
+                bind:this={outputGrid}
+                viewport={outputGridViewport}
                 pane="Output"
                 active={() => interaction.shortcutPane() === "Output"}
-                compact={outputCompact}
                 count={output.pages.length}
                 bind:position={output.position}
                 bind:offset={outputOffset}

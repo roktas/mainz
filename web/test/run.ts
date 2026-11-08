@@ -60,7 +60,7 @@ const minimal = {
     "Page pinch zoom preserves its anchor and shares the button zoom range",
     "Page cancellation clears a pending pinch before the next render",
   ],
-  grid: ["Grid pagination bounds its marks and retains exact page navigation"],
+  grid: ["Grid scroll windows keep 300 pages reachable with stable card geometry"],
   composition: ["Edited Padding retains its dimensions and page order in the downloaded PDF"],
 }
 const matrices = {
@@ -72,7 +72,6 @@ const matrices = {
     "Touch Grid uses complete rows within the available viewport",
     "Desktop Grid retains measured capacity within readable bounds",
     "Grid fitting respects viewport bounds and input capabilities",
-    "Compact pagination retains readable four- and five-digit numbers",
   ],
 }
 for (const [file, names] of [...Object.entries(minimal), ...Object.entries(matrices)]) {

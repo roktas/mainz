@@ -1,6 +1,6 @@
 # Flow View and Grid Scrolling Plan
 
-> Status: implementation approved. Work proceeds in tested checkpoints on `next`.
+> Status: implementation approved. Validated changes are published to `next` in checkpoints.
 
 ## Preparation
 
@@ -23,9 +23,9 @@ separate and Style available for eligible Inputs. The toggle selects presentatio
 identity, selection, Output, preparation, zoom, or inspect position. Each Input and Output retains its Flow mode and
 relevant scroll positions.
 
-Defer the Grid card footer redesign: the owner prefers two footer controls, but their responsibilities are not decided.
-Make the back-page fold smaller **in Grid only**. Preserve controls, selection, keyboard access, touch hit targets, drag
-and drop, focus behavior, light/dark themes, and reduced motion.
+Defer the Grid card footer redesign until the owner chooses its two direct controls. Make the back-page fold smaller
+**in Grid only**. Preserve controls, selection, keyboard access, touch hit targets, drag and drop, focus behavior,
+light/dark themes, and reduced motion.
 
 The implementation must not add dependencies, compatibility shims for deliberately retired Compact/pagination behavior,
 speculative data models, or generic helpers without a second real owner.
@@ -49,17 +49,13 @@ In particular, avoid another large state machine inside `Composer.svelte` or unr
 
 ### 0. Baseline and preview gate
 
-- [x] Inspect the checkout's branch, HEAD, and dirty state before local work (`next` at `9109653`, clean).
-- [x] Reuse Vite preview; HTTP 200 at `http://127.0.0.1:5173/?demo` (container-local URL, not publicly reachable).
+- [x] Inspect the checkout's branch, HEAD, and dirty state before local work.
+- [x] Reuse Vite preview; HTTP 200 at `http://127.0.0.1:5173/?demo` (container-local).
 - [ ] Run existing focused Grid, List, selection, transfer, alignment, and keyboard tests against current behavior.
       Record failures rather than silently changing baselines.
-  - [x] Baseline format, lint, Svelte/TS, 52 unit tests, and Chromium selection/keyboard tests (2/2) passed.
-  - [ ] Complete the other focused browser groups; WebKit currently lacks `libicudata.so.78`.
 - [ ] Capture baseline geometry and screenshots at affected phone, tablet, and split-view desktop widths; include both
       panes, themes, large page numbers, touch/fine pointer, and long labels.
-  - [x] Saved 390/768/1440 px Chromium screenshots and Normal Input card measurements in
-        `.local/tmp/web/flow-baseline/`; all measured card widths are 148 px.
-  - [ ] Capture remaining theme, large-number, touch and long-label variants.
+  - [x] Baseline Normal card width: 148 px at 390/768/1440 px. Additional scenarios remain pending.
 
 **Gate:** baseline evidence and a working preview URL. Do not begin a visual edit without it.
 
@@ -73,16 +69,13 @@ In particular, avoid another large state machine inside `Composer.svelte` or unr
       unchanged until the tab change is enabled.
 - [x] Align focused view-return, keyboard, input switching, and state-retention tests.
 
-**Gate:** current UI still shows Grid/List separately; internal tab state is `flow/page/style` for Input and `flow/page`
-for Output. Presentation is stored independently per pane and per Input. Chromium checked Page return, keyboard
-shortcuts, tour restoration, and Input switching (4/4 focused tests). All 52 unit tests, Svelte/TS, lint, and format
-checks passed.
+**Gate:** existing transitions, selection, Page return, and input switching still pass; no duplicate source of truth.
 
 ### 2. Retire Compact density
 
-- [ ] Remove automatic Compact selection, density controls, state, component props, Compact-only popover behavior,
+- [x] Remove automatic Compact selection, density controls, state, component props, Compact-only popover behavior,
       icons/styles, and density-specific tours/help text.
-- [ ] Remove Compact-only CSS calibrations and `fit.ts` branches while retaining every effective Normal card geometry
+- [x] Remove Compact-only CSS calibrations and `fit.ts` branches while retaining every effective Normal card geometry
       rule, including valid touch/portrait calibrations.
 - [ ] Retarget affected fixtures, measurement helpers, and browser expectations to the single Grid geometry. Keep real
       retained measurement evidence distinct from live assertions.
@@ -93,9 +86,9 @@ relevant viewport.
 
 ### 3. Replace batches with scroll inside the fixed frame
 
-- [ ] Remove page-batch slider, arrows, markers, counters, snap-to-batch offsets, and pager-height reservation. Use a
+- [x] Remove page-batch slider, arrows, markers, counters, snap-to-batch offsets, and pager-height reservation. Use a
       stable, thin vertical scrollbar in the pane gutter, as in List.
-- [ ] Render a bounded visible **row** window plus spacers for long documents. Derive row/column mapping from the same
+- [x] Render a bounded visible **row** window plus spacers for long documents. Derive row/column mapping from the same
       measured card geometry; preserve physical Input order and Output occurrence identity.
 - [ ] Store and restore scroll position for each Input and Output; reveal the inspected item on Go to page, Contents
       navigation, Page return, selection navigation, and Input changes without unnecessary scroll jumps.
@@ -112,22 +105,20 @@ relevant viewport.
 **Gate:** the full sequence is reachable, including 240+ pages; selection, editing, keyboard, touch, and drag/drop still
 work across scroll windows, with unchanged card geometry.
 
-### 4. Grid fold and deferred card footer
+### 4. Grid fold and deferred footer
 
-- [ ] Revisit footer design when the owner selects the two direct controls; do not change existing actions in this
-      iteration.
-- [x] Reduce the back-page fold in Grid from 18 px to 12 px; Page retains its 24 px fold.
+- [ ] Revisit footer actions after the owner selects the two controls. No footer change in this iteration.
+- [x] Reduce the back-page fold in Grid only; keep the Page fold and the card's page-number/grip alignment unchanged.
 - [ ] Add focused browser assertions for control visibility, glyph centers, clickable bounds, keyboard focus, touch
       targets, selected/unselected states, and the smaller fold.
 
-**Gate:** Grid fold is visibly smaller with unchanged Page fold and card geometry. Footer redesign stays out of scope
-until its two actions are decided.
+**Gate:** Grid fold is smaller with unchanged Page fold and card geometry. Footer redesign is deferred.
 
 ### 5. Enable the Flow tab and Grid/List toggle
 
-- [ ] Replace separate Grid/List tabs with **Flow**, keeping Page and eligible Style tabs. Provide a labeled,
+- [x] Replace separate Grid/List tabs with **Flow**, keeping Page and eligible Style tabs. Provide a labeled,
       keyboard-accessible Grid/List toggle in the Flow toolbar, using existing control styles and symbols.
-- [ ] Wire the toggle to the canonical per-pane mode. Retain List folds/virtualized viewport and Grid scroll
+- [x] Wire the toggle to the canonical per-pane mode. Retain List folds/virtualized viewport and Grid scroll
       independently; preserve inspection, selection, and Page-to-origin return.
 - [ ] Update tab focus, shortcuts, ARIA relationships, Go to page, Contents, tour targets, and narrow single-pane
       layouts.
@@ -168,11 +159,14 @@ files or new slop.
 
 A single Flow tab toggles between Grid and List in both panes. Grid shows all pages by vertical scroll inside its
 existing fixed frame with a thin scrollbar, no Compact density and no pagination. Its Normal card geometry remains
-unchanged and Grid back folds are smaller. The footer redesign remains a separate decision. All page actions, selection,
-identity, drag/drop, inspection, keyboard navigation, focus, and independent Input/Output state remain correct.
-Automated tests and project documentation describe the resulting behavior.
+unchanged and Grid back folds are smaller. The footer redesign is deferred. All page actions, selection, identity,
+drag/drop, inspection, keyboard navigation, focus, and independent Input/Output state remain correct. Automated tests
+and project documentation describe the resulting behavior.
 
 ## Execution note
 
-Implementation approved 2026-11-08. After each validated checkpoint, update this plan and publish a commit to `next`.
-Card footer controls are deferred pending the owner's two-action choice.
+Implementation was approved on 2026-11-08. Push validated checkpoints to `next` with the plan updated.
+
+Progress: Flow modes and compact removal compile. Chromium passed Grid virtualization for 250/300 pages, responsive
+scroll retention, Flow switching, fold, and two drag tests. `npm run check`, lint, format and unit tests pass. Broader
+legacy browser tests and WebKit remain pending; WebKit lacks libicudata.so.78.

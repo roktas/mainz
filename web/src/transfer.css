@@ -169,12 +169,5 @@
       block-size: var(--drop-height);
       overflow: clip;
     }
-    :is(.selection-panel, .composition-output)[data-density="compact"] {
-      .drop-placeholder {
-        padding-block: calc(var(--card-tools-height) - 1px + var(--thumbnail-padding))
-          calc(1px + var(--thumbnail-padding));
-        padding-inline: 8.5px;
-      }
-    }
   }
 }

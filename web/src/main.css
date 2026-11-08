@@ -780,7 +780,7 @@
         .composer[data-view="input"] .selection-panel .grid-view,
         .composer[data-view="output"] .composition-output .grid-view
       ) {
-        /* Pagination visibility must not change the frame used to decide its capacity. */
+        /* Keep the frame stable when the panel contents change. */
         padding-block-end: 0;
       }
 

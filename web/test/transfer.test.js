@@ -5,8 +5,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { chromium } from "playwright"
-import { fixture } from "./browser.js"
-import { measure, gridDensity } from "./measure.js"
+import { fixture, tab } from "./browser.js"
 
 test("Native page drags survive platform focus changes and cards respond on press", { timeout: 60000 }, async () => {
   const server = await serve()
@@ -16,14 +15,13 @@ test("Native page drags survive platform focus changes and cards respond on pres
       [1920, 960],
       [2560, 1321],
     ]) {
-      for (const density of ["Normal", "Compact"]) {
+      for (const mode of ["Grid"]) {
         const page = await browser.newPage({ viewport: { width, height }, reducedMotion: "no-preference" })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
         await page.goto(`${server.resolvedUrls.local[0]}?demo=empty`)
         const input = page.locator(".selection-panel"),
           output = page.locator(".composition-output")
-        await gridDensity(input, `${density} Input grid`)
-        await measure(input)
+        await tab(input, mode)
         const source = input.locator(".page-image").first()
         const card = input.locator(".composition-card").first()
         const selected = input.getByLabel("Page selection", { exact: true })
@@ -82,7 +80,6 @@ test("Touch grip press previews the card without editing and cancellation clears
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.goto(`${server.resolvedUrls.local[0]}?demo=empty`)
       const input = page.locator(".selection-panel")
-      await measure(input)
       const card = input.locator(".composition-card").first(),
         grip = card.locator(".page-grip")
       const selection = await input.getByLabel("Page selection", { exact: true }).inputValue()
@@ -138,11 +135,26 @@ test(
         await input.getByLabel("Input page actions", { exact: true }).click()
         await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill("1000")
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
-        await output.getByRole("slider").press("End")
-        await output.getByRole("slider").press("ArrowLeft")
-        const positions = await output
-          .locator(".composition-card .page-image")
-          .evaluateAll((elements) => elements.map((e) => Number(e.dataset.page) + 1))
+        const viewport = output.locator(".grid-view")
+        await viewport.evaluate((element) => {
+          const style = getComputedStyle(element.querySelector(".composition-grid"))
+          element.scrollTop =
+            element.scrollHeight -
+            element.clientHeight -
+            2 * (parseFloat(style.gridAutoRows) + parseFloat(style.rowGap))
+        })
+        await page.waitForFunction(
+          () => Number(document.querySelector(".composition-output .composition-grid")?.dataset.from) > 9000,
+        )
+        const positions = await output.locator(".output-pages").evaluate((grid) => {
+          const frame = grid.parentElement.getBoundingClientRect()
+          return [...grid.querySelectorAll(".composition-card")]
+            .filter((card) => {
+              const bounds = card.getBoundingClientRect()
+              return bounds.top >= frame.top && bounds.bottom <= frame.bottom
+            })
+            .map((card) => Number(card.querySelector(".page-image").dataset.page) + 1)
+        })
         const from = positions[0],
           to = positions.at(-1)
         assert.ok(from > 9000 && to > from + 1)
@@ -151,8 +163,11 @@ test(
         const original = await selection.inputValue()
         for (const cancelled of [true, false]) {
           const result = await output.locator(".output-pages").evaluate(
-            async (grid, { pointer, cancel }) => {
-              const source = grid.querySelector(".page-grip"),
+            async (grid, { pointer, cancel, from }) => {
+              const source = grid
+                  .querySelector(`.page-image[data-page="${from - 1}"]`)
+                  ?.closest(".composition-card")
+                  ?.querySelector(".page-grip"),
                 box = source.getBoundingClientRect()
               const data = new DataTransfer(),
                 contact = { pointerId: 7, pointerType: "touch", isPrimary: true, button: 0, buttons: 1 }
@@ -178,16 +193,21 @@ test(
                 await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
                 return point
               }
-              await over(grid.querySelector(".composition-card").getBoundingClientRect())
+              const frame = grid.parentElement.getBoundingClientRect()
+              const visible = [...grid.querySelectorAll(".composition-card")].filter((card) => {
+                const bounds = card.getBoundingClientRect()
+                return bounds.top >= frame.top && bounds.bottom <= frame.bottom
+              })
+              await over(visible[0].getBoundingClientRect())
               const blocked = !grid.querySelector(".drop-placeholder")
-              const point = await over(grid.querySelector(".composition-card:last-child").getBoundingClientRect())
+              const point = await over(visible.at(-1).getBoundingClientRect())
               const preview = !!grid.querySelector(".drop-placeholder")
               if (cancel) window.dispatchEvent(new Event("resize"))
               else if (pointer === "native") grid.dispatchEvent(new DragEvent("drop", { ...point, dataTransfer: data }))
               else window.dispatchEvent(new PointerEvent("pointerup", { ...point, ...contact }))
               return { blocked, preview }
             },
-            { pointer: method, cancel: cancelled },
+            { pointer: method, cancel: cancelled, from },
           )
           assert.deepEqual(result, { blocked: true, preview: true }, method)
           await page.locator(".composer[data-drag]").waitFor({ state: "hidden" })

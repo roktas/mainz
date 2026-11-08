@@ -301,8 +301,8 @@
         "last",
         "previous",
         "next",
-        "batchPrevious",
-        "batchNext",
+        "viewportPrevious",
+        "viewportNext",
       ].includes(action)
     )
       return
@@ -321,9 +321,9 @@
               Math.min(
                 pages.length - 1,
                 index +
-                  (action === "batchPrevious"
+                  (action === "viewportPrevious"
                     ? -stride
-                    : action === "batchNext"
+                    : action === "viewportNext"
                       ? stride
                       : ["left", "up", "previous"].includes(action)
                         ? -1

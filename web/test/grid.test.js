@@ -1,4 +1,4 @@
-// Checks Grid density, pagination, and viewport capacity; alignment.test.js owns theme and selection combinations.
+// Checks scrollable Grid, virtualized pages, and frame geometry; alignment owns theme and selection combinations.
 
 import { launch } from "./browsers.js"
 import assert from "node:assert/strict"
@@ -9,6 +9,204 @@ import { fixture, captureLayout, tab, checkStatus, checkPagination } from "./bro
 import { measure, gridDensity } from "./measure.js"
 import inventory from "./viewports.json" with { type: "json" }
 import { bounds as gridBounds, quality } from "./quality.ts"
+
+test(
+  "Grid virtualizes 250 pages with a fixed scroll viewport and preserves card geometry",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await launch(chromium)
+    try {
+      for (const width of [390, 768, 1440]) {
+        const page = await browser.newPage({ viewport: { width, height: 900 } })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        await page
+          .locator('input[type="file"]')
+          .first()
+          .setInputFiles({
+            name: "Large.pdf",
+            mimeType: "application/pdf",
+            buffer: fixture({ prepared: false, count: 250 }),
+          })
+        const viewport = page.locator(".selection-panel .grid-view")
+        const list = viewport.locator(".composition-grid")
+        await list.locator(".composition-card").first().waitFor()
+        const inspect = async () =>
+          viewport.evaluate((element) => {
+            const grid = element.querySelector(".composition-grid")
+            const cards = [...grid.querySelectorAll(".composition-card")]
+            const first = cards[0]
+            return {
+              visible: cards.length,
+              from: Number(grid.dataset.from),
+              first: Number(first.querySelector(".page-image").dataset.page),
+              last: Number(cards.at(-1).querySelector(".page-image").dataset.page),
+              height: element.clientHeight,
+              total: element.scrollHeight,
+              width: first.getBoundingClientRect().width,
+              cardHeight: first.getBoundingClientRect().height,
+            }
+          })
+        const start = await inspect()
+        assert.ok(start.visible < 30, JSON.stringify(start))
+        assert.equal(start.width, 148)
+        assert.equal(start.cardHeight, 240)
+        assert.ok(start.total > start.height, JSON.stringify(start))
+        await viewport.evaluate((element) => (element.scrollTop = element.scrollHeight))
+        await list.locator('.page-image[data-page="249"]').waitFor()
+        const end = await inspect()
+        assert.equal(end.last, 249)
+        assert.ok(end.visible < 30, JSON.stringify(end))
+        assert.ok(Math.abs(end.height - start.height) < 2, JSON.stringify({ start, end }))
+        assert.ok(Math.abs(end.total - start.total) < 10, JSON.stringify({ start, end }))
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+        await page.close()
+      }
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test("Grid scroll windows keep 300 pages reachable with stable card geometry", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    await page
+      .locator('input[type="file"]')
+      .first()
+      .setInputFiles({
+        name: "Long.pdf",
+        mimeType: "application/pdf",
+        buffer: fixture({ prepared: false, count: 300 }),
+      })
+    const grid = page.locator(".selection-panel .grid-view")
+    await grid.waitFor()
+    const cards = grid.locator(".composition-card")
+    const firstWidth = await cards.first().evaluate((element) => element.getBoundingClientRect().width)
+    assert.equal(Math.round(firstWidth), 148)
+    const initial = await grid.evaluate((element) => ({
+      content: element.scrollHeight,
+      viewport: element.clientHeight,
+      count: element.querySelectorAll(".composition-card").length,
+    }))
+    assert.ok(initial.content > initial.viewport * 10, JSON.stringify(initial))
+    assert.ok(initial.count < 30, `Virtual window rendered ${initial.count} of 300 cards`)
+
+    await grid.evaluate((element) => (element.scrollTop = element.scrollHeight))
+    await grid.locator('.page-image[data-page="299"]').waitFor()
+    assert.ok((await cards.count()) < 30)
+    const lastWidth = await cards.last().evaluate((element) => element.getBoundingClientRect().width)
+    assert.ok(Math.abs(lastWidth - firstWidth) < 1)
+
+    await grid.locator('.page-image[data-page="299"]').focus()
+    await page.keyboard.press("Home")
+    await grid.locator('.page-image[data-page="0"]').waitFor()
+    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("data-page")), "0")
+    await page.keyboard.press("End")
+    await grid.locator('.page-image[data-page="299"]').waitFor()
+    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("data-page")), "299")
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await grid.evaluate((element) => (element.scrollTop = element.scrollHeight))
+    await grid.locator('.page-image[data-page="299"]').waitFor()
+    const narrow = await grid.evaluate((element) => ({
+      viewport: element.clientWidth,
+      overflow: element.scrollWidth - element.clientWidth,
+      count: element.querySelectorAll(".composition-card").length,
+    }))
+    assert.ok(narrow.overflow <= 1 && narrow.count < 30, JSON.stringify(narrow))
+    const input = page.locator(".selection-panel")
+    const savedScroll = await grid.evaluate((element) => element.scrollTop)
+    await tab(input, "List")
+    await tab(input, "Grid")
+    assert.ok((await grid.evaluate((element) => element.scrollTop)) >= savedScroll - 1)
+
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await input.getByRole("button", { name: "Select all", exact: true }).click()
+    await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+    const output = page.locator(".composition-output .grid-view")
+    await output.waitFor()
+    await output.evaluate((element) => (element.scrollTop = element.scrollHeight))
+    await output.locator('.page-image[data-page="299"]').waitFor()
+    assert.ok((await output.locator(".composition-card").count()) < 30)
+  } finally {
+    await browser.close()
+  }
+})
+
+test(
+  "Grid preserves the first visible page through Flow switches and responsive resizing",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await launch(chromium)
+    try {
+      const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      const errors = []
+      page.on("pageerror", (error) => errors.push(error.message))
+      await page.goto(server.resolvedUrls.local[0])
+      await page
+        .locator('input[type="file"]')
+        .first()
+        .setInputFiles({
+          name: "Long.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture({ prepared: false, count: 300 }),
+        })
+      const input = page.locator(".selection-panel")
+      const grid = input.locator(".grid-view")
+      await grid.locator(".composition-card").first().waitFor()
+      await grid.evaluate((element) => (element.scrollTop = 12500))
+      await page.waitForFunction(
+        () => document.querySelector(".selection-panel .composition-grid")?.dataset.from === "94",
+      )
+      const first = await grid.evaluate((element) => element.scrollTop)
+      await tab(input, "List")
+      await input.locator(".page-list").waitFor()
+      await tab(input, "Grid")
+      await grid.waitFor()
+      await page.waitForTimeout(200)
+      assert.ok(Math.abs((await grid.evaluate((element) => element.scrollTop)) - first) <= 1)
+
+      await page.setViewportSize({ width: 1440, height: 900 })
+      await page.waitForFunction(() => document.querySelector(".selection-panel .grid-view")?.dataset.columns === "3")
+      await page.waitForTimeout(200)
+      const wide = await grid.evaluate((element) => {
+        const cards = [...element.querySelectorAll(".composition-card")]
+        return {
+          first: Number(cards[0].querySelector(".page-image").dataset.page),
+          columns: Number(element.dataset.columns),
+          count: cards.length,
+          width: cards[0].getBoundingClientRect().width,
+          height: cards[0].getBoundingClientRect().height,
+        }
+      })
+      assert.ok(wide.first >= 84 && wide.first <= 102, JSON.stringify(wide))
+      assert.equal(wide.columns, 3)
+      assert.ok(wide.count < 30)
+      assert.equal(wide.width, 148)
+      assert.equal(wide.height, 240)
+      await tab(input, "List")
+      await tab(input, "Grid")
+      await page.waitForTimeout(200)
+      const restored = await grid.evaluate((element) => ({
+        columns: Number(element.dataset.columns),
+        first: Number(element.querySelector(".page-image")?.dataset.page),
+      }))
+      assert.equal(restored.columns, 3)
+      assert.ok(Math.abs(restored.first - wide.first) <= 3, JSON.stringify({ wide, restored }))
+      assert.deepEqual(errors, [])
+    } finally {
+      await browser.close()
+    }
+  },
+)
 
 test("Grid back folds stay smaller than Page folds", async () => {
   const server = await serve()

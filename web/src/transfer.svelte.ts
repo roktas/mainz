@@ -318,6 +318,7 @@ export class Transfer {
     this.#scrollPoint = undefined
   }
   #scrollList(area: HTMLElement, event: DragEvent | PointerEvent) {
+    if (this.#scrollArea !== area) this.#stopScroll()
     this.#scrollArea = area
     this.#scrollPoint = { x: event.clientX, y: event.clientY }
     if (this.#scrollFrame !== undefined) return
@@ -340,6 +341,78 @@ export class Transfer {
       this.#scrollFrame = requestAnimationFrame(scroll)
     }
     this.#scrollFrame = requestAnimationFrame(scroll)
+  }
+  #scrollGrid(area: HTMLElement, event: DragEvent | PointerEvent) {
+    if (this.#scrollArea !== area) this.#stopScroll()
+    this.#scrollArea = area
+    this.#scrollPoint = { x: event.clientX, y: event.clientY }
+    if (this.#scrollFrame !== undefined) return
+    const scroll = () => {
+      this.#scrollFrame = undefined
+      const viewport = this.#scrollArea,
+        point = this.#scrollPoint
+      if (!this.value || !viewport?.isConnected || !point) return
+      const bounds = viewport.getBoundingClientRect()
+      const delta =
+        point.y < bounds.top + 36
+          ? (point.y - bounds.top - 36) / 4
+          : point.y > bounds.bottom - 36
+            ? (point.y - bounds.bottom + 36) / 4
+            : 0
+      if (!delta) return
+      const before = viewport.scrollTop
+      viewport.scrollBy({ top: delta, behavior: "instant" })
+      if (viewport.scrollTop === before) return
+      const grid = viewport.querySelector<HTMLOListElement>(".output-pages")
+      if (grid) this.#placeGrid(grid, point.x, point.y)
+      this.#scrollFrame = requestAnimationFrame(scroll)
+    }
+    this.#scrollFrame = requestAnimationFrame(scroll)
+  }
+  #placeGrid(grid: HTMLOListElement, x: number, y: number) {
+    const cards = grid.querySelectorAll<HTMLElement>(":scope > .composition-card:not(.removing)")
+    if (!cards.length) return
+    const bounds = grid.getBoundingClientRect()
+    const style = getComputedStyle(grid)
+    const columns = style.gridTemplateColumns.split(" ")
+    const layout = {
+      from: Number(grid.dataset.from ?? 0),
+      count: cards.length,
+      limit: cards.length + 1,
+      columns: columns.length,
+      width: parseFloat(columns[0]),
+      height: parseFloat(style.gridAutoRows),
+      columnGap: parseFloat(style.getPropertyValue("--grid-column-gap")),
+      rowGap: parseFloat(style.rowGap),
+    }
+    const horizontal = Math.max(0, x - bounds.left - layout.columnGap)
+    const column = Math.max(0, Math.min(layout.columns - 1, Math.floor(horizontal / (layout.width + layout.columnGap))))
+    const row = Math.max(
+      0,
+      Math.floor((y - bounds.top - parseFloat(style.paddingBlockStart)) / (layout.height + layout.rowGap)),
+    )
+    const slot = row * layout.columns + column
+    if (
+      !this.grid ||
+      Object.entries(layout).some(([property, dimension]) => this.grid![property as keyof typeof layout] !== dimension)
+    )
+      this.grid = layout
+    if (this.preview && slot === this.preview.slot) {
+      const fraction = (horizontal - column * (layout.width + layout.columnGap)) / layout.width
+      if (this.#target.kind === "page" && (this.#target.after ? fraction < 0.3 : fraction > 0.7))
+        this.#target = { ...this.#target, after: !this.#target.after }
+      this.#numberImage()
+      return
+    }
+    const entry = this.preview
+      ? [...this.preview.positions].find(([, position]) => position === slot)?.[0]
+      : layout.from + slot
+    if (entry !== undefined && entry < layout.from + layout.count) {
+      const after = horizontal - column * (layout.width + layout.columnGap) >= layout.width / 2
+      this.#place(entry, after)
+    } else if (layout.from + layout.count < this.#workspace.pages.length)
+      this.#place(layout.from + layout.count - 1, true)
+    else this.#place()
   }
   #choiceBounds(list: HTMLElement, row: HTMLElement) {
     const choice = row.querySelector<HTMLElement>(".list-choice, .list-heading")!
@@ -393,54 +466,14 @@ export class Transfer {
       if (this.blocked && transfer) transfer.dropEffect = "none"
       return
     }
-    this.#stopScroll()
     const grid = hit?.closest<HTMLOListElement>(".output-pages")
     if (grid) {
-      const cards = grid.querySelectorAll<HTMLElement>(":scope > .composition-card:not(.removing)")
-      const bounds = grid.getBoundingClientRect()
-      if (cards.length && event.clientX >= bounds.left && event.clientY >= bounds.top) {
-        const style = getComputedStyle(grid)
-        const columns = style.gridTemplateColumns.split(" ")
-        const layout = {
-          from: Number(grid.getAttribute("start") ?? 1) - 1,
-          count: cards.length,
-          limit: Number(grid.parentElement!.dataset.batch),
-          columns: columns.length,
-          width: parseFloat(columns[0]),
-          height: parseFloat(style.gridAutoRows),
-          columnGap: parseFloat(style.getPropertyValue("--grid-column-gap")),
-          rowGap: parseFloat(style.rowGap),
-        }
-        const x = Math.max(0, event.clientX - bounds.left - layout.columnGap)
-        const column = Math.min(layout.columns - 1, Math.floor(x / (layout.width + layout.columnGap)))
-        const row = Math.floor((event.clientY - bounds.top) / (layout.height + layout.rowGap))
-        const slot = row * layout.columns + column
-        if (this.preview && slot === this.preview.slot) {
-          // Keep the open slot steady until the pointer clearly crosses its center.
-          const fraction = (x - column * (layout.width + layout.columnGap)) / layout.width
-          if (this.#target.kind === "page" && (this.#target.after ? fraction < 0.3 : fraction > 0.7))
-            this.#target = { ...this.#target, after: !this.#target.after }
-          this.#numberImage()
-          return
-        }
-        const entry = this.preview
-          ? [...this.preview.positions].find(([, position]) => position === slot)?.[0]
-          : layout.from + slot
-        if (
-          !this.grid ||
-          Object.entries(layout).some(
-            ([property, dimension]) => this.grid![property as keyof typeof layout] !== dimension,
-          )
-        )
-          this.grid = layout
-        if (entry !== undefined && entry < layout.from + layout.count) {
-          const after = x - column * (layout.width + layout.columnGap) >= layout.width / 2
-          this.#place(entry, after)
-        } else this.#place()
-        if (this.blocked && transfer) transfer.dropEffect = "none"
-        return
-      }
+      this.#scrollGrid(grid.parentElement!, event)
+      this.#placeGrid(grid, event.clientX, event.clientY)
+      if (this.blocked && transfer) transfer.dropEffect = "none"
+      return
     }
+    this.#stopScroll()
     if (index === undefined) this.#place()
     else {
       const bounds = (element ?? (event.currentTarget as HTMLElement)).getBoundingClientRect()

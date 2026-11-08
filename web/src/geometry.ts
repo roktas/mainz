@@ -99,7 +99,7 @@ export function geometry(viewport = true) {
     const frame = pane.querySelector<HTMLElement>(".grid-view")
     if (!frame || !frame.getBoundingClientRect().width || !frame.getBoundingClientRect().height) continue
     const measured = grid(frame)
-    if (measured) (pane.matches(".selection-panel") ? input : output)[pane.dataset.density || "normal"] = measured
+    if (measured) (pane.matches(".selection-panel") ? input : output).normal = measured
   }
   let svh: number | null = null,
     dvh: number | null = null,
@@ -264,17 +264,26 @@ function choose(name: string) {
     [...tabs.querySelectorAll("button")].find((button) => button.textContent?.trim() === name)?.click()
 }
 
-function density(name: string, compact: boolean) {
-  const pane = document.querySelector(name === "Input" ? ".selection-panel" : ".composition-output")
-  const button = pane?.querySelector<HTMLButtonElement>(".grid-density")
-  if (!button) return false
-  if (button.getAttribute("aria-label") === `Switch to ${compact ? "Compact" : "Normal"} ${name} grid`) button.click()
-  return true
+function mode(pane: HTMLElement) {
+  if (pane.querySelector(".page-list")) return "list"
+  if (pane.querySelector(".page-view")) return "page"
+  return "grid"
 }
 
-export async function view(name: "Input" | "Output", compact: boolean): Promise<Geometry> {
+function show(name: "Input" | "Output", next: "grid" | "list" | "page") {
   choose(name)
-  if (!density(name, compact)) throw new Error(`Open ${name} in Grid before capturing geometry.`)
+  const pane = document.querySelector<HTMLElement>(name === "Input" ? ".selection-panel" : ".composition-output")
+  if (!pane) throw new Error(`${name} is unavailable for geometry capture.`)
+  const tab = pane.querySelector<HTMLButtonElement>(`[role="tab"][aria-label="${next === "page" ? "Page" : "Flow"}"]`)
+  tab?.click()
+  if (next !== "page") {
+    const toggle = pane.querySelector<HTMLButtonElement>(".flow-toggle")
+    if (toggle?.getAttribute("aria-label") === `Show ${name} ${next === "grid" ? "Grid" : "List"}`) toggle.click()
+  }
+}
+
+export async function view(name: "Input" | "Output"): Promise<Geometry> {
+  show(name, "grid")
   return stable()
 }
 
@@ -283,28 +292,27 @@ export async function capture(): Promise<Geometry> {
   const composer = document.querySelector<HTMLElement>(".composer")!
   const previous = {
     pane: composer.dataset.view,
-    input: document.querySelector<HTMLElement>(".selection-panel")?.dataset.density,
-    output: document.querySelector<HTMLElement>(".composition-output")?.dataset.density,
+    input: document.querySelector<HTMLElement>(".selection-panel"),
+    output: document.querySelector<HTMLElement>(".composition-output"),
     focus: document.activeElement,
     scroll: [scrollX, scrollY],
   }
+  const modes = {
+    input: previous.input ? mode(previous.input) : "grid",
+    output: previous.output ? mode(previous.output) : "grid",
+  } as const
   try {
     for (const name of ["Input", "Output"] as const) {
-      for (const compact of [false, true]) {
-        const current = await view(name, compact)
-        const pane = name === "Input" ? "input" : "output"
-        const mode = compact ? "compact" : "normal"
-        if (!current.layout[pane][mode]) throw new Error(`Open ${name} in Grid before capturing geometry.`)
-        sample ??= { ...current, layout: { ...current.layout, input: {}, output: {} } }
-        sample.layout[pane][mode] = current.layout[pane][mode]
-      }
+      const current = await view(name)
+      const pane = name === "Input" ? "input" : "output"
+      if (!current.layout[pane].normal) throw new Error(`Open ${name} in Grid before capturing geometry.`)
+      sample ??= { ...current, layout: { ...current.layout, input: {}, output: {} } }
+      sample.layout[pane].normal = current.layout[pane].normal
     }
     return sample!
   } finally {
-    for (const name of ["Input", "Output"] as const) {
-      choose(name)
-      density(name, previous[name === "Input" ? "input" : "output"] === "compact")
-    }
+    if (previous.input) show("Input", modes.input)
+    if (previous.output) show("Output", modes.output)
     choose(previous.pane === "output" ? "Output" : "Input")
     await stable()
     if (previous.focus instanceof HTMLElement) previous.focus.focus({ preventScroll: true })

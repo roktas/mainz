@@ -16,7 +16,6 @@ export type InputView = {
   tocTitles: boolean
   tab: "flow" | "page" | "style"
   flow: "grid" | "list"
-  density?: "normal" | "compact"
   position: number
   zoom: number
   pageInitialized?: boolean
@@ -35,6 +34,7 @@ type Host = {
   output: Output
   inputView: InputView
   outputFlow: "grid" | "list"
+  revealGrid: (pane: "Input" | "Output", index: number) => Promise<void> | undefined
   draft: Sequence
   count: number
   opening: boolean
@@ -100,8 +100,9 @@ export class Interaction {
       (pane === "Input" && expectedSource !== this.host.source?.id)
     )
       return
-    const position = pane === "Input" ? this.host.inputPosition : this.host.output.position,
-      panel = document.getElementById(`${this.host.key}-${pane === "Input" ? "source" : "output"}-panel`),
+    const position = pane === "Input" ? this.host.inputPosition : this.host.output.position
+    if (tab === "grid") await this.host.revealGrid(pane, position)
+    const panel = document.getElementById(`${this.host.key}-${pane === "Input" ? "source" : "output"}-panel`),
       control =
         tab === "page"
           ? panel?.querySelector<HTMLElement>(".page-scroll")
@@ -361,10 +362,11 @@ export class Interaction {
     if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
     event.preventDefault()
-    const viewTabs = ["grid", "list", "page"] as const
-    const tabs: ("grid" | "list" | "page" | "style")[] =
-      pane === "Input" && this.host.styleable ? [...viewTabs, "style"] : [...viewTabs]
-    const index = tabs.indexOf(pane === "Input" ? this.host.activeTab : this.host.activeOutputTab)
+    const viewTabs = ["flow", "page"] as const
+    const tabs: InputView["tab"][] = pane === "Input" && this.host.styleable ? [...viewTabs, "style"] : [...viewTabs]
+    const index = tabs.indexOf(
+      pane === "Input" ? this.host.inputView.tab : this.host.activeOutputTab === "page" ? "page" : "flow",
+    )
     const tab =
       event.key === "Home"
         ? tabs[0]

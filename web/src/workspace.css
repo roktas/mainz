@@ -1347,6 +1347,9 @@
       .tabs {
         gap: 0;
       }
+      .tabs > button {
+        min-inline-size: 68px;
+      }
       .tabs > button > span:not(.edit-dot) {
         display: none;
       }

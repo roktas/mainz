@@ -8,7 +8,7 @@ export function fit(element: HTMLElement) {
   const style = getComputedStyle(element)
   const mode = style.getPropertyValue("--grid-fit").trim()
   if (mode !== "1" && mode !== "portrait") return
-  // Preferred geometry must not depend on a previous density's distributed gap.
+  // Preferred geometry must not depend on a previous distributed gap.
   if (mode === "1")
     element.closest<HTMLElement>(".selection-panel, .composition-output")!.style.removeProperty("--grid-column-gap")
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
@@ -17,6 +17,7 @@ export function fit(element: HTMLElement) {
     const value = style.getPropertyValue(name).trim()
     return parseFloat(value) * (value.endsWith("rem") ? rem : 1)
   }
+  if (mode === "portrait" && element.matches(".composition-grid")) return
   if (mode === "portrait") {
     const bounds = element.getBoundingClientRect()
     const width = parseFloat(style.gridTemplateColumns)
@@ -44,20 +45,16 @@ export function fit(element: HTMLElement) {
     element.style.setProperty("--grid-row-gap", `${rowGap}px`)
     return
   }
-  const compact = !!element.closest('[data-density="compact"]')
   const preferredWidth = parseFloat(style.gridTemplateColumns)
   const preferredHeight = parseFloat(style.gridAutoRows)
   const gap = parseFloat(style.columnGap)
-  const padding = Math.min(length("--thumbnail-padding"), rem * (compact ? 0.46875 : 0.875))
+  const padding = Math.min(length("--thumbnail-padding"), rem * 0.875)
   const tools = length("--card-tools-height")
-  const image = rem * (compact ? 4.34375 : 8)
-  const maxImage = compact ? (8 * rem) / (2 * 0.85) : (4.34375 * rem * 2) / 0.85
+  const image = rem * 8
+  const maxImage = (4.34375 * rem * 2) / 0.85
   const minimumWidth = Math.min(
     preferredWidth,
-    Math.max(
-      parseFloat(getComputedStyle(element.firstElementChild!).minInlineSize),
-      compact ? Math.max(74, 5 * parseFloat(style.fontSize)) : 8 * rem,
-    ),
+    Math.max(parseFloat(getComputedStyle(element.firstElementChild!).minInlineSize), 8 * rem),
   )
   const bounds = element.getBoundingClientRect()
   if (!bounds.width || !Number.isFinite(preferredWidth + preferredHeight)) return
@@ -71,9 +68,15 @@ export function fit(element: HTMLElement) {
       (bounds.width - gap) / columns - gap,
     ),
   )
-  // Grid and Page share the same frame; reserve its pager and clear the first slider row.
+  if (element.matches(".composition-grid")) {
+    element.style.setProperty("--grid-width", `${width}px`)
+    element.style.setProperty("--grid-fit-columns", String(columns))
+    element.style.setProperty("--thumbnail-padding", `${padding}px`)
+    return
+  }
+  // Page references retain their measured fitting behavior.
   const available =
-    element.closest<HTMLElement>(".page-content")!.getBoundingClientRect().height - length("--grid-pager-height") - 10
+    element.closest<HTMLElement>(".page-content")!.getBoundingClientRect().height - length("--page-fit-reserve") - 10
   const minimumHeight = (cardWidth: number) =>
     Math.max(Math.SQRT2 * cardWidth, Math.max(image, Math.SQRT2 * (cardWidth - 2 - 4 * padding)) + tools + 2 * padding)
   const rowCount = (cardWidth: number) => {

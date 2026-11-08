@@ -25,23 +25,30 @@ export const pixel = (canvas, y) =>
     y,
   )
 
-export const tab = (pane, name) => pane.getByRole("tab", { name, exact: true }).click()
+export async function tab(pane, name) {
+  if (name !== "Grid" && name !== "List") return pane.getByRole("tab", { name, exact: true }).click()
+  const previous = pane.getByRole("tab", { name, exact: true })
+  if (await previous.count()) return previous.click()
+  await pane.getByRole("tab", { name: "Flow", exact: true }).click()
+  const toggle = pane.locator(".flow-toggle")
+  if ((await toggle.getAttribute("aria-label"))?.endsWith(name)) await toggle.click()
+}
 
 export const image = (pane) => pane.locator(".page-scroll canvas")
 
 export const pagePosition = (pane) => pane.locator(".inspection-heading .page-position").innerText()
 
 export async function gridPage(pane, number) {
-  await pane
-    .page()
-    .evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+  const grid = pane.locator(".grid-view")
   const preview = pane.locator(`.composition-card:not([inert]) .page-image[data-page="${number - 1}"]`)
-  if (!(await preview.count())) {
-    const range = pane.getByRole("slider")
-    const batch = Number(await pane.locator(".grid-view").getAttribute("data-batch"))
-    await range.press("Home")
-    for (let index = 0; index < Math.floor((number - 1) / batch); index++) await range.press("ArrowRight")
-  }
+  if (!(await preview.count()))
+    await grid.evaluate((element, index) => {
+      const list = element.querySelector(".composition-grid")
+      const style = getComputedStyle(list)
+      const columns = style.gridTemplateColumns.split(" ").length
+      const stride = parseFloat(style.gridAutoRows) + parseFloat(style.rowGap)
+      element.scrollTop = Math.floor(index / columns) * stride
+    }, number - 1)
   await preview.waitFor()
   return preview
 }

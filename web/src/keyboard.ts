@@ -13,7 +13,6 @@ export type ShortcutContext = {
   native: boolean
   tab: boolean
   pageControl: boolean
-  pagination: boolean
   overlay: boolean
   repeat: boolean
   pane?: "Input" | "Output"
@@ -32,8 +31,8 @@ export type Shortcut =
   | "next"
   | "first"
   | "last"
-  | "batchPrevious"
-  | "batchNext"
+  | "viewportPrevious"
+  | "viewportNext"
   | "extend"
   | "zoomIn"
   | "zoomOut"
@@ -57,7 +56,6 @@ export function shortcutContext(
     native: !!target?.closest("button, summary, a[href]"),
     tab: !!target?.matches('[role="tab"]'),
     pageControl: !!target?.matches(".page-image, .page-grip, .list-choice"),
-    pagination: !!target?.matches('.page-batches input[type="range"]'),
     overlay: context.overlay ?? blocked(),
     repeat: event.repeat,
     pane: context.pane,
@@ -81,7 +79,7 @@ export function shortcut(
     return "suppress"
   if (event.defaultPrevented || event.isComposing || event.altKey || context.overlay) return
   if (scope === "escape") return key === "escape" && !modified && !context.repeat ? "clear" : undefined
-  if (context.field && !(scope === "grid" && context.pagination && ["pageup", "pagedown"].includes(key))) return
+  if (context.field) return
   if (scope === "help") return key === "?" && !event.ctrlKey && !event.metaKey && !context.repeat ? "help" : undefined
   if (scope === "output") {
     if (event.shiftKey) return
@@ -127,7 +125,7 @@ export function shortcut(
   if (key === "n") return "next"
   if (key === "home") return "first"
   if (key === "end") return "last"
-  if (key === "pageup") return scope === "grid" || scope === "list" ? "batchPrevious" : "previous"
-  if (key === "pagedown") return scope === "grid" || scope === "list" ? "batchNext" : "next"
+  if (key === "pageup") return scope === "grid" || scope === "list" ? "viewportPrevious" : "previous"
+  if (key === "pagedown") return scope === "grid" || scope === "list" ? "viewportNext" : "next"
   if (key === " ") return "copy"
 }
