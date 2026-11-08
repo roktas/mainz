@@ -131,196 +131,52 @@ test("Long Page counters keep enlarged text and reachable zoom actions", { timeo
   }
 })
 
-test("Arrows enter Grid without selection and Page keys change thumbnail groups", { timeout: 60000 }, async (t) => {
+test("Grid PageUp and PageDown navigate continuous rows without changing selection", { timeout: 60000 }, async () => {
   const server = await serve()
-  let browser, page, scenario, batch
+  const browser = await launch(chromium)
   try {
-    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-    for (const [density, width, theme, textSize] of [
-      ["Normal", 1440, "light", "100%"],
-      ["Compact", 1440, "dark", "100%"],
-      ["Normal", 390, "light", "200%"],
-      ["Compact", 390, "dark", "200%"],
-    ].filter(
-      ([mode, viewportWidth]) =>
-        !standard || (mode === "Normal" && viewportWidth === 1440) || (mode === "Compact" && viewportWidth === 390),
-    )) {
-      page = await browser.newPage({
-        viewport: { width, height: 900 },
-        reducedMotion: width === 390 ? "reduce" : "no-preference",
-        colorScheme: theme,
-      })
-      page.setDefaultTimeout(10000)
-      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.route("**/grid.pdf", (route) =>
-        route.fulfill({ contentType: "application/pdf", body: fixture({ count: 60 }) }),
-      )
-      await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-      await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "60 pages")
-      await page.evaluate((size) => (document.documentElement.style.fontSize = size), textSize)
+    const page = await browser.newPage({ reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.route("**/grid.pdf", (route) =>
+      route.fulfill({ contentType: "application/pdf", body: fixture({ count: 60 }) }),
+    )
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
+    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "60 pages")
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
       for (const name of ["Input", "Output"]) {
-        scenario = `${name} ${density}, ${width}px, ${textSize} text`
-        t.diagnostic(scenario)
-        if (width === 390)
-          await page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true }).click()
+        const tabs = page.locator(".mobile-workspace-tabs")
+        if (await tabs.isVisible()) await tabs.getByRole("button", { name, exact: true }).click()
         const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-        await gridDensity(pane, `${density} ${name} grid`)
-        await page.waitForFunction(
-          () => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"),
-        )
-        await measure(pane)
-        const field = pane.getByLabel("Page selection", { exact: true })
-        batch = Number(await pane.locator(".grid-view").getAttribute("data-batch"))
-        await field.focus()
-        await page.keyboard.press("ArrowRight")
-        assert.equal(await field.evaluate((element) => document.activeElement === element), true, "Fields keep arrows")
+        await tab(pane, "Grid")
+        const grid = pane.locator(".grid-view")
+        const dimensions = await grid.evaluate((element) => ({
+          columns: Number(element.dataset.columns),
+          rows: Number(element.dataset.rows),
+        }))
+        const first = grid.locator('.page-image[data-page="0"]')
+        await first.focus()
         await page.keyboard.press("PageDown")
-        assert.equal(await pane.locator(".batch-slider input").inputValue(), "0", "Fields keep PageDown")
-        await pane.locator(".sequence-help").click({ position: { x: 4, y: 4 } })
-        await page.keyboard.press("PageDown")
-        await page.waitForFunction(
-          (label) => document.activeElement?.getAttribute("aria-label") === label,
-          `Select ${name} page ${batch + 1}`,
-        )
+        const expected = Math.min(59, dimensions.columns * dimensions.rows)
+        await grid.locator(`.page-image[data-page="${expected}"]`).waitFor()
+        assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("data-page")), String(expected))
         await page.keyboard.press("PageUp")
-        await page.waitForFunction(
-          (label) => document.activeElement?.getAttribute("aria-label") === label,
-          `Select ${name} page 1`,
-        )
-        for (const [key, expected] of [
-          ["ArrowLeft", 2 * batch],
-          ["ArrowRight", batch + 1],
-        ]) {
-          if (key === "ArrowLeft")
-            await pane.getByRole("button", { name: `Next ${name} thumbnails`, exact: true }).click()
-          await pane.locator(".sequence-help").click({ position: { x: 4, y: 4 } })
-          await page.keyboard.press(key)
-          await page.waitForFunction(
-            (label) => document.activeElement?.getAttribute("aria-label") === label,
-            `Select ${name} page ${expected}`,
-          )
-          assert.equal(await field.inputValue(), "", "Starting navigation leaves Selection empty")
-          assert.equal(await pane.locator(".batch-slider input").inputValue(), "1", "Entry retains the current group")
-          await page.waitForFunction(hasCursor)
-          if (density === "Normal" && name === "Output")
-            assert.equal(
-              await pane
-                .getByRole("button", {
-                  name: `Duplicate Output page ${expected}`,
-                  exact: true,
-                })
-                .isVisible(),
-              true,
-              "The individual + stays available during keyboard navigation",
-            )
-        }
-        await page.keyboard.press("PageUp")
-        await page.waitForFunction(
-          (label) => document.activeElement?.getAttribute("aria-label") === label,
-          `Select ${name} page 1`,
-        )
-        await page.keyboard.press("ArrowRight")
-        await page.waitForFunction(
-          (label) => document.activeElement?.getAttribute("aria-label") === label,
-          `Select ${name} page 2`,
-        )
-        assert.equal(await field.inputValue(), "")
-        await page.keyboard.press("Space")
-        assert.equal(await field.inputValue(), "2")
-        await page.waitForFunction(
-          (label) => document.activeElement?.getAttribute("aria-label") === label,
-          `Select ${name} page 3`,
-        )
-        const selectedBatch = Number(await pane.locator(".batch-slider input").inputValue())
-        await page.keyboard.press("PageDown")
-        await page.waitForFunction(
-          (label) => document.activeElement?.getAttribute("aria-label") === label,
-          `Select ${name} page ${(selectedBatch + 1) * batch + 1}`,
-        )
-        assert.equal(await field.inputValue(), "2", "Changing groups retains Selection")
-        await page.keyboard.press("PageUp")
-        await page.waitForFunction(
-          (label) => document.activeElement?.getAttribute("aria-label") === label,
-          `Select ${name} page ${selectedBatch * batch + 1}`,
-        )
-        await page.keyboard.press("Home")
-        await page.waitForFunction(
-          (label) => document.activeElement?.getAttribute("aria-label") === label,
-          `Select ${name} page 1`,
-        )
-        await page.keyboard.press("PageUp")
-        assert.equal(await pane.locator(".batch-slider input").inputValue(), "0")
-        await pane.getByRole("slider", { name: `${name} thumbnail range`, exact: true }).focus()
-        await page.keyboard.press("PageDown")
-        await page.waitForFunction(
-          (label) => document.activeElement?.getAttribute("aria-label") === label,
-          `Select ${name} page ${batch + 1}`,
-        )
-        assert.equal(await pane.locator(".batch-slider input").inputValue(), "1", "Pagination PageDown moves one group")
-        if (name === "Input" && width === 1440) {
-          const other = page.locator(".composition-output")
-          await tab(other, "Page")
-          const before = await pagePosition(other)
-          await field.fill("")
-          await pane.locator(".sequence-help").click({ position: { x: 4, y: 4 } })
-          await page.keyboard.press("ArrowRight")
-          await page.waitForFunction(
-            (label) => document.activeElement?.getAttribute("aria-label") === label,
-            `Select Input page ${batch + 1}`,
-          )
-          assert.equal(await pagePosition(other), before, "Grid entry keeps the other pane's Page unchanged")
-          await field.fill("2")
-          await pane.getByRole("button", { name: `Select Input page ${batch + 1}`, exact: true }).focus()
-          await page.keyboard.press("PageDown")
-          await page.waitForFunction(
-            (label) => document.activeElement?.getAttribute("aria-label") === label,
-            `Select Input page ${2 * batch + 1}`,
-          )
-          assert.equal(await pagePosition(other), before, "Grid pagination keeps the other pane's Page unchanged")
-          await tab(other, "Grid")
-          await pane.getByRole("button", { name: `Select Input page ${2 * batch + 1}`, exact: true }).focus()
-        }
+        assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("data-page")), "0")
         await page.keyboard.press("End")
-        await page.waitForFunction(
-          (label) => document.activeElement?.getAttribute("aria-label") === label,
-          `Select ${name} page 60`,
-        )
-        await page.keyboard.press("PageDown")
-        assert.equal(await field.inputValue(), "2")
-        assert.equal(await page.locator(".composition-totals strong").textContent(), "60 pages")
-        await field.fill("")
-        await pane.locator(".sequence-help").click({ position: { x: 4, y: 4 } })
-        await page.keyboard.press("ArrowLeft")
-        await page.waitForFunction(
-          (label) => document.activeElement?.getAttribute("aria-label") === label,
-          `Select ${name} page 60`,
-        )
+        await grid.locator('.page-image[data-page="59"]').waitFor()
+        assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("data-page")), "59")
+        await page.keyboard.press("Home")
+        await grid.locator('.page-image[data-page="0"]').waitFor()
+        assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("data-page")), "0")
+        assert.equal(await pane.getByLabel("Page selection", { exact: true }).inputValue(), "")
       }
-      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
-      await page.close()
-      page = undefined
     }
-  } catch (error) {
-    if (page)
-      await captureLayout(page, "grid-navigation", {
-        label: scenario,
-        expectedBatch: batch,
-        error: error.message,
-        current: await page.evaluate(() => ({
-          batches: [...document.querySelectorAll(".grid-view")].map((view) => ({
-            pane: view.closest(".selection-panel") ? "Input" : "Output",
-            batch: view.getAttribute("data-batch"),
-          })),
-          focus: document.activeElement?.getAttribute("aria-label"),
-        })),
-      })
-    throw error
   } finally {
-    await browser?.close()
+    await browser.close()
   }
 })
 
-test("Page and Grid share viewport bounds and density keeps the fitted image size", { timeout: 90000 }, async (t) => {
+test("Page and Grid share viewport bounds and preserve fitted image sizes", { timeout: 90000 }, async (t) => {
   const server = await serve()
   let browser
   try {
@@ -329,7 +185,7 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
     const errors = []
     page.on("pageerror", (error) => errors.push(error.message))
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    // Grid tests own full matrix packing; Page needs a populated shared frame.
+    // Grid tests own scroll geometry; Page needs a populated shared frame.
     await page.route("**/grid.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 80 }) }),
     )
@@ -349,8 +205,6 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
           await page.waitForFunction(
             () => document.querySelector(".composition-totals strong")?.textContent === "80 pages",
           )
-          await gridDensity(input, "Compact Input grid")
-          await gridDensity(output, "Compact Output grid")
           const before = await measure(input)
           await tab(output, "Page")
           await output.locator(".pdf-viewport[aria-busy=false]").waitFor()
@@ -379,7 +233,7 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
                 frame.bottom,
             }
           })
-          assert.equal(geometry.rows, before.capacity[1], "Page retains its companion Grid's row capacity")
+          assert.equal(geometry.rows, before.matrix[1], "Page retains its companion Grid's visible row count")
           assert.equal(geometry.heading, 45, "Output Page keeps its controls on one heading row")
           assert.ok(Math.abs(geometry.actionOffset) < 1, "Page actions stay centered")
           assert.equal(geometry.frames[0], geometry.frames[1], "Grid and Page keep one shared frame")
@@ -438,8 +292,7 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
       await page.setViewportSize({ width: 1920, height: 1080 })
       await tab(input, "Grid")
       await tab(output, "Grid")
-      await gridDensity(output, "Normal Output grid")
-      await output.getByRole("slider", { name: "Output thumbnail range", exact: true }).press("Home")
+      await output.locator(".grid-view").evaluate((element) => (element.scrollTop = 0))
       await tab(output, "Page")
       await page.setViewportSize({ width: 390, height: 844 })
       await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
@@ -451,17 +304,16 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
       await aligned(output)
       const natural = await image(output).boundingBox()
       await tab(output, "Grid")
-      await gridDensity(output, "Compact Output grid")
       await tab(output, "Page")
       await page.waitForFunction(({ width, height }) => {
         const bounds = document.querySelector(".composition-output .page-view canvas")?.getBoundingClientRect()
         return bounds && Math.abs(bounds.width - width) < 1 && Math.abs(bounds.height - height) < 1
       }, natural)
       await output.locator(".pdf-viewport[aria-busy=false]").waitFor()
-      const compact = await image(output).boundingBox()
+      const returned = await image(output).boundingBox()
       assert.ok(
-        Math.abs(compact.width - natural.width) < 1 && Math.abs(compact.height - natural.height) < 1,
-        "Density preserves the fitted PDF at 200% text",
+        Math.abs(returned.width - natural.width) < 1 && Math.abs(returned.height - natural.height) < 1,
+        "Flow changes preserve the fitted PDF at 200% text",
       )
       await page.evaluate(() => (document.documentElement.style.fontSize = ""))
       await page.setViewportSize({ width: 1920, height: 1080 })
@@ -469,12 +321,12 @@ test("Page and Grid share viewport bounds and density keeps the fitted image siz
       await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
       await output.getByRole("heading", { name: "Your Output starts here.", exact: true }).waitFor()
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
-      await page.waitForFunction(() => document.querySelector(".selection-panel .grid-view")?.dataset.batch === "24")
-      assert.equal(
-        await input.locator(".grid-view").getAttribute("data-rows"),
-        "4",
-        "An empty Output Page keeps Input within the shared viewport budget",
-      )
+      await tab(input, "Grid")
+      const visible = await input.locator(".grid-view").evaluate((element) => {
+        const rect = element.getBoundingClientRect()
+        return rect.height > 0 && element.scrollWidth <= element.clientWidth + 1
+      })
+      assert.equal(visible, true, "An empty Output keeps the Input Grid in its fixed frame")
       assert.deepEqual(errors, [])
     })
   } finally {

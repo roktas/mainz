@@ -111,6 +111,8 @@ relevant viewport.
       intact.
 - [ ] Align integration tests for scroll range, exact Go to page, continuity, long Input/Output, edits at window
       boundaries, and no horizontal overflow. Check Grid/List/Page shared frame alignment.
+  - [x] Chromium verified PageUp/PageDown, Home/End, Input/Output selection independence (1 test), and shared
+        Grid/Page frame, fitted PDF geometry, themes, responsive zoom, and empty Output (10 subtests).
   - [x] Chromium verified Contents jumps, touch drag previews, Grid/List/Page return, footer hover/touch controls,
         and page-name disclosure layout (5 focused regressions). WebKit remains pending on Ubuntu 26.04.
   - [x] Chromium Grid/Page selection, zoom, inspection, and focus regression uses virtual page reveal instead of
