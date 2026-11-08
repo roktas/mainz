@@ -83,12 +83,6 @@ export function fit(element: HTMLElement) {
     const minimumGap = Math.max(gap, (0.85 * (bounds.width - columns * cardWidth)) / (columns + 1))
     return Math.max(1, Math.floor((available + minimumGap) / (minimumHeight(cardWidth) + minimumGap)))
   }
-  // A slightly narrower card can retain a complete row at the readable image floor.
-  const narrower = Math.max(
-    minimumWidth,
-    Math.min(width, (image + tools + 2 * padding) / Math.SQRT2, image / Math.SQRT2 + 2 + 4 * padding),
-  )
-  if (rowCount(narrower) > rowCount(width)) width = narrower
   const columnGap = (bounds.width - columns * width) / (columns + 1)
   const minimumGap = Math.max(gap, 0.85 * columnGap)
   const rows = rowCount(width)

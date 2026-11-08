@@ -84,6 +84,9 @@ In particular, avoid another large state machine inside `Composer.svelte` or unr
   - [x] Replace the retired capacity matrices with responsive and touch scroll assertions (2/2 Chromium). Verify the
         card bounds and scrollbar frame (1/1 Chromium). Remaining browser groups require broader regression coverage.
 - [ ] Run focused Grid, geometry, touch, and alignment checks.
+  - [x] Chromium alignment tests passed for mouse (12 widths) and touch (26 widths), plus Style/Page frame,
+        app header, and 10,000-page number/grip geometry. Removed the Page-only row-capacity width reduction.
+        Page/Grid reference widths agree within 1 CSS px across checked sizes.
 
 **Gate:** one Grid density remains; Normal card width, height, image bounds, and column spacing match baseline at each
 relevant viewport.

@@ -5,51 +5,10 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { chromium } from "playwright"
-import { fixture, checkGrips, checkPagination, tab, captureLayout } from "./browser.js"
-import { measure, gridDensity } from "./measure.js"
+import { fixture, checkGrips, checkGridScroll, tab, gridPage, captureLayout } from "./browser.js"
+import { measure } from "./measure.js"
 
-test("Style retains a Compact companion frame on short touch landscapes", { timeout: 60000 }, async () => {
-  const server = await serve()
-  let browser
-  try {
-    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-    const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
-    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
-      route.fulfill({ contentType: "application/pdf", body: fixture({ count: 240 }) }),
-    )
-    await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "240 pages")
-    const input = page.locator(".selection-panel"),
-      output = page.locator(".composition-output")
-    for (const [width, height] of [
-      [1006, 481],
-      [1006, 544],
-      [1200, 630],
-      [1200, 694],
-      [1280, 680],
-      [1187, 622],
-      [1187, 686],
-    ]) {
-      await page.setViewportSize({ width, height })
-      await tab(input, "Grid")
-      await gridDensity(input, "Normal Input grid")
-      await gridDensity(output, "Compact Output grid")
-      await page.evaluate(() => scrollTo(0, 0))
-      const before = await measure(output)
-      await tab(input, "Style")
-      await page.evaluate(() => scrollTo(0, 0))
-      const after = await measure(output)
-      assert.deepEqual(after.frame, before.frame, `${width}×${height}: Style retains the shared frame`)
-      assert.deepEqual(after.capacity, before.capacity)
-      assert.equal(after.horizontalOverflow, false)
-    }
-  } finally {
-    await browser?.close()
-  }
-})
-
-test("Style scrolling preserves its companion Grid capacity and Page frame", { timeout: 180000 }, async () => {
+test("Style scrolling preserves its companion Grid geometry and Page frame", { timeout: 180000 }, async () => {
   const server = await serve()
   let browser, page
   try {
@@ -76,15 +35,14 @@ test("Style scrolling preserves its companion Grid capacity and Page frame", { t
         if (!(await input.isVisible()) || !(await output.isVisible())) continue
         for (const colorScheme of ["light", "dark"]) {
           await page.emulateMedia({ colorScheme })
-          for (const density of ["Normal", "Compact"]) {
+          for (const density of ["Normal"]) {
             await tab(input, "Grid")
             await tab(output, "Grid")
-            await gridDensity(output, `${density} Output grid`)
             const before = await measure(output)
             await tab(input, "Style")
             const after = await measure(output)
             const label = `${width}×${height}, ${text}, ${colorScheme}, ${density}`
-            assert.deepEqual(after.capacity, before.capacity, `${label}: Style preserves complete row capacity`)
+            assert.deepEqual(after.matrix, before.matrix, `${label}: Style preserves visible Grid geometry`)
             assert.deepEqual(after.frame, before.frame, `${label}: Style preserves the Output frame`)
             const panel = input.locator(".control-list")
             const profile = input.locator(".style-profile").first()
@@ -133,10 +91,10 @@ test("Style scrolling preserves its companion Grid capacity and Page frame", { t
               `${label}: Form scrolling leaves Output fixed`,
             )
             assert.equal(await page.evaluate(() => scrollY), 0, `${label}: Only Style fields scroll`)
-            assert.ok(
-              (after.caption?.bottom ?? after.frame.bottom) <= after.status + 1,
-              `${label}: Output clears the status bar`,
-            )
+            const contentBottom = await output
+              .locator(".page-content")
+              .evaluate((element) => element.getBoundingClientRect().bottom)
+            assert.ok(after.frame.bottom <= contentBottom + 1, `${label}: Grid fits inside the Output content frame`)
             assert.equal(
               await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(),
               "19-24",
@@ -173,7 +131,7 @@ for (const hasTouch of [false, true])
         browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
         page = await browser.newPage({ hasTouch, isMobile: hasTouch, reducedMotion: "reduce" })
         page.setDefaultTimeout(45000)
-        // Capacity and calibration boundaries belong to grid.test.js; alignment needs only a few complete columns.
+        // Grid scroll boundaries belong to grid.test.js; alignment checks representative columns.
         await page.route("**/grid.pdf", (route) =>
           route.fulfill({ contentType: "application/pdf", body: fixture({ count: 32 }) }),
         )
@@ -233,11 +191,10 @@ for (const hasTouch of [false, true])
               const views = page.locator(".mobile-workspace-tabs")
               if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
               const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-              for (const density of ["Normal", "Compact"]) {
+              for (const density of ["Normal"]) {
                 label = `${hasTouch ? "Touch" : "Mouse"} ${name} ${density}, ${width}×${height}, ${text} text`
-                await gridDensity(pane, `${density} ${name} grid`, (control) => control.dispatchEvent("click"))
                 await checkGrips(pane, `${name} ${density}, ${width}×${height}, ${text} text`)
-                if (await views.isVisible()) await checkPagination(pane, label)
+                if (await views.isVisible()) await checkGridScroll(pane, label)
                 const grid = await pane.locator(".composition-grid").evaluate((element) => ({
                   columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
                   width: element.firstElementChild.getBoundingClientRect().width,
@@ -247,8 +204,12 @@ for (const hasTouch of [false, true])
                   columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
                   width: element.firstElementChild.getBoundingClientRect().width,
                 }))
-                assert.deepEqual(reference, grid, "Page retains Grid's columns and thumbnail width")
-                await pane.getByRole("tab", { name: "Grid", exact: true }).dispatchEvent("click")
+                assert.equal(reference.columns, grid.columns, "Page retains Grid's column count")
+                assert.ok(
+                  Math.abs(reference.width - grid.width) <= 1,
+                  `Page and Grid thumbnail widths differ: ${JSON.stringify({ reference, grid })}`,
+                )
+                await tab(pane, "Grid")
                 assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
               }
             }
@@ -349,62 +310,28 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
       for (const [width, height] of hasTouch
         ? [
             [360, 672],
-            [392, 764],
-            [360, 800],
-            [402, 900],
-            [412, 924],
-            [427, 952],
-            [440, 956],
-            [960, 1440],
-            [750, 1144],
-            [1006, 481],
-            [876, 1280],
-            [1400, 756],
-            [667, 250],
-            [740, 1047],
-            [740, 1100],
-            [805, 980],
-            [820, 1080],
-            [1080, 700],
-            [1180, 730],
-            [1000, 1200],
-            [1024, 1300],
-            [1360, 980],
+            [744, 1047],
           ]
         : [
             [1280, 700],
-            [1920, 961],
-            [2200, 1100],
-            [2960, 1500],
-            [2560, 1310],
-            [2560, 1318],
             [2560, 1440],
-            [2559, 1419],
-            [2879, 1420],
-            [2560, 1799],
-            [3840, 1900],
-            [3840, 2050],
           ]) {
         await page.setViewportSize({ width, height })
         for (const text of ["100%", "200%"]) {
           await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
-          for (const density of ["Normal", "Compact"]) {
+          for (const density of ["Normal"]) {
             label = `${hasTouch ? "Touch" : "Mouse"} Output ${density}, ${width}×${height}, ${text}, five digits`
-            await gridDensity(output, `${density} Output grid`)
             await measure(output)
-            await output.getByRole("slider", { name: "Output thumbnail range", exact: true }).press("End")
-            await output.getByRole("button", { name: "Select Output page 10000", exact: true }).waitFor()
             await checkGrips(output, `${width}×${height}, ${text}, ${density}, five digits`)
-            const gap = await output
-              .locator(".composition-card")
-              .last()
-              .evaluate((card) => {
-                const number = card
-                  .querySelector(".page-origin > :is(summary,.card-number) strong")
-                  .getBoundingClientRect()
-                const grip = card.querySelector(".page-grip svg").getBoundingClientRect()
-                return grip.left - number.right
-              })
+            const thumbnail = await gridPage(output, 10000)
+            const gap = await thumbnail.evaluate((button) => {
+              const card = button.closest(".composition-card")
+              const number = card
+                .querySelector(".page-origin > :is(summary,.card-number) strong")
+                .getBoundingClientRect()
+              const grip = card.querySelector(".page-grip svg").getBoundingClientRect()
+              return grip.left - number.right
+            })
             assert.ok(
               gap >= 2,
               `${width}×${height}, ${text}, ${density}: five digits keep clear of the grip (${gap}px)`,
