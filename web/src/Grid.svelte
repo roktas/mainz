@@ -281,7 +281,7 @@
         void advance(action === "first" ? 0 : count - 1)
         return
       }
-      // A key can arrive before the resize observer updates batch capacity.
+      // A key can arrive before the resize observer measures the new column count.
       const stride = columns
       const step =
         action === "left" || action === "previous"
