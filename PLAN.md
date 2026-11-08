@@ -192,6 +192,15 @@ work across scroll windows, with unchanged card geometry.
 **Gate:** The view has one canonical name, **Pages**, in code, tests, and current product documentation. No stale
 **Flow**-view identifier or user-facing label remains; behavior and geometry stay unchanged.
 
+### 5b. Represent Pages with a multi-page icon (owner decision, 2026-11-09)
+
+- [ ] Replace the Pages tab icon with a recognizable stack of document pages, distinct from the single-page **Page**
+      icon. Keep the existing icon name, accessible tab label, SVG size, and focus and interaction behavior.
+- [ ] Verify the Input and Output Pages icons in Chromium at narrow and wide widths, both themes, and enlarged text.
+      Compare icon and label alignment, and run the relevant focused checks.
+
+**Gate:** Both Pages tabs use the same page-stack glyph without layout or behavior regressions.
+
 ### 6. Aggressive stale-code and document audit
 
 - [ ] Search all affected code, tests, fixtures, CSS, docs, icons, Help, tours, measurement/calibration scripts, and
