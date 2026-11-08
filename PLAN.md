@@ -132,6 +132,8 @@ work across scroll windows, with unchanged card geometry.
       layouts.
 - [ ] Align browser tests for toggle activation, focus, keyboard navigation, Input switching, Output independence, Page
       return, both themes, and normal/200% text.
+  - [x] Chromium tour regression passed including 320 px width with 200% text. Reset scroll when a tour step
+        changes, even if the next target reuses the same pane element.
 
 **Gate:** one Flow tab per pane, two reliable presentation modes, no lost workspace state, and no toolbar wrapping.
 

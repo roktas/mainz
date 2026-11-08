@@ -48,6 +48,7 @@
   let context: string | undefined
   let target = $state<HTMLElement>()
   let tab = $state<HTMLElement>()
+  let previousStep: TourStep | undefined
   let focus = $state({ x: 0, y: 0, width: 0, height: 0 })
   const steps = $derived<{ key: TourStep; title: string; text: string[] }[]>([
     ...(hasInput
@@ -215,7 +216,8 @@
         behavior: "instant",
       })
       tab?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" })
-      if (target !== previous || tab !== previousTab) tour.scrollTop = 0
+      if (key !== previousStep || target !== previous || tab !== previousTab) tour.scrollTop = 0
+      previousStep = key
       focusTarget()
       if (target !== previous && motion.current) {
         tour.animate([{ opacity: 0.65 }, { opacity: 1 }], {
