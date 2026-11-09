@@ -210,6 +210,10 @@ work across scroll windows, with unchanged card geometry.
 - [ ] Search all affected code, tests, fixtures, CSS, docs, icons, Help, tours, measurement/calibration scripts, and
       test selection lists for Compact, density, batch, pagination, old tab names, unreachable branches, obsolete
       helpers, debug output, and unused imports.
+  - [x] Replaced Compact-dependent navigation and Input-addition test variants in `composition.test.js` with explicit
+        light/dark and button/keyboard cases; retained 12/13-page additions. Node 24 file-level syntax, formatting,
+        lint, Svelte/TypeScript checks, and 52 unit tests passed. The complete formatter and Chromium E2E checks still
+        require a current checkout; the old archive has a formatting difference in interaction.svelte.ts.
 - [ ] Delete only superseded implementation and its dependent tests/docs/config. Do not remove valid PDF/Page navigation
       or historical calibration evidence without separating it from active requirements.
 - [ ] Update `SPEC.md`, `VIEW.md`, `MEMO.md`, Web README, UI glossary, keyboard/help descriptions, test runner groups,

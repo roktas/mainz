@@ -299,11 +299,11 @@ test("Grid navigation retains physical page positions during additions", { timeo
   let browser
   try {
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-    for (const [width, height, density, colorScheme] of [
-      [1440, 1100, "Normal", "light"],
-      [1440, 1100, "Compact", "dark"],
-      [390, 844, "Normal", "dark"],
-      [390, 844, "Compact", "light"],
+    for (const [width, height, colorScheme] of [
+      [1440, 1100, "light"],
+      [1440, 1100, "dark"],
+      [390, 844, "dark"],
+      [390, 844, "light"],
     ]) {
       const page = await browser.newPage({ viewport: { width, height }, colorScheme, reducedMotion: "no-preference" })
       page.setDefaultTimeout(10000)
@@ -335,7 +335,7 @@ test("Grid navigation retains physical page positions during additions", { timeo
       assert.equal(
         await grid.evaluate((element) => element === document.activeElement),
         true,
-        `${width} ${density}: Grid retains focus while its cursor visits a hidden new page`,
+        `${width} ${colorScheme}: Grid retains focus while its cursor visits a hidden new page`,
       )
       for (const [key, number] of [
         ["ArrowRight", 3],
@@ -350,7 +350,11 @@ test("Grid navigation retains physical page positions during additions", { timeo
       }
       await output.getByRole("button", { name: "Select Output page 3", exact: true }).click()
       await page.keyboard.press("Shift+ArrowRight")
-      assert.equal(await selection.inputValue(), "2-4", `${width} ${density}: Shift follows the clicked physical page`)
+      assert.equal(
+        await selection.inputValue(),
+        "2-4",
+        `${width} ${colorScheme}: Shift follows the clicked physical page`,
+      )
       await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Select Output page 5")
       if (await page.locator(".addition-preview").count())
         await page.locator(".addition-preview").evaluate((element) => {
@@ -425,19 +429,16 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
         )
       }
       let count = 8
-      const densities = [
-        ["Normal", "Normal"],
-        ["Compact", "Compact"],
+      const additions = [
+        { count: 2, trigger: "button" },
+        { count: 2, trigger: "keyboard" },
       ]
-      if (width === 1440) densities.push(["Normal"], ["Normal"])
-      if (width === 1920)
-        densities.push(["Normal", "Normal", 12], ["Normal", "Normal", 13], ["Compact", "Compact", "batch"])
-      for (const [density, outputDensity, quantity = 2] of densities) {
-        const added =
-          quantity === "batch" ? Number(await output.locator(".grid-view").getAttribute("data-batch")) + 1 : quantity
+      if (width === 1440) additions.push({ count: 2, trigger: "button" }, { count: 2, trigger: "button" })
+      if (width === 1920) additions.push({ count: 12, trigger: "button" }, { count: 13, trigger: "button" })
+      for (const { count: added, trigger } of additions) {
         await prepared.fill(Array.from({ length: added }, (_, index) => (index % 4) + 1).join(","))
         await input.locator(".thumbnail[aria-busy=false]").first().waitFor()
-        if (density === "Compact") await prepared.press("Enter")
+        if (trigger === "keyboard") await prepared.press("Enter")
         else await input.getByRole("button", { name: "Add to Output", exact: true }).click()
         count += added
         await flight.waitFor()
@@ -461,10 +462,10 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
         const start = await flight.boundingBox()
         const sourceX = (Math.max(0, source.x) + Math.min(width, source.x + source.width)) / 2,
           sourceY = (Math.max(0, source.y) + Math.min(height, source.y + source.height)) / 2
-        assert.ok(Math.abs(start.x + start.width / 2 - sourceX) < 1, `${width} ${density}: Input x`)
+        assert.ok(Math.abs(start.x + start.width / 2 - sourceX) < 1, `${width} ${trigger}: Input x`)
         assert.ok(
           Math.abs(start.y + start.height / 2 - sourceY) < 1,
-          `${width} ${density}: Input y ${JSON.stringify({ source, start, sourceY })}`,
+          `${width} ${trigger}: Input y ${JSON.stringify({ source, start, sourceY })}`,
         )
         const button = page.locator(".mobile-workspace-tabs > button:last-child")
         const destination = (await button.isVisible())
@@ -494,22 +495,22 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
             animation.currentTime = 300
             return { duration: animation.effect.getTiming().duration, shadow: getComputedStyle(element).boxShadow }
           })
-          assert.equal(glow?.duration, 600, `${width} ${density}: Output glows during the complete flight`)
-          assert.notEqual(glow.shadow, "none", `${width} ${density}: Output has a visible mid-flight glow`)
+          assert.equal(glow?.duration, 600, `${width} ${trigger}: Output glows during the complete flight`)
+          assert.notEqual(glow.shadow, "none", `${width} ${trigger}: Output has a visible mid-flight glow`)
         }
         const dx = end.x + end.width / 2 - sourceX,
           dy = end.y + end.height / 2 - sourceY
         const bend =
           Math.abs(dx * (middle.y + middle.height / 2 - sourceY) - dy * (middle.x + middle.width / 2 - sourceX)) /
           Math.hypot(dx, dy)
-        assert.ok(bend > 8, `${width} ${density}: the preview follows a curve`)
+        assert.ok(bend > 8, `${width} ${trigger}: the preview follows a curve`)
         await flight.evaluate((element) => {
           const animation = element.getAnimations()[0]
           animation.currentTime = animation.effect.getTiming().duration - 1
         })
         const landed = await flight.boundingBox()
-        assert.ok(Math.abs(landed.x + landed.width / 2 - end.x - end.width / 2) < 1, `${width} ${density}: Output x`)
-        assert.ok(Math.abs(landed.y + landed.height / 2 - end.y - end.height / 2) < 1, `${width} ${density}: Output y`)
+        assert.ok(Math.abs(landed.x + landed.width / 2 - end.x - end.width / 2) < 1, `${width} ${trigger}: Output x`)
+        assert.ok(Math.abs(landed.y + landed.height / 2 - end.y - end.height / 2) < 1, `${width} ${trigger}: Output y`)
         assert.ok(
           await flight.evaluate((element) => Number(getComputedStyle(element).opacity) > 0.9),
           "The preview stays visible until arrival",
@@ -519,8 +520,8 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
             const bounds = element.getBoundingClientRect()
             return { width: bounds.width, height: bounds.height }
           })
-          assert.ok(Math.abs(landed.width - canvas.width) < 1, `${density} to ${outputDensity}: image width`)
-          assert.ok(Math.abs(landed.height - canvas.height) < 1, `${density} to ${outputDensity}: image height`)
+          assert.ok(Math.abs(landed.width - canvas.width) < 1, `${trigger}: image width`)
+          assert.ok(Math.abs(landed.height - canvas.height) < 1, `${trigger}: image height`)
         }
         assert.equal(await page.evaluate(() => document.activeElement?.outerHTML), focused)
         assert.equal(await page.locator(".composer").getAttribute("data-view"), "input")
