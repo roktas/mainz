@@ -499,10 +499,16 @@ GitHub file updates instead of the unavailable Git transport.
 
 #### Fold-to-heading motion refinement (2026-11-09)
 
-- [ ] Replace the short 300 ms fold fade with a slower, directional slide toward each surviving section heading in Grid and List.
-- [ ] After departing items disappear and folding completes, pulse only the corresponding heading with a fade-in/fade-out highlight.
-- [ ] Preserve nested-section targets, virtual windows, rapid toggles, keyboard focus, and reduced-motion behavior.
-- [ ] Add focused timing/target regressions, align Web VIEW, and avoid long suites as requested.
+- [x] Replace the short 300 ms fold fade with a 900 ms directional slide, scale, and fade toward each surviving section heading in Grid and List.
+- [x] After departing items disappear and folding completes, pulse only the corresponding heading for 800 ms.
+- [x] Preserve nested-section target selection, rendered-window animation, pending-toggle cancellation, and reduced-motion bypass without changing keyboard controls.
+- [x] Add focused animation timing/pulse assertions and align Web VIEW and CHANGELOG. Keep long suites deferred as requested.
+
+**Bounded verification:** Four Node 24 section-tree checks passed for parent, nested, and fold-all targets.
+Remote source and test assertions were checked for consistency after publication to `next`.
+The focused Chromium regressions were updated but **not executed** in this session; the local snapshot
+predates the current branch and Git transport cannot reach GitHub from the container.
+Visual timing, keyboard flows, and physical-device behavior remain unverified.
 
 #### Closure
 
