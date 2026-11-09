@@ -497,9 +497,12 @@ retains its children's choices. Multiple TOC headings on one physical page share
 ribbon; use List for the remaining same-page disclosures. Grid page images still select and drag individual pages.
 Active transfers temporarily show every page to preserve physical insertion targets, then restore the retained folds.
 Newly visible cards pulse once with a 1400 ms secondary glow; List rows use a contour-free
-background and opacity pulse of the same duration. Visible pages and rows fade out for 300 ms before a section
-fold removes them. Virtual scrolling never restarts an unfold pulse; reduced-motion preferences disable both effects. The Fold all/Unfold all and Section headings toolbar
-controls are available in both Grid and List. Hiding headings restores the full flat page Grid.
+background and opacity pulse of the same duration. Folding slides departing visible cards and rows toward their nearest
+surviving section heading for 900 ms, shrinking and fading as they arrive. After the items disappear and the fold
+completes, the corresponding heading pulses once for 800 ms without changing its contour. Nested sections target their
+surviving parent heading. Virtual scrolling never restarts an unfold pulse; reduced-motion preferences disable the
+fold transition and heading pulse. The Fold all/Unfold all and Section headings toolbar controls are available in both
+Grid and List. Hiding headings restores the full flat page Grid.
 
 Grid footer actions appear on hover or focus with a fine pointer. Input's Add action stays visible on touch. Output
 touch actions use the existing menu. The card footer design is separate from the Pages layout. Do not change its content
