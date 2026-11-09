@@ -53,10 +53,10 @@ In particular, avoid another large state machine inside `Composer.svelte` or unr
 - [x] Reuse Vite preview; HTTP 200 at `http://127.0.0.1:5173/?demo` (container-local).
 - [ ] Run existing focused Grid, List, selection, transfer, alignment, and keyboard tests against current behavior.
       Record failures rather than silently changing baselines.
-  - [x] On the archived `f7fd4c8` checkout (not current `next`), Chromium passed three focused baseline tests:
-        250-page Grid virtualization and geometry at 390/768/1440 px; 300-page Grid scroll, selection, and Output;
-        10,000-page Output transfer with native/touch cancellation and drop (3/3). These are behavioral regression
-        checks, not measured memory or interaction latency. Repeat against the current branch before closure.
+  - [x] On the archived `f7fd4c8` checkout (not current `next`), Chromium passed three focused baseline tests: 250-page
+        Grid virtualization and geometry at 390/768/1440 px; 300-page Grid scroll, selection, and Output; 10,000-page
+        Output transfer with native/touch cancellation and drop (3/3). These are behavioral regression checks, not
+        measured memory or interaction latency. Repeat against the current branch before closure.
 - [ ] Capture baseline geometry and screenshots at affected phone, tablet, and split-view desktop widths; include both
       panes, themes, large page numbers, touch/fine pointer, and long labels.
   - [x] Baseline Normal card width: 148 px at 390/768/1440 px. Additional scenarios remain pending.
@@ -221,8 +221,8 @@ work across scroll windows, with unchanged card geometry.
   - [x] Removed two single-density wrappers, unreachable Compact action branches, and a stale batch comment from
         `composition.test.js`. Card, selection, keyboard, Page, addition, removal, and movement checks remain. Node 24
         syntax, formatting, lint, and 52 unit tests pass. Chromium E2E needs the complete current checkout.
-  - [x] Removed a runner-selection assertion for a superseded partial-Grid-batch test name. Positive checks for
-        minimal, standard, full, and calibration selection remain. Node 24: 52 unit tests, file format, and lint pass.
+  - [x] Removed a runner-selection assertion for a superseded partial-Grid-batch test name. Positive checks for minimal,
+        standard, full, and calibration selection remain. Node 24: 52 unit tests, file format, and lint pass.
 - [ ] Delete only superseded implementation and its dependent tests/docs/config. Do not remove valid PDF/Page navigation
       or historical calibration evidence without separating it from active requirements.
 - [ ] Update `SPEC.md`, `VIEW.md`, `MEMO.md`, Web README, UI glossary, keyboard/help descriptions, test runner groups,
@@ -231,8 +231,8 @@ work across scroll windows, with unchanged card geometry.
   - [x] Removed obsolete Compact advice from Help and updated the Grid keyboard measurement comment. Node 24 checks and
         focused Chromium Page regressions passed (2/2).
   - [x] Removed obsolete Normal/Compact capacity-table wording from current VIEW guidance and explicitly dated the
-        earlier Android Style/Compact Chromium result in MEMO. Historical measurements remain intact. Affected
-        documents passed Oxfmt; no browser behavior changed.
+        earlier Android Style/Compact Chromium result in MEMO. Historical measurements remain intact. Affected documents
+        passed Oxfmt; no browser behavior changed.
 - [ ] Review the bounded affected surface, not just edited lines, for redundant state, accidental churn, unclear
       ownership, and unnecessary Svelte/CSS abstractions.
 - [ ] Run narrow checks after each cleanup and inspect the final diff for unrelated changes.
