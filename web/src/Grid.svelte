@@ -69,8 +69,10 @@
     return [...sections.headings.values()].some((entry) => !folded.has(entry.key)) ? "open" : "closed"
   }
   let foldEpoch = 0
+  let pendingFolds: Set<string> | undefined
   function changeFolds(next: Set<string>) {
     const epoch = ++foldEpoch
+    pendingFolds = next
     const previous = new Set(pages)
     const remaining = new Set(gridSections(tree, count, next).pages)
     for (const animation of list?.getAnimations({ subtree: true }) ?? [])
@@ -81,6 +83,7 @@
     })
     const apply = () => {
       if (epoch !== foldEpoch) return
+      pendingFolds = undefined
       folds = next
       void tick().then(() => {
         if (epoch !== foldEpoch || !list) return
@@ -99,18 +102,24 @@
     else apply()
   }
   export function toggleSections() {
-    changeFolds(sectionState() === "closed" ? new Set() : new Set([...tree.nodes.values()].map((entry) => entry.key)))
+    const current = pendingFolds ?? folded
+    changeFolds(
+      [...tree.nodes.values()].some((entry) => !current.has(entry.key))
+        ? new Set([...tree.nodes.values()].map((entry) => entry.key))
+        : new Set(),
+    )
   }
   function fold(key: string) {
-    const next = new Set(folded)
+    const next = new Set(pendingFolds ?? folded)
     if (next.has(key)) next.delete(key)
     else next.add(key)
     changeFolds(next)
   }
   function expand(index: number) {
-    const next = new Set(folded)
+    const current = pendingFolds ?? folded
+    const next = new Set(current)
     for (const entry of tree.nodes.values()) if (entry.start <= index && index < entry.end) next.delete(entry.key)
-    if (next.size !== folded.size) changeFolds(next)
+    if (next.size !== current.size) changeFolds(next)
   }
   function rankOf(index: number) {
     if (index < 0) return -1
