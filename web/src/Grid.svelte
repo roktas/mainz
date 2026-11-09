@@ -9,7 +9,7 @@
   import type { Snippet } from "svelte"
   import { fields, shortcut, shortcutContext } from "./keyboard.ts"
   import { fit } from "./fit.ts"
-  import { foldInto, glowFoldHeading, glowUnfold } from "./motion.ts"
+  import { foldInto, pulseSectionHeading, unfoldFrom } from "./motion.ts"
   import { gridSections, sectionsOf } from "./sections.ts"
   import type { Section } from "./sections.ts"
   import type { SectionPath } from "./outline.ts"
@@ -78,7 +78,22 @@
     const remaining = new Set(nextSections.pages)
     const headings = [...nextSections.headings.values()]
     for (const animation of list?.getAnimations({ subtree: true }) ?? [])
-      if (animation.id === "fold") animation.cancel()
+      if (["fold", "unfold", "section-heading"].includes(animation.id)) animation.cancel()
+
+    const arriving = nextSections.pages.filter((page) => !previous.has(page))
+    const origins = new Map<number, DOMRectReadOnly | null>()
+    const sources = new Set<HTMLElement>()
+    for (const page of arriving) {
+      const section = [...sections.headings.values()].findLast((entry) => entry.start <= page && page < entry.end)
+      const heading = section
+        ? (list?.querySelector<HTMLElement>(`.page-image[data-page="${section.start}"]`)?.closest<HTMLElement>(
+            ".composition-card",
+          ) ?? null)
+        : null
+      origins.set(page, heading?.getBoundingClientRect() ?? null)
+      if (heading) sources.add(heading)
+    }
+
     const departing = [...(list?.querySelectorAll<HTMLElement>(".composition-card") ?? [])].flatMap((card) => {
       const page = Number(card.querySelector<HTMLElement>(".page-image[data-page]")?.dataset.page)
       if (!Number.isFinite(page) || remaining.has(page)) return []
@@ -97,20 +112,26 @@
       folds = next
       void tick().then(() => {
         if (epoch !== foldEpoch || !list) return
-        for (const heading of targets) if (list.contains(heading)) glowFoldHeading(heading)
-        for (const page of pages) {
-          if (previous.has(page)) continue
-          glowUnfold(
-            list
-              .querySelector<HTMLElement>(`.page-image[data-page="${page}"]`)
-              ?.closest<HTMLElement>(".composition-card") ?? null,
-          )
-        }
+        for (const heading of targets) if (list.contains(heading)) pulseSectionHeading(heading)
+        const entries = arriving.flatMap((page) => {
+          const element = list
+            ?.querySelector<HTMLElement>(`.page-image[data-page="${page}"]`)
+            ?.closest<HTMLElement>(".composition-card")
+          return element ? [{ element, heading: origins.get(page) ?? null }] : []
+        })
+        void unfoldFrom(entries)
       })
     }
     const motion = foldInto(departing)
     if (motion) void motion.then(apply)
-    else apply()
+    else if (sources.size) {
+      const pulses = [...sources].flatMap((heading) => {
+        const animation = pulseSectionHeading(heading)
+        return animation ? [animation] : []
+      })
+      if (pulses.length) void Promise.allSettled(pulses.map((animation) => animation.finished)).then(apply)
+      else apply()
+    } else apply()
   }
   export function toggleSections() {
     const current = pendingFolds ?? folded
