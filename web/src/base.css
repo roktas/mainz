@@ -16,6 +16,7 @@
     --accent-dark: oklch(83.6851% 0.064657 70.6014);
     --accent: light-dark(var(--accent-light), var(--accent-dark));
     --secondary: light-dark(oklch(51.077905% 0.067592 242.365855), oklch(77.509101% 0.04764 237.42351));
+    --keyboard-focus: light-dark(oklch(0% 0 none), oklch(100% 0 none));
     --tint: light-dark(oklch(94.4501% 0.030653 325.817), oklch(26.9988% 0.016373 67.0387));
     --on-accent: light-dark(oklch(100% 0 none), oklch(17.76% 0 none));
     --hover: light-dark(oklch(34.3158% 0.157716 328.3634), oklch(88.9958% 0.049265 71.1138));
