@@ -481,6 +481,16 @@ The Input title uses regular font weight (400). Node 24 Svelte/TypeScript checks
 formatting and lint passed (0 errors, 5 pre-existing style warnings). The regression assertions and Web VIEW were
 aligned. Standard/full browser suites, physical devices, and Svelte autofixer (not installed) were not run.
 
+#### Fold animation, hover clearance, and header spacing (2026-11-09)
+
+This follow-up supersedes the earlier contour pulse and toolbar spacing where they conflict.
+
+- [ ] Keep lifted Grid cards and ribbon controls within the scroll viewport without clipping their upper edges.
+- [ ] Give newly revealed List rows an outline-free color/opacity pulse; only the section explicitly unfolded keeps its secondary outline.
+- [ ] Animate departing visible items before folding sections in both Grid and List. Preserve virtualization, keyboard behavior, and reduced-motion fallback.
+- [ ] Match the gap between Input eye/Open PDF and Output eye/Download, tighten both icon groups equally, and give reclaimed Input width to the document title.
+- [ ] Align VIEW and focused regression checks. Do not run long test suites.
+
 #### Closure
 
 - [ ] Fix confirmed defects and unnecessary complexity with small, behavior-preserving changes. Add or repair tests at
