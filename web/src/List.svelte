@@ -10,7 +10,7 @@
   import type { Snippet } from "svelte"
   import { shortcut, shortcutContext } from "./keyboard.ts"
   import { sectionsOf, flattenSections } from "./sections.ts"
-  import { flash, glowUnfold } from "./motion.ts"
+  import { fadeFold, flash, glowUnfold } from "./motion.ts"
   import type { SectionPath } from "./outline.ts"
 
   let {
@@ -61,22 +61,44 @@
   let width = $state(0)
   const empty = new Set<string>()
   const collapsed = $derived(folds ?? empty)
+  let outlined = $state<string>()
   export function sectionState() {
     if (!sections.nodes.size) return "none"
     return order.some((index) => index < 0 && !collapsed.has(sections.nodes.get(-index - 1)!.key)) ? "open" : "closed"
   }
-  function changeFolds(next: Set<string>) {
+  let foldEpoch = 0
+  function changeFolds(next: Set<string>, highlighted?: string) {
+    const epoch = ++foldEpoch
     const previous = new Set(order)
-    folds = next
-    void tick().then(() => {
-      if (!list) return
-      for (const row of list.querySelectorAll<HTMLElement>(":scope > .list-row, :scope > .list-section")) {
+    const remaining = new Set(
+      flattenSections(sections.roots, count, next).filter((index) => index < 0 || !skipped?.has(index)),
+    )
+    for (const animation of list?.getAnimations({ subtree: true }) ?? [])
+      if (animation.id === "fold") animation.cancel()
+    const departing = [...(list?.querySelectorAll<HTMLElement>(":scope > .list-row, :scope > .list-section") ?? [])]
+      .filter((row) => {
         const index = row.matches(".list-section")
           ? -Number(row.dataset.section) - 1
           : Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
-        if (!previous.has(index)) glowUnfold(row)
-      }
-    })
+        return !remaining.has(index)
+      })
+    const apply = () => {
+      if (epoch !== foldEpoch) return
+      outlined = highlighted && !next.has(highlighted) ? highlighted : undefined
+      folds = next
+      void tick().then(() => {
+        if (epoch !== foldEpoch || !list) return
+        for (const row of list.querySelectorAll<HTMLElement>(":scope > .list-row, :scope > .list-section")) {
+          const index = row.matches(".list-section")
+            ? -Number(row.dataset.section) - 1
+            : Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
+          if (!previous.has(index)) glowUnfold(row)
+        }
+      })
+    }
+    const fade = fadeFold(departing)
+    if (fade) void fade.then(apply)
+    else apply()
   }
   export function toggleSections() {
     changeFolds(
@@ -384,6 +406,7 @@
         class:selected={collapsed.has(entry.key) && selected?.(entry.start, entry.end)}
         data-selected={selected?.(entry.start, entry.end) || undefined}
         data-section={-index - 1}
+        data-emphasized={outlined === entry.key && !collapsed.has(entry.key) || undefined}
         data-index={entry.start}
         data-end={collapsed.has(entry.key) ? entry.end - 1 : undefined}
         data-dragging={dragged === index || undefined}
@@ -398,7 +421,7 @@
             const next = new Set(collapsed)
             if (next.has(entry.key)) next.delete(entry.key)
             else next.add(entry.key)
-            changeFolds(next)
+            changeFolds(next, entry.key)
           },
           entry.id,
         )}
