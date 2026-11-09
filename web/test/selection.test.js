@@ -590,246 +590,234 @@ test("Grid images and grips share selection and ordinary page focus", { timeout:
   }
 })
 
-test("Dragging opens stable page slots, previews density, and commits only on drop", { timeout: 90000 }, async () => {
+test("Dragging keeps page slots and previews through cancel and drop", { timeout: 90000 }, async () => {
   const server = await serve()
   let browser
   try {
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
-    const sizes = new Map()
-    for (const density of ["Normal"]) {
-      for (const reducedMotion of ["no-preference", "reduce"]) {
-        const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion })
-        const errors = []
-        page.on("pageerror", (error) => errors.push(error.message))
-        await page.emulateMedia({ colorScheme: reducedMotion === "reduce" ? "dark" : "light" })
-        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        await page.goto(server.resolvedUrls.local[0])
-        await page
-          .locator("input[type=file]")
-          .first()
-          .setInputFiles({
-            name: "Dragging.pdf",
-            mimeType: "application/pdf",
-            buffer: fixture({ grouped: true, fillOnly: true }),
+    for (const reducedMotion of ["no-preference", "reduce"]) {
+      const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, reducedMotion })
+      const errors = []
+      page.on("pageerror", (error) => errors.push(error.message))
+      await page.emulateMedia({ colorScheme: reducedMotion === "reduce" ? "dark" : "light" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(server.resolvedUrls.local[0])
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({
+          name: "Dragging.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture({ grouped: true, fillOnly: true }),
+        })
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output")
+      await input.getByLabel("Page selection", { exact: true }).fill("1-7")
+      await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+      await measure(output)
+      await output.locator(".composition-card").nth(6).waitFor()
+      await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
+      if (reducedMotion === "reduce") await page.setViewportSize({ width: 1920, height: 1440 })
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+      await page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
+      // Retained canvases can still have their previous fit after a viewport change.
+      await page.waitForFunction(() => {
+        const images = [...document.querySelectorAll(".composer .page-image canvas")]
+        return (
+          images.length &&
+          images.every((canvas) => {
+            const box = canvas.getBoundingClientRect()
+            return (
+              canvas.width > 0 &&
+              Math.abs(box.width - parseFloat(canvas.style.inlineSize)) < 1 &&
+              Math.abs(box.height - parseFloat(canvas.style.blockSize)) < 1
+            )
           })
-        const input = page.locator(".selection-panel"),
-          output = page.locator(".composition-output")
-        await input.getByLabel("Page selection", { exact: true }).fill("1-7")
-        await input.getByRole("button", { name: "Add to Output", exact: true }).click()
-        await measure(output)
-        await output.locator(".composition-card").nth(6).waitFor()
-        await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
-        if (reducedMotion === "reduce")
-          await page.setViewportSize({ width: 1920, height: density === "Compact" ? 1080 : 1440 })
-        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+        )
+      })
+      const cards = output.locator(".composition-card")
+      const ids = () => cards.evaluateAll((items) => items.map((item) => item.id))
+      const settle = () =>
+        page.waitForFunction(() =>
+          [...document.querySelectorAll(".composer .composition-card")].every((item) => !item.getAnimations().length),
+        )
+      const transfer = await page.evaluateHandle(() => {
+        const data = new DataTransfer()
+        const setImage = data.setDragImage.bind(data)
+        data.setDragImage = (canvas, x, y) => {
+          data.image = canvas
+          setImage(canvas, x, y)
+        }
+        return data
+      })
+      const source = input.getByRole("button", { name: "Select Input page 1", exact: true })
+      const before = await ids()
+      const bounds = await cards.evaluateAll((items) => items.map((item) => item.getBoundingClientRect().toJSON()))
+      const reference = await cards.first().evaluate((card) => {
+        const frame = card.getBoundingClientRect(),
+          raster = card.querySelector(".page-image canvas").getBoundingClientRect()
+        return [raster.x - frame.x, raster.y - frame.y, raster.width, raster.height]
+      })
+      const target = cards.nth(3)
+      const point = { clientX: bounds[3].left + bounds[3].width / 4, clientY: bounds[3].top + bounds[3].height / 2 }
+      await source.dispatchEvent("dragstart", { dataTransfer: transfer })
+      assert.equal(
+        await transfer.evaluate((data) => data.image.width),
+        1,
+        "Native drag image is suppressed in favor of the live numbered overlay",
+      )
+      const raster = await page.locator(".drag-image[data-card]").evaluate((image) => {
+        const canvas = image.querySelector("canvas"),
+          context = canvas.getContext("2d")
+        return {
+          width: parseFloat(canvas.style.inlineSize),
+          height: parseFloat(canvas.style.blockSize),
+          density: canvas.width / parseFloat(canvas.style.inlineSize),
+          rotate: getComputedStyle(image).rotate,
+          color: Array.from(
+            context.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height * 0.7), 1, 1).data,
+          ),
+        }
+      })
+      assert.ok(raster.width <= 120)
+      assert.ok(raster.height <= 160)
+      assert.ok(raster.density >= 2)
+      assert.ok(raster.color[0] < 64, "The visible page supplies the preview")
+      assert.ok(raster.color[3] > 150)
+      assert.equal(raster.rotate, reducedMotion === "reduce" ? "none" : "-3deg")
+      await target.dispatchEvent("dragover", { dataTransfer: transfer, ...point })
+      const hole = output.locator(".drop-placeholder")
+      await hole.waitFor()
+      if (reducedMotion === "no-preference")
         await page.waitForFunction(
-          () => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"),
+          (id) =>
+            document
+              .getElementById(id)
+              .getAnimations()
+              .some((animation) => animation.transitionProperty === "translate"),
+          await target.getAttribute("id"),
         )
-        // Retained canvases can still have their previous fit after a viewport change.
-        await page.waitForFunction(() => {
-          const images = [...document.querySelectorAll(".composer .page-image canvas")]
-          return (
-            images.length &&
-            images.every((canvas) => {
-              const box = canvas.getBoundingClientRect()
-              return (
-                canvas.width > 0 &&
-                Math.abs(box.width - parseFloat(canvas.style.inlineSize)) < 1 &&
-                Math.abs(box.height - parseFloat(canvas.style.blockSize)) < 1
-              )
-            })
-          )
-        })
-        const cards = output.locator(".composition-card")
-        const ids = () => cards.evaluateAll((items) => items.map((item) => item.id))
-        const settle = () =>
-          page.waitForFunction(() =>
-            [...document.querySelectorAll(".composer .composition-card")].every((item) => !item.getAnimations().length),
-          )
-        const transfer = await page.evaluateHandle(() => {
-          const data = new DataTransfer()
-          const setImage = data.setDragImage.bind(data)
-          data.setDragImage = (canvas, x, y) => {
-            data.image = canvas
-            setImage(canvas, x, y)
-          }
-          return data
-        })
-        const source = input.getByRole("button", { name: "Select Input page 1", exact: true })
-        const before = await ids()
-        const bounds = await cards.evaluateAll((items) => items.map((item) => item.getBoundingClientRect().toJSON()))
-        const reference = await cards.first().evaluate((card) => {
-          const frame = card.getBoundingClientRect(),
-            raster = card.querySelector(".page-image canvas").getBoundingClientRect()
-          return [raster.x - frame.x, raster.y - frame.y, raster.width, raster.height]
-        })
-        const target = cards.nth(3)
-        const point = { clientX: bounds[3].left + bounds[3].width / 4, clientY: bounds[3].top + bounds[3].height / 2 }
-        await source.dispatchEvent("dragstart", { dataTransfer: transfer })
-        assert.equal(
-          await transfer.evaluate((data) => data.image.width),
-          1,
-          "Native drag image is suppressed in favor of the live numbered overlay",
-        )
-        const raster = await page.locator(".drag-image[data-card]").evaluate((image) => {
-          const canvas = image.querySelector("canvas"),
-            context = canvas.getContext("2d")
-          return {
-            width: parseFloat(canvas.style.inlineSize),
-            height: parseFloat(canvas.style.blockSize),
-            density: canvas.width / parseFloat(canvas.style.inlineSize),
-            rotate: getComputedStyle(image).rotate,
-            color: Array.from(
-              context.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height * 0.7), 1, 1).data,
-            ),
-          }
-        })
-        assert.ok(raster.width <= (density === "Compact" ? 84 : 120))
-        assert.ok(raster.height <= (density === "Compact" ? 116 : 160))
-        assert.ok(raster.density >= 2)
-        assert.ok(raster.color[0] < 64, "The visible page supplies the preview, including in Compact")
-        assert.ok(raster.color[3] > 150)
-        assert.equal(raster.rotate, reducedMotion === "reduce" ? "none" : "-3deg")
-        if (density === "Normal") sizes.set(reducedMotion, raster.width * raster.height)
-        else assert.ok(raster.width * raster.height < sizes.get(reducedMotion) * 0.75)
-        await target.dispatchEvent("dragover", { dataTransfer: transfer, ...point })
-        const hole = output.locator(".drop-placeholder")
-        await hole.waitFor()
-        if (reducedMotion === "no-preference")
-          await page.waitForFunction(
-            (id) =>
-              document
-                .getElementById(id)
-                .getAnimations()
-                .some((animation) => animation.transitionProperty === "translate"),
-            await target.getAttribute("id"),
-          )
-        assert.equal(
-          await target.evaluate((element) => getComputedStyle(element).transitionDuration.split(", ")[0]),
-          reducedMotion === "reduce" ? "0s" : "0.45s",
-          "Native insertion previews retain their accepted timing",
-        )
-        await settle()
-        const slot = await hole.boundingBox(),
-          shifted = await target.boundingBox()
-        assert.ok(Math.abs(slot.x - bounds[3].x) < 1 && Math.abs(slot.y - bounds[3].y) < 1)
-        assert.ok(
-          Math.abs(shifted.x - bounds[4].x) < 1 && Math.abs(shifted.y - bounds[4].y) < 1,
-          "The target moves into its neighbor's old slot",
-        )
-        const ghost = await hole.locator("canvas").evaluate((canvas) => {
-          const box = canvas.getBoundingClientRect()
-          const scale = Math.min(box.width / canvas.width, box.height / canvas.height)
-          const width = canvas.width * scale,
-            height = canvas.height * scale
-          return {
-            image: [box.x + (box.width - width) / 2, box.y + (box.height - height) / 2, width, height],
-            opacity: Number(getComputedStyle(canvas).opacity),
-            color: Array.from(
-              canvas.getContext("2d").getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height * 0.7), 1, 1)
-                .data,
-            ),
-          }
-        })
-        assert.ok(
-          ghost.image.every((value, axis) => Math.abs(value - [slot.x, slot.y, 0, 0][axis] - reference[axis]) < 1),
-          `${density}: The destination image matches the card's image bounds (${JSON.stringify({ reference, ghost: ghost.image, slot })})`,
-        )
-        assert.ok(ghost.opacity > 0 && ghost.opacity < 0.5, "The destination shows a faint copy of the page")
-        assert.deepEqual(ghost.color, [0, 0, 0, 255], "The destination keeps the dragged page's content")
-        const grid = output.locator(".output-pages")
-        for (let step = 0; step < 3; step++)
-          await grid.dispatchEvent("dragover", {
-            dataTransfer: transfer,
-            clientX: slot.x + slot.width / 2,
-            clientY: slot.y + slot.height / 2,
-          })
-        assert.deepEqual(await hole.boundingBox(), slot, "Holding over the open slot does not move it")
-        assert.deepEqual(await ids(), before, "Hovering leaves document order unchanged")
-        await page.keyboard.press("Escape")
-        await settle()
-        assert.equal(await hole.count(), 0)
-        assert.deepEqual(await ids(), before)
-        assert.equal(await output.locator("[data-preview-hidden]").count(), 0)
-        await source.dispatchEvent("dragstart", { dataTransfer: transfer })
-        await target.dispatchEvent("dragover", { dataTransfer: transfer, ...point })
-        await grid.dispatchEvent("drop", { dataTransfer: transfer })
-        await cards.nth(7).waitFor()
-        const copied = await ids()
-        assert.deepEqual(copied.slice(0, 3), before.slice(0, 3))
-        assert.deepEqual(copied.slice(4), before.slice(3))
-        await output.getByLabel("Page selection", { exact: true }).fill("1,4")
-        await settle()
-        const groupTarget = cards.nth(6),
-          destination = await groupTarget.boundingBox()
-        await cards.nth(0).locator(".page-grip").dispatchEvent("dragstart", { dataTransfer: transfer })
-        await groupTarget.dispatchEvent("dragover", {
+      assert.equal(
+        await target.evaluate((element) => getComputedStyle(element).transitionDuration.split(", ")[0]),
+        reducedMotion === "reduce" ? "0s" : "0.45s",
+        "Native insertion previews retain their accepted timing",
+      )
+      await settle()
+      const slot = await hole.boundingBox(),
+        shifted = await target.boundingBox()
+      assert.ok(Math.abs(slot.x - bounds[3].x) < 1 && Math.abs(slot.y - bounds[3].y) < 1)
+      assert.ok(
+        Math.abs(shifted.x - bounds[4].x) < 1 && Math.abs(shifted.y - bounds[4].y) < 1,
+        "The target moves into its neighbor's old slot",
+      )
+      const ghost = await hole.locator("canvas").evaluate((canvas) => {
+        const box = canvas.getBoundingClientRect()
+        const scale = Math.min(box.width / canvas.width, box.height / canvas.height)
+        const width = canvas.width * scale,
+          height = canvas.height * scale
+        return {
+          image: [box.x + (box.width - width) / 2, box.y + (box.height - height) / 2, width, height],
+          opacity: Number(getComputedStyle(canvas).opacity),
+          color: Array.from(
+            canvas.getContext("2d").getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height * 0.7), 1, 1)
+              .data,
+          ),
+        }
+      })
+      assert.ok(
+        ghost.image.every((value, axis) => Math.abs(value - [slot.x, slot.y, 0, 0][axis] - reference[axis]) < 1),
+        `The destination image matches the card's image bounds (${JSON.stringify({ reference, ghost: ghost.image, slot })})`,
+      )
+      assert.ok(ghost.opacity > 0 && ghost.opacity < 0.5, "The destination shows a faint copy of the page")
+      assert.deepEqual(ghost.color, [0, 0, 0, 255], "The destination keeps the dragged page's content")
+      const grid = output.locator(".output-pages")
+      for (let step = 0; step < 3; step++)
+        await grid.dispatchEvent("dragover", {
           dataTransfer: transfer,
-          clientX: destination.x + destination.width * 0.75,
-          clientY: destination.y + destination.height / 2,
+          clientX: slot.x + slot.width / 2,
+          clientY: slot.y + slot.height / 2,
         })
-        await hole.waitFor()
-        assert.equal(await output.locator("[data-preview-hidden]").count(), 2, "Moving pages vacate their old slots")
-        await grid.dispatchEvent("drop", { dataTransfer: transfer })
-        assert.deepEqual(await ids(), [
-          copied[1],
-          copied[2],
-          copied[4],
-          copied[5],
-          copied[6],
-          copied[0],
-          copied[3],
-          copied[7],
-        ])
-        await cards.first().evaluate((card) => {
-          card.addEventListener(
-            "outrostart",
-            () => queueMicrotask(() => card.getAnimations().forEach((animation) => animation.pause())),
-            { once: true },
-          )
-        })
-        await output.getByLabel("Page selection", { exact: true }).fill("1")
-        await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
-        const remaining = output.locator(".composition-card:not([inert])")
-        await page.waitForFunction(
-          () => document.querySelectorAll(".composition-output .composition-card:not([inert])").length === 7,
+      assert.deepEqual(await hole.boundingBox(), slot, "Holding over the open slot does not move it")
+      assert.deepEqual(await ids(), before, "Hovering leaves document order unchanged")
+      await page.keyboard.press("Escape")
+      await settle()
+      assert.equal(await hole.count(), 0)
+      assert.deepEqual(await ids(), before)
+      assert.equal(await output.locator("[data-preview-hidden]").count(), 0)
+      await source.dispatchEvent("dragstart", { dataTransfer: transfer })
+      await target.dispatchEvent("dragover", { dataTransfer: transfer, ...point })
+      await grid.dispatchEvent("drop", { dataTransfer: transfer })
+      await cards.nth(7).waitFor()
+      const copied = await ids()
+      assert.deepEqual(copied.slice(0, 3), before.slice(0, 3))
+      assert.deepEqual(copied.slice(4), before.slice(3))
+      await output.getByLabel("Page selection", { exact: true }).fill("1,4")
+      await settle()
+      const groupTarget = cards.nth(6),
+        destination = await groupTarget.boundingBox()
+      await cards.nth(0).locator(".page-grip").dispatchEvent("dragstart", { dataTransfer: transfer })
+      await groupTarget.dispatchEvent("dragover", {
+        dataTransfer: transfer,
+        clientX: destination.x + destination.width * 0.75,
+        clientY: destination.y + destination.height / 2,
+      })
+      await hole.waitFor()
+      assert.equal(await output.locator("[data-preview-hidden]").count(), 2, "Moving pages vacate their old slots")
+      await grid.dispatchEvent("drop", { dataTransfer: transfer })
+      assert.deepEqual(await ids(), [
+        copied[1],
+        copied[2],
+        copied[4],
+        copied[5],
+        copied[6],
+        copied[0],
+        copied[3],
+        copied[7],
+      ])
+      await cards.first().evaluate((card) => {
+        card.addEventListener(
+          "outrostart",
+          () => queueMicrotask(() => card.getAnimations().forEach((animation) => animation.pause())),
+          { once: true },
         )
-        const survivors = await remaining.evaluateAll((items) => items.map((item) => item.id))
-        const retired = await source.evaluate((element, data) => {
-          element.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: data }))
-          return [...document.querySelectorAll(".composition-output .composition-card.removing")].every(
-            (card) => !card.getClientRects().length,
-          )
-        }, transfer)
-        assert.equal(retired, true, "A new drag retires outgoing cards before its first slot measurement")
-        const liveTarget = remaining.nth(2),
-          liveBounds = await liveTarget.boundingBox()
-        await liveTarget.dispatchEvent("dragover", {
-          dataTransfer: transfer,
-          clientX: liveBounds.x + liveBounds.width / 4,
-          clientY: liveBounds.y + liveBounds.height / 2,
-        })
-        await grid.dispatchEvent("drop", { dataTransfer: transfer })
-        const inserted = await remaining.evaluateAll((items) => items.map((item) => item.id))
-        assert.deepEqual(inserted.slice(0, 2), survivors.slice(0, 2))
-        assert.deepEqual(
-          inserted.slice(3),
-          survivors.slice(2),
-          "A fading removed page cannot move the insertion target",
+      })
+      await output.getByLabel("Page selection", { exact: true }).fill("1")
+      await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
+      const remaining = output.locator(".composition-card:not([inert])")
+      await page.waitForFunction(
+        () => document.querySelectorAll(".composition-output .composition-card:not([inert])").length === 7,
+      )
+      const survivors = await remaining.evaluateAll((items) => items.map((item) => item.id))
+      const retired = await source.evaluate((element, data) => {
+        element.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: data }))
+        return [...document.querySelectorAll(".composition-output .composition-card.removing")].every(
+          (card) => !card.getClientRects().length,
         )
-        await output.getByLabel("Page selection", { exact: true }).fill("1-8")
-        await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
-        await page.waitForFunction(() => !document.querySelector(".composition-output .composition-card"))
-        await source.dispatchEvent("dragstart", { dataTransfer: transfer })
-        await output.dispatchEvent("dragover", { dataTransfer: transfer })
-        await output.locator(".composition-empty .drop-placeholder").waitFor()
-        await output.dispatchEvent("drop", { dataTransfer: transfer })
-        assert.equal(await output.locator(".composition-totals strong").textContent(), "1 page")
-        assert.equal(await page.locator(".drag-image").count(), 0)
-        assert.deepEqual(errors, [])
-        await transfer.dispose()
-        await page.close()
-      }
+      }, transfer)
+      assert.equal(retired, true, "A new drag retires outgoing cards before its first slot measurement")
+      const liveTarget = remaining.nth(2),
+        liveBounds = await liveTarget.boundingBox()
+      await liveTarget.dispatchEvent("dragover", {
+        dataTransfer: transfer,
+        clientX: liveBounds.x + liveBounds.width / 4,
+        clientY: liveBounds.y + liveBounds.height / 2,
+      })
+      await grid.dispatchEvent("drop", { dataTransfer: transfer })
+      const inserted = await remaining.evaluateAll((items) => items.map((item) => item.id))
+      assert.deepEqual(inserted.slice(0, 2), survivors.slice(0, 2))
+      assert.deepEqual(inserted.slice(3), survivors.slice(2), "A fading removed page cannot move the insertion target")
+      await output.getByLabel("Page selection", { exact: true }).fill("1-8")
+      await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
+      await page.waitForFunction(() => !document.querySelector(".composition-output .composition-card"))
+      await source.dispatchEvent("dragstart", { dataTransfer: transfer })
+      await output.dispatchEvent("dragover", { dataTransfer: transfer })
+      await output.locator(".composition-empty .drop-placeholder").waitFor()
+      await output.dispatchEvent("drop", { dataTransfer: transfer })
+      assert.equal(await output.locator(".composition-totals strong").textContent(), "1 page")
+      assert.equal(await page.locator(".drag-image").count(), 0)
+      assert.deepEqual(errors, [])
+      await transfer.dispose()
+      await page.close()
     }
   } finally {
     await browser?.close()

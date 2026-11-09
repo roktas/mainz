@@ -223,6 +223,9 @@ work across scroll windows, with unchanged card geometry.
         syntax, formatting, lint, and 52 unit tests pass. Chromium E2E needs the complete current checkout.
   - [x] Removed a runner-selection assertion for a superseded partial-Grid-batch test name. Positive checks for minimal,
         standard, full, and calibration selection remain. Node 24: 52 unit tests, file format, and lint pass.
+  - [x] Removed unreachable Compact drag-preview thresholds and a single-value density loop from the selection tests.
+        The focused Chromium drag/drop regression passed (1/1) on the archived `f7fd4c8` app with this exact test body.
+        Node 24 syntax, formatting, lint, and 52 unit tests passed. Current-branch E2E remains unverified.
 - [ ] Delete only superseded implementation and its dependent tests/docs/config. Do not remove valid PDF/Page navigation
       or historical calibration evidence without separating it from active requirements.
 - [ ] Update `SPEC.md`, `VIEW.md`, `MEMO.md`, Web README, UI glossary, keyboard/help descriptions, test runner groups,
