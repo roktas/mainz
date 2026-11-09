@@ -341,6 +341,10 @@ files or new slop.
       element through `inputView.tab` instead of the rendered `activeTab`. The focused Chromium selection/view
       shortcut test failed before the change and passed afterward (1/1). Node 24 format, lint (0 errors, 28
       warnings), Svelte/TypeScript (0 diagnostics), and 52 unit tests passed. No full suite was run.
+- [x] Removed the four obsolete single-value Normal-density loops from the alignment and selection browser
+      tests. The same scenarios and assertions remain, without retired labels. Node 24 syntax checks, formatting
+      (153 files), lint (0 errors, 28 warnings), Svelte/TypeScript checks (0 diagnostics), and 52/52 unit tests
+      passed. Large visual/browser calibrations were intentionally skipped at owner request.
 - [ ] Review the complete diff and docs once; remove disposable outputs and retain only required evidence in `.local/`.
 - [ ] Mark each completed checkpoint here, report actual commands/results and any unverified physical-device behavior.
   - [x] For this pass, the owner requested skipping the long standard/browser suite. Continue only with focused checks;
@@ -401,9 +405,9 @@ measurements that support the judgment. Do not report a hypothetical cost as a m
   `pages` tab after the UI switched to direct Grid/List tabs. The Escape regression was confirmed and fixed
   in `a09070d`; audit other stored-versus-rendered view consumers before closing.
 - **Leftovers and duplicate test scaffolding:** `web/test/alignment.test.js:38,194,322` and
-  `web/test/selection.test.js:2512` retain single-value `for (... of ["Normal"])` loops. These are
-  redundant vestiges of the retired density matrix, not coverage of another mode. Remove with the
-  affected assertions in a separately validated focused change. Other `compact`, `density`, and `batch`
+  `web/test/selection.test.js:2512` previously retained single-value `for (... of ["Normal"])` loops. They
+  were removed without changing the test matrix. Only static and unit checks ran; their expensive
+  browser assertions remain unverified in this pass. Other `compact`, `density`, and `batch`
   strings in UI code also describe unrelated small layouts, pixel ratios, or PDF jobs; do not erase them
   with a broad text replacement.
 - **Rendering and cost:** `Grid.svelte:45-49,349-350` derives a bounded visible row window and uses

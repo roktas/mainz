@@ -35,80 +35,71 @@ test("Style scrolling preserves its companion Grid geometry and Page frame", { t
         if (!(await input.isVisible()) || !(await output.isVisible())) continue
         for (const colorScheme of ["light", "dark"]) {
           await page.emulateMedia({ colorScheme })
-          for (const density of ["Normal"]) {
-            await tab(input, "Grid")
-            await tab(output, "Grid")
-            const before = await measure(output)
-            await tab(input, "Style")
-            const after = await measure(output)
-            const label = `${width}×${height}, ${text}, ${colorScheme}, ${density}`
-            assert.deepEqual(after.matrix, before.matrix, `${label}: Style preserves visible Grid geometry`)
-            assert.deepEqual(after.frame, before.frame, `${label}: Style preserves the Output frame`)
-            const panel = input.locator(".control-list")
-            const profile = input.locator(".style-profile").first()
-            const profileBefore = await profile.boundingBox()
-            assert.ok(profileBefore, `${label}: The profile selector stays visible`)
-            await input.locator(".workspace-content").getByRole("button").last().focus()
-            const scrolled = await panel.evaluate((element) => {
-              const frame = element.getBoundingClientRect()
-              const field = document.activeElement.getBoundingClientRect()
-              const content = element.querySelector(".style-group").getBoundingClientRect()
-              const tabs = element.closest(".selection-panel").querySelector(".source-tabs").getBoundingClientRect()
-              const divider = document.querySelector(".composition-output").getBoundingClientRect().left
-              return {
-                overflow: element.scrollHeight - element.clientHeight,
-                offset: element.scrollTop,
-                visible: field.top >= frame.top && field.bottom <= frame.bottom,
-                gap: frame.left + element.clientLeft + element.clientWidth - content.right,
-                fits: element.scrollWidth <= element.clientWidth,
-                outside:
-                  frame.left + element.clientLeft + element.clientWidth >= tabs.right && frame.right <= divider - 8,
-              }
-            })
-            assert.ok(scrolled.visible && (scrolled.overflow <= 1 || scrolled.offset > 0), label)
-            assert.ok(
-              scrolled.fits && scrolled.gap >= 8 && scrolled.outside,
-              `${label}: Style fields clear their scrollbar in the pane gutter`,
-            )
-            assert.deepEqual(
-              await profile.boundingBox(),
-              profileBefore,
-              `${label}: The profile stays fixed above the fields`,
-            )
-            const tabs = await input.locator(".source-tabs").boundingBox()
-            const fields = await panel.boundingBox()
-            assert.ok(
-              Math.abs(profileBefore.x + profileBefore.width - tabs.x - tabs.width) < 1,
-              `${label}: The profile retains the full pane width`,
-            )
-            assert.ok(
-              fields.y >= profileBefore.y + profileBefore.height,
-              `${label}: Scrolling starts below the profile separator`,
-            )
-            assert.deepEqual(
-              (await measure(output)).frame,
-              before.frame,
-              `${label}: Form scrolling leaves Output fixed`,
-            )
-            assert.equal(await page.evaluate(() => scrollY), 0, `${label}: Only Style fields scroll`)
-            const contentBottom = await output
-              .locator(".page-content")
-              .evaluate((element) => element.getBoundingClientRect().bottom)
-            assert.ok(after.frame.bottom <= contentBottom + 1, `${label}: Grid fits inside the Output content frame`)
-            assert.equal(
-              await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(),
-              "19-24",
-            )
+          await tab(input, "Grid")
+          await tab(output, "Grid")
+          const before = await measure(output)
+          await tab(input, "Style")
+          const after = await measure(output)
+          const label = `${width}×${height}, ${text}, ${colorScheme}`
+          assert.deepEqual(after.matrix, before.matrix, `${label}: Style preserves visible Grid geometry`)
+          assert.deepEqual(after.frame, before.frame, `${label}: Style preserves the Output frame`)
+          const panel = input.locator(".control-list")
+          const profile = input.locator(".style-profile").first()
+          const profileBefore = await profile.boundingBox()
+          assert.ok(profileBefore, `${label}: The profile selector stays visible`)
+          await input.locator(".workspace-content").getByRole("button").last().focus()
+          const scrolled = await panel.evaluate((element) => {
+            const frame = element.getBoundingClientRect()
+            const field = document.activeElement.getBoundingClientRect()
+            const content = element.querySelector(".style-group").getBoundingClientRect()
+            const tabs = element.closest(".selection-panel").querySelector(".source-tabs").getBoundingClientRect()
+            const divider = document.querySelector(".composition-output").getBoundingClientRect().left
+            return {
+              overflow: element.scrollHeight - element.clientHeight,
+              offset: element.scrollTop,
+              visible: field.top >= frame.top && field.bottom <= frame.bottom,
+              gap: frame.left + element.clientLeft + element.clientWidth - content.right,
+              fits: element.scrollWidth <= element.clientWidth,
+              outside:
+                frame.left + element.clientLeft + element.clientWidth >= tabs.right && frame.right <= divider - 8,
+            }
+          })
+          assert.ok(scrolled.visible && (scrolled.overflow <= 1 || scrolled.offset > 0), label)
+          assert.ok(
+            scrolled.fits && scrolled.gap >= 8 && scrolled.outside,
+            `${label}: Style fields clear their scrollbar in the pane gutter`,
+          )
+          assert.deepEqual(
+            await profile.boundingBox(),
+            profileBefore,
+            `${label}: The profile stays fixed above the fields`,
+          )
+          const tabs = await input.locator(".source-tabs").boundingBox()
+          const fields = await panel.boundingBox()
+          assert.ok(
+            Math.abs(profileBefore.x + profileBefore.width - tabs.x - tabs.width) < 1,
+            `${label}: The profile retains the full pane width`,
+          )
+          assert.ok(
+            fields.y >= profileBefore.y + profileBefore.height,
+            `${label}: Scrolling starts below the profile separator`,
+          )
+          assert.deepEqual((await measure(output)).frame, before.frame, `${label}: Form scrolling leaves Output fixed`)
+          assert.equal(await page.evaluate(() => scrollY), 0, `${label}: Only Style fields scroll`)
+          const contentBottom = await output
+            .locator(".page-content")
+            .evaluate((element) => element.getBoundingClientRect().bottom)
+          assert.ok(after.frame.bottom <= contentBottom + 1, `${label}: Grid fits inside the Output content frame`)
+          assert.equal(await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "19-24")
 
-            await tab(output, "Page")
-            const styledPage = await output.locator(".page-view").boundingBox()
-            await tab(input, "Grid")
-            assert.deepEqual(
-              await output.locator(".page-view").boundingBox(),
-              styledPage,
-              `${label}: Page shares the frame`,
-            )
-          }
+          await tab(output, "Page")
+          const styledPage = await output.locator(".page-view").boundingBox()
+          await tab(input, "Grid")
+          assert.deepEqual(
+            await output.locator(".page-view").boundingBox(),
+            styledPage,
+            `${label}: Page shares the frame`,
+          )
         }
       }
     }
@@ -191,27 +182,25 @@ for (const hasTouch of [false, true])
               const views = page.locator(".mobile-workspace-tabs")
               if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
               const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-              for (const density of ["Normal"]) {
-                label = `${hasTouch ? "Touch" : "Mouse"} ${name} ${density}, ${width}×${height}, ${text} text`
-                await checkGrips(pane, `${name} ${density}, ${width}×${height}, ${text} text`)
-                if (await views.isVisible()) await checkGridScroll(pane, label)
-                const grid = await pane.locator(".composition-grid").evaluate((element) => ({
-                  columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
-                  width: element.firstElementChild.getBoundingClientRect().width,
-                }))
-                await pane.getByRole("tab", { name: "Page", exact: true }).dispatchEvent("click")
-                const reference = await pane.locator(".page-reference").evaluate((element) => ({
-                  columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
-                  width: element.firstElementChild.getBoundingClientRect().width,
-                }))
-                assert.equal(reference.columns, grid.columns, "Page retains Grid's column count")
-                assert.ok(
-                  Math.abs(reference.width - grid.width) <= 1,
-                  `Page and Grid thumbnail widths differ: ${JSON.stringify({ reference, grid })}`,
-                )
-                await tab(pane, "Grid")
-                assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
-              }
+              label = `${hasTouch ? "Touch" : "Mouse"} ${name}, ${width}×${height}, ${text} text`
+              await checkGrips(pane, `${name}, ${width}×${height}, ${text} text`)
+              if (await views.isVisible()) await checkGridScroll(pane, label)
+              const grid = await pane.locator(".composition-grid").evaluate((element) => ({
+                columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
+                width: element.firstElementChild.getBoundingClientRect().width,
+              }))
+              await pane.getByRole("tab", { name: "Page", exact: true }).dispatchEvent("click")
+              const reference = await pane.locator(".page-reference").evaluate((element) => ({
+                columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
+                width: element.firstElementChild.getBoundingClientRect().width,
+              }))
+              assert.equal(reference.columns, grid.columns, "Page retains Grid's column count")
+              assert.ok(
+                Math.abs(reference.width - grid.width) <= 1,
+                `Page and Grid thumbnail widths differ: ${JSON.stringify({ reference, grid })}`,
+              )
+              await tab(pane, "Grid")
+              assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
             }
           }
           await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
@@ -319,25 +308,18 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
         await page.setViewportSize({ width, height })
         for (const text of ["100%", "200%"]) {
           await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
-          for (const density of ["Normal"]) {
-            label = `${hasTouch ? "Touch" : "Mouse"} Output ${density}, ${width}×${height}, ${text}, five digits`
-            await measure(output)
-            await checkGrips(output, `${width}×${height}, ${text}, ${density}, five digits`)
-            const thumbnail = await gridPage(output, 10000)
-            const gap = await thumbnail.evaluate((button) => {
-              const card = button.closest(".composition-card")
-              const number = card
-                .querySelector(".page-origin > :is(summary,.card-number) strong")
-                .getBoundingClientRect()
-              const grip = card.querySelector(".page-grip svg").getBoundingClientRect()
-              return grip.left - number.right
-            })
-            assert.ok(
-              gap >= 2,
-              `${width}×${height}, ${text}, ${density}: five digits keep clear of the grip (${gap}px)`,
-            )
-            assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
-          }
+          label = `${hasTouch ? "Touch" : "Mouse"} Output, ${width}×${height}, ${text}, five digits`
+          await measure(output)
+          await checkGrips(output, `${width}×${height}, ${text}, five digits`)
+          const thumbnail = await gridPage(output, 10000)
+          const gap = await thumbnail.evaluate((button) => {
+            const card = button.closest(".composition-card")
+            const number = card.querySelector(".page-origin > :is(summary,.card-number) strong").getBoundingClientRect()
+            const grip = card.querySelector(".page-grip svg").getBoundingClientRect()
+            return grip.left - number.right
+          })
+          assert.ok(gap >= 2, `${width}×${height}, ${text}: five digits keep clear of the grip (${gap}px)`)
+          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
         }
       }
       await page.close()

@@ -2509,94 +2509,88 @@ test("Output movement keeps direction buttons fixed at selection boundaries", { 
         const views = page.locator(".mobile-workspace-tabs")
         if (await views.isVisible()) await views.getByRole("button", { name: "Output", exact: true }).click()
         await tab(output, "Grid")
-        for (const density of ["Normal"]) {
-          for (const [start, direction] of [
-            [8, -1],
-            [1, 1],
-          ]) {
-            await selected.fill(String(start))
-            await revealMoves()
-            assert.equal(await earlier.isEnabled(), start !== 1)
-            assert.equal(await later.isEnabled(), start !== 8)
-            const action = direction < 0 ? earlier : later
-            await action.scrollIntoViewIfNeeded()
-            const bounds = [await earlier.boundingBox(), await later.boundingBox()]
-            const point = bounds[direction < 0 ? 0 : 1]
-            const inline = await output.locator(".inline-moves").isVisible()
-            const centers = []
-            for (const button of [earlier, later]) {
-              const geometry = await button.evaluate((element) => {
-                const control = element.getBoundingClientRect()
-                const icon = element.querySelector("svg path").getBoundingClientRect()
-                return {
-                  x: icon.x + icon.width / 2,
-                  dx: icon.x + icon.width / 2 - control.x - control.width / 2,
-                  dy: icon.y + icon.height / 2 - control.y - control.height / 2,
-                }
-              })
-              assert.ok(Math.abs(geometry.dy) < 1, "Move icons stay on their button's vertical center")
-              if (inline)
-                assert.ok(Math.abs(geometry.dx) < 1, "Inline move icons stay on their button's horizontal center")
-              centers.push(geometry.x)
-            }
-            if (!inline) assert.ok(Math.abs(centers[0] - centers[1]) < 1, "Menu move icons share one column")
-            for (let step = 1; step <= 2; step++) {
-              await revealMoves()
-              assert.deepEqual(
-                [await earlier.boundingBox(), await later.boundingBox()],
-                bounds,
-                `${colorScheme}, ${width}, ${text}, ${density}: direction buttons retain their slots`,
-              )
-              assert.equal(await action.isEnabled(), true)
-              const hit = await page.evaluate(
-                ({ x, y }) => document.elementFromPoint(x, y)?.closest("button")?.getAttribute("aria-label"),
-                { x: point.x + point.width / 2, y: point.y + point.height / 2 },
-              )
-              assert.equal(
-                hit,
-                await action.getAttribute("aria-label"),
-                `${colorScheme}, ${width}, ${text}, ${density}, ${start}, step=${step}: the retained coordinate hits its action`,
-              )
-              await page.mouse.click(point.x + point.width / 2, point.y + point.height / 2)
-              await page.waitForFunction(({ field, value }) => field.value === value, {
-                field: await selected.elementHandle(),
-                value: String(start + direction * step),
-              })
-              assert.equal(
-                await selected.inputValue(),
-                String(start + direction * step),
-                "Repeated clicks on one position keep the same direction",
-              )
-            }
+        for (const [start, direction] of [
+          [8, -1],
+          [1, 1],
+        ]) {
+          await selected.fill(String(start))
+          await revealMoves()
+          assert.equal(await earlier.isEnabled(), start !== 1)
+          assert.equal(await later.isEnabled(), start !== 8)
+          const action = direction < 0 ? earlier : later
+          await action.scrollIntoViewIfNeeded()
+          const bounds = [await earlier.boundingBox(), await later.boundingBox()]
+          const point = bounds[direction < 0 ? 0 : 1]
+          const inline = await output.locator(".inline-moves").isVisible()
+          const centers = []
+          for (const button of [earlier, later]) {
+            const geometry = await button.evaluate((element) => {
+              const control = element.getBoundingClientRect()
+              const icon = element.querySelector("svg path").getBoundingClientRect()
+              return {
+                x: icon.x + icon.width / 2,
+                dx: icon.x + icon.width / 2 - control.x - control.width / 2,
+                dy: icon.y + icon.height / 2 - control.y - control.height / 2,
+              }
+            })
+            assert.ok(Math.abs(geometry.dy) < 1, "Move icons stay on their button's vertical center")
+            if (inline)
+              assert.ok(Math.abs(geometry.dx) < 1, "Inline move icons stay on their button's horizontal center")
+            centers.push(geometry.x)
           }
-          await selected.fill("1-8")
-          await revealMoves()
-          assert.equal(await earlier.isDisabled(), true)
-          assert.equal(await later.isDisabled(), true)
-          await page.keyboard.press("Escape")
-          await selected.fill("8")
-          await revealMoves()
-          const blocked = await later.boundingBox()
-          await page.mouse.click(blocked.x + blocked.width / 2, blocked.y + blocked.height / 2)
-          assert.equal(await selected.inputValue(), "8", "A disabled direction leaves the selection unchanged")
-          await page.keyboard.press("Escape")
-          const overflow = await page.evaluate(() => ({
-            width: innerWidth,
-            scroll: document.documentElement.scrollWidth,
-            elements: [...document.querySelectorAll(".composer *")]
-              .map((element) => ({
-                tag: element.tagName,
-                class: element.className,
-                right: element.getBoundingClientRect().right,
-              }))
-              .filter((element) => element.right > innerWidth + 1),
-          }))
-          assert.equal(
-            overflow.scroll <= overflow.width,
-            true,
-            JSON.stringify({ colorScheme, width, text, density, overflow }),
-          )
+          if (!inline) assert.ok(Math.abs(centers[0] - centers[1]) < 1, "Menu move icons share one column")
+          for (let step = 1; step <= 2; step++) {
+            await revealMoves()
+            assert.deepEqual(
+              [await earlier.boundingBox(), await later.boundingBox()],
+              bounds,
+              `${colorScheme}, ${width}, ${text}: direction buttons retain their slots`,
+            )
+            assert.equal(await action.isEnabled(), true)
+            const hit = await page.evaluate(
+              ({ x, y }) => document.elementFromPoint(x, y)?.closest("button")?.getAttribute("aria-label"),
+              { x: point.x + point.width / 2, y: point.y + point.height / 2 },
+            )
+            assert.equal(
+              hit,
+              await action.getAttribute("aria-label"),
+              `${colorScheme}, ${width}, ${text}, ${start}, step=${step}: the retained coordinate hits its action`,
+            )
+            await page.mouse.click(point.x + point.width / 2, point.y + point.height / 2)
+            await page.waitForFunction(({ field, value }) => field.value === value, {
+              field: await selected.elementHandle(),
+              value: String(start + direction * step),
+            })
+            assert.equal(
+              await selected.inputValue(),
+              String(start + direction * step),
+              "Repeated clicks on one position keep the same direction",
+            )
+          }
         }
+        await selected.fill("1-8")
+        await revealMoves()
+        assert.equal(await earlier.isDisabled(), true)
+        assert.equal(await later.isDisabled(), true)
+        await page.keyboard.press("Escape")
+        await selected.fill("8")
+        await revealMoves()
+        const blocked = await later.boundingBox()
+        await page.mouse.click(blocked.x + blocked.width / 2, blocked.y + blocked.height / 2)
+        assert.equal(await selected.inputValue(), "8", "A disabled direction leaves the selection unchanged")
+        await page.keyboard.press("Escape")
+        const overflow = await page.evaluate(() => ({
+          width: innerWidth,
+          scroll: document.documentElement.scrollWidth,
+          elements: [...document.querySelectorAll(".composer *")]
+            .map((element) => ({
+              tag: element.tagName,
+              class: element.className,
+              right: element.getBoundingClientRect().right,
+            }))
+            .filter((element) => element.right > innerWidth + 1),
+        }))
+        assert.equal(overflow.scroll <= overflow.width, true, JSON.stringify({ colorScheme, width, text, overflow }))
       }
       await page.close()
     }
