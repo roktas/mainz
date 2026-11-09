@@ -377,8 +377,8 @@ sections. A separate Section headings toggle follows it and stays in place when 
 Section headings are shown by default. Hiding them produces uninterrupted page rows and hides the expand/collapse
 toolbar control.
 
-On narrow screens, toolbar icons have no gap between their 44 px targets. The visible Grid and Go to page glyphs sit 4
-px inside the toolbar's outer edges; wider layouts retain normal spacing.
+On narrow screens, toolbar icons have no gap between their 44 px targets. The Grid glyph is centered within its 44 px
+tab; Go to page sits 4 px inside the trailing toolbar edge. Wider layouts retain normal spacing.
 
 The heading button toggles selection, including with Enter or Space. A fully selected closed section uses the primary
 background. A fully selected open section uses a stronger primary tint and retains its primary-colored current title.

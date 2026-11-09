@@ -820,13 +820,15 @@ test("List section headings default to shown and toggle independently without ch
             ]
           }
           const box = toolbar.getBoundingClientRect()
+          const tab = toolbar.querySelector(".tabs > button:first-child").getBoundingClientRect()
+          const icon = bounds(".tabs > button:first-child svg")
           return {
-            start: bounds(".tabs > button:first-child svg")[0] - box.left,
+            start: icon[0] - box.left,
             end: box.right - bounds(".page-destination > button svg")[1],
+            centered: Math.abs((icon[0] + icon[1]) / 2 - (tab.left + tab.width / 2)) < 1,
           }
         })
-        if (width === 375)
-          assert.ok(Math.abs(edges.start - 4) < 1 && Math.abs(edges.end - 4) < 1, JSON.stringify(edges))
+        if (width === 375) assert.ok(edges.centered && Math.abs(edges.end - 4) < 1, JSON.stringify(edges))
         else assert.ok(edges.start > 0 && edges.end > 0, "Wide toolbar spacing stays unchanged")
         assert.ok(
           await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),

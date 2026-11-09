@@ -296,6 +296,9 @@ files or new slop.
         and one cancelled (the 30-second long-List test). Other failures include two Grid label/detail waits, a 320 px
         Input hit area, the already-deferred 440 px Output footer hit area, and a narrow List heading-toolbar alignment
         assertion. This is incomplete regression evidence, not a passing standard suite. Investigate and rerun failures.
+  - [x] Updated the narrow List toolbar test for the direct Grid tab. The glyph remains centered in its 44 px tab; the
+        Go to page glyph keeps its 4 px trailing inset. VIEW now describes the direct-tab layout. The focused
+        current-source Chromium test passed (1/1). Formatter and file lint passed (0 errors, 10 existing warnings).
 - [ ] Validate light/dark, keyboard, touch, fine pointer, reduced motion, 100%/200% text, 320/390/768 px and
       representative split-view desktop widths, 1–5 digit page numbers, selected/unselected and long-name cases.
 - [ ] Compare screenshots and measured card geometry against the original Normal Grid; record any real difference and
