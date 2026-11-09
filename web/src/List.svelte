@@ -10,7 +10,7 @@
   import type { Snippet } from "svelte"
   import { shortcut, shortcutContext } from "./keyboard.ts"
   import { sectionsOf, flattenSections } from "./sections.ts"
-  import { flash, foldInto, glowFoldHeading, glowUnfold } from "./motion.ts"
+  import { flash, foldInto, pulseSectionHeading, unfoldFrom } from "./motion.ts"
   import type { SectionPath } from "./outline.ts"
 
   let {
@@ -76,8 +76,28 @@
       flattenSections(sections.roots, count, next).filter((index) => index < 0 || !skipped?.has(index)),
     )
     const nodes = [...sections.nodes.values()]
+    const parent = (index: number, visible: ReadonlySet<number>) => {
+      let section =
+        index < 0
+          ? sections.nodes.get(-index - 1)
+          : nodes.findLast((entry) => entry.start <= index && index < entry.end)
+      while (section && !visible.has(-section.id - 1)) section = section.parent
+      return section
+    }
+    const sectionRow = (id: number) => list?.querySelector<HTMLElement>(`.list-section[data-section="${id}"]`) ?? null
     for (const animation of list?.getAnimations({ subtree: true }) ?? [])
-      if (animation.id === "fold") animation.cancel()
+      if (["fold", "unfold", "section-heading"].includes(animation.id)) animation.cancel()
+
+    const arriving = [...remaining].filter((index) => !previous.has(index))
+    const origins = new Map<number, DOMRectReadOnly | null>()
+    const sources = new Set<HTMLElement>()
+    for (const index of arriving) {
+      const section = parent(index, previous)
+      const heading = section ? sectionRow(section.id) : null
+      origins.set(index, heading?.getBoundingClientRect() ?? null)
+      if (heading) sources.add(heading)
+    }
+
     const departing = [
       ...(list?.querySelectorAll<HTMLElement>(":scope > .list-row, :scope > .list-section") ?? []),
     ].flatMap((row) => {
@@ -85,15 +105,8 @@
         ? -Number(row.dataset.section) - 1
         : Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
       if (!Number.isFinite(index) || remaining.has(index)) return []
-      let section =
-        index < 0
-          ? sections.nodes.get(-index - 1)
-          : nodes.findLast((entry) => entry.start <= index && index < entry.end)
-      while (section && !remaining.has(-section.id - 1)) section = section.parent
-      const heading = section
-        ? (list?.querySelector<HTMLElement>(`.list-section[data-section="${section.id}"]`) ?? null)
-        : null
-      return [{ element: row, heading }]
+      const section = parent(index, remaining)
+      return [{ element: row, heading: section ? sectionRow(section.id) : null }]
     })
     const targets = new Set(departing.flatMap(({ heading }) => (heading ? [heading] : [])))
     const apply = () => {
@@ -103,18 +116,28 @@
       folds = next
       void tick().then(() => {
         if (epoch !== foldEpoch || !list) return
-        for (const heading of targets) if (list.contains(heading)) glowFoldHeading(heading)
-        for (const row of list.querySelectorAll<HTMLElement>(":scope > .list-row, :scope > .list-section")) {
-          const index = row.matches(".list-section")
-            ? -Number(row.dataset.section) - 1
-            : Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
-          if (!previous.has(index)) glowUnfold(row)
-        }
+        for (const heading of targets) if (list.contains(heading)) pulseSectionHeading(heading)
+        const entries = [...list.querySelectorAll<HTMLElement>(":scope > .list-row, :scope > .list-section")].flatMap(
+          (row) => {
+            const index = row.matches(".list-section")
+              ? -Number(row.dataset.section) - 1
+              : Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
+            return !previous.has(index) ? [{ element: row, heading: origins.get(index) ?? null }] : []
+          },
+        )
+        void unfoldFrom(entries)
       })
     }
     const motion = foldInto(departing)
     if (motion) void motion.then(apply)
-    else apply()
+    else if (sources.size) {
+      const pulses = [...sources].flatMap((heading) => {
+        const animation = pulseSectionHeading(heading)
+        return animation ? [animation] : []
+      })
+      if (pulses.length) void Promise.allSettled(pulses.map((animation) => animation.finished)).then(apply)
+      else apply()
+    } else apply()
   }
   export function toggleSections() {
     const current = pendingFolds ?? collapsed
