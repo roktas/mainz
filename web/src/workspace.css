@@ -954,10 +954,11 @@
         display: grid;
         align-content: start;
         grid-template-columns: minmax(0, 1fr) auto auto;
-        gap: 0.5em;
+        gap: 0.175em;
         & > .input-picker {
           grid-column: 1;
           grid-row: 1;
+          margin-inline-end: 0.125em;
         }
         & > .input-preview-tools {
           grid-column: 2;
@@ -1303,7 +1304,7 @@
         }
         & .input-heading {
           grid-template-columns: minmax(0, 1fr) auto auto;
-          gap: clamp(4px, 1cqi, 8px);
+          gap: 0.175em;
         }
         & .mobile-workspace-tabs button,
         & .input-picker > summary,
@@ -1335,7 +1336,7 @@
         grid-template-columns: minmax(44px, 1fr) auto;
       }
       .composer .output-actions {
-        gap: clamp(0.375em, 1cqi, 0.5em);
+        gap: 0.175em;
       }
       .composer .output-actions > .primary {
         flex: none;
@@ -1376,7 +1377,7 @@
         column-gap: clamp(4px, 1cqi, 8px);
       }
       .composer .output-actions {
-        gap: clamp(4px, 1cqi, 8px);
+        gap: 0.175em;
         /* Reserve the details target and gaps before fitting the four equal glyphs. */
         --output-glyph-size: clamp(28px, calc((100cqi - 76px) / 4 - 8px), var(--document-icon-size));
       }
