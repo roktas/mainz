@@ -900,7 +900,7 @@
         &:focus-visible {
           outline: 2px solid transparent;
           & svg {
-            color: var(--secondary);
+            color: var(--keyboard-focus);
             filter: drop-shadow(0 0 2px color-mix(in oklch, currentColor 85%, transparent))
               drop-shadow(0 0 6px color-mix(in oklch, currentColor 70%, transparent));
           }
@@ -953,8 +953,20 @@
       & .input-heading {
         display: grid;
         align-content: start;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr) auto auto;
         gap: 0.5em;
+        & > .input-picker {
+          grid-column: 1;
+          grid-row: 1;
+        }
+        & > .input-preview-tools {
+          grid-column: 2;
+          grid-row: 1;
+        }
+        & > .file-picker {
+          grid-column: 3;
+          grid-row: 1;
+        }
         & .file-picker {
           display: inline-flex;
           align-items: center;
@@ -1286,6 +1298,10 @@
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: var(--gap);
         }
+        & .input-heading {
+          grid-template-columns: minmax(0, 1fr) auto auto;
+          gap: clamp(4px, 1cqi, 8px);
+        }
         & .mobile-workspace-tabs button,
         & .input-picker > summary,
         & .input-heading .file-picker,
@@ -1360,6 +1376,27 @@
         gap: clamp(4px, 1cqi, 8px);
         /* Reserve the details target and gaps before fitting the four equal glyphs. */
         --output-glyph-size: clamp(28px, calc((100cqi - 76px) / 4 - 8px), var(--document-icon-size));
+      }
+    }
+    @container heading (width <= 30em) {
+      .composer .input-heading .file-picker {
+        min-inline-size: 44px;
+        padding-inline: 4px;
+        & > span {
+          display: none;
+        }
+      }
+    }
+    @container heading (width <= 22em) {
+      .composer .input-state {
+        & > .composition-totals {
+          position: absolute;
+          visibility: hidden;
+        }
+        & > button {
+          display: inline-flex;
+          min-inline-size: 44px;
+        }
       }
     }
     @container heading (width <= 16em) {
