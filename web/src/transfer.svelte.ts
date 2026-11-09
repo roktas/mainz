@@ -288,6 +288,9 @@ export class Transfer {
     this.#consumeClick = false
     if (this.#contact && event.pointerId !== this.#contact.id) this.end()
   }
+  suppressClick() {
+    this.#consumeClick = true
+  }
   click = (event: MouseEvent) => {
     if (!this.#consumeClick || !event.detail) return
     event.preventDefault()

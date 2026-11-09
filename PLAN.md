@@ -303,6 +303,11 @@ files or new slop.
         heights before setting `scrollTop` to the preserved physical-page anchor. On the current Chromium source, the
         300-page wide-to-narrow regression and page-295 Details/Contents regression passed (2/2). Node 24
         Svelte/TypeScript checks and 52/52 unit tests passed; lint reported 0 errors and 28 warnings.
+  - [x] Kept Grid header/footer 44 px hit areas inside scroll clipping and prevented the touch grip pointer-up from
+        generating a second selection through a retargeted click. The current Chromium 320/390/412/440 px Grid target
+        test passed with 100%/200% text and both panes (1/1). The focused 440 px Output footer test passed (1/1). Node
+        24 Svelte/TypeScript and 52/52 unit tests passed; lint reported 0 errors and 28 warnings. The full footer matrix
+        still needs a rerun.
 - [ ] Validate light/dark, keyboard, touch, fine pointer, reduced motion, 100%/200% text, 320/390/768 px and
       representative split-view desktop widths, 1–5 digit page numbers, selected/unselected and long-name cases.
 - [ ] Compare screenshots and measured card geometry against the original Normal Grid; record any real difference and

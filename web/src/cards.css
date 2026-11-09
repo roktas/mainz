@@ -274,6 +274,15 @@
             inset-inline: -6px;
           }
         }
+        /* Keep 44 px hit areas inside the first and last card edges. */
+        & .page-label :is(.page-grip, .page-origin > summary)::after {
+          inset-block-start: 0;
+          inset-block-end: calc(var(--card-tool-size, 32px) - 44px);
+        }
+        & :is(.occurrence-actions, .input-footer) button::after {
+          inset-block-start: calc(var(--card-tool-size, 32px) - 44px);
+          inset-block-end: 0;
+        }
       }
       & .input-footer {
         z-index: 1;

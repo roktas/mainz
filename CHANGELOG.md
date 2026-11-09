@@ -120,6 +120,7 @@
 
 ### Fixed
 
+- Keep Grid card touch targets fully inside the scroll frame and prevent touch grip selection from toggling twice.
 - Compact repetition menus and Page navigation, widen phone landing actions, and clear stale notices when new work
   starts.
 - Offer native PDF sharing for printing from iPhone Home Screen apps, with cancellation and download recovery.

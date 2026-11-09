@@ -1517,6 +1517,7 @@
     }}
     onpointerup={(event) => {
       if (event.pointerType !== "touch" || !event.isPrimary || transfer.touching) return
+      transfer.suppressClick()
       selectOutput(page.id, event.shiftKey)
       interaction.focusPage(event.currentTarget)
     }}
@@ -2057,6 +2058,7 @@
                             }}
                             onpointerup={(event) => {
                               if (event.pointerType !== "touch" || !event.isPrimary || transfer.touching) return
+                              transfer.suppressClick()
                               toggle(page, event.shiftKey)
                               inspectInput({ position: page })
                               interaction.focusPage(event.currentTarget)
