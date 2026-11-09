@@ -47,7 +47,7 @@
 
 ### Changed
 
-- Grid and List section folding now gathers disappearing items into their surviving heading before the heading pulses.
+- Grid and List section folding gathers disappearing items into their heading before it pulses. Unfolding reverses this sequence, revealing items from the pulsing heading.
 - Rename the combined Grid/List tab from Flow to Pages, beside the single-page Page tab, with a stacked-page icon.
 
 - Remove Filename from Output page actions.
