@@ -533,13 +533,13 @@ The separate `android/2026-10-22/calibration/` record retains the Android candid
 Synthetic replay does not reproduce Android system bars or safe-area insets. Native candidate captures support the
 applied geometry. Keep baseline and applied captures in separate directories with their source manifests.
 
-The native Style comparison exposed seven frame-height changes when Style replaces a Normal Input beside Compact Output.
-These failures remain explicit in the report. They do not change the accepted Grid capacity results.
+The retained Android Style baseline records seven frame-height changes when Style replaced a Normal Input beside a
+Compact Output. These historical failures remain explicit in the report. They do not define current Grid behavior.
 
-The current source includes a synthetic fix for that follow-up. The regression
-`Style retains a Compact companion frame on short touch landscapes` passes the seven failing viewports in Chromium. The
-retained calibration record owns its source provenance. This result does not replace the native failures. A new native
-capture remains pending.
+The follow-up recorded a synthetic fix and a passing Chromium regression named
+`Style retains a Compact companion frame on short touch landscapes`. These results belong to the earlier implementation,
+not the current single-density Grid contract. The retained calibration record owns their source provenance. The Chromium
+result does not replace the native failures. A new native capture remains pending.
 
 Before cleanup, retain successful and failed logs, source revision/hashes, fixture digests, capture metadata, accepted
 and rejected candidates, and representative native screenshots. Verify report links and hashes. Remove disposable build

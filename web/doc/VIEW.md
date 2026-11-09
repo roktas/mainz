@@ -309,9 +309,9 @@ Two-pane Grid and Page frames align at the top and bottom. The pane divider reac
 center within the shared image area. Application zoom changes the PDF inside that frame. The application does not
 subtract browser controls from the viewport a second time.
 
-Retain native measurements and calibration evidence in [MEMO](MEMO.md#retained-evidence) and the viewport inventory. The
-former Normal/Compact capacity tables do not describe the current scrollable Grid. Current tests measure card geometry
-and scroll access, not the number of cards visible in a fixed-height frame.
+Retain native measurements and calibration evidence in [MEMO](MEMO.md#retained-evidence) and the viewport inventory.
+Current Grid validation measures card geometry, scroll access, and bounded mounted rows without requiring a fixed number
+of cards per frame.
 
 Mobile has a persistent one-tap Input/Output switch and preserves pane state. Headings retain the chooser or totals
 beside Open PDF or the Print and Download actions on one row, including with enlarged text. Labels stay complete. Long

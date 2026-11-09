@@ -230,6 +230,9 @@ work across scroll windows, with unchanged card geometry.
   - [x] Replaced active Compact/pagination test guidance in Web MEMO and the large Grid fixture README.
   - [x] Removed obsolete Compact advice from Help and updated the Grid keyboard measurement comment. Node 24 checks and
         focused Chromium Page regressions passed (2/2).
+  - [x] Removed obsolete Normal/Compact capacity-table wording from current VIEW guidance and explicitly dated the
+        earlier Android Style/Compact Chromium result in MEMO. Historical measurements remain intact. Affected
+        documents passed Oxfmt; no browser behavior changed.
 - [ ] Review the bounded affected surface, not just edited lines, for redundant state, accidental churn, unclear
       ownership, and unnecessary Svelte/CSS abstractions.
 - [ ] Run narrow checks after each cleanup and inspect the final diff for unrelated changes.
