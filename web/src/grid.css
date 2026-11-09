@@ -166,6 +166,7 @@
       align-content: start;
       min-block-size: 0;
       overflow: auto;
+      scrollbar-width: thin;
       scrollbar-gutter: stable;
       overscroll-behavior: contain;
       list-style: none;

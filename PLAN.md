@@ -230,12 +230,16 @@ work across scroll windows, with unchanged card geometry.
         selected/unselected, and 100%/200% coverage remains. Chromium passed the focused test (1/1) on the archived
         `f7fd4c8` app with this exact test body; file syntax, formatting, and lint pass. Current-branch E2E is pending.
   - [x] Removed the singleton Normal density loop from the toolbar alignment test. Chromium passed the focused test
-        (1/1) on the archived `f7fd4c8` app across eight widths, two themes, two text scales, and populated/empty
-        cases. The edited test block matches the remote source; syntax, formatting, and lint pass. Current-branch E2E
-        remains pending.
-  - [x] Removed four empty calibration media/container rules from `frame.css`; retained all active viewport rules.
-        Node 24 production build, Svelte/TypeScript, and CSS formatting pass. Chromium frame/card bounds are identical
-        before and after at 390/light, 768/dark, and 1440/light. Current-branch full E2E remains pending.
+        (1/1) on the archived `f7fd4c8` app across eight widths, two themes, two text scales, and populated/empty cases.
+        The edited test block matches the remote source; syntax, formatting, and lint pass. Current-branch E2E remains
+        pending.
+  - [x] Removed four empty calibration media/container rules from `frame.css`; retained all active viewport rules. Node
+        24 production build, Svelte/TypeScript, and CSS formatting pass. Chromium frame/card bounds are identical before
+        and after at 390/light, 768/dark, and 1440/light. Current-branch full E2E remains pending.
+  - [x] Matched the List scrollbar to Grid with `scrollbar-width: thin` and aligned VIEW guidance. Chromium checked
+        Input/Output at 390/1440 px in both themes (8 cases): each gutter measures 10 px, versus List's prior 15 px. The
+        focused 300-page Grid regression and the new scrollbar check passed (2/2). Node 24 Svelte/TypeScript and 52 unit
+        tests pass; lint reports 0 errors and 26 existing warnings. Broader browser coverage remains pending.
 - [ ] Delete only superseded implementation and its dependent tests/docs/config. Do not remove valid PDF/Page navigation
       or historical calibration evidence without separating it from active requirements.
 - [ ] Update `SPEC.md`, `VIEW.md`, `MEMO.md`, Web README, UI glossary, keyboard/help descriptions, test runner groups,

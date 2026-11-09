@@ -294,7 +294,8 @@ input-specific instructions in Help's Keyboard and Mouse sections.
 
 Grid and Page use the remaining viewport height after the header, workspace controls, page fields, and status bar. Grid
 scrolls vertically inside its fixed frame. The scrollbar occupies the pane's right gutter and does not reduce card
-width. List uses the same gutter policy. Grid never clips pages into fixed batches and has no pager.
+width. List uses the same thin native scrollbar and gutter policy. Grid never clips pages into fixed batches and has no
+pager.
 
 Keep the full card geometry at every scroll position. On short screens, the document scrolls when the minimum usable
 frame does not fit. Page reserves a usable image area below its heading. Its header and footer each retain one complete

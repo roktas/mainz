@@ -9,6 +9,43 @@ import { fixture, captureLayout, tab, checkStatus, checkGridScroll } from "./bro
 import { measure } from "./measure.js"
 import { quality } from "./quality.ts"
 
+test("Grid and List use matching thin scrollbars in both panes", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.locator(".composer[aria-busy=false]").waitFor()
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      for (const colorScheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme })
+        for (const name of ["Input", "Output"]) {
+          const switcher = page
+            .getByRole("navigation", { name: "Workspace view", exact: true })
+            .getByRole("button", { name, exact: true })
+          if (await switcher.isVisible()) await switcher.click()
+          const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+          const scrollbar = (selector) =>
+            pane.locator(selector).evaluate((element) => ({
+              width: getComputedStyle(element).scrollbarWidth,
+              gutter: element.offsetWidth - element.clientWidth,
+            }))
+          await tab(pane, "Grid")
+          const grid = await scrollbar(".grid-view")
+          await tab(pane, "List")
+          const list = await scrollbar(".page-list")
+          assert.equal(grid.width, "thin", `${name}, ${width}px, ${colorScheme}: Grid scrollbar`)
+          assert.deepEqual(list, grid, `${name}, ${width}px, ${colorScheme}: List matches Grid`)
+        }
+      }
+    }
+  } finally {
+    await browser.close()
+  }
+})
+
 test(
   "Grid virtualizes 250 pages with a fixed scroll viewport and preserves card geometry",
   { timeout: 60000 },
