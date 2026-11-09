@@ -48,12 +48,13 @@ Input chooser lists open Inputs and offers Remove Input for the active Input. An
 references it. Removing Inputs never changes existing Blank dimensions.
 
 Input titles come from nonblank XMP `dc:title`, then PDF Info `Title`, then the opened filename. Candidates must fit the
-4096-byte UTF-8 limit and XML text rules. If no valid candidate exists, use `Untitled`. Wide layouts show a muted title
-beside the filename, with truncation when necessary. The Input chooser also shows the title. Hover and the information
-button expose the full title in constrained layouts. Available XMP fields appear as plain text in those details. Missing
-fields add no empty placeholders. Details include Author and Copyright when declared in XMP; PDF Info Author supplies
-the author when XMP has none. The declared XMP `mainz:coverPage` selects the cover when it is a valid physical page;
-otherwise the first page is used.
+4096-byte UTF-8 limit and XML text rules. If no valid candidate exists, use `Untitled`. The closed Input selector shows
+only the title, falling back to the opened filename. The open chooser lists the full filename, title, source number, and
+an information button. A page/sheet count and View Input PDF action precede Open PDF in the header. The view action
+opens the original Input PDF without processing or changing Output. Available XMP fields appear as plain text in those
+details. Missing fields add no empty placeholders. Details include Author and Copyright when declared in XMP; PDF Info
+Author supplies the author when XMP has none. The declared XMP `mainz:coverPage` selects the cover when it is a valid
+physical page; otherwise the first page is used.
 
 The Input chooser switches Inputs. Each retains its view, inspected page, zoom, Pages layout, scroll position, and
 preparation. Home requests confirmation before discarding undownloaded style or Output changes. Acceptance suppresses
@@ -153,11 +154,13 @@ navigation controls.
 
 Grid and List share section fold/unfold state for each pane. Grid keeps the physical starting-page image as a section's
 visible card and hides later pages inside folded sections. The centered ribbon is vertical, with no title text on the
-card and a secondary-colored footer. One page can show one ribbon; if several sections start on the same page, Grid
-exposes the outermost visible heading, while List retains every separate disclosure. Grid's section ribbon folds or
-unfolds only; the page image continues to support individual selection and dragging. Transfers temporarily show all
-pages to preserve the physical Output order and drop targets. The Section headings toggle and Fold all/Unfold all
-actions apply to both views without clearing per-section choices.
+card. Unfolded section cards use a secondary contour unless selected, when the contour uses primary. The unfolded ribbon
+is muted gray; folded ribbons and hover glow use secondary. Section footers keep their neutral surface. One page can
+show one ribbon; if several sections start on the same page, Grid exposes the outermost visible heading, while List
+retains every separate disclosure. Grid's section ribbon folds or unfolds only; the page image continues to support
+individual selection and dragging. Transfers temporarily show all pages to preserve the physical Output order and drop
+targets. The Section headings toggle and Fold all/Unfold all actions apply to both views without clearing per-section
+choices.
 
 The + action adds an Input section to Output or copies an Output section. When all members are selected, an Unselect
 action replaces +. View opens the section's first page without changing selection. On the first List opening, sections
