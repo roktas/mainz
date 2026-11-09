@@ -88,6 +88,15 @@
       &.grid-section-open {
         --page-border: var(--secondary);
         --page-stroke: 2px;
+        &:not(.selected) {
+          background: color-mix(in oklch, var(--secondary) 8%, var(--soft));
+          & .thumbnail {
+            background: color-mix(in oklch, var(--secondary) 8%, light-dark(var(--page-surround), var(--soft)));
+          }
+          & .composition-blank {
+            background: color-mix(in oklch, var(--secondary) 8%, var(--surface));
+          }
+        }
       }
       &.selected {
         --page-border: var(--accent);
@@ -235,11 +244,14 @@
                 translate: 0 -8px;
               }
               &[aria-expanded="true"] {
-                color: var(--muted);
+                color: var(--edge);
               }
               @media (hover: hover) and (pointer: fine) {
-                &:hover:not(:disabled) {
+                &[aria-expanded="false"]:hover:not(:disabled) {
                   color: var(--secondary);
+                }
+                &[aria-expanded="true"]:hover:not(:disabled) {
+                  color: var(--edge);
                 }
               }
               &:active {
