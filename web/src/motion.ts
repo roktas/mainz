@@ -40,50 +40,29 @@ export function flash(element: HTMLElement) {
   })
 }
 
-export function glowUnfold(element: HTMLElement | null) {
-  if (!element || !matchMedia("(prefers-reduced-motion: no-preference)").matches) return
-  element
-    .getAnimations()
-    .find((animation) => animation.id === "unfold")
-    ?.cancel()
-  const row = element.matches(".list-row, .list-section")
-  const surface = getComputedStyle(element).backgroundColor
-  element.animate(
-    row
-      ? [
-          { backgroundColor: surface, opacity: 0.5, offset: 0 },
-          {
-            backgroundColor: `color-mix(in oklch, var(--secondary) 25%, ${surface})`,
-            opacity: 1,
-            offset: 0.4,
-          },
-          { backgroundColor: surface, opacity: 1, offset: 1 },
-        ]
-      : [
-          { boxShadow: "0 0 0 transparent", offset: 0 },
-          { boxShadow: "0 0 16px color-mix(in oklch, var(--secondary) 45%, transparent)", offset: 0.4 },
-          { boxShadow: "0 0 0 transparent", offset: 1 },
-        ],
-    { id: "unfold", duration: 1400, easing: "ease-in-out" },
-  )
-}
+type SectionMotionItem = { element: HTMLElement; heading: HTMLElement | DOMRectReadOnly | null }
 
-export function foldInto(
-  items: readonly { element: HTMLElement; heading: HTMLElement | null }[],
-): Promise<void> | undefined {
+function slideSection(items: readonly SectionMotionItem[], opening: boolean): Promise<void> | undefined {
   if (!items.length || !matchMedia("(prefers-reduced-motion: no-preference)").matches) return
   const animations = items.map(({ element, heading }) => {
     const from = element.getBoundingClientRect()
-    const to = heading?.getBoundingClientRect()
+    const to = heading instanceof HTMLElement ? heading.getBoundingClientRect() : heading
     const dx = to ? to.left + to.width / 2 - from.left - from.width / 2 : 0
     const dy = to ? to.top + to.height / 2 - from.top - from.height / 2 : -24
+    const frames: Keyframe[] = [
+      { opacity: 1, transform: "translate(0, 0) scale(1)", offset: 0 },
+      { opacity: 0.85, transform: `translate(${dx * 0.7}px, ${dy * 0.7}px) scale(0.7)`, offset: 0.7 },
+      { opacity: 0, transform: `translate(${dx}px, ${dy}px) scale(0.25)`, offset: 1 },
+    ]
     return element.animate(
-      [
-        { opacity: 1, transform: "translate(0, 0) scale(1)", offset: 0 },
-        { opacity: 0.85, transform: `translate(${dx * 0.7}px, ${dy * 0.7}px) scale(0.7)`, offset: 0.7 },
-        { opacity: 0, transform: `translate(${dx}px, ${dy}px) scale(0.25)`, offset: 1 },
-      ],
-      { id: "fold", duration: 900, easing: "ease-in-out", fill: "forwards" },
+      opening
+        ? [
+            { ...frames[2], offset: 0 },
+            { ...frames[1], offset: 0.3 },
+            { ...frames[0], offset: 1 },
+          ]
+        : frames,
+      { id: opening ? "unfold" : "fold", duration: 900, easing: "ease-in-out", fill: "forwards" },
     )
   })
   return Promise.allSettled(animations.map((animation) => animation.finished)).then(() => {
@@ -91,15 +70,23 @@ export function foldInto(
   })
 }
 
-export function glowFoldHeading(element: HTMLElement) {
+export function foldInto(items: readonly SectionMotionItem[]) {
+  return slideSection(items, false)
+}
+
+export function unfoldFrom(items: readonly SectionMotionItem[]) {
+  return slideSection(items, true)
+}
+
+export function pulseSectionHeading(element: HTMLElement): Animation | undefined {
   if (!matchMedia("(prefers-reduced-motion: no-preference)").matches) return
   const grid = element.matches(".composition-card")
   const surface = getComputedStyle(element).backgroundColor
   element
-    .getAnimations()
-    .find((animation) => animation.id === "fold-heading")
+    .getAnimations({ subtree: true })
+    .find((animation) => animation.id === "section-heading")
     ?.cancel()
-  element.animate(
+  return element.animate(
     grid
       ? [{ opacity: 0 }, { opacity: 0.22 }, { opacity: 0 }]
       : [
@@ -108,7 +95,7 @@ export function glowFoldHeading(element: HTMLElement) {
           { backgroundColor: surface },
         ],
     {
-      id: "fold-heading",
+      id: "section-heading",
       duration: 800,
       easing: "ease-in-out",
       ...(grid ? { pseudoElement: "::after" } : {}),
