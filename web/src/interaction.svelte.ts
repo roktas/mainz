@@ -448,7 +448,7 @@ export class Interaction {
       .getElementById(
         pane === "Output"
           ? `${this.host.key}-output-${this.host.activeOutputTab}`
-          : `${this.host.key}-${this.host.inputView.tab}`,
+          : `${this.host.key}-${this.host.activeTab}`,
       )
       ?.focus({ preventScroll: true })
   }
