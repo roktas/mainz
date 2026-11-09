@@ -138,6 +138,14 @@
   const outputGridViewport: GridViewport = { scroll: 0 }
   const inputListViewports = new Map<string, Viewport>()
   const inputGridViewports = new Map<string, GridViewport>()
+  $effect(() => {
+    const retained = new Set(sources.map(({ id }) => id))
+    for (const id of inputListViewports.keys()) if (!retained.has(id)) inputListViewports.delete(id)
+    for (const id of inputGridViewports.keys()) if (!retained.has(id)) inputGridViewports.delete(id)
+    const storedViews = untrack(() => inputViews)
+    if (Object.keys(storedViews).some((id) => !retained.has(id)))
+      inputViews = Object.fromEntries(Object.entries(storedViews).filter(([id]) => retained.has(id)))
+  })
   function gridViewport(id: string) {
     let value = inputGridViewports.get(id)
     if (!value) {

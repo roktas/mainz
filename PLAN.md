@@ -355,6 +355,11 @@ measurements that support the judgment. Do not report a hypothetical cost as a m
       dependencies, DOM measurements, mounting and rendering, scroll/drag handling, worker interactions, PDF preview
       memory, and cleanup. Measure reproducible problems before optimizing; retain useful baseline and after-change
       evidence for any performance claim.
+  - [x] Removed-Input lifecycle: `Composer.svelte` retained view choices and Grid/List viewport caches for deleted
+        Inputs while other Inputs remained. Prune stale IDs when `sources` changes. The Input-switch regression now
+        covers removal and a newly opened Input; focused Chromium passed (1/1). Node 24 format, lint (0 errors, 28
+        warnings), Svelte/TypeScript checks (0 errors and warnings), and 52/52 unit tests passed. No heap reduction
+        was measured.
 
 #### Closure
 

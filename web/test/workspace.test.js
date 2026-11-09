@@ -96,6 +96,15 @@ test("Each Input retains its Pages presentation after switching Inputs", async (
     await input.locator(".input-picker > summary h2").click()
     await input.locator(".input-list button[data-source]").filter({ hasText: "Second.pdf" }).click()
     assert.equal(await input.locator(".composition-grid").isVisible(), true)
+    await input.locator(".input-picker > summary h2").click()
+    await input.getByRole("button", { name: "Remove Input", exact: true }).click()
+    assert.equal(await input.locator(".page-list").isVisible(), true)
+    await upload.setInputFiles({ name: "Third.pdf", mimeType: "application/pdf", buffer: fixture() })
+    await input.locator(".input-current").filter({ hasText: "Third.pdf" }).waitFor()
+    assert.equal(await input.locator(".composition-grid").isVisible(), true)
+    await input.locator(".input-picker > summary h2").click()
+    await input.locator(".input-list button[data-source]").filter({ hasText: "First.pdf" }).click()
+    assert.equal(await input.locator(".page-list").isVisible(), true)
   } finally {
     await browser.close()
   }
