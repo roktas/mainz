@@ -299,6 +299,10 @@ files or new slop.
   - [x] Updated the narrow List toolbar test for the direct Grid tab. The glyph remains centered in its 44 px tab; the
         Go to page glyph keeps its 4 px trailing inset. VIEW now describes the direct-tab layout. The focused
         current-source Chromium test passed (1/1). Formatter and file lint passed (0 errors, 10 existing warnings).
+  - [x] Fixed Grid column-change restoration near the end of a long document. Wait for the reactive virtual spacer
+        heights before setting `scrollTop` to the preserved physical-page anchor. On the current Chromium source, the
+        300-page wide-to-narrow regression and page-295 Details/Contents regression passed (2/2). Node 24
+        Svelte/TypeScript checks and 52/52 unit tests passed; lint reported 0 errors and 28 warnings.
 - [ ] Validate light/dark, keyboard, touch, fine pointer, reduced motion, 100%/200% text, 320/390/768 px and
       representative split-view desktop widths, 1–5 digit page numbers, selected/unselected and long-name cases.
 - [ ] Compare screenshots and measured card geometry against the original Normal Grid; record any real difference and

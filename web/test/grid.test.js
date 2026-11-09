@@ -287,6 +287,17 @@ test(
       }))
       assert.equal(restored.columns, 3)
       assert.ok(Math.abs(restored.first - wide.first) <= 3, JSON.stringify({ wide, restored }))
+      await grid.evaluate((element) => {
+        element.scrollTop = element.scrollHeight - element.clientHeight - 120
+      })
+      await page.waitForFunction(
+        () => Number(document.querySelector(".selection-panel .composition-grid")?.dataset.from) >= 270,
+      )
+      const end = Number(await grid.locator(".composition-grid").getAttribute("data-from"))
+      await page.setViewportSize({ width: 390, height: 900 })
+      await page.waitForFunction(() => document.querySelector(".selection-panel .grid-view")?.dataset.columns === "2")
+      const narrow = Number(await grid.locator(".composition-grid").getAttribute("data-from"))
+      assert.ok(Math.abs(narrow - end) <= 8, `Near-end anchor must survive fewer columns: ${end} -> ${narrow}`)
       assert.deepEqual(errors, [])
     } finally {
       await browser.close()

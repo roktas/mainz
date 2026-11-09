@@ -105,14 +105,22 @@
       const outset = (bounds.width - nextColumns * parseFloat(style.gridTemplateColumns)) / (nextColumns + 1)
       owner.style.setProperty("--grid-column-gap", `${Math.max(0, outset)}px`)
       const nextStride = nextHeight + nextGap
-      if (nextColumns !== previousColumns || nextStride !== previousStride)
-        element.scrollTop = Math.floor(anchor / nextColumns) * nextStride
+      const changed = nextColumns !== previousColumns || nextStride !== previousStride
+      const nextScroll = changed ? Math.floor(anchor / nextColumns) * nextStride : element.scrollTop
       previousColumns = nextColumns
       previousStride = nextStride
-      scroll = element.scrollTop
-      saved.scroll = scroll
+      scroll = nextScroll
+      saved.scroll = nextScroll
       saved.columns = nextColumns
       saved.stride = nextStride
+      if (changed)
+        void tick().then(() => {
+          if (disposed) return
+          // Apply the anchor after Svelte updates the virtual spacer heights.
+          element.scrollTop = nextScroll
+          scroll = element.scrollTop
+          saved.scroll = scroll
+        })
     }
     const schedule = () => {
       cancelAnimationFrame(frame)
