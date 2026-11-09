@@ -72,7 +72,10 @@ export function fadeFold(elements: HTMLElement[]): Promise<void> | undefined {
   if (!elements.length || !matchMedia("(prefers-reduced-motion: no-preference)").matches) return
   const animations = elements.map((element) =>
     element.animate(
-      [{ opacity: 1, translate: "0 0" }, { opacity: 0, translate: "0 -6px" }],
+      [
+        { opacity: 1, translate: "0 0" },
+        { opacity: 0, translate: "0 -6px" },
+      ],
       { id: "fold", duration: 300, easing: "ease-in-out", fill: "forwards" },
     ),
   )
