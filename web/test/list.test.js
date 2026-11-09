@@ -153,7 +153,7 @@ test("List section paths put the current title first and open details independen
         [input, "Input"],
         [output, "Output"],
       ]) {
-        const expand = pane.getByRole("button", { name: `Expand all ${name} sections`, exact: true })
+        const expand = pane.getByRole("button", { name: `Unfold all ${name} sections`, exact: true })
         if (await expand.isVisible()) await expand.click()
         const root = pane.getByRole("button", { name: path[0], exact: true }).locator("..")
         assert.ok(
@@ -284,7 +284,7 @@ test(
         await input.getByLabel("Page selection", { exact: true }).fill("1-65,1-65")
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
         await tab(output, "List")
-        await output.getByRole("button", { name: "Expand all Output sections", exact: true }).click()
+        await output.getByRole("button", { name: "Unfold all Output sections", exact: true }).click()
         await output.getByLabel("Page selection", { exact: true }).fill("130")
         await output.locator(".page-list").evaluate((list) => (list.scrollTop = list.scrollHeight))
         const topic = output.locator('.list-section[data-index="115"]')
@@ -453,7 +453,7 @@ test("List flattens chapter trees and folds, selects, and copies complete subtre
         output = page.locator(".composition-output")
       await tab(input, "List")
       // Read page labels through their buttons because pages without authored names retain TOC titles.
-      const expand = input.getByRole("button", { name: "Expand all Input sections", exact: true })
+      const expand = input.getByRole("button", { name: "Unfold all Input sections", exact: true })
       if (await expand.isVisible()) await expand.click()
       const rows = () =>
         input
@@ -496,7 +496,7 @@ test("List flattens chapter trees and folds, selects, and copies complete subtre
       await chapter.click()
       await section.click()
       assert.equal(await selection.inputValue(), "2-3")
-      await input.getByRole("button", { name: "Collapse Input section: Chapter 1 › Section 1.1", exact: true }).click()
+      await input.getByRole("button", { name: "Fold Input section: Chapter 1 › Section 1.1", exact: true }).click()
       assert.deepEqual(await rows(), [
         "Preface",
         "Preface",
@@ -516,7 +516,7 @@ test("List flattens chapter trees and folds, selects, and copies complete subtre
         "Epilogue",
         "Epilogue",
       ])
-      await input.getByRole("button", { name: "Collapse Input section: Chapter 1", exact: true }).click()
+      await input.getByRole("button", { name: "Fold Input section: Chapter 1", exact: true }).click()
       assert.deepEqual(await rows(), [
         "Preface",
         "Preface",
@@ -530,7 +530,7 @@ test("List flattens chapter trees and folds, selects, and copies complete subtre
         "Epilogue",
         "Epilogue",
       ])
-      await input.getByRole("button", { name: "Expand Input section: Chapter 1", exact: true }).click()
+      await input.getByRole("button", { name: "Unfold Input section: Chapter 1", exact: true }).click()
       assert.equal(
         await section.locator("..").locator(".list-disclosure").getAttribute("aria-expanded"),
         "false",
@@ -550,7 +550,7 @@ test("List flattens chapter trees and folds, selects, and copies complete subtre
       ])
       const ids = await output.locator(".section-path[id]").evaluateAll((panels) => panels.map((panel) => panel.id))
       assert.equal(new Set(ids).size, ids.length, "Same-page parent and child have separate path panels")
-      await input.getByRole("button", { name: "Collapse Input section: Chapter 1", exact: true }).click()
+      await input.getByRole("button", { name: "Fold Input section: Chapter 1", exact: true }).click()
       await input.getByRole("button", { name: "Input contents", exact: true }).click()
       await page
         .locator(".contents:popover-open")
@@ -951,11 +951,11 @@ test(
             .screenshot({ path: `../.local/tmp/web/layout/sections/${engine.name()}-parent-${colorScheme}.png` })
         }
         await disclosure.click()
-        await input.getByRole("button", { name: "Expand all Input sections", exact: true }).click()
+        await input.getByRole("button", { name: "Unfold all Input sections", exact: true }).click()
         assert.equal(await disclosure.getAttribute("aria-expanded"), "true")
         const listWidth = await input.locator(".page-list").evaluate((list) => list.clientWidth)
         await selection.fill("1,1,4")
-        await input.getByRole("button", { name: "Collapse Input section: Part One", exact: true }).click()
+        await input.getByRole("button", { name: "Fold Input section: Part One", exact: true }).click()
         assert.equal(await disclosure.getAttribute("aria-expanded"), "false")
         assert.equal(await input.locator('.list-choice[data-page="2"]').count(), 0)
         assert.equal(await selection.inputValue(), "1,1,4")
@@ -1228,18 +1228,18 @@ test(
         await input.getByRole("button", { name: "Add Input section: Second group", exact: true }).click()
         await output.getByLabel("Page selection", { exact: true }).fill("")
         const original = await output.locator(".list-row").evaluateAll((rows) => rows.map((row) => row.id))
-        await output.getByRole("button", { name: "Collapse all Output sections", exact: true }).click()
+        await output.getByRole("button", { name: "Fold all Output sections", exact: true }).click()
         await begin(disclosure(output, "Second group"))
         const target = output.getByRole("button", { name: "First group", exact: true })
         await finish(target, 0.2)
         assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
-        await output.getByRole("button", { name: "Expand all Output sections", exact: true }).click()
+        await output.getByRole("button", { name: "Unfold all Output sections", exact: true }).click()
         const moved = await output.locator(".list-row").evaluateAll((rows) => rows.map((row) => row.id))
         assert.deepEqual(moved, [...original.slice(4), ...original.slice(0, 4)])
-        await output.getByRole("button", { name: "Collapse all Output sections", exact: true }).click()
+        await output.getByRole("button", { name: "Fold all Output sections", exact: true }).click()
         await begin(disclosure(output, "Second group"))
         await finish(target, 0.8)
-        await output.getByRole("button", { name: "Expand all Output sections", exact: true }).click()
+        await output.getByRole("button", { name: "Unfold all Output sections", exact: true }).click()
         assert.deepEqual(await output.locator(".list-row").evaluateAll((rows) => rows.map((row) => row.id)), original)
         await begin(disclosure(output, "Second group"))
         await finish(output.locator('.list-choice[data-page="1"]'), 0.8)
@@ -1303,7 +1303,7 @@ test("List section summaries reveal every same-page section across hierarchy lev
       await input.locator(".input-current").filter({ hasText: "Shared-sections.pdf" }).waitFor()
       await page.locator('.composer[aria-busy="false"]').waitFor()
       await tab(input, "List")
-      await input.getByRole("button", { name: "Expand all Input sections", exact: true }).click()
+      await input.getByRole("button", { name: "Unfold all Input sections", exact: true }).click()
       const row = input.locator('.list-row:has(.list-choice[data-page="3"])')
       await row.getByRole("button", { name: /^Jump to section for/ }).click()
       const panel = page.locator(".section-path:popover-open")
@@ -1468,7 +1468,7 @@ test("Contents keeps compact rows and fixed width across disclosure states", { t
               .locator(".destination")
               .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height))
             if (font === "100%") assert.ok(rows[0] <= 33 && rows[1] <= 29, JSON.stringify({ hasTouch, width, rows }))
-            for (const state of ["Collapse all", "Expand all"]) {
+            for (const state of ["Fold all", "Unfold all"]) {
               const toggle = panel.getByRole("button", { name: state, exact: true })
               const target = await toggle.evaluate((element) => {
                 const box = element.getBoundingClientRect(),
@@ -3382,7 +3382,7 @@ test(
           })
         const input = page.locator(".selection-panel")
         await tab(input, "List")
-        const expand = input.getByRole("button", { name: "Expand all Input sections", exact: true })
+        const expand = input.getByRole("button", { name: "Unfold all Input sections", exact: true })
         await expand.click()
         await input.locator('.list-choice[data-page="0"]').focus()
         await page.keyboard.press("End")
@@ -3399,7 +3399,7 @@ test(
             nav = entry.closest("nav").getBoundingClientRect()
           return box.top >= nav.top - 1 && box.bottom <= nav.bottom + 1
         })
-        await contents.getByRole("button", { name: "Collapse Book", exact: true }).click()
+        await contents.getByRole("button", { name: "Fold Book", exact: true }).click()
         await page.keyboard.press("Escape")
         await open()
         assert.match(await current.innerText(), /^Book/)
@@ -3606,9 +3606,9 @@ test(
           })
         const input = page.locator(".selection-panel")
         await tab(input, "List")
-        const collapsed = input.getByRole("button", { name: /Expand Input section/ })
+        const collapsed = input.getByRole("button", { name: /Unfold Input section/ })
         if (await collapsed.count())
-          await input.getByRole("button", { name: "Expand all Input sections", exact: true }).click()
+          await input.getByRole("button", { name: "Unfold all Input sections", exact: true }).click()
         await input.locator('.list-row:has(.list-choice[data-page="1"]) .list-jump').click()
         const panel = input.locator(".section-path:popover-open")
         for (const colorScheme of ["light", "dark"])

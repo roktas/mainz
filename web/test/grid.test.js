@@ -1651,3 +1651,97 @@ test(
     }
   },
 )
+
+test(
+  "Grid section ribbons fold pages without replacing heading thumbnails or List state",
+  { timeout: 30000 },
+  async () => {
+    const server = await serve()
+    const browser = await launch(chromium)
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 950 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(server.resolvedUrls.local[0])
+      await page
+        .locator('input[type="file"]')
+        .first()
+        .setInputFiles({
+          name: "Sections.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture({
+            prepared: false,
+            count: 6,
+            outline: [
+              { title: "First", page: 0 },
+              { title: "First child", page: 1, parent: 0 },
+              { title: "Second", page: 4 },
+            ],
+          }),
+        })
+      const input = page.locator(".selection-panel")
+      await tab(input, "Grid")
+      const first = input.locator('.composition-card:has(.page-image[data-page="0"])')
+      const ribbon = first.getByRole("button", { name: "Fold Input section: First", exact: true })
+      await ribbon.waitFor()
+      assert.equal(await ribbon.locator("svg").count(), 1)
+      assert.equal(await first.locator(".page-image canvas").count(), 1)
+      assert.equal((await first.locator(".grid-ribbon").textContent()).trim(), "")
+      const footer = await first
+        .locator(".input-footer")
+        .evaluate((element) => getComputedStyle(element).backgroundColor)
+      const secondary = await first.evaluate((element) =>
+        getComputedStyle(element).getPropertyValue("--secondary").trim(),
+      )
+      assert.ok(secondary)
+      await ribbon.click()
+      await input.locator('.page-image[data-page="1"]').waitFor({ state: "detached" })
+      assert.deepEqual(
+        await input.locator(".page-image").evaluateAll((buttons) => buttons.map((b) => Number(b.dataset.page))),
+        [0, 4, 5],
+      )
+      assert.equal(await first.locator(".page-image canvas").count(), 1, "Fold retains the original first page image")
+      assert.equal(
+        await first.locator(".input-footer").evaluate((element) => getComputedStyle(element).backgroundColor),
+        footer,
+      )
+      await tab(input, "List")
+      assert.equal(
+        await input
+          .getByRole("button", { name: "Unfold Input section: First", exact: true })
+          .getAttribute("aria-expanded"),
+        "false",
+      )
+      await input.getByRole("button", { name: "Unfold Input section: First", exact: true }).click()
+      await tab(input, "Grid")
+      await input.locator('.page-image[data-page="1"]').waitFor({ state: "visible" })
+      await input.getByRole("button", { name: "Fold all Input sections", exact: true }).click()
+      assert.deepEqual(
+        await input.locator(".page-image").evaluateAll((buttons) => buttons.map((b) => Number(b.dataset.page))),
+        [0, 4],
+      )
+      await input.getByRole("button", { name: "Unfold all Input sections", exact: true }).click()
+      await input.locator('.page-image[data-page="5"]').waitFor({ state: "visible" })
+      await input.getByLabel("Page selection", { exact: true }).fill("1-6")
+      await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+      const output = page.locator(".composition-output")
+      await tab(output, "Grid")
+      await output.getByRole("button", { name: "Fold Output section: First", exact: true }).click()
+      assert.deepEqual(
+        await output
+          .locator(".page-image")
+          .evaluateAll((buttons) => buttons.map((button) => Number(button.dataset.page))),
+        [0, 4, 5],
+      )
+      assert.equal(await output.locator('.composition-card:has(.page-image[data-page="0"]) canvas').count(), 1)
+      await tab(output, "List")
+      assert.equal(
+        await output
+          .getByRole("button", { name: "Unfold Output section: First", exact: true })
+          .getAttribute("aria-expanded"),
+        "false",
+      )
+    } finally {
+      await browser.close()
+    }
+  },
+)

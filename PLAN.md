@@ -421,6 +421,21 @@ measurements that support the judgment. Do not report a hypothetical cost as a m
   `SPEC.md` and `VIEW.md` describe direct tabs, but a full cross-document audit and screenshot
   approval remain open. Per the owner request, do not rerun the long matrix in this pass.
 
+#### Grid TOC fold/unfold follow-up (2026-11-09)
+
+- [x] Share the existing List section tree and fold state with Grid for Input and Output. Grid keeps each heading
+      page's real PDF thumbnail and page number, replaces the heading card's top drag grip with one flat-topped
+      vertical ribbon, and gives its footer the secondary theme color. It does not render heading titles.
+- [x] Add the Fold/Unfold ribbon action, accessible names and expanded state, per-pane Fold all/Unfold all controls,
+      preserved List/Grid fold state, and physical-page navigation over the filtered virtual Grid sequence.
+      Same-page headings use the outermost visible ribbon; List still exposes nested headings.
+- [x] Standardize section-facing labels from Expand/Collapse to Fold/Unfold and align Web SPEC/VIEW and browser
+      assertions. Node 24 format, lint (0 errors), Svelte/TypeScript (0 diagnostics), and 54/54 unit tests
+      passed in the local feature checkout.
+- [ ] Finish focused browser verification. The new Grid section scenario passed once, but timed out on two later
+      repeats (30 seconds each), so repeat stability is unverified. The owner deferred long browser matrices.
+      Do not claim a passing standard suite or physical-device evidence.
+
 #### Closure
 
 - [ ] Fix confirmed defects and unnecessary complexity with small, behavior-preserving changes. Add or repair tests at

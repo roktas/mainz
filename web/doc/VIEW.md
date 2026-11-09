@@ -105,8 +105,8 @@ states at phone, tablet, and desktop widths.
 Stacked rows with corresponding controls share column widths and gaps. Align each control's start and end edges with the
 controls above and below it. Apply the same tracks to buttons and selectors; their labels do not set independent widths.
 
-Grid grips use the card's inline center and the header's block center. Page numbers, folded corners, digit counts, and
-interaction target sizes do not move these references. Size text and interaction areas around them.
+Grid grips and section ribbons use the card's inline center and the header's block center. Page numbers, folded corners,
+digit counts, and interaction target sizes do not move these references. Size text and interaction areas around them.
 
 Use the visible content as the reference when controls belong to an image or document. Use the frame reference below for
 Page layouts. Do not infer alignment from invisible control boxes or incidental padding. Keep usable interaction targets
@@ -346,15 +346,15 @@ switch sits beside the tabs. Its tree uses indentation, fine branch lines, quiet
 current-section marker. Nodes have no individual boxes or filled cards. Full titles wrap, and navigation preserves
 selection. Output has no Contents control.
 
-Contents keeps a compact fixed heading with one Expand all / Collapse all control. Its width is 32 rem, clamped to the
-Input toolbar's usable width and viewport, and stays fixed across expansion changes. Height follows the visible tree;
-only its inset tree area scrolls when required. Leaf rows use a 28 px minimum and parents 32 px, including touch. Long
-titles increase row height. Touch retains a wider disclosure column except on phones, where the column and nested
-indentation shrink. Contents, the separator, root disclosure glyphs, page positions, and the close glyph share equal
-20–24 px side insets. The scrollbar occupies the outer inset without moving the content edges. Disclosure glyphs align
-with the first text line and the Contents heading edge in both states. Use TOC titles appears below the tree only when
-it changes a page's display title. When enlarged text leaves insufficient header width, move the complete Expand all /
-Collapse all control below the title and close button.
+Contents keeps a compact fixed heading with one Unfold all / Fold all control. Its width is 32 rem, clamped to the Input
+toolbar's usable width and viewport, and stays fixed across expansion changes. Height follows the visible tree; only its
+inset tree area scrolls when required. Leaf rows use a 28 px minimum and parents 32 px, including touch. Long titles
+increase row height. Touch retains a wider disclosure column except on phones, where the column and nested indentation
+shrink. Contents, the separator, root disclosure glyphs, page positions, and the close glyph share equal 20–24 px side
+insets. The scrollbar occupies the outer inset without moving the content edges. Disclosure glyphs align with the first
+text line and the Contents heading edge in both states. Use TOC titles appears below the tree only when it changes a
+page's display title. When enlarged text leaves insufficient header width, move the complete Unfold all / Fold all
+control below the title and close button.
 
 List shows the section tree as flat rows, with every ancestor header before its descendants and no depth indentation.
 Nested headers use progressively stronger secondary surface tints through three nested levels. Depth changes do not move
@@ -363,26 +363,26 @@ page rows may display the same title; both use the established small-caps typogr
 not hide or rename section headers. Lists without a TOC contain only page rows. Section rows use the page rows' columns:
 a combined ribbon disclosure and drag control, the starting position, an optional Input PDF page label, the heading,
 and + and View actions. The starting position is the physical page number in Input and the occurrence number in Output.
-Heading text uses the same size and small caps as page names, with the same starting edge. Closed sections use normal
-text color for current titles and starting page numbers; open sections use primary for both at the same text weight.
-Ribbons keep the secondary color in both states. Expansion does not change the depth tint. Text and disclosure glyphs
+Heading text uses the same size and small caps as page names, with the same starting edge. Folded sections use normal
+text color for current titles and starting page numbers; unfolded sections use primary for both at the same text weight.
+Ribbons keep the secondary color in both states. Folding does not change the depth tint. Text and disclosure glyphs
 share the row's vertical center. The ribbon has a long rectangular body with a shallow rear notch and front point. It
 points right to expand a closed section or down to collapse an open section. Its interaction target is at least 44 px
 tall and uses the grip column's width: 32 px for fine pointers, 44 px for touch. It uses a transparent background
 without a border, rounded corners, or shadow. It fills the section row's height. Section rows retain the page rows' thin
 bottom separator. The List reserves native scrollbar space outside the row width, so rows align with the selection bar
 and folding does not move columns. Header, footer, and toolbar separators extend by half the workspace gutter equally on
-both sides in Grid, List, and Page. The toolbar uses overlapping pages with a minus or plus to collapse or expand all
+both sides in Grid, List, and Page. The toolbar uses overlapping pages with a minus or plus to fold or unfold all
 sections. A separate Section headings toggle follows it and stays in place when the expand/collapse control disappears.
-Section headings are shown by default. Hiding them produces uninterrupted page rows and hides the expand/collapse
-toolbar control.
+Section headings are shown by default. Hiding them produces uninterrupted page rows and hides the fold/unfold toolbar
+control.
 
 On narrow screens, toolbar icons have no gap between their 44 px targets. The Grid glyph is centered within its 44 px
 tab; Go to page sits 4 px inside the trailing toolbar edge. Wider layouts retain normal spacing.
 
 The heading button toggles selection, including with Enter or Space. A fully selected closed section uses the primary
 background. A fully selected open section uses a stronger primary tint and retains its primary-colored current title.
-Its members retain their selected page appearance. Clicking the ribbon, or pressing Enter or Space, toggles expansion.
+Its members retain their selected page appearance. Clicking the ribbon, or pressing Enter or Space, toggles folding.
 Moving the pressed ribbon starts dragging and replaces it with an unrotated grip until the drop or cancellation. A
 stationary hold keeps the ribbon. Dropping or cancelling does not toggle expansion. A drag selects the group and shows a
 page stack. The + action appears on hover or keyboard focus and stays visible with a touch pointer. Mouse focus alone
@@ -479,6 +479,16 @@ Grid renders page cards in continuous rows inside its fixed viewport. Input uses
 ordered list. Long documents mount a bounded row window and spacer rows. The scrollbar stays in the pane gutter. Wheel,
 touch, and keyboard navigation reach the full sequence. Responsive columns preserve the first visible page. Changing
 Pages layout restores the previous Grid or List scroll position.
+
+When sections are shown for a PDF with a TOC, Grid shares each pane's fold/unfold choices with List. Its single vertical
+ribbon replaces the center grip on each visible heading-page card. The ribbon has a straight top edge and a notched
+bottom, with no visible title text. The card continues to show the original starting page image, and its footer uses the
+secondary surface color. The ribbon's accessible name includes the section path. Folding keeps the starting page visible
+and hides its following pages through the section end. A parent fold retains its children's choices. Multiple TOC
+headings on one physical page share a single card and an outermost-heading ribbon; use List for the remaining same-page
+disclosures. Grid page images still select and drag individual pages. Active transfers temporarily show every page to
+preserve physical insertion targets, then restore the retained folds. The Fold all/Unfold all and Section headings
+toolbar controls are available in both Grid and List. Hiding headings restores the full flat page Grid.
 
 Grid footer actions appear on hover or focus with a fine pointer. Input's Add action stays visible on touch. Output
 touch actions use the existing menu. The card footer design is separate from the Pages layout. Do not change its content

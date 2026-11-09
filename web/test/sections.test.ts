@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { sectionsOf, flattenSections } from "../src/sections.ts"
+import { sectionsOf, flattenSections, gridSections } from "../src/sections.ts"
 
 const heading = (path: string[]) =>
   path.length ? [{ path, keys: path.map((_, depth) => JSON.stringify(path.slice(0, depth + 1))) }] : []
@@ -73,4 +73,27 @@ test("Same-page and identically named TOC entries retain independent headers wit
   assert.notEqual(children[0].key, children[1].key)
   assert.deepEqual(flattenSections(tree.roots, paths.length, new Set()), [-1, -2, 0, 1, -3, -4, 2])
   assert.deepEqual(flattenSections(tree.roots, paths.length, new Set([children[1].key])), [-1, -2, 0, 1, -3, -4, 2])
+})
+
+test("Grid folds keep each section's starting page image and retain child choices", () => {
+  const paths = [[], ["Chapter", "Part A"], ["Chapter", "Part A"], ["Chapter", "Part B"], ["Next"], []]
+  const tree = sectionsOf(paths.length, (page) => heading(paths[page]))
+  const [chapter, next] = tree.roots
+  const child = chapter.children[0]
+  const visible = gridSections(tree, paths.length, new Set([child.key]))
+  assert.deepEqual(visible.pages, [0, 1, 3, 4, 5])
+  assert.equal(visible.headings.get(1)?.key, chapter.key)
+  assert.equal(visible.headings.get(3)?.key, chapter.children[1].key)
+  assert.equal(visible.headings.get(4)?.key, next.key)
+  assert.deepEqual(gridSections(tree, paths.length, new Set([chapter.key, child.key])).pages, [0, 1, 4, 5])
+  assert.deepEqual(gridSections(tree, paths.length, new Set()).pages, [0, 1, 2, 3, 4, 5])
+})
+
+test("Grid offers one ribbon on coincident heading pages without cloning the image", () => {
+  const roots = [[{ path: ["Root", "Child"], keys: ["root", "child"] }], [{ path: ["Root"], keys: ["root"] }]]
+  const tree = sectionsOf(2, (page) => roots[page])
+  const visible = gridSections(tree, 2, new Set())
+  assert.deepEqual(visible.pages, [0, 1])
+  assert.equal(visible.headings.get(0)?.path[0], "Root")
+  assert.equal(visible.headings.size, 1)
 })

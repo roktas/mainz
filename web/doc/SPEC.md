@@ -151,12 +151,20 @@ section header and on page rows with TOC ancestry. A root header's button is dis
 header itself. Page rows show every matching path and its physical target page numbers. Hiding headings also hides these
 navigation controls.
 
+Grid and List share section fold/unfold state for each pane. Grid keeps the physical starting-page image as a section's
+visible card and hides later pages inside folded sections. The centered ribbon is vertical, with no title text on the
+card and a secondary-colored footer. One page can show one ribbon; if several sections start on the same page, Grid
+exposes the outermost visible heading, while List retains every separate disclosure. Grid's section ribbon folds or
+unfolds only; the page image continues to support individual selection and dragging. Transfers temporarily show all
+pages to preserve the physical Output order and drop targets. The Section headings toggle and Fold all/Unfold all
+actions apply to both views without clearing per-section choices.
+
 The + action adds an Input section to Output or copies an Output section. When all members are selected, an Unselect
 action replaces +. View opens the section's first page without changing selection. On the first List opening, sections
 start closed if the expanded list exceeds the pane height. Otherwise, sections start open. Each pane retains expansion
-choices across view changes and resizing. The toolbar button toggles all sections between open and closed. Contents
-navigation opens every ancestor of a collapsed destination. Reopening a parent retains its children's individual fold
-choices. Lists without sections retain uninterrupted page rows.
+choices across view changes and resizing. The toolbar button folds or unfolds all sections. Contents navigation opens
+every ancestor of a collapsed destination. Reopening a parent retains its children's individual fold choices. Lists
+without sections retain uninterrupted page rows.
 
 Section headings are shown by default. Each pane's Section headings toggle hides them to show a flat List with every
 page row, including pages in collapsed sections. Showing headings restores the retained expansion choices. This per-pane

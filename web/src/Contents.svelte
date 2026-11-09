@@ -54,7 +54,7 @@
     }
   })
   const parents = $derived(items.filter((item, index) => items[index + 1]?.depth > item.depth))
-  const canExpand = $derived(parents.some((item) => collapsed.has(item.key)))
+  const canUnfold = $derived(parents.some((item) => collapsed.has(item.key)))
   function jump(page: number) {
     panel.hidePopover()
     navigate(page)
@@ -87,8 +87,8 @@
     {#if parents.length}<button
         class="contents-toggle"
         onclick={() => {
-          collapsed = canExpand ? new Set() : new Set(parents.map((item) => item.key))
-        }}>{canExpand ? "Expand all" : "Collapse all"}</button
+          collapsed = canUnfold ? new Set() : new Set(parents.map((item) => item.key))
+        }}>{canUnfold ? "Unfold all" : "Fold all"}</button
       >{/if}
     <button class="icon-button" aria-label="Close contents" popovertarget={id} popovertargetaction="hide"
       ><Icon name="close" /></button
@@ -107,7 +107,7 @@
         <div class="branch" class:parent={item.children.length > 0}>
           {#if item.children.length}<button
               class="disclosure icon-button"
-              aria-label={`${collapsed.has(item.key) ? "Expand" : "Collapse"} ${item.title}`}
+              aria-label={`${collapsed.has(item.key) ? "Unfold" : "Fold"} ${item.title}`}
               aria-expanded={!collapsed.has(item.key)}
               onclick={() => {
                 const next = new Set(collapsed)

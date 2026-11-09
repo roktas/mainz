@@ -46,6 +46,7 @@
     blank: "M5 3h10l4 4v14H5V3Zm10 0v5h4",
     next: "m9 6 6 6-6 6",
     ribbon: "M2 5h15l5 7-5 7H2l5-7Z",
+    "ribbon-vertical": "M4 2h16v20l-8-6-8 6Z",
     collapse: "M3 16V3h13M7 7h14v14H7V7Zm4 7h6",
     expand: "M3 16V3h13M7 7h14v14H7V7Zm4 7h6m-3-3v6",
     previous: "m15 6-6 6 6 6",
@@ -61,7 +62,7 @@
 
 <script lang="ts">
   let { name }: { name: Name } = $props()
-  const filled = $derived(name === "pdf" || name === "ribbon")
+  const filled = $derived(name === "pdf" || name === "ribbon" || name === "ribbon-vertical")
 </script>
 
 <svg

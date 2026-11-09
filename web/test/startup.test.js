@@ -1576,7 +1576,7 @@ test("Production demos download on demand and reuse verified files offline", { t
       assert.ok(
         await page
           .locator(".contents:popover-open")
-          .getByRole("button", { name: "Collapse Chapter 9. Another Look at Variables", exact: true })
+          .getByRole("button", { name: "Fold Chapter 9. Another Look at Variables", exact: true })
           .isVisible(),
       )
       await page.keyboard.press("Escape")

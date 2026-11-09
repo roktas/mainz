@@ -233,6 +233,10 @@
             ? outputPagesMode
             : outputTab,
   )
+  const inputSectionView = $derived(activeTab === "list" ? inputList : activeTab === "grid" ? inputGrid : undefined)
+  const outputSectionView = $derived(
+    activeOutputTab === "list" ? outputList : activeOutputTab === "grid" ? outputGrid : undefined,
+  )
   const activeView = $derived(
     !source || tour?.startsWith("output-") || tour === "download"
       ? "output"
@@ -1155,6 +1159,17 @@
   </div>
 {/snippet}
 
+{#snippet gridRibbon(pane: "Input" | "Output", section: Section, folded: boolean, fold: (key: string) => void)}
+  <button
+    class="page-grip grid-ribbon icon-button"
+    type="button"
+    aria-label={`${folded ? "Unfold" : "Fold"} ${pane} section: ${section.path.join(" › ")}`}
+    aria-expanded={!folded}
+    title={`${folded ? "Unfold" : "Fold"} section`}
+    onclick={() => fold(section.key)}><Icon name="ribbon-vertical" /></button
+  >
+{/snippet}
+
 {#snippet sectionRow(
   pane: "Input" | "Output",
   first: number,
@@ -1179,9 +1194,9 @@
     type="button"
     class="list-disclosure page-grip icon-button"
     class:dragging
-    aria-label={`${expanded ? "Collapse" : "Expand"} ${pane} section: ${name}`}
+    aria-label={`${expanded ? "Fold" : "Unfold"} ${pane} section: ${name}`}
     aria-expanded={expanded}
-    title={`${expanded ? "Collapse" : "Expand"} section. Drag to ${pane === "Input" ? "add to Output" : "move"}.`}
+    title={`${expanded ? "Fold" : "Unfold"} section. Drag to ${pane === "Input" ? "add to Output" : "move"}.`}
     draggable="true"
     onmousedown={retainFocus}
     ondragstart={(event) => start(event, payload)}
@@ -1505,32 +1520,40 @@
   {Math.ceil(output.pages.length / 2) === 1 ? "sheet" : "sheets"}
 {/snippet}
 
-{#snippet outputGridHeading(page: Expanded, index: number)}
+{#snippet outputGridHeading(
+  page: Expanded,
+  index: number,
+  section: Section | undefined,
+  folded: ReadonlySet<string>,
+  fold: (key: string) => void,
+)}
   {@render outputOrigin(page, index)}
-  <button
-    class="page-grip"
-    aria-label={`Select or drag Output page ${index + 1}`}
-    aria-pressed={selectedIds.has(page.id)}
-    title="Select or unselect this page."
-    draggable="true"
-    onmousedown={retainFocus}
-    onclick={(event) => {
-      if (event instanceof PointerEvent && event.pointerType === "touch") return
-      selectOutput(page.id, event.shiftKey)
-      interaction.focusPage(event.currentTarget)
-    }}
-    onpointerup={(event) => {
-      if (event.pointerType !== "touch" || !event.isPrimary || transfer.touching) return
-      transfer.suppressClick()
-      selectOutput(page.id, event.shiftKey)
-      interaction.focusPage(event.currentTarget)
-    }}
-    ondragstart={(event) => start(event, { kind: "output", ids: [page.id] })}
-    onpointerdown={(event) => transfer.press(event, { kind: "output", ids: [page.id] })}
-    ondragend={() => transfer.end()}
-  >
-    <Icon name="reorder" />
-  </button>
+  {#if section}
+    {@render gridRibbon("Output", section, folded.has(section.key), fold)}
+  {:else}<button
+      class="page-grip"
+      aria-label={`Select or drag Output page ${index + 1}`}
+      aria-pressed={selectedIds.has(page.id)}
+      title="Select or unselect this page."
+      draggable="true"
+      onmousedown={retainFocus}
+      onclick={(event) => {
+        if (event instanceof PointerEvent && event.pointerType === "touch") return
+        selectOutput(page.id, event.shiftKey)
+        interaction.focusPage(event.currentTarget)
+      }}
+      onpointerup={(event) => {
+        if (event.pointerType !== "touch" || !event.isPrimary || transfer.touching) return
+        transfer.suppressClick()
+        selectOutput(page.id, event.shiftKey)
+        interaction.focusPage(event.currentTarget)
+      }}
+      ondragstart={(event) => start(event, { kind: "output", ids: [page.id] })}
+      onpointerdown={(event) => transfer.press(event, { kind: "output", ids: [page.id] })}
+      ondragend={() => transfer.end()}
+    >
+      <Icon name="reorder" />
+    </button>{/if}
   {@render pageFace(transfer.number(index) - 1)}
 {/snippet}
 
@@ -1788,17 +1811,17 @@
                   ></span>{/if}</button
               >{/if}
           </div>
-          {#if activeTab === "list" && inputList && inputList.sectionState() !== "none"}<button
+          {#if inputSectionView && inputSectionView.sectionState() !== "none"}<button
               type="button"
               class="icon-button"
-              aria-label={inputList?.sectionState() === "closed"
-                ? "Expand all Input sections"
-                : "Collapse all Input sections"}
-              title={inputList?.sectionState() === "closed" ? "Expand all sections" : "Collapse all sections"}
-              onclick={() => inputList?.toggleSections()}
-              ><Icon name={inputList?.sectionState() === "closed" ? "expand" : "collapse"} /></button
+              aria-label={inputSectionView.sectionState() === "closed"
+                ? "Unfold all Input sections"
+                : "Fold all Input sections"}
+              title={inputSectionView.sectionState() === "closed" ? "Unfold all sections" : "Fold all sections"}
+              onclick={() => inputSectionView.toggleSections()}
+              ><Icon name={inputSectionView.sectionState() === "closed" ? "expand" : "collapse"} /></button
             >{/if}
-          {#if activeTab === "list" && source.input.outline?.length}<button
+          {#if (activeTab === "list" || activeTab === "grid") && source.input.outline?.length}<button
               type="button"
               class="icon-button"
               aria-label="Section headings"
@@ -2014,6 +2037,8 @@
                   pane="Input"
                   active={() => interaction.shortcutPane() === "Input"}
                   {count}
+                  headings={inputView.grouped && !transfer.value ? inputHeadings : undefined}
+                  bind:folds={() => inputView.folds, (folds) => inspectInput({ folds })}
                   bind:position={() => inputView.position, (position) => inspectInput({ position })}
                   bind:offset={() => inputView.offset, (offset) => inspectInput({ offset })}
                   bind:keyboard={interaction.usingKeyboard}
@@ -2021,13 +2046,17 @@
                   toggle={(page) => toggle(page, false)}
                   edit={(action) => action === "add" && !!add()}
                 >
-                  {#snippet children(from, to)}
-                    {#each catalog.slice(from, to) as page, index (page)}
+                  {#snippet children(pages, headings, fold, folded)}
+                    {#each pages as page, index (page)}
+                      {@const section = headings.get(page)}
                       {@const first = index === 0}
                       {@const destinations = outputPositions.get(page) ?? []}
                       {@const detail = `${key}-input-${source.id}-${page}`}
                       <li
-                        class={["composition-card", { selected: inputSelected.has(page) }]}
+                        class={[
+                          "composition-card",
+                          { selected: inputSelected.has(page), "grid-section-card": !!section },
+                        ]}
                         data-returning={(interaction.returning?.kind === "source" &&
                           interaction.returning.source === source.id &&
                           interaction.returning.page === page) ||
@@ -2047,30 +2076,32 @@
                       >
                         <div class="page-label">
                           {@render inputOrigin(page, detail)}
-                          <button
-                            class="page-grip"
-                            aria-label={`Select or drag Input page ${page + 1} to Output`}
-                            aria-pressed={inputSelected.has(page)}
-                            title="Select or unselect this page."
-                            draggable="true"
-                            onmousedown={retainFocus}
-                            onclick={(event) => {
-                              if (event instanceof PointerEvent && event.pointerType === "touch") return
-                              toggle(page, event.shiftKey)
-                              inspectInput({ position: page })
-                              interaction.focusPage(event.currentTarget)
-                            }}
-                            onpointerup={(event) => {
-                              if (event.pointerType !== "touch" || !event.isPrimary || transfer.touching) return
-                              transfer.suppressClick()
-                              toggle(page, event.shiftKey)
-                              inspectInput({ position: page })
-                              interaction.focusPage(event.currentTarget)
-                            }}
-                            ondragstart={(event) => start(event, inputPayload(page))}
-                            onpointerdown={(event) => transfer.press(event, inputPayload(page))}
-                            ondragend={() => transfer.end()}><Icon name="reorder" /></button
-                          >
+                          {#if section}
+                            {@render gridRibbon("Input", section, folded.has(section.key), fold)}
+                          {:else}<button
+                              class="page-grip"
+                              aria-label={`Select or drag Input page ${page + 1} to Output`}
+                              aria-pressed={inputSelected.has(page)}
+                              title="Select or unselect this page."
+                              draggable="true"
+                              onmousedown={retainFocus}
+                              onclick={(event) => {
+                                if (event instanceof PointerEvent && event.pointerType === "touch") return
+                                toggle(page, event.shiftKey)
+                                inspectInput({ position: page })
+                                interaction.focusPage(event.currentTarget)
+                              }}
+                              onpointerup={(event) => {
+                                if (event.pointerType !== "touch" || !event.isPrimary || transfer.touching) return
+                                transfer.suppressClick()
+                                toggle(page, event.shiftKey)
+                                inspectInput({ position: page })
+                                interaction.focusPage(event.currentTarget)
+                              }}
+                              ondragstart={(event) => start(event, inputPayload(page))}
+                              onpointerdown={(event) => transfer.press(event, inputPayload(page))}
+                              ondragend={() => transfer.end()}><Icon name="reorder" /></button
+                            >{/if}
                         </div>
                         <button
                           class="page-image"
@@ -2214,17 +2245,17 @@
               ><Icon name={tab} /><span>{viewLabels[tab]}</span></button
             >{/each}
         </div>
-        {#if activeOutputTab === "list" && outputList && outputList.sectionState() !== "none"}<button
+        {#if outputSectionView && outputSectionView.sectionState() !== "none"}<button
             type="button"
             class="icon-button"
-            aria-label={outputList?.sectionState() === "closed"
-              ? "Expand all Output sections"
-              : "Collapse all Output sections"}
-            title={outputList?.sectionState() === "closed" ? "Expand all sections" : "Collapse all sections"}
-            onclick={() => outputList?.toggleSections()}
-            ><Icon name={outputList?.sectionState() === "closed" ? "expand" : "collapse"} /></button
+            aria-label={outputSectionView.sectionState() === "closed"
+              ? "Unfold all Output sections"
+              : "Fold all Output sections"}
+            title={outputSectionView.sectionState() === "closed" ? "Unfold all sections" : "Fold all sections"}
+            onclick={() => outputSectionView.toggleSections()}
+            ><Icon name={outputSectionView.sectionState() === "closed" ? "expand" : "collapse"} /></button
           >{/if}
-        {#if activeOutputTab === "list"}<button
+        {#if activeOutputTab === "list" || activeOutputTab === "grid"}<button
             type="button"
             class="icon-button"
             aria-label="Section headings"
@@ -2493,6 +2524,11 @@
                 pane="Output"
                 active={() => interaction.shortcutPane() === "Output"}
                 count={output.pages.length}
+                headings={outputGrouped && !transfer.value
+                  ? (index) => outputHeadings(output.pages[index].content)
+                  : undefined}
+                identity={(index) => output.pages[index].id}
+                bind:folds={outputFolds}
                 bind:position={output.position}
                 bind:offset={outputOffset}
                 bind:keyboard={interaction.usingKeyboard}
@@ -2500,16 +2536,20 @@
                 toggle={(position) => selectOutput(output.pages[position].id, false)}
                 edit={(action) => !!(action === "remove" ? remove() : duplicate())}
               >
-                {#snippet children(from, to)}
-                  {#each output.pages.slice(from, to) as page, offset (page.id)}
-                    {@const index = from + offset}
+                {#snippet children(pages, headings, fold, folded)}
+                  {#each pages as index, offset (output.pages[index].id)}
+                    {@const page = output.pages[index]}
+                    {@const section = headings.get(index)}
                     {@const origin = provenance(page.content)}
                     {@const place = transfer.preview?.positions.get(index)}
                     <li
                       id={`${key}-${page.id}`}
                       data-adding={pendingAddition.has(page.id) || undefined}
                       inert={pendingAddition.has(page.id)}
-                      class={["composition-card", { selected: selectedIds.has(page.id) }]}
+                      class={[
+                        "composition-card",
+                        { selected: selectedIds.has(page.id), "grid-section-card": !!section },
+                      ]}
                       data-returning={(interaction.returning?.kind === "output" &&
                         interaction.returning.id === page.id) ||
                         undefined}
@@ -2534,7 +2574,7 @@
                       ondrop={(event) => transfer.drop(event)}
                     >
                       <div class="page-label">
-                        {@render outputGridHeading(page, index)}
+                        {@render outputGridHeading(page, index, section, folded, fold)}
                       </div>
                       <button
                         class="page-image"

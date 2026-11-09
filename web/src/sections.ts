@@ -1,4 +1,4 @@
-// Builds List section trees and flattens their visible headings and physical page ranges.
+// Builds shared section trees and visible page ranges for List and Grid.
 
 import type { SectionPath } from "./outline.ts"
 
@@ -54,6 +54,22 @@ export function sectionsOf(
     for (const key of open.keys()) if (!present.has(key)) open.delete(key)
   }
   return { roots, nodes }
+}
+
+export function gridSections(tree: ReturnType<typeof sectionsOf>, count: number, folded: ReadonlySet<string>) {
+  const pages = new Set<number>()
+  const headings = new Map<number, Section>()
+  for (const row of flattenSections(tree.roots, count, folded)) {
+    if (row >= 0) {
+      pages.add(row)
+      continue
+    }
+    const section = tree.nodes.get(-row - 1)!
+    pages.add(section.start)
+    // A single page image can carry one ribbon; prefer the outermost visible heading.
+    if (!headings.has(section.start)) headings.set(section.start, section)
+  }
+  return { pages: [...pages].toSorted((a, b) => a - b), headings }
 }
 
 export function flattenSections(roots: readonly Section[], count: number, collapsed: ReadonlySet<string>) {

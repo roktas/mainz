@@ -9,12 +9,18 @@
   import type { Snippet } from "svelte"
   import { fields, shortcut, shortcutContext } from "./keyboard.ts"
   import { fit } from "./fit.ts"
+  import { gridSections, sectionsOf } from "./sections.ts"
+  import type { Section } from "./sections.ts"
+  import type { SectionPath } from "./outline.ts"
 
   let {
     pane,
     active,
     viewport: saved = { scroll: 0 },
     count,
+    headings,
+    identity,
+    folds = $bindable(),
     position = $bindable(0),
     offset = $bindable(0),
     keyboard = $bindable(false),
@@ -27,13 +33,23 @@
     active: () => boolean
     viewport?: Viewport
     count: number
+    headings?: (position: number) => readonly SectionPath[]
+    identity?: (position: number) => string
+    folds?: ReadonlySet<string>
     position?: number
     offset?: number
     keyboard?: boolean
     selected: (position: number) => boolean
     toggle: (position: number) => void
     edit: (action: "add" | "duplicate" | "remove") => boolean
-    children: Snippet<[start: number, end: number]>
+    children: Snippet<
+      [
+        pages: readonly number[],
+        headings: ReadonlyMap<number, Section>,
+        fold: (key: string) => void,
+        folded: ReadonlySet<string>,
+      ]
+    >
   } = $props()
   let columns = $state(untrack(() => saved.columns ?? 1))
   let rows = $state(2)
@@ -41,16 +57,50 @@
   let gap = $state(12)
   let scroll = $state(untrack(() => saved.scroll))
   let list: HTMLElement | undefined
+  const empty = new Set<string>()
+  const folded = $derived(folds ?? empty)
+  const tree = $derived(sectionsOf(count, headings, identity))
+  const sections = $derived(gridSections(tree, count, folded))
+  const pages = $derived(sections.pages)
+  const ranks = $derived(new Map(pages.map((page, rank) => [page, rank])))
+  export function sectionState() {
+    if (!tree.nodes.size) return "none"
+    return [...sections.headings.values()].some((entry) => !folded.has(entry.key)) ? "open" : "closed"
+  }
+  export function toggleSections() {
+    folds = sectionState() === "closed" ? new Set() : new Set([...tree.nodes.values()].map((entry) => entry.key))
+  }
+  function fold(key: string) {
+    const next = new Set(folded)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    folds = next
+  }
+  function expand(index: number) {
+    const next = new Set(folded)
+    for (const entry of tree.nodes.values()) if (entry.start <= index && index < entry.end) next.delete(entry.key)
+    if (next.size !== folded.size) folds = next
+  }
+  function rankOf(index: number) {
+    if (index < 0) return -1
+    return (
+      ranks.get(index) ??
+      Math.max(
+        0,
+        pages.findLastIndex((page) => page <= index),
+      )
+    )
+  }
   const stride = $derived(height + gap)
-  const totalRows = $derived(Math.ceil(count / columns))
+  const totalRows = $derived(Math.ceil(pages.length / columns))
   const firstRow = $derived(Math.max(0, Math.min(totalRows - 1, Math.floor(scroll / stride) - 2)))
   const from = $derived(firstRow * columns)
-  const to = $derived(Math.min(count, (firstRow + rows + 4) * columns))
+  const to = $derived(Math.min(pages.length, (firstRow + rows + 4) * columns))
   const bottomRows = $derived(Math.max(0, totalRows - Math.ceil(to / columns)))
 
   function revealIndex(index: number) {
-    if (!list || !count) return
-    const top = Math.floor(Math.max(0, Math.min(index, count - 1)) / columns) * stride
+    if (!list || !pages.length) return
+    const top = Math.floor(rankOf(index) / columns) * stride
     const bottom = top + height
     if (top < list.scrollTop) list.scrollTop = top
     else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight
@@ -58,6 +108,8 @@
     saved.scroll = scroll
   }
   export async function revealPage(index: number) {
+    expand(index)
+    await tick()
     revealIndex(index)
     await tick()
     list?.querySelector<HTMLElement>(`.page-image[data-page="${index}"]`)?.scrollIntoView({ block: "nearest" })
@@ -135,7 +187,7 @@
     })
     // Re-measure after the first page mounts and after the document size changes.
     $effect(() => {
-      if (count) schedule()
+      if (pages.length) schedule()
     })
     $effect(() => {
       const viewport = saved
@@ -184,12 +236,12 @@
     async function advance(next: number) {
       advancing = true
       await tick()
-      if (!element.isConnected || !count) {
+      if (!element.isConnected || !pages.length) {
         advancing = false
         return
       }
-      boundary = next < 0 ? -1 : next >= count ? 1 : 0
-      const index = Math.max(0, Math.min(next, count - 1))
+      boundary = next < 0 ? -1 : next >= pages.length ? 1 : 0
+      const index = pages[Math.max(0, Math.min(next, pages.length - 1))]
       position = index
       revealIndex(index)
       await tick()
@@ -208,7 +260,7 @@
     }
     async function click(event: MouseEvent) {
       if (event.ctrlKey || event.metaKey || !(event.target instanceof Element)) return
-      const control = event.target.closest<HTMLButtonElement>("button.page-image, button.page-grip")
+      const control = event.target.closest<HTMLButtonElement>("button.page-image, button.page-grip:not(.grid-ribbon)")
       const image = control?.closest(".composition-card")?.querySelector<HTMLButtonElement>(".page-image")
       if (!image || !element.contains(image) || image.closest("[inert]")) return
       boundary = 0
@@ -219,7 +271,7 @@
       else {
         keyboard = true
         reset()
-        void advance(page + 1)
+        void advance(rankOf(page) + 1)
       }
     }
     function focus(event: FocusEvent) {
@@ -260,8 +312,8 @@
       }
       if (action === "viewportPrevious" || action === "viewportNext") {
         event.preventDefault()
-        const next = position + (action === "viewportPrevious" ? -columns * rows : columns * rows)
-        if (next < 0 || next >= count) return
+        const next = rankOf(position) + (action === "viewportPrevious" ? -columns * rows : columns * rows)
+        if (next < 0 || next >= pages.length) return
         keyboard = true
         reset()
         void advance(next)
@@ -272,7 +324,8 @@
         event.target instanceof HTMLButtonElement && event.target.matches(".page-image")
           ? Number(event.target.dataset.page)
           : -1
-      let cursor = event.target === element ? (boundary ? (boundary < 0 ? 0 : count) : position) : index
+      let cursor =
+        event.target === element ? (boundary ? (boundary < 0 ? 0 : pages.length) : rankOf(position)) : rankOf(index)
       if (cursor < 0) return
       if (action === "extend") {
         if (pointerSelection === cursor) {
@@ -286,7 +339,7 @@
         event.preventDefault()
         keyboard = true
         reset()
-        void advance(action === "first" ? 0 : count - 1)
+        void advance(action === "first" ? 0 : pages.length - 1)
         return
       }
       // A key can arrive before the resize observer measures the new column count.
@@ -305,13 +358,13 @@
         if (pointerSelection === cursor) cursor++
         reset()
         const page = step < 0 ? cursor - 1 : cursor
-        if (page < 0 || page >= count) return
-        toggle(page)
+        if (page < 0 || page >= pages.length) return
+        toggle(pages[page])
         void advance(step > 0 ? page + 1 : page === 0 ? -1 : page)
       } else {
         reset()
         if (boundary) {
-          if (Math.sign(step) !== boundary) void advance(boundary < 0 ? 0 : count - 1)
+          if (Math.sign(step) !== boundary) void advance(boundary < 0 ? 0 : pages.length - 1)
         } else void advance(cursor + step)
       }
     }
@@ -344,12 +397,12 @@
     class={["composition-grid", pane === "Input" ? "source-catalog" : "output-pages"]}
     aria-label={pane === "Input" ? "Input pages" : "Output page order"}
     aria-setsize={count}
-    start={pane === "Output" ? from + 1 : undefined}
+    start={pane === "Output" ? (pages[from] ?? 0) + 1 : undefined}
     data-from={from}
     style:padding-block-start={`${firstRow * stride}px`}
     style:padding-block-end={`${bottomRows * stride}px`}
     {@attach gridKeys}
   >
-    {@render children(from, to)}
+    {@render children(pages.slice(from, to), sections.headings, fold, folded)}
   </svelte:element>
 </div>
