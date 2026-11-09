@@ -214,6 +214,9 @@ work across scroll windows, with unchanged card geometry.
         light/dark and button/keyboard cases; retained 12/13-page additions. Node 24 file-level syntax, formatting,
         lint, Svelte/TypeScript checks, and 52 unit tests passed. The complete formatter and Chromium E2E checks still
         require a current checkout; the old archive has a formatting difference in interaction.svelte.ts.
+  - [x] Removed two single-density wrappers, unreachable Compact action branches, and a stale batch comment from
+        `composition.test.js`. Card, selection, keyboard, Page, addition, removal, and movement checks remain. Node 24
+        syntax, formatting, lint, and 52 unit tests pass. Chromium E2E needs the complete current checkout.
 - [ ] Delete only superseded implementation and its dependent tests/docs/config. Do not remove valid PDF/Page navigation
       or historical calibration evidence without separating it from active requirements.
 - [ ] Update `SPEC.md`, `VIEW.md`, `MEMO.md`, Web README, UI glossary, keyboard/help descriptions, test runner groups,

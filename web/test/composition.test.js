@@ -656,89 +656,87 @@ test("Addition previews use their target image or the action area", { timeout: 9
           }).observe(document.body, { childList: true }),
         )
       })
-      for (const density of ["Normal"]) {
-        for (const action of ["card", "selection", "keyboard"]) {
-          await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-          await page.waitForFunction(
-            () => document.querySelector(".composition-totals strong")?.textContent === "8 pages",
-          )
-          const output = page.locator(".composition-output")
-          const workspace = page.locator(".mobile-workspace-tabs > button:last-child")
-          if (await workspace.isVisible()) await workspace.click()
-          const source = output.locator('.page-image[data-page="1"] canvas')
-          await page.waitForFunction(() =>
-            [...document.querySelectorAll(".composition-output .thumbnail")].every(
-              (element) => element.getAttribute("aria-busy") === "false",
-            ),
-          )
-          if (action === "card") {
-            const menu = output.getByRole("button", { name: "Actions for Output page 2", exact: true })
-            if (await menu.isVisible()) await menu.click()
-            else if (density === "Compact")
-              await output.getByRole("button", { name: "Details for Output page 2", exact: true }).click()
-          }
-          if (action !== "card") await output.getByLabel("Page selection", { exact: true }).fill("2")
-          const control =
-            action === "card"
-              ? output.getByRole("button", { name: "Duplicate Output page 2", exact: true })
-              : action === "selection"
-                ? output.getByRole("button", { name: "Duplicate selected Output pages", exact: true })
-                : output.locator(".composition-grid")
-          await control.scrollIntoViewIfNeeded()
-          const start = await source.evaluate((element) => {
-            const box = element.getBoundingClientRect()
-            return [
-              (Math.max(0, box.left) + Math.min(innerWidth, box.right)) / 2,
-              (Math.max(0, box.top) + Math.min(innerHeight, box.bottom)) / 2,
-            ]
-          })
-          const snapshot = await source.evaluateHandle(
-            (element, event) => {
-              const copy = document.createElement("canvas")
-              // Capture before the action handler, after any selection-triggered redraw.
-              document.addEventListener(
-                event,
-                () => {
-                  copy.width = element.width
-                  copy.height = element.height
-                  copy.getContext("2d").drawImage(element, 0, 0)
-                },
-                { capture: true, once: true },
-              )
-              return copy
-            },
-            action === "keyboard" ? "keydown" : "click",
-          )
-          if (action === "keyboard") await control.press("Enter")
-          else await control.click()
-          const flight = page.locator(".addition-preview")
-          await flight.waitFor()
-          const result = await page.evaluate(
-            ({ preview, sheet }) => {
-              const box = preview.getBoundingClientRect()
-              const expected = document.createElement("canvas")
-              expected.width = preview.width
-              expected.height = preview.height
-              expected.getContext("2d").drawImage(sheet, 0, 0, expected.width, expected.height)
-              const actual = preview.getContext("2d").getImageData(0, 0, preview.width, preview.height).data
-              const pixels = expected.getContext("2d").getImageData(0, 0, expected.width, expected.height).data
-              return {
-                center: [box.left + box.width / 2, box.top + box.height / 2],
-                sameImage: actual.every((value, index) => value === pixels[index]),
-              }
-            },
-            { preview: await flight.elementHandle(), sheet: snapshot },
-          )
-          const label = `${width}, ${density}, ${action}`
-          assert.ok(
-            result.center.every((value, index) => Math.abs(value - start[index]) < 1),
-            `${label}: animation starts at the targeted image ${JSON.stringify({ start, result })}`,
-          )
-          assert.equal(result.sameImage, true, `${label}: animation uses the targeted page's pixels`)
-          await flight.evaluate((element) => element.getAnimations().forEach((animation) => animation.finish()))
-          await snapshot.dispose()
+
+      for (const action of ["card", "selection", "keyboard"]) {
+        await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+        await page.waitForFunction(
+          () => document.querySelector(".composition-totals strong")?.textContent === "8 pages",
+        )
+        const output = page.locator(".composition-output")
+        const workspace = page.locator(".mobile-workspace-tabs > button:last-child")
+        if (await workspace.isVisible()) await workspace.click()
+        const source = output.locator('.page-image[data-page="1"] canvas')
+        await page.waitForFunction(() =>
+          [...document.querySelectorAll(".composition-output .thumbnail")].every(
+            (element) => element.getAttribute("aria-busy") === "false",
+          ),
+        )
+        if (action === "card") {
+          const menu = output.getByRole("button", { name: "Actions for Output page 2", exact: true })
+          if (await menu.isVisible()) await menu.click()
         }
+        if (action !== "card") await output.getByLabel("Page selection", { exact: true }).fill("2")
+        const control =
+          action === "card"
+            ? output.getByRole("button", { name: "Duplicate Output page 2", exact: true })
+            : action === "selection"
+              ? output.getByRole("button", { name: "Duplicate selected Output pages", exact: true })
+              : output.locator(".composition-grid")
+        await control.scrollIntoViewIfNeeded()
+        const start = await source.evaluate((element) => {
+          const box = element.getBoundingClientRect()
+          return [
+            (Math.max(0, box.left) + Math.min(innerWidth, box.right)) / 2,
+            (Math.max(0, box.top) + Math.min(innerHeight, box.bottom)) / 2,
+          ]
+        })
+        const snapshot = await source.evaluateHandle(
+          (element, event) => {
+            const copy = document.createElement("canvas")
+            // Capture before the action handler, after any selection-triggered redraw.
+            document.addEventListener(
+              event,
+              () => {
+                copy.width = element.width
+                copy.height = element.height
+                copy.getContext("2d").drawImage(element, 0, 0)
+              },
+              { capture: true, once: true },
+            )
+            return copy
+          },
+          action === "keyboard" ? "keydown" : "click",
+        )
+        if (action === "keyboard") await control.press("Enter")
+        else await control.click()
+        const flight = page.locator(".addition-preview")
+        await flight.waitFor()
+        const result = await page.evaluate(
+          ({ preview, sheet }) => {
+            const box = preview.getBoundingClientRect()
+            const expected = document.createElement("canvas")
+            expected.width = preview.width
+            expected.height = preview.height
+            expected.getContext("2d").drawImage(sheet, 0, 0, expected.width, expected.height)
+            const actual = preview.getContext("2d").getImageData(0, 0, preview.width, preview.height).data
+            const pixels = expected.getContext("2d").getImageData(0, 0, expected.width, expected.height).data
+            return {
+              center: [box.left + box.width / 2, box.top + box.height / 2],
+              sameImage: actual.every((value, index) => value === pixels[index]),
+            }
+          },
+          { preview: await flight.elementHandle(), sheet: snapshot },
+        )
+        const label = `${width}, ${action}`
+        assert.ok(
+          result.center.every((value, index) => Math.abs(value - start[index]) < 1),
+          `${label}: animation starts at the targeted image ${JSON.stringify({ start, result })}`,
+        )
+        assert.equal(result.sameImage, true, `${label}: animation uses the targeted page's pixels`)
+        await flight.evaluate((element) => element.getAnimations().forEach((animation) => animation.finish()))
+        await snapshot.dispose()
       }
+
       for (const action of ["input", "copy", "repeat"]) {
         await page.goto(`${server.resolvedUrls.local[0]}?demo`)
         await page.waitForFunction(
@@ -963,7 +961,6 @@ test(
             assert.ok(Math.abs(2 * middle.y - start.y - end.y) < 1, `${width}: reflow y midpoint`)
           }
         }
-        // Keep the moving pair inside the smallest Normal batch.
         await selection.fill("1")
         if (
           !(await output
@@ -1004,115 +1001,109 @@ test(
         await output
           .locator(".composition-grid")
           .evaluate((grid) => grid.getAnimations({ subtree: true }).forEach((animation) => animation.finish()))
-        for (const density of ["Normal"]) {
-          t.diagnostic(`${width}: ${density} edit feedback`)
-          const clear = output.getByRole("button", { name: "Clear Output selection", exact: true })
-          if (await clear.isVisible()) await clear.click()
-          const details = async () => {
-            const menu = output.getByRole("button", { name: "Actions for Output page 1", exact: true })
-            if (await menu.isVisible()) await menu.click()
-            else if (density === "Compact")
-              await output.getByRole("button", { name: "Details for Output page 1", exact: true }).click()
-          }
-          const allActions = width === 1440 && density === "Normal"
-          await details()
-          await addition(() => output.getByRole("button", { name: "Duplicate Output page 1", exact: true }).click())
-          if (allActions) {
-            await selection.fill("1-2")
-            await addition(
-              () => output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click(),
-              2,
-            )
-            await selection.fill("1")
-            await addition(() => output.locator(".composition-grid").press("Enter"))
-            assert.equal(
-              await output
-                .locator(".composition-card.selected .page-image")
-                .evaluate((element) => element === document.activeElement),
-              true,
-              "Keyboard duplication focuses the copy after arrival",
-            )
-            await selection.fill("1")
-            await output.getByLabel("Output page actions", { exact: true }).click()
-            await output.getByRole("textbox", { name: "Repeat selected sequence", exact: true }).fill("2")
-            await addition(() => output.getByRole("button", { name: "Repeat", exact: true }).click())
-            for (const label of ["Before", "At end"]) {
-              await output.getByLabel("Output page actions", { exact: true }).click()
-              await addition(() => output.getByRole("button", { name: label, exact: true }).click(), 1, true)
-            }
-          }
-          const clearAfterCopy = output.getByRole("button", { name: "Clear Output selection", exact: true })
-          if (await clearAfterCopy.isVisible()) await clearAfterCopy.click()
-          await output.locator(".page-image").first().press("Home")
-          await page.mouse.move(1, 1)
-          await details()
-          await removal(() => output.getByRole("button", { name: "Remove Output page 1", exact: true }).click())
-          if (allActions) {
-            for (const action of [
-              () => output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click(),
-              () => selection.press("Enter"),
-              () => output.locator(".composition-grid").press("Delete"),
-              () => output.locator(".composition-grid").press("-"),
-            ]) {
-              await selection.fill("1")
-              await removal(action)
-            }
-          }
-          await selection.fill("2-3")
-          for (const direction of ["earlier", "later"]) {
-            assert.equal(
-              await output
-                .locator(".inline-moves")
-                .getByRole("button", {
-                  name: `Move selected pages ${direction}`,
-                  exact: true,
-                })
-                .isVisible(),
-              width !== 390,
-              `${width}: movement follows available pane width`,
-            )
-          }
-          await selection.fill("1")
-          const before = await output.locator(".composition-card").evaluateAll((cards) => cards.map((card) => card.id))
-          await output.getByLabel("Output page actions", { exact: true }).click()
-          await output.getByRole("button", { name: "Move selected pages later", exact: true }).click()
-          await page.waitForFunction(() =>
-            document
-              .querySelector(".output-pages")
-              ?.getAnimations({ subtree: true })
-              .some((a) => a.effect.getTiming().duration === 500),
-          )
-          const after = await output.locator(".composition-card").evaluateAll((cards) => cards.map((card) => card.id))
-          assert.deepEqual(
-            after.slice(0, 2),
-            [before[1], before[0]],
-            "Moves retain occurrence identity and print order",
-          )
-          await output
-            .locator(".composition-grid")
-            .evaluate((grid) => grid.getAnimations({ subtree: true }).forEach((a) => a.finish()))
-          await output.locator(".composition-grid").press("Control+ArrowLeft")
-          await page.waitForFunction(() =>
-            document
-              .querySelector(".output-pages")
-              ?.getAnimations({ subtree: true })
-              .some((a) => a.effect.getTiming().duration === 500),
-          )
-          await page.emulateMedia({ reducedMotion: "reduce" })
-          await page.waitForFunction(
-            () =>
-              document
-                .querySelector(".output-pages")
-                ?.getAnimations({ subtree: true })
-                .every((animation) => animation.playState !== "running"),
-            undefined,
-            { timeout: 500 },
-          )
-          await page.emulateMedia({ reducedMotion: "no-preference" })
-          await output
-            .locator(".composition-grid")
-            .evaluate((grid) => grid.getAnimations({ subtree: true }).forEach((a) => a.finish()))
+
+        t.diagnostic(`${width}: edit feedback`)
+        const clear = output.getByRole("button", { name: "Clear Output selection", exact: true })
+        if (await clear.isVisible()) await clear.click()
+        const details = async () => {
+          const menu = output.getByRole("button", { name: "Actions for Output page 1", exact: true })
+          if (await menu.isVisible()) await menu.click()
         }
+        const allActions = width === 1440
+        await details()
+        await addition(() => output.getByRole("button", { name: "Duplicate Output page 1", exact: true }).click())
+        if (allActions) {
+          await selection.fill("1-2")
+          await addition(
+            () => output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click(),
+            2,
+          )
+          await selection.fill("1")
+          await addition(() => output.locator(".composition-grid").press("Enter"))
+          assert.equal(
+            await output
+              .locator(".composition-card.selected .page-image")
+              .evaluate((element) => element === document.activeElement),
+            true,
+            "Keyboard duplication focuses the copy after arrival",
+          )
+          await selection.fill("1")
+          await output.getByLabel("Output page actions", { exact: true }).click()
+          await output.getByRole("textbox", { name: "Repeat selected sequence", exact: true }).fill("2")
+          await addition(() => output.getByRole("button", { name: "Repeat", exact: true }).click())
+          for (const label of ["Before", "At end"]) {
+            await output.getByLabel("Output page actions", { exact: true }).click()
+            await addition(() => output.getByRole("button", { name: label, exact: true }).click(), 1, true)
+          }
+        }
+        const clearAfterCopy = output.getByRole("button", { name: "Clear Output selection", exact: true })
+        if (await clearAfterCopy.isVisible()) await clearAfterCopy.click()
+        await output.locator(".page-image").first().press("Home")
+        await page.mouse.move(1, 1)
+        await details()
+        await removal(() => output.getByRole("button", { name: "Remove Output page 1", exact: true }).click())
+        if (allActions) {
+          for (const action of [
+            () => output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click(),
+            () => selection.press("Enter"),
+            () => output.locator(".composition-grid").press("Delete"),
+            () => output.locator(".composition-grid").press("-"),
+          ]) {
+            await selection.fill("1")
+            await removal(action)
+          }
+        }
+        await selection.fill("2-3")
+        for (const direction of ["earlier", "later"]) {
+          assert.equal(
+            await output
+              .locator(".inline-moves")
+              .getByRole("button", {
+                name: `Move selected pages ${direction}`,
+                exact: true,
+              })
+              .isVisible(),
+            width !== 390,
+            `${width}: movement follows available pane width`,
+          )
+        }
+        await selection.fill("1")
+        const before = await output.locator(".composition-card").evaluateAll((cards) => cards.map((card) => card.id))
+        await output.getByLabel("Output page actions", { exact: true }).click()
+        await output.getByRole("button", { name: "Move selected pages later", exact: true }).click()
+        await page.waitForFunction(() =>
+          document
+            .querySelector(".output-pages")
+            ?.getAnimations({ subtree: true })
+            .some((a) => a.effect.getTiming().duration === 500),
+        )
+        const after = await output.locator(".composition-card").evaluateAll((cards) => cards.map((card) => card.id))
+        assert.deepEqual(after.slice(0, 2), [before[1], before[0]], "Moves retain occurrence identity and print order")
+        await output
+          .locator(".composition-grid")
+          .evaluate((grid) => grid.getAnimations({ subtree: true }).forEach((a) => a.finish()))
+        await output.locator(".composition-grid").press("Control+ArrowLeft")
+        await page.waitForFunction(() =>
+          document
+            .querySelector(".output-pages")
+            ?.getAnimations({ subtree: true })
+            .some((a) => a.effect.getTiming().duration === 500),
+        )
+        await page.emulateMedia({ reducedMotion: "reduce" })
+        await page.waitForFunction(
+          () =>
+            document
+              .querySelector(".output-pages")
+              ?.getAnimations({ subtree: true })
+              .every((animation) => animation.playState !== "running"),
+          undefined,
+          { timeout: 500 },
+        )
+        await page.emulateMedia({ reducedMotion: "no-preference" })
+        await output
+          .locator(".composition-grid")
+          .evaluate((grid) => grid.getAnimations({ subtree: true }).forEach((a) => a.finish()))
+
         await selection.fill("1")
         await output.locator(".composition-grid").press("Enter")
         await page.locator(".addition-preview").waitFor()
