@@ -1137,7 +1137,7 @@
         overflow: clip;
         text-overflow: ellipsis;
         font-size: var(--body);
-        font-weight: 600;
+        font-weight: 400;
         color: var(--accent);
       }
       & .input-chevron {
@@ -1209,6 +1209,9 @@
           max-inline-size: calc(100% - var(--input-details-width) - var(--gap));
           min-block-size: 46px;
           block-size: auto;
+        }
+        & .input-choice-title {
+          font-weight: 400;
         }
         & .input-choice > .icon-button {
           min-block-size: 44px;
