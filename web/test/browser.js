@@ -52,10 +52,9 @@ export const hasCursor = (element = document.activeElement) => {
   const card = element.closest(".composition-card")
   if (!card) return false
   const style = getComputedStyle(card)
-  return (
-    style.borderTopWidth === "2px" &&
-    style.borderTopColor === getComputedStyle(document.querySelector(".workspace-icon")).color
-  )
+  const theme = document.documentElement.getAttribute("data-theme")
+  const dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)
+  return style.borderTopWidth === "2px" && style.borderTopColor === (dark ? "oklch(1 0 none)" : "oklch(0 0 none)")
 }
 
 export async function captureLayout(page, name, details) {
