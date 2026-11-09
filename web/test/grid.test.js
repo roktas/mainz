@@ -1876,7 +1876,9 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     await section.locator('.list-disclosure[aria-expanded="false"]').waitFor()
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .list-section")].some((row) =>
-        row.getAnimations().some((animation) => animation.id === "fold-heading" && animation.effect.getTiming().duration >= 800),
+        row.getAnimations({ subtree: true }).some(
+          (animation) => animation.id === "fold-heading" && animation.effect.getTiming().duration >= 800,
+        ),
       ),
     )
     await section.locator(".list-disclosure").click()
@@ -1903,7 +1905,9 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     await input.getByRole("button", { name: "Unfold Input section: First", exact: true }).waitFor()
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .composition-card.grid-section-card")].some((card) =>
-        card.getAnimations().some((animation) => animation.id === "fold-heading" && animation.effect.getTiming().duration >= 800),
+        card.getAnimations({ subtree: true }).some(
+          (animation) => animation.id === "fold-heading" && animation.effect.getTiming().duration >= 800,
+        ),
       ),
     )
     await input.getByRole("button", { name: "Unfold Input section: First", exact: true }).click()
