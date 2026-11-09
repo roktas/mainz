@@ -425,7 +425,7 @@ measurements that support the judgment. Do not report a hypothetical cost as a m
 
 - [x] Share the existing List section tree and fold state with Grid for Input and Output. Grid keeps each heading
       page's real PDF thumbnail and page number, replaces the heading card's top drag grip with one flat-topped
-      vertical ribbon, and gives its footer the secondary theme color. It does not render heading titles.
+      vertical ribbon. It does not render heading titles.
 - [x] Add the Fold/Unfold ribbon action, accessible names and expanded state, per-pane Fold all/Unfold all controls,
       preserved List/Grid fold state, and physical-page navigation over the filtered virtual Grid sequence.
       Same-page headings use the outermost visible ribbon; List still exposes nested headings.
@@ -441,20 +441,27 @@ measurements that support the judgment. Do not report a hypothetical cost as a m
 These current requirements replace older Grid/List section styling and Input header expectations. Keep the physical-page,
 selection, keyboard, and fold-state contracts unchanged.
 
-- [ ] Extend Grid section ribbons to the card's top edge, without moving page numbers or reducing target size.
-- [ ] Use the List ribbon's secondary hover glow in Grid. Remove the secondary-colored Grid section footer.
-- [ ] Give unfolded Grid ribbons a muted neutral gray in both themes. Give unfolded, unselected section cards a secondary
+- [x] Extend Grid section ribbons to the card's top edge, without moving page numbers or reducing target size.
+- [x] Use the List ribbon's secondary hover glow in Grid. Remove the secondary-colored Grid section footer.
+- [x] Give unfolded Grid ribbons a muted neutral gray in both themes. Give unfolded, unselected section cards a secondary
       contour; a selected section card keeps the primary contour.
-- [ ] Distinguish keyboard focus with a neutral high-contrast contour (light: dark, dark: light), rather than secondary.
+- [x] Distinguish keyboard focus with a neutral high-contrast contour (light: dark, dark: light), rather than secondary.
       Keep forced-colors focus visible.
-- [ ] In List, give unfolded section headings a secondary contour instead of primary-colored text. Use the same muted
+- [x] In List, give unfolded section headings a secondary contour instead of primary-colored text. Use the same muted
       neutral ribbon color as Grid for unfolded sections.
-- [ ] Keep the Input source number; show only the document title in the closed Input selector. Put the filename and
+- [x] Keep the Input source number; show only the document title in the closed Input selector. Put the filename and
       information trigger in its open chooser.
-- [ ] Add Input page/sheet totals and a **View Input PDF** eye action immediately before **Open PDF**, matching Output
+- [x] Add Input page/sheet totals and a **View Input PDF** eye action immediately before **Open PDF**, matching Output
       summary formatting, icon treatment, alignment, and responsive spacing. Show the original Input PDF.
-- [ ] Test both themes, folded/unfolded/selected/focused states, long titles, narrow and split panes, and Input PDF
-      viewing. Align Web SPEC/VIEW and focused browser assertions before closure.
+- [ ] Complete deferred edge-case verification: long Input titles, all split-pane layouts, repeated physical-device
+      interaction, and the wider browser matrix. The owner requested no long tests.
+
+**Validation (bounded):** Two focused Chromium regressions passed for Grid/List section styles and Input PDF viewing.
+Light/dark folded, unfolded, selected, keyboard-focused states and Input header widths 320/390/1440 px were exercised.
+Input PDF viewing preserved the original PDF header bytes. Node 24 formatting on 11 affected files and Svelte/TypeScript
+checks passed (0 diagnostics); the earlier 54/54 unit tests passed. Web SPEC and VIEW were updated. No standard/full
+suite or physical-device validation is claimed. A previous wider browser attempt had Page pinch/touch and initial PDF
+opening failures that remain untriaged; do not attribute them to this change without reproducing them.
 
 #### Closure
 
