@@ -1783,7 +1783,9 @@ test("Grid and List section styling separates unfolded, selected, and focused st
           iconTop: icon.top + (icon.height * 2) / 24 - frame.top,
           secondary: color("--secondary"),
           primary: color("--accent"),
-          muted: color("--muted"),
+          ribbonOpen: color("--edge"),
+          surface: getComputedStyle(element).backgroundColor,
+          thumbnail: getComputedStyle(element.querySelector(".thumbnail")).backgroundColor,
           focus: color("--keyboard-focus"),
         }
         reference.remove()
@@ -1794,16 +1796,22 @@ test("Grid and List section styling separates unfolded, selected, and focused st
       await page.mouse.move(900, 780)
       let state = await appearance()
       assert.equal(state.border, state.secondary, `${theme}: unfolded outline`)
-      assert.equal(state.ribbon, state.muted, `${theme}: unfolded ribbon`)
+      assert.equal(state.ribbon, state.ribbonOpen, `${theme}: unfolded ribbon`)
       assert.equal(state.thickness, "2px")
       assert.ok(state.iconTop >= -1 && state.iconTop <= 2, `${theme}: ribbon reaches card top`)
       assert.equal(state.footer, "rgba(0, 0, 0, 0)", `${theme}: neutral footer`)
+      await ribbon.hover()
+      assert.equal((await appearance()).ribbon, state.ribbonOpen, `${theme}: hover keeps unfolded ribbon gray`)
 
+      const unfoldedSurface = state.surface
+      const unfoldedThumbnail = state.thumbnail
       await ribbon.click()
       await page.mouse.move(900, 780)
       assert.equal(await ribbon.getAttribute("aria-expanded"), "false")
       state = await appearance()
       assert.equal(state.ribbon, state.secondary, `${theme}: folded ribbon`)
+      assert.notEqual(state.surface, unfoldedSurface, `${theme}: opened card tint`)
+      assert.notEqual(state.thumbnail, unfoldedThumbnail, `${theme}: opened thumbnail tint`)
       await ribbon.click()
       await page.mouse.move(900, 780)
       await card.locator(".page-image").click()
@@ -1819,13 +1827,49 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     await tab(input, "List")
     const section = input.locator(".list-section").first()
     const colors = await section.evaluate((element) => {
-      const heading = element.querySelector(".list-heading")
+      const reference = document.createElement("span")
+      document.body.append(reference)
+      reference.style.color = "var(--secondary)"
+      const secondary = getComputedStyle(reference).color
+      reference.style.color = "var(--edge)"
+      const gray = getComputedStyle(reference).color
+      reference.remove()
       return {
-        border: getComputedStyle(heading).outlineColor,
+        border: getComputedStyle(element).outlineColor,
+        width: getComputedStyle(element).outlineWidth,
         ribbon: getComputedStyle(element.querySelector(".list-disclosure")).color,
+        secondary,
+        gray,
       }
     })
-    assert.ok(colors.border !== colors.ribbon, "Unfolded heading and ribbon use distinct colors")
+    assert.equal(colors.border, colors.secondary, "Outline covers the entire open List row")
+    assert.equal(colors.width, "2px")
+    assert.equal(colors.ribbon, colors.gray, "Open List ribbon uses neutral gray")
+    await section.locator(".list-disclosure").hover()
+    assert.equal(
+      await section.locator(".list-disclosure").evaluate((element) => getComputedStyle(element).color),
+      colors.gray,
+    )
+    await page.emulateMedia({ reducedMotion: "no-preference" })
+    await section.locator(".list-disclosure").click()
+    await section.locator(".list-disclosure").click()
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".selection-panel .list-row")].some((row) =>
+        row
+          .getAnimations()
+          .some((animation) => animation.id === "unfold" && animation.effect.getTiming().duration >= 1200),
+      ),
+    )
+    await tab(input, "Grid")
+    await input.getByRole("button", { name: "Fold Input section: First", exact: true }).click()
+    await input.getByRole("button", { name: "Unfold Input section: First", exact: true }).click()
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".selection-panel .composition-card")].some((card) =>
+        card
+          .getAnimations()
+          .some((animation) => animation.id === "unfold" && animation.effect.getTiming().duration >= 1200),
+      ),
+    )
   } finally {
     await browser.close()
   }
@@ -1846,6 +1890,10 @@ test("Input title, counts, file details, and original PDF view share the pane he
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
     await page.locator(".composer[aria-busy=false]").waitFor()
     assert.equal(await page.locator(".input-current").innerText(), "Italic Strokes")
+    assert.equal(
+      await page.locator(".input-current").evaluate((element) => getComputedStyle(element).fontWeight),
+      "400",
+    )
     assert.match(await page.locator(".input-state .composition-totals").innerText(), /4 pages, 2\s+sheets/)
     await page.locator(".input-picker > summary").click()
     assert.ok(
