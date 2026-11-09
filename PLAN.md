@@ -436,6 +436,26 @@ measurements that support the judgment. Do not report a hypothetical cost as a m
       repeats (30 seconds each), so repeat stability is unverified. The owner deferred long browser matrices.
       Do not claim a passing standard suite or physical-device evidence.
 
+#### Grid/List section styling and Input header (owner update, 2026-11-09)
+
+These current requirements replace older Grid/List section styling and Input header expectations. Keep the physical-page,
+selection, keyboard, and fold-state contracts unchanged.
+
+- [ ] Extend Grid section ribbons to the card's top edge, without moving page numbers or reducing target size.
+- [ ] Use the List ribbon's secondary hover glow in Grid. Remove the secondary-colored Grid section footer.
+- [ ] Give unfolded Grid ribbons a muted neutral gray in both themes. Give unfolded, unselected section cards a secondary
+      contour; a selected section card keeps the primary contour.
+- [ ] Distinguish keyboard focus with a neutral high-contrast contour (light: dark, dark: light), rather than secondary.
+      Keep forced-colors focus visible.
+- [ ] In List, give unfolded section headings a secondary contour instead of primary-colored text. Use the same muted
+      neutral ribbon color as Grid for unfolded sections.
+- [ ] Keep the Input source number; show only the document title in the closed Input selector. Put the filename and
+      information trigger in its open chooser.
+- [ ] Add Input page/sheet totals and a **View Input PDF** eye action immediately before **Open PDF**, matching Output
+      summary formatting, icon treatment, alignment, and responsive spacing. Show the original Input PDF.
+- [ ] Test both themes, folded/unfolded/selected/focused states, long titles, narrow and split panes, and Input PDF
+      viewing. Align Web SPEC/VIEW and focused browser assertions before closure.
+
 #### Closure
 
 - [ ] Fix confirmed defects and unnecessary complexity with small, behavior-preserving changes. Add or repair tests at
