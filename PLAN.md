@@ -282,6 +282,9 @@ files or new slop.
 ### 7. Validation and handoff
 
 - [ ] Run formatting, lint, type checks, unit tests, and `npm run test:minimal`.
+  - [x] On current `next` (`4f66ebe`), Node 24.21.0 passed format (153 files), lint (0 errors, 28 warnings),
+        Svelte/TypeScript checks (0 errors and warnings), 52/52 unit tests, and the Chromium minimal browser
+        matrix (21/21). The chained minimal command was not rerun; WebKit remains deferred.
   - [x] Chromium passed Grid image/grip selection, selection-preserving drags, and production Input-switch
         thumbnail/Lens rendering (3/3 focused tests). Legacy Grid sliders were replaced with native scroll-to-start.
   - [x] Node 24: format and type checks passed, lint reported 0 errors (26 existing warnings), 52/52 unit tests passed.
