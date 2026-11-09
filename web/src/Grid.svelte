@@ -9,7 +9,7 @@
   import type { Snippet } from "svelte"
   import { fields, shortcut, shortcutContext } from "./keyboard.ts"
   import { fit } from "./fit.ts"
-  import { glowUnfold } from "./motion.ts"
+  import { fadeFold, glowUnfold } from "./motion.ts"
   import { gridSections, sectionsOf } from "./sections.ts"
   import type { Section } from "./sections.ts"
   import type { SectionPath } from "./outline.ts"
@@ -68,20 +68,35 @@
     if (!tree.nodes.size) return "none"
     return [...sections.headings.values()].some((entry) => !folded.has(entry.key)) ? "open" : "closed"
   }
+  let foldEpoch = 0
   function changeFolds(next: Set<string>) {
+    const epoch = ++foldEpoch
     const previous = new Set(pages)
-    folds = next
-    void tick().then(() => {
-      if (!list) return
-      for (const page of pages) {
-        if (previous.has(page)) continue
-        glowUnfold(
-          list
-            .querySelector<HTMLElement>(`.page-image[data-page="${page}"]`)
-            ?.closest<HTMLElement>(".composition-card") ?? null,
-        )
-      }
+    const remaining = new Set(gridSections(tree, count, next).pages)
+    for (const animation of list?.getAnimations({ subtree: true }) ?? [])
+      if (animation.id === "fold") animation.cancel()
+    const departing = [...(list?.querySelectorAll<HTMLElement>(".composition-card") ?? [])].filter((card) => {
+      const page = card.querySelector<HTMLElement>(".page-image[data-page]")
+      return page && !remaining.has(Number(page.dataset.page))
     })
+    const apply = () => {
+      if (epoch !== foldEpoch) return
+      folds = next
+      void tick().then(() => {
+        if (epoch !== foldEpoch || !list) return
+        for (const page of pages) {
+          if (previous.has(page)) continue
+          glowUnfold(
+            list
+              .querySelector<HTMLElement>(`.page-image[data-page="${page}"]`)
+              ?.closest<HTMLElement>(".composition-card") ?? null,
+          )
+        }
+      })
+    }
+    const fade = fadeFold(departing)
+    if (fade) void fade.then(apply)
+    else apply()
   }
   export function toggleSections() {
     changeFolds(sectionState() === "closed" ? new Set() : new Set([...tree.nodes.values()].map((entry) => entry.key)))
