@@ -210,12 +210,10 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
             ["Output", output],
           ]) {
             await show(name)
-            for (const density of ["Normal"]) {
-              for (const colorScheme of ["light", "dark"]) {
-                await page.emulateMedia({ colorScheme })
-                t.diagnostic(`${width}px, ${text}, ${name}, ${density}, ${colorScheme}, populated=${populated}`)
-                await rows(pane)
-              }
+            for (const colorScheme of ["light", "dark"]) {
+              await page.emulateMedia({ colorScheme })
+              t.diagnostic(`${width}px, ${text}, ${name}, ${colorScheme}, populated=${populated}`)
+              await rows(pane)
             }
             const before = await rows(pane)
             await tab(pane, "Page")

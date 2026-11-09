@@ -229,6 +229,10 @@ work across scroll windows, with unchanged card geometry.
   - [x] Removed the singleton Normal density loop from the long-name List regression. Existing Input/Output, light/dark,
         selected/unselected, and 100%/200% coverage remains. Chromium passed the focused test (1/1) on the archived
         `f7fd4c8` app with this exact test body; file syntax, formatting, and lint pass. Current-branch E2E is pending.
+  - [x] Removed the singleton Normal density loop from the toolbar alignment test. Chromium passed the focused test
+        (1/1) on the archived `f7fd4c8` app across eight widths, two themes, two text scales, and populated/empty
+        cases. The edited test block matches the remote source; syntax, formatting, and lint pass. Current-branch E2E
+        remains pending.
 - [ ] Delete only superseded implementation and its dependent tests/docs/config. Do not remove valid PDF/Page navigation
       or historical calibration evidence without separating it from active requirements.
 - [ ] Update `SPEC.md`, `VIEW.md`, `MEMO.md`, Web README, UI glossary, keyboard/help descriptions, test runner groups,
