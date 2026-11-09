@@ -8,6 +8,7 @@
       min-block-size: 0;
       overflow: auto;
       padding-block-start: 12px;
+      scroll-padding-block-start: 12px;
       scrollbar-width: thin;
       scrollbar-gutter: stable;
       overscroll-behavior: contain;
