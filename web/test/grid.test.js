@@ -1745,3 +1745,139 @@ test(
     }
   },
 )
+
+test("Grid and List section styling separates unfolded, selected, and focused states", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    await page
+      .locator('input[type="file"]')
+      .first()
+      .setInputFiles({
+        name: "Sections.pdf",
+        mimeType: "application/pdf",
+        buffer: fixture({ prepared: false, count: 8, outline: [{ title: "First", page: 0 }] }),
+      })
+    const input = page.locator(".selection-panel")
+    const card = input.locator(".grid-section-card").first()
+    const ribbon = card.locator(".grid-ribbon")
+    await ribbon.waitFor()
+    const appearance = async () =>
+      card.evaluate((element) => {
+        const reference = document.createElement("span")
+        document.body.append(reference)
+        const color = (token) => {
+          reference.style.color = `var(${token})`
+          return getComputedStyle(reference).color
+        }
+        const frame = element.getBoundingClientRect()
+        const icon = element.querySelector(".grid-ribbon svg").getBoundingClientRect()
+        const result = {
+          border: getComputedStyle(element).borderTopColor,
+          thickness: getComputedStyle(element).borderTopWidth,
+          ribbon: getComputedStyle(element.querySelector(".grid-ribbon")).color,
+          footer: getComputedStyle(element.querySelector(".input-footer")).backgroundColor,
+          iconTop: icon.top + (icon.height * 2) / 24 - frame.top,
+          secondary: color("--secondary"),
+          primary: color("--accent"),
+          muted: color("--muted"),
+          focus: color("--keyboard-focus"),
+        }
+        reference.remove()
+        return result
+      })
+    for (const theme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme: theme })
+      await page.mouse.move(900, 780)
+      let state = await appearance()
+      assert.equal(state.border, state.secondary, `${theme}: unfolded outline`)
+      assert.equal(state.ribbon, state.muted, `${theme}: unfolded ribbon`)
+      assert.equal(state.thickness, "2px")
+      assert.ok(state.iconTop >= -1 && state.iconTop <= 2, `${theme}: ribbon reaches card top`)
+      assert.equal(state.footer, "rgba(0, 0, 0, 0)", `${theme}: neutral footer`)
+
+      await ribbon.click()
+      await page.mouse.move(900, 780)
+      assert.equal(await ribbon.getAttribute("aria-expanded"), "false")
+      state = await appearance()
+      assert.equal(state.ribbon, state.secondary, `${theme}: folded ribbon`)
+      await ribbon.click()
+      await page.mouse.move(900, 780)
+      await card.locator(".page-image").click()
+      await page.mouse.move(900, 780)
+      state = await appearance()
+      assert.equal(state.border, state.primary, `${theme}: selected outline`)
+      await page.keyboard.press("Tab")
+      await card.locator(".page-image").focus()
+      assert.equal((await appearance()).border, state.focus, `${theme}: keyboard focus outline`)
+      await page.keyboard.press("Escape")
+      await card.locator(".page-image").click()
+    }
+    await tab(input, "List")
+    const section = input.locator(".list-section").first()
+    const colors = await section.evaluate((element) => {
+      const heading = element.querySelector(".list-heading")
+      return {
+        border: getComputedStyle(heading).outlineColor,
+        ribbon: getComputedStyle(element.querySelector(".list-disclosure")).color,
+      }
+    })
+    assert.ok(colors.border !== colors.ribbon, "Unfolded heading and ribbon use distinct colors")
+  } finally {
+    await browser.close()
+  }
+})
+
+test("Input title, counts, file details, and original PDF view share the pane header", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => {
+      localStorage.setItem("mainz:onboarding", "19")
+      window.open = (url) => {
+        window.inputPDFURL = url
+        return { opener: null }
+      }
+    })
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.locator(".composer[aria-busy=false]").waitFor()
+    assert.equal(await page.locator(".input-current").innerText(), "Italic Strokes")
+    assert.match(await page.locator(".input-state .composition-totals").innerText(), /4 pages, 2\s+sheets/)
+    await page.locator(".input-picker > summary").click()
+    assert.ok(
+      await page.locator(".input-choice").first().locator("button").getByText("demo.pdf", { exact: true }).isVisible(),
+    )
+    assert.ok(await page.locator(".input-choice .guidance-trigger").first().isVisible())
+    await page.locator(".input-picker > summary").click()
+    for (const width of [320, 390, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      const geometry = await page.locator(".input-heading").evaluate((heading) => {
+        const [picker, open, preview] = [".input-picker", ".file-picker", ".input-preview-tools"].map((selector) =>
+          heading.querySelector(selector).getBoundingClientRect(),
+        )
+        return {
+          sameRow: Math.abs(picker.y - open.y) < 2 && Math.abs(open.y - preview.y) < 2,
+          ordered: picker.right < preview.left && preview.right < open.left,
+          within: open.right <= innerWidth,
+        }
+      })
+      assert.ok(geometry.sameRow && geometry.ordered && geometry.within, `${width}: ${JSON.stringify(geometry)}`)
+      assert.ok(await page.getByRole("button", { name: "View Input PDF" }).isVisible())
+    }
+    await page.setViewportSize({ width: 390, height: 900 })
+    await page.getByRole("button", { name: "Input details" }).click()
+    assert.match(await page.locator('[popover][aria-label="Input details"]').innerText(), /4 pages, 2\s+sheets/)
+    await page.getByRole("button", { name: "View Input PDF" }).click()
+    const bytes = await page.evaluate(async () => {
+      const response = await fetch(window.inputPDFURL)
+      return [...new Uint8Array(await response.arrayBuffer()).subarray(0, 4)]
+    })
+    assert.deepEqual(bytes, [37, 80, 68, 70], "Viewer receives original PDF bytes")
+  } finally {
+    await browser.close()
+  }
+})
