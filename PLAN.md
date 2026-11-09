@@ -323,6 +323,12 @@ files or new slop.
       representative split-view desktop widths, 1–5 digit page numbers, selected/unselected and long-name cases.
 - [ ] Compare screenshots and measured card geometry against the original Normal Grid; record any real difference and
       resolve it before handoff.
+  - [x] Chromium captured 16 comparison screenshots for the original `f7fd4c8` and pre-review `4f66ebe`, both
+        panes at 390/light/100%, 768/dark/100%, 1440/light/100%, and 390/dark/200%. At 100%, card (148 × 240 CSS
+        px), image (134.81 × 172 CSS px), and column gap (12 CSS px) match in both panes with identical bounds. At
+        390/dark/200%, Input matches, but Output grid and card/image widths grow by 10 CSS px, consistent with the
+        deliberately thinner scrollbar. Broader screenshot checks and visual signoff remain open. Retained evidence:
+        `.local/var/measurements/grid/` in this checkout (ignored by Git).
 - [ ] Review the complete diff and docs once; remove disposable outputs and retain only required evidence in `.local/`.
 - [ ] Mark each completed checkpoint here, report actual commands/results and any unverified physical-device behavior.
 
