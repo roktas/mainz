@@ -48,6 +48,7 @@
     sharing,
     print,
     viewPDF,
+    viewInputPDF,
     recipe,
     filename,
     rename,
@@ -74,6 +75,7 @@
     sharing: boolean
     print: () => void
     viewPDF: () => void
+    viewInputPDF: () => void
     recipe: () => void
     filename?: string
     rename: (source: HTMLElement) => void
@@ -102,7 +104,7 @@
       frame = requestAnimationFrame(() => {
         const overflow = counts.scrollWidth > element.clientWidth + 1
         element.toggleAttribute("data-overflow", overflow)
-        if (!overflow) document.getElementById(`${key}-output-summary`)?.hidePopover()
+        if (!overflow) document.getElementById(element.dataset.details ?? "")?.hidePopover()
       })
     })
     observer.observe(element)
@@ -1513,6 +1515,12 @@
   </Peek>
 {/snippet}
 
+{#snippet inputSummary()}
+  {@const pages = source?.input.pdf.numPages ?? 0}
+  <strong>{pages} {pages === 1 ? "page" : "pages"}</strong>, {Math.ceil(pages / 2)}
+  {Math.ceil(pages / 2) === 1 ? "sheet" : "sheets"}
+{/snippet}
+
 {#snippet outputSummary()}
   <strong>{output.pages.length} {output.pages.length === 1 ? "page" : "pages"}</strong>, {Math.ceil(
     output.pages.length / 2,
@@ -1773,6 +1781,26 @@
       >
         <div class="section-heading input-heading" data-tour-target="input" data-tour-active={tour === "input"}>
           {@render input(`${key}-selection`)}
+          <div class="input-preview-tools output-actions">
+            <div class="input-state output-state" data-details={`${key}-input-summary`} {@attach summary}>
+              <span class="composition-totals">{@render inputSummary()}</span>
+              <button
+                class="icon-button"
+                popovertarget={`${key}-input-summary`}
+                aria-label="Input details"
+                title="Input details"><Icon name="info" /></button
+              >
+            </div>
+            <button
+              class="icon-button view-action"
+              aria-label="View Input PDF"
+              title="View Input PDF"
+              onclick={viewInputPDF}><Icon name="eye" /></button
+            >
+          </div>
+        </div>
+        <div id={`${key}-input-summary`} class="output-details" popover="auto" role="note" aria-label="Input details">
+          {@render inputSummary()}
         </div>
 
         <div class="editing-toolbar source-tabs" style:anchor-name="--input-pane">
@@ -2055,7 +2083,11 @@
                       <li
                         class={[
                           "composition-card",
-                          { selected: inputSelected.has(page), "grid-section-card": !!section },
+                          {
+                            selected: inputSelected.has(page),
+                            "grid-section-card": !!section,
+                            "grid-section-open": !!section && !folded.has(section.key),
+                          },
                         ]}
                         data-returning={(interaction.returning?.kind === "source" &&
                           interaction.returning.source === source.id &&
@@ -2182,7 +2214,7 @@
             >
           </h2>
         </div>
-        <div class="output-state" {@attach summary}>
+        <div class="output-state" data-details={`${key}-output-summary`} {@attach summary}>
           <span class="composition-totals">{@render outputSummary()}</span>
           <button
             class="icon-button"
@@ -2548,7 +2580,11 @@
                       inert={pendingAddition.has(page.id)}
                       class={[
                         "composition-card",
-                        { selected: selectedIds.has(page.id), "grid-section-card": !!section },
+                        {
+                          selected: selectedIds.has(page.id),
+                          "grid-section-card": !!section,
+                          "grid-section-open": !!section && !folded.has(section.key),
+                        },
                       ]}
                       data-returning={(interaction.returning?.kind === "output" &&
                         interaction.returning.id === page.id) ||
