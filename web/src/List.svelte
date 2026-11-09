@@ -10,7 +10,7 @@
   import type { Snippet } from "svelte"
   import { shortcut, shortcutContext } from "./keyboard.ts"
   import { sectionsOf, flattenSections } from "./sections.ts"
-  import { flash } from "./motion.ts"
+  import { flash, glowUnfold } from "./motion.ts"
   import type { SectionPath } from "./outline.ts"
 
   let {
@@ -65,20 +65,35 @@
     if (!sections.nodes.size) return "none"
     return order.some((index) => index < 0 && !collapsed.has(sections.nodes.get(-index - 1)!.key)) ? "open" : "closed"
   }
+  function changeFolds(next: Set<string>) {
+    const previous = new Set(order)
+    folds = next
+    void tick().then(() => {
+      if (!list) return
+      for (const row of list.querySelectorAll<HTMLElement>(":scope > .list-row, :scope > .list-section")) {
+        const index = row.matches(".list-section")
+          ? -Number(row.dataset.section) - 1
+          : Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
+        if (!previous.has(index)) glowUnfold(row)
+      }
+    })
+  }
   export function toggleSections() {
-    folds = sectionState() === "closed" ? new Set() : new Set([...sections.nodes.values()].map((entry) => entry.key))
+    changeFolds(
+      sectionState() === "closed" ? new Set() : new Set([...sections.nodes.values()].map((entry) => entry.key)),
+    )
   }
   export function expand(index: number) {
     const next = new Set(collapsed)
     for (const entry of sections.nodes.values()) if (entry.start <= index && index < entry.end) next.delete(entry.key)
-    if (next.size !== collapsed.size) folds = next
+    if (next.size !== collapsed.size) changeFolds(next)
   }
   export async function revealSection(id: number) {
     const target = sections.nodes.get(id)
     if (!target || !list) return
     const next = new Set(collapsed)
     for (let parent = target.parent; parent; parent = parent.parent) next.delete(parent.key)
-    if (next.size !== collapsed.size) folds = next
+    if (next.size !== collapsed.size) changeFolds(next)
     const heading = await seek(-target.id - 1, `[data-section="${target.id}"] .list-heading`)
     heading?.focus({ preventScroll: true })
     const row = heading?.closest<HTMLElement>("li")
@@ -383,7 +398,7 @@
             const next = new Set(collapsed)
             if (next.has(entry.key)) next.delete(entry.key)
             else next.add(entry.key)
-            folds = next
+            changeFolds(next)
           },
           entry.id,
         )}
