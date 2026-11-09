@@ -104,7 +104,7 @@
   export function toggleSections() {
     const current = pendingFolds ?? folded
     changeFolds(
-      [...tree.nodes.values()].some((entry) => !current.has(entry.key))
+      [...gridSections(tree, count, current).headings.values()].some((entry) => !current.has(entry.key))
         ? new Set([...tree.nodes.values()].map((entry) => entry.key))
         : new Set(),
     )
