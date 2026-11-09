@@ -535,7 +535,7 @@ Image margins are measured between the page and its thumbnail area. Exclude card
 and bottom margins match. Side margins match and can be moderately wider. Keep at least 85% of the vertical image
 padding as a gap between cards. Minimum gaps are 9 px across columns and 10.5 px between rows. Fine-pointer hover
 requires at least 12 px where cards can lift. The Grid viewport reserves 12 px above the first row for the
-hover lift and shadow without clipping. Extra pane width is distributed between columns and outer edges without
+hover lift and shadow without clipping; scroll-into-view respects the same top clearance. Extra pane width is distributed between columns and outer edges without
 stretching the cards.
 
 A partial final row preserves the same card widths, positions, and gaps. Grid computes the visible window from measured
