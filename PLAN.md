@@ -485,7 +485,7 @@ aligned. Standard/full browser suites, physical devices, and Svelte autofixer (n
 
 This follow-up supersedes the earlier contour pulse and toolbar spacing where they conflict.
 
-- [x] Reserve 12 px above the first Grid row for lifted cards, ribbon controls, and their shadows.
+- [x] Reserve 12 px above the first Grid row for lifted cards, ribbon controls, and their shadows. Apply the same clearance to scroll-into-view alignment.
 - [x] Give newly revealed List rows a contour-free 1400 ms color/opacity pulse; outline only the section explicitly unfolded.
 - [x] Fade departing visible cards/rows for 300 ms before folding in Grid and List. Handle rapid repeat toggles, preserve virtualization, and bypass transitions for reduced motion.
 - [x] Use matching compact Input eye/Open PDF and Output eye/Download gaps. Reclaim horizontal space for the Input document title.
