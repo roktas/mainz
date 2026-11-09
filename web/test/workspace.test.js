@@ -1110,7 +1110,7 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
             `${label}: tabs share one row`,
           )
           if (view === "Grid") {
-            const tabs = await pane.getByRole("tab").boundingBox()
+            const tabs = await pane.getByRole("tab", { name: "Grid", exact: true }).boundingBox()
             assert.ok(tabs.x >= 0 && tabs.x + tabs.width <= width, `${label}: Grid tab fits`)
             assert.equal(bounds.filter((rect) => rect.width > 0).length, name === "Input" ? 4 : 3)
           }

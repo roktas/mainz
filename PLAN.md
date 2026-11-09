@@ -295,6 +295,14 @@ files or new slop.
         Removed two obsolete direct Grid tab selectors.
 - [ ] Run `npm run test:standard` and focused Full browser matrices for Grid, List, transfer, Page, alignment, geometry,
       and viewport calibration where affected.
+  - [x] The pre-fix `4f66ebe` checkout completed `npm run test:standard` with WebKit disabled. Production build,
+        format, lint, 52 unit tests, and TypeScript/Svelte checks passed. The Chromium browser suite ran 247 tests:
+        230 passed, 15 failed, one timed out/cancelled, and one skipped. Generated Recipe fixtures are missing;
+        the four Recipe-check tests failed. Other failures need isolated investigation. Standard is not passing.
+  - [x] Fixed stale browser assertions: Page counter screenshots referenced removed `density`, and the Workspace
+        layout test queried four tabs as one. Both focused Chromium reruns passed (2/2), with format, lint (0 errors,
+        28 warnings), TypeScript/Svelte checks (0 diagnostics), and 52/52 unit tests. The standard suite needs
+        another run after other failures are resolved.
   - [x] Current-branch `npm run test:browser -- standard grid` with WebKit disabled: 92 checks, 86 passed, five failed,
         and one cancelled (the 30-second long-List test). Other failures include two Grid label/detail waits, a 320 px
         Input hit area, the already-deferred 440 px Output footer hit area, and a narrow List heading-toolbar alignment

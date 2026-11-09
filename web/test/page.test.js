@@ -88,7 +88,7 @@ test("Long Page counters keep enlarged text and reachable zoom actions", { timeo
         if (width === 320 && text === "200%") {
           assert.equal(await output.locator(".page-view").getAttribute("data-controls"), "menu", diagnostic)
           await output.locator(".page-view").screenshot({
-            path: `../.local/tmp/web/layout/page-counter/${engine.name()}-${density}-${theme}.png`,
+            path: `../.local/tmp/web/layout/page-counter/${engine.name()}-${width}-${text}-${theme}.png`,
           })
           await output.locator(".page-scroll").press("+")
           const trigger = output.getByLabel("Output page actions", { exact: true })
