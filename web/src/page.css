@@ -65,7 +65,7 @@
         background: color-mix(in oklch, var(--accent) 8%, var(--soft));
       }
       .composer[data-keyboard="true"] &:has(> .page-scroll:focus-visible) {
-        --page-border: var(--secondary);
+        --page-border: var(--keyboard-focus);
         @media (forced-colors: active) {
           --page-border: Highlight;
         }
