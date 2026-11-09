@@ -233,6 +233,9 @@ work across scroll windows, with unchanged card geometry.
         (1/1) on the archived `f7fd4c8` app across eight widths, two themes, two text scales, and populated/empty
         cases. The edited test block matches the remote source; syntax, formatting, and lint pass. Current-branch E2E
         remains pending.
+  - [x] Removed four empty calibration media/container rules from `frame.css`; retained all active viewport rules.
+        Node 24 production build, Svelte/TypeScript, and CSS formatting pass. Chromium frame/card bounds are identical
+        before and after at 390/light, 768/dark, and 1440/light. Current-branch full E2E remains pending.
 - [ ] Delete only superseded implementation and its dependent tests/docs/config. Do not remove valid PDF/Page navigation
       or historical calibration evidence without separating it from active requirements.
 - [ ] Update `SPEC.md`, `VIEW.md`, `MEMO.md`, Web README, UI glossary, keyboard/help descriptions, test runner groups,
