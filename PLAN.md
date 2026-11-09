@@ -485,11 +485,17 @@ aligned. Standard/full browser suites, physical devices, and Svelte autofixer (n
 
 This follow-up supersedes the earlier contour pulse and toolbar spacing where they conflict.
 
-- [ ] Keep lifted Grid cards and ribbon controls within the scroll viewport without clipping their upper edges.
-- [ ] Give newly revealed List rows an outline-free color/opacity pulse; only the section explicitly unfolded keeps its secondary outline.
-- [ ] Animate departing visible items before folding sections in both Grid and List. Preserve virtualization, keyboard behavior, and reduced-motion fallback.
-- [ ] Match the gap between Input eye/Open PDF and Output eye/Download, tighten both icon groups equally, and give reclaimed Input width to the document title.
-- [ ] Align VIEW and focused regression checks. Do not run long test suites.
+- [x] Reserve 12 px above the first Grid row for lifted cards, ribbon controls, and their shadows.
+- [x] Give newly revealed List rows a contour-free 1400 ms color/opacity pulse; outline only the section explicitly unfolded.
+- [x] Fade departing visible cards/rows for 300 ms before folding in Grid and List. Handle rapid repeat toggles, preserve virtualization, and bypass transitions for reduced motion.
+- [x] Use matching compact Input eye/Open PDF and Output eye/Download gaps. Reclaim horizontal space for the Input document title.
+- [x] Align VIEW and add focused regressions for the clipped upper edge, single List outline, fold animations, and Input/Output spacing.
+
+**Validation:** Svelte diagnostics reported 0 errors and 0 warnings in a local smoke copy with the new fold logic.
+Full `npm run check` timed out in the following TypeScript stage. The browser smoke run was blocked by
+`ERR_BLOCKED_BY_ADMINISTRATOR`, so visual and end-to-end regressions are **not verified**. Long tests
+were not run by owner request. The source snapshot was older than remote `next`; publish used verified
+GitHub file updates instead of the unavailable Git transport.
 
 #### Closure
 
