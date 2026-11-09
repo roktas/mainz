@@ -88,14 +88,13 @@
     for (const animation of list?.getAnimations({ subtree: true }) ?? [])
       if (["fold", "unfold", "section-heading"].includes(animation.id)) animation.cancel()
 
-    const arriving = [...remaining].filter((index) => !previous.has(index))
-    const origins = new Map<number, DOMRectReadOnly | null>()
+    const origins = new Map<number, DOMRectReadOnly>()
     const sources = new Set<HTMLElement>()
-    for (const index of arriving) {
-      const section = parent(index, previous)
-      const heading = section ? sectionRow(section.id) : null
-      origins.set(index, heading?.getBoundingClientRect() ?? null)
-      if (heading) sources.add(heading)
+    for (const row of list?.querySelectorAll<HTMLElement>(":scope > .list-section") ?? []) {
+      const id = Number(row.dataset.section)
+      origins.set(id, row.getBoundingClientRect())
+      const section = sections.nodes.get(id)
+      if (section && collapsed.has(section.key) && !next.has(section.key)) sources.add(row)
     }
 
     const departing = [
@@ -122,7 +121,9 @@
             const index = row.matches(".list-section")
               ? -Number(row.dataset.section) - 1
               : Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
-            return !previous.has(index) ? [{ element: row, heading: origins.get(index) ?? null }] : []
+            if (!Number.isFinite(index) || previous.has(index)) return []
+            const section = parent(index, previous)
+            return [{ element: row, heading: section ? (origins.get(section.id) ?? null) : null }]
           },
         )
         void unfoldFrom(entries)
