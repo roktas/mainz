@@ -510,6 +510,13 @@ The focused Chromium regressions were updated but **not executed** in this sessi
 predates the current branch and Git transport cannot reach GitHub from the container.
 Visual timing, keyboard flows, and physical-device behavior remain unverified.
 
+#### Symmetric unfold animation (2026-11-09)
+
+- [ ] On unfold, pulse the existing section heading before revealing its children.
+- [ ] Reverse the 900 ms fold slide: newly visible cards and rows expand and fade in from the heading's position.
+- [ ] Keep nested section ancestry, viewport windowing, quick-toggle cancellation, and reduced-motion behavior intact.
+- [ ] Align VIEW and focused motion assertions. Run no long browser suite.
+
 #### Closure
 
 - [ ] Fix confirmed defects and unnecessary complexity with small, behavior-preserving changes. Add or repair tests at
