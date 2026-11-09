@@ -1,4 +1,4 @@
-// Animates page edits, section folding, and navigation targets with reduced motion support.
+// Animates page edits, section transitions, and navigation targets with reduced motion support.
 
 import { onDestroy, tick } from "svelte"
 import { SvelteSet } from "svelte/reactivity"
