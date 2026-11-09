@@ -67,8 +67,10 @@
     return order.some((index) => index < 0 && !collapsed.has(sections.nodes.get(-index - 1)!.key)) ? "open" : "closed"
   }
   let foldEpoch = 0
+  let pendingFolds: Set<string> | undefined
   function changeFolds(next: Set<string>, highlighted?: string) {
     const epoch = ++foldEpoch
+    pendingFolds = next
     const previous = new Set(order)
     const remaining = new Set(
       flattenSections(sections.roots, count, next).filter((index) => index < 0 || !skipped?.has(index)),
@@ -84,6 +86,7 @@
       })
     const apply = () => {
       if (epoch !== foldEpoch) return
+      pendingFolds = undefined
       outlined = highlighted && !next.has(highlighted) ? highlighted : undefined
       folds = next
       void tick().then(() => {
@@ -101,14 +104,18 @@
     else apply()
   }
   export function toggleSections() {
+    const current = pendingFolds ?? collapsed
     changeFolds(
-      sectionState() === "closed" ? new Set() : new Set([...sections.nodes.values()].map((entry) => entry.key)),
+      [...sections.nodes.values()].some((entry) => !current.has(entry.key))
+        ? new Set([...sections.nodes.values()].map((entry) => entry.key))
+        : new Set(),
     )
   }
   export function expand(index: number) {
-    const next = new Set(collapsed)
+    const current = pendingFolds ?? collapsed
+    const next = new Set(current)
     for (const entry of sections.nodes.values()) if (entry.start <= index && index < entry.end) next.delete(entry.key)
-    if (next.size !== collapsed.size) changeFolds(next)
+    if (next.size !== current.size) changeFolds(next)
   }
   export async function revealSection(id: number) {
     const target = sections.nodes.get(id)
@@ -418,7 +425,7 @@
           entry.path,
           !collapsed.has(entry.key),
           () => {
-            const next = new Set(collapsed)
+            const next = new Set(pendingFolds ?? collapsed)
             if (next.has(entry.key)) next.delete(entry.key)
             else next.add(entry.key)
             changeFolds(next, entry.key)
