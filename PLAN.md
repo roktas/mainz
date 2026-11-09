@@ -292,6 +292,10 @@ files or new slop.
         Removed two obsolete direct Grid tab selectors.
 - [ ] Run `npm run test:standard` and focused Full browser matrices for Grid, List, transfer, Page, alignment, geometry,
       and viewport calibration where affected.
+  - [x] Current-branch `npm run test:browser -- standard grid` with WebKit disabled: 92 checks, 86 passed, five failed,
+        and one cancelled (the 30-second long-List test). Other failures include two Grid label/detail waits, a 320 px
+        Input hit area, the already-deferred 440 px Output footer hit area, and a narrow List heading-toolbar alignment
+        assertion. This is incomplete regression evidence, not a passing standard suite. Investigate and rerun failures.
 - [ ] Validate light/dark, keyboard, touch, fine pointer, reduced motion, 100%/200% text, 320/390/768 px and
       representative split-view desktop widths, 1–5 digit page numbers, selected/unselected and long-name cases.
 - [ ] Compare screenshots and measured card geometry against the original Normal Grid; record any real difference and
