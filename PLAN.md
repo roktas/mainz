@@ -463,6 +463,19 @@ checks passed (0 diagnostics); the earlier 54/54 unit tests passed. Web SPEC and
 suite or physical-device validation is claimed. A previous wider browser attempt had Page pinch/touch and initial PDF
 opening failures that remain untriaged; do not attribute them to this change without reproducing them.
 
+#### Section unfolding follow-up (owner update, 2026-11-09)
+
+This overrides the prior heading-only List outline, selected-on-hover ribbon color, and bold Input title.
+
+- [ ] Outline the entire open List section row with secondary, except when selected or keyboard-focused.
+- [ ] Give newly exposed List and Grid rows/cards a secondary glow that fades in and out for at least 1.2 seconds.
+      Do not replay the effect during normal virtual scrolling; respect reduced-motion preferences.
+- [ ] Lightly tint unfolded Grid cards' header, footer, and thumbnail surround to match the List section tint.
+      Preserve primary selection and keyboard contours.
+- [ ] Show unfolded Grid and List ribbons in a legible muted gray even on hover; keep secondary hover glow.
+- [ ] Use regular weight for the closed Input file title.
+- [ ] Run only focused checks and align Web VIEW and regression assertions. Defer long browser suites as requested.
+
 #### Closure
 
 - [ ] Fix confirmed defects and unnecessary complexity with small, behavior-preserving changes. Add or repair tests at
