@@ -389,6 +389,34 @@ measurements that support the judgment. Do not report a hypothetical cost as a m
         warnings), Svelte/TypeScript checks (0 errors and warnings), and 52/52 unit tests passed. No heap reduction
         was measured.
 
+#### Bounded static audit (2026-11-09)
+
+- **Quality and responsibility:** `Composer.svelte` remains a 2,608-line coordination component, but output
+  editing, transfer sessions, keyboard routing, and Grid/List virtualization have separate owners. Length is
+  a maintenance risk, not proof that another layer or data structure is needed. Do not split without tracing
+  callers, ownership, and focused behavior tests.
+- **State model:** `Composer.svelte:115-126,210-234,526-535` stores a `pages`/ `page` choice and a separate
+  Grid/List preference. Tour overrides produce the active rendered view. This mapping is intentional for
+  Page return, but it can hide a focus-state mismatch: `interaction.svelte.ts` referenced the stored
+  `pages` tab after the UI switched to direct Grid/List tabs. The Escape regression was confirmed and fixed
+  in `a09070d`; audit other stored-versus-rendered view consumers before closing.
+- **Leftovers and duplicate test scaffolding:** `web/test/alignment.test.js:38,194,322` and
+  `web/test/selection.test.js:2512` retain single-value `for (... of ["Normal"])` loops. These are
+  redundant vestiges of the retired density matrix, not coverage of another mode. Remove with the
+  affected assertions in a separately validated focused change. Other `compact`, `density`, and `batch`
+  strings in UI code also describe unrelated small layouts, pixel ratios, or PDF jobs; do not erase them
+  with a broad text replacement.
+- **Rendering and cost:** `Grid.svelte:45-49,349-350` derives a bounded visible row window and uses
+  spacers; `List.svelte:149-161,362-393` likewise bounds its mounted rows. `transfer.svelte.ts:14-38`
+  models idle/pending/active gestures as an explicit discriminated union. Its prefix array
+  (`transfer.svelte.ts:63-69`) is linear in Output size; this alone does not establish a hot-path
+  performance problem. No current heap, frame-time, or device measurement supports a performance claim.
+- **Testing and documentation:** The full standard run did not pass, Recipe fixture generation is
+  unavailable, physical-device checks are absent, and WebKit remains deferred. The follow-up attempt
+  to combine two selection tests was cancelled before results; do not count it as a pass. Existing
+  `SPEC.md` and `VIEW.md` describe direct tabs, but a full cross-document audit and screenshot
+  approval remain open. Per the owner request, do not rerun the long matrix in this pass.
+
 #### Closure
 
 - [ ] Fix confirmed defects and unnecessary complexity with small, behavior-preserving changes. Add or repair tests at
