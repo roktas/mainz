@@ -80,19 +80,17 @@
     for (const animation of list?.getAnimations({ subtree: true }) ?? [])
       if (["fold", "unfold", "section-heading"].includes(animation.id)) animation.cancel()
 
-    const arriving = nextSections.pages.filter((page) => !previous.has(page))
-    const origins = new Map<number, DOMRectReadOnly | null>()
-    const sources = new Set<HTMLElement>()
-    for (const page of arriving) {
-      const section = [...sections.headings.values()].findLast((entry) => entry.start <= page && page < entry.end)
-      const heading = section
-        ? (list?.querySelector<HTMLElement>(`.page-image[data-page="${section.start}"]`)?.closest<HTMLElement>(
-            ".composition-card",
-          ) ?? null)
-        : null
-      origins.set(page, heading?.getBoundingClientRect() ?? null)
-      if (heading) sources.add(heading)
-    }
+    const origins = [...sections.headings.values()].map((section) => {
+      const heading = list
+        ?.querySelector<HTMLElement>(`.page-image[data-page="${section.start}"]`)
+        ?.closest<HTMLElement>(".composition-card")
+      return { section, heading, bounds: heading?.getBoundingClientRect() ?? null }
+    })
+    const sources = new Set(
+      origins.flatMap(({ section, heading }) =>
+        heading && folded.has(section.key) && !next.has(section.key) ? [heading] : [],
+      ),
+    )
 
     const departing = [...(list?.querySelectorAll<HTMLElement>(".composition-card") ?? [])].flatMap((card) => {
       const page = Number(card.querySelector<HTMLElement>(".page-image[data-page]")?.dataset.page)
@@ -113,11 +111,13 @@
       void tick().then(() => {
         if (epoch !== foldEpoch || !list) return
         for (const heading of targets) if (list.contains(heading)) pulseSectionHeading(heading)
-        const entries = arriving.flatMap((page) => {
-          const element = list
-            ?.querySelector<HTMLElement>(`.page-image[data-page="${page}"]`)
-            ?.closest<HTMLElement>(".composition-card")
-          return element ? [{ element, heading: origins.get(page) ?? null }] : []
+        const entries = [...list.querySelectorAll<HTMLElement>(".composition-card")].flatMap((element) => {
+          const page = Number(element.querySelector<HTMLElement>(".page-image[data-page]")?.dataset.page)
+          if (!Number.isFinite(page) || previous.has(page)) return []
+          const origin = origins.findLast(
+            ({ section, bounds }) => bounds && section.start <= page && page < section.end,
+          )
+          return [{ element, heading: origin?.bounds ?? null }]
         })
         void unfoldFrom(entries)
       })
