@@ -77,13 +77,14 @@
     )
     for (const animation of list?.getAnimations({ subtree: true }) ?? [])
       if (animation.id === "fold") animation.cancel()
-    const departing = [...(list?.querySelectorAll<HTMLElement>(":scope > .list-row, :scope > .list-section") ?? [])]
-      .filter((row) => {
-        const index = row.matches(".list-section")
-          ? -Number(row.dataset.section) - 1
-          : Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
-        return !remaining.has(index)
-      })
+    const departing = [
+      ...(list?.querySelectorAll<HTMLElement>(":scope > .list-row, :scope > .list-section") ?? []),
+    ].filter((row) => {
+      const index = row.matches(".list-section")
+        ? -Number(row.dataset.section) - 1
+        : Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
+      return !remaining.has(index)
+    })
     const apply = () => {
       if (epoch !== foldEpoch) return
       pendingFolds = undefined
@@ -415,7 +416,7 @@
         class:selected={collapsed.has(entry.key) && selected?.(entry.start, entry.end)}
         data-selected={selected?.(entry.start, entry.end) || undefined}
         data-section={-index - 1}
-        data-emphasized={outlined === entry.key && !collapsed.has(entry.key) || undefined}
+        data-emphasized={(outlined === entry.key && !collapsed.has(entry.key)) || undefined}
         data-index={entry.start}
         data-end={collapsed.has(entry.key) ? entry.end - 1 : undefined}
         data-dragging={dragged === index || undefined}
