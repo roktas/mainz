@@ -106,7 +106,9 @@
   export function toggleSections() {
     const current = pendingFolds ?? collapsed
     changeFolds(
-      [...sections.nodes.values()].some((entry) => !current.has(entry.key))
+      flattenSections(sections.roots, count, current).some(
+        (index) => index < 0 && !current.has(sections.nodes.get(-index - 1)!.key),
+      )
         ? new Set([...sections.nodes.values()].map((entry) => entry.key))
         : new Set(),
     )
