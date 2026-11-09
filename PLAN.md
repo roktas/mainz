@@ -221,6 +221,8 @@ work across scroll windows, with unchanged card geometry.
   - [x] Removed two single-density wrappers, unreachable Compact action branches, and a stale batch comment from
         `composition.test.js`. Card, selection, keyboard, Page, addition, removal, and movement checks remain. Node 24
         syntax, formatting, lint, and 52 unit tests pass. Chromium E2E needs the complete current checkout.
+  - [x] Removed a runner-selection assertion for a superseded partial-Grid-batch test name. Positive checks for
+        minimal, standard, full, and calibration selection remain. Node 24: 52 unit tests, file format, and lint pass.
 - [ ] Delete only superseded implementation and its dependent tests/docs/config. Do not remove valid PDF/Page navigation
       or historical calibration evidence without separating it from active requirements.
 - [ ] Update `SPEC.md`, `VIEW.md`, `MEMO.md`, Web README, UI glossary, keyboard/help descriptions, test runner groups,

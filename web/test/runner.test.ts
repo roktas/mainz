@@ -22,7 +22,6 @@ test("Browser modes retain critical regressions and reserve calibration matrices
   assert.equal(skipped.test("Touch Grid keeps full pages reachable across orientations"), true)
   assert.equal(skipped.test("Grid scroll windows keep 300 pages reachable with stable card geometry"), false)
   assert.equal(skipped.test("Normal card targets stay separate through phone pane and text transitions"), false)
-  assert.equal(skipped.test("Partial Grid batches retain full-matrix card positions and dimensions"), false)
   assert.deepEqual(full.flags, [])
   assert.deepEqual(select("full", "viewport").files, ["test/viewport.test.js"])
   assert.deepEqual(select("standard", "grid").files, [
