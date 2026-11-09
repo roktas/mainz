@@ -209,6 +209,19 @@ work across scroll windows, with unchanged card geometry.
 
 **Gate:** Both Pages tabs use the same page-stack glyph without layout or behavior regressions.
 
+### 5c. Replace the Pages mode toggle with direct Grid and List tabs (owner decision, 2026-11-09)
+
+- [ ] Display separate **Grid** and **List** tabs, each with its own glyph, beside **Page** in Input and Output.
+      **Pages** remains the collective term for whole-document views; do not rename document/page concepts.
+- [ ] Remove the Pages toggle button and its stale target, CSS, labels, and keyboard path. Preserve each pane's selected
+      mode, Input switching, and the last whole-document view when returning from Page or Style.
+- [ ] Update Product Tour guidance and targets, Help, SPEC, VIEW, glossary, and browser expectations for direct tabs.
+      Preserve the established toolbar geometry, focus and accessible tab semantics, and responsive layout.
+- [ ] Test both panes at phone and desktop widths, keyboard navigation, Page return, Input changes, and Product Tour.
+      Run focused Chromium checks, type checks, formatting, lint, and unit tests before closing this checkpoint.
+
+**Gate:** Grid and List use separate one-click tabs in both panes. No live Pages-toggle path remains.
+
 ### 6. Aggressive stale-code and document audit
 
 - [ ] Search all affected code, tests, fixtures, CSS, docs, icons, Help, tours, measurement/calibration scripts, and
