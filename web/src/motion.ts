@@ -68,20 +68,50 @@ export function glowUnfold(element: HTMLElement | null) {
   )
 }
 
-export function fadeFold(elements: HTMLElement[]): Promise<void> | undefined {
-  if (!elements.length || !matchMedia("(prefers-reduced-motion: no-preference)").matches) return
-  const animations = elements.map((element) =>
-    element.animate(
+export function foldInto(items: readonly { element: HTMLElement; heading: HTMLElement | null }[]): Promise<void> | undefined {
+  if (!items.length || !matchMedia("(prefers-reduced-motion: no-preference)").matches) return
+  const animations = items.map(({ element, heading }) => {
+    const from = element.getBoundingClientRect()
+    const to = heading?.getBoundingClientRect()
+    const dx = to ? to.left + to.width / 2 - from.left - from.width / 2 : 0
+    const dy = to ? to.top + to.height / 2 - from.top - from.height / 2 : -24
+    return element.animate(
       [
-        { opacity: 1, translate: "0 0" },
-        { opacity: 0, translate: "0 -6px" },
+        { opacity: 1, transform: "translate(0, 0) scale(1)", offset: 0 },
+        { opacity: 0.85, transform: `translate(${dx * 0.7}px, ${dy * 0.7}px) scale(0.7)`, offset: 0.7 },
+        { opacity: 0, transform: `translate(${dx}px, ${dy}px) scale(0.25)`, offset: 1 },
       ],
-      { id: "fold", duration: 300, easing: "ease-in-out", fill: "forwards" },
-    ),
-  )
+      { id: "fold", duration: 900, easing: "ease-in-out", fill: "forwards" },
+    )
+  })
   return Promise.allSettled(animations.map((animation) => animation.finished)).then(() => {
     for (const animation of animations) animation.cancel()
   })
+}
+
+export function glowFoldHeading(element: HTMLElement) {
+  if (!matchMedia("(prefers-reduced-motion: no-preference)").matches) return
+  const grid = element.matches(".composition-card")
+  const surface = getComputedStyle(element).backgroundColor
+  element
+    .getAnimations()
+    .find((animation) => animation.id === "fold-heading")
+    ?.cancel()
+  element.animate(
+    grid
+      ? [{ opacity: 0 }, { opacity: 0.22 }, { opacity: 0 }]
+      : [
+          { backgroundColor: surface },
+          { backgroundColor: `color-mix(in oklch, var(--secondary) 35%, ${surface})` },
+          { backgroundColor: surface },
+        ],
+    {
+      id: "fold-heading",
+      duration: 800,
+      easing: "ease-in-out",
+      ...(grid ? { pseudoElement: "::after" } : {}),
+    },
+  )
 }
 
 export class Edits {
