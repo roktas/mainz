@@ -211,14 +211,16 @@ work across scroll windows, with unchanged card geometry.
 
 ### 5c. Replace the Pages mode toggle with direct Grid and List tabs (owner decision, 2026-11-09)
 
-- [ ] Display separate **Grid** and **List** tabs, each with its own glyph, beside **Page** in Input and Output.
+- [x] Display separate **Grid** and **List** tabs, each with its own glyph, beside **Page** in Input and Output.
       **Pages** remains the collective term for whole-document views; do not rename document/page concepts.
-- [ ] Remove the Pages toggle button and its stale target, CSS, labels, and keyboard path. Preserve each pane's selected
+- [x] Remove the Pages toggle button and its stale target, CSS, labels, and keyboard path. Preserve each pane's selected
       mode, Input switching, and the last whole-document view when returning from Page or Style.
-- [ ] Update Product Tour guidance and targets, Help, SPEC, VIEW, glossary, and browser expectations for direct tabs.
+- [x] Update Product Tour guidance and targets, Help, SPEC, VIEW, glossary, and browser expectations for direct tabs.
       Preserve the established toolbar geometry, focus and accessible tab semantics, and responsive layout.
 - [ ] Test both panes at phone and desktop widths, keyboard navigation, Page return, Input changes, and Product Tour.
       Run focused Chromium checks, type checks, formatting, lint, and unit tests before closing this checkpoint.
+  - [x] The direct-tab implementation and updated Tour passed the focused Chromium Tour check (1/1) and the Svelte/
+        TypeScript check (0 errors, 0 warnings). Remaining browser checks and the full test matrix are pending.
 
 **Gate:** Grid and List use separate one-click tabs in both panes. No live Pages-toggle path remains.
 

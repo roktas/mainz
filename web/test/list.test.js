@@ -49,7 +49,7 @@ test(
           assert.equal(
             await toc.evaluate((button) => getComputedStyle(button).color),
             await input
-              .getByRole("tab", { name: view === "Page" ? "Page" : "Pages", exact: true })
+              .getByRole("tab", { name: view, exact: true })
               .evaluate((button) => getComputedStyle(button).color),
           )
           await page
@@ -80,9 +80,7 @@ test(
               "none",
             )
           assert.equal(
-            await input
-              .getByRole("tab", { name: view === "Page" ? "Page" : "Pages", exact: true })
-              .getAttribute("aria-selected"),
+            await input.getByRole("tab", { name: view, exact: true }).getAttribute("aria-selected"),
             "true",
             "Contents preserves the active view",
           )
@@ -2201,7 +2199,7 @@ test(
           for (let index = 0; index < 13; index++) await page.keyboard.press("ArrowUp")
           await pane.getByRole("button", { name: `View ${name} page 47`, exact: true }).click()
           await pane.getByRole("button", { name: `Next ${name} page`, exact: true }).click()
-          const listTab = pane.getByRole("tab", { name: "Pages", exact: true })
+          const listTab = pane.getByRole("tab", { name: "List", exact: true })
           await listTab.click()
           const row = pane.locator('.list-choice[data-page="47"]'),
             item = row.locator("xpath=ancestor::li[1]")
@@ -2261,7 +2259,7 @@ test(
           assert.equal(await selection.inputValue(), "1,3")
           await pane.getByRole("button", { name: `Next ${name} page`, exact: true }).click()
           current++
-          const gridTab = pane.getByRole("tab", { name: "Pages", exact: true })
+          const gridTab = pane.getByRole("tab", { name: "Grid", exact: true })
           await gridTab.click()
           card = pane.locator(`.page-image[data-page="${current}"]`)
           await card.locator("..").locator(":scope[data-returning]").waitFor()
@@ -2286,7 +2284,9 @@ test(
             `${name} List restores its own scroll position after Grid`,
           )
           assert.equal(
-            await pane.locator(".pages-toggle").evaluate((element) => element === document.activeElement),
+            await pane
+              .getByRole("tab", { name: "List", exact: true })
+              .evaluate((element) => element === document.activeElement),
             true,
           )
           assert.equal(await selection.inputValue(), "1,3")

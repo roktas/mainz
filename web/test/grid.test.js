@@ -46,6 +46,56 @@ test("Grid and List use matching thin scrollbars in both panes", { timeout: 6000
   }
 })
 
+test("Grid and List tabs preserve layout choices and Page return", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.locator(".composer[aria-busy=false]").waitFor()
+    for (const width of [320, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      for (const name of ["Input", "Output"]) {
+        const workspace = page
+          .getByRole("navigation", { name: "Workspace view", exact: true })
+          .getByRole("button", { name, exact: true })
+        if (await workspace.isVisible()) await workspace.click()
+        const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+        const buttons = pane.locator('.tabs [role="tab"]')
+        assert.deepEqual(
+          (await buttons.evaluateAll((tabs) => tabs.map((tab) => tab.getAttribute("aria-label")))).slice(0, 3),
+          ["Grid", "List", "Page"],
+        )
+        assert.equal((await buttons.locator("svg").count()) >= 3, true, "Each view has an icon")
+        await tab(pane, "List")
+        assert.equal(await pane.getByRole("tab", { name: "List", exact: true }).getAttribute("aria-selected"), "true")
+        await tab(pane, "Page")
+        await pane.locator(".page-scroll").focus()
+        await page.keyboard.press("v")
+        assert.equal(
+          await pane.getByRole("tab", { name: "List", exact: true }).getAttribute("aria-selected"),
+          "true",
+          `${name}: Page returns to List`,
+        )
+        await tab(pane, "Grid")
+        await page.keyboard.press("ArrowRight")
+        assert.equal(
+          await pane.getByRole("tab", { name: "List", exact: true }).getAttribute("aria-selected"),
+          "true",
+          `${name}: ArrowRight selects List`,
+        )
+        await page.keyboard.press("ArrowRight")
+        assert.equal(await pane.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected"), "true")
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true)
+      }
+    }
+    await page.close()
+  } finally {
+    await browser.close()
+  }
+})
+
 test(
   "Grid virtualizes 250 pages with a fixed scroll viewport and preserves card geometry",
   { timeout: 60000 },
@@ -176,7 +226,7 @@ test("Grid scroll windows keep 300 pages reachable with stable card geometry", {
 })
 
 test(
-  "Grid preserves the first visible page through Pages switches and responsive resizing",
+  "Grid preserves the first visible page through tab switches and responsive resizing",
   { timeout: 60000 },
   async () => {
     const server = await serve()

@@ -269,13 +269,10 @@ async function show(name: "Input" | "Output", next: "grid" | "list" | "page") {
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
   const pane = document.querySelector<HTMLElement>(name === "Input" ? ".selection-panel" : ".composition-output")
   if (!pane) throw new Error(`${name} is unavailable for geometry capture.`)
-  const tab = pane.querySelector<HTMLButtonElement>(`[role="tab"][aria-label="${next === "page" ? "Page" : "Pages"}"]`)
+  const tab = pane.querySelector<HTMLButtonElement>(
+    `[role="tab"][aria-label="${next[0].toUpperCase()}${next.slice(1)}"]`,
+  )
   tab?.click()
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-  if (next !== "page") {
-    const toggle = pane.querySelector<HTMLButtonElement>(".pages-toggle")
-    if (toggle?.getAttribute("aria-label") === `Show ${name} ${next === "grid" ? "Grid" : "List"}`) toggle.click()
-  }
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
 }
 

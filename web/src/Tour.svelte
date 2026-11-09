@@ -4,14 +4,12 @@
   export type TourStep =
     | "input"
     | "input-grid"
-    | "input-pages-toggle"
     | "input-list"
     | "input-page"
     | "style"
     | "style-profile"
     | "output-grid"
     | "output-list"
-    | "output-pages-toggle"
     | "output-selection"
     | "output-page"
     | "download"
@@ -65,30 +63,22 @@
             key: "input-grid" as const,
             title: "Choose pages in Grid",
             text: [
-              "Select pages using images, grips, or the page field. Borders and the page field show the same selection.",
+              "Choose the Grid tab to see page images. Select pages using images, grips, or the page field. Borders and the page field show the same selection.",
               "Or type a sequence: 3-5,2,2,7. The field’s + adds it to Output, clears the preparation, and selects the new Output pages. Its menu sets repetitions and front alignment.",
               "Selection moves addition into the bar and hides card buttons. Without a selection, a card’s + adds one copy.",
             ],
           },
         ]
       : []),
-    {
-      key: hasInput ? "input-pages-toggle" : "output-pages-toggle",
-      title: "Switch Grid and List layouts",
-      text: [
-        "Pages has Grid and List layouts. Use the button next to the Pages tab to switch between them.",
-        "Each Input and Output keeps its own layout choice. Switching layouts does not change page order or selection.",
-      ],
-    },
     ...(hasInput
       ? [
           {
             key: "input-list" as const,
             title: "Find pages in List",
             text: [
-              "Pages can show page numbers and names as a List. It shares selection with Grid and Page.",
+              "Choose the List tab for page numbers and names. Grid and List share selection with Page.",
               "Select rows, then use the bar’s + to add them to Output. A row’s + adds that page without changing your selection.",
-              "The eye opens Page. Return with Pages to find the inspected row. The page number opens its details.",
+              "The eye opens Page. Return with the List tab to find the inspected row. The page number opens its details.",
             ],
           },
           {
@@ -145,7 +135,7 @@
       key: "output-list",
       title: "Arrange Output in List",
       text: [
-        "Pages can show each Output copy in List order. Page numbers open source details, and the eye opens Page.",
+        "Choose the List tab to see each Output copy in order. Page numbers open source details, and the eye opens Page.",
         "Drag a row’s grip to move it. Row actions move one page earlier or later, remove it, or duplicate it.",
         "Selected rows show a tick. The page field and bar apply actions to your selection across List, Grid, and Page.",
       ],

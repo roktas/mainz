@@ -950,43 +950,5 @@
     .composition-output:has(.page-list) :is(.move, .inline-moves, .menu-moves) svg {
       rotate: 90deg;
     }
-
-    .pages-toggle {
-      display: inline grid;
-      place-items: center;
-      inline-size: 46px;
-      min-inline-size: 46px;
-      block-size: 46px;
-      min-block-size: 46px;
-      flex: none;
-      margin-inline-start: auto;
-      padding: 0;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: var(--muted);
-      background: var(--soft);
-
-      &:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: -2px;
-      }
-
-      &:active {
-        color: var(--accent);
-        background: var(--tint);
-      }
-
-      @media (hover: hover) and (pointer: fine) {
-        &:hover {
-          color: var(--accent);
-          background: var(--tint);
-        }
-      }
-
-      & svg {
-        inline-size: 1.3em;
-        block-size: 1.3em;
-      }
-    }
   }
 }

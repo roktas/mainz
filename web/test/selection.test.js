@@ -907,7 +907,7 @@ test("Open menus retain page commands from both panes", async () => {
       await page.keyboard.press(key)
       assert.equal(await selected.inputValue(), "2", `${key} retains selection while a menu is open`)
       assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
-      assert.equal(await output.getByRole("tab", { name: "Pages", exact: true }).getAttribute("aria-selected"), "true")
+      assert.equal(await output.getByRole("tab", { name: "Grid", exact: true }).getAttribute("aria-selected"), "true")
       assert.equal(await page.getByRole("dialog", { name: "Help", exact: true }).isVisible(), false)
     }
     await page.keyboard.press("Escape")
@@ -1197,7 +1197,7 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
           await output.locator(".composition-empty").waitFor()
           assert.equal(
             await output
-              .getByRole("tab", { name: "Pages", exact: true })
+              .getByRole("tab", { name: "Grid", exact: true })
               .evaluate((element) => element === document.activeElement),
             true,
             "Removing every page from a boundary returns focus to its view tab",
@@ -1410,7 +1410,7 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
     assert.equal(
       await output
-        .getByRole("tab", { name: "Pages", exact: true })
+        .getByRole("tab", { name: "Grid", exact: true })
         .evaluate((element) => element === document.activeElement),
       true,
     )
@@ -1428,7 +1428,7 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     assert.equal(await output.locator(".composition-totals strong").textContent(), "0 pages")
     assert.equal(
       await output
-        .getByRole("tab", { name: "Pages", exact: true })
+        .getByRole("tab", { name: "Grid", exact: true })
         .evaluate((element) => element === document.activeElement),
       true,
       "Removing all pages returns focus when the menu control disappears",
@@ -1697,7 +1697,7 @@ test(
                 assert.equal(await selected.inputValue(), pane === "Input" && outputSelection ? "2,4" : "", scenario)
                 assert.equal(
                   await (pane === "Input" ? input : output)
-                    .getByRole("tab", { name: "Pages", exact: true })
+                    .getByRole("tab", { name: "Grid", exact: true })
                     .evaluate((element) => element === document.activeElement),
                   true,
                   "Escape ends page navigation without leaving a cursor on an unselected page",

@@ -11,9 +11,9 @@ The application's offline-ready notice confirms that the assets are available.
 PDF Composer uses modern browser features. Older systems, including iOS 16, can show a broken layout or fail to open
 PDFs. We do not claim a tested minimum OS or browser version.
 
-Pages switches between a scrollable thumbnail Grid and a virtualized List of page names and numbers. Page shows one
-large page. These views share selections and page operations. Each Input and Output retains its Pages layout and scroll
-position. Input shows the PDF as opened. Style changes applicable Output pages from the active Input.
+Pages offers separate Grid and List tabs: a scrollable thumbnail Grid and a virtualized List of page names and numbers.
+Page shows one large page. These views share selections and page operations. Each Input and Output retains its Pages
+layout and scroll position. Input shows the PDF as opened. Style changes applicable Output pages from the active Input.
 
 Grid uses one readable card size. Selection actions use the shared bar. Without a selection, Output card buttons, List
 actions, and Page actions use their own page. Grid headers reveal page names on hover or focus. Help explains keyboard,

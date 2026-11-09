@@ -987,7 +987,7 @@ test("The first PDF previews before validation and commits only after success", 
     release()
     await page.locator(".composer:not([inert])").waitFor()
     await input.getByRole("tab", { name: "Style", exact: true }).waitFor()
-    assert.equal(await input.getByRole("tab", { name: "Pages", exact: true }).getAttribute("aria-selected"), "true")
+    assert.equal(await input.getByRole("tab", { name: "Grid", exact: true }).getAttribute("aria-selected"), "true")
     assert.equal(await input.locator(".composition-card").first().isVisible(), true)
     assert.equal(await input.locator(".input-picker .count").innerText(), "1")
     assert.equal(await page.locator(".header-feedback .opening-progress").count(), 0)
@@ -1340,7 +1340,7 @@ test("Input switching renders thumbnails and the lens from the selected PDF", { 
     const lens = page.getByRole("region", { name: "Magnified page 1 at 16×", exact: true })
     const inspect = async (name, color) => {
       assert.equal(await page.locator(".input-current").textContent(), name)
-      assert.equal(await input.getByRole("tab", { name: "Pages", exact: true }).getAttribute("aria-selected"), "true")
+      assert.equal(await input.getByRole("tab", { name: "Grid", exact: true }).getAttribute("aria-selected"), "true")
       const card = await input.locator(".composition-card").first().boundingBox()
       assert.equal(Math.round(card.width), 148, "Sources share the Normal card width")
       await input.locator(".page-image .thumbnail[aria-busy=false]").waitFor()

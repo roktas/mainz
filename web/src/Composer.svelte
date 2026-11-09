@@ -92,8 +92,8 @@
   let outputZoom = $state(100)
   let comparing = $state(false)
   const key = $props.id()
-  const viewTabs = ["pages", "page"] as const
-  const viewLabels = { pages: "Pages", page: "Page" }
+  const viewTabs = ["grid", "list", "page"] as const
+  const viewLabels = { grid: "Grid", list: "List", page: "Page" }
   function summary(element: HTMLDivElement) {
     const counts = element.querySelector<HTMLElement>(".composition-totals")!
     let frame: number
@@ -206,7 +206,7 @@
         ? "page"
         : tour === "input-list"
           ? "list"
-          : tour === "input-grid" || tour === "input-pages-toggle"
+          : tour === "input-grid"
             ? "grid"
             : inputView.tab === "style" && !styleable
               ? inputView.pagesMode
@@ -219,7 +219,7 @@
       ? "page"
       : tour === "output-list"
         ? "list"
-        : tour === "output-grid" || tour === "output-pages-toggle" || tour === "output-selection"
+        : tour === "output-grid" || tour === "output-selection"
           ? "grid"
           : outputTab === "pages"
             ? outputPagesMode
@@ -448,8 +448,7 @@
     await grid?.revealPage(position)
     await interaction.reveal(pane, event, true)
   }
-  function inputTab(tab: InputView["pagesMode"] | InputView["tab"], event?: MouseEvent | KeyboardEvent) {
-    const mode = tab === "pages" ? inputView.pagesMode : tab
+  function inputTab(mode: "grid" | "list" | "page" | "style", event?: MouseEvent | KeyboardEvent) {
     const previous = activeTab
     const changed = mode !== previous
     if (changed && activeTab === "list") inputList?.remember()
@@ -516,8 +515,7 @@
           ("page" in page.content ? `Page ${page.content.page + 1}` : page.padding ? "Padding" : "Blank"))
       : ""
   }
-  function setOutputTab(tab: "grid" | "list" | "page" | "pages", event?: MouseEvent | KeyboardEvent) {
-    const mode = tab === "pages" ? outputPagesMode : tab
+  function setOutputTab(mode: "grid" | "list" | "page", event?: MouseEvent | KeyboardEvent) {
     const previous = activeOutputTab
     const changed = mode !== previous
     if (changed && activeOutputTab === "list") outputList?.remember()
@@ -1451,22 +1449,6 @@
   </Origin>
 {/snippet}
 
-{#snippet pagesToggle(pane: "Input" | "Output")}
-  {@const current = pane === "Input" ? inputView.pagesMode : outputPagesMode}
-  <button
-    type="button"
-    class="icon-button pages-toggle"
-    aria-label={`Show ${pane} ${current === "grid" ? "List" : "Grid"}`}
-    title={`Switch to ${current === "grid" ? "List" : "Grid"}`}
-    data-tour-target={`${pane === "Input" ? "input" : "output"}-pages-toggle`}
-    onclick={(event) =>
-      pane === "Input"
-        ? inputTab(current === "grid" ? "list" : "grid", event)
-        : setOutputTab(current === "grid" ? "list" : "grid", event)}
-    ><Icon name={current === "grid" ? "list" : "grid"} /></button
-  >
-{/snippet}
-
 {#snippet inputPeek(page: number)}
   {#if source}
     {#key source.id}
@@ -1771,26 +1753,14 @@
                 id={`${key}-${tab}`}
                 role="tab"
                 aria-label={viewLabels[tab]}
-                aria-selected={tab === "pages" ? activeTab === "grid" || activeTab === "list" : activeTab === tab}
+                aria-selected={activeTab === tab}
                 aria-controls={`${key}-source-panel`}
-                tabindex={tab === "pages"
-                  ? activeTab === "grid" || activeTab === "list"
-                    ? 0
-                    : -1
-                  : activeTab === tab
-                    ? 0
-                    : -1}
+                tabindex={activeTab === tab ? 0 : -1}
                 onkeydown={(event) => interaction.tabKey(event)}
                 onclick={() => inputTab(tab)}
                 title={`${viewLabels[tab]} view`}
-                data-tour-tab={tab === "pages"
-                  ? activeTab === "grid" || activeTab === "list"
-                    ? `input-${activeTab}`
-                    : undefined
-                  : `input-${tab}`}
-                data-tour-active={tab === "pages"
-                  ? tour === "input-grid" || tour === "input-list" || tour === "input-pages-toggle"
-                  : tour === `input-${tab}`}><Icon name={tab} /><span>{viewLabels[tab]}</span></button
+                data-tour-tab={`input-${tab}`}
+                data-tour-active={tour === `input-${tab}`}><Icon name={tab} /><span>{viewLabels[tab]}</span></button
               >{/each}
             {#if hasStyles}<button
                 id={`${key}-style`}
@@ -1834,7 +1804,6 @@
                 void interaction.reveal("Input")
               }}><Icon name="sections" /></button
             >{/if}
-          {#if activeTab === "grid" || activeTab === "list"}{@render pagesToggle("Input")}{/if}
           {#if activeTab === "style" && styling}{@render styling(true)}{/if}
           {#if source.input.outline?.length}<Contents
               outline={source.input.outline}
@@ -1862,7 +1831,7 @@
           role="tabpanel"
           data-tour-target={activeTab === "style" ? "style" : `input-${activeTab}`}
           data-tour-active={tour === "style" || tour?.startsWith("input-")}
-          aria-labelledby={`${key}-${inputView.tab}`}
+          aria-labelledby={`${key}-${activeTab}`}
         >
           {#if activeTab === "style" && styling}
             <div class="page-content">
@@ -2228,23 +2197,15 @@
               id={`${key}-output-${tab}`}
               role="tab"
               aria-label={viewLabels[tab]}
-              aria-selected={tab === "pages" ? activeOutputTab !== "page" : activeOutputTab === "page"}
+              aria-selected={activeOutputTab === tab}
               aria-controls={`${key}-output-panel`}
-              tabindex={tab === "pages" ? (activeOutputTab === "page" ? -1 : 0) : activeOutputTab === "page" ? 0 : -1}
+              tabindex={activeOutputTab === tab ? 0 : -1}
               onkeydown={(event) => interaction.tabKey(event, "Output")}
               onclick={() => setOutputTab(tab)}
               title={`${viewLabels[tab]} view`}
-              data-tour-tab={tab === "pages"
-                ? activeOutputTab !== "page"
-                  ? `output-${activeOutputTab}`
-                  : undefined
-                : `output-${tab}`}
-              data-tour-active={tab === "pages"
-                ? tour === "output-grid" ||
-                  tour === "output-list" ||
-                  tour === "output-pages-toggle" ||
-                  tour === "output-selection"
-                : tour === `output-${tab}`}><Icon name={tab} /><span>{viewLabels[tab]}</span></button
+              data-tour-tab={`output-${tab}`}
+              data-tour-active={tour === `output-${tab}` || (tab === "grid" && tour === "output-selection")}
+              ><Icon name={tab} /><span>{viewLabels[tab]}</span></button
             >{/each}
         </div>
         {#if activeOutputTab === "list" && outputList && outputList.sectionState() !== "none"}<button
@@ -2268,7 +2229,6 @@
               void interaction.reveal("Output")
             }}><Icon name="sections" /></button
           >{/if}
-        {#if activeOutputTab === "grid" || activeOutputTab === "list"}{@render pagesToggle("Output")}{/if}
         <Jump
           pane="Output"
           count={output.pages.length}
@@ -2283,7 +2243,7 @@
         data-tour-active={tour?.startsWith("output-")}
         id={`${key}-output-panel`}
         role="tabpanel"
-        aria-labelledby={`${key}-output-${outputTab}`}
+        aria-labelledby={`${key}-output-${activeOutputTab}`}
       >
         <Selection
           id={`${key}-output-selection`}

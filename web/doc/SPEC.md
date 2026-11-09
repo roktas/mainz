@@ -62,10 +62,10 @@ alone does not mark Output as changed.
 
 ### Views and Pages
 
-Input offers Pages and Page, plus Style for prepared PDFs. Output offers Pages and Page. Each Pages tab has a labeled
-Grid/List switch. Grid shows scrollable thumbnails, and List shows page numbers, names, and section headings. Both use
-one shared selection model. Input includes every physical page in PDF order. Output includes every expanded occurrence,
-including Blank and Padding. Page shows one enlarged page at a time without narrowing the current selection.
+Input offers Grid, List, and Page tabs, plus Style for prepared PDFs. Output offers Grid, List, and Page. Grid and List
+are two direct views of Pages. Grid shows scrollable thumbnails; List shows page numbers, names, and section headings.
+Both use one shared selection model. Input includes every physical page in PDF order. Output includes every expanded
+occurrence, including Blank and Padding. Page shows one enlarged page at a time without narrowing the current selection.
 
 Grid scrolls within the fixed pane frame and keeps one readable card geometry. It renders a bounded window of visible
 rows for long documents. The scrollbar sits in the pane's right gutter. Wheel and touch gestures scroll the full
@@ -84,7 +84,7 @@ Pages and Page offer Go to page in their toolbar. Its temporary number field acc
 Output position. Enter navigates without changing selection. Escape or an outside click cancels navigation. First and
 last page controls navigate directly. Invalid numbers keep the field open with an error.
 
-Page preserves the originating Grid or List presentation for V and modified-click return gestures. Pages layout switches
+Page preserves the originating Grid or List presentation for V and modified-click return gestures. Grid/List tab changes
 retain toolbar focus. Pointer returns briefly emphasize the inspected card or row. Keyboard returns use a separate focus
 contour. Selection does not change during these transitions.
 
@@ -900,15 +900,14 @@ action. Supported desktop Safari versions show Add to Dock instructions. Unsuppo
 button. Continuing in the browser remains available after dismissal or failure.
 
 The tour explains actual controls without changing document choices or adding pages. Its core steps cover Input, Input
-Grid, the Pages layout switch, Input List, Input Page, Output Grid, Output List, Output selection actions, Output Page,
-and Output delivery. The final step explains Download or Share, Print, View PDF, and Export recipe. The Pages layout
-switch step uses Input when present and Output otherwise. The Output selection step explains earlier/later moves,
-duplication, and removal. Without a selection, that step shows the real actions disabled and keeps the selection empty.
-Applicable Style and profile controls add at most two steps. Without Input, the six Output steps remain. Steps
-temporarily reveal their pane and tab. Each new step starts at the beginning of its explanation. Closing restores
-previous views and returns focus to a visible header control. Using a workspace control ends the tour and retains that
-action's pane and tab. Workspace or style availability changes dismiss the tour. Back, Next, Finish, End tour, Escape,
-and outside dismissal remain available.
+Grid, Input List, Input Page, Output Grid, Output List, Output selection actions, Output Page, and Output delivery. The
+final step explains Download or Share, Print, View PDF, and Export recipe. The Output selection step explains
+earlier/later moves, duplication, and removal. Without a selection, that step shows the real actions disabled and keeps
+the selection empty. Applicable Style and profile controls add at most two steps. Without Input, the five Output steps
+remain. Steps temporarily reveal their pane and tab. Each new step starts at the beginning of its explanation. Closing
+restores previous views and returns focus to a visible header control. Using a workspace control ends the tour and
+retains that action's pane and tab. Workspace or style availability changes dismiss the tour. Back, Next, Finish, End
+tour, Escape, and outside dismissal remain available.
 
 After welcome and tour dismissal, a visible Input thumbnail can introduce addition once per workspace with empty Output.
 The visual copy leaves Output and Selection unchanged. The header says “Select pages · Use + to add to Output.” Adding a

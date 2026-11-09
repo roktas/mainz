@@ -245,7 +245,7 @@ test(
       await thumbnail.dispatchEvent("pointerdown", contact)
       await thumbnail.dispatchEvent("click", { detail: 1 })
       await page.evaluate(() => delete performance.now)
-      assert.equal(await input.getByRole("tab", { name: "Pages", exact: true }).getAttribute("aria-selected"), "true")
+      assert.equal(await input.getByRole("tab", { name: "Grid", exact: true }).getAttribute("aria-selected"), "true")
       assert.equal(
         await input.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(),
         "1",

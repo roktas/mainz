@@ -62,6 +62,7 @@
 - Contents reveals the exact target in every view. Jump targets receive a brief highlight that respects reduced motion.
 - List rows use the full selection-bar width, with a stable external scrollbar gutter and matching toolbar separator.
 - List uses the same thin native scrollbar as Grid in both panes.
+- Grid and List are separate one-click tabs, replacing the Pages layout switch while preserving each pane's view state.
 - Page places page labels in the leading footer corner and centers navigation arrows beside the middle actions.
 - Compact Grid numbers have more leading space, including wide counters.
 - Selected expanded List sections use a soft tint and selection tick without a leading line.

@@ -130,10 +130,10 @@ viewport stays neutral. Border, header, footer, and padding compensation prevent
 their images. Keyboard focus on the Page viewport uses the complete frame's secondary contour. Pointer zoom focuses the
 viewport for navigation without showing that contour or a clipped inner outline.
 
-Returning through view tabs or the Pages layout switch briefly marks the inspected item with a 30% secondary tint. Keep
-the cue for 1200 ms, with a longer fade after the initial hold. Hold the final color until the cue clears. Reduced
-motion uses the same static cue without fading. The active tab or Pages layout switch retains focus. Keyboard content
-returns focus the inspected item without this cue. The cue does not select the item or reopen its preview.
+Returning through Grid, List, or Page tabs briefly marks the inspected item with a 30% secondary tint. Keep the cue for
+1200 ms, with a longer fade after the initial hold. Hold the final color until the cue clears. Reduced motion uses the
+same static cue without fading. The active tab retains focus. Keyboard content returns focus the inspected item without
+this cue. The cue does not select the item or reopen its preview.
 
 Motion follows reduced-motion preferences. Hover lifts, drag tilt, parallax, fades, and animated movement disappear
 under reduced motion. Static selection and operation highlights remain. Loading indicators retain a visible busy state
@@ -272,17 +272,15 @@ chooser controls do not select text or open native touch callouts during a hold.
 Pointer opening places initial focus on the Settings drawer. Keyboard opening focuses its Close button. Keyboard
 navigation keeps a visible focus indicator on each control.
 
-Tabs use square corners and an accent underline. The Pages tab uses stacked document sheets; Page uses a single sheet.
-The glyphs retain the same size and visible center. Unselected tabs gain color on hover. Keyboard focus uses a soft tint
-and one border, without glow. Input offers Pages, Page, and eligible Style tabs. Output offers Pages and Page. Each
-Pages toolbar includes a labeled Grid/List switch outside the tablist. This switch has a 46 × 46 CSS px target. Its
-icon, title, and accessible name identify the presentation that activation selects. Each Input and Output retains its
-Pages presentation. Focus stays on the switch after activation.
+Tabs use square corners and an accent underline. Grid uses four thumbnail squares; List uses horizontal lines; Page uses
+a single sheet. Glyphs retain the same size and visible center. Unselected tabs gain color on hover. Keyboard focus uses
+a soft tint and one border, without glow. Input offers Grid, List, Page, and eligible Style tabs. Output offers Grid,
+List, and Page. Grid and List are the two direct Pages views, each with its own tab, icon, and accessible name. Each
+Input and Output retains its selected Pages layout. Focus stays on the selected tab after activation.
 
 Toolbars at or below 26 em use icon-only tabs. Wider panes show text. Keep at least 12 CSS px between adjacent tab
-contents when labels are visible. Tabs, the Pages layout switch, and Style tools must not wrap or overlap. Keep their
-height consistent across views so that the pane content frame does not move. Inset each active tab underline by 4 CSS
-px.
+contents when labels are visible. Tabs and Style tools must not wrap or overlap. Keep their height consistent across
+views so that the pane content frame does not move. Inset each active tab underline by 4 CSS px.
 
 Go to page sits at the end of the Pages/Page toolbar. Its icon opens a compact panel centered below the trigger within
 the viewport gutters. The panel has one numeric-keyboard field, a Go action, first and last page icons, the valid page
@@ -455,8 +453,8 @@ removal/duplication into two contiguous pairs, with 6 px between the pairs and n
 and the Output pairs appear on row hover or focus. Hover changes the icon color without boxes or glow. Eye and the
 selection tick remain visible. Row actions use 32 px targets with a fine pointer and 44 px targets for touch, in both
 themes. Coarse pointers keep Input Add visible. Output uses a row-menu button for coarse pointers and narrow panes. Page
-details use a compact, start-aligned popover beside the number, including in narrow panes. List uses the same Pages
-switch as Grid. Switching views retains the toolbar height and content-frame position.
+details use a compact, start-aligned popover beside the number, including in narrow panes. List uses its own tab beside
+Grid. Switching views retains the toolbar height and content-frame position.
 
 Each row has a grip beside its number and a View icon at the trailing edge. View hover or keyboard focus shows a large
 full-page preview beside the row. Keep the preview within the viewport and preserve the page's aspect ratio. It does not
@@ -944,18 +942,18 @@ Tab, tab list, and tab panel follow the [W3C tabs terminology](https://www.w3.or
 
 | English term                 | Turkish equivalent                   | UI element                                                                     |
 | ---------------------------- | ------------------------------------ | ------------------------------------------------------------------------------ |
-| View toolbar                 | Görünüm araç çubuğu                  | The row with view tabs, the Pages layout switch, and Style actions.            |
-| Tab list                     | Sekme çubuğu                         | The Pages, Page, and Style tabs. Help groups Keyboard and Mouse.               |
-| Tab                          | Sekme                                | One Pages, Page, Style, Keyboard, or Mouse choice.                             |
+| View toolbar                 | Görünüm araç çubuğu                  | The row with Grid, List, Page, and eligible Style tabs and actions.            |
+| Tab list                     | Sekme çubuğu                         | The Grid, List, Page, and Style tabs. Help groups Keyboard and Mouse.          |
+| Tab                          | Sekme                                | One Grid, List, Page, Style, Keyboard, or Mouse choice.                        |
 | Tab panel                    | Sekme içerik paneli                  | The content area associated with the active tab.                               |
 | Active tab indicator         | Etkin sekme göstergesi               | The accent underline beneath the active tab.                                   |
-| Pages layout switch          | Sayfa düzeni anahtarı                | One button that toggles Grid and List inside Pages.                            |
+| Grid and List tabs           | Grid ve Liste sekmeleri              | Direct tab buttons that select one of the two Pages layouts.                   |
 | Export recipe button / panel | Recipe dışa aktarma düğmesi / paneli | The arrow-out-of-square icon and the panel for saving portable Recipe JSON.    |
 | View switcher                | Görünüm değiştirici                  | The mobile Input/Output switch. Its buttons expose their pressed state.        |
 | Modified indicator           | Değişiklik göstergesi                | The small dot on the Style tab that indicates overrides or drafts.             |
 | Unavailable indicator        | Kullanılamazlık göstergesi           | The crossed-out brush and explanation for a visible but unavailable Style tab. |
 
-Pages layout switches sit outside the tab list. The mobile view switcher uses buttons rather than tab roles.
+Grid and List are part of the same tab list. The mobile view switcher uses buttons rather than tab roles.
 
 | English term      | Turkish equivalent   | UI element                                                                              |
 | ----------------- | -------------------- | --------------------------------------------------------------------------------------- |

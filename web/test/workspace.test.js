@@ -1101,14 +1101,9 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
             `${label}: tabs share one row`,
           )
           if (view === "Grid") {
-            const tabs = await pane.locator(".tabs").boundingBox()
-            const switcher = await pane.locator(".pages-toggle").boundingBox()
-            assert.ok(switcher.x >= tabs.x + tabs.width - 1, `${label}: Pages switch does not cover tabs`)
-            assert.ok(switcher.x >= 0 && switcher.x + switcher.width <= width, `${label}: Pages switch fits`)
-            assert.ok(
-              Math.abs(switcher.y + switcher.height / 2 - tabs.y - tabs.height / 2) < 1,
-              `${label}: tabs and Pages switch share one centerline`,
-            )
+            const tabs = await pane.getByRole("tab").boundingBox()
+            assert.ok(tabs.x >= 0 && tabs.x + tabs.width <= width, `${label}: Grid tab fits`)
+            assert.equal(bounds.filter((rect) => rect.width > 0).length, name === "Input" ? 4 : 3)
           }
           if (text === "100%" && view !== "Style")
             assert.ok(
@@ -1215,7 +1210,7 @@ test("Help stays available across pointer types and tours retain visible focus",
       const welcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true })
       await welcome.getByRole("button", { name: "Take a tour", exact: true }).click()
       const tour = page.getByRole("dialog", { name: "Product tour", exact: true })
-      for (const step of ["input-grid", "input-pages-toggle", "input-list", "input-page"]) {
+      for (const step of ["input-grid", "input-list", "input-page"]) {
         await tour.getByRole("button", { name: "Next", exact: true }).click()
         await page.waitForFunction(
           (key) => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === key,
@@ -2689,7 +2684,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
       await page.waitForFunction(
         () => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === "input",
       )
-      for (const step of ["input-grid", "input-pages-toggle", "input-list", "input-page", "style", "style-profile"]) {
+      for (const step of ["input-grid", "input-list", "input-page", "style", "style-profile"]) {
         await tour.getByRole("button", { name: "Next", exact: true }).click()
         await page.waitForFunction(
           (key) => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === key,
@@ -2697,7 +2692,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
         )
       }
       const target = page.locator('[data-tour-target="style-profile"]')
-      assert.match(await tour.locator(".tour-progress").textContent(), /\/ 12/)
+      assert.match(await tour.locator(".tour-progress").textContent(), /\/ 11/)
       assert.equal(await target.isVisible(), true)
       assert.equal(await target.getAttribute("data-tour-active"), "true")
       assert.equal(await input.getByRole("tab", { name: "Style", exact: true }).getAttribute("aria-selected"), "true")
@@ -2710,7 +2705,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
       await page.waitForFunction(
         () => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === "output-list",
       )
-      assert.equal(await output.getByRole("tab", { name: "Pages", exact: true }).getAttribute("aria-selected"), "true")
+      assert.equal(await output.getByRole("tab", { name: "List", exact: true }).getAttribute("aria-selected"), "true")
       assert.equal(await output.locator(".page-list").isVisible(), true)
       await tour.getByRole("button", { name: "Next", exact: true }).click()
       await page.waitForFunction(
@@ -3337,7 +3332,6 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
     }
     const workspaceSteps = [
       "input-grid",
-      "input-pages-toggle",
       "input-list",
       "input-page",
       "style",
@@ -3414,10 +3408,6 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
           await tour.evaluate((guide) => guide.getAnimations({ subtree: true }).length === 0),
           `Tour ${key} honors reduced motion`,
         )
-      if (key.endsWith("-pages-toggle")) {
-        assert.ok(await target.evaluate((element) => element.matches("button")), "Tour reveals the Pages switch")
-        assert.match(await target.getAttribute("aria-label"), /^Show (Input|Output) List$/)
-      }
       if (key === "output-selection") {
         const unselected =
           (await target.getByRole("textbox", { name: "Page selection", exact: true }).inputValue()) === ""
@@ -3514,7 +3504,6 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
     await step("input")
     for (const key of [
       "input-grid",
-      "input-pages-toggle",
       "input-list",
       "input-page",
       "output-grid",
@@ -3527,7 +3516,7 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
       await step(key)
     }
     assert.ok(
-      (await tour.locator(".tour-progress").textContent()).includes("/ 10"),
+      (await tour.locator(".tour-progress").textContent()).includes("/ 9"),
       "Empty Output shows Pages and selection actions without adding sample pages",
     )
     await page.keyboard.press("Escape")
@@ -3557,9 +3546,9 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
     )
     await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("3-5,2,2,7")
     await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
-    const inputPages = () => input.getByRole("tab", { name: "Pages", exact: true })
+    const inputGrid = () => input.getByRole("tab", { name: "Grid", exact: true })
     const inputStyle = () => input.getByRole("tab", { name: "Style", exact: true })
-    const outputPages = () => output.getByRole("tab", { name: "Pages", exact: true })
+    const outputGrid = () => output.getByRole("tab", { name: "Grid", exact: true })
     const outputPage = () => output.getByRole("tab", { name: "Page", exact: true })
     await inputStyle().click()
     await outputPage().click()
@@ -3573,7 +3562,7 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
       await tour.getByRole("button", { name: "Next", exact: true }).click()
       await step(key)
       if (key === "input-grid")
-        assert.ok((await inputPages().getAttribute("aria-selected")) === "true", "Tour opens Input Grid")
+        assert.ok((await inputGrid().getAttribute("aria-selected")) === "true", "Tour opens Input Grid")
       if (key === "input-page")
         assert.ok(
           (await input.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected")) === "true",
@@ -3586,13 +3575,13 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
           "Tour selects and highlights Style",
         )
       if (key === "output-grid")
-        assert.ok((await outputPages().getAttribute("aria-selected")) === "true", "Tour opens Output Grid")
+        assert.ok((await outputGrid().getAttribute("aria-selected")) === "true", "Tour opens Output Grid")
       if (key === "output-page")
         assert.ok((await outputPage().getAttribute("aria-selected")) === "true", "Tour opens Output Page")
     }
     assert.ok(
-      (await tour.locator(".tour-progress").textContent()).includes("/ 11"),
-      "Style adds one step to the ten-step tour",
+      (await tour.locator(".tour-progress").textContent()).includes("/ 10"),
+      "Style adds one step to the nine-step tour",
     )
     await tour.getByRole("button", { name: "Finish", exact: true }).click()
     assert.ok(
@@ -3634,7 +3623,7 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
       "Clicking a toured grip selects its page without restoring Style over the click",
     )
     assert.ok(
-      (await inputPages().getAttribute("aria-selected")) === "true",
+      (await inputGrid().getAttribute("aria-selected")) === "true",
       "Workspace interaction retains the pane and tab being used",
     )
     await selectedSequence.fill("3-5,2,2,7")
@@ -3649,8 +3638,8 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
       await selectedSequence.evaluate((field) => field === document.activeElement),
       "Keyboard focus can leave the tour for a workspace control without losing its tab",
     )
-    await inputPages().click()
-    await outputPages().click()
+    await inputGrid().click()
+    await outputGrid().click()
     assert.ok(
       (await page
         .locator(".selection-panel")
@@ -3765,14 +3754,7 @@ test("Blank-only Output offers its six-step tour without adding pages", { timeou
     await page.getByRole("button", { name: "Start Tour", exact: true }).click()
     const blankTour = page.getByRole("dialog", { name: "Product tour", exact: true })
     await blankTour.waitFor()
-    for (const key of [
-      "output-pages-toggle",
-      "output-grid",
-      "output-list",
-      "output-selection",
-      "output-page",
-      "download",
-    ]) {
+    for (const key of ["output-grid", "output-list", "output-selection", "output-page", "download"]) {
       await page.waitForFunction(
         (value) => document.querySelector(".help-tour:popover-open")?.getAttribute("data-step") === value,
         key,
@@ -3780,7 +3762,7 @@ test("Blank-only Output offers its six-step tour without adding pages", { timeou
       assert.equal(await page.locator(`[data-tour-target="${key}"]`).isVisible(), true)
       if (key !== "download") await blankTour.getByRole("button", { name: "Next", exact: true }).click()
     }
-    assert.match(await blankTour.locator(".tour-progress").textContent(), /\/ 6/)
+    assert.match(await blankTour.locator(".tour-progress").textContent(), /\/ 5/)
     for (const action of ["Export recipe", "Print", "View PDF"])
       assert.ok((await blankTour.innerText()).includes(action), `Tour explains ${action}`)
     await blankTour.getByRole("button", { name: "Finish", exact: true }).click()

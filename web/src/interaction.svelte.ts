@@ -51,8 +51,8 @@ type Host = {
   outputOffset: number
   pendingAddition: ReadonlySet<string>
   styleable: boolean
-  inputTab: (tab: InputView["pagesMode"] | InputView["tab"], event?: MouseEvent | KeyboardEvent) => void
-  setOutputTab: (tab: "grid" | "list" | "page" | "pages", event?: MouseEvent | KeyboardEvent) => void
+  inputTab: (tab: "grid" | "list" | "page" | "style", event?: MouseEvent | KeyboardEvent) => void
+  setOutputTab: (tab: "grid" | "list" | "page", event?: MouseEvent | KeyboardEvent) => void
   inspectInput: (patch: Partial<InputView>) => void
   selectAll: (pane: "Input" | "Output") => void
   zoomBy: (pane: "Input" | "Output", offset: number) => void
@@ -324,7 +324,7 @@ export class Interaction {
               if (expanded.length) this.focusAfterSelection("Output")
               else
                 document
-                  .getElementById(`${this.host.key}-output-${this.host.activeOutputTab === "page" ? "page" : "pages"}`)
+                  .getElementById(`${this.host.key}-output-${this.host.activeOutputTab}`)
                   ?.focus({ preventScroll: true })
             } else focused.focus({ preventScroll: true })
           })
@@ -353,9 +353,7 @@ export class Interaction {
                     ?.querySelector<HTMLElement>(".composition-grid")
                 : neighbor?.querySelector<HTMLButtonElement>(".page-image, .list-choice")) ??
               viewport ??
-              document.getElementById(
-                `${this.host.key}-output-${this.host.activeOutputTab === "page" ? "page" : "pages"}`,
-              )
+              document.getElementById(`${this.host.key}-output-${this.host.activeOutputTab}`)
             )?.focus({ preventScroll: !!pageAction || this.host.pendingAddition.size > 0 })
           })
       },
@@ -365,11 +363,10 @@ export class Interaction {
     if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
     event.preventDefault()
-    const viewTabs = ["pages", "page"] as const
-    const tabs: InputView["tab"][] = pane === "Input" && this.host.styleable ? [...viewTabs, "style"] : [...viewTabs]
-    const index = tabs.indexOf(
-      pane === "Input" ? this.host.inputView.tab : this.host.activeOutputTab === "page" ? "page" : "pages",
-    )
+    const viewTabs = ["grid", "list", "page"] as const
+    const tabs: ("grid" | "list" | "page" | "style")[] =
+      pane === "Input" && this.host.styleable ? [...viewTabs, "style"] : [...viewTabs]
+    const index = tabs.indexOf(pane === "Input" ? this.host.activeTab : this.host.activeOutputTab)
     const tab =
       event.key === "Home"
         ? tabs[0]
@@ -450,7 +447,7 @@ export class Interaction {
     document
       .getElementById(
         pane === "Output"
-          ? `${this.host.key}-output-${this.host.activeOutputTab === "page" ? "page" : "pages"}`
+          ? `${this.host.key}-output-${this.host.activeOutputTab}`
           : `${this.host.key}-${this.host.inputView.tab}`,
       )
       ?.focus({ preventScroll: true })
