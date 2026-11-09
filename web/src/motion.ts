@@ -40,6 +40,26 @@ export function flash(element: HTMLElement) {
   })
 }
 
+export function glowUnfold(element: HTMLElement | null) {
+  if (!element || !matchMedia("(prefers-reduced-motion: no-preference)").matches) return
+  element
+    .getAnimations()
+    .find((animation) => animation.id === "unfold")
+    ?.cancel()
+  element.animate(
+    [
+      { boxShadow: "inset 0 0 0 2px transparent, 0 0 0 transparent", offset: 0 },
+      {
+        boxShadow:
+          "inset 0 0 0 2px color-mix(in oklch, var(--secondary) 65%, transparent), 0 0 16px color-mix(in oklch, var(--secondary) 45%, transparent)",
+        offset: 0.4,
+      },
+      { boxShadow: "inset 0 0 0 2px transparent, 0 0 0 transparent", offset: 1 },
+    ],
+    { id: "unfold", duration: 1400, easing: "ease-in-out" },
+  )
+}
+
 export class Edits {
   readonly pending = new SvelteSet<string>()
   readonly arriving = new SvelteSet<string>()
