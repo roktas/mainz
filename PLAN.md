@@ -512,10 +512,16 @@ Visual timing, keyboard flows, and physical-device behavior remain unverified.
 
 #### Symmetric unfold animation (2026-11-09)
 
-- [ ] On unfold, pulse the existing section heading before revealing its children.
-- [ ] Reverse the 900 ms fold slide: newly visible cards and rows expand and fade in from the heading's position.
-- [ ] Keep nested section ancestry, viewport windowing, quick-toggle cancellation, and reduced-motion behavior intact.
-- [ ] Align VIEW and focused motion assertions. Run no long browser suite.
+- [x] On unfold, pulse the existing section heading for 800 ms before revealing its children.
+- [x] Reverse the 900 ms fold slide: newly visible Grid cards and List rows expand and fade in from their heading's captured position.
+- [x] Preserve nested section ancestry, animate only mounted viewport items, cancel stale animations on rapid toggles, and honor reduced-motion preferences.
+- [x] Align VIEW, CHANGELOG, and focused Grid/List timing assertions. No long browser suite was run.
+
+**Bounded validation:** The shared section-motion helper passed an 8-assertion Node 24 symmetry smoke test, including
+reduced-motion bypass. A local Svelte diagnostic pass reported 0 errors and 0 warnings; the isolated helper also
+passed Oxfmt. The local source archive predates remote `next`, so these checks do not validate the complete
+published components. Focused browser regressions were updated but **not executed**; interactive rendering remains
+unverified until a current checkout can run them.
 
 #### Closure
 
