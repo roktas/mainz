@@ -47,6 +47,7 @@
 
 ### Changed
 
+- Grid and List section folding now gathers disappearing items into their surviving heading before the heading pulses.
 - Rename the combined Grid/List tab from Flow to Pages, beside the single-page Page tab, with a stacked-page icon.
 
 - Remove Filename from Output page actions.
