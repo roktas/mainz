@@ -1877,19 +1877,29 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .list-section")].some((row) =>
         row.getAnimations({ subtree: true }).some(
-          (animation) => animation.id === "fold-heading" && animation.effect.getTiming().duration >= 800,
+          (animation) => animation.id === "section-heading" && animation.effect.getTiming().duration >= 800,
         ),
       ),
     )
     await section.locator(".list-disclosure").click()
     await page.waitForFunction(() =>
-      [...document.querySelectorAll(".selection-panel .list-row")].some((row) =>
+      [...document.querySelectorAll(".selection-panel .list-section")].some((row) =>
         row.getAnimations().some(
-          (animation) =>
-            animation.id === "unfold" &&
-            animation.effect.getTiming().duration >= 1200 &&
-            animation.effect.getKeyframes().every((frame) => frame.boxShadow === undefined),
+          (animation) => animation.id === "section-heading" && animation.effect.getTiming().duration === 800,
         ),
+      ),
+    )
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".selection-panel .list-row")].some((row) =>
+        row.getAnimations().some((animation) => {
+          const frames = animation.effect.getKeyframes()
+          return (
+            animation.id === "unfold" &&
+            animation.effect.getTiming().duration === 900 &&
+            frames[0]?.transform?.includes("scale(0.25)") &&
+            frames.at(-1)?.transform?.includes("scale(1)")
+          )
+        }),
       ),
     )
     await tab(input, "Grid")
@@ -1906,16 +1916,30 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .composition-card.grid-section-card")].some((card) =>
         card.getAnimations({ subtree: true }).some(
-          (animation) => animation.id === "fold-heading" && animation.effect.getTiming().duration >= 800,
+          (animation) => animation.id === "section-heading" && animation.effect.getTiming().duration >= 800,
         ),
       ),
     )
     await input.getByRole("button", { name: "Unfold Input section: First", exact: true }).click()
+    assert.equal(await input.locator('.page-image[data-page="1"]').count(), 0, "Heading pulses before pages appear")
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".selection-panel .composition-card.grid-section-card")].some((card) =>
+        card.getAnimations({ subtree: true }).some(
+          (animation) => animation.id === "section-heading" && animation.effect.getTiming().duration === 800,
+        ),
+      ),
+    )
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .composition-card")].some((card) =>
-        card
-          .getAnimations()
-          .some((animation) => animation.id === "unfold" && animation.effect.getTiming().duration >= 1200),
+        card.getAnimations().some((animation) => {
+          const frames = animation.effect.getKeyframes()
+          return (
+            animation.id === "unfold" &&
+            animation.effect.getTiming().duration === 900 &&
+            frames[0]?.transform?.includes("scale(0.25)") &&
+            frames.at(-1)?.transform?.includes("scale(1)")
+          )
+        }),
       ),
     )
   } finally {
