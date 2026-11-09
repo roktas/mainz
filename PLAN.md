@@ -334,6 +334,9 @@ files or new slop.
       including transfer), and page-label/detail alignment across themes/views (5 tests including fixture checks).
       Node 24 format, lint (0 errors, 28 warnings), Svelte/TypeScript (0 diagnostics), and 52 unit tests passed.
       These narrow checks do not establish that the entire standard suite passes.
+- [x] Synchronize `Composer.svelte` with the removed `Origin.actions` interface. Drop both unused caller snippets
+      and the stale prop binding. The locally tested source already contained these changes; its Node 24
+      TypeScript/Svelte check reported zero diagnostics. The preceding commit lacked the matching caller update.
 - [ ] Review the complete diff and docs once; remove disposable outputs and retain only required evidence in `.local/`.
 - [ ] Mark each completed checkpoint here, report actual commands/results and any unverified physical-device behavior.
   - [x] For this pass, the owner requested skipping the long standard/browser suite. Continue only with focused checks;

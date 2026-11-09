@@ -1428,7 +1428,6 @@
 {/snippet}
 
 {#snippet inputOrigin(page: number, detail: string)}
-  {#snippet actions()}{@render inputPageActions(page)}{/snippet}
   {#if source}<Origin
       id={detail}
       pane="Input"
@@ -1436,7 +1435,6 @@
       identity={{ source, page, tocTitles: inputView.tocTitles, destinations: outputPositions.get(page) }}
       mode={activeTab === "list" ? "list" : "normal"}
       bind:opened={originOpen}
-      actions={!draft.pages.length ? actions : undefined}
     />{/if}
 {/snippet}
 
@@ -1452,9 +1450,7 @@
     multiple={outputBooks.size > 1}
     mode={activeOutputTab === "list" ? "list" : "normal"}
     bind:opened={originOpen}
-  >
-    {#snippet actions()}{@render occurrenceActions(page, index, !chosen.length)}{/snippet}
-  </Origin>
+  />
 {/snippet}
 
 {#snippet inputPeek(page: number)}
