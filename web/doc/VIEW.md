@@ -367,8 +367,9 @@ not hide or rename section headers. Lists without a TOC contain only page rows. 
 a combined ribbon disclosure and drag control, the starting position, an optional Input PDF page label, the heading,
 and + and View actions. The starting position is the physical page number in Input and the occurrence number in Output.
 Heading text uses the same size and small caps as page names, with the same starting edge. Folded sections use normal
-text color for current titles and starting page numbers; unfolded sections retain normal text but outline the entire
-section row in secondary (primary if selected, neutral if keyboard-focused). Ribbons use secondary when folded and a
+text color for current titles and starting page numbers; only the section directly unfolded by the user
+outlines its entire row in secondary (primary if selected, neutral if keyboard-focused). Newly exposed nested
+rows have no section outline until opened themselves. Ribbons use secondary when folded and a
 lighter neutral gray when unfolded, including on hover. The secondary ribbon hover glow does not recolor an unfolded
 ribbon. Folding does not change the depth tint. Text and disclosure glyphs share the row's vertical center. The ribbon
 has a long rectangular body with a shallow rear notch and front point. It points right to expand a closed section or
@@ -495,8 +496,9 @@ path. Folding keeps the starting page visible and hides its following pages thro
 retains its children's choices. Multiple TOC headings on one physical page share a single card and an outermost-heading
 ribbon; use List for the remaining same-page disclosures. Grid page images still select and drag individual pages.
 Active transfers temporarily show every page to preserve physical insertion targets, then restore the retained folds.
-Newly visible cards and List rows pulse once with a 1400 ms secondary glow that fades in and out. Virtual scrolling
-never restarts this pulse; reduced-motion preferences disable it. The Fold all/Unfold all and Section headings toolbar
+Newly visible cards pulse once with a 1400 ms secondary glow; List rows use a contour-free
+background and opacity pulse of the same duration. Visible pages and rows fade out for 300 ms before a section
+fold removes them. Virtual scrolling never restarts an unfold pulse; reduced-motion preferences disable both effects. The Fold all/Unfold all and Section headings toolbar
 controls are available in both Grid and List. Hiding headings restores the full flat page Grid.
 
 Grid footer actions appear on hover or focus with a fine pointer. Input's Add action stays visible on touch. Output
@@ -532,7 +534,8 @@ move the grip.
 Image margins are measured between the page and its thumbnail area. Exclude card borders and padding inside the PDF. Top
 and bottom margins match. Side margins match and can be moderately wider. Keep at least 85% of the vertical image
 padding as a gap between cards. Minimum gaps are 9 px across columns and 10.5 px between rows. Fine-pointer hover
-requires at least 12 px where cards can lift. Extra pane width is distributed between columns and outer edges without
+requires at least 12 px where cards can lift. The Grid viewport reserves 12 px above the first row for the
+hover lift and shadow without clipping. Extra pane width is distributed between columns and outer edges without
 stretching the cards.
 
 A partial final row preserves the same card widths, positions, and gaps. Grid computes the visible window from measured
