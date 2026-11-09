@@ -1867,10 +1867,18 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     await section.locator(".list-disclosure").click()
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .list-row")].some((row) =>
-        row.getAnimations().some((animation) => animation.id === "fold"),
+        row.getAnimations().some((animation) => {
+          if (animation.id !== "fold" || animation.effect.getTiming().duration < 900) return false
+          return animation.effect.getKeyframes().at(-1)?.transform?.includes("scale(0.25)")
+        }),
       ),
     )
     await section.locator('.list-disclosure[aria-expanded="false"]').waitFor()
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".selection-panel .list-section")].some((row) =>
+        row.getAnimations().some((animation) => animation.id === "fold-heading" && animation.effect.getTiming().duration >= 800),
+      ),
+    )
     await section.locator(".list-disclosure").click()
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .list-row")].some((row) =>
@@ -1886,10 +1894,18 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     await input.getByRole("button", { name: "Fold Input section: First", exact: true }).click()
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .composition-card")].some((card) =>
-        card.getAnimations().some((animation) => animation.id === "fold"),
+        card.getAnimations().some((animation) => {
+          if (animation.id !== "fold" || animation.effect.getTiming().duration < 900) return false
+          return animation.effect.getKeyframes().at(-1)?.transform?.includes("scale(0.25)")
+        }),
       ),
     )
     await input.getByRole("button", { name: "Unfold Input section: First", exact: true }).waitFor()
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".selection-panel .composition-card.grid-section-card")].some((card) =>
+        card.getAnimations().some((animation) => animation.id === "fold-heading" && animation.effect.getTiming().duration >= 800),
+      ),
+    )
     await input.getByRole("button", { name: "Unfold Input section: First", exact: true }).click()
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .composition-card")].some((card) =>
