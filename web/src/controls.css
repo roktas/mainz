@@ -40,7 +40,7 @@
       --output-action-size: max(46px, calc(var(--output-glyph-size) + 8px));
       display: flex;
       align-items: stretch;
-      gap: 0.25em;
+      gap: 0.175em;
       & > .icon-button {
         flex: none;
         inline-size: var(--output-action-size);
