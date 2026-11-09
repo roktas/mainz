@@ -53,6 +53,10 @@ In particular, avoid another large state machine inside `Composer.svelte` or unr
 - [x] Reuse Vite preview; HTTP 200 at `http://127.0.0.1:5173/?demo` (container-local).
 - [ ] Run existing focused Grid, List, selection, transfer, alignment, and keyboard tests against current behavior.
       Record failures rather than silently changing baselines.
+  - [x] On the archived `f7fd4c8` checkout (not current `next`), Chromium passed three focused baseline tests:
+        250-page Grid virtualization and geometry at 390/768/1440 px; 300-page Grid scroll, selection, and Output;
+        10,000-page Output transfer with native/touch cancellation and drop (3/3). These are behavioral regression
+        checks, not measured memory or interaction latency. Repeat against the current branch before closure.
 - [ ] Capture baseline geometry and screenshots at affected phone, tablet, and split-view desktop widths; include both
       panes, themes, large page numbers, touch/fine pointer, and long labels.
   - [x] Baseline Normal card width: 148 px at 390/768/1440 px. Additional scenarios remain pending.
