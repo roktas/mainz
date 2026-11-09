@@ -189,7 +189,7 @@
         min-block-size: 44px;
         border-block-end: 1px solid var(--border);
         &:has(:focus-visible) {
-          outline: 1px solid var(--secondary);
+          outline: 1px solid var(--keyboard-focus);
           outline-offset: -1px;
           @media (forced-colors: active) {
             outline-color: Highlight;
@@ -513,10 +513,12 @@
       --section-surface: color-mix(in oklch, var(--secondary) calc(min(var(--section-depth), 3) * 8%), var(--soft));
       color: inherit;
       background: var(--section-surface);
-      &:has(> .list-disclosure[aria-expanded="true"]) {
-        & .list-current,
-        & > .list-number {
-          color: var(--accent);
+      &:not(.selected):has(> .list-disclosure[aria-expanded="true"]) > .list-heading {
+        outline: 2px solid var(--secondary);
+        outline-offset: -2px;
+        border-radius: var(--radius);
+        &:focus-visible {
+          outline-color: var(--keyboard-focus);
         }
       }
       &[data-selected]:not(.selected) {
@@ -552,6 +554,14 @@
         box-shadow: none;
         color: var(--secondary);
         background: transparent;
+        &[aria-expanded="true"] {
+          color: var(--muted);
+        }
+        @media (hover: hover) and (pointer: fine) {
+          &:hover:not(:disabled) {
+            color: var(--secondary);
+          }
+        }
         & svg {
           inline-size: calc(min(1.25em, var(--list-number-size)) * 1.2);
           block-size: calc(min(1.25em, var(--list-number-size)) * 1.2);
