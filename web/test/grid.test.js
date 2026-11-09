@@ -862,70 +862,67 @@ test("List rows contain long names and actions with enlarged text", { timeout: 6
             .getByRole("button", { name, exact: true })
           if (await switcher.isVisible()) await switcher.click()
           const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-          for (const density of ["Normal"]) {
-            await tab(pane, "Grid")
-            await tab(pane, "List")
-            let widths
-            for (const selected of [false, true]) {
-              await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill(selected ? "1" : "")
-              label = `${name}, ${width}px, ${text}, ${colorScheme}, ${density}, selected=${selected}`
-              const rows = await pane.locator(".page-list > .list-row").evaluateAll((elements) =>
-                elements.map((row) => {
-                  const bounds = row.getBoundingClientRect(),
-                    choice = row.querySelector(".list-choice")
-                  const range = document.createRange()
-                  range.selectNodeContents(choice)
-                  const content = range.getBoundingClientRect()
-                  const style = getComputedStyle(choice)
-                  return {
-                    name: choice.textContent.trim(),
-                    title: choice.title,
-                    accessible: choice.getAttribute("aria-label"),
-                    width: choice.getBoundingClientRect().width,
-                    ellipsis: style.whiteSpace === "nowrap" && style.textOverflow === "ellipsis",
-                    lineHeight:
-                      parseFloat(style.lineHeight) +
-                      parseFloat(style.paddingBlockStart) +
-                      parseFloat(style.paddingBlockEnd),
-                    contained: [
-                      ...(style.textOverflow === "ellipsis" ? [] : [content]),
-                      choice.getBoundingClientRect(),
-                      ...[...row.querySelectorAll("button, summary")]
-                        .map((control) => control.getBoundingClientRect())
-                        .filter((box) => box.width && box.height),
-                    ].every(
-                      (box) =>
-                        box.left >= bounds.left - 1 &&
-                        box.right <= bounds.right + 1 &&
-                        box.top >= bounds.top - 1 &&
-                        box.bottom <= bounds.bottom + 1,
-                    ),
-                    top: bounds.top,
-                    bottom: bounds.bottom,
-                  }
-                }),
-              )
-              assert.equal(rows.length, names.length, label)
-              for (const [index, row] of rows.entries()) {
-                assert.equal(row.name, names[index], label)
-                assert.equal(row.title, "Select or unselect this page. Shift-click selects a range.", label)
-                assert.ok(row.accessible.includes(names[index]), label)
-                assert.equal(row.ellipsis, width === 390, label)
-                if (width === 390) assert.ok(row.bottom - row.top <= Math.max(44, row.lineHeight) + 1, label)
-                if (selected)
-                  assert.ok(Math.abs(row.width - widths[index]) < 1, `${label}: selection retains name width`)
-                assert.ok(
-                  row.contained && (!index || rows[index - 1].bottom <= row.top + 1),
-                  `${label}: ${JSON.stringify(row)}`,
-                )
-              }
-              widths = rows.map((row) => row.width)
-              assert.equal(
-                await pane.locator(".page-list").evaluate((element) => element.scrollWidth <= element.clientWidth),
-                true,
-                label,
+          await tab(pane, "Grid")
+          await tab(pane, "List")
+          let widths
+          for (const selected of [false, true]) {
+            await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill(selected ? "1" : "")
+            label = `${name}, ${width}px, ${text}, ${colorScheme}, selected=${selected}`
+            const rows = await pane.locator(".page-list > .list-row").evaluateAll((elements) =>
+              elements.map((row) => {
+                const bounds = row.getBoundingClientRect(),
+                  choice = row.querySelector(".list-choice")
+                const range = document.createRange()
+                range.selectNodeContents(choice)
+                const content = range.getBoundingClientRect()
+                const style = getComputedStyle(choice)
+                return {
+                  name: choice.textContent.trim(),
+                  title: choice.title,
+                  accessible: choice.getAttribute("aria-label"),
+                  width: choice.getBoundingClientRect().width,
+                  ellipsis: style.whiteSpace === "nowrap" && style.textOverflow === "ellipsis",
+                  lineHeight:
+                    parseFloat(style.lineHeight) +
+                    parseFloat(style.paddingBlockStart) +
+                    parseFloat(style.paddingBlockEnd),
+                  contained: [
+                    ...(style.textOverflow === "ellipsis" ? [] : [content]),
+                    choice.getBoundingClientRect(),
+                    ...[...row.querySelectorAll("button, summary")]
+                      .map((control) => control.getBoundingClientRect())
+                      .filter((box) => box.width && box.height),
+                  ].every(
+                    (box) =>
+                      box.left >= bounds.left - 1 &&
+                      box.right <= bounds.right + 1 &&
+                      box.top >= bounds.top - 1 &&
+                      box.bottom <= bounds.bottom + 1,
+                  ),
+                  top: bounds.top,
+                  bottom: bounds.bottom,
+                }
+              }),
+            )
+            assert.equal(rows.length, names.length, label)
+            for (const [index, row] of rows.entries()) {
+              assert.equal(row.name, names[index], label)
+              assert.equal(row.title, "Select or unselect this page. Shift-click selects a range.", label)
+              assert.ok(row.accessible.includes(names[index]), label)
+              assert.equal(row.ellipsis, width === 390, label)
+              if (width === 390) assert.ok(row.bottom - row.top <= Math.max(44, row.lineHeight) + 1, label)
+              if (selected) assert.ok(Math.abs(row.width - widths[index]) < 1, `${label}: selection retains name width`)
+              assert.ok(
+                row.contained && (!index || rows[index - 1].bottom <= row.top + 1),
+                `${label}: ${JSON.stringify(row)}`,
               )
             }
+            widths = rows.map((row) => row.width)
+            assert.equal(
+              await pane.locator(".page-list").evaluate((element) => element.scrollWidth <= element.clientWidth),
+              true,
+              label,
+            )
           }
           await captureLayout(page, `page-list-${name.toLowerCase()}-${width}-${colorScheme}`, { label })
         }

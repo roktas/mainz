@@ -226,6 +226,9 @@ work across scroll windows, with unchanged card geometry.
   - [x] Removed unreachable Compact drag-preview thresholds and a single-value density loop from the selection tests.
         The focused Chromium drag/drop regression passed (1/1) on the archived `f7fd4c8` app with this exact test body.
         Node 24 syntax, formatting, lint, and 52 unit tests passed. Current-branch E2E remains unverified.
+  - [x] Removed the singleton Normal density loop from the long-name List regression. Existing Input/Output, light/dark,
+        selected/unselected, and 100%/200% coverage remains. Chromium passed the focused test (1/1) on the archived
+        `f7fd4c8` app with this exact test body; file syntax, formatting, and lint pass. Current-branch E2E is pending.
 - [ ] Delete only superseded implementation and its dependent tests/docs/config. Do not remove valid PDF/Page navigation
       or historical calibration evidence without separating it from active requirements.
 - [ ] Update `SPEC.md`, `VIEW.md`, `MEMO.md`, Web README, UI glossary, keyboard/help descriptions, test runner groups,
