@@ -329,8 +329,15 @@ files or new slop.
         390/dark/200%, Input matches, but Output grid and card/image widths grow by 10 CSS px, consistent with the
         deliberately thinner scrollbar. Broader screenshot checks and visual signoff remain open. Retained evidence:
         `.local/var/measurements/grid/` in this checkout (ignored by Git).
+- [x] Replace stale Origin action-slot and browser assumptions. The `Origin` component no longer exposes an unused
+      `actions` prop. Two focused Chromium regressions passed: Input additions at desktop/mobile widths (2 tests
+      including transfer), and page-label/detail alignment across themes/views (5 tests including fixture checks).
+      Node 24 format, lint (0 errors, 28 warnings), Svelte/TypeScript (0 diagnostics), and 52 unit tests passed.
+      These narrow checks do not establish that the entire standard suite passes.
 - [ ] Review the complete diff and docs once; remove disposable outputs and retain only required evidence in `.local/`.
 - [ ] Mark each completed checkpoint here, report actual commands/results and any unverified physical-device behavior.
+  - [x] For this pass, the owner requested skipping the long standard/browser suite. Continue only with focused checks;
+        record unverified groups without marking the suite as passing.
 
 ### 8. Final adversarial review and performance audit (owner request, 2026-11-09)
 

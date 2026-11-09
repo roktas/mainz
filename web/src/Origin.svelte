@@ -9,7 +9,6 @@
 
 <script lang="ts">
   import { flushSync, onDestroy } from "svelte"
-  import type { Snippet } from "svelte"
   import Provenance from "./Provenance.svelte"
   import Breadcrumb from "./Breadcrumb.svelte"
   import { titleOf } from "./model.ts"
@@ -24,7 +23,6 @@
     multiple = false,
     mode,
     opened = $bindable(),
-    actions,
   }: {
     id: string
     pane: "Input" | "Output"
@@ -33,7 +31,6 @@
     multiple?: boolean
     mode: "normal" | "list"
     opened?: string
-    actions?: Snippet
   } = $props()
   const origin = $derived("source" in identity ? identity.source : undefined)
   const page = $derived("page" in identity ? identity.page : 0)

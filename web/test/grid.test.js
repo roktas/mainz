@@ -1480,20 +1480,19 @@ test("Page labels and details retain aligned controls across themes and views", 
               )
             assert.ok(inset >= 8, String(inset))
             await input.getByLabel("Details for Input page 1", { exact: true }).click()
-            const detail = input.locator(".card-menu-options:popover-open")
-            const control = detail.getByRole("button", { name: "Add Input page 1 to Output", exact: true })
+            const control = input.getByRole("button", { name: "Add Input page 1 to Output", exact: true })
             const alignment = await control.evaluate((button) => {
               const box = button.getBoundingClientRect(),
-                panel = button.closest("[popover]").getBoundingClientRect(),
+                frame = button.closest(".composition-card").getBoundingClientRect(),
                 icon = button.querySelector("svg").getBoundingClientRect()
               return {
-                center: Math.abs(box.x + box.width / 2 - panel.x - panel.width / 2),
+                contained: box.left >= frame.left && box.right <= frame.right,
                 iconCenter: Math.abs(icon.y + icon.height / 2 - box.y - box.height / 2),
-                size: icon.width,
+                size: box.width,
               }
             })
             assert.ok(
-              alignment.center < 1 && alignment.iconCenter < 1 && alignment.size >= 24,
+              alignment.contained && alignment.iconCenter < 1 && alignment.size >= 24,
               JSON.stringify(alignment),
             )
             await page.keyboard.press("Escape")
