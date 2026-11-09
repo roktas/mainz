@@ -59,6 +59,7 @@
   const demo = query.get("demo") ?? (probe ? "grid" : null)
   let sources = $state.raw<Source[]>([])
   const sourceNumbers = new Map<string, number>()
+  const inputPDFURLs = new Map<string, string>()
   const output = new Output(() => sources)
   const parts = $derived(output.parts)
   let sequences = $state.raw<Record<string, Sequence>>({})
@@ -399,6 +400,17 @@
     loading = false
     info("Opening cancelled. Your workspace is retained.")
   }
+  function viewInputPDF() {
+    if (!active) return
+    let url = inputPDFURLs.get(active.id)
+    if (!url) {
+      url = URL.createObjectURL(new Blob([new Uint8Array(active.input.bytes)], { type: "application/pdf" }))
+      inputPDFURLs.set(active.id, url)
+    }
+    const viewer = window.open(url, "_blank")
+    if (viewer) viewer.opener = null
+    else error("Allow pop-ups to view the Input PDF.")
+  }
   function removeSource() {
     if (!active) return
     const blocking = parts.filter((part) =>
@@ -414,6 +426,9 @@
       animateRemoval(sheet, () => {})
     const id = active.id
     const name = active.input.name
+    const inputURL = inputPDFURLs.get(id)
+    if (inputURL) URL.revokeObjectURL(inputURL)
+    inputPDFURLs.delete(id)
     active.preview.dispose()
     const nextSequences = { ...sequences }
     delete nextSequences[id]
@@ -653,6 +668,7 @@
     openingProcessor?.dispose()
     openingJob?.dispose()
     for (const source of sources) source.preview.dispose()
+    for (const url of inputPDFURLs.values()) URL.revokeObjectURL(url)
     documents.dispose()
   })
 </script>
@@ -680,17 +696,10 @@
             >{sources.length + Number(!!openingSource)}</span
           >{#if sources.length > 1}<Provenance number={active.number} title={titleOf(active.input)} />{/if}<span
             class="input-current"
-            title={active?.input.title || active?.input.name}>{active?.input.name}</span
+            title={active.input.title || active.input.name}>{active.input.title || active.input.name}</span
           >
-          {#if active?.input.title && active.input.title !== active.input.name}<span
-              class="input-title"
-              title={active.input.title}>{active.input.title}</span
-            >{/if}
           <span class="input-chevron"><Icon name="next" /></span>
         </h2>
-        {#if active && inputDetails(active.input)}<span class="input-information">
-            <Guidance title={active.input.title || active.input.name} fields={inputDetails(active.input)} />
-          </span>{/if}
       </summary>
       <div class="input-list" role="group" aria-label="Inputs">
         {#each sources as source (source.id)}<div class="input-choice">
@@ -825,6 +834,7 @@
       sharing={exporter?.sharing ?? false}
       print={() => void exporter.start("Print")}
       viewPDF={() => void exporter.start("View")}
+      {viewInputPDF}
       recipe={() => recorder.show()}
       filename={output.filename}
       rename={(source) => filenameEditor.show(source)}
