@@ -1804,6 +1804,10 @@ test("Grid and List section styling separates unfolded, selected, and focused st
       assert.equal(state.footer, "rgba(0, 0, 0, 0)", `${theme}: neutral footer`)
       await ribbon.hover()
       assert.equal((await appearance()).ribbon, state.ribbonOpen, `${theme}: hover keeps unfolded ribbon gray`)
+      const clearance = await card.evaluate((element) =>
+        element.getBoundingClientRect().top - element.closest(".grid-view").getBoundingClientRect().top,
+      )
+      assert.ok(clearance >= 8, `${theme}: lifted Grid card clears the upper viewport edge`)
 
       const unfoldedSurface = state.surface
       const unfoldedThumbnail = state.thumbnail
@@ -1856,17 +1860,30 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     )
     await page.emulateMedia({ reducedMotion: "no-preference" })
     await section.locator(".list-disclosure").click()
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".selection-panel .list-row")].some((row) =>
+        row.getAnimations().some((animation) => animation.id === "fold"),
+      ),
+    )
     await section.locator('.list-disclosure[aria-expanded="false"]').waitFor()
     await section.locator(".list-disclosure").click()
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .list-row")].some((row) =>
-        row
-          .getAnimations()
-          .some((animation) => animation.id === "unfold" && animation.effect.getTiming().duration >= 1200),
+        row.getAnimations().some(
+          (animation) =>
+            animation.id === "unfold" &&
+            animation.effect.getTiming().duration >= 1200 &&
+            animation.effect.getKeyframes().every((frame) => frame.boxShadow === undefined),
+        ),
       ),
     )
     await tab(input, "Grid")
     await input.getByRole("button", { name: "Fold Input section: First", exact: true }).click()
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".selection-panel .composition-card")].some((card) =>
+        card.getAnimations().some((animation) => animation.id === "fold"),
+      ),
+    )
     await input.getByRole("button", { name: "Unfold Input section: First", exact: true }).waitFor()
     await input.getByRole("button", { name: "Unfold Input section: First", exact: true }).click()
     await page.waitForFunction(() =>
@@ -1922,6 +1939,17 @@ test("Input title, counts, file details, and original PDF view share the pane he
       assert.ok(geometry.sameRow && geometry.ordered && geometry.within, `${width}: ${JSON.stringify(geometry)}`)
       assert.ok(await page.getByRole("button", { name: "View Input PDF" }).isVisible())
     }
+    await page.setViewportSize({ width: 1440, height: 900 })
+    const gaps = await page.evaluate(() => {
+      const right = (selector) => document.querySelector(selector).getBoundingClientRect().right
+      const left = (selector) => document.querySelector(selector).getBoundingClientRect().left
+      return {
+        input: left(".input-heading > .file-picker") - right(".input-preview-tools > .view-action"),
+        output: left(".composition-output .output-actions > .primary") -
+          right(".composition-output .output-actions > .view-action"),
+      }
+    })
+    assert.ok(Math.abs(gaps.input - gaps.output) < 1.5, `Input/Output eye spacing: ${JSON.stringify(gaps)}`)
     await page.setViewportSize({ width: 390, height: 900 })
     await page.getByRole("button", { name: "Input details" }).click()
     assert.match(await page.locator('[popover][aria-label="Input details"]').innerText(), /4 pages, 2\s+sheets/)
