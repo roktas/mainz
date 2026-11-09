@@ -221,6 +221,9 @@ work across scroll windows, with unchanged card geometry.
       Run focused Chromium checks, type checks, formatting, lint, and unit tests before closing this checkpoint.
   - [x] The direct-tab implementation and updated Tour passed the focused Chromium Tour check (1/1) and the Svelte/
         TypeScript check (0 errors, 0 warnings). Remaining browser checks and the full test matrix are pending.
+  - [x] The new direct-tab and Page pinch-cancellation Chromium regressions passed (2/2). Replaced the last stale
+        `Pages`-tab query in the pinch-cancellation test with `Grid`. Node 24 format, lint, TypeScript/Svelte checks,
+        and 52/52 unit tests passed. The minimal/standard browser matrices remain pending.
 
 **Gate:** Grid and List use separate one-click tabs in both panes. No live Pages-toggle path remains.
 

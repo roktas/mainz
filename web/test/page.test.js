@@ -510,7 +510,7 @@ test("Page cancellation clears a pending pinch before the next render", { timeou
         else if (action === "navigate")
           viewport.closest(".page-view").querySelector('button[aria-label="Next Output page"]').click()
         else if (action === "detach")
-          [...pane.querySelectorAll('[role="tab"]')].find((tab) => tab.textContent.trim() === "Pages").click()
+          [...pane.querySelectorAll('[role="tab"]')].find((tab) => tab.textContent.trim() === "Grid").click()
         else pane.style.display = "none"
         if (action === "navigate") await new Promise((resolve) => requestAnimationFrame(resolve))
         if (action === "hidden" || action === "detach")
