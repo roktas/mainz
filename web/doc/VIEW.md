@@ -172,12 +172,12 @@ the available viewport below the trigger.
 
 Each pane header, view toolbar, and selection bar stays on one control row at every supported width and text size.
 Controls never wrap or move to another row. Preserve usable gaps, full-size touch targets, and shared vertical
-alignment. The closed Input selector shows the document title and preserves the source number. The Input chooser retains
-full filenames and their detail controls. Input pages/sheets and View Input PDF appear immediately before Open PDF. On
-narrow headers, Input counts move into an information popover while their eye action stays visible. The Output summary
-uses concise counts, such as `6 pages, 3 sheets`, without PDF or duplex prefixes. If these counts still do not fit, make
-them available through a clickable details control. Do not split the header to fit them. At enlarged text sizes, Open
-PDF and Download can use their icons with the same accessible names and touch targets.
+alignment. The closed Input selector shows the document title at regular weight and preserves the source number. The
+Input chooser retains full filenames and their detail controls. Input pages/sheets and View Input PDF appear immediately
+before Open PDF. On narrow headers, Input counts move into an information popover while their eye action stays visible.
+The Output summary uses concise counts, such as `6 pages, 3 sheets`, without PDF or duplex prefixes. If these counts
+still do not fit, make them available through a clickable details control. Do not split the header to fit them. At
+enlarged text sizes, Open PDF and Download can use their icons with the same accessible names and touch targets.
 
 In single-pane layouts, the Input/Output switch uses two equal columns. The Input header keeps its three groups on one
 row: selector, page/sheet summary with View Input PDF, and Open PDF. Output totals align to the end of the space before
@@ -367,18 +367,19 @@ not hide or rename section headers. Lists without a TOC contain only page rows. 
 a combined ribbon disclosure and drag control, the starting position, an optional Input PDF page label, the heading,
 and + and View actions. The starting position is the physical page number in Input and the occurrence number in Output.
 Heading text uses the same size and small caps as page names, with the same starting edge. Folded sections use normal
-text color for current titles and starting page numbers; unfolded sections retain normal text but give the heading
-button a secondary contour. Ribbons use secondary when folded and muted gray when unfolded. Folding does not change the
-depth tint. Text and disclosure glyphs share the row's vertical center. The ribbon has a long rectangular body with a
-shallow rear notch and front point. It points right to expand a closed section or down to collapse an open section. Its
-interaction target is at least 44 px tall and uses the grip column's width: 32 px for fine pointers, 44 px for touch. It
-uses a transparent background without a border, rounded corners, or shadow. It fills the section row's height. Section
-rows retain the page rows' thin bottom separator. The List reserves native scrollbar space outside the row width, so
-rows align with the selection bar and folding does not move columns. Header, footer, and toolbar separators extend by
-half the workspace gutter equally on both sides in Grid, List, and Page. The toolbar uses overlapping pages with a minus
-or plus to fold or unfold all sections. A separate Section headings toggle follows it and stays in place when the
-expand/collapse control disappears. Section headings are shown by default. Hiding them produces uninterrupted page rows
-and hides the fold/unfold toolbar control.
+text color for current titles and starting page numbers; unfolded sections retain normal text but outline the entire
+section row in secondary (primary if selected, neutral if keyboard-focused). Ribbons use secondary when folded and a
+lighter neutral gray when unfolded, including on hover. The secondary ribbon hover glow does not recolor an unfolded
+ribbon. Folding does not change the depth tint. Text and disclosure glyphs share the row's vertical center. The ribbon
+has a long rectangular body with a shallow rear notch and front point. It points right to expand a closed section or
+down to collapse an open section. Its interaction target is at least 44 px tall and uses the grip column's width: 32 px
+for fine pointers, 44 px for touch. It uses a transparent background without a border, rounded corners, or shadow. It
+fills the section row's height. Section rows retain the page rows' thin bottom separator. The List reserves native
+scrollbar space outside the row width, so rows align with the selection bar and folding does not move columns. Header,
+footer, and toolbar separators extend by half the workspace gutter equally on both sides in Grid, List, and Page. The
+toolbar uses overlapping pages with a minus or plus to fold or unfold all sections. A separate Section headings toggle
+follows it and stays in place when the expand/collapse control disappears. Section headings are shown by default. Hiding
+them produces uninterrupted page rows and hides the fold/unfold toolbar control.
 
 On narrow screens, toolbar icons have no gap between their 44 px targets. The Grid glyph is centered within its 44 px
 tab; Go to page sits 4 px inside the trailing toolbar edge. Wider layouts retain normal spacing.
@@ -486,14 +487,17 @@ Pages layout restores the previous Grid or List scroll position.
 When sections are shown for a PDF with a TOC, Grid shares each pane's fold/unfold choices with List. Its single vertical
 ribbon replaces the center grip on each visible heading-page card. The ribbon has a straight top edge and a notched
 bottom, with no visible title text. The card continues to show the original starting page image, and its footer uses the
-neutral footer surface. An unfolded, unselected section card has a 2 px secondary contour; selected cards keep the
-primary contour. Unfolded ribbons are muted gray in both themes, and ribbon hover uses a secondary glow. The ribbon
-extends to the card's top edge. The ribbon's accessible name includes the section path. Folding keeps the starting page
-visible and hides its following pages through the section end. A parent fold retains its children's choices. Multiple
-TOC headings on one physical page share a single card and an outermost-heading ribbon; use List for the remaining
-same-page disclosures. Grid page images still select and drag individual pages. Active transfers temporarily show every
-page to preserve physical insertion targets, then restore the retained folds. The Fold all/Unfold all and Section
-headings toolbar controls are available in both Grid and List. Hiding headings restores the full flat page Grid.
+neutral footer controls. An unfolded Grid card has a subtle secondary tint across the card and thumbnail surround;
+selected cards retain their primary tint. An unfolded, unselected section card has a 2 px secondary contour; selected
+cards keep the primary contour. Unfolded ribbons use neutral gray in both themes, including on hover, while the hover
+glow remains secondary. The ribbon extends to the card's top edge. The ribbon's accessible name includes the section
+path. Folding keeps the starting page visible and hides its following pages through the section end. A parent fold
+retains its children's choices. Multiple TOC headings on one physical page share a single card and an outermost-heading
+ribbon; use List for the remaining same-page disclosures. Grid page images still select and drag individual pages.
+Active transfers temporarily show every page to preserve physical insertion targets, then restore the retained folds.
+Newly visible cards and List rows pulse once with a 1400 ms secondary glow that fades in and out. Virtual scrolling
+never restarts this pulse; reduced-motion preferences disable it. The Fold all/Unfold all and Section headings toolbar
+controls are available in both Grid and List. Hiding headings restores the full flat page Grid.
 
 Grid footer actions appear on hover or focus with a fine pointer. Input's Add action stays visible on touch. Output
 touch actions use the existing menu. The card footer design is separate from the Pages layout. Do not change its content
