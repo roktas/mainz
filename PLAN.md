@@ -497,6 +497,13 @@ Full `npm run check` timed out in the following TypeScript stage. The browser sm
 were not run by owner request. The source snapshot was older than remote `next`; publish used verified
 GitHub file updates instead of the unavailable Git transport.
 
+#### Fold-to-heading motion refinement (2026-11-09)
+
+- [ ] Replace the short 300 ms fold fade with a slower, directional slide toward each surviving section heading in Grid and List.
+- [ ] After departing items disappear and folding completes, pulse only the corresponding heading with a fade-in/fade-out highlight.
+- [ ] Preserve nested-section targets, virtual windows, rapid toggles, keyboard focus, and reduced-motion behavior.
+- [ ] Add focused timing/target regressions, align Web VIEW, and avoid long suites as requested.
+
 #### Closure
 
 - [ ] Fix confirmed defects and unnecessary complexity with small, behavior-preserving changes. Add or repair tests at
