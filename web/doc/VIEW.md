@@ -496,13 +496,13 @@ path. Folding keeps the starting page visible and hides its following pages thro
 retains its children's choices. Multiple TOC headings on one physical page share a single card and an outermost-heading
 ribbon; use List for the remaining same-page disclosures. Grid page images still select and drag individual pages.
 Active transfers temporarily show every page to preserve physical insertion targets, then restore the retained folds.
-Newly visible cards pulse once with a 1400 ms secondary glow; List rows use a contour-free
-background and opacity pulse of the same duration. Folding slides departing visible cards and rows toward their nearest
-surviving section heading for 900 ms, shrinking and fading as they arrive. After the items disappear and the fold
-completes, the corresponding heading pulses once for 800 ms without changing its contour. Nested sections target their
-surviving parent heading. Virtual scrolling never restarts an unfold pulse; reduced-motion preferences disable the
-fold transition and heading pulse. The Fold all/Unfold all and Section headings toolbar controls are available in both
-Grid and List. Hiding headings restores the full flat page Grid.
+Folding slides departing visible cards and rows toward their nearest surviving section heading for 900 ms, shrinking
+and fading as they arrive. After the items disappear, the corresponding heading pulses for 800 ms without changing its
+contour. Unfolding reverses this order: the existing heading pulses for 800 ms, then newly visible cards and rows slide
+out from its position, grow, and fade in for 900 ms. Nested sections use their visible parent heading as the origin or
+destination. Only items revealed by the fold change animate, never items mounted through virtual scrolling. Reduced-motion
+preferences skip both phases. The Fold all/Unfold all and Section headings toolbar controls are available in Grid and
+List. Hiding headings restores the full flat page Grid.
 
 Grid footer actions appear on hover or focus with a fine pointer. Input's Add action stays visible on touch. Output
 touch actions use the existing menu. The card footer design is separate from the Pages layout. Do not change its content
