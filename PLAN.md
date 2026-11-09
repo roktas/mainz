@@ -217,13 +217,13 @@ work across scroll windows, with unchanged card geometry.
       mode, Input switching, and the last whole-document view when returning from Page or Style.
 - [x] Update Product Tour guidance and targets, Help, SPEC, VIEW, glossary, and browser expectations for direct tabs.
       Preserve the established toolbar geometry, focus and accessible tab semantics, and responsive layout.
-- [ ] Test both panes at phone and desktop widths, keyboard navigation, Page return, Input changes, and Product Tour.
+- [x] Test both panes at phone and desktop widths, keyboard navigation, Page return, Input changes, and Product Tour.
       Run focused Chromium checks, type checks, formatting, lint, and unit tests before closing this checkpoint.
-  - [x] The direct-tab implementation and updated Tour passed the focused Chromium Tour check (1/1) and the Svelte/
-        TypeScript check (0 errors, 0 warnings). Remaining browser checks and the full test matrix are pending.
-  - [x] The new direct-tab and Page pinch-cancellation Chromium regressions passed (2/2). Replaced the last stale
-        `Pages`-tab query in the pinch-cancellation test with `Grid`. Node 24 format, lint, TypeScript/Svelte checks,
-        and 52/52 unit tests passed. The minimal/standard browser matrices remain pending.
+  - [x] Product Tour, direct Grid/List/Page tab navigation, and Page pinch-cancellation Chromium regressions passed
+        (3/3). The direct-tab test covered both panes at 320/1440 px, keyboard focus, and Page return. Node 24
+        formatting, lint (0 errors), Svelte/TypeScript (0 errors, 0 warnings), and 52/52 unit tests passed.
+  - [x] The complete minimal Chromium matrix passed (21/21) on the current direct-tab checkout with WebKit disabled.
+        Standard/full browser matrices and physical-device validation remain pending under stage 7.
 
 **Gate:** Grid and List use separate one-click tabs in both panes. No live Pages-toggle path remains.
 
