@@ -1712,6 +1712,11 @@ test(
         "false",
       )
       await input.getByRole("button", { name: "Unfold Input section: First", exact: true }).click()
+      assert.equal(await input.locator(".list-section[data-emphasized]").count(), 1)
+      assert.equal(
+        await input.locator(".list-section[data-emphasized] .list-disclosure").getAttribute("aria-label"),
+        "Fold Input section: First",
+      )
       await tab(input, "Grid")
       await input.locator('.page-image[data-page="1"]').waitFor({ state: "visible" })
       await input.getByRole("button", { name: "Fold all Input sections", exact: true }).click()
