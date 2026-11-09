@@ -68,7 +68,9 @@ export function glowUnfold(element: HTMLElement | null) {
   )
 }
 
-export function foldInto(items: readonly { element: HTMLElement; heading: HTMLElement | null }[]): Promise<void> | undefined {
+export function foldInto(
+  items: readonly { element: HTMLElement; heading: HTMLElement | null }[],
+): Promise<void> | undefined {
   if (!items.length || !matchMedia("(prefers-reduced-motion: no-preference)").matches) return
   const animations = items.map(({ element, heading }) => {
     const from = element.getBoundingClientRect()
