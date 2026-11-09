@@ -9,7 +9,7 @@
   import type { Snippet } from "svelte"
   import { fields, shortcut, shortcutContext } from "./keyboard.ts"
   import { fit } from "./fit.ts"
-  import { fadeFold, glowUnfold } from "./motion.ts"
+  import { foldInto, glowFoldHeading, glowUnfold } from "./motion.ts"
   import { gridSections, sectionsOf } from "./sections.ts"
   import type { Section } from "./sections.ts"
   import type { SectionPath } from "./outline.ts"
@@ -74,19 +74,30 @@
     const epoch = ++foldEpoch
     pendingFolds = next
     const previous = new Set(pages)
-    const remaining = new Set(gridSections(tree, count, next).pages)
+    const nextSections = gridSections(tree, count, next)
+    const remaining = new Set(nextSections.pages)
+    const headings = [...nextSections.headings.values()]
     for (const animation of list?.getAnimations({ subtree: true }) ?? [])
       if (animation.id === "fold") animation.cancel()
-    const departing = [...(list?.querySelectorAll<HTMLElement>(".composition-card") ?? [])].filter((card) => {
-      const page = card.querySelector<HTMLElement>(".page-image[data-page]")
-      return page && !remaining.has(Number(page.dataset.page))
+    const departing = [...(list?.querySelectorAll<HTMLElement>(".composition-card") ?? [])].flatMap((card) => {
+      const page = Number(card.querySelector<HTMLElement>(".page-image[data-page]")?.dataset.page)
+      if (!Number.isFinite(page) || remaining.has(page)) return []
+      const section = headings.findLast((entry) => entry.start <= page && page < entry.end)
+      const heading = section
+        ? (list?.querySelector<HTMLElement>(`.page-image[data-page="${section.start}"]`)?.closest<HTMLElement>(
+            ".composition-card",
+          ) ?? null)
+        : null
+      return [{ element: card, heading }]
     })
+    const targets = new Set(departing.flatMap(({ heading }) => (heading ? [heading] : [])))
     const apply = () => {
       if (epoch !== foldEpoch) return
       pendingFolds = undefined
       folds = next
       void tick().then(() => {
         if (epoch !== foldEpoch || !list) return
+        for (const heading of targets) if (list.contains(heading)) glowFoldHeading(heading)
         for (const page of pages) {
           if (previous.has(page)) continue
           glowUnfold(
@@ -97,8 +108,8 @@
         }
       })
     }
-    const fade = fadeFold(departing)
-    if (fade) void fade.then(apply)
+    const motion = foldInto(departing)
+    if (motion) void motion.then(apply)
     else apply()
   }
   export function toggleSections() {
