@@ -1715,6 +1715,7 @@ test(
       await tab(input, "Grid")
       await input.locator('.page-image[data-page="1"]').waitFor({ state: "visible" })
       await input.getByRole("button", { name: "Fold all Input sections", exact: true }).click()
+      await input.locator('.page-image[data-page="1"]').waitFor({ state: "detached" })
       assert.deepEqual(
         await input.locator(".page-image").evaluateAll((buttons) => buttons.map((b) => Number(b.dataset.page))),
         [0, 4],
@@ -1726,6 +1727,7 @@ test(
       const output = page.locator(".composition-output")
       await tab(output, "Grid")
       await output.getByRole("button", { name: "Fold Output section: First", exact: true }).click()
+      await output.locator('.page-image[data-page="1"]').waitFor({ state: "detached" })
       assert.deepEqual(
         await output
           .locator(".page-image")
@@ -1826,6 +1828,8 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     }
     await tab(input, "List")
     const section = input.locator(".list-section").first()
+    await section.locator(".list-disclosure").click()
+    await section.locator(".list-disclosure").click()
     const colors = await section.evaluate((element) => {
       const reference = document.createElement("span")
       document.body.append(reference)
@@ -1852,6 +1856,7 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     )
     await page.emulateMedia({ reducedMotion: "no-preference" })
     await section.locator(".list-disclosure").click()
+    await section.locator('.list-disclosure[aria-expanded="false"]').waitFor()
     await section.locator(".list-disclosure").click()
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .list-row")].some((row) =>
@@ -1862,6 +1867,7 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     )
     await tab(input, "Grid")
     await input.getByRole("button", { name: "Fold Input section: First", exact: true }).click()
+    await input.getByRole("button", { name: "Unfold Input section: First", exact: true }).waitFor()
     await input.getByRole("button", { name: "Unfold Input section: First", exact: true }).click()
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .composition-card")].some((card) =>
