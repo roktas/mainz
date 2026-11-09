@@ -513,11 +513,14 @@
       --section-surface: color-mix(in oklch, var(--secondary) calc(min(var(--section-depth), 3) * 8%), var(--soft));
       color: inherit;
       background: var(--section-surface);
-      &:not(.selected):has(> .list-disclosure[aria-expanded="true"]) > .list-heading {
+      &:not(.selected):has(> .list-disclosure[aria-expanded="true"]) {
         outline: 2px solid var(--secondary);
         outline-offset: -2px;
         border-radius: var(--radius);
-        &:focus-visible {
+        &[data-selected] {
+          outline-color: var(--accent);
+        }
+        &:has(:focus-visible) {
           outline-color: var(--keyboard-focus);
         }
       }
@@ -555,11 +558,14 @@
         color: var(--secondary);
         background: transparent;
         &[aria-expanded="true"] {
-          color: var(--muted);
+          color: var(--edge);
         }
         @media (hover: hover) and (pointer: fine) {
-          &:hover:not(:disabled) {
+          &[aria-expanded="false"]:hover:not(:disabled) {
             color: var(--secondary);
+          }
+          &[aria-expanded="true"]:hover:not(:disabled) {
+            color: var(--edge);
           }
         }
         & svg {
