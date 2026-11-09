@@ -153,7 +153,7 @@ work across scroll windows, with unchanged card geometry.
 
 **Gate:** Grid fold is smaller with unchanged Page fold and card geometry. Footer redesign is deferred.
 
-### 5. Enable the Pages tab and Grid/List toggle
+### 5. Enable the Pages tab and Grid/List toggle (superseded by 5c)
 
 - [x] Replace separate Grid/List tabs with **Pages**, keeping Page and eligible Style tabs. Provide a labeled,
       keyboard-accessible Grid/List toggle in the Pages toolbar, using existing control styles and symbols.
@@ -170,7 +170,8 @@ work across scroll windows, with unchanged card geometry.
   - [x] Chromium tour regression passed including 320 px width with 200% text. Reset scroll when a tour step changes,
         even if the next target reuses the same pane element.
 
-**Gate:** one Pages tab per pane, two reliable presentation modes, no lost workspace state, and no toolbar wrapping.
+**Historical gate (superseded by 5c):** one Pages tab per pane, two reliable presentation modes, no lost workspace
+state, and no toolbar wrapping.
 
 ### 5a. Refactor Flow view vocabulary to Pages (owner decision, 2026-11-09)
 
@@ -196,7 +197,7 @@ work across scroll windows, with unchanged card geometry.
 **Gate:** The view has one canonical name, **Pages**, in code, tests, and current product documentation. No stale
 **Flow**-view identifier or user-facing label remains; behavior and geometry stay unchanged.
 
-### 5b. Represent Pages with a multi-page icon (owner decision, 2026-11-09)
+### 5b. Represent Pages with a multi-page icon (superseded by 5c, 2026-11-09)
 
 - [x] Replace the Pages tab icon with a recognizable stack of document pages, distinct from the single-page **Page**
       icon. Keep the existing icon name, accessible tab label, SVG size, and focus and interaction behavior.
@@ -207,7 +208,8 @@ work across scroll windows, with unchanged card geometry.
         light/dark themes, and both panes. The focused workspace toolbar regression passed (1/1). Node 24 formatting,
         type checks, and 52/52 unit tests passed; lint reported 0 errors and 26 existing warnings.
 
-**Gate:** Both Pages tabs use the same page-stack glyph without layout or behavior regressions.
+**Historical gate (superseded by 5c):** Both Pages tabs use the same page-stack glyph without layout or behavior
+regressions.
 
 ### 5c. Replace the Pages mode toggle with direct Grid and List tabs (owner decision, 2026-11-09)
 
@@ -268,6 +270,8 @@ work across scroll windows, with unchanged card geometry.
   - [x] Removed obsolete Normal/Compact capacity-table wording from current VIEW guidance and explicitly dated the
         earlier Android Style/Compact Chromium result in MEMO. Historical measurements remain intact. Affected documents
         passed Oxfmt; no browser behavior changed.
+  - [x] Updated acceptance and execution notes for the direct Grid/List tabs. Marked the earlier Pages-toggle and
+        stacked-icon gates as historical decisions superseded by 5c. Current behavior is described only by the new gate.
 - [ ] Review the bounded affected surface, not just edited lines, for redundant state, accidental churn, unclear
       ownership, and unnecessary Svelte/CSS abstractions.
 - [ ] Run narrow checks after each cleanup and inspect the final diff for unrelated changes.
@@ -347,16 +351,17 @@ remaining risks are explicit. WebKit remains deferred by owner decision.
 
 ## Acceptance
 
-A single Pages tab toggles between Grid and List in both panes. Grid shows all pages by vertical scroll inside its
-existing fixed frame with a thin scrollbar, no Compact density and no pagination. Its Normal card geometry remains
-unchanged and Grid back folds are smaller. The footer redesign is deferred. All page actions, selection, identity,
-drag/drop, inspection, keyboard navigation, focus, and independent Input/Output state remain correct. Automated tests
-and project documentation describe the resulting behavior.
+Grid and List have separate direct tabs beside Page in both panes; **Pages** remains the collective term for these
+whole-document views. Grid shows all pages by vertical scroll inside its existing fixed frame. Grid and List use the
+same thin scrollbar. No Compact density or pagination remains. Normal card geometry is unchanged and Grid back folds are
+smaller. The footer redesign is deferred. Page actions, selection, identity, drag/drop, inspection, keyboard navigation,
+focus, and independent Input/Output state remain correct. Tests and documents describe the current UI.
 
 ## Execution note
 
 Implementation was approved on 2026-11-08. Push validated checkpoints to `next` with the plan updated.
 
-Progress: Pages modes and compact removal compile. Chromium passed Grid virtualization for 250/300 pages, responsive
-scroll retention, Pages switching, fold, and two drag tests. `npm run check`, lint, format and unit tests pass. Broader
-legacy browser tests and WebKit remain pending. WebKit requires GLIBC_2.43 and cannot run on this Debian 13 host.
+Progress: separate Grid/List/Page tabs and Compact removal compile. Chromium passed direct-tab focus and return tests,
+Product Tour, and 21/21 minimal browser regressions. Node 24 Svelte/TypeScript, lint, formatting, and 52/52 unit tests
+pass. The standard/full browser matrices and WebKit remain pending. WebKit requires GLIBC_2.43 and cannot run on this
+Debian 13 host.
