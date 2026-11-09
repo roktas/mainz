@@ -283,8 +283,8 @@ files or new slop.
 
 - [ ] Run formatting, lint, type checks, unit tests, and `npm run test:minimal`.
   - [x] On current `next` (`4f66ebe`), Node 24.21.0 passed format (153 files), lint (0 errors, 28 warnings),
-        Svelte/TypeScript checks (0 errors and warnings), 52/52 unit tests, and the Chromium minimal browser
-        matrix (21/21). The chained minimal command was not rerun; WebKit remains deferred.
+        Svelte/TypeScript checks (0 errors and warnings), 52/52 unit tests, and the Chromium minimal browser matrix
+        (21/21). The chained minimal command was not rerun; WebKit remains deferred.
   - [x] Chromium passed Grid image/grip selection, selection-preserving drags, and production Input-switch
         thumbnail/Lens rendering (3/3 focused tests). Legacy Grid sliders were replaced with native scroll-to-start.
   - [x] Node 24: format and type checks passed, lint reported 0 errors (26 existing warnings), 52/52 unit tests passed.
@@ -295,14 +295,14 @@ files or new slop.
         Removed two obsolete direct Grid tab selectors.
 - [ ] Run `npm run test:standard` and focused Full browser matrices for Grid, List, transfer, Page, alignment, geometry,
       and viewport calibration where affected.
-  - [x] The pre-fix `4f66ebe` checkout completed `npm run test:standard` with WebKit disabled. Production build,
-        format, lint, 52 unit tests, and TypeScript/Svelte checks passed. The Chromium browser suite ran 247 tests:
-        230 passed, 15 failed, one timed out/cancelled, and one skipped. Generated Recipe fixtures are missing;
-        the four Recipe-check tests failed. Other failures need isolated investigation. Standard is not passing.
-  - [x] Fixed stale browser assertions: Page counter screenshots referenced removed `density`, and the Workspace
-        layout test queried four tabs as one. Both focused Chromium reruns passed (2/2), with format, lint (0 errors,
-        28 warnings), TypeScript/Svelte checks (0 diagnostics), and 52/52 unit tests. The standard suite needs
-        another run after other failures are resolved.
+  - [x] The pre-fix `4f66ebe` checkout completed `npm run test:standard` with WebKit disabled. Production build, format,
+        lint, 52 unit tests, and TypeScript/Svelte checks passed. The Chromium browser suite ran 247 tests: 230 passed,
+        15 failed, one timed out/cancelled, and one skipped. Generated Recipe fixtures are missing; the four
+        Recipe-check tests failed. Other failures need isolated investigation. Standard is not passing.
+  - [x] Fixed stale browser assertions: Page counter screenshots referenced removed `density`, and the Workspace layout
+        test queried four tabs as one. Both focused Chromium reruns passed (2/2), with format, lint (0 errors, 28
+        warnings), TypeScript/Svelte checks (0 diagnostics), and 52/52 unit tests. The standard suite needs another run
+        after other failures are resolved.
   - [x] Current-branch `npm run test:browser -- standard grid` with WebKit disabled: 92 checks, 86 passed, five failed,
         and one cancelled (the 30-second long-List test). Other failures include two Grid label/detail waits, a 320 px
         Input hit area, the already-deferred 440 px Output footer hit area, and a narrow List heading-toolbar alignment
@@ -323,28 +323,28 @@ files or new slop.
       representative split-view desktop widths, 1–5 digit page numbers, selected/unselected and long-name cases.
 - [ ] Compare screenshots and measured card geometry against the original Normal Grid; record any real difference and
       resolve it before handoff.
-  - [x] Chromium captured 16 comparison screenshots for the original `f7fd4c8` and pre-review `4f66ebe`, both
-        panes at 390/light/100%, 768/dark/100%, 1440/light/100%, and 390/dark/200%. At 100%, card (148 × 240 CSS
-        px), image (134.81 × 172 CSS px), and column gap (12 CSS px) match in both panes with identical bounds. At
-        390/dark/200%, Input matches, but Output grid and card/image widths grow by 10 CSS px, consistent with the
-        deliberately thinner scrollbar. Broader screenshot checks and visual signoff remain open. Retained evidence:
+  - [x] Chromium captured 16 comparison screenshots for the original `f7fd4c8` and pre-review `4f66ebe`, both panes at
+        390/light/100%, 768/dark/100%, 1440/light/100%, and 390/dark/200%. At 100%, card (148 × 240 CSS px), image
+        (134.81 × 172 CSS px), and column gap (12 CSS px) match in both panes with identical bounds. At 390/dark/200%,
+        Input matches, but Output grid and card/image widths grow by 10 CSS px, consistent with the deliberately thinner
+        scrollbar. Broader screenshot checks and visual signoff remain open. Retained evidence:
         `.local/var/measurements/grid/` in this checkout (ignored by Git).
 - [x] Replace stale Origin action-slot and browser assumptions. The `Origin` component no longer exposes an unused
       `actions` prop. Two focused Chromium regressions passed: Input additions at desktop/mobile widths (2 tests
-      including transfer), and page-label/detail alignment across themes/views (5 tests including fixture checks).
-      Node 24 format, lint (0 errors, 28 warnings), Svelte/TypeScript (0 diagnostics), and 52 unit tests passed.
-      These narrow checks do not establish that the entire standard suite passes.
-- [x] Synchronize `Composer.svelte` with the removed `Origin.actions` interface. Drop both unused caller snippets
-      and the stale prop binding. The locally tested source already contained these changes; its Node 24
-      TypeScript/Svelte check reported zero diagnostics. The preceding commit lacked the matching caller update.
-- [x] Fixed Escape focus for direct Input tabs: `interaction.svelte.ts` targeted the retired `pages`
-      element through `inputView.tab` instead of the rendered `activeTab`. The focused Chromium selection/view
-      shortcut test failed before the change and passed afterward (1/1). Node 24 format, lint (0 errors, 28
-      warnings), Svelte/TypeScript (0 diagnostics), and 52 unit tests passed. No full suite was run.
-- [x] Removed the four obsolete single-value Normal-density loops from the alignment and selection browser
-      tests. The same scenarios and assertions remain, without retired labels. Node 24 syntax checks, formatting
-      (153 files), lint (0 errors, 28 warnings), Svelte/TypeScript checks (0 diagnostics), and 52/52 unit tests
-      passed. Large visual/browser calibrations were intentionally skipped at owner request.
+      including transfer), and page-label/detail alignment across themes/views (5 tests including fixture checks). Node
+      24 format, lint (0 errors, 28 warnings), Svelte/TypeScript (0 diagnostics), and 52 unit tests passed. These narrow
+      checks do not establish that the entire standard suite passes.
+- [x] Synchronize `Composer.svelte` with the removed `Origin.actions` interface. Drop both unused caller snippets and
+      the stale prop binding. The locally tested source already contained these changes; its Node 24 TypeScript/Svelte
+      check reported zero diagnostics. The preceding commit lacked the matching caller update.
+- [x] Fixed Escape focus for direct Input tabs: `interaction.svelte.ts` targeted the retired `pages` element through
+      `inputView.tab` instead of the rendered `activeTab`. The focused Chromium selection/view shortcut test failed
+      before the change and passed afterward (1/1). Node 24 format, lint (0 errors, 28 warnings), Svelte/TypeScript (0
+      diagnostics), and 52 unit tests passed. No full suite was run.
+- [x] Removed the four obsolete single-value Normal-density loops from the alignment and selection browser tests. The
+      same scenarios and assertions remain, without retired labels. Node 24 syntax checks, formatting (153 files), lint
+      (0 errors, 28 warnings), Svelte/TypeScript checks (0 diagnostics), and 52/52 unit tests passed. Large
+      visual/browser calibrations were intentionally skipped at owner request.
 - [ ] Review the complete diff and docs once; remove disposable outputs and retain only required evidence in `.local/`.
 - [ ] Mark each completed checkpoint here, report actual commands/results and any unverified physical-device behavior.
   - [x] For this pass, the owner requested skipping the long standard/browser suite. Continue only with focused checks;
@@ -390,61 +390,60 @@ measurements that support the judgment. Do not report a hypothetical cost as a m
   - [x] Removed-Input lifecycle: `Composer.svelte` retained view choices and Grid/List viewport caches for deleted
         Inputs while other Inputs remained. Prune stale IDs when `sources` changes. The Input-switch regression now
         covers removal and a newly opened Input; focused Chromium passed (1/1). Node 24 format, lint (0 errors, 28
-        warnings), Svelte/TypeScript checks (0 errors and warnings), and 52/52 unit tests passed. No heap reduction
-        was measured.
+        warnings), Svelte/TypeScript checks (0 errors and warnings), and 52/52 unit tests passed. No heap reduction was
+        measured.
 
 #### Bounded static audit (2026-11-09)
 
-- **Quality and responsibility:** `Composer.svelte` remains a 2,608-line coordination component, but output
-  editing, transfer sessions, keyboard routing, and Grid/List virtualization have separate owners. Length is
-  a maintenance risk, not proof that another layer or data structure is needed. Do not split without tracing
-  callers, ownership, and focused behavior tests.
-- **State model:** `Composer.svelte:115-126,210-234,526-535` stores a `pages`/ `page` choice and a separate
-  Grid/List preference. Tour overrides produce the active rendered view. This mapping is intentional for
-  Page return, but it can hide a focus-state mismatch: `interaction.svelte.ts` referenced the stored
-  `pages` tab after the UI switched to direct Grid/List tabs. The Escape regression was confirmed and fixed
-  in `a09070d`; audit other stored-versus-rendered view consumers before closing.
+- **Quality and responsibility:** `Composer.svelte` remains a 2,608-line coordination component, but output editing,
+  transfer sessions, keyboard routing, and Grid/List virtualization have separate owners. Length is a maintenance risk,
+  not proof that another layer or data structure is needed. Do not split without tracing callers, ownership, and focused
+  behavior tests.
+- **State model:** `Composer.svelte:115-126,210-234,526-535` stores a `pages`/ `page` choice and a separate Grid/List
+  preference. Tour overrides produce the active rendered view. This mapping is intentional for Page return, but it can
+  hide a focus-state mismatch: `interaction.svelte.ts` referenced the stored `pages` tab after the UI switched to direct
+  Grid/List tabs. The Escape regression was confirmed and fixed in `a09070d`; audit other stored-versus-rendered view
+  consumers before closing.
 - **Leftovers and duplicate test scaffolding:** `web/test/alignment.test.js:38,194,322` and
-  `web/test/selection.test.js:2512` previously retained single-value `for (... of ["Normal"])` loops. They
-  were removed without changing the test matrix. Only static and unit checks ran; their expensive
-  browser assertions remain unverified in this pass. Other `compact`, `density`, and `batch`
-  strings in UI code also describe unrelated small layouts, pixel ratios, or PDF jobs; do not erase them
-  with a broad text replacement.
-- **Rendering and cost:** `Grid.svelte:45-49,349-350` derives a bounded visible row window and uses
-  spacers; `List.svelte:149-161,362-393` likewise bounds its mounted rows. `transfer.svelte.ts:14-38`
-  models idle/pending/active gestures as an explicit discriminated union. Its prefix array
-  (`transfer.svelte.ts:63-69`) is linear in Output size; this alone does not establish a hot-path
-  performance problem. No current heap, frame-time, or device measurement supports a performance claim.
-- **Testing and documentation:** The full standard run did not pass, Recipe fixture generation is
-  unavailable, physical-device checks are absent, and WebKit remains deferred. The follow-up attempt
-  to combine two selection tests was cancelled before results; do not count it as a pass. Existing
-  `SPEC.md` and `VIEW.md` describe direct tabs, but a full cross-document audit and screenshot
-  approval remain open. Per the owner request, do not rerun the long matrix in this pass.
+  `web/test/selection.test.js:2512` previously retained single-value `for (... of ["Normal"])` loops. They were removed
+  without changing the test matrix. Only static and unit checks ran; their expensive browser assertions remain
+  unverified in this pass. Other `compact`, `density`, and `batch` strings in UI code also describe unrelated small
+  layouts, pixel ratios, or PDF jobs; do not erase them with a broad text replacement.
+- **Rendering and cost:** `Grid.svelte:45-49,349-350` derives a bounded visible row window and uses spacers;
+  `List.svelte:149-161,362-393` likewise bounds its mounted rows. `transfer.svelte.ts:14-38` models idle/pending/active
+  gestures as an explicit discriminated union. Its prefix array (`transfer.svelte.ts:63-69`) is linear in Output size;
+  this alone does not establish a hot-path performance problem. No current heap, frame-time, or device measurement
+  supports a performance claim.
+- **Testing and documentation:** The full standard run did not pass, Recipe fixture generation is unavailable,
+  physical-device checks are absent, and WebKit remains deferred. The follow-up attempt to combine two selection tests
+  was cancelled before results; do not count it as a pass. Existing `SPEC.md` and `VIEW.md` describe direct tabs, but a
+  full cross-document audit and screenshot approval remain open. Per the owner request, do not rerun the long matrix in
+  this pass.
 
 #### Grid TOC fold/unfold follow-up (2026-11-09)
 
-- [x] Share the existing List section tree and fold state with Grid for Input and Output. Grid keeps each heading
-      page's real PDF thumbnail and page number, replaces the heading card's top drag grip with one flat-topped
-      vertical ribbon. It does not render heading titles.
+- [x] Share the existing List section tree and fold state with Grid for Input and Output. Grid keeps each heading page's
+      real PDF thumbnail and page number, replaces the heading card's top drag grip with one flat-topped vertical
+      ribbon. It does not render heading titles.
 - [x] Add the Fold/Unfold ribbon action, accessible names and expanded state, per-pane Fold all/Unfold all controls,
-      preserved List/Grid fold state, and physical-page navigation over the filtered virtual Grid sequence.
-      Same-page headings use the outermost visible ribbon; List still exposes nested headings.
+      preserved List/Grid fold state, and physical-page navigation over the filtered virtual Grid sequence. Same-page
+      headings use the outermost visible ribbon; List still exposes nested headings.
 - [x] Standardize section-facing labels from Expand/Collapse to Fold/Unfold and align Web SPEC/VIEW and browser
-      assertions. Node 24 format, lint (0 errors), Svelte/TypeScript (0 diagnostics), and 54/54 unit tests
-      passed in the local feature checkout.
-- [ ] Finish focused browser verification. The new Grid section scenario passed once, but timed out on two later
-      repeats (30 seconds each), so repeat stability is unverified. The owner deferred long browser matrices.
-      Do not claim a passing standard suite or physical-device evidence.
+      assertions. Node 24 format, lint (0 errors), Svelte/TypeScript (0 diagnostics), and 54/54 unit tests passed in the
+      local feature checkout.
+- [ ] Finish focused browser verification. The new Grid section scenario passed once, but timed out on two later repeats
+      (30 seconds each), so repeat stability is unverified. The owner deferred long browser matrices. Do not claim a
+      passing standard suite or physical-device evidence.
 
 #### Grid/List section styling and Input header (owner update, 2026-11-09)
 
-These current requirements replace older Grid/List section styling and Input header expectations. Keep the physical-page,
-selection, keyboard, and fold-state contracts unchanged.
+These current requirements replace older Grid/List section styling and Input header expectations. Keep the
+physical-page, selection, keyboard, and fold-state contracts unchanged.
 
 - [x] Extend Grid section ribbons to the card's top edge, without moving page numbers or reducing target size.
 - [x] Use the List ribbon's secondary hover glow in Grid. Remove the secondary-colored Grid section footer.
-- [x] Give unfolded Grid ribbons a muted neutral gray in both themes. Give unfolded, unselected section cards a secondary
-      contour; a selected section card keeps the primary contour.
+- [x] Give unfolded Grid ribbons a muted neutral gray in both themes. Give unfolded, unselected section cards a
+      secondary contour; a selected section card keeps the primary contour.
 - [x] Distinguish keyboard focus with a neutral high-contrast contour (light: dark, dark: light), rather than secondary.
       Keep forced-colors focus visible.
 - [x] In List, give unfolded section headings a secondary contour instead of primary-colored text. Use the same muted
@@ -467,14 +466,20 @@ opening failures that remain untriaged; do not attribute them to this change wit
 
 This overrides the prior heading-only List outline, selected-on-hover ribbon color, and bold Input title.
 
-- [ ] Outline the entire open List section row with secondary, except when selected or keyboard-focused.
-- [ ] Give newly exposed List and Grid rows/cards a secondary glow that fades in and out for at least 1.2 seconds.
-      Do not replay the effect during normal virtual scrolling; respect reduced-motion preferences.
-- [ ] Lightly tint unfolded Grid cards' header, footer, and thumbnail surround to match the List section tint.
-      Preserve primary selection and keyboard contours.
-- [ ] Show unfolded Grid and List ribbons in a legible muted gray even on hover; keep secondary hover glow.
-- [ ] Use regular weight for the closed Input file title.
-- [ ] Run only focused checks and align Web VIEW and regression assertions. Defer long browser suites as requested.
+- [x] Outline the entire open List section row with secondary, except when selected or keyboard-focused.
+- [x] Give newly exposed List and Grid rows/cards a secondary glow that fades in and out for at least 1.2 seconds. Do
+      not replay the effect during normal virtual scrolling; respect reduced-motion preferences.
+- [x] Lightly tint unfolded Grid cards' header, footer, and thumbnail surround to match the List section tint. Preserve
+      primary selection and keyboard contours.
+- [x] Show unfolded Grid and List ribbons in a legible muted gray even on hover; keep secondary hover glow.
+- [x] Use regular weight for the closed Input file title.
+- [x] Run only focused checks and align Web VIEW and regression assertions. Defer long browser suites as requested.
+
+**Focused evidence:** A bounded live Chromium smoke check passed for light/dark Grid unfolded card and thumbnail
+surfaces, unfolded ribbon gray on hover, a full-row List outline, and newly revealed Grid/List animations at 1400 ms.
+The Input title uses regular font weight (400). Node 24 Svelte/TypeScript checks returned 0 diagnostics; targeted
+formatting and lint passed (0 errors, 5 pre-existing style warnings). The regression assertions and Web VIEW were
+aligned. Standard/full browser suites, physical devices, and Svelte autofixer (not installed) were not run.
 
 #### Closure
 
