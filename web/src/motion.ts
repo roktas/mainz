@@ -46,18 +46,39 @@ export function glowUnfold(element: HTMLElement | null) {
     .getAnimations()
     .find((animation) => animation.id === "unfold")
     ?.cancel()
+  const row = element.matches(".list-row, .list-section")
+  const surface = getComputedStyle(element).backgroundColor
   element.animate(
-    [
-      { boxShadow: "inset 0 0 0 2px transparent, 0 0 0 transparent", offset: 0 },
-      {
-        boxShadow:
-          "inset 0 0 0 2px color-mix(in oklch, var(--secondary) 65%, transparent), 0 0 16px color-mix(in oklch, var(--secondary) 45%, transparent)",
-        offset: 0.4,
-      },
-      { boxShadow: "inset 0 0 0 2px transparent, 0 0 0 transparent", offset: 1 },
-    ],
+    row
+      ? [
+          { backgroundColor: surface, opacity: 0.5, offset: 0 },
+          {
+            backgroundColor: `color-mix(in oklch, var(--secondary) 25%, ${surface})`,
+            opacity: 1,
+            offset: 0.4,
+          },
+          { backgroundColor: surface, opacity: 1, offset: 1 },
+        ]
+      : [
+          { boxShadow: "0 0 0 transparent", offset: 0 },
+          { boxShadow: "0 0 16px color-mix(in oklch, var(--secondary) 45%, transparent)", offset: 0.4 },
+          { boxShadow: "0 0 0 transparent", offset: 1 },
+        ],
     { id: "unfold", duration: 1400, easing: "ease-in-out" },
   )
+}
+
+export function fadeFold(elements: HTMLElement[]): Promise<void> | undefined {
+  if (!elements.length || !matchMedia("(prefers-reduced-motion: no-preference)").matches) return
+  const animations = elements.map((element) =>
+    element.animate(
+      [{ opacity: 1, translate: "0 0" }, { opacity: 0, translate: "0 -6px" }],
+      { id: "fold", duration: 300, easing: "ease-in-out", fill: "forwards" },
+    ),
+  )
+  return Promise.allSettled(animations.map((animation) => animation.finished)).then(() => {
+    for (const animation of animations) animation.cancel()
+  })
 }
 
 export class Edits {
