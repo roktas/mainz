@@ -10,7 +10,7 @@
   import type { Snippet } from "svelte"
   import { shortcut, shortcutContext } from "./keyboard.ts"
   import { sectionsOf, flattenSections } from "./sections.ts"
-  import { fadeFold, flash, glowUnfold } from "./motion.ts"
+  import { flash, foldInto, glowFoldHeading, glowUnfold } from "./motion.ts"
   import type { SectionPath } from "./outline.ts"
 
   let {
@@ -75,16 +75,27 @@
     const remaining = new Set(
       flattenSections(sections.roots, count, next).filter((index) => index < 0 || !skipped?.has(index)),
     )
+    const nodes = [...sections.nodes.values()]
     for (const animation of list?.getAnimations({ subtree: true }) ?? [])
       if (animation.id === "fold") animation.cancel()
     const departing = [
       ...(list?.querySelectorAll<HTMLElement>(":scope > .list-row, :scope > .list-section") ?? []),
-    ].filter((row) => {
+    ].flatMap((row) => {
       const index = row.matches(".list-section")
         ? -Number(row.dataset.section) - 1
         : Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
-      return !remaining.has(index)
+      if (!Number.isFinite(index) || remaining.has(index)) return []
+      let section =
+        index < 0
+          ? sections.nodes.get(-index - 1)
+          : nodes.findLast((entry) => entry.start <= index && index < entry.end)
+      while (section && !remaining.has(-section.id - 1)) section = section.parent
+      const heading = section
+        ? (list?.querySelector<HTMLElement>(`.list-section[data-section="${section.id}"]`) ?? null)
+        : null
+      return [{ element: row, heading }]
     })
+    const targets = new Set(departing.flatMap(({ heading }) => (heading ? [heading] : [])))
     const apply = () => {
       if (epoch !== foldEpoch) return
       pendingFolds = undefined
@@ -92,6 +103,7 @@
       folds = next
       void tick().then(() => {
         if (epoch !== foldEpoch || !list) return
+        for (const heading of targets) if (list.contains(heading)) glowFoldHeading(heading)
         for (const row of list.querySelectorAll<HTMLElement>(":scope > .list-row, :scope > .list-section")) {
           const index = row.matches(".list-section")
             ? -Number(row.dataset.section) - 1
@@ -100,8 +112,8 @@
         }
       })
     }
-    const fade = fadeFold(departing)
-    if (fade) void fade.then(apply)
+    const motion = foldInto(departing)
+    if (motion) void motion.then(apply)
     else apply()
   }
   export function toggleSections() {
