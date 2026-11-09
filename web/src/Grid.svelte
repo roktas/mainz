@@ -9,6 +9,7 @@
   import type { Snippet } from "svelte"
   import { fields, shortcut, shortcutContext } from "./keyboard.ts"
   import { fit } from "./fit.ts"
+  import { glowUnfold } from "./motion.ts"
   import { gridSections, sectionsOf } from "./sections.ts"
   import type { Section } from "./sections.ts"
   import type { SectionPath } from "./outline.ts"
@@ -67,19 +68,34 @@
     if (!tree.nodes.size) return "none"
     return [...sections.headings.values()].some((entry) => !folded.has(entry.key)) ? "open" : "closed"
   }
+  function changeFolds(next: Set<string>) {
+    const previous = new Set(pages)
+    folds = next
+    void tick().then(() => {
+      if (!list) return
+      for (const page of pages) {
+        if (previous.has(page)) continue
+        glowUnfold(
+          list
+            .querySelector<HTMLElement>(`.page-image[data-page="${page}"]`)
+            ?.closest<HTMLElement>(".composition-card") ?? null,
+        )
+      }
+    })
+  }
   export function toggleSections() {
-    folds = sectionState() === "closed" ? new Set() : new Set([...tree.nodes.values()].map((entry) => entry.key))
+    changeFolds(sectionState() === "closed" ? new Set() : new Set([...tree.nodes.values()].map((entry) => entry.key)))
   }
   function fold(key: string) {
     const next = new Set(folded)
     if (next.has(key)) next.delete(key)
     else next.add(key)
-    folds = next
+    changeFolds(next)
   }
   function expand(index: number) {
     const next = new Set(folded)
     for (const entry of tree.nodes.values()) if (entry.start <= index && index < entry.end) next.delete(entry.key)
-    if (next.size !== folded.size) folds = next
+    if (next.size !== folded.size) changeFolds(next)
   }
   function rankOf(index: number) {
     if (index < 0) return -1
