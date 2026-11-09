@@ -159,7 +159,7 @@ hints, and content share row tracks. The filename chooser belongs to Input's hea
 open-PDF list. At normal text size, desktop pane headings use 16 px text and 28 px document icons, scaling with text.
 Open PDF and Download occupy corresponding positions and have equal dimensions. Print and View icons precede Download,
 in that order. Their glyphs share the document icon's 28 px size on desktop and mobile, scaling with text. Their targets
-are at least 46 × 46 px. The visible Print–View and View–Download gaps match. These icon actions are exceptions to equal
+are at least 46 × 46 px. The visible Print–View, View–Download, and Input eye–Open PDF gaps match with compact shared spacing. These icon actions are exceptions to equal
 peer-button widths. Output totals sit before these actions. Relevant processing disables Download, View, and Print
 without changing heading dimensions. Progress and Cancel belong to the app header. The Output heading is a frameless
 button that opens the filename editor. It retains Input's heading typography and icon alignment. Hover and keyboard
@@ -175,13 +175,13 @@ Controls never wrap or move to another row. Preserve usable gaps, full-size touc
 alignment. The closed Input selector shows the document title at regular weight and preserves the source number. The
 Input chooser retains full filenames and their detail controls. Input pages/sheets and View Input PDF appear immediately
 before Open PDF. On narrow headers, Input counts move into an information popover while their eye action stays visible.
-The Output summary uses concise counts, such as `6 pages, 3 sheets`, without PDF or duplex prefixes. If these counts
+The reclaimed header width goes to the Input document title. The Output summary uses concise counts, such as `6 pages, 3 sheets`, without PDF or duplex prefixes. If these counts
 still do not fit, make them available through a clickable details control. Do not split the header to fit them. At
 enlarged text sizes, Open PDF and Download can use their icons with the same accessible names and touch targets.
 
 In single-pane layouts, the Input/Output switch uses two equal columns. The Input header keeps its three groups on one
 row: selector, page/sheet summary with View Input PDF, and Open PDF. Output totals align to the end of the space before
-Print, View, and Download. These actions stay together at the end of the row with wider gaps. Download uses the same 28
+Print, View, and Download. These actions stay together at the end of the row with matching compact gaps. Download uses the same 28
 px icon size as Print and View, with a square primary-colored target and no text label. Desktop Download retains its
 labeled primary button. If enlarged text leaves insufficient room, keep the Input/Output switch labels and omit their
 icons.
