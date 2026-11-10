@@ -322,7 +322,19 @@
             }
             & .card-menu {
               display: inline flex;
+              opacity: 0;
+              pointer-events: none;
             }
+          }
+        }
+        @media (hover: none), (pointer: coarse) {
+          &:focus-within > :is(.occurrence-actions, .input-footer) button {
+            opacity: 1;
+            pointer-events: auto;
+          }
+          & > :is(.occurrence-actions, .input-footer) button {
+            opacity: 0;
+            pointer-events: none;
           }
         }
         & :is(.page-grip, .occurrence-actions button, .input-footer button, .page-origin > summary) {

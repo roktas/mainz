@@ -427,21 +427,24 @@
         display: grid;
         grid-template-columns: repeat(2, var(--list-action-size));
       }
+      & > li .list-actions > :not(.list-peek) {
+        opacity: 0;
+        pointer-events: none;
+      }
+      & > li:focus-within .list-actions > :not(.list-peek) {
+        opacity: 1;
+        pointer-events: auto;
+      }
       @media (hover: hover) and (pointer: fine) {
+        & > li:hover .list-actions > :not(.list-peek) {
+          opacity: 1;
+          pointer-events: auto;
+        }
         & .list-inline-actions button:hover:not(:disabled) {
           color: var(--accent);
           background: transparent;
           box-shadow: none;
         }
-        & .list-inline-actions {
-          opacity: 0;
-        }
-        & > li:hover .list-inline-actions {
-          opacity: 1;
-        }
-      }
-      & > li:focus-within .list-inline-actions {
-        opacity: 1;
       }
       & .list-actions > [aria-pressed="true"] {
         color: var(--accent);
@@ -498,16 +501,23 @@
       }
     }
     .page-detail-navigation {
-      display: flex;
-      align-items: center;
-      gap: 0.4em;
-      margin-block-start: 0.25em;
+      margin-block-start: 0.5em;
       padding-block-start: 0.5em;
       border-block-start: 1px solid var(--border);
-      & .list-jump {
-        min-inline-size: 44px;
-        min-block-size: 44px;
-        color: var(--secondary);
+      & .section-path {
+        inline-size: 100%;
+        max-inline-size: 100%;
+        max-block-size: none;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        & > header {
+          padding-block-end: 0.3em;
+          & h3 {
+            font-size: var(--body);
+          }
+        }
       }
     }
     .page-list > .list-section {
@@ -848,18 +858,6 @@
           max-inline-size: calc((100% - 2 * var(--list-action-size) - 6px) * 0.7);
         }
       }
-    }
-    .page-detail-navigation .section-path > header > button {
-      inline-size: 44px;
-      block-size: 44px;
-      min-inline-size: 44px;
-      min-block-size: 44px;
-      margin-block: -10px;
-      margin-inline-end: -10px;
-    }
-    .page-detail-navigation .section-path > header > svg {
-      inline-size: 24px;
-      block-size: 24px;
     }
     .page-list > li {
       --return-surface: var(--paper);

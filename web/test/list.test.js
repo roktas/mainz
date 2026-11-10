@@ -120,9 +120,7 @@ test("Grid and List share heading pages, details, and inline Output controls", {
     assert.equal(await input.locator(".list-row").count(), 4, "Headings replace, rather than duplicate, physical pages")
     await input.getByRole("button", { name: "Details for Input page 1", exact: true }).click()
     const details = page.locator(".card-menu-options:popover-open")
-    await details.getByRole("button", { name: /^Jump to section for Input:/ }).click()
-    assert.equal(await page.locator(".section-path:popover-open").count(), 1)
-    await page.keyboard.press("Escape")
+    assert.equal(await details.locator(".page-detail-navigation .section-path .path-step").count(), 1)
     await page.keyboard.press("Escape")
     await input.locator('.list-heading[data-page="0"]').click()
     assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "1")
@@ -133,10 +131,11 @@ test("Grid and List share heading pages, details, and inline Output controls", {
     assert.equal(await input.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected"), "true")
     await tab(input, "Grid")
     await input.locator('.composition-card:has(.page-image[data-page="0"]) .page-origin summary').click()
-    assert.equal(await input.locator(".page-origin[open] .page-origin-info .list-jump").count(), 1)
+    assert.equal(await input.locator(".page-origin[open] .page-origin-info .section-path .path-step").count(), 1)
     await input.locator('.composition-card:has(.page-image[data-page="0"]) .page-origin summary').click()
     await input.getByLabel("Page selection", { exact: true }).fill("1-6")
     await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+    await output.getByLabel("Page selection", { exact: true }).fill("")
     await tab(output, "List")
     assert.equal(await output.locator(".list-section").count(), 2)
     assert.equal(await output.locator(".list-row").count(), 4)
@@ -146,15 +145,218 @@ test("Grid and List share heading pages, details, and inline Output controls", {
       await start
         .locator(".occurrence-actions button")
         .evaluateAll((items) => items.map((item) => item.getAttribute("aria-label"))),
-      ["Move Output page 1 earlier", "Move Output page 1 later", "Remove Output page 1", "Duplicate Output page 1"],
+      [
+        "Move Output section pages 1–3 earlier",
+        "Move Output section pages 1–3 later",
+        "Remove Output section pages 1–3",
+        "Duplicate Output section pages 1–3",
+      ],
     )
     await output.getByRole("button", { name: "Details for Output page 1", exact: true }).click()
-    assert.equal(await page.locator(".card-menu-options:popover-open .page-detail-navigation .list-jump").count(), 1)
+    assert.equal(await page.locator(".card-menu-options:popover-open .page-detail-navigation .section-path").count(), 1)
     await page.keyboard.press("Escape")
     await tab(output, "Grid")
     assert.equal(await output.getByRole("button", { name: "View Output page 1", exact: true }).count(), 1)
     await output.getByRole("button", { name: "View Output page 1", exact: true }).click()
     assert.equal(await output.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected"), "true")
+  } finally {
+    await browser.close()
+  }
+})
+
+test(
+  "Grid and List section edits preserve real ribbons, group boundaries, and selection-bar priority",
+  { timeout: 90000 },
+  async () => {
+    const server = await serve()
+    const browser = await launch(chromium)
+    try {
+      for (const view of ["Grid", "List"]) {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 940 }, reducedMotion: "reduce" })
+        page.setDefaultTimeout(10000)
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        await page
+          .locator('input[type="file"]')
+          .first()
+          .setInputFiles({
+            name: "Section-edits.pdf",
+            mimeType: "application/pdf",
+            buffer: fixture({
+              prepared: false,
+              count: 6,
+              outline: [
+                { title: "First", page: 0 },
+                { title: "Second", page: 3 },
+              ],
+            }),
+          })
+        const input = page.locator(".selection-panel")
+        const output = page.locator(".composition-output")
+        await tab(input, view)
+        const inputSection =
+          view === "List"
+            ? input.locator('.list-section:has(.list-heading[data-page="3"])')
+            : input.locator('.composition-card:has(.page-image[data-page="3"])')
+        await inputSection.hover()
+        await inputSection.getByRole("button", { name: "Add Input section pages 4–6 to Output" }).click()
+        assert.equal(await output.locator(".composition-totals strong").textContent(), "3 pages")
+        await input.getByLabel("Page selection", { exact: true }).fill("1-6")
+        await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+        await output.getByLabel("Page selection", { exact: true }).fill("")
+        await tab(output, view)
+        const before =
+          view === "List"
+            ? output.locator('.list-section:has(.list-heading[data-page="6"])')
+            : output.locator('.composition-card:has(.page-image[data-page="6"])')
+        await before.hover()
+        await before.getByRole("button", { name: "Move Output section pages 7–9 earlier" }).click()
+        assert.equal(await output.locator(".composition-totals strong").textContent(), "9 pages")
+        if (view === "List") {
+          assert.equal(await output.locator('.list-section[data-index="8"]').count(), 0)
+          assert.equal(await output.locator('.list-row[data-index="8"]').count(), 1)
+        } else {
+          assert.equal(
+            await output.locator('.composition-card:has(.page-image[data-page="8"]) .grid-ribbon').count(),
+            0,
+          )
+        }
+        const selected = output.getByLabel("Page selection", { exact: true })
+        await selected.fill("1")
+        assert.equal(
+          await output.locator(".occurrence-actions button").count(),
+          0,
+          "Selected pages use the selection bar",
+        )
+        await selected.fill("")
+        await tab(output, view === "List" ? "Grid" : "List")
+        await tab(output, view)
+        const first =
+          view === "List"
+            ? output.locator('.list-section:has(.list-heading[data-page="0"])')
+            : output.locator('.composition-card:has(.page-image[data-page="0"])')
+        await first.hover()
+        assert.equal(
+          await first.getByRole("button", { name: "Move Output section pages 1–3 earlier" }).isDisabled(),
+          true,
+        )
+        if (view === "List") {
+          assert.equal(
+            await first
+              .getByRole("button", { name: "Move Output section pages 1–3 earlier" })
+              .locator("path")
+              .getAttribute("d"),
+            "M12 19V5m-5 5 5-5 5 5",
+          )
+          assert.equal(
+            await first
+              .getByRole("button", { name: "Move Output section pages 1–3 later" })
+              .locator("path")
+              .getAttribute("d"),
+            "M12 5v14m-5-5 5 5 5-5",
+          )
+        }
+        await page.mouse.move(0, 0)
+        const inlineActions =
+          view === "List"
+            ? first.locator(".list-actions > .occurrence-actions")
+            : first.locator(".occurrence-actions .card-inline-actions button").first()
+        assert.equal(
+          await inlineActions.evaluate((item) => getComputedStyle(item).opacity),
+          "0",
+          "Editing actions hide when idle",
+        )
+        await first.hover()
+        assert.equal(
+          await inlineActions.evaluate((item) => getComputedStyle(item).opacity),
+          "1",
+          "Hover reveals editing actions",
+        )
+        assert.equal(await first.getByRole("button", { name: "Move Output section pages 1–3 later" }).count(), 1)
+        await first.getByRole("button", { name: "Duplicate Output section pages 1–3" }).click()
+        assert.equal(await output.locator(".composition-totals strong").textContent(), "12 pages")
+        await first.hover()
+        await first.getByRole("button", { name: "Remove Output section pages 1–3" }).click()
+        assert.equal(await output.locator(".composition-totals strong").textContent(), "9 pages")
+        const headingControl = view === "List" ? ".list-heading" : ".page-image"
+        await first.locator(headingControl).focus()
+        await page.keyboard.press("Enter")
+        assert.equal(
+          await output.locator(".composition-totals strong").textContent(),
+          "12 pages",
+          "Heading keyboard action duplicates the group",
+        )
+        await first.locator(headingControl).focus()
+        await page.keyboard.press("-")
+        assert.equal(
+          await output.locator(".composition-totals strong").textContent(),
+          "9 pages",
+          "Heading keyboard action removes the group",
+        )
+        await inputSection.locator(headingControl).focus()
+        await page.keyboard.press("Enter")
+        assert.equal(
+          await output.locator(".composition-totals strong").textContent(),
+          "12 pages",
+          "Heading keyboard action adds the Input group",
+        )
+        await page.close()
+      }
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test("Touch Grid and List hide edit actions until focus while keeping eyes visible", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      reducedMotion: "reduce",
+    })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    await page
+      .locator('input[type="file"]')
+      .first()
+      .setInputFiles({
+        name: "Touch-groups.pdf",
+        mimeType: "application/pdf",
+        buffer: fixture({ prepared: false, count: 4, outline: [{ title: "Chapter", page: 0 }] }),
+      })
+    const input = page.locator(".selection-panel")
+    const output = page.locator(".composition-output")
+    await input.getByLabel("Page selection", { exact: true }).fill("1-4")
+    await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+    const workspace = page.getByRole("navigation", { name: "Workspace view", exact: true })
+    await workspace.getByRole("button", { name: "Output", exact: true }).click()
+    await output.getByLabel("Page selection", { exact: true }).fill("")
+    await workspace.getByRole("button", { name: "Input", exact: true }).click()
+    for (const [pane, panel] of [
+      ["Input", input],
+      ["Output", output],
+    ]) {
+      if (pane === "Output") await workspace.getByRole("button", { name: "Output", exact: true }).click()
+      await tab(panel, "List")
+      const list = panel.locator(".list-section").first()
+      const actions = list.locator(".list-actions > :not(.list-peek)").first()
+      const eye = list.locator(".list-peek").first()
+      assert.equal(await actions.evaluate((element) => getComputedStyle(element).opacity), "0")
+      assert.equal(await eye.evaluate((element) => getComputedStyle(element).opacity), "1")
+      await list.locator(".list-heading").focus()
+      assert.equal(await actions.evaluate((element) => getComputedStyle(element).opacity), "1")
+      await tab(panel, "Grid")
+      const card = panel.locator(".composition-card").first()
+      const edit = pane === "Input" ? card.locator(".input-footer button").first() : card.locator(".card-menu")
+      const gridEye = card.locator(".grid-inspect")
+      assert.equal(await edit.evaluate((element) => getComputedStyle(element).opacity), "0")
+      assert.equal(await gridEye.evaluate((element) => getComputedStyle(element).opacity), "1")
+      await card.locator(".page-image").focus()
+      assert.equal(await edit.evaluate((element) => getComputedStyle(element).opacity), "1")
+    }
   } finally {
     await browser.close()
   }
@@ -361,11 +563,10 @@ test("List section paths put the current title first and open details independen
       ]) {
         const expand = pane.getByRole("button", { name: `Unfold all ${name} sections`, exact: true })
         if (await expand.isVisible()) await expand.click()
-        const root = pane.getByRole("button", { name: path[0], exact: true }).locator("..")
-        assert.ok(
-          await root.getByRole("button", { name: `Jump to section for ${name}: ${path[0]}`, exact: true }).isDisabled(),
-          "A header cannot jump only to itself",
-        )
+        const root = pane.locator('.list-section:has(.list-heading[data-page="0"])').first()
+        await root.getByRole("button", { name: `Details for ${name} page 1`, exact: true }).click()
+        assert.equal(await page.locator(".card-menu-options:popover-open .section-path .path-step").count(), 1)
+        await page.keyboard.press("Escape")
         const selection = pane.getByLabel("Page selection", { exact: true })
         await selection.fill("1")
         const levels = await pane.locator(".list-section").evaluateAll((rows) =>
@@ -383,16 +584,13 @@ test("List section paths put the current title first and open details independen
           levels.every((level) => Math.abs(level.edge - levels[0].edge) < 1),
           "Depth preserves shared columns",
         )
-        const heading = pane.getByRole("button", { name: path.join(" › "), exact: true })
+        const heading = pane.locator('.list-heading[data-page="2"]')
         const row = heading.locator("..")
         assert.equal(await row.locator(".list-current").textContent(), path[2])
         assert.deepEqual(await row.locator(".list-ancestor").allTextContents(), [path[1], path[0]])
-        const details = row.getByRole("button", {
-          name: `Jump to section for ${name}: ${path.join(" › ")}`,
-          exact: true,
-        })
+        const details = row.getByRole("button", { name: `Details for ${name} page 3`, exact: true })
         await details.click()
-        const panel = page.locator(".section-path:popover-open")
+        const panel = page.locator(".card-menu-options:popover-open .section-path")
         await panel.waitFor()
         assert.deepEqual(await panel.locator(".path-step > span:last-child").allTextContents(), path)
         assert.equal(await selection.inputValue(), "1", "Reading the path does not select pages")
@@ -400,7 +598,8 @@ test("List section paths put the current title first and open details independen
         await panel.getByRole("button", { name: `Go to section: ${path[0]}`, exact: true }).press("Enter")
         await panel.waitFor({ state: "hidden" })
         await page.waitForFunction(
-          () => document.activeElement?.getAttribute("aria-label") === "Volume One: Document Composition",
+          () =>
+            document.activeElement?.classList.contains("list-heading") && document.activeElement?.dataset.page === "0",
         )
         assert.equal(await selection.inputValue(), "1", "Path navigation preserves selection")
         assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
@@ -422,12 +621,12 @@ test("List section paths put the current title first and open details independen
         await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
         if (width === 375)
           await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Input", exact: true }).click()
-        const heading = input.getByRole("button", { name: path.join(" › "), exact: true })
+        const heading = input.locator('.list-heading[data-page="2"]')
         await heading.scrollIntoViewIfNeeded()
         const bounds = await heading.locator("..").evaluate((row) => {
           const current = row.querySelector(".list-current"),
             parents = row.querySelector(".list-parents"),
-            details = row.querySelector(".list-actions > [popovertarget]")
+            details = row.querySelector(".list-peek button")
           return {
             fits:
               current.getBoundingClientRect().right <= parents.getBoundingClientRect().left &&
@@ -437,11 +636,8 @@ test("List section paths put the current title first and open details independen
           }
         })
         assert.ok(bounds.fits && bounds.caps && bounds.size, JSON.stringify(bounds))
-        await heading
-          .locator("..")
-          .getByRole("button", { name: /^Jump to section for/ })
-          .click()
-        const panel = page.locator(".section-path:popover-open")
+        await heading.locator("..").getByRole("button", { name: "Details for Input page 3", exact: true }).click()
+        const panel = page.locator(".card-menu-options:popover-open .section-path")
         const frame = await panel.boundingBox()
         assert.ok(frame.x >= 0 && frame.x + frame.width <= width + 1)
         await mkdir("../.local/tmp/web/layout/sections", { recursive: true })
@@ -494,11 +690,9 @@ test(
         await output.getByLabel("Page selection", { exact: true }).fill("130")
         await output.locator(".page-list").evaluate((list) => (list.scrollTop = list.scrollHeight))
         const topic = output.locator('.list-section[data-index="115"]')
-        await topic
-          .getByRole("button", { name: "Jump to section for Output: First › Section › Topic", exact: true })
-          .click()
+        await topic.getByRole("button", { name: "Details for Output page 116", exact: true }).click()
         await page
-          .locator(".section-path:popover-open")
+          .locator(".card-menu-options:popover-open .section-path")
           .getByRole("button", { name: "Go to section: First › Section", exact: true })
           .click()
         await page.waitForFunction(
@@ -506,7 +700,7 @@ test(
             document.activeElement ===
             document.querySelector('.composition-output .list-section[data-index="66"] .list-heading'),
         )
-        assert.equal(await page.locator(".section-path:popover-open").count(), 0)
+        assert.equal(await page.locator(".card-menu-options:popover-open .section-path").count(), 0)
         assert.equal(await output.getByLabel("Page selection", { exact: true }).inputValue(), "130")
         assert.equal(await output.locator(".composition-totals strong").textContent(), "130 pages")
       } finally {
@@ -1509,10 +1703,13 @@ test("List section summaries reveal every same-page section across hierarchy lev
       await input.locator(".input-current").filter({ hasText: "Shared-sections.pdf" }).waitFor()
       await page.locator('.composer[aria-busy="false"]').waitFor()
       await tab(input, "List")
-      await input.getByRole("button", { name: "Unfold all Input sections", exact: true }).click()
-      const row = input.locator('.list-row:has(.list-choice[data-page="3"])')
-      await row.getByRole("button", { name: /^Jump to section for/ }).click()
-      const panel = page.locator(".section-path:popover-open")
+      const unfold = input.getByRole("button", { name: "Unfold all Input sections", exact: true })
+      if (await unfold.count()) await unfold.click()
+      const row = input
+        .locator('.list-section:has(.list-heading[data-page="3"]), .list-row:has(.list-choice[data-page="3"])')
+        .first()
+      await row.getByRole("button", { name: "Details for Input page 4", exact: true }).click()
+      const panel = page.locator(".card-menu-options:popover-open .section-path")
       assert.deepEqual(
         await panel
           .locator("ol")
@@ -1541,9 +1738,12 @@ test("List section summaries reveal every same-page section across hierarchy lev
       )
       assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "")
       await panel.getByRole("button", { name: "Go to section: Model", exact: true }).first().click()
-      await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Model")
+      await page.waitForFunction(
+        () =>
+          document.activeElement?.closest(".selection-panel") &&
+          document.activeElement?.matches('.list-heading[data-page="0"], .list-choice[data-page="0"]'),
+      )
       await input.getByRole("button", { name: "Section headings", exact: true }).click()
-      assert.equal(await input.locator(".list-jump").count(), 0)
       assert.equal(await input.locator(".list-sections").count(), 0)
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
     } finally {
@@ -3815,8 +4015,8 @@ test(
         const collapsed = input.getByRole("button", { name: /Unfold Input section/ })
         if (await collapsed.count())
           await input.getByRole("button", { name: "Unfold all Input sections", exact: true }).click()
-        await input.locator('.list-row:has(.list-choice[data-page="1"]) .list-jump').click()
-        const panel = input.locator(".section-path:popover-open")
+        await input.getByRole("button", { name: "Details for Input page 2", exact: true }).click()
+        const panel = input.locator(".card-menu-options:popover-open .section-path")
         for (const colorScheme of ["light", "dark"])
           for (const text of ["100%", "200%"]) {
             await page.emulateMedia({ colorScheme })

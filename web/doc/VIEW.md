@@ -380,12 +380,14 @@ The heading text selects or clears the complete subtree **when folded**, includi
 selected folded section appears selected and a click clears its remaining selected pages. **When unfolded**, the heading
 text toggles only its starting page; selected descendants remain selected. Shift-click retains ordinary page-range
 selection. Grid page images use the same rules. Clicking a section ribbon alone folds or unfolds it without changing
-selection. The Input heading carries the normal single-page Add and eye actions. Output headings and ordinary Output
-rows carry the same horizontal sequence: Move earlier, Move later, Remove, Duplicate, then eye. The four editing actions
-stay visible, including on touch and narrow panes; page names truncate to preserve the controls. The eye opens Page with
-the same inspection and return semantics as the normal List eye. Dragging either List or Grid ribbon selects the
-complete section group for transfer and shows a page stack. Pressing without movement does not transfer or fold; release
-and cancellation restore the original ribbon.
+selection. The Input heading carries a section-wide Add and the ordinary eye action. Output headings and ordinary Output
+rows carry the same sequence: Move up, Move down, Remove, Duplicate, then eye. In Grid, the move arrows point left and
+right. Every heading action targets its complete section, including the starting page. The four editing actions are
+hidden until hover or keyboard focus; the eye stays visible. With any selection, editing actions disappear and the
+pane's selection bar owns the operation. Page names truncate to preserve the controls. The eye opens Page with the same
+inspection and return semantics as the normal List eye. Dragging either List or Grid ribbon selects the complete section
+group for transfer and shows a page stack. Pressing without movement does not transfer or fold; release and cancellation
+restore the original ribbon.
 
 All List action groups align to the end of their shared column. Extra hierarchy controls must not move the page rows'
 View glyphs away from the section rows' View glyphs.
@@ -395,13 +397,11 @@ needed. Parents use the same small caps, size, and weight as the current title, 
 larger, bold neutral `‹` with equal space on both sides. Parent text uses free space before the trailing actions.
 Selected closed sections keep all heading text readable against the primary surface.
 
-The original return-arrow Jump to section control moves from the List row action column into **page-number details** in
-both List and Grid. The details panel retains the original numbered ancestor trail, physical-page column, 16 px padding,
-44 px Close target, keyboard focus styling, and selection-preserving navigation. The arrow is available whenever the
-corresponding page has navigable TOC ancestry, including section start pages; pages without a path have no empty Jump
-row. Activating an entry closes the Jump panel, opens required ancestors and focuses the visible destination in the
-current view. Root paths may navigate to their own heading. Jump targets retain their existing 3000 ms secondary
-highlight and reduced-motion behavior.
+Jump to section sits **inline within page-number details** in both List and Grid, without its own icon, trigger, or
+nested popover. It retains the numbered ancestor trail, physical-page column, keyboard focus styling, and
+selection-preserving navigation. Pages without navigable ancestry show no Jump section. Activating an entry closes page
+details, opens required ancestors, and focuses the visible destination in the current view. Root paths may navigate to
+their own heading. Jump targets retain their existing 3000 ms secondary highlight and reduced-motion behavior.
 
 The Contents toolbar icon uses the primary color while its panel is open. Selecting an entry reveals its exact physical
 page in Grid, List, or Page, including Grid pages outside the visible scroll window.
@@ -442,14 +442,14 @@ the control's accessible text and page preview. The hover title explains selecti
 page selection color. Unnamed pages reserve no empty name line. Repeated names retain separate numbered rows. Selected
 rows use the primary surface and its contrasting text color, without a selection contour. Numbers, names, and ticks keep
 this contrast on hover and keyboard focus. Unselected row text and actions use an 80% mix of the text color over the
-page background. Input's selected Add becomes the selection tick; Output keeps its four editing actions when selected.
-Keyboard focus remains visible independently of selection. Output groups its up/down controls and removal/duplication
-into two contiguous pairs, with 6 px between the pairs and no divider. On a fine pointer, Input Add appears on row hover
-or focus. Output pairs stay visible. Hover changes the icon color without boxes or glow. Eye and the selection tick
-remain visible. Row actions use 32 px targets with a fine pointer and 44 px targets for touch, in both themes. Coarse
-pointers keep Input Add visible. Narrow Output List panes keep four inline actions, with shorter title space. Page
-details use a compact, start-aligned popover beside the number, including in narrow panes. List uses its own tab beside
-Grid. Switching views retains the toolbar height and content-frame position.
+page background. A selected Input page retains its selection tick; Output item edit actions disappear when the pane has
+a selection. Keyboard focus remains visible independently of selection. Output groups its up/down controls and
+removal/duplication into two contiguous pairs, with 6 px between the pairs and no divider. On a fine pointer, Input Add
+and Output pairs appear only on row hover or focus. On touch, non-eye actions remain hidden until keyboard focus. Hover
+changes the icon color without boxes or glow. The eye remains visible. Row actions use 32 px targets with a fine pointer
+and 44 px targets for touch, in both themes. Narrow Output List panes retain space for four inline actions without
+showing them at rest. Page details use a compact, start-aligned popover beside the number, including in narrow panes.
+List uses its own tab beside Grid. Switching views retains the toolbar height and content-frame position.
 
 Each row has a grip beside its number and a View icon at the trailing edge. View hover or keyboard focus shows a large
 full-page preview beside the row. Keep the preview within the viewport and preserve the page's aspect ratio. It does not
@@ -497,9 +497,9 @@ revealed by the fold change animate, never items mounted through virtual scrolli
 effects. The Fold all/Unfold all and Section headings toolbar controls are available in Grid and List. Hiding headings
 restores the full flat page Grid.
 
-Grid footer actions appear on hover or focus with a fine pointer. Input's Add action stays visible on touch. Output
-touch actions use the existing menu. The card footer design is separate from the Pages layout. Do not change its content
-or targets while changing scroll behavior.
+Grid footer actions appear on hover or keyboard focus with a fine pointer. On touch, Input Add and Output edit actions
+remain hidden until focus; the eye stays visible. Output touch actions use the existing menu when focused. The card
+footer design is separate from the Pages layout. Do not change its content or targets while changing scroll behavior.
 
 A page name appears in a one-line tooltip when a Grid or Page number receives hover or keyboard focus. Long names
 truncate inside the viewport. Clicking the number opens details beneath it. The page name appears first when present.

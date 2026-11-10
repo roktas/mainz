@@ -47,7 +47,7 @@
     retained?: number
     position?: number
     select: (position: number, range: boolean, anchor?: number, sectionEnd?: number) => void
-    edit: (action: "add" | "duplicate" | "remove", position: number) => boolean
+    edit: (action: "add" | "duplicate" | "remove", position: number, sectionEnd?: number) => boolean
     children: Snippet<[index: number, retained?: number]>
   } = $props()
   let viewport = $state(0)
@@ -373,7 +373,12 @@
     position = pages[index]
     if (action === "add" || action === "duplicate" || action === "remove") {
       event.preventDefault()
-      if (!event.repeat) edit(action, position)
+      if (!event.repeat) {
+        const row = order[index]
+        const focusedSection =
+          event.target.matches(".list-heading") && row < 0 ? sections.nodes.get(-row - 1) : undefined
+        edit(action, position, focusedSection?.end)
+      }
       return
     }
     if (

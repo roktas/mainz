@@ -9,7 +9,6 @@
     first: "M5 4v16m14-4-6-4 6-4",
     last: "M19 4v16M5 6l6 6-6 6",
     goto: "M4 12h14m-5-5 5 5-5 5M21 4v16",
-    jump: "m9 4-6 6 6 6M3 10h12a6 6 0 0 1 6 6v4",
     // Lucide book-open-text (ISC); see public/notices/lucide.txt.
     toc: "M12 5v16M16 13h2M16 9h2M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2ZM6 13h2M6 9h2",
     // Adobe Acrobat ribbon from Simple Icons 13 (CC0). See public/notices/simple-icons.txt.
@@ -38,6 +37,8 @@
     original: "M10 3h10v18H10M14 7h3m-3 4h3M11 15H2m4-4-4 4 4 4",
     earlier: "M19 12H5m5-5-5 5 5 5",
     later: "M5 12h14m-5-5 5 5-5 5",
+    "move-up": "M12 19V5m-5 5 5-5 5 5",
+    "move-down": "M12 5v14m-5-5 5 5 5-5",
     close: "m6 6 12 12M6 18 18 6",
     select: "M4 4h16v16H4V4Zm4 8 3 3 5-6",
     info: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 4v1m0 3v6",

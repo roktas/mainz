@@ -24,14 +24,31 @@ export function sectionsOf(
   if (!headings) return { roots, nodes }
   for (let page = 0; page < count; page++) {
     const present = new Set<string>()
-    for (const { path, keys } of headings(page)) {
+    for (const { path, keys, starts } of headings(page)) {
       let siblings = roots
       let parent: Section | undefined
       for (let depth = 0; depth < path.length; depth++) {
         const key = keys[depth]
         present.add(key)
         let section = open.get(key)
+        if (section && starts?.[depth] && section.start !== page) {
+          // A repeated heading page starts a new Output group, even if the original TOC key matches.
+          for (const [activeKey, active] of open) {
+            for (let ancestor: Section | undefined = active; ancestor; ancestor = ancestor.parent)
+              if (ancestor === section) {
+                open.delete(activeKey)
+                break
+              }
+          }
+          section = undefined
+        }
         if (!section) {
+          if (starts && !starts[depth]) {
+            // A reordered continuation is not a section start. A real child can still start here.
+            parent = undefined
+            siblings = roots
+            continue
+          }
           section = {
             id: nodes.size,
             key: JSON.stringify([identity?.(page) ?? page, key]),

@@ -75,6 +75,87 @@ test("Same-page and identically named TOC entries retain independent headers wit
   assert.deepEqual(flattenSections(tree.roots, paths.length, new Set([children[1].key])), [-1, -2, 0, 1, -3, -4, 2])
 })
 
+test("Reordering a section never promotes its former continuation into a new ribbon", () => {
+  const source = [
+    { id: "a0", path: "A", beginning: true },
+    { id: "a1", path: "A", beginning: false },
+    { id: "a2", path: "A", beginning: false },
+    { id: "b0", path: "B", beginning: true },
+    { id: "b1", path: "B", beginning: false },
+    { id: "c0", path: "C", beginning: true },
+  ]
+  const grouped = (pages: typeof source) =>
+    sectionsOf(
+      pages.length,
+      (index) => [{ path: [pages[index].path], keys: [pages[index].path], starts: [pages[index].beginning] }],
+      (index) => pages[index].id,
+    )
+  const moved = [source[0], source[1], source[3], source[4], source[2], source[5]]
+  const sections = grouped(moved)
+  assert.deepEqual(
+    [...gridSections(sections, moved.length, new Set()).headings].map(([index, section]) => [index, section.path[0]]),
+    [
+      [0, "A"],
+      [2, "B"],
+      [5, "C"],
+    ],
+  )
+  assert.equal(flattenSections(sections.roots, moved.length, new Set()).filter((index) => index < 0).length, 3)
+  assert.deepEqual(
+    sections.roots.map((section) => [section.start, section.end]),
+    [
+      [0, 2],
+      [2, 4],
+      [5, 6],
+    ],
+  )
+  const restored = grouped(source)
+  assert.deepEqual(
+    restored.roots.map((section) => [section.start, section.end]),
+    [
+      [0, 3],
+      [3, 5],
+      [5, 6],
+    ],
+  )
+})
+
+test("Repeated real heading pages start independent groups with the same source TOC key", () => {
+  const pages = [
+    { id: "b0", start: true },
+    { id: "b1", start: false },
+    { id: "copy-b0", start: true },
+    { id: "copy-b1", start: false },
+  ]
+  const sections = sectionsOf(
+    pages.length,
+    (index) => [{ path: ["Book"], keys: ["book"], starts: [pages[index].start] }],
+    (index) => pages[index].id,
+  )
+  assert.deepEqual(
+    sections.roots.map((section) => [section.start, section.end]),
+    [
+      [0, 2],
+      [2, 4],
+    ],
+  )
+  assert.deepEqual([...gridSections(sections, pages.length, new Set()).headings.keys()], [0, 2])
+  assert.notEqual(sections.roots[0].key, sections.roots[1].key)
+})
+
+test("Nested section anchors remain available after a parent continuation is detached", () => {
+  const pages = [
+    { path: ["Parent"], keys: ["p"], starts: [true] },
+    { path: ["Other"], keys: ["o"], starts: [true] },
+    { path: ["Parent", "Child"], keys: ["p", "c"], starts: [false, true] },
+    { path: ["Parent", "Child"], keys: ["p", "c"], starts: [false, false] },
+  ]
+  const tree = sectionsOf(pages.length, (index) => [pages[index]])
+  assert.deepEqual([...gridSections(tree, pages.length, new Set()).headings.keys()], [0, 1, 2])
+  assert.deepEqual(tree.roots.at(-1)?.path, ["Parent", "Child"])
+  assert.equal(tree.roots.at(-1)?.end, 4)
+})
+
 test("Grid folds keep each section's starting page image and retain child choices", () => {
   const paths = [[], ["Chapter", "Part A"], ["Chapter", "Part A"], ["Chapter", "Part B"], ["Next"], []]
   const tree = sectionsOf(paths.length, (page) => heading(paths[page]))

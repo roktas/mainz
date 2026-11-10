@@ -42,7 +42,7 @@
     keyboard?: boolean
     selected: (position: number) => boolean
     toggle: (position: number) => void
-    edit: (action: "add" | "duplicate" | "remove") => boolean
+    edit: (action: "add" | "duplicate" | "remove", position?: number, sectionEnd?: number) => boolean
     children: Snippet<
       [
         pages: readonly number[],
@@ -377,7 +377,11 @@
         event.preventDefault()
         if (context.repeat) return
         reset()
-        if (edit(action)) keyboard = true
+        const page =
+          event.target instanceof HTMLElement && event.target.matches(".page-image")
+            ? Number(event.target.dataset.page)
+            : undefined
+        if (edit(action, page, page === undefined ? undefined : sections.headings.get(page)?.end)) keyboard = true
         return
       }
       if (action === "copy" && event.target === element) {

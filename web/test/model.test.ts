@@ -380,6 +380,22 @@ test("Occurrence ordering swaps adjacent positions without crossing boundaries",
   assert.deepEqual(pages, ["a", "b", "c", "d", "e"])
 })
 
+test("A section moves as one contiguous occurrence group in either direction", () => {
+  const pages = ["a0", "a1", "b0", "b1", "b2", "c0"].map((id) => ({ id, content: { source: "book", page: 0 } }))
+  const earlier = composition.order(pages, ["b0", "b1", "b2"], -1)
+  assert.deepEqual(
+    earlier?.pages.map((page) => page.id),
+    ["a0", "b0", "b1", "b2", "a1", "c0"],
+  )
+  const later = composition.order(earlier!.pages, ["b0", "b1", "b2"], 1)
+  assert.deepEqual(
+    later?.pages.map((page) => page.id),
+    pages.map((page) => page.id),
+  )
+  assert.equal(composition.order(pages, ["a0", "a1"], -1), undefined)
+  assert.equal(composition.order(pages, ["c0"], 1), undefined)
+})
+
 test("Occurrence identities survive materialization, insertion, reordering, and repetition", () => {
   const original = expand([part("prefix", [1]), part("practice", [0], 2, true)], sources)
   assert.equal(new Set(original.map((page) => page.id)).size, original.length)

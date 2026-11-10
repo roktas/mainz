@@ -570,6 +570,25 @@ Space actions. Two existing Chromium regressions for heading/page parity and Lis
 Node 24 formatting, Svelte/TypeScript checks (0 errors and warnings), and 56/56 unit tests passed. Lint reported 0
 errors and 37 existing warnings. WebKit, long browser runs, and physical-device touch behavior remain unverified.
 
+#### Grid/List group actions and Output ordering (2026-11-10)
+
+- [x] Use vertical Move up/down arrows in List and horizontal Move earlier/later arrows in Grid. Keep Remove and
+      Duplicate after Move, with the Page eye at the end.
+- [x] Hide individual edit icons until hover or focus in both views and panes, including touch layouts. Keep eye icons
+      visible. When a pane has a selection, show editing only in its selection bar.
+- [x] Apply Input heading Add and Output heading Move, Duplicate, and Remove to every page in the section. Apply focused
+      heading keyboard edits to the same group; leave ordinary page edits page-scoped.
+- [x] Fix phantom Output ribbons after moves in Grid and List by distinguishing original TOC start pages from
+      continuation pages. Split repeated actual heading starts into distinct groups after duplication.
+- [x] Show numbered Jump to section paths directly inside Grid/List page details, without another icon or popover.
+- [x] Align Web SPEC/VIEW, unit tests, and browser regressions with the new behavior. Remove unused Jump icon artwork.
+- [ ] Run full WebKit, touch-device hardware checks, and extended browser suites before release.
+
+**Focused verification:** Node 24 passed 60/60 unit tests, Svelte/TypeScript checks (0 errors and warnings), and
+formatting. Lint reported 0 errors and 37 existing warnings. Chromium tests passed for Grid/List group edits and heading
+keyboard shortcuts, false-ribbon prevention, repeated-group boundaries, inline Jump and nested section paths, and
+touch-width action visibility in both panes. The full browser matrix and physical-device behavior remain unverified.
+
 #### Closure
 
 - [ ] Fix confirmed defects and unnecessary complexity with small, behavior-preserving changes. Add or repair tests at

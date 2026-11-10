@@ -478,6 +478,13 @@
   const outputBooks = $derived(
     new Set(output.pages.flatMap((page) => ("source" in page.content ? [page.content.source] : []))),
   )
+  const outputFirsts = $derived.by(() => {
+    const firsts = new Map<string, string>()
+    for (const page of output.pages)
+      if ("source" in page.content && !firsts.has(page.content.source)) firsts.set(page.content.source, page.id)
+    return firsts
+  })
+  const outlineStarts = new WeakMap<object, Map<string, number>>()
   function displayName(origin: Source | undefined, page: number) {
     return origin ? titlesOf(origin.input).at(page, inputViews[origin.id]?.tocTitles).name : undefined
   }
@@ -490,20 +497,27 @@
   function inputHeadings(page: number) {
     return source ? titlesOf(source.input).at(page).headings : []
   }
-  function outputHeadings(content: Content) {
+  function outputHeadings(content: Content, index: number) {
     if (!("source" in content)) return []
     const document = provenance(content)?.input
     if (!document) return []
     const headings = titlesOf(document).at(content.page).headings
+    let starts = outlineStarts.get(document)
+    if (!starts) {
+      starts = new Map((document.outline ?? []).map((entry) => [entry.keys.at(-1)!, entry.page]))
+      outlineStarts.set(document, starts)
+    }
     const path = outputBooks.size > 1 ? [titleOf(document)] : []
     const keys = outputBooks.size > 1 ? [content.source] : []
+    const rootStart = outputBooks.size > 1 ? [outputFirsts.get(content.source) === output.pages[index].id] : []
     return headings.length
       ? headings.map((heading) => ({
           path: [...path, ...heading.path],
           keys: [...keys, ...heading.keys.map((node) => `${content.source}:${node}`)],
+          starts: [...rootStart, ...heading.keys.map((node) => starts.get(node) === content.page)],
         }))
       : path.length
-        ? [{ path, keys }]
+        ? [{ path, keys, starts: rootStart }]
         : []
   }
   function transferName() {
@@ -1105,7 +1119,7 @@
       : activeOutputTab === "grid"
         ? outputGrid
         : outputList}
-  {@const headings = pane === "Input" ? inputHeadings(page) : outputHeadings(output.pages[page].content)}
+  {@const headings = pane === "Input" ? inputHeadings(page) : outputHeadings(output.pages[page].content, page)}
   {#if headings.length}
     {@render sectionJump(
       pane,
@@ -1115,29 +1129,9 @@
   {/if}
 {/snippet}
 
-{#snippet sectionJump(pane: "Input" | "Output", paths: readonly (readonly Section[])[], id: string, disabled = false)}
-  {@const name = paths[0]?.at(-1)?.path.join(" › ") ?? ""}
-  <button
-    type="button"
-    class="icon-button list-jump"
-    aria-label={`Jump to section for ${pane}: ${name}`}
-    title="Jump to section"
-    {disabled}
-    popovertarget={id}><Icon name="jump" /></button
-  >
-  <div {id} class="section-path" popover="auto" role="region" aria-labelledby={`${id}-title`}>
-    <header>
-      <Icon name="jump" />
-      <h3 id={`${id}-title`}>Jump to section</h3>
-      <button
-        type="button"
-        class="icon-button"
-        aria-label="Close section navigation"
-        title="Close"
-        popovertarget={id}
-        popovertargetaction="hide"><Icon name="close" /></button
-      >
-    </header>
+{#snippet sectionJump(pane: "Input" | "Output", paths: readonly (readonly Section[])[], id: string)}
+  <div {id} class="section-path" role="group" aria-labelledby={`${id}-title`}>
+    <header><h3 id={`${id}-title`}>Jump to section</h3></header>
     {#each paths as path, index (index)}
       <ol>
         {#each path as node, depth (node.id)}
@@ -1150,6 +1144,7 @@
               aria-label={`Go to section: ${node.path.join(" › ")}`}
               onclick={(event) => {
                 event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
+                originOpen = undefined
                 void (
                   pane === "Input"
                     ? activeTab === "grid"
@@ -1280,10 +1275,10 @@
   >
   <div class="list-actions">
     {#if pane === "Input"}
-      {@render inputPageActions(first)}
+      {#if !draft.pages.length}{@render inputPageActions(first, end)}{/if}
       {@render inputPeek(first)}
     {:else}
-      {@render occurrenceActions(output.pages[first], first, true)}
+      {@render occurrenceActions(output.pages[first], first, true, end)}
       {@render outputPeek(output.pages[first], first)}
     {/if}
   </div>
@@ -1446,14 +1441,22 @@
   {@render pageFace(inputView.position)}
 {/snippet}
 
-{#snippet inputPageActions(page: number = inputPosition)}
+{#snippet inputPageActions(page: number = inputPosition, end = page + 1)}
   <button
     class="icon-button"
-    aria-label={`Add Input page ${page + 1} to Output`}
-    title="Add one copy"
+    aria-label={end > page + 1
+      ? `Add Input section pages ${page + 1}–${end} to Output`
+      : `Add Input page ${page + 1} to Output`}
+    title={end > page + 1 ? "Add section to Output" : "Add one copy"}
     onclick={(event) => {
       event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
-      if (add(undefined, [page], "keep")) {
+      if (
+        add(
+          undefined,
+          Array.from({ length: end - page }, (_, index) => page + index),
+          "keep",
+        )
+      ) {
         inspectInput({ position: page })
         interaction.focusPage(event.currentTarget)
       }
@@ -1492,7 +1495,7 @@
     bind:opened={originOpen}
   >
     {#snippet navigation()}
-      {#if outputGrouped && outputHeadings(page.content).length}
+      {#if outputGrouped && outputHeadings(page.content, index).length}
         <div class="page-detail-navigation">{@render pageJump("Output", index)}</div>
       {/if}
     {/snippet}
@@ -1594,25 +1597,29 @@
   {@render pageFace(transfer.number(index) - 1)}
 {/snippet}
 
-{#snippet occurrenceActions(page: Expanded, index: number, controls: boolean)}
-  {@const ids = activeOutputTab === "list" && !outputSelectionError ? [page.id] : outputTargets(page.id)}
+{#snippet occurrenceActions(page: Expanded, index: number, controls: boolean, end = index + 1)}
+  {@const ids = chosen.length || outputSelectionError ? [] : output.pages.slice(index, end).map((item) => item.id)}
+  {@const group = end > index + 1}
   {#snippet move(offset: -1 | 1)}
     <button
       class="icon-button move"
-      aria-label={`Move Output page ${index + 1} ${offset < 0 ? "earlier" : "later"}`}
-      title={`Move page ${offset < 0 ? "earlier" : "later"}`}
-      disabled={!ids.length || (offset < 0 ? index === 0 : index === output.pages.length - 1)}
+      aria-label={`Move Output ${group ? `section pages ${index + 1}–${end}` : `page ${index + 1}`} ${offset < 0 ? "earlier" : "later"}`}
+      title={`Move ${group ? "section" : "page"} ${offset < 0 ? "earlier" : "later"}`}
+      disabled={!ids.length || (offset < 0 ? index === 0 : end === output.pages.length)}
       onclick={(event) => {
         event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
         order(offset, ids)
-      }}><Icon name={offset < 0 ? "earlier" : "later"} /></button
+      }}
+      ><Icon
+        name={activeOutputTab === "list" ? (offset < 0 ? "move-up" : "move-down") : offset < 0 ? "earlier" : "later"}
+      /></button
     >
   {/snippet}
   {#snippet copies()}
     <button
       class="icon-button"
-      aria-label={`Remove Output page ${index + 1}`}
-      title="Remove this page"
+      aria-label={`Remove Output ${group ? `section pages ${index + 1}–${end}` : `page ${index + 1}`}`}
+      title={group ? "Remove section" : "Remove this page"}
       disabled={!ids.length}
       onclick={(event) => {
         event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
@@ -1620,8 +1627,8 @@
       }}><Icon name="remove" /></button
     ><button
       class="icon-button"
-      aria-label={`Duplicate Output page ${index + 1}`}
-      title="Add one adjacent copy"
+      aria-label={`Duplicate Output ${group ? `section pages ${index + 1}–${end}` : `page ${index + 1}`}`}
+      title={group ? "Add one adjacent copy of section" : "Add one adjacent copy"}
       disabled={!ids.length}
       onclick={(event) => {
         event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
@@ -1638,7 +1645,7 @@
     </div>
   {/snippet}
   <div class="occurrence-actions">
-    {#if controls}
+    {#if controls && ids.length}
       {#if activeOutputTab === "list"}
         {@render pairs()}
       {:else}
@@ -2025,7 +2032,14 @@
                     bind:position={() => inputPosition, (position) => inspectInput({ position })}
                     select={(page, range, anchor, sectionEnd) =>
                       sectionEnd === undefined ? toggle(page, range, anchor) : selectSection("Input", page, sectionEnd)}
-                    edit={(action, page) => action === "add" && !!add(undefined, inputTargets(page))}
+                    edit={(action, page, end) =>
+                      action === "add" &&
+                      !!add(
+                        undefined,
+                        end === undefined
+                          ? inputTargets(page)
+                          : Array.from({ length: end - page }, (_, offset) => page + offset),
+                      )}
                   >
                     {#snippet section(start, end, path, expanded, toggle, id)}
                       {@render sectionRow("Input", start, end, path, expanded, toggle, id)}
@@ -2100,7 +2114,14 @@
                   bind:keyboard={interaction.usingKeyboard}
                   selected={(position) => inputSelected.has(position)}
                   toggle={(page) => toggle(page, false)}
-                  edit={(action) => action === "add" && !!add()}
+                  edit={(action, page, end) =>
+                    action === "add" &&
+                    !!add(
+                      undefined,
+                      page === undefined || draft.pages.length
+                        ? undefined
+                        : Array.from({ length: (end ?? page + 1) - page }, (_, offset) => page + offset),
+                    )}
                 >
                   {#snippet children(pages, headings, fold, folded)}
                     {#each pages as page, index (page)}
@@ -2226,7 +2247,7 @@
                               class="grid-pdf-label"
                               title={`Page Label: ${source.input.labels[page]}`}>{source.input.labels[page]}</span
                             >{/if}
-                          {#if !draft.pages.length}{@render inputPageActions(page)}{/if}
+                          {#if !draft.pages.length}{@render inputPageActions(page, section?.end)}{/if}
                         </div>
                         {@render pageFace(page)}
                       </li>
@@ -2500,7 +2521,7 @@
               pane="Output"
               count={output.pages.length}
               revision={outputListRevision}
-              headings={outputGrouped ? (index) => outputHeadings(output.pages[index].content) : undefined}
+              headings={outputGrouped ? (index) => outputHeadings(output.pages[index].content, index) : undefined}
               selected={(first, end) => selectedSection("Output", first, end)}
               identity={(index) => output.pages[index].id}
               skipped={skippedRows}
@@ -2514,8 +2535,12 @@
                       anchor === undefined ? undefined : output.pages[anchor].id,
                     )
                   : selectSection("Output", index, sectionEnd)}
-              edit={(action, index) => {
-                const ids = outputSelectionError ? [] : chosen.length ? outputTargets() : [output.pages[index].id]
+              edit={(action, index, end) => {
+                const ids = outputSelectionError
+                  ? []
+                  : chosen.length
+                    ? outputTargets()
+                    : output.pages.slice(index, end ?? index + 1).map((page) => page.id)
                 return !!(action === "remove" ? remove(ids) : duplicate(ids))
               }}
             >
@@ -2609,7 +2634,7 @@
                 active={() => interaction.shortcutPane() === "Output"}
                 count={output.pages.length}
                 headings={outputGrouped && !transfer.value
-                  ? (index) => outputHeadings(output.pages[index].content)
+                  ? (index) => outputHeadings(output.pages[index].content, index)
                   : undefined}
                 identity={(index) => output.pages[index].id}
                 bind:folds={outputFolds}
@@ -2618,7 +2643,13 @@
                 bind:keyboard={interaction.usingKeyboard}
                 selected={(position) => selectedIds.has(output.pages[position]?.id)}
                 toggle={(position) => selectOutput(output.pages[position].id, false)}
-                edit={(action) => !!(action === "remove" ? remove() : duplicate())}
+                edit={(action, index, end) => {
+                  const ids =
+                    index === undefined || chosen.length || outputSelectionError
+                      ? outputTargets()
+                      : output.pages.slice(index, end ?? index + 1).map((page) => page.id)
+                  return !!(action === "remove" ? remove(ids) : duplicate(ids))
+                }}
               >
                 {#snippet children(pages, headings, fold, folded)}
                   {#each pages as index, offset (output.pages[index].id)}
@@ -2726,7 +2757,7 @@
                           </div>{/if}
                       </button>
 
-                      {@render occurrenceActions(page, index, !chosen.length)}
+                      {@render occurrenceActions(page, index, !chosen.length, section?.end)}
                     </li>
                   {/each}
                   {#if transfer.preview && transfer.grid && transfer.preview.slot < transfer.grid.limit}

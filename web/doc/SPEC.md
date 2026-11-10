@@ -145,11 +145,10 @@ provenance/details UI as an ordinary page. A press on any section ribbon display
 complete section's pages, while a stationary press does not fold or select them. Input section drags copy to Output;
 Output drags move the group. Closed sections accept drops before or after the entire group.
 
-Jump to section is an action **inside page-number details** in both Grid and List. Its arrow and original numbered-path
-popover remain unchanged, including every matching path on a page and physical page numbers. The inline List jump
-buttons are removed from rows and section ribbons. Following a path closes Jump, unfolds the required ancestors, then
-scrolls to and focuses the destination in the same active view, without changing selection. The visible same-page
-heading represents a nested section target when no independent heading row exists.
+Jump to section appears **inline inside page-number details** in Grid and List. It retains the numbered ancestry,
+matching paths on each page, and physical page numbers. It has no separate icon or nested popover. Following a path
+closes the page details, unfolds the required ancestors, and focuses the destination without changing selection. The
+visible same-page heading represents a nested section target when no independent heading row exists.
 
 Grid and List share section fold/unfold state for each pane. Grid keeps the physical starting-page image as a section's
 visible card and hides later pages inside folded sections. The centered ribbon is vertical, with no title text on the
@@ -160,10 +159,12 @@ that same single visible ribbon. Grid's section ribbon also drags its entire sub
 selection and dragging. Transfers temporarily show all pages to preserve the physical Output order and drop targets. The
 Section headings toggle and Fold all/Unfold all actions apply to both views without clearing per-section choices.
 
-List section headings use the ordinary page actions: Input has Add and View, while Output has Move earlier, Move later,
-Remove, Duplicate, and View. Output page actions remain visible and in left-to-right order even in narrow List panes;
-text yields space through truncation. Grid's eye icon occupies each card's upper-right corner and opens Page with the
-same mode and inspection state as List's eye. Grid keeps its existing per-page footer actions.
+List section headings use the ordinary actions for their entire subtree: Input adds all section pages; Output moves,
+duplicates, or removes the section as one group. Ordinary rows act on one page. List places Move up, Move down, Remove,
+and Duplicate in that order. Grid uses left/right move icons. Both views show the eye action at rest and reveal other
+item actions on hover or keyboard focus. When a pane has a selection, its action bar owns editing and item edit buttons
+are absent. The eye opens Page without changing the pane's selection or inspection-return behavior. Output grouping
+tracks actual source section starts, so reordering or duplicating pages never creates a heading on a continuation page.
 
 On first List opening, sections start closed if the expanded list exceeds the pane height; otherwise, they start open.
 Each pane retains expansion choices across view changes and resizing. The toolbar folds or unfolds all sections.
@@ -179,8 +180,8 @@ grip. Input's current file and chooser use the matching colors. Colors remain st
 reordering and duplication; filename and original page details provide the source identity independently of color.
 
 List mounts the visible window and a small margin, with spacers retaining the scroll range. Unmounted rows keep their
-physical positions, occurrence identities, and selections in the existing workspace owners. Output List rows always
-render four inline editing buttons; Grid retains its contextual card menu.
+physical positions, occurrence identities, and selections in the existing workspace owners. List offers inline edit
+actions on hover or focus; Grid retains its contextual card menu.
 
 List choices use the existing Selection and page-action model. They resolve to physical indexes or Output occurrence
 identities. List does not own another selection state or change the numeric Selection grammar. View changes retain the
@@ -201,18 +202,17 @@ closes it. Only one row preview opens at a time. Input uses the original PDF; Ou
 Page, V returns to the originating List or Grid. Returning to List restores focus and scrolling at the inspected row.
 
 Clicking a row's selection area uses the shared selection model. Page numbers open anchored details beside the number.
-Individual Add and Duplicate actions in Grid and List preserve selection; new occurrences remain unselected. Selected
-rows replace their Add or Duplicate button with a tick that unselects that row. Their page operations use the pane's
-shared page-action bar. Unselected Input rows retain Add even when other rows are selected. Unselected Output rows
-retain individual movement, removal, and duplication, without applying those actions to another selection. On a fine
-pointer, Input Add and Output row actions appear on hover or focus. Output uses two button pairs. Eye and selected ticks
-remain visible. Touch keeps Input Add visible. Output uses an action menu for touch and narrow panes. Output movement
-steps one occurrence up or down and preserves its identity. Action controls keep accessible names and keyboard focus.
-Removing a focused occurrence focuses the surviving neighbor. Switching views reveals the inspected item and transfers
-content focus to its equivalent only when content had focus. Tab activation keeps focus on the tab. List scrolls within
-the same pane content frame as Grid. Input switching restores its inspected item and reveals that row without changing
-Output. List edits use immediate document updates with addition, removal, and movement feedback. Reduced motion disables
-this feedback. Animation does not delay actions or leave outgoing rows interactive.
+Individual actions preserve selection; new Output occurrences remain unselected. When any pages are selected, the pane's
+shared action bar owns additions and edits; individual item Add, Move, Remove, and Duplicate buttons are absent. On fine
+pointers, these actions appear on hover or keyboard focus. On touch, editing actions appear on keyboard focus, while the
+eye stays visible. List uses two Output button pairs; Grid retains its card action menu. A section heading's actions,
+including focused keyboard shortcuts, act on its complete section; ordinary rows act on one page. Item and group moves
+preserve occurrence identity. All controls retain accessible names and keyboard focus. Removing a focused occurrence
+focuses the surviving neighbor. Switching views reveals the inspected item and transfers content focus to its equivalent
+only when content had focus. Tab activation keeps focus on the tab. List scrolls within the same pane content frame as
+Grid. Input switching restores its inspected item and reveals that row without changing Output. List edits use immediate
+document updates with addition, removal, and movement feedback. Reduced motion disables this feedback. Animation does
+not delay actions or leave outgoing rows interactive.
 
 Grid and Page show supplied names after 220 ms of pointer hover over their page number, or immediately on keyboard
 focus. List shows names inline and uses selection help on the name instead of repeating it in hover tooltips. Full names

@@ -3,7 +3,7 @@
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { Input } from "./model.ts"
 
-export type SectionPath = { path: readonly string[]; keys: readonly string[] }
+export type SectionPath = { path: readonly string[]; keys: readonly string[]; starts?: readonly boolean[] }
 export type Outline = SectionPath & { title: string; depth: number; page: number; end: number }
 
 export async function readOutline(
