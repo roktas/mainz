@@ -728,7 +728,8 @@
       </div>
     </details>{/if}
   <label class="file-picker" title="Open PDF"
-    ><Icon name="add" /><span>Open PDF</span><input
+    ><Icon name="add" /><span class="file-picker-mobile-icon"><Icon name="file-plus" /></span><span>Open PDF</span
+    ><input
       type="file"
       aria-label="Open PDF"
       accept="application/pdf,.pdf"

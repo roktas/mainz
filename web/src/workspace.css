@@ -975,6 +975,9 @@
           justify-content: center;
           gap: 0.5em;
           white-space: nowrap;
+          & > .file-picker-mobile-icon {
+            display: none;
+          }
         }
       }
       & .source-tabs,
@@ -1287,6 +1290,8 @@
         }
         & .input-picker h2 > .workspace-icon {
           display: block;
+          inline-size: var(--document-icon-size);
+          block-size: var(--document-icon-size);
         }
       }
       .composer .composition-output > .section-heading {
@@ -1301,17 +1306,23 @@
       }
       .composer {
         & .mobile-workspace-tabs,
-        & .input-heading,
         & .composition-output > .section-heading {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: var(--gap);
         }
         & .input-heading {
-          grid-template-columns: auto auto auto minmax(0, 1fr);
-          gap: 0.175em;
+          display: flex;
+          align-self: flex-start;
+          inline-size: calc(3 * var(--output-action-size) + 3 * 0.75em + 7em);
+          max-inline-size: 100%;
+          align-items: center;
+          gap: 0.75em;
+          --output-action-size: max(46px, calc(var(--document-icon-size) + 8px));
           & > .input-picker {
-            grid-column: 1;
+            order: 0;
+            flex: none;
+            margin-inline-end: 0;
             & > summary {
               inline-size: max(46px, calc(var(--document-icon-size) + 8px));
               padding-inline: 4px;
@@ -1321,20 +1332,50 @@
             display: contents;
           }
           & .view-action {
-            grid-column: 2;
-            grid-row: 1;
+            order: 1;
+            flex: none;
+            margin-inline-end: 0;
+            inline-size: var(--output-action-size);
+            min-inline-size: var(--output-action-size);
+            min-block-size: 46px;
+            padding: 3px;
+            & svg {
+              inline-size: var(--document-icon-size);
+              block-size: var(--document-icon-size);
+            }
           }
           & > .file-picker {
-            grid-column: 3;
-            grid-row: 1;
-            padding-inline: 4px;
-            & > span {
+            order: 2;
+            flex: none;
+            min-inline-size: var(--output-action-size);
+            inline-size: var(--output-action-size);
+            aspect-ratio: 1;
+            padding: 3px;
+            color: var(--on-accent);
+            border-color: var(--accent);
+            background: var(--accent);
+            @media (hover: hover) and (pointer: fine) {
+              &:hover:not(:has(input:disabled)) {
+                border-color: var(--hover);
+                background: var(--hover);
+              }
+            }
+            & > svg,
+            & > span:not(.file-picker-mobile-icon) {
               display: none;
+            }
+            & > .file-picker-mobile-icon {
+              display: inline-flex;
+              & svg {
+                inline-size: var(--document-icon-size);
+                block-size: var(--document-icon-size);
+              }
             }
           }
           & .input-state {
-            grid-column: 4;
-            grid-row: 1;
+            order: 3;
+            flex: 1 1 auto;
+            justify-content: start;
           }
         }
         & .mobile-workspace-tabs button,
@@ -1420,7 +1461,7 @@
       .composer .input-heading .file-picker {
         min-inline-size: 44px;
         padding-inline: 4px;
-        & > span {
+        & > span:not(.file-picker-mobile-icon) {
           display: none;
         }
       }
@@ -1444,7 +1485,7 @@
       .composer .output-actions > button {
         min-inline-size: 44px;
         padding-inline: 4px;
-        & > span {
+        & > span:not(.file-picker-mobile-icon) {
           display: none;
         }
       }

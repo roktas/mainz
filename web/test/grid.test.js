@@ -1998,20 +1998,30 @@ test("Input title, counts, file details, and original PDF view share the pane he
     )
     assert.ok(await page.locator(".input-choice .guidance-trigger").first().isVisible())
     await page.locator(".input-picker > summary").click()
-    for (const width of [320, 390, 768, 1440]) {
+    for (const width of [320, 390, 768, 820, 1440]) {
       await page.setViewportSize({ width, height: 900 })
+      await page.mouse.move(0, 0)
       const geometry = await page.locator(".input-heading").evaluate((heading) => {
         const selectors = [".input-picker", ".view-action", ".file-picker", ".input-state"]
         const elements = selectors.map((selector) => heading.querySelector(selector))
         const rects = elements.map((element) => element.getBoundingClientRect())
         const mobile = getComputedStyle(heading.querySelector(".input-preview-tools")).display === "contents"
         const sequence = mobile ? [0, 1, 2, 3] : [0, 3, 1, 2]
+        const gaps = [rects[1].left - rects[0].right, rects[2].left - rects[1].right, rects[3].left - rects[2].right]
+        const accent = getComputedStyle(document.querySelector('.mobile-workspace-tabs button[aria-pressed="true"]'))
         return {
           sameRow: rects.every((rect) => Math.abs(rect.y + rect.height / 2 - (rects[0].y + rects[0].height / 2)) < 2),
           ordered: sequence.slice(1).every((index, offset) => rects[sequence[offset]].right <= rects[index].left),
           within: rects.every((rect) => rect.right <= innerWidth),
+          withinInputTab:
+            rects[3].right <=
+            document.querySelector(".mobile-workspace-tabs button:first-child").getBoundingClientRect().right + 1,
+          uniformGaps: Math.max(...gaps) - Math.min(...gaps) < 1.5,
+          primaryFill: getComputedStyle(elements[2]).backgroundColor === accent.color,
+          fileIconVisible: heading.querySelector(".file-picker-mobile-icon svg").getBoundingClientRect().width > 0,
           totalsVisible: getComputedStyle(heading.querySelector(".composition-totals")).visibility === "visible",
-          fileLabelVisible: getComputedStyle(heading.querySelector(".file-picker > span")).display !== "none",
+          fileLabelVisible:
+            getComputedStyle(heading.querySelector(".file-picker > span:last-of-type")).display !== "none",
           titleVisible: getComputedStyle(heading.querySelector(".input-current")).display !== "none",
         }
       })
@@ -2019,6 +2029,14 @@ test("Input title, counts, file details, and original PDF view share the pane he
       assert.equal(geometry.totalsVisible, true, `${width}: page and sheet totals remain visible`)
       assert.equal(geometry.fileLabelVisible, width === 1440, `${width}: the Open PDF label only appears on desktop`)
       assert.equal(geometry.titleVisible, width === 1440, `${width}: the Input title only appears on desktop`)
+      assert.equal(geometry.fileIconVisible, width !== 1440, `${width}: compact document-add icon`)
+      if (width !== 1440) {
+        assert.ok(
+          geometry.uniformGaps && geometry.primaryFill,
+          `${width}: compact actions: ${JSON.stringify(geometry)}`,
+        )
+        if (width >= 768) assert.ok(geometry.withinInputTab, `${width}: Input header stays under Input tab`)
+      }
       assert.ok(await page.getByRole("button", { name: "View Input PDF" }).isVisible())
       if (width < 1440) {
         await page.locator(".input-picker > summary").click()
