@@ -175,20 +175,19 @@ Each pane header, view toolbar, and selection bar stays on one control row at ev
 Controls never wrap or move to another row. Preserve usable gaps, full-size touch targets, and shared vertical
 alignment. The desktop Input selector shows the document title at regular weight and preserves the source number. The
 Input chooser retains full filenames and their detail controls. Desktop Input pages/sheets and View Input PDF appear
-immediately before Open PDF. In single-pane layouts, the Input header shows the selector icon, View Input PDF, Open PDF
-icon, then the page/sheet summary, in that order. The selector opens the Input list with its file details. Hide the
-Input title and Open PDF label only in single-pane layouts. The Open PDF action uses the same primary fill as Download,
-with a file-plus glyph instead of a plain plus. Compact Input controls use equal gaps, and their full summary stays
-within the Input switch column when space allows. If the summary cannot fit, replace it with an information button that
-opens the same counts. The Output summary uses concise counts, such as `6 pages, 3 sheets`, without PDF or duplex
-prefixes. If these counts still do not fit, make them available through a clickable details control. Do not split the
-header to fit them. At enlarged text sizes, Open PDF and Download can use their icons with the same accessible names and
-touch targets.
+immediately before Open PDF. In single-pane layouts, the Input header shows a square, primary-filled file selector, View
+Input PDF, then the page/sheet summary, in that order. Center only the selector glyph inside its square. Preserve the
+eye action unchanged. The selector opens the Input list with file details and an Open PDF action, which is absent from
+the compact header. The selector and eye use equal gaps; the summary stays within the Input switch column when space
+allows. If the summary cannot fit, replace it with an information button that opens the same counts. The Output summary
+uses concise counts, such as `6 pages, 3 sheets`, without PDF or duplex prefixes. If these counts still do not fit, make
+them available through a clickable details control. Do not split the header to fit them. At enlarged text sizes, Open
+PDF and Download can use their icons with the same accessible names and touch targets.
 
-In single-pane layouts, the Input/Output switch uses two equal columns. The Input header keeps its four controls on one
-row, with the page/sheet summary at the right edge. Output totals align to the end of the space before Print, View, and
-Download. These actions stay together at the end of the row with matching compact gaps. Download uses the same 28 px
-icon size as Print and View, with a square primary-colored target and no text label. Desktop Download retains its
+In single-pane layouts, the Input/Output switch uses two equal columns. The Input header keeps its selector, eye, and
+page/sheet summary on one row, with the summary at the end. Output totals align to the end of the space before Print,
+View, and Download. These actions stay together at the end of the row with matching compact gaps. Download uses the same
+28 px icon size as Print and View, with a square primary-colored target and no text label. Desktop Download retains its
 labeled primary button. If enlarged text leaves insufficient room, keep the Input/Output switch labels and omit their
 icons.
 

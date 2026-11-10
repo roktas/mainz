@@ -975,9 +975,6 @@
           justify-content: center;
           gap: 0.5em;
           white-space: nowrap;
-          & > .file-picker-mobile-icon {
-            display: none;
-          }
         }
       }
       & .source-tabs,
@@ -1154,6 +1151,9 @@
         color: var(--muted);
       }
       & .input-list {
+        & > .file-picker {
+          display: none;
+        }
         --input-control-height: max(46px, calc(3.25rem + 2px));
         --input-details-width: 44px;
         position: absolute;
@@ -1226,6 +1226,19 @@
       }
     }
     @container composer (width <= 30em) {
+      .composer .input-heading .input-state {
+        & > .composition-totals {
+          position: absolute;
+          visibility: hidden;
+        }
+        & > button {
+          display: inline-flex;
+          inline-size: 44px;
+          min-inline-size: 44px;
+          block-size: var(--output-action-size);
+          min-block-size: var(--output-action-size);
+        }
+      }
       .composer :is(.source-tabs, .output-tabs) {
         column-gap: 0;
       }
@@ -1293,6 +1306,10 @@
           inline-size: var(--document-icon-size);
           block-size: var(--document-icon-size);
         }
+        & .input-picker h2 > .provenance {
+          position: absolute;
+          visibility: hidden;
+        }
       }
       .composer .composition-output > .section-heading {
         & > div:first-child {
@@ -1314,7 +1331,7 @@
         & .input-heading {
           display: flex;
           align-self: flex-start;
-          inline-size: calc(3 * var(--output-action-size) + 3 * 0.75em + 7em);
+          inline-size: calc(2 * var(--output-action-size) + 2 * 0.75em + 7em);
           max-inline-size: 100%;
           align-items: center;
           gap: 0.75em;
@@ -1324,8 +1341,26 @@
             flex: none;
             margin-inline-end: 0;
             & > summary {
-              inline-size: max(46px, calc(var(--document-icon-size) + 8px));
-              padding-inline: 4px;
+              display: grid;
+              place-items: center;
+              inline-size: var(--output-action-size);
+              block-size: var(--output-action-size);
+              min-block-size: var(--output-action-size);
+              aspect-ratio: 1;
+              padding: 0;
+              border-color: var(--accent);
+              background: var(--accent);
+              color: var(--on-accent);
+              & h2 {
+                justify-content: center;
+                color: inherit;
+              }
+              @media (hover: hover) and (pointer: fine) {
+                &:hover {
+                  border-color: var(--hover);
+                  background: var(--hover);
+                }
+              }
             }
           }
           & > .input-preview-tools {
@@ -1345,32 +1380,7 @@
             }
           }
           & > .file-picker {
-            order: 2;
-            flex: none;
-            min-inline-size: var(--output-action-size);
-            inline-size: var(--output-action-size);
-            aspect-ratio: 1;
-            padding: 3px;
-            color: var(--on-accent);
-            border-color: var(--accent);
-            background: var(--accent);
-            @media (hover: hover) and (pointer: fine) {
-              &:hover:not(:has(input:disabled)) {
-                border-color: var(--hover);
-                background: var(--hover);
-              }
-            }
-            & > svg,
-            & > span:not(.file-picker-mobile-icon) {
-              display: none;
-            }
-            & > .file-picker-mobile-icon {
-              display: inline-flex;
-              & svg {
-                inline-size: var(--document-icon-size);
-                block-size: var(--document-icon-size);
-              }
-            }
+            display: none;
           }
           & .input-state {
             order: 3;
@@ -1397,14 +1407,15 @@
           border: 1px solid var(--edge);
           background: var(--surface);
         }
-        & .input-picker > summary {
-          padding-inline: 0.5em;
-          border: 1px solid var(--edge);
-          background: var(--surface);
-          &:focus-visible {
-            border-color: var(--secondary);
-            outline: 2px solid transparent;
-          }
+        & .input-list > .file-picker {
+          display: inline-flex;
+          justify-self: end;
+          margin-inline-end: calc(var(--input-details-width) + var(--gap));
+          min-block-size: var(--input-control-height);
+        }
+        & .input-picker > summary:focus-visible {
+          outline: 2px solid var(--secondary);
+          outline-offset: 2px;
         }
       }
       .composer .composition-output > .section-heading {
@@ -1457,15 +1468,6 @@
         --output-glyph-size: clamp(28px, calc((100cqi - 76px) / 4 - 8px), var(--document-icon-size));
       }
     }
-    @container heading (width <= 30em) {
-      .composer .input-heading .file-picker {
-        min-inline-size: 44px;
-        padding-inline: 4px;
-        & > span:not(.file-picker-mobile-icon) {
-          display: none;
-        }
-      }
-    }
     @container composer (width > 55em) {
       @container heading (width <= 22em) {
         .composer .input-state {
@@ -1481,13 +1483,9 @@
       }
     }
     @container heading (width <= 16em) {
-      .composer .input-heading .file-picker,
       .composer .output-actions > button {
         min-inline-size: 44px;
         padding-inline: 4px;
-        & > span:not(.file-picker-mobile-icon) {
-          display: none;
-        }
       }
     }
   }

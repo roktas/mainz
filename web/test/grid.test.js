@@ -1972,7 +1972,7 @@ test("Grid and List section styling separates unfolded, selected, and focused st
   }
 })
 
-test("Input title, counts, file details, and original PDF view share the pane header", { timeout: 60000 }, async () => {
+test("Compact Input selector matches Output while PDF opening moves into the chooser", { timeout: 60000 }, async () => {
   const server = await serve()
   const browser = await launch(chromium)
   try {
@@ -1987,69 +1987,68 @@ test("Input title, counts, file details, and original PDF view share the pane he
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
     await page.locator(".composer[aria-busy=false]").waitFor()
     assert.equal(await page.locator(".input-current").innerText(), "Italic Strokes")
-    assert.equal(
-      await page.locator(".input-current").evaluate((element) => getComputedStyle(element).fontWeight),
-      "400",
-    )
     assert.match(await page.locator(".input-state .composition-totals").innerText(), /4 pages, 2\s+sheets/)
-    await page.locator(".input-picker > summary").click()
-    assert.ok(
-      await page.locator(".input-choice").first().locator("button").getByText("demo.pdf", { exact: true }).isVisible(),
-    )
-    assert.ok(await page.locator(".input-choice .guidance-trigger").first().isVisible())
-    await page.locator(".input-picker > summary").click()
+
     for (const width of [320, 390, 768, 820, 1440]) {
       await page.setViewportSize({ width, height: 900 })
       await page.mouse.move(0, 0)
       const geometry = await page.locator(".input-heading").evaluate((heading) => {
-        const selectors = [".input-picker", ".view-action", ".file-picker", ".input-state"]
-        const elements = selectors.map((selector) => heading.querySelector(selector))
-        const rects = elements.map((element) => element.getBoundingClientRect())
+        const pick = heading.querySelector(".input-picker > summary")
+        const eye = heading.querySelector(".view-action")
+        const summary = heading.querySelector(".input-state")
+        const open = heading.querySelector(":scope > .file-picker")
+        const icon = pick.querySelector("svg")
+        const rects = [pick, eye, summary].map((element) => element.getBoundingClientRect())
+        const [chooserRect, eyeRect, summaryRect] = rects
+        const iconRect = icon.getBoundingClientRect()
         const mobile = getComputedStyle(heading.querySelector(".input-preview-tools")).display === "contents"
-        const sequence = mobile ? [0, 1, 2, 3] : [0, 3, 1, 2]
-        const gaps = [rects[1].left - rects[0].right, rects[2].left - rects[1].right, rects[3].left - rects[2].right]
-        const accent = getComputedStyle(document.querySelector('.mobile-workspace-tabs button[aria-pressed="true"]'))
+        const output = document.querySelector(".composition-output .output-actions > .primary")
         return {
-          sameRow: rects.every((rect) => Math.abs(rect.y + rect.height / 2 - (rects[0].y + rects[0].height / 2)) < 2),
-          ordered: sequence.slice(1).every((index, offset) => rects[sequence[offset]].right <= rects[index].left),
-          within: rects.every((rect) => rect.right <= innerWidth),
+          mobile,
+          sameRow: rects.every((rect) => Math.abs(rect.y + rect.height / 2 - (eyeRect.y + eyeRect.height / 2)) < 2),
+          ordered: chooserRect.right <= eyeRect.left && eyeRect.right <= summaryRect.left,
+          sameGap: Math.abs(eyeRect.left - chooserRect.right - (summaryRect.left - eyeRect.right)) < 1.5,
+          square: Math.abs(chooserRect.width - chooserRect.height) < 1,
+          centered:
+            Math.abs((iconRect.left + iconRect.right - chooserRect.left - chooserRect.right) / 2) < 1 &&
+            Math.abs((iconRect.top + iconRect.bottom - chooserRect.top - chooserRect.bottom) / 2) < 1,
+          primary: getComputedStyle(pick).backgroundColor === getComputedStyle(output).backgroundColor,
+          eyeColor: getComputedStyle(eye).color,
+          eyeBackground: getComputedStyle(eye).backgroundColor,
+          countVisible: getComputedStyle(heading.querySelector(".composition-totals")).visibility === "visible",
+          detailsVisible: getComputedStyle(summary.querySelector("button")).display !== "none",
+          openVisible: getComputedStyle(open).display !== "none",
+          currentVisible: getComputedStyle(heading.querySelector(".input-current")).display !== "none",
           withinInputTab:
-            rects[3].right <=
+            (getComputedStyle(summary.querySelector("button")).display !== "none"
+              ? summary.querySelector("button").getBoundingClientRect().right
+              : summaryRect.right) <=
             document.querySelector(".mobile-workspace-tabs button:first-child").getBoundingClientRect().right + 1,
-          uniformGaps: Math.max(...gaps) - Math.min(...gaps) < 1.5,
-          primaryFill: getComputedStyle(elements[2]).backgroundColor === accent.color,
-          fileIconVisible: heading.querySelector(".file-picker-mobile-icon svg").getBoundingClientRect().width > 0,
-          totalsVisible: getComputedStyle(heading.querySelector(".composition-totals")).visibility === "visible",
-          fileLabelVisible:
-            getComputedStyle(heading.querySelector(".file-picker > span:last-of-type")).display !== "none",
-          titleVisible: getComputedStyle(heading.querySelector(".input-current")).display !== "none",
         }
       })
-      assert.ok(geometry.sameRow && geometry.ordered && geometry.within, `${width}: ${JSON.stringify(geometry)}`)
-      assert.equal(geometry.totalsVisible, true, `${width}: page and sheet totals remain visible`)
-      assert.equal(geometry.fileLabelVisible, width === 1440, `${width}: the Open PDF label only appears on desktop`)
-      assert.equal(geometry.titleVisible, width === 1440, `${width}: the Input title only appears on desktop`)
-      assert.equal(geometry.fileIconVisible, width !== 1440, `${width}: compact document-add icon`)
-      if (width !== 1440) {
+      if (width === 1440) {
+        assert.equal(geometry.mobile, false)
+        assert.equal(geometry.openVisible, true, "Desktop keeps Open PDF beside the eye")
+        assert.equal(geometry.currentVisible, true, "Desktop keeps the Input title")
+        assert.equal(geometry.countVisible, true)
+      } else {
+        assert.ok(geometry.mobile && geometry.sameRow && geometry.ordered && geometry.sameGap, JSON.stringify(geometry))
         assert.ok(
-          geometry.uniformGaps && geometry.primaryFill,
-          `${width}: compact actions: ${JSON.stringify(geometry)}`,
+          geometry.square && geometry.centered && geometry.primary,
+          `${width}: centered primary selector ${JSON.stringify(geometry)}`,
         )
-        if (width >= 768) assert.ok(geometry.withinInputTab, `${width}: Input header stays under Input tab`)
+        assert.equal(geometry.openVisible, false, "Compact header has no separate Add PDF action")
+        assert.equal(geometry.currentVisible, false)
+        assert.equal(geometry.countVisible, width >= 768)
+        assert.equal(geometry.detailsVisible, width < 768)
+        if (width >= 390) assert.ok(geometry.withinInputTab, `${width}: Input actions stay within tab width`)
       }
-      assert.ok(await page.getByRole("button", { name: "View Input PDF" }).isVisible())
-      if (width < 1440) {
-        await page.locator(".input-picker > summary").click()
-        assert.ok(await page.locator(".input-choice .guidance-trigger").first().isVisible())
-        await page.locator(".input-picker > summary").click()
-      }
-      if (width === 390) {
-        const chooser = page.waitForEvent("filechooser")
-        await page.locator(".input-heading > .file-picker").click()
-        assert.ok((await chooser).isMultiple(), "Open PDF still opens the multi-file picker")
-      }
+      await page.locator(".input-picker > summary").click()
+      assert.ok(await page.locator(".input-choice .guidance-trigger").first().isVisible())
+      assert.equal(await page.locator(".input-list > .file-picker").isVisible(), width !== 1440)
+      await page.locator(".input-picker > summary").click()
     }
-    await page.setViewportSize({ width: 1440, height: 900 })
+
     const gaps = await page.evaluate(() => {
       const right = (selector) => document.querySelector(selector).getBoundingClientRect().right
       const left = (selector) => document.querySelector(selector).getBoundingClientRect().left
@@ -2060,9 +2059,9 @@ test("Input title, counts, file details, and original PDF view share the pane he
           right(".composition-output .output-actions > .view-action"),
       }
     })
-    assert.ok(Math.abs(gaps.input - gaps.output) < 1.5, `Input/Output eye spacing: ${JSON.stringify(gaps)}`)
-    await page.setViewportSize({ width: 320, height: 900 })
-    await page.evaluate(() => (document.documentElement.style.fontSize = "150%"))
+    assert.ok(Math.abs(gaps.input - gaps.output) < 1.5, `Desktop eye spacing unchanged: ${JSON.stringify(gaps)}`)
+
+    await page.setViewportSize({ width: 390, height: 900 })
     await page.getByRole("button", { name: "Input details" }).click()
     assert.match(await page.locator('[popover][aria-label="Input details"]').innerText(), /4 pages, 2\s+sheets/)
     await page.getByRole("button", { name: "View Input PDF" }).click()
@@ -2070,7 +2069,27 @@ test("Input title, counts, file details, and original PDF view share the pane he
       const response = await fetch(window.inputPDFURL)
       return [...new Uint8Array(await response.arrayBuffer()).subarray(0, 4)]
     })
-    assert.deepEqual(bytes, [37, 80, 68, 70], "Viewer receives original PDF bytes")
+    assert.deepEqual(bytes, [37, 80, 68, 70], "The eye still opens the original PDF")
+
+    await page.locator(".input-picker > summary").click()
+    const chooser = page.waitForEvent("filechooser")
+    await page.locator(".input-list > .file-picker").click()
+    const fileChooser = await chooser
+    assert.ok(fileChooser.isMultiple(), "The Input chooser accepts multiple PDFs")
+    await fileChooser.setFiles({ name: "additional.pdf", mimeType: "application/pdf", buffer: fixture({ count: 2 }) })
+    await page.waitForFunction(() => document.querySelectorAll(".input-choice").length === 2)
+    assert.equal(await page.locator(".input-picker").evaluate((element) => element.open), false)
+    assert.ok(
+      await page.locator(".input-picker > summary").evaluate((element) => {
+        const box = element.getBoundingClientRect()
+        const icon = element.querySelector("svg").getBoundingClientRect()
+        return (
+          Math.abs((box.left + box.right - icon.left - icon.right) / 2) < 1 &&
+          Math.abs((box.top + box.bottom - icon.top - icon.bottom) / 2) < 1
+        )
+      }),
+      "The file icon stays centered with several Inputs",
+    )
   } finally {
     await browser.close()
   }

@@ -688,6 +688,23 @@
       />{/key}{/if}
 {/snippet}
 
+{#snippet openPDF()}
+  <label class="file-picker" title="Open PDF"
+    ><Icon name="add" /><span>Open PDF</span><input
+      type="file"
+      aria-label="Open PDF"
+      accept="application/pdf,.pdf"
+      multiple
+      disabled={loading || updating}
+      onchange={(event) => {
+        if (event.currentTarget.files) void files(event.currentTarget.files)
+        event.currentTarget.value = ""
+        if (inputMenu?.open) inputMenu.open = false
+      }}
+    /></label
+  >
+{/snippet}
+
 {#snippet inputTools(heading: string)}
   {#if active}<details class="input-picker" bind:this={inputMenu}>
       <summary aria-label={`Select Input · ${active?.input.name}`}>
@@ -722,25 +739,13 @@
                 >{/if}{#if source.id === activeId}<span aria-hidden="true">✓</span>{/if}</button
             ><Guidance title={source.input.title || source.input.name} fields={inputDetails(source.input)} />
           </div>{/each}
+        {@render openPDF()}
         <button class="danger" aria-label="Remove Input" title="Remove Input" onclick={removeSource}
           ><Icon name="trash" /><span>Remove Input</span></button
         >
       </div>
     </details>{/if}
-  <label class="file-picker" title="Open PDF"
-    ><Icon name="add" /><span class="file-picker-mobile-icon"><Icon name="file-plus" /></span><span>Open PDF</span
-    ><input
-      type="file"
-      aria-label="Open PDF"
-      accept="application/pdf,.pdf"
-      multiple
-      disabled={loading || updating}
-      onchange={(event) => {
-        if (event.currentTarget.files) void files(event.currentTarget.files)
-        event.currentTarget.value = ""
-      }}
-    /></label
-  >
+  {@render openPDF()}
 {/snippet}
 
 <svelte:document
