@@ -8,6 +8,84 @@ import { chromium, webkit } from "playwright"
 import { serve } from "./server.ts"
 import { tab, fixture, gridPage } from "./browser.js"
 
+test(
+  "Folded sections select descendants and unfolded headings toggle only their pages",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await launch(chromium)
+    try {
+      for (const view of ["Grid", "List"]) {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+        page.setDefaultTimeout(8000)
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        await page
+          .locator('input[type="file"]')
+          .first()
+          .setInputFiles({
+            name: "Group-selection.pdf",
+            mimeType: "application/pdf",
+            buffer: fixture({
+              prepared: false,
+              count: 6,
+              outline: [
+                { title: "First", page: 0 },
+                { title: "Second", page: 3 },
+              ],
+            }),
+          })
+        const input = page.locator(".selection-panel")
+        const output = page.locator(".composition-output")
+        await tab(input, view)
+        for (const pane of ["Input", "Output"]) {
+          const panel = pane === "Input" ? input : output
+          if (pane === "Output") {
+            await input.getByLabel("Page selection", { exact: true }).fill("1-6")
+            await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+            await output.getByLabel("Page selection", { exact: true }).fill("")
+            await tab(output, view)
+          }
+          const heading =
+            view === "Grid"
+              ? panel.locator('.composition-card:has(.page-image[data-page="0"]) .page-image')
+              : panel.locator('.list-heading[data-page="0"]')
+          const selected = panel.getByLabel("Page selection", { exact: true })
+          const fold = panel.getByRole("button", { name: `Fold ${pane} section: First` })
+          const unfold = panel.getByRole("button", { name: `Unfold ${pane} section: First` })
+          if (await fold.isVisible()) await fold.click()
+          await unfold.waitFor()
+          assert.equal(await heading.getAttribute("aria-pressed"), "false")
+          await heading.click()
+          assert.equal(await selected.inputValue(), "1-3")
+          await unfold.click()
+          assert.equal(await heading.getAttribute("aria-pressed"), "true")
+          for (const index of [1, 2]) {
+            const child =
+              view === "Grid"
+                ? panel.locator(`.page-image[data-page="${index}"]`)
+                : panel.locator(`.list-choice[data-page="${index}"]`)
+            assert.equal(await child.getAttribute("aria-pressed"), "true")
+          }
+          await heading.click()
+          assert.equal(await selected.inputValue(), "2-3")
+          await fold.click()
+          assert.equal(await heading.getAttribute("aria-pressed"), "true")
+          await heading.click()
+          assert.equal(await selected.inputValue(), "")
+          await heading.press("Space")
+          assert.equal(await selected.inputValue(), "1-3")
+          await heading.press("Space")
+          assert.equal(await selected.inputValue(), "")
+        }
+        await page.close()
+      }
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
 test("Grid and List share heading pages, details, and inline Output controls", { timeout: 60000 }, async () => {
   const server = await serve()
   const browser = await launch(chromium)

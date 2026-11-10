@@ -11,7 +11,7 @@
   import Contents from "./Contents.svelte"
   import * as composition from "./composition.ts"
   import type { Edit, Output } from "./output.svelte.ts"
-  import { pageRanges, parseSequence, toggleSequence } from "./pages.ts"
+  import { pageRanges, parseSequence, toggleGroup, toggleSequence } from "./pages.ts"
   import { Interaction } from "./interaction.svelte.ts"
   import type { InputView } from "./interaction.svelte.ts"
   import type { Sequence } from "./pages.ts"
@@ -669,7 +669,25 @@
     sourceAnchor = { source: source.id, page }
     highlightRange(adding && range && first < last ? { kind: "source", source: source.id, first, last } : undefined)
   }
-  function selectInput(page: number, event: MouseEvent) {
+  function selectedSection(pane: "Input" | "Output", first: number, end: number) {
+    for (let index = first; index < end; index++)
+      if (pane === "Input" ? inputSelected.has(index) : selectedIds.has(output.pages[index].id)) return true
+    return false
+  }
+  function selectSection(pane: "Input" | "Output", first: number, end: number) {
+    if (pane === "Input") {
+      if (!source) return
+      const pages = Array.from({ length: end - first }, (_, index) => first + index)
+      numbers(pageRanges(toggleGroup(draft.pages, pages)))
+      sourceAnchor = { source: source.id, page: first }
+    } else {
+      const ids = output.pages.slice(first, end).map((page) => page.id)
+      outputText = undefined
+      output.select(toggleGroup([...selectedIds], ids), output.pages[first].id)
+      highlightRange()
+    }
+  }
+  function selectInput(page: number, event: MouseEvent, sectionEnd?: number) {
     if (!source) return
     inspectInput({ position: page })
     if (touchPage("Input", event)) return
@@ -679,7 +697,8 @@
     }
     if (event.detail > 1) return
     if (event.detail === 1) inputClick = { source: source.id, page, sequence: draft, anchor: sourceAnchor }
-    toggle(page, event.shiftKey)
+    if (sectionEnd !== undefined && !event.shiftKey) selectSection("Input", page, sectionEnd)
+    else toggle(page, event.shiftKey)
     if (event.detail) (event.currentTarget as HTMLElement).focus({ preventScroll: true })
   }
   function restoreInput(page: number) {
@@ -1190,7 +1209,11 @@
   {@const disclosureId = `${key}-${pane}-section-${id}-disclosure`}
   {@const dragging = transfer.control?.id === disclosureId}
   {@const indices = Array.from({ length: end - first }, (_, index) => first + index)}
-  {@const selected = pane === "Input" ? inputSelected.has(first) : selectedIds.has(output.pages[first].id)}
+  {@const selected = expanded
+    ? pane === "Input"
+      ? inputSelected.has(first)
+      : selectedIds.has(output.pages[first].id)
+    : selectedSection(pane, first, end)}
   {@const payload: Payload = pane === "Input" ? { kind: "source", source: source!.id, choice: { kind: "pages", pages: indices } } : { kind: "output", ids: indices.map((index) => output.pages[index].id) }}
   {#if pane === "Output" && !expanded && transfer.inside && !transfer.blocked && ((transfer.targetIndex === first && !transfer.targetAfter) || (transfer.targetIndex === end - 1 && transfer.targetAfter))}
     {@render dropPreview(transfer.targetAfter)}
@@ -1225,14 +1248,19 @@
     type="button"
     class="list-heading"
     data-page={first}
-    aria-label={`Select ${pane} page ${first + 1}: ${name}`}
+    aria-label={expanded
+      ? `Select ${pane} page ${first + 1}: ${name}`
+      : `Select ${pane} section ${name}: pages ${first + 1}–${end}`}
     aria-pressed={selected}
-    title="Select or unselect this page. Shift-click selects a range."
+    title={expanded
+      ? "Select or unselect this page. Shift-click selects a range."
+      : "Select or unselect this section. Shift-click selects a range."}
     onclick={(event) => {
-      if (pane === "Input") selectInput(first, event)
+      if (pane === "Input") selectInput(first, event, expanded ? undefined : end)
       else {
         output.position = first
-        selectOutput(output.pages[first].id, event.shiftKey)
+        if (!expanded && !event.shiftKey) selectSection("Output", first, end)
+        else selectOutput(output.pages[first].id, event.shiftKey)
       }
     }}
     ondblclick={(event) => {
@@ -1992,10 +2020,11 @@
                     labeled={source.input.labels.length > 0}
                     revision={`${inputView.grouped}:${inputView.tocTitles}`}
                     headings={inputView.grouped ? inputHeadings : undefined}
-                    selected={(first) => inputSelected.has(first)}
+                    selected={(first, end) => selectedSection("Input", first, end)}
                     {count}
                     bind:position={() => inputPosition, (position) => inspectInput({ position })}
-                    select={toggle}
+                    select={(page, range, anchor, sectionEnd) =>
+                      sectionEnd === undefined ? toggle(page, range, anchor) : selectSection("Input", page, sectionEnd)}
                     edit={(action, page) => action === "add" && !!add(undefined, inputTargets(page))}
                   >
                     {#snippet section(start, end, path, expanded, toggle, id)}
@@ -2083,7 +2112,10 @@
                         class={[
                           "composition-card",
                           {
-                            selected: inputSelected.has(page),
+                            selected:
+                              section && folded.has(section.key)
+                                ? selectedSection("Input", section.start, section.end)
+                                : inputSelected.has(page),
                             "grid-section-card": !!section,
                             "grid-section-open": !!section && !folded.has(section.key),
                           },
@@ -2147,14 +2179,21 @@
                         <button
                           class="page-image"
                           data-page={page}
-                          aria-label={`Select Input page ${page + 1}`}
-                          aria-pressed={inputSelected.has(page)}
+                          aria-label={section && folded.has(section.key)
+                            ? `Select Input section ${section.path.join(" › ")}: pages ${section.start + 1}–${section.end}`
+                            : `Select Input page ${page + 1}`}
+                          aria-pressed={section && folded.has(section.key)
+                            ? selectedSection("Input", section.start, section.end)
+                            : inputSelected.has(page)}
                           aria-describedby={destinations.length ? detail : undefined}
-                          title="Select pages for Output."
+                          title={section && folded.has(section.key)
+                            ? "Select or unselect the entire folded section."
+                            : "Select pages for Output."}
                           aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Home End N P V Control+A Meta+A Escape Control+ArrowLeft Control+ArrowRight Meta+ArrowLeft Meta+ArrowRight Space Enter Delete"
                           draggable="true"
                           onmousedown={retainFocus}
-                          onclick={(event) => selectInput(page, event)}
+                          onclick={(event) =>
+                            selectInput(page, event, section && folded.has(section.key) ? section.end : undefined)}
                           ondblclick={(event) => {
                             if (
                               interaction.touchPointer ||
@@ -2462,13 +2501,19 @@
               count={output.pages.length}
               revision={outputListRevision}
               headings={outputGrouped ? (index) => outputHeadings(output.pages[index].content) : undefined}
-              selected={(first) => selectedIds.has(output.pages[first]?.id)}
+              selected={(first, end) => selectedSection("Output", first, end)}
               identity={(index) => output.pages[index].id}
               skipped={skippedRows}
               retained={retainedRow}
               bind:position={output.position}
-              select={(index, range, anchor) =>
-                selectOutput(output.pages[index].id, range, anchor === undefined ? undefined : output.pages[anchor].id)}
+              select={(index, range, anchor, sectionEnd) =>
+                sectionEnd === undefined
+                  ? selectOutput(
+                      output.pages[index].id,
+                      range,
+                      anchor === undefined ? undefined : output.pages[anchor].id,
+                    )
+                  : selectSection("Output", index, sectionEnd)}
               edit={(action, index) => {
                 const ids = outputSelectionError ? [] : chosen.length ? outputTargets() : [output.pages[index].id]
                 return !!(action === "remove" ? remove(ids) : duplicate(ids))
@@ -2588,7 +2633,10 @@
                       class={[
                         "composition-card",
                         {
-                          selected: selectedIds.has(page.id),
+                          selected:
+                            section && folded.has(section.key)
+                              ? selectedSection("Output", section.start, section.end)
+                              : selectedIds.has(page.id),
                           "grid-section-card": !!section,
                           "grid-section-open": !!section && !folded.has(section.key),
                         },
@@ -2632,9 +2680,15 @@
                       <button
                         class="page-image"
                         data-page={index}
-                        aria-label={`Select Output page ${index + 1}`}
-                        aria-pressed={selectedIds.has(page.id)}
-                        title="Select pages to edit Output."
+                        aria-label={section && folded.has(section.key)
+                          ? `Select Output section ${section.path.join(" › ")}: pages ${section.start + 1}–${section.end}`
+                          : `Select Output page ${index + 1}`}
+                        aria-pressed={section && folded.has(section.key)
+                          ? selectedSection("Output", section.start, section.end)
+                          : selectedIds.has(page.id)}
+                        title={section && folded.has(section.key)
+                          ? "Select or unselect the entire folded section."
+                          : "Select pages to edit Output."}
                         aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Home End N P V Control+A Meta+A Escape Control+ArrowLeft Control+ArrowRight Meta+ArrowLeft Meta+ArrowRight Space Enter Plus - Delete"
                         draggable="true"
                         onmousedown={retainFocus}
@@ -2645,7 +2699,11 @@
                             void interaction.toggleView("Output", event)
                             return
                           }
-                          if (event.detail <= 1) selectOutput(page.id, event.shiftKey)
+                          if (event.detail <= 1) {
+                            if (section && folded.has(section.key) && !event.shiftKey)
+                              selectSection("Output", section.start, section.end)
+                            else selectOutput(page.id, event.shiftKey)
+                          }
                           if (event.detail) event.currentTarget.focus({ preventScroll: true })
                         }}
                         ondragstart={(event) => start(event, { kind: "output", ids: [page.id] })}

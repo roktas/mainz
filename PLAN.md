@@ -552,6 +552,24 @@ and native three-page group drag to Output. Browser tests used reduced motion an
 full WebKit, and long browser suites remain unverified. Lint had 0 errors and 37 warnings. Final formatting passed
 across 153 files, and 55/55 Node 24 unit tests passed. The Svelte autofixer was unavailable in the offline tool cache.
 
+#### Folded section selection parity (2026-11-10)
+
+- [x] In Input and Output Grid/List, clicking a folded heading selects every page in its section. Clicking a folded
+      heading with any selected descendant clears the entire section; leave selections outside it unchanged.
+- [x] When a heading is unfolded, click selection affects only its starting page. Keep selected descendants visible even
+      after that page is unselected, and let a subsequent fold-and-click clear the remaining selected pages.
+- [x] Preserve ordinary Shift-click range selection, selection order, duplicate Input entries outside the section, page
+      inspection, and standalone ribbon fold/drag behavior.
+- [x] Make a folded heading reflect selected hidden descendants. Keep List Space selection anchored to the focused row,
+      and avoid expanding a folded heading that is already visible when its inspected position changes.
+- [x] Update Web SPEC, VIEW, unit tests, and focused Chromium coverage.
+- [ ] Recheck WebKit, touch devices, and the broader browser matrix before release.
+
+**Focused verification:** The new Chromium scenario passed for Grid and List in both Input and Output, with mouse and
+Space actions. Two existing Chromium regressions for heading/page parity and List keyboard edits passed (3/3 together).
+Node 24 formatting, Svelte/TypeScript checks (0 errors and warnings), and 56/56 unit tests passed. Lint reported 0
+errors and 37 existing warnings. WebKit, long browser runs, and physical-device touch behavior remain unverified.
+
 #### Closure
 
 - [ ] Fix confirmed defects and unnecessary complexity with small, behavior-preserving changes. Add or repair tests at

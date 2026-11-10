@@ -1,4 +1,4 @@
-// Parses and toggles ordered page selections, and formats physical page ranges.
+// Parses page ranges and toggles individual or grouped page selections.
 
 import { maxPages } from "./model.ts"
 
@@ -19,6 +19,13 @@ export function toggleSequence(selected: readonly number[], page: number, anchor
     for (let number = first; number <= last; number++) if (!existing.has(number)) pages.push(number)
   } else pages = pages.filter((number) => number < first || number > last)
   return { pages, first, last, adding }
+}
+
+export function toggleGroup<T>(selected: readonly T[], group: readonly T[]): T[] {
+  const members = new Set(group)
+  return selected.some((item) => members.has(item))
+    ? selected.filter((item) => !members.has(item))
+    : [...selected, ...group]
 }
 
 export function parseSequence(text: string, count: number): { pages: number[]; error?: string } {

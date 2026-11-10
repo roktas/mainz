@@ -13,7 +13,7 @@ import {
   positionAfterEdit,
 } from "../src/model.ts"
 import type { Part } from "../src/model.ts"
-import { pageRanges, parseSequence, toggleSequence } from "../src/pages.ts"
+import { pageRanges, parseSequence, toggleGroup, toggleSequence } from "../src/pages.ts"
 import * as composition from "../src/composition.ts"
 import {
   applyProfile,
@@ -317,6 +317,13 @@ test("Input range toggles retain authored order and repeated pages", () => {
   assert.deepEqual(toggleSequence([0], 3, 1).pages, [0, 1, 2, 3])
   assert.deepEqual(toggleSequence([], 2).pages, [2])
   assert.deepEqual(pages, [2, 0, 0])
+})
+
+test("Folded section selection toggles complete groups without changing selections outside them", () => {
+  assert.deepEqual(toggleGroup([4, 0, 0], [0, 1, 2]), [4])
+  assert.deepEqual(toggleGroup([4], [0, 1, 2]), [4, 0, 1, 2])
+  assert.deepEqual(toggleGroup([4, 1, 2], [0, 1, 2]), [4])
+  assert.deepEqual(toggleGroup(["other", "child"], ["head", "child"]), ["other"])
 })
 
 test("Output selections and destinations follow occurrence identity and physical order", () => {

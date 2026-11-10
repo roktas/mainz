@@ -46,7 +46,7 @@
     skipped?: ReadonlySet<number>
     retained?: number
     position?: number
-    select: (position: number, range: boolean, anchor?: number) => void
+    select: (position: number, range: boolean, anchor?: number, sectionEnd?: number) => void
     edit: (action: "add" | "duplicate" | "remove", position: number) => boolean
     children: Snippet<[index: number, retained?: number]>
   } = $props()
@@ -319,7 +319,7 @@
       const index = position
       untrack(() => {
         const offset = !following && saved.position === index ? saved.offset : undefined
-        if (following && followedRevision === revision) expand(index)
+        if (following && followedRevision === revision && !ranks.has(index)) expand(index)
         following = true
         followedRevision = revision
         const rank = ranks.get(index)
@@ -368,7 +368,8 @@
     }
     if (!action || !pages.length) return
     const element = event.currentTarget as HTMLElement
-    const index = Math.max(0, pages.indexOf(position))
+    const focused = event.target.dataset.page
+    const index = Math.max(0, pages.indexOf(focused === undefined ? position : Number(focused)))
     position = pages[index]
     if (action === "add" || action === "duplicate" || action === "remove") {
       event.preventDefault()
@@ -393,7 +394,16 @@
       return
     event.preventDefault()
     if (action === "copy" && event.repeat) return
-    if (action === "copy") select(position, false)
+    if (action === "copy") {
+      const row = order[index]
+      const foldedSection = row < 0 ? sections.nodes.get(-row - 1) : undefined
+      select(
+        position,
+        false,
+        undefined,
+        foldedSection && collapsed.has(foldedSection.key) ? foldedSection.end : undefined,
+      )
+    }
     const row = element.querySelector<HTMLElement>(`[data-page="${position}"]`)?.closest("li"),
       stride = Math.max(1, Math.floor(element.clientHeight / (row?.getBoundingClientRect().height || 44)))
     const next =

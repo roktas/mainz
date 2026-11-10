@@ -135,11 +135,15 @@ has no Contents control. Opening Contents reveals the current leaf or its visibl
 section tree and show **one physical page item per page**: a section starting on page N uses that page's ordinary Grid
 card or List row, rather than inserting an additional row before page N. Multiple TOC entries starting on one page share
 one visible ribbon, preferring the outermost active section; the underlying section tree keeps their separate folds.
-Section ribbons fold or unfold their subtrees, without changing page selection or Output. The heading name is the page's
-List selection control (not a block-selection control). Clicking its page number opens the same provenance/details UI as
-an ordinary page. A press on any section ribbon displays four grip dots; dragging carries the complete section's pages,
-while a stationary press does not fold or select them. Input section drags copy to Output; Output drags move the group.
-Closed sections accept drops before or after the entire group.
+Section ribbons fold or unfold their subtrees, without changing page selection or Output. Clicking a folded section's
+heading page selects every page in its subtree, or clears the subtree when any of those pages are selected. Unfolding
+reveals the retained selections. In an unfolded section, clicking its heading changes only its starting page, so the
+heading can be unselected while its descendants remain selected. Folding and clicking again clears those descendants.
+Shift-click keeps the ordinary page-range behavior. This applies to Grid and List, Input and Output, without changing
+the page-selection order outside the section or the Output content. Clicking a heading's page number opens the same
+provenance/details UI as an ordinary page. A press on any section ribbon displays four grip dots; dragging carries the
+complete section's pages, while a stationary press does not fold or select them. Input section drags copy to Output;
+Output drags move the group. Closed sections accept drops before or after the entire group.
 
 Jump to section is an action **inside page-number details** in both Grid and List. Its arrow and original numbered-path
 popover remain unchanged, including every matching path on a page and physical page numbers. The inline List jump

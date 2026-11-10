@@ -376,13 +376,16 @@ toolbar switches between hierarchical and flat pages without losing fold state.
 On narrow screens, toolbar icons have no gap between their 44 px targets. The Grid glyph is centered within its 44 px
 tab; Go to page sits 4 px inside the trailing toolbar edge. Wider layouts retain normal spacing.
 
-The heading text toggles **only its starting page** selection, including ordinary Shift range selection; clicking its
-ribbon alone folds or unfolds the subtree. The Input heading carries the normal single-page Add and eye actions. Output
-headings and ordinary Output rows carry the same horizontal sequence: Move earlier, Move later, Remove, Duplicate, then
-eye. The four editing actions stay visible, including on touch and narrow panes; page names truncate to preserve the
-controls. The eye opens Page with the same inspection and return semantics as the normal List eye. Dragging either List
-or Grid ribbon selects the complete section group for transfer and shows a page stack. Pressing without movement does
-not transfer or fold; release and cancellation restore the original ribbon.
+The heading text selects or clears the complete subtree **when folded**, including pages hidden beneath it. A partly
+selected folded section appears selected and a click clears its remaining selected pages. **When unfolded**, the heading
+text toggles only its starting page; selected descendants remain selected. Shift-click retains ordinary page-range
+selection. Grid page images use the same rules. Clicking a section ribbon alone folds or unfolds it without changing
+selection. The Input heading carries the normal single-page Add and eye actions. Output headings and ordinary Output
+rows carry the same horizontal sequence: Move earlier, Move later, Remove, Duplicate, then eye. The four editing actions
+stay visible, including on touch and narrow panes; page names truncate to preserve the controls. The eye opens Page with
+the same inspection and return semantics as the normal List eye. Dragging either List or Grid ribbon selects the
+complete section group for transfer and shows a page stack. Pressing without movement does not transfer or fold; release
+and cancellation restore the original ribbon.
 
 All List action groups align to the end of their shared column. Extra hierarchy controls must not move the page rows'
 View glyphs away from the section rows' View glyphs.
@@ -483,15 +486,16 @@ The ribbon extends to the card's top edge. The ribbon's accessible name includes
 starting page visible and hides its following pages through the section end. Opening a Grid section also opens
 descendants that start on the same physical page, because they have no separate Grid ribbon. Later child sections retain
 their independent fold choices. Multiple TOC headings on one physical page share one card and one outermost-heading
-ribbon in Grid and List; the full paths remain accessible through page details. Grid page images still select and drag
-individual pages; dragging the ribbon transfers the entire section. Active transfers temporarily show every page to
-preserve physical insertion targets, then restore the folds. Folding slides departing visible cards and rows toward
-their nearest surviving section heading for 750 ms, shrinking and fading as they arrive. After the items disappear, the
-corresponding heading pulses for 600 ms without changing its contour. Unfolding immediately reverses the 750 ms slide,
-without a preliminary heading pulse. Nested sections use their visible parent heading as the origin or destination. Only
-items revealed by the fold change animate, never items mounted through virtual scrolling. Reduced-motion preferences
-skip both effects. The Fold all/Unfold all and Section headings toolbar controls are available in Grid and List. Hiding
-headings restores the full flat page Grid.
+ribbon in Grid and List; the full paths remain accessible through page details. Grid page images select individual pages
+when unfolded and complete subtrees when folded; dragging a page image still transfers that individual page, while
+dragging the ribbon transfers the entire section. Active transfers temporarily show every page to preserve physical
+insertion targets, then restore the folds. Folding slides departing visible cards and rows toward their nearest
+surviving section heading for 750 ms, shrinking and fading as they arrive. After the items disappear, the corresponding
+heading pulses for 600 ms without changing its contour. Unfolding immediately reverses the 750 ms slide, without a
+preliminary heading pulse. Nested sections use their visible parent heading as the origin or destination. Only items
+revealed by the fold change animate, never items mounted through virtual scrolling. Reduced-motion preferences skip both
+effects. The Fold all/Unfold all and Section headings toolbar controls are available in Grid and List. Hiding headings
+restores the full flat page Grid.
 
 Grid footer actions appear on hover or focus with a fine pointer. Input's Add action stays visible on touch. Output
 touch actions use the existing menu. The card footer design is separate from the Pages layout. Do not change its content
