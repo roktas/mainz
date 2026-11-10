@@ -1281,8 +1281,12 @@
       .composer .input-heading {
         & .input-label,
         & .input-picker .count,
-        & .input-picker h2 > .workspace-icon {
+        & .input-picker .input-current,
+        & .input-picker .input-chevron {
           display: none;
+        }
+        & .input-picker h2 > .workspace-icon {
+          display: block;
         }
       }
       .composer .composition-output > .section-heading {
@@ -1304,8 +1308,34 @@
           gap: var(--gap);
         }
         & .input-heading {
-          grid-template-columns: minmax(0, 1fr) auto auto;
+          grid-template-columns: auto auto auto minmax(0, 1fr);
           gap: 0.175em;
+          & > .input-picker {
+            grid-column: 1;
+            & > summary {
+              inline-size: max(46px, calc(var(--document-icon-size) + 8px));
+              padding-inline: 4px;
+            }
+          }
+          & > .input-preview-tools {
+            display: contents;
+          }
+          & .view-action {
+            grid-column: 2;
+            grid-row: 1;
+          }
+          & > .file-picker {
+            grid-column: 3;
+            grid-row: 1;
+            padding-inline: 4px;
+            & > span {
+              display: none;
+            }
+          }
+          & .input-state {
+            grid-column: 4;
+            grid-row: 1;
+          }
         }
         & .mobile-workspace-tabs button,
         & .input-picker > summary,
@@ -1314,10 +1344,13 @@
         & .output-state > button {
           min-block-size: calc(2.25rem + 2 * clamp(0.5rem, 0.44rem + 0.2vi, 0.75rem) + 2px);
         }
-        & .input-heading .file-picker,
         & .output-state > button {
           inline-size: 100%;
           min-inline-size: 0;
+        }
+        & .input-heading > .file-picker {
+          inline-size: max(46px, calc(var(--document-icon-size) + 8px));
+          min-inline-size: 46px;
         }
         & .output-state > button {
           border: 1px solid var(--edge);
@@ -1392,15 +1425,17 @@
         }
       }
     }
-    @container heading (width <= 22em) {
-      .composer .input-state {
-        & > .composition-totals {
-          position: absolute;
-          visibility: hidden;
-        }
-        & > button {
-          display: inline-flex;
-          min-inline-size: 44px;
+    @container composer (width > 55em) {
+      @container heading (width <= 22em) {
+        .composer .input-state {
+          & > .composition-totals {
+            position: absolute;
+            visibility: hidden;
+          }
+          & > button {
+            display: inline-flex;
+            min-inline-size: 44px;
+          }
         }
       }
     }

@@ -1998,20 +1998,38 @@ test("Input title, counts, file details, and original PDF view share the pane he
     )
     assert.ok(await page.locator(".input-choice .guidance-trigger").first().isVisible())
     await page.locator(".input-picker > summary").click()
-    for (const width of [320, 390, 1440]) {
+    for (const width of [320, 390, 768, 1440]) {
       await page.setViewportSize({ width, height: 900 })
       const geometry = await page.locator(".input-heading").evaluate((heading) => {
-        const [picker, open, preview] = [".input-picker", ".file-picker", ".input-preview-tools"].map((selector) =>
-          heading.querySelector(selector).getBoundingClientRect(),
-        )
+        const selectors = [".input-picker", ".view-action", ".file-picker", ".input-state"]
+        const elements = selectors.map((selector) => heading.querySelector(selector))
+        const rects = elements.map((element) => element.getBoundingClientRect())
+        const mobile = getComputedStyle(heading.querySelector(".input-preview-tools")).display === "contents"
+        const sequence = mobile ? [0, 1, 2, 3] : [0, 3, 1, 2]
         return {
-          sameRow: Math.abs(picker.y - open.y) < 2 && Math.abs(open.y - preview.y) < 2,
-          ordered: picker.right < preview.left && preview.right < open.left,
-          within: open.right <= innerWidth,
+          sameRow: rects.every((rect) => Math.abs(rect.y + rect.height / 2 - (rects[0].y + rects[0].height / 2)) < 2),
+          ordered: sequence.slice(1).every((index, offset) => rects[sequence[offset]].right <= rects[index].left),
+          within: rects.every((rect) => rect.right <= innerWidth),
+          totalsVisible: getComputedStyle(heading.querySelector(".composition-totals")).visibility === "visible",
+          fileLabelVisible: getComputedStyle(heading.querySelector(".file-picker > span")).display !== "none",
+          titleVisible: getComputedStyle(heading.querySelector(".input-current")).display !== "none",
         }
       })
       assert.ok(geometry.sameRow && geometry.ordered && geometry.within, `${width}: ${JSON.stringify(geometry)}`)
+      assert.equal(geometry.totalsVisible, true, `${width}: page and sheet totals remain visible`)
+      assert.equal(geometry.fileLabelVisible, width === 1440, `${width}: the Open PDF label only appears on desktop`)
+      assert.equal(geometry.titleVisible, width === 1440, `${width}: the Input title only appears on desktop`)
       assert.ok(await page.getByRole("button", { name: "View Input PDF" }).isVisible())
+      if (width < 1440) {
+        await page.locator(".input-picker > summary").click()
+        assert.ok(await page.locator(".input-choice .guidance-trigger").first().isVisible())
+        await page.locator(".input-picker > summary").click()
+      }
+      if (width === 390) {
+        const chooser = page.waitForEvent("filechooser")
+        await page.locator(".input-heading > .file-picker").click()
+        assert.ok((await chooser).isMultiple(), "Open PDF still opens the multi-file picker")
+      }
     }
     await page.setViewportSize({ width: 1440, height: 900 })
     const gaps = await page.evaluate(() => {
@@ -2025,7 +2043,8 @@ test("Input title, counts, file details, and original PDF view share the pane he
       }
     })
     assert.ok(Math.abs(gaps.input - gaps.output) < 1.5, `Input/Output eye spacing: ${JSON.stringify(gaps)}`)
-    await page.setViewportSize({ width: 390, height: 900 })
+    await page.setViewportSize({ width: 320, height: 900 })
+    await page.evaluate(() => (document.documentElement.style.fontSize = "150%"))
     await page.getByRole("button", { name: "Input details" }).click()
     assert.match(await page.locator('[popover][aria-label="Input details"]').innerText(), /4 pages, 2\s+sheets/)
     await page.getByRole("button", { name: "View Input PDF" }).click()
