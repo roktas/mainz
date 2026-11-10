@@ -361,40 +361,28 @@ text line and the Contents heading edge in both states. Use TOC titles appears b
 page's display title. When enlarged text leaves insufficient header width, move the complete Unfold all / Fold all
 control below the title and close button.
 
-List shows the section tree as flat rows, with every ancestor header before its descendants and no depth indentation.
-Nested headers use progressively stronger secondary surface tints through three nested levels. Depth changes do not move
-the shared columns or change text size. Each TOC entry has a header, whether or not it has children. A header and its
-page rows may display the same title; both use the established small-caps typography. Page display-title preferences do
-not hide or rename section headers. Lists without a TOC contain only page rows. Section rows use the page rows' columns:
-a combined ribbon disclosure and drag control, the starting position, an optional Input PDF page label, the heading,
-and + and View actions. The starting position is the physical page number in Input and the occurrence number in Output.
-Heading text uses the same size and small caps as page names, with the same starting edge. Folded sections use normal
-text color for current titles and starting page numbers; only the section directly unfolded by the user outlines its
-entire row in secondary (primary if selected, neutral if keyboard-focused). Newly exposed nested rows have no section
-outline until opened themselves. Ribbons use secondary when folded and a lighter neutral gray when unfolded, including
-on hover. The secondary ribbon hover glow does not recolor an unfolded ribbon. Folding does not change the depth tint.
-Text and disclosure glyphs share the row's vertical center. The ribbon has a long rectangular body with a shallow rear
-notch and front point. It points right to expand a closed section or down to collapse an open section. Its interaction
-target is at least 44 px tall and uses the grip column's width: 32 px for fine pointers, 44 px for touch. It uses a
-transparent background without a border, rounded corners, or shadow. It fills the section row's height. Section rows
-retain the page rows' thin bottom separator. The List reserves native scrollbar space outside the row width, so rows
-align with the selection bar and folding does not move columns. Header, footer, and toolbar separators extend by half
-the workspace gutter equally on both sides in Grid, List, and Page. The toolbar uses overlapping pages with a minus or
-plus to fold or unfold all sections. A separate Section headings toggle follows it and stays in place when the
-expand/collapse control disappears. Section headings are shown by default. Hiding them produces uninterrupted page rows
-and hides the fold/unfold toolbar control.
+List shares Grid's section representation: a section's starting physical page is itself the heading row, not an extra
+row preceding an ordinary page row. Every physical page or Output occurrence appears once. Coincident headings share the
+outermost visible ribbon; their independent fold state remains available through the section tree and Jump. The ribbon,
+clickable detail page number, optional PDF label, heading title, and ordinary page actions occupy the same columns as
+ungrouped List pages. Nested rows use progressively stronger secondary tints through three levels, without indentation.
+Heading titles retain small caps and show the current section before its ancestors. Expanded, selected, and
+keyboard-focused contours follow the existing section visual hierarchy. Folded ribbons use secondary; expanded ribbons
+use muted gray with secondary hover glow. The ribbon points right when folded and down when expanded. A held ribbon
+shows four grip dots without moving the control or changing selection; dragging starts a group transfer. The page-number
+details on heading rows work exactly like those on normal page rows. Section headings are shown by default; the existing
+toolbar switches between hierarchical and flat pages without losing fold state.
 
 On narrow screens, toolbar icons have no gap between their 44 px targets. The Grid glyph is centered within its 44 px
 tab; Go to page sits 4 px inside the trailing toolbar edge. Wider layouts retain normal spacing.
 
-The heading button toggles selection, including with Enter or Space. A fully selected closed section uses the primary
-background. A fully selected open section retains its primary selection tint, with readable heading text. Its members
-retain their selected page appearance. Clicking the ribbon, or pressing Enter or Space, toggles folding. Moving the
-pressed ribbon starts dragging and replaces it with an unrotated grip until the drop or cancellation. A stationary hold
-keeps the ribbon. Dropping or cancelling does not toggle expansion. A drag selects the group and shows a page stack.
-The + action appears on hover or keyboard focus and stays visible with a touch pointer. Mouse focus alone does not keep
-it visible. An always-visible Unselect tick replaces + when all members are selected. View remains visible and shares
-the page rows' trailing column.
+The heading text toggles **only its starting page** selection, including ordinary Shift range selection; clicking its
+ribbon alone folds or unfolds the subtree. The Input heading carries the normal single-page Add and eye actions. Output
+headings and ordinary Output rows carry the same horizontal sequence: Move earlier, Move later, Remove, Duplicate, then
+eye. The four editing actions stay visible, including on touch and narrow panes; page names truncate to preserve the
+controls. The eye opens Page with the same inspection and return semantics as the normal List eye. Dragging either List
+or Grid ribbon selects the complete section group for transfer and shows a page stack. Pressing without movement does
+not transfer or fold; release and cancellation restore the original ribbon.
 
 All List action groups align to the end of their shared column. Extra hierarchy controls must not move the page rows'
 View glyphs away from the section rows' View glyphs.
@@ -404,16 +392,13 @@ needed. Parents use the same small caps, size, and weight as the current title, 
 larger, bold neutral `‹` with equal space on both sides. Parent text uses free space before the trailing actions.
 Selected closed sections keep all heading text readable against the primary surface.
 
-A return-arrow navigation icon opens Jump to section independently of selection on headers and pages with TOC paths. For
-root headers with no ancestor target, it remains present but disabled. Page-row navigation remains enabled. For fine
-pointers, it appears on hover, keyboard focus, or while its panel is open; touch keeps it visible. Its compact panel has
-16 px padding, a short heading row with a 44 px Close target, and a numbered vertical trail from root to current
-section. Each trail entry is a navigation button with an inset level marker, a physical-page column, and a visible
-keyboard focus outline. Level markers, physical page numbers, and title blocks share their vertical center, including
-wrapped titles. Trail text wraps; the current level uses the primary color. Activating an entry closes the panel and
-focuses its header in the same pane. Jump targets briefly fade in and out with a 3000 ms secondary highlight. Grid and
-Page use a translucent overlay across the complete target, without dimming content or adding a contour. Reduced motion
-disables this animation. Escape and outside click dismiss the panel.
+The original return-arrow Jump to section control moves from the List row action column into **page-number details** in
+both List and Grid. The details panel retains the original numbered ancestor trail, physical-page column, 16 px padding,
+44 px Close target, keyboard focus styling, and selection-preserving navigation. The arrow is available whenever the
+corresponding page has navigable TOC ancestry, including section start pages; pages without a path have no empty Jump
+row. Activating an entry closes the Jump panel, opens required ancestors and focuses the visible destination in the
+current view. Root paths may navigate to their own heading. Jump targets retain their existing 3000 ms secondary
+highlight and reduced-motion behavior.
 
 The Contents toolbar icon uses the primary color while its panel is open. Selecting an entry reveals its exact physical
 page in Grid, List, or Page, including Grid pages outside the visible scroll window.
@@ -450,24 +435,24 @@ physical number.
 List rows align page numbers, supplied names, and page actions in stable columns. Keep number and action columns visible
 in narrow panes. Plain numbers and detail buttons use the same type size and column center. Names wrap in the remaining
 space without horizontal scrolling. Narrow rows truncate names on one line with an ellipsis; the full name remains in
-the control's accessible text and page preview. The hover title explains selection. The selection tick reserves only one
-action target when the row uses a compact action menu. Unnamed pages reserve no empty name line. Repeated names retain
-separate numbered rows. Selected rows use the primary surface and its contrasting text color, without a selection
-contour. Numbers, names, and ticks keep this contrast on hover and keyboard focus. Unselected row text and actions use
-an 80% mix of the text color over the page background. A tick replaces the row's Add or Duplicate action without moving
-its position. Keyboard focus remains visible independently of selection. Output groups its up/down controls and
-removal/duplication into two contiguous pairs, with 6 px between the pairs and no divider. On a fine pointer, Input Add
-and the Output pairs appear on row hover or focus. Hover changes the icon color without boxes or glow. Eye and the
-selection tick remain visible. Row actions use 32 px targets with a fine pointer and 44 px targets for touch, in both
-themes. Coarse pointers keep Input Add visible. Output uses a row-menu button for coarse pointers and narrow panes. Page
+the control's accessible text and page preview. The hover title explains selection. The section heading retains its own
+page selection color. Unnamed pages reserve no empty name line. Repeated names retain separate numbered rows. Selected
+rows use the primary surface and its contrasting text color, without a selection contour. Numbers, names, and ticks keep
+this contrast on hover and keyboard focus. Unselected row text and actions use an 80% mix of the text color over the
+page background. Input's selected Add becomes the selection tick; Output keeps its four editing actions when selected.
+Keyboard focus remains visible independently of selection. Output groups its up/down controls and removal/duplication
+into two contiguous pairs, with 6 px between the pairs and no divider. On a fine pointer, Input Add appears on row hover
+or focus. Output pairs stay visible. Hover changes the icon color without boxes or glow. Eye and the selection tick
+remain visible. Row actions use 32 px targets with a fine pointer and 44 px targets for touch, in both themes. Coarse
+pointers keep Input Add visible. Narrow Output List panes keep four inline actions, with shorter title space. Page
 details use a compact, start-aligned popover beside the number, including in narrow panes. List uses its own tab beside
 Grid. Switching views retains the toolbar height and content-frame position.
 
 Each row has a grip beside its number and a View icon at the trailing edge. View hover or keyboard focus shows a large
 full-page preview beside the row. Keep the preview within the viewport and preserve the page's aspect ratio. It does not
-receive pointer input. Its caption appears only for a supplied page name. Narrow Output rows group their operations in a
-separate action menu. Number details show the supplied name and provenance. Output rows show one Output position; source
-page numbers and differing PDF labels belong in details.
+receive pointer input. Its caption appears only for a supplied page name. Narrow Output rows retain their four inline
+operations. Number details show the supplied name and provenance. Output rows show one Output position; source page
+numbers and differing PDF labels belong in details.
 
 List numbers do not repeat the visible name in a hover tooltip. The name's hover text explains selection. Grid and Page
 name tooltips wait 220 ms on pointer hover. Keyboard focus shows them immediately. Parameter information uses the same
@@ -490,21 +475,23 @@ Pages layout restores the previous Grid or List scroll position.
 When sections are shown for a PDF with a TOC, Grid shares each pane's fold/unfold choices with List. Its single vertical
 ribbon replaces the center grip on each visible heading-page card. The ribbon has a straight top edge and a notched
 bottom, with no visible title text. The card continues to show the original starting page image, and its footer uses the
-neutral footer controls. An unfolded Grid card has a subtle secondary tint across the card and thumbnail surround;
-selected cards retain their primary tint. An unfolded, unselected section card has a 2 px secondary contour; selected
-cards keep the primary contour. Unfolded ribbons use neutral gray in both themes, including on hover, while the hover
-glow remains secondary. The ribbon extends to the card's top edge. The ribbon's accessible name includes the section
-path. Folding keeps the starting page visible and hides its following pages through the section end. Opening a Grid
-section also opens descendants that start on the same physical page, because they have no separate Grid ribbon. Later
-child sections retain their independent fold choices. Multiple TOC headings on one physical page share one card and an
-outermost-heading ribbon; use List for separate same-page disclosures. Grid page images still select and drag individual
-pages. Active transfers temporarily show every page to preserve physical insertion targets, then restore the folds.
-Folding slides departing visible cards and rows toward their nearest surviving section heading for 750 ms, shrinking and
-fading as they arrive. After the items disappear, the corresponding heading pulses for 600 ms without changing its
-contour. Unfolding immediately reverses the 750 ms slide, without a preliminary heading pulse. Nested sections use their
-visible parent heading as the origin or destination. Only items revealed by the fold change animate, never items mounted
-through virtual scrolling. Reduced-motion preferences skip both effects. The Fold all/Unfold all and Section headings
-toolbar controls are available in Grid and List. Hiding headings restores the full flat page Grid.
+neutral footer controls. A distinct eye button in the card's upper-right corner opens Page, matching List's eye. An
+unfolded Grid card has a subtle secondary tint across the card and thumbnail surround; selected cards retain their
+primary tint. An unfolded, unselected section card has a 2 px secondary contour; selected cards keep the primary
+contour. Unfolded ribbons use neutral gray in both themes, including on hover, while the hover glow remains secondary.
+The ribbon extends to the card's top edge. The ribbon's accessible name includes the section path. Folding keeps the
+starting page visible and hides its following pages through the section end. Opening a Grid section also opens
+descendants that start on the same physical page, because they have no separate Grid ribbon. Later child sections retain
+their independent fold choices. Multiple TOC headings on one physical page share one card and one outermost-heading
+ribbon in Grid and List; the full paths remain accessible through page details. Grid page images still select and drag
+individual pages; dragging the ribbon transfers the entire section. Active transfers temporarily show every page to
+preserve physical insertion targets, then restore the folds. Folding slides departing visible cards and rows toward
+their nearest surviving section heading for 750 ms, shrinking and fading as they arrive. After the items disappear, the
+corresponding heading pulses for 600 ms without changing its contour. Unfolding immediately reverses the 750 ms slide,
+without a preliminary heading pulse. Nested sections use their visible parent heading as the origin or destination. Only
+items revealed by the fold change animate, never items mounted through virtual scrolling. Reduced-motion preferences
+skip both effects. The Fold all/Unfold all and Section headings toolbar controls are available in Grid and List. Hiding
+headings restores the full flat page Grid.
 
 Grid footer actions appear on hover or focus with a fine pointer. Input's Add action stays visible on touch. Output
 touch actions use the existing menu. The card footer design is separate from the Pages layout. Do not change its content
@@ -644,16 +631,17 @@ the exact destination. Touch Grid outlines only the card area, excluding pane he
 image follows the finger directly while neighboring cards ease into their prospective positions. Pressing a mouse drag
 source or touch grip immediately fades its card and applies the drag tilt and scale, before the movement threshold.
 Touch grips also receive an accent highlight. Pressing alone does not change selection. Release or cancellation clears
-the press feedback. Reduced motion keeps the fade and highlight without tilt or scaling.
+the press feedback. Section ribbons in Grid and List change to four grip dots on press, with an unchanged hit area and
+group payload. Reduced motion keeps the fade and highlight without tilt or scaling.
 
-List drags use a flat horizontal strip at the row's height, with its number and name aligned to the row's columns. The
-strip appears on press and stays attached to the original grab point while moving. Do not tilt or scale it. Multiple
-pages add a count. Do not put a page raster in this strip. The insertion slot holds one faint strip in the same columns
-and text size. Keep the moving strip opaque and the insertion slot stationary while neighboring rows move over 180 ms.
-Logical row bounds select targets independently of their animated positions. A pointer inside the open slot retains its
-destination. On drop, reveal the moved row at its destination instead of animating it from its hidden source position.
-Grid drag images and other moving page images use sharp rasters at device density, with a minimum density of two. Grid
-images stay attached to the pointer at their heading instead of above the card.
+Ordinary List page drags use a flat horizontal strip at the row's height, with its number and name aligned to the row's
+columns. The strip appears on press and stays attached to the original grab point while moving. Do not tilt or scale it.
+Multiple pages add a count. Do not put a page raster in this strip. The insertion slot holds one faint strip in the same
+columns and text size. Keep the moving strip opaque and the insertion slot stationary while neighboring rows move over
+180 ms. Logical row bounds select targets independently of their animated positions. A pointer inside the open slot
+retains its destination. On drop, reveal the moved row at its destination instead of animating it from its hidden source
+position. Grid drag images and other moving page images use sharp rasters at device density, with a minimum density of
+two. Grid images stay attached to the pointer at their heading instead of above the card.
 
 During Grid and List transfers, the moving image, placeholder, and neighboring pages show prospective Output numbers.
 Output moves hide the original card or row and close its old slot. Input copying retains its source. Grid folds use the
@@ -987,9 +975,9 @@ Grid and List are part of the same tab list. The mobile view switcher uses butto
 | List view         | Liste görünümü       | The row view of Input pages or Output occurrences with page numbers and supplied names. |
 | Page name caption | Sayfa adı açıklaması | The supplied page name below the Page image frame, or in a Grid header tooltip.         |
 | Contents          | İçindekiler          | Input's embedded PDF outline navigation, opened with the open-book icon.                |
-| Section headings  | Bölüm başlıkları     | The collapsible List section rows with block selection, addition or copying, and View.  |
+| Section headings  | Bölüm başlıkları     | Page rows/cards with foldable and draggable section ribbons.                            |
 | Section path      | Bölüm yolu           | A section breadcrumb; List headers put the current title before its muted ancestors.    |
-| Jump to section   | Bölüme git           | The navigation button and numbered ancestor trail for a List header or page.            |
+| Jump to section   | Bölüme git           | The navigation control and numbered ancestor trail inside Grid/List page details.       |
 | Source marker     | Kaynak işareti       | A small color dot identifying an Input and its Output List occurrences.                 |
 
 ### Page selection

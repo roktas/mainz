@@ -225,6 +225,26 @@
           padding-block: 0;
           padding-inline: 0;
           border-block-end: 1px solid var(--border);
+          & .grid-inspect {
+            grid-column: 3;
+            z-index: 3;
+            position: relative;
+            inline-size: 32px;
+            min-inline-size: 32px;
+            block-size: var(--card-tool-size, 32px);
+            min-block-size: var(--card-tool-size, 32px);
+            padding: 0;
+            color: var(--muted);
+            & svg {
+              inline-size: 16px;
+              block-size: 16px;
+            }
+            &::after {
+              content: "";
+              position: absolute;
+              inset: min(0px, (100% - 44px) / 2);
+            }
+          }
           & .page-grip {
             grid-column: 2;
             & svg {
@@ -238,9 +258,14 @@
               border-radius: 0;
               color: var(--secondary);
               background: transparent;
-              & svg {
+              & .ribbon-symbol svg {
                 inline-size: 20px;
                 block-size: 22px;
+                translate: 0 -8px;
+              }
+              & .ribbon-dots svg {
+                inline-size: 16px;
+                block-size: 16px;
                 translate: 0 -8px;
               }
               &[aria-expanded="true"] {

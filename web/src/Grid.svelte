@@ -180,6 +180,18 @@
       saved.scroll = scroll
     }
   }
+  export function paths(page: number, ancestors: readonly string[]) {
+    return [...tree.nodes.values()].filter(
+      (entry) => ancestors.includes(entry.node) && entry.start <= page && page < entry.end,
+    )
+  }
+  export async function revealSection(id: number) {
+    const section = tree.nodes.get(id)
+    if (!section) return
+    await revealPage(section.start)
+    const image = list?.querySelector<HTMLElement>(`.page-image[data-page="${section.start}"]`)
+    image?.focus({ preventScroll: true })
+  }
   function scrolling(element: HTMLElement) {
     scroll = element.scrollTop
     saved.scroll = scroll

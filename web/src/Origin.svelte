@@ -9,6 +9,7 @@
 
 <script lang="ts">
   import { flushSync, onDestroy } from "svelte"
+  import type { Snippet } from "svelte"
   import Provenance from "./Provenance.svelte"
   import Breadcrumb from "./Breadcrumb.svelte"
   import { titleOf } from "./model.ts"
@@ -22,6 +23,7 @@
     identity,
     multiple = false,
     mode,
+    navigation,
     opened = $bindable(),
   }: {
     id: string
@@ -30,6 +32,7 @@
     identity: Identity
     multiple?: boolean
     mode: "normal" | "list"
+    navigation?: Snippet
     opened?: string
   } = $props()
   const origin = $derived("source" in identity ? identity.source : undefined)
@@ -82,6 +85,7 @@
     {#if multiple}<strong>{titleOf(origin.input)}</strong>{/if}
   {:else if "blank" in identity}<strong>{identity.padding ? "Padding" : "Blank"}</strong>{/if}
   {@render pageDetails()}
+  {#if navigation}{@render navigation()}{/if}
 {/snippet}
 {#snippet caption()}
   {#if mode !== "list" && name && opened !== id}<p class="page-name">{name}</p>{/if}

@@ -131,42 +131,39 @@ Input detail headings show breadcrumbs; authored names retain a flat heading. Ou
 and original page number, and the document Title when several Inputs contribute pages.
 
 The open-book Contents control navigates the Input outline in Grid, List, and Page without changing selection. Output
-has no Contents control. Opening Contents reveals the current leaf, or its visible ancestor when the branch is
-collapsed. Only that entry announces the current location. Ancestors retain their visual emphasis. List builds a section
-tree in each pane's page order, then flattens its visible headers and pages without indentation. Every retained TOC
-entry has its own header, including leaves, root entries, entries with identical titles, and entries that share a page.
-Child entries are not required. A TOC title can supply both a header and the fallback name of its pages. Physical page
-rows appear once, including pages shared by several TOC entries. Output headings include the document Title when several
-Inputs contribute pages. A heading controls all pages in its subtree, including pages under child headers. Its ribbon
-hides or reveals that subtree without changing selection, page numbers, or Output. Clicking the heading text selects or
-unselects all section members. Dragging the ribbon selects the complete section and shows a page stack. Holding it
-without movement does not start a drag. Input sections copy to Output; Output sections move together. A closed section
-accepts a drop before or after its complete group.
+has no Contents control. Opening Contents reveals the current leaf or its visible ancestor. Grid and List share a
+section tree and show **one physical page item per page**: a section starting on page N uses that page's ordinary Grid
+card or List row, rather than inserting an additional row before page N. Multiple TOC entries starting on one page share
+one visible ribbon, preferring the outermost active section; the underlying section tree keeps their separate folds.
+Section ribbons fold or unfold their subtrees, without changing page selection or Output. The heading name is the page's
+List selection control (not a block-selection control). Clicking its page number opens the same provenance/details UI as
+an ordinary page. A press on any section ribbon displays four grip dots; dragging carries the complete section's pages,
+while a stationary press does not fold or select them. Input section drags copy to Output; Output drags move the group.
+Closed sections accept drops before or after the entire group.
 
-Section headings place the current section title first, followed by its ancestors from nearest to farthest. Long titles
-truncate within the row. A separate navigation button opens the complete path from root to current section in a Jump to
-section panel without changing selection or Output. Each path entry navigates to its header in the same pane: it closes
-the panel, opens the required ancestors, and scrolls to and focuses the header. Output navigation stays within the
-current occurrence's ancestry. It preserves selection, the inspected page, and Output. The control is available on every
-section header and on page rows with TOC ancestry. A root header's button is disabled because its only target is the
-header itself. Page rows show every matching path and its physical target page numbers. Hiding headings also hides these
-navigation controls.
+Jump to section is an action **inside page-number details** in both Grid and List. Its arrow and original numbered-path
+popover remain unchanged, including every matching path on a page and physical page numbers. The inline List jump
+buttons are removed from rows and section ribbons. Following a path closes Jump, unfolds the required ancestors, then
+scrolls to and focuses the destination in the same active view, without changing selection. The visible same-page
+heading represents a nested section target when no independent heading row exists.
 
 Grid and List share section fold/unfold state for each pane. Grid keeps the physical starting-page image as a section's
 visible card and hides later pages inside folded sections. The centered ribbon is vertical, with no title text on the
 card. Unfolded section cards use a secondary contour unless selected, when the contour uses primary. The unfolded ribbon
 is muted gray; folded ribbons and hover glow use secondary. Section footers keep their neutral surface. One page can
-show one ribbon; if several sections start on the same page, Grid exposes the outermost visible heading, while List
-retains every separate disclosure. Grid's section ribbon folds or unfolds only; the page image continues to support
-individual selection and dragging. Transfers temporarily show all pages to preserve the physical Output order and drop
-targets. The Section headings toggle and Fold all/Unfold all actions apply to both views without clearing per-section
-choices.
+show one ribbon; if several sections start on the same page, Grid exposes the outermost visible heading, and List uses
+that same single visible ribbon. Grid's section ribbon also drags its entire subtree; the page image retains individual
+selection and dragging. Transfers temporarily show all pages to preserve the physical Output order and drop targets. The
+Section headings toggle and Fold all/Unfold all actions apply to both views without clearing per-section choices.
 
-The + action adds an Input section to Output or copies an Output section. When all members are selected, an Unselect
-action replaces +. View opens the section's first page without changing selection. On the first List opening, sections
-start closed if the expanded list exceeds the pane height. Otherwise, sections start open. Each pane retains expansion
-choices across view changes and resizing. The toolbar button folds or unfolds all sections. Contents navigation opens
-every ancestor of a collapsed destination. Reopening a parent retains its children's individual fold choices. Lists
+List section headings use the ordinary page actions: Input has Add and View, while Output has Move earlier, Move later,
+Remove, Duplicate, and View. Output page actions remain visible and in left-to-right order even in narrow List panes;
+text yields space through truncation. Grid's eye icon occupies each card's upper-right corner and opens Page with the
+same mode and inspection state as List's eye. Grid keeps its existing per-page footer actions.
+
+On first List opening, sections start closed if the expanded list exceeds the pane height; otherwise, they start open.
+Each pane retains expansion choices across view changes and resizing. The toolbar folds or unfolds all sections.
+Contents navigation opens the ancestors of collapsed destinations. Reopening a parent preserves later child folds. Lists
 without sections retain uninterrupted page rows.
 
 Section headings are shown by default. Each pane's Section headings toggle hides them to show a flat List with every
@@ -178,8 +175,8 @@ grip. Input's current file and chooser use the matching colors. Colors remain st
 reordering and duplication; filename and original page details provide the source identity independently of color.
 
 List mounts the visible window and a small margin, with spacers retaining the scroll range. Unmounted rows keep their
-physical positions, occurrence identities, and selections in the existing workspace owners. Contextual row actions mount
-when their menu opens.
+physical positions, occurrence identities, and selections in the existing workspace owners. Output List rows always
+render four inline editing buttons; Grid retains its contextual card menu.
 
 List choices use the existing Selection and page-action model. They resolve to physical indexes or Output occurrence
 identities. List does not own another selection state or change the numeric Selection grammar. View changes retain the

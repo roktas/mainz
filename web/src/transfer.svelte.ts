@@ -515,14 +515,14 @@ export class Transfer {
   press(event: PointerEvent, value: Payload) {
     if (!event.isPrimary || event.button !== 0) return
     const control = event.currentTarget as HTMLElement
-    if (event.pointerType === "mouse" && !control.closest(".list-row")) return
+    if (event.pointerType === "mouse" && !control.closest(".list-row, .list-section")) return
     this.end()
     if (event.pointerType !== "mouse") {
       const contact = { id: event.pointerId, x: event.clientX, y: event.clientY, control, value }
       this.#interaction = { kind: "pending", contact }
       control.setAttribute("data-press", "")
     }
-    if (control.closest(".list-row")) {
+    if (control.closest(".list-row, .list-section")) {
       this.#pressed = createDragImage(control, 1, undefined, event.pointerType !== "mouse")
       this.#placeImage(event.clientX, event.clientY)
       this.#pressEvents = new AbortController()

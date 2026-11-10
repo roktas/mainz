@@ -8,6 +8,134 @@ import { chromium, webkit } from "playwright"
 import { serve } from "./server.ts"
 import { tab, fixture, gridPage } from "./browser.js"
 
+test("Grid and List share heading pages, details, and inline Output controls", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+    page.setDefaultTimeout(8000)
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    await page
+      .locator('input[type="file"]')
+      .first()
+      .setInputFiles({
+        name: "Sections.pdf",
+        mimeType: "application/pdf",
+        buffer: fixture({
+          prepared: false,
+          count: 6,
+          outline: [
+            { title: "Part One", page: 0 },
+            { title: "Part Two", page: 3 },
+          ],
+        }),
+      })
+    const input = page.locator(".selection-panel")
+    const output = page.locator(".composition-output")
+    await tab(input, "List")
+    assert.equal(await input.locator(".list-section").count(), 2)
+    assert.deepEqual(
+      await input.locator(".list-section .list-heading").evaluateAll((rows) => rows.map((row) => row.dataset.page)),
+      ["0", "3"],
+    )
+    assert.equal(await input.locator(".list-row").count(), 4, "Headings replace, rather than duplicate, physical pages")
+    await input.getByRole("button", { name: "Details for Input page 1", exact: true }).click()
+    const details = page.locator(".card-menu-options:popover-open")
+    await details.getByRole("button", { name: /^Jump to section for Input:/ }).click()
+    assert.equal(await page.locator(".section-path:popover-open").count(), 1)
+    await page.keyboard.press("Escape")
+    await page.keyboard.press("Escape")
+    await input.locator('.list-heading[data-page="0"]').click()
+    assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "1")
+    await tab(input, "Grid")
+    assert.equal(await input.locator(".composition-card").count(), 6)
+    assert.equal(await input.getByRole("button", { name: "View Input page 1", exact: true }).count(), 1)
+    await input.getByRole("button", { name: "View Input page 1", exact: true }).click()
+    assert.equal(await input.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected"), "true")
+    await tab(input, "Grid")
+    await input.locator('.composition-card:has(.page-image[data-page="0"]) .page-origin summary').click()
+    assert.equal(await input.locator(".page-origin[open] .page-origin-info .list-jump").count(), 1)
+    await input.locator('.composition-card:has(.page-image[data-page="0"]) .page-origin summary').click()
+    await input.getByLabel("Page selection", { exact: true }).fill("1-6")
+    await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+    await tab(output, "List")
+    assert.equal(await output.locator(".list-section").count(), 2)
+    assert.equal(await output.locator(".list-row").count(), 4)
+    const start = output.locator('.list-section[data-index="0"]')
+    assert.equal(await start.locator(".occurrence-actions button").count(), 4)
+    assert.deepEqual(
+      await start
+        .locator(".occurrence-actions button")
+        .evaluateAll((items) => items.map((item) => item.getAttribute("aria-label"))),
+      ["Move Output page 1 earlier", "Move Output page 1 later", "Remove Output page 1", "Duplicate Output page 1"],
+    )
+    await output.getByRole("button", { name: "Details for Output page 1", exact: true }).click()
+    assert.equal(await page.locator(".card-menu-options:popover-open .page-detail-navigation .list-jump").count(), 1)
+    await page.keyboard.press("Escape")
+    await tab(output, "Grid")
+    assert.equal(await output.getByRole("button", { name: "View Output page 1", exact: true }).count(), 1)
+    await output.getByRole("button", { name: "View Output page 1", exact: true }).click()
+    assert.equal(await output.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected"), "true")
+  } finally {
+    await browser.close()
+  }
+})
+
+test("Section ribbons show four-dot press feedback and drag complete groups", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
+    page.setDefaultTimeout(8000)
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(server.resolvedUrls.local[0])
+    await page
+      .locator('input[type="file"]')
+      .first()
+      .setInputFiles({
+        name: "Group.pdf",
+        mimeType: "application/pdf",
+        buffer: fixture({
+          prepared: false,
+          count: 5,
+          outline: [
+            { title: "First", page: 0 },
+            { title: "Second", page: 3 },
+          ],
+        }),
+      })
+    const input = page.locator(".selection-panel")
+    const output = page.locator(".composition-output")
+    await tab(input, "List")
+    const ribbon = input.getByRole("button", { name: "Fold Input section: First", exact: true })
+    await ribbon.dispatchEvent("pointerdown", { pointerType: "touch", pointerId: 99, isPrimary: true, button: 0 })
+    assert.equal(await ribbon.getAttribute("data-press"), "")
+    assert.match(await ribbon.locator(".ribbon-dots").evaluate((element) => getComputedStyle(element).display), /flex/)
+    await page.evaluate(() => window.dispatchEvent(new Event("blur")))
+    assert.equal(await ribbon.getAttribute("data-press"), null)
+    const from = await ribbon.boundingBox()
+    const to = await output.locator(".composition-empty").boundingBox()
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(from.x + from.width / 2 + 20, from.y + from.height / 2 + 20, { steps: 5 })
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 })
+    await page.mouse.up()
+    assert.equal(await output.locator(".composition-totals strong").textContent(), "3 pages")
+    await tab(input, "Grid")
+    const gridRibbon = input.getByRole("button", { name: "Fold Input section: First", exact: true })
+    assert.equal(await gridRibbon.getAttribute("draggable"), "true")
+    await gridRibbon.dispatchEvent("pointerdown", { pointerType: "touch", pointerId: 100, isPrimary: true, button: 0 })
+    assert.match(
+      await gridRibbon.locator(".ribbon-dots").evaluate((element) => getComputedStyle(element).display),
+      /flex/,
+    )
+    await page.evaluate(() => window.dispatchEvent(new Event("blur")))
+  } finally {
+    await browser.close()
+  }
+})
+
 test(
   "Contents jumps to the exact page in Grid, Page, and List without changing selection",
   { timeout: 60000 },

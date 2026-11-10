@@ -1,4 +1,4 @@
-<!-- Owns List row controls, click gestures, and lazily opened contextual actions. -->
+<!-- Owns List page selection, drag handles, and inline page actions. -->
 
 <script lang="ts">
   import type { Snippet } from "svelte"
@@ -10,11 +10,9 @@
     pane,
     number,
     index,
-    id,
     name,
     label,
     pdfLabel,
-    navigation,
     selected,
     touch,
     transfer,
@@ -31,11 +29,9 @@
     pane: "Input" | "Output"
     number: number
     index: number
-    id: string
     name?: string
     label: string
     pdfLabel?: string
-    navigation?: Snippet
     selected: boolean
     touch: boolean
     transfer: Transfer
@@ -51,7 +47,6 @@
   } = $props()
   let choice: HTMLButtonElement
   let restore: (() => void) | undefined
-  let menu = $state(false)
   function focus() {
     choice.focus({ preventScroll: true })
   }
@@ -108,26 +103,12 @@
   >
 </div>
 <div class="list-actions">
-  {@render navigation?.()}
-  {#if selected}
-    {#if pane === "Output"}<div class="occurrence-actions">{@render unselect()}</div>{:else}{@render unselect()}{/if}
+  {#if pane === "Output"}
+    {@render actions()}
+  {:else if selected}
+    {@render unselect()}
   {:else}
     <span class="list-inline-actions">{@render actions()}</span>
-    {#if pane === "Output"}
-      <button
-        class="icon-button list-menu"
-        popovertarget={`${id}-actions`}
-        aria-label={`Actions for Output page ${number}`}><Icon name="more" /></button
-      >
-      <div
-        id={`${id}-actions`}
-        class="card-menu-options list-row-menu"
-        popover="auto"
-        onbeforetoggle={(event) => (menu = event.newState === "open")}
-      >
-        {#if menu}{@render actions()}{/if}
-      </div>
-    {/if}
   {/if}
   {@render preview()}
 </div>

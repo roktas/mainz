@@ -417,22 +417,11 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      & .list-menu {
-        display: none;
-      }
       & .occurrence-actions {
         grid-template-columns: repeat(2, calc(2 * var(--list-action-size)));
         column-gap: 6px;
         margin: 0;
         border: 0;
-        & > [aria-pressed="true"] {
-          grid-column: 1;
-          justify-self: end;
-          color: var(--accent);
-        }
-        &:has(> [aria-pressed="true"]) {
-          grid-template-columns: var(--list-selection-width, calc(4 * var(--list-action-size) + 6px));
-        }
       }
       & :is(.occurrence-moves, .occurrence-copies) {
         display: grid;
@@ -444,51 +433,30 @@
           background: transparent;
           box-shadow: none;
         }
-        & :is(.list-inline-actions, .list-add, .list-jump) {
+        & .list-inline-actions {
           opacity: 0;
         }
-        & > li:hover :is(.list-inline-actions, .list-add, .list-jump) {
+        & > li:hover .list-inline-actions {
           opacity: 1;
         }
       }
       & > li:focus-within .list-inline-actions {
         opacity: 1;
       }
-      & > .list-section:has(:focus-visible) .list-add {
-        opacity: 1;
-      }
-      & > li:has(:focus-visible, :popover-open) .list-jump {
-        opacity: 1;
-      }
       & .list-actions > [aria-pressed="true"] {
         color: var(--accent);
       }
     }
-    @media (hover: none), (pointer: coarse) {
-      .page-list .list-actions {
-        --list-selection-width: var(--list-action-size);
-      }
-      .composition-output .page-list .list-inline-actions {
-        display: none;
-      }
-      .page-list .list-actions .list-menu {
-        display: inline flex;
-      }
-    }
     @container list (width <= 22rem) {
-      .page-list .list-choice {
+      .page-list {
+        --list-action-size: 32px;
+        --list-number-size: 32px;
+      }
+      .page-list .list-choice,
+      .page-list .list-heading .list-current {
         white-space: nowrap;
         overflow: clip;
         text-overflow: ellipsis;
-      }
-      .page-list .list-actions {
-        --list-selection-width: var(--list-action-size);
-      }
-      .composition-output .page-list .list-inline-actions {
-        display: none;
-      }
-      .page-list .list-actions .list-menu {
-        display: inline flex;
       }
     }
     @keyframes row-enter {
@@ -510,8 +478,43 @@
         --return-surface: color-mix(in oklch, var(--accent) 8%, var(--soft));
       }
     }
+    .ribbon-dots {
+      display: none;
+    }
+    .page-grip:is([data-press], .dragging, :active) {
+      & .ribbon-symbol {
+        display: none;
+      }
+      & .ribbon-dots {
+        display: inline flex;
+        align-items: center;
+        justify-content: center;
+        & svg {
+          inline-size: 16px;
+          block-size: 16px;
+          translate: 0;
+          rotate: 0deg;
+        }
+      }
+    }
+    .page-detail-navigation {
+      display: flex;
+      align-items: center;
+      gap: 0.4em;
+      margin-block-start: 0.25em;
+      padding-block-start: 0.5em;
+      border-block-start: 1px solid var(--border);
+      & .list-jump {
+        min-inline-size: 44px;
+        min-block-size: 44px;
+        color: var(--secondary);
+      }
+    }
     .page-list > .list-section {
-      --section-actions: 3;
+      --section-actions: 2;
+      &.output-section {
+        --section-actions: 5;
+      }
       --section-surface: color-mix(in oklch, var(--secondary) calc(min(var(--section-depth), 3) * 8%), var(--soft));
       color: inherit;
       background: var(--section-surface);
@@ -574,12 +577,8 @@
           inline-size: calc(min(1.25em, var(--list-number-size)) * 1.2);
           block-size: calc(min(1.25em, var(--list-number-size)) * 1.2);
         }
-        &[aria-expanded="true"]:not(.dragging) svg {
+        &[aria-expanded="true"]:not(.dragging) .ribbon-symbol svg {
           rotate: 90deg;
-        }
-        &.dragging svg {
-          inline-size: 16px;
-          block-size: 16px;
         }
         &:active {
           filter: brightness(1.15);
@@ -850,7 +849,7 @@
         }
       }
     }
-    .page-list .list-actions .section-path > header > button {
+    .page-detail-navigation .section-path > header > button {
       inline-size: 44px;
       block-size: 44px;
       min-inline-size: 44px;
@@ -858,7 +857,7 @@
       margin-block: -10px;
       margin-inline-end: -10px;
     }
-    .page-list .list-actions .section-path > header > svg {
+    .page-detail-navigation .section-path > header > svg {
       inline-size: 24px;
       block-size: 24px;
     }
@@ -964,9 +963,6 @@
           text-overflow: ellipsis;
         }
       }
-    }
-    .composition-output:has(.page-list) :is(.move, .inline-moves, .menu-moves) svg {
-      rotate: 90deg;
     }
   }
 }

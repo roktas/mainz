@@ -632,29 +632,6 @@
       outputText = undefined
     }
   }
-  function sectionSelected(pane: "Input" | "Output", first: number, end: number) {
-    for (let index = first; index < end; index++)
-      if (pane === "Input" ? !inputSelected.has(index) : !selectedIds.has(output.pages[index]?.id)) return false
-    return true
-  }
-  function selectSection(pane: "Input" | "Output", first: number, end: number) {
-    const indices = Array.from({ length: end - first }, (_, index) => first + index)
-    if (pane === "Input") {
-      const deselect = indices.every((index) => inputSelected.has(index))
-      const retained = draft.pages.filter((index) => index < first || index >= end)
-      numbers(pageRanges(deselect ? retained : [...retained, ...indices]))
-    } else {
-      const selected = new Set(output.selection)
-      const ids = indices.map((index) => output.pages[index].id)
-      const deselect = ids.every((id) => selected.has(id))
-      for (const id of ids) {
-        if (deselect) selected.delete(id)
-        else selected.add(id)
-      }
-      output.select(selected)
-      outputText = undefined
-    }
-  }
   function clearInput() {
     if (!source) return
     if (highlight?.kind === "source") highlightRange()
@@ -994,7 +971,7 @@
       return
     }
     if (value.kind === "source" && value.source !== source?.id) return
-    const section = control.closest(".list-section")
+    const section = control.closest(".list-section, .grid-section-card")
     if (section) {
       if (value.kind === "source" && value.choice.kind === "pages") numbers(pageRanges(value.choice.pages))
       else if (value.kind === "output") {
@@ -1101,12 +1078,19 @@
 {/snippet}
 
 {#snippet pageJump(pane: "Input" | "Output", page: number)}
-  {@const list = pane === "Input" ? inputList : outputList}
+  {@const view =
+    pane === "Input"
+      ? activeTab === "grid"
+        ? inputGrid
+        : inputList
+      : activeOutputTab === "grid"
+        ? outputGrid
+        : outputList}
   {@const headings = pane === "Input" ? inputHeadings(page) : outputHeadings(output.pages[page].content)}
   {#if headings.length}
     {@render sectionJump(
       pane,
-      headings.map((heading) => list?.paths(page, heading.keys) ?? []),
+      headings.map((heading) => view?.paths(page, heading.keys) ?? []),
       `${key}-${pane}-page-${page}-jump`,
     )}
   {/if}
@@ -1147,7 +1131,15 @@
               aria-label={`Go to section: ${node.path.join(" › ")}`}
               onclick={(event) => {
                 event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
-                void (pane === "Input" ? inputList : outputList)?.revealSection(node.id)
+                void (
+                  pane === "Input"
+                    ? activeTab === "grid"
+                      ? inputGrid
+                      : inputList
+                    : activeOutputTab === "grid"
+                      ? outputGrid
+                      : outputList
+                )?.revealSection(node.id)
               }}
               ><span class="path-level" aria-hidden="true">{depth + 1}</span><span
                 class="path-page"
@@ -1162,13 +1154,26 @@
 {/snippet}
 
 {#snippet gridRibbon(pane: "Input" | "Output", section: Section, folded: boolean, fold: (key: string) => void)}
+  {@const disclosureId = `${key}-${pane}-grid-section-${section.id}`}
+  {@const payload: Payload = pane === "Input"
+    ? { kind: "source", source: source!.id, choice: { kind: "pages", pages: Array.from({ length: section.end - section.start }, (_, index) => section.start + index) } }
+    : { kind: "output", ids: output.pages.slice(section.start, section.end).map((page) => page.id) }}
   <button
+    id={disclosureId}
     class="page-grip grid-ribbon icon-button"
     type="button"
+    draggable="true"
     aria-label={`${folded ? "Unfold" : "Fold"} ${pane} section: ${section.path.join(" › ")}`}
     aria-expanded={!folded}
-    title={`${folded ? "Unfold" : "Fold"} section`}
-    onclick={() => fold(section.key)}><Icon name="ribbon-vertical" /></button
+    title={`${folded ? "Unfold" : "Fold"} section. Drag to ${pane === "Input" ? "add to Output" : "move"}.`}
+    onmousedown={retainFocus}
+    ondragstart={(event) => start(event, payload)}
+    onpointerdown={(event) => transfer.press(event, payload)}
+    ondragend={() => transfer.end()}
+    onclick={() => fold(section.key)}
+    ><span class="ribbon-symbol"><Icon name="ribbon-vertical" /></span><span class="ribbon-dots"
+      ><Icon name="grip-four" /></span
+    ></button
   >
 {/snippet}
 
@@ -1182,11 +1187,10 @@
   id: number,
 )}
   {@const name = path.join(" › ")}
-  {@const pathId = `${key}-${pane}-section-${id}-path`}
-  {@const disclosureId = `${pathId}-disclosure`}
+  {@const disclosureId = `${key}-${pane}-section-${id}-disclosure`}
   {@const dragging = transfer.control?.id === disclosureId}
   {@const indices = Array.from({ length: end - first }, (_, index) => first + index)}
-  {@const selected = sectionSelected(pane, first, end)}
+  {@const selected = pane === "Input" ? inputSelected.has(first) : selectedIds.has(output.pages[first].id)}
   {@const payload: Payload = pane === "Input" ? { kind: "source", source: source!.id, choice: { kind: "pages", pages: indices } } : { kind: "output", ids: indices.map((index) => output.pages[index].id) }}
   {#if pane === "Output" && !expanded && transfer.inside && !transfer.blocked && ((transfer.targetIndex === first && !transfer.targetAfter) || (transfer.targetIndex === end - 1 && transfer.targetAfter))}
     {@render dropPreview(transfer.targetAfter)}
@@ -1204,9 +1208,14 @@
     ondragstart={(event) => start(event, payload)}
     onpointerdown={(event) => transfer.press(event, payload)}
     ondragend={() => transfer.end()}
-    onclick={toggle}><Icon name={dragging ? "reorder" : "ribbon"} /></button
+    onclick={toggle}
+    ><span class="ribbon-symbol"><Icon name="ribbon" /></span><span class="ribbon-dots"><Icon name="grip-four" /></span
+    ></button
   >
-  <div class="list-number"><strong>{first + 1}</strong></div>
+  <div class="list-number">
+    {#if pane === "Input"}{@render inputOrigin(first, `${key}-list-input-${first}`)}
+    {:else}{@render outputOrigin(output.pages[first], first)}{/if}
+  </div>
   {#if pane === "Input" && source?.input.labels[first] && source.input.labels[first] !== String(first + 1)}<span
       class="list-pdf-label"
       aria-label={`Page Label: ${source.input.labels[first]}`}
@@ -1215,10 +1224,25 @@
   <button
     type="button"
     class="list-heading"
-    aria-label={name}
+    data-page={first}
+    aria-label={`Select ${pane} page ${first + 1}: ${name}`}
     aria-pressed={selected}
-    title={`Select or unselect section: ${name}`}
-    onclick={() => selectSection(pane, first, end)}
+    title="Select or unselect this page. Shift-click selects a range."
+    onclick={(event) => {
+      if (pane === "Input") selectInput(first, event)
+      else {
+        output.position = first
+        selectOutput(output.pages[first].id, event.shiftKey)
+      }
+    }}
+    ondblclick={(event) => {
+      if (interaction.touchPointer || event.ctrlKey || event.metaKey) return
+      if (pane === "Input") {
+        restoreInput(first)
+        inspectInput({ position: first })
+      } else output.position = first
+      void interaction.toggleView(pane, event)
+    }}
     ><span class="list-current">{path.at(-1)}</span>
     {#if path.length > 1}<span class="list-parents" aria-hidden="true">
         {#each path.slice(0, -1).toReversed() as parent, depth (depth)}
@@ -1227,48 +1251,13 @@
       </span>{/if}</button
   >
   <div class="list-actions">
-    {@render sectionJump(
-      pane,
-      [(pane === "Input" ? inputList : outputList)?.trail(id) ?? []],
-      pathId,
-      path.length === 1,
-    )}
-    {#if selected}<button
-        type="button"
-        class="icon-button list-unselect"
-        aria-label={`Unselect ${pane} section: ${name}`}
-        aria-pressed="true"
-        title="Unselect section"
-        onclick={() => selectSection(pane, first, end)}><Icon name="select" /></button
-      >{:else}<button
-        type="button"
-        class="icon-button list-add"
-        aria-label={`${pane === "Input" ? "Add Input" : "Copy Output"} section: ${name}`}
-        title={pane === "Input" ? "Add section to Output" : "Copy section"}
-        disabled={pane === "Output" && !!outputSelectionError}
-        onclick={() =>
-          pane === "Input"
-            ? add(undefined, indices, "keep")
-            : duplicate(
-                indices.map((index) => output.pages[index].id),
-                "keep",
-              )}><Icon name="add" /></button
-      >{/if}
-    <button
-      type="button"
-      class="icon-button"
-      aria-label={`View ${pane} section: ${name}`}
-      title="View first page of section"
-      onclick={(event) => {
-        if (pane === "Input") {
-          inspectInput({ position: first })
-          inputTab("page", event)
-        } else {
-          output.position = first
-          setOutputTab("page", event)
-        }
-      }}><Icon name="eye" /></button
-    >
+    {#if pane === "Input"}
+      {@render inputPageActions(first)}
+      {@render inputPeek(first)}
+    {:else}
+      {@render occurrenceActions(output.pages[first], first, true)}
+      {@render outputPeek(output.pages[first], first)}
+    {/if}
   </div>
 {/snippet}
 
@@ -1452,7 +1441,13 @@
       identity={{ source, page, tocTitles: inputView.tocTitles, destinations: outputPositions.get(page) }}
       mode={activeTab === "list" ? "list" : "normal"}
       bind:opened={originOpen}
-    />{/if}
+    >
+      {#snippet navigation()}
+        {#if inputView.grouped && inputHeadings(page).length}
+          <div class="page-detail-navigation">{@render pageJump("Input", page)}</div>
+        {/if}
+      {/snippet}
+    </Origin>{/if}
 {/snippet}
 
 {#snippet outputOrigin(page: Expanded, index: number)}
@@ -1467,7 +1462,13 @@
     multiple={outputBooks.size > 1}
     mode={activeOutputTab === "list" ? "list" : "normal"}
     bind:opened={originOpen}
-  />
+  >
+    {#snippet navigation()}
+      {#if outputGrouped && outputHeadings(page.content).length}
+        <div class="page-detail-navigation">{@render pageJump("Output", index)}</div>
+      {/if}
+    {/snippet}
+  </Origin>
 {/snippet}
 
 {#snippet inputPeek(page: number)}
@@ -1571,7 +1572,7 @@
     <button
       class="icon-button move"
       aria-label={`Move Output page ${index + 1} ${offset < 0 ? "earlier" : "later"}`}
-      title={`Move page ${activeOutputTab === "list" ? (offset < 0 ? "up" : "down") : offset < 0 ? "earlier" : "later"}`}
+      title={`Move page ${offset < 0 ? "earlier" : "later"}`}
       disabled={!ids.length || (offset < 0 ? index === 0 : index === output.pages.length - 1)}
       onclick={(event) => {
         event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
@@ -1991,7 +1992,7 @@
                     labeled={source.input.labels.length > 0}
                     revision={`${inputView.grouped}:${inputView.tocTitles}`}
                     headings={inputView.grouped ? inputHeadings : undefined}
-                    selected={(first, end) => sectionSelected("Input", first, end)}
+                    selected={(first) => inputSelected.has(first)}
                     {count}
                     bind:position={() => inputPosition, (position) => inspectInput({ position })}
                     select={toggle}
@@ -2024,7 +2025,6 @@
                           pane="Input"
                           number={page + 1}
                           index={page}
-                          id={`${key}-list-input-${page}`}
                           name={inputName(page)}
                           label={inputName(page) ?? `Page ${page + 1}`}
                           pdfLabel={source.input.labels[page]}
@@ -2053,7 +2053,6 @@
                           {#snippet origin()}{@render inputOrigin(page, `${key}-list-input-${page}`)}{/snippet}
                           {#snippet actions()}{@render inputPageActions(page)}{/snippet}
                           {#snippet preview()}{@render inputPeek(page)}{/snippet}
-                          {#snippet navigation()}{#if inputView.grouped}{@render pageJump("Input", page)}{/if}{/snippet}
                         </Row>
                       </li>
                     {/snippet}
@@ -2134,6 +2133,16 @@
                               onpointerdown={(event) => transfer.press(event, inputPayload(page))}
                               ondragend={() => transfer.end()}><Icon name="reorder" /></button
                             >{/if}
+                          <button
+                            class="icon-button grid-inspect"
+                            type="button"
+                            aria-label={`View Input page ${page + 1}`}
+                            title="View page"
+                            onclick={(event) => {
+                              inspectInput({ position: page })
+                              void interaction.toggleView("Input", event)
+                            }}><Icon name="eye" /></button
+                          >
                         </div>
                         <button
                           class="page-image"
@@ -2453,7 +2462,7 @@
               count={output.pages.length}
               revision={outputListRevision}
               headings={outputGrouped ? (index) => outputHeadings(output.pages[index].content) : undefined}
-              selected={(first, end) => sectionSelected("Output", first, end)}
+              selected={(first) => selectedIds.has(output.pages[first]?.id)}
               identity={(index) => output.pages[index].id}
               skipped={skippedRows}
               retained={retainedRow}
@@ -2506,7 +2515,6 @@
                     pane="Output"
                     number={index + 1}
                     {index}
-                    id={`${key}-${page.id}`}
                     name={pageName(page.content)}
                     label={pageName(page.content) ??
                       ("blank" in page.content
@@ -2543,7 +2551,6 @@
                     {#snippet origin()}{@render outputOrigin(page, index)}{/snippet}
                     {#snippet actions()}{@render occurrenceActions(page, index, true)}{/snippet}
                     {#snippet preview()}{@render outputPeek(page, index)}{/snippet}
-                    {#snippet navigation()}{#if outputGrouped}{@render pageJump("Output", index)}{/if}{/snippet}
                   </Row>
                 </li>
               {/snippet}
@@ -2611,6 +2618,16 @@
                     >
                       <div class="page-label">
                         {@render outputGridHeading(page, index, section, folded, fold)}
+                        <button
+                          class="icon-button grid-inspect"
+                          type="button"
+                          aria-label={`View Output page ${index + 1}`}
+                          title="View page"
+                          onclick={(event) => {
+                            output.position = index
+                            void interaction.toggleView("Output", event)
+                          }}><Icon name="eye" /></button
+                        >
                       </div>
                       <button
                         class="page-image"

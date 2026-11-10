@@ -51,6 +51,7 @@
     expand: "M3 16V3h13M7 7h14v14H7V7Zm4 7h6m-3-3v6",
     previous: "m15 6-6 6 6 6",
     reorder: "M8 5h1m6 0h1M8 12h1m6 0h1M8 19h1m6 0h1",
+    "grip-four": "M8 8h1m6 0h1M8 16h1m6 0h1",
     lock: "M6 11h12v10H6V11Zm2 0V7a4 4 0 0 1 8 0v4",
     settings:
       "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM10 2h4l1 3 2 1 3-1 2 4-2 2v2l2 2-2 4-3-1-2 1-1 3h-4l-1-3-2-1-3 1-2-4 2-2v-2l-2-2 2-4 3 1 2-1 1-3Z",

@@ -909,6 +909,7 @@
       & .page-face {
         position: absolute;
         z-index: 2;
+        pointer-events: none;
         inset-block-start: calc(-1 * var(--page-stroke));
         inset-inline-end: calc(-1 * var(--page-stroke));
         inline-size: 44px;

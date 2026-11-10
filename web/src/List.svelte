@@ -9,7 +9,7 @@
   import { tick, untrack } from "svelte"
   import type { Snippet } from "svelte"
   import { shortcut, shortcutContext } from "./keyboard.ts"
-  import { sectionsOf, flattenSections } from "./sections.ts"
+  import { gridSections, sectionsOf, unfoldSamePage } from "./sections.ts"
   import { flash, foldInto, pulseSectionHeading, unfoldFrom } from "./motion.ts"
   import type { SectionPath } from "./outline.ts"
 
@@ -72,9 +72,7 @@
     const epoch = ++foldEpoch
     pendingFolds = next
     const previous = new Set(order)
-    const remaining = new Set(
-      flattenSections(sections.roots, count, next).filter((index) => index < 0 || !skipped?.has(index)),
-    )
+    const remaining = new Set(visibleRows(next).filter((index) => index < 0 || !skipped?.has(index)))
     const nodes = [...sections.nodes.values()]
     const parent = (index: number, visible: ReadonlySet<number>) => {
       let section =
@@ -133,9 +131,7 @@
   export function toggleSections() {
     const current = pendingFolds ?? collapsed
     changeFolds(
-      flattenSections(sections.roots, count, current).some(
-        (index) => index < 0 && !current.has(sections.nodes.get(-index - 1)!.key),
-      )
+      visibleRows(current).some((index) => index < 0 && !current.has(sections.nodes.get(-index - 1)!.key))
         ? new Set([...sections.nodes.values()].map((entry) => entry.key))
         : new Set(),
     )
@@ -152,7 +148,8 @@
     const next = new Set(collapsed)
     for (let parent = target.parent; parent; parent = parent.parent) next.delete(parent.key)
     if (next.size !== collapsed.size) changeFolds(next)
-    const heading = await seek(-target.id - 1, `[data-section="${target.id}"] .list-heading`)
+    const visible = gridSections(sections, count, next).headings.get(target.start)
+    const heading = await seek(visible ? -visible.id - 1 : target.start, `[data-page="${target.start}"]`)
     heading?.focus({ preventScroll: true })
     const row = heading?.closest<HTMLElement>("li")
     if (row) flash(row)
@@ -194,11 +191,26 @@
     )
   }
   const sections = $derived(sectionsOf(count, headings, identity))
-  const sequence = $derived(flattenSections(sections.roots, count, collapsed))
+  function visibleRows(folded: ReadonlySet<string>) {
+    const visible = gridSections(sections, count, folded)
+    return visible.pages.map((page) => {
+      const heading = visible.headings.get(page)
+      return heading ? -heading.id - 1 : page
+    })
+  }
+  const sequence = $derived(visibleRows(collapsed))
   const order = $derived(sequence.filter((index) => index < 0 || !skipped?.has(index)))
-  const sequenceRanks = $derived(new Map(sequence.map((index, rank) => [index, rank])))
-  const pages = $derived(order.filter((index) => index >= 0))
-  const ranks = $derived(new Map(order.map((index, rank) => [index, rank])))
+  const pages = $derived(order.map((index) => (index < 0 ? sections.nodes.get(-index - 1)!.start : index)))
+  function rowRanks(rows: readonly number[]) {
+    const result = new Map<number, number>()
+    rows.forEach((index, rank) => {
+      result.set(index, rank)
+      if (index < 0) result.set(sections.nodes.get(-index - 1)!.start, rank)
+    })
+    return result
+  }
+  const sequenceRanks = $derived(rowRanks(sequence))
+  const ranks = $derived(rowRanks(order))
   const offsets = $derived.by(() => {
     const sizes = measured?.revision === revision && measured?.width === width ? measured.sizes : undefined
     const result = new Float64Array(order.length + 1)
@@ -348,7 +360,7 @@
   }
   async function keys(event: KeyboardEvent) {
     if (!(event.target instanceof HTMLElement)) return
-    if (!event.target.matches(".list-choice, .page-list")) return
+    if (!event.target.matches(".list-choice, .list-heading, .page-list")) return
     const action = shortcut(event, shortcutContext(event, { pane, view: "list" }), "list")
     if (action === "suppress") {
       event.preventDefault()
@@ -438,6 +450,7 @@
       {@const entry = sections.nodes.get(-index - 1)!}
       <li
         class="list-section"
+        class:output-section={pane === "Output"}
         style:--section-depth={entry.path.length - 1}
         class:selected={collapsed.has(entry.key) && selected?.(entry.start, entry.end)}
         data-selected={selected?.(entry.start, entry.end) || undefined}
@@ -455,7 +468,7 @@
           !collapsed.has(entry.key),
           () => {
             const next = new Set(pendingFolds ?? collapsed)
-            if (next.has(entry.key)) next.delete(entry.key)
+            if (next.has(entry.key)) unfoldSamePage(entry, next)
             else next.add(entry.key)
             changeFolds(next, entry.key)
           },

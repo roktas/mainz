@@ -523,6 +523,22 @@ passed Oxfmt. The local source archive predates remote `next`, so these checks d
 published components. Focused browser regressions were updated but **not executed**; interactive rendering remains
 unverified until a current checkout can run them.
 
+#### Grid/List page and section parity (2026-11-10)
+
+- [x] Display each section-starting physical page once in List, as its heading/page row, matching Grid; make its page number open ordinary details and its title select that page.
+- [x] Move Jump to section into the common Grid/List page-number details, preserving the original arrow, numbered paths, and target focus.
+- [x] Add Grid's upper-right eye action with the same Page transition and inspected position as List.
+- [x] Show Move earlier, Move later, Remove, and Duplicate (in that order), plus the existing eye, inline in Output List, including selected and narrow rows.
+- [x] Enable complete-section drag from Grid/List ribbons and show four grip dots while pressed.
+- [x] Align Web SPEC, VIEW, and focused browser regressions with the unified behavior.
+- [ ] Recheck the full browser matrix, responsive physical devices, and every older regression assertion; this focused checkpoint does not certify those environments.
+
+**Focused verification:** Node 24 Svelte/TypeScript passed (0 errors and warnings); two Chromium interaction tests
+passed for heading-page identity, Grid/List details and Jump, Page eye, Output inline actions, ribbon press feedback,
+and native three-page group drag to Output. Browser tests used reduced motion and a desktop viewport; touch movement,
+full WebKit, and long browser suites remain unverified. Lint had 0 errors (37 existing/other warnings before final
+formatting); the standard unit suite and final formatting must be rechecked at the checkpoint.
+
 #### Closure
 
 - [ ] Fix confirmed defects and unnecessary complexity with small, behavior-preserving changes. Add or repair tests at
