@@ -469,7 +469,7 @@ test(
       )
       await panel.getByRole("button", { name: "Apply recipe", exact: true }).click()
       await panel.waitFor({ state: "hidden" })
-      assert.equal(await page.locator(".composition-totals strong").textContent(), "3 pages")
+      assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "3 pages")
       assert.equal(await page.locator(".input-picker .count").textContent(), "3")
       const output = page.locator(".composition-output")
       await tab(output, "List")
@@ -493,10 +493,8 @@ test(
       )
       await page.locator(".input-picker > summary h2").click()
       const menu = await page.locator(".input-list").evaluate((element) => {
-        const choices = [...element.querySelectorAll(".input-choice > button:not(.icon-button)")].map((button) =>
-          button.getBoundingClientRect(),
-        )
-        const remove = element.querySelector(":scope > button").getBoundingClientRect()
+        const choices = [...element.querySelectorAll(".input-choice")].map((button) => button.getBoundingClientRect())
+        const remove = element.querySelector(".input-list-actions > .danger").getBoundingClientRect()
         return {
           peers: choices.every(
             (box) => Math.abs(box.width - choices[0].width) < 1 && Math.abs(box.height - choices[0].height) < 1,

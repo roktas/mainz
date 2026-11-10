@@ -778,14 +778,14 @@ test(
       const input = page.locator(".selection-panel")
       await input.locator(".input-current").filter({ hasText: "First.pdf" }).waitFor()
       await page
-        .locator('.selection-panel input[type="file"]')
+        .locator('.selection-panel .input-heading > .file-picker input[type="file"]')
         .setInputFiles([
           { name: "Broken.pdf", mimeType: "application/pdf", buffer: Buffer.from("Not a PDF") },
           pdf("Last.pdf"),
         ])
       await input.locator(".input-current").filter({ hasText: "Last.pdf" }).waitFor()
       await page.locator(".header-feedback .opening-progress").waitFor({ state: "detached" })
-      assert.deepEqual(await input.locator(".input-list button[data-source] > span:nth-child(2)").allTextContents(), [
+      assert.deepEqual(await input.locator(".input-list button[data-source] > span:first-child").allTextContents(), [
         "First.pdf",
         "Last.pdf",
       ])
@@ -805,7 +805,7 @@ test(
         }
       })
       await input
-        .locator('input[type="file"]')
+        .locator('.input-heading > .file-picker input[type="file"]')
         .setInputFiles([
           { name: "Another-broken.pdf", mimeType: "application/pdf", buffer: Buffer.from("Not a PDF") },
           pdf("Cancelled.pdf"),
@@ -813,7 +813,7 @@ test(
         ])
       await page.waitForFunction(() => !!window.releaseRead)
       await page.getByRole("button", { name: "Cancel", exact: true }).click()
-      await input.locator('input[type="file"]').setInputFiles(pdf("Retry.pdf"))
+      await input.locator('.input-heading > .file-picker input[type="file"]').setInputFiles(pdf("Retry.pdf"))
       await input.locator(".input-current").filter({ hasText: "Retry.pdf" }).waitFor()
       await page.evaluate(() => window.releaseRead())
       await page.evaluate(() => new Promise(requestAnimationFrame))
@@ -858,7 +858,7 @@ test("Large failure batches announce a summary and retain every file error", { t
       buffer: Buffer.from("Not a PDF"),
     }))
     await page
-      .locator('.selection-panel input[type="file"]')
+      .locator('.selection-panel .input-heading > .file-picker input[type="file"]')
       .setInputFiles([
         ...failed,
         { name: "Ready.pdf", mimeType: "application/pdf", buffer: fixture({ prepared: false }) },
