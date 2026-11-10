@@ -2044,8 +2044,8 @@ test("Compact Input selector matches Output while PDF opening moves into the cho
         if (width >= 390) assert.ok(geometry.withinInputTab, `${width}: Input actions stay within tab width`)
       }
       await page.locator(".input-picker > summary").click()
-      assert.ok(await page.locator(".input-choice .guidance-trigger").first().isVisible())
-      assert.equal(await page.locator(".input-list > .file-picker").isVisible(), width !== 1440)
+      assert.ok(await page.locator(".input-choice .guidance-label").first().isVisible())
+      assert.equal(await page.locator(".input-list-actions > .file-picker").isVisible(), width !== 1440)
       await page.locator(".input-picker > summary").click()
     }
 
@@ -2073,7 +2073,7 @@ test("Compact Input selector matches Output while PDF opening moves into the cho
 
     await page.locator(".input-picker > summary").click()
     const chooser = page.waitForEvent("filechooser")
-    await page.locator(".input-list > .file-picker").click()
+    await page.locator(".input-list-actions > .file-picker").click()
     const fileChooser = await chooser
     assert.ok(fileChooser.isMultiple(), "The Input chooser accepts multiple PDFs")
     await fileChooser.setFiles({ name: "additional.pdf", mimeType: "application/pdf", buffer: fixture({ count: 2 }) })
@@ -2090,6 +2090,83 @@ test("Compact Input selector matches Output while PDF opening moves into the cho
       }),
       "The file icon stays centered with several Inputs",
     )
+  } finally {
+    await browser.close()
+  }
+})
+
+test("Input chooser number badges open details and Add/Remove actions align", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 390, height: 900 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.locator(".composer[aria-busy=false]").waitFor()
+
+    for (const width of [390, 800, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      for (const scheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme: scheme })
+        await page.locator(".input-picker > summary").click()
+        const measures = await page.locator(".input-list").evaluate((list) => {
+          const selector = document.querySelector(".input-picker > summary .workspace-icon")
+          const badge = list.querySelector(".input-choice .guidance-label")
+          const name = list.querySelector(".input-choice-select")
+          const add = list.querySelector(".input-list-actions > .file-picker")
+          const remove = list.querySelector(".input-list-actions > .danger")
+          const a = add.getBoundingClientRect(),
+            b = remove.getBoundingClientRect()
+          return {
+            iconColor: getComputedStyle(selector).color,
+            badgeColor: getComputedStyle(badge).color,
+            badgeBackground: getComputedStyle(badge).backgroundColor,
+            accent: getComputedStyle(selector).backgroundColor,
+            nameColor: getComputedStyle(name).color,
+            nameGap: name.getBoundingClientRect().left - badge.getBoundingClientRect().right,
+            badgeSelected: name.getAttribute("aria-pressed") === "true",
+            addVisible: getComputedStyle(add).display !== "none",
+            aligned:
+              Math.abs(a.top - b.top) < 1 && Math.abs(a.width - b.width) < 1 && Math.abs(a.height - b.height) < 1,
+            labels: [add.textContent.trim(), remove.textContent.trim()],
+          }
+        })
+        assert.equal(measures.badgeSelected, true)
+        assert.equal(measures.nameColor, scheme === "light" ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)")
+        assert.equal(measures.badgeColor, scheme === "light" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)")
+        assert.ok(measures.nameGap >= 10, `${width}: badge-to-name spacing`)
+        if (width === 1440) {
+          assert.equal(measures.addVisible, false, "Desktop retains its external PDF picker")
+        } else {
+          assert.equal(measures.iconColor, measures.badgeColor, "Primary icons and badges share contrast ink")
+          assert.equal(measures.addVisible, true)
+          assert.ok(measures.aligned, `${width}: equal inline Add/Remove buttons`)
+          assert.deepEqual(measures.labels, ["Add Input", "Remove Input"])
+        }
+        assert.equal(await page.locator(".input-choice .icon-button.guidance-trigger").count(), 0)
+        await page.getByRole("button", { name: "Details for Input 1" }).click()
+        assert.equal(await page.locator(".guidance:popover-open").count(), 1)
+        assert.equal(await page.locator(".input-choice-select[aria-pressed=true]").count(), 1)
+        await page.locator(".guidance:popover-open").getByRole("button", { name: "Close details" }).click()
+        await page.locator(".input-picker > summary").click()
+      }
+    }
+
+    await page.setViewportSize({ width: 390, height: 900 })
+    await page.locator(".input-picker > summary").click()
+    const chooser = page.waitForEvent("filechooser")
+    await page.locator(".input-list-actions .file-picker").click()
+    await (await chooser).setFiles({ name: "added.pdf", mimeType: "application/pdf", buffer: fixture({ count: 2 }) })
+    await page.waitForFunction(() => document.querySelectorAll(".input-choice-select").length === 2)
+    assert.equal(await page.locator(".input-picker").evaluate((element) => element.open), false)
+    await page.locator(".input-picker > summary").click()
+    assert.equal(await page.locator('.input-choice[data-active="true"] .guidance-label').innerText(), "2")
+    await page.getByRole("button", { name: "Details for Input 1" }).click()
+    assert.equal(await page.locator('.input-choice[data-active="true"] .guidance-label').innerText(), "2")
+    await page.locator(".guidance:popover-open").getByRole("button", { name: "Close details" }).click()
+    await page.locator(".input-choice-select", { hasText: "demo.pdf" }).click()
+    await page.locator(".input-picker > summary").click()
+    assert.equal(await page.locator('.input-choice[data-active="true"] .guidance-label').innerText(), "1")
   } finally {
     await browser.close()
   }

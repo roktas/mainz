@@ -688,11 +688,11 @@
       />{/key}{/if}
 {/snippet}
 
-{#snippet openPDF()}
-  <label class="file-picker" title="Open PDF"
-    ><Icon name="add" /><span>Open PDF</span><input
+{#snippet openPDF(label = "Open PDF")}
+  <label class="file-picker" title={label}
+    ><Icon name="add" /><span>{label}</span><input
       type="file"
-      aria-label="Open PDF"
+      aria-label={label}
       accept="application/pdf,.pdf"
       multiple
       disabled={loading || updating}
@@ -719,8 +719,17 @@
         </h2>
       </summary>
       <div class="input-list" role="group" aria-label="Inputs">
-        {#each sources as source (source.id)}<div class="input-choice">
+        {#each sources as source (source.id)}
+          {@const details = inputDetails(source.input)}
+          <div class="input-choice" data-active={source.id === activeId || undefined}>
+            <Guidance
+              label={String(source.number)}
+              ariaLabel={`Details for Input ${source.number}`}
+              title={source.input.title || source.input.name}
+              fields={details && Object.keys(details).length ? details : { Filename: source.input.name }}
+            />
             <button
+              class="input-choice-select"
               aria-pressed={source.id === activeId}
               data-source={source.id}
               onclick={() => {
@@ -728,21 +737,19 @@
                 inputMenu.open = false
                 inputMenu.querySelector("summary")?.focus()
               }}
-              ><span class="source-tag" class:marked={sources.length > 1}
-                >{#if sources.length > 1}<Provenance
-                    number={source.number}
-                    title={titleOf(source.input)}
-                  />{:else}{source.number}{/if}</span
               ><span>{source.input.name}</span>{#if source.input.title && source.input.title !== source.input.name}<span
                   class="input-choice-title"
                   title={source.input.title}>{source.input.title}</span
                 >{/if}{#if source.id === activeId}<span aria-hidden="true">✓</span>{/if}</button
-            ><Guidance title={source.input.title || source.input.name} fields={inputDetails(source.input)} />
-          </div>{/each}
-        {@render openPDF()}
-        <button class="danger" aria-label="Remove Input" title="Remove Input" onclick={removeSource}
-          ><Icon name="trash" /><span>Remove Input</span></button
-        >
+            >
+          </div>
+        {/each}
+        <div class="input-list-actions">
+          {@render openPDF("Add Input")}
+          <button class="danger" aria-label="Remove Input" title="Remove Input" onclick={removeSource}
+            ><Icon name="trash" /><span>Remove Input</span></button
+          >
+        </div>
       </div>
     </details>{/if}
   {@render openPDF()}

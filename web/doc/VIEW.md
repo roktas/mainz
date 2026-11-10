@@ -61,9 +61,10 @@ that needs the most space to set the shared size. Define shared dimensions with 
 equal gaps between controls. After the final adjustment, measure their rendered bounds in the browser and verify equal
 dimensions; visual estimates are not sufficient. Colors, surfaces, and hover treatments follow each control's role.
 Different control types can use their documented dimensions but must share an explicit alignment edge or centerline. In
-the Input chooser, selection rows share dimensions; information icons occupy a separate fixed-width column. Remove Input
-is a compact separate action whose end edge aligns with the selection rows. Narrow choosers hide secondary titles and
-indexes and show Remove Input as an accessible icon action. Desktop Open PDF and Download share the same dimensions.
+the Input chooser, the number button opens file details. Active numbers use a primary fill with black text in dark mode
+and white text in light mode. Filenames use neutral white or black text, with a clear gap after the number.
+Compact choosers place Add Input and Remove Input side by side at equal widths and heights. Desktop Open PDF and
+Download share the same dimensions.
 
 The shared `--icon-size` token sets ordinary icons to 1.125 rem. Control-specific icon sizes use their own visual role.
 
@@ -168,8 +169,8 @@ equal Use default and Save buttons. When the cover thumbnail and field share a r
 default's end edge. Wrapped fields retain a usable width. Invalid fields retain their error state without adding layout
 space.
 
-Input file details open from each item in the Input chooser, not from the closed selector. Long details scroll within
-the available viewport below the trigger.
+Input file details open from each item's number button, not from a separate information icon or the closed selector.
+Long details scroll within the available viewport below the trigger.
 
 Each pane header, view toolbar, and selection bar stays on one control row at every supported width and text size.
 Controls never wrap or move to another row. Preserve usable gaps, full-size touch targets, and shared vertical
@@ -177,8 +178,8 @@ alignment. The desktop Input selector shows the document title at regular weight
 Input chooser retains full filenames and their detail controls. Desktop Input pages/sheets and View Input PDF appear
 immediately before Open PDF. In single-pane layouts, the Input header shows a square, primary-filled file selector, View
 Input PDF, then the page/sheet summary, in that order. Center only the selector glyph inside its square. Preserve the
-eye action unchanged. The selector opens the Input list with file details and an Open PDF action, which is absent from
-the compact header. The selector and eye use equal gaps; the summary stays within the Input switch column when space
+eye action unchanged. The selector opens the Input list with number-triggered file details and an Add Input action,
+which is absent from the compact header. The selector and eye use equal gaps; the summary stays within the Input switch column when space
 allows. If the summary cannot fit, replace it with an information button that opens the same counts. The Output summary
 uses concise counts, such as `6 pages, 3 sheets`, without PDF or duplex prefixes. If these counts still do not fit, make
 them available through a clickable details control. Do not split the header to fit them. At enlarged text sizes, Open
@@ -945,10 +946,10 @@ The pane divider is a separator. It has no resize interaction, so its name is no
 | Pane header                     | Bölme üst alanı                     | The section with the Input chooser and Open PDF, or the Output heading, summary, Print, and Download. |
 | Pane heading                    | Bölme başlığı                       | The Input or Output title text.                                                                       |
 | Input selector                  | Input seçicisi                      | The chooser that opens from the filename in the Input header.                                         |
-| Input list                      | Input listesi                       | The open-PDF list with numbers, filenames, and a checkmark for the active Input.                      |
+| Input list                      | Input listesi                       | The file list with number buttons for details, filenames for selection, and an active checkmark.      |
 | Count badge                     | Sayı rozeti                         | A small bordered count, such as the Input count or a Style group's object count.                      |
-| Remove Input button             | Input kaldırma düğmesi              | The action below the open-PDF list that removes the active Input.                                     |
-| File picker button              | Dosya seçme düğmesi                 | Open PDF or Choose a PDF. It opens the system file picker.                                            |
+| Remove Input button             | Input kaldırma düğmesi              | The action beside Add Input in compact choosers that removes the active Input.                        |
+| File picker button              | Dosya seçme düğmesi                 | Open PDF, Add Input, or Choose a PDF. It opens the system file picker.                                |
 | Output summary                  | Output özet bilgisi                 | Concise page and sheet counts, such as 6 pages, 3 sheets.                                             |
 | Output details button / popover | Output ayrıntıları düğmesi / paneli | The control that exposes the counts when the concise Output summary does not fit inline.              |
 | Download button                 | İndirme düğmesi                     | The primary action that downloads Output.                                                             |

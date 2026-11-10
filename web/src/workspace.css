@@ -863,22 +863,6 @@
       }
     }
 
-    .source-tag {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.3em 0.5em;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: var(--muted);
-      background: var(--surface);
-      white-space: nowrap;
-      font-size: var(--small);
-      &.marked {
-        padding-inline: 0.1em;
-        border: 0;
-        background: transparent;
-      }
-    }
     .mobile-workspace-tabs {
       display: none;
     }
@@ -1151,11 +1135,7 @@
         color: var(--muted);
       }
       & .input-list {
-        & > .file-picker {
-          display: none;
-        }
         --input-control-height: max(46px, calc(3.25rem + 2px));
-        --input-details-width: 44px;
         position: absolute;
         z-index: 5;
         inset-block-start: calc(100% + 4px);
@@ -1163,9 +1143,8 @@
         inline-size: min(32rem, calc(100vi - 2 * var(--gutter)));
         max-block-size: 70dvb;
         padding: var(--gap);
-        display: block grid;
+        display: grid;
         grid-template-columns: minmax(0, 1fr);
-        grid-auto-rows: 1fr;
         gap: var(--gap);
         border: 1px solid var(--border);
         border-radius: var(--radius);
@@ -1174,10 +1153,61 @@
         overflow: auto;
         overscroll-behavior: contain;
         & .input-choice {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) var(--input-details-width);
-          column-gap: var(--gap);
+          display: flex;
           align-items: center;
+          gap: 0.85em;
+          min-block-size: var(--input-control-height);
+          padding-inline: 0.75em;
+          border: 1px solid var(--edge);
+          border-radius: var(--radius);
+          &:has(.input-choice-select[aria-pressed="true"]) {
+            border-color: var(--accent);
+          }
+          & > .guidance-label {
+            display: grid;
+            place-items: center;
+            flex: none;
+            inline-size: 2rem;
+            block-size: 2rem;
+            min-inline-size: 2rem;
+            min-block-size: 2rem;
+            padding: 0;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface);
+            color: var(--muted);
+            font-size: var(--small);
+          }
+          &:has(.input-choice-select[aria-pressed="true"]) > .guidance-label {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: light-dark(white, black);
+          }
+          & > .input-choice-select {
+            display: flex;
+            flex: 1;
+            align-items: center;
+            justify-content: start;
+            gap: 0.5em;
+            min-inline-size: 0;
+            min-block-size: 44px;
+            padding-inline: 0;
+            border: 0;
+            background: transparent;
+            color: light-dark(black, white);
+            text-align: start;
+            & > span:first-child {
+              flex: 1;
+              min-inline-size: 0;
+              overflow-wrap: anywhere;
+            }
+            @media (hover: hover) and (pointer: fine) {
+              &:hover {
+                background: transparent;
+                color: light-dark(black, white);
+              }
+            }
+          }
         }
         & .input-choice-title {
           max-inline-size: 45%;
@@ -1187,41 +1217,26 @@
           color: var(--muted);
           font-weight: 400;
         }
-        & > button,
-        & .input-choice > button:not(.icon-button) {
-          display: block flex;
-          gap: 0.5em;
-          align-items: center;
-          text-align: start;
-          min-inline-size: 0;
-          min-block-size: var(--input-control-height);
-          block-size: 100%;
-          & > span:nth-child(2) {
-            flex: 1;
-            min-inline-size: 0;
-            overflow-wrap: anywhere;
-          }
-          &[aria-pressed="true"] {
-            color: var(--accent);
-            border-color: var(--accent);
-          }
-        }
-        & > button {
+        & .input-list-actions {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: var(--gap);
           justify-self: end;
-          align-self: center;
-          margin-inline-end: calc(var(--input-details-width) + var(--gap));
-          inline-size: max-content;
-          max-inline-size: calc(100% - var(--input-details-width) - var(--gap));
-          min-block-size: 46px;
-          block-size: auto;
-        }
-        & .input-choice-title {
-          font-weight: 400;
-        }
-        & .input-choice > .icon-button {
-          min-block-size: 44px;
-          block-size: 44px;
-          inline-size: var(--input-details-width);
+          inline-size: min(100%, 20rem);
+          & > :is(.file-picker, button) {
+            inline-size: 100%;
+            min-inline-size: 0;
+            min-block-size: var(--input-control-height);
+            padding-inline: 0.35em;
+            font-size: var(--small);
+            white-space: nowrap;
+          }
+          & > .file-picker {
+            display: none;
+          }
+          & > .danger {
+            grid-column: 2;
+          }
         }
       }
     }
@@ -1247,15 +1262,8 @@
         inline-size: 44px;
         margin-inline-end: calc((var(--icon-size) * 17 / 24 - 44px) / 2 + 4px);
       }
-      .input-list {
-        & .source-tag:not(.marked),
-        & .input-choice-title,
-        & > button > span {
-          display: none;
-        }
-        & > button {
-          min-inline-size: 46px;
-        }
+      .input-list .input-choice-title {
+        display: none;
       }
     }
     @container composer (width <= 55em) {
@@ -1305,6 +1313,7 @@
           display: block;
           inline-size: var(--document-icon-size);
           block-size: var(--document-icon-size);
+          color: light-dark(white, black);
         }
         & .input-picker h2 > .provenance {
           position: absolute;
@@ -1407,11 +1416,8 @@
           border: 1px solid var(--edge);
           background: var(--surface);
         }
-        & .input-list > .file-picker {
+        & .input-picker .input-list-actions > .file-picker {
           display: inline-flex;
-          justify-self: end;
-          margin-inline-end: calc(var(--input-details-width) + var(--gap));
-          min-block-size: var(--input-control-height);
         }
         & .input-picker > summary:focus-visible {
           outline: 2px solid var(--secondary);

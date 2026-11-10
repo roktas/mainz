@@ -7,7 +7,8 @@
     details,
     fields,
     label,
-  }: { title: string; details?: string; fields?: Record<string, string>; label?: string } = $props()
+    ariaLabel,
+  }: { title: string; details?: string; fields?: Record<string, string>; label?: string; ariaLabel?: string } = $props()
   const names: Record<string, string> = {
     "dc:title": "Title",
     "dc:description": "Description",
@@ -29,7 +30,7 @@
   <button
     class={label ? "guidance-label" : "icon-button guidance-trigger"}
     popovertarget={`${key}-details`}
-    aria-label={label || `Details for ${title}`}
+    aria-label={ariaLabel || label || `Details for ${title}`}
     title={`Details for ${title}`}
     >{#if label}{label}{:else}<Icon name="info" />{/if}</button
   >
