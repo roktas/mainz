@@ -47,14 +47,15 @@
 
 ### Changed
 
-- Grid and List section folding gathers disappearing items into their heading before it pulses. Unfolding reverses this sequence, revealing items from the pulsing heading.
+- Grid and List section folding gathers disappearing items into their heading before it pulses. Unfolding reverses this
+  sequence, revealing items from the pulsing heading.
 - Rename the combined Grid/List tab from Flow to Pages, beside the single-page Page tab, with a stacked-page icon.
 
 - Remove Filename from Output page actions.
 
 - List retains every TOC entry as a separate header, including entries without children, and folds, selects, or copies
   its subtree.
-- The TOC demo uses the complete public-domain _Advanced Bash-Scripting Guide_, with three outline levels.
+- The TOC examples use the 59-page Lorem Ipsum PDF with three outline levels.
 - List section headings put the current title first, with muted parent titles and a compact full-path panel.
 - List places drag grips before page numbers. Section ribbons combine folding and dragging, followed by their starting
   position and optional Input PDF page label. Nested headers use depth tints. Titles and starting page numbers use

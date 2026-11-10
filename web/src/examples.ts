@@ -47,9 +47,9 @@ export async function openExample(demo: string, host: Host) {
   try {
     host.info("Loading demo…")
     if (demo === "toc" || demo === "toc-multiple") {
-      const bytes = new Uint8Array(await (await fetchExample(`${base}toc/bash.pdf`)).arrayBuffer())
+      const bytes = new Uint8Array(await (await fetchExample(`${base}toc/lorem.pdf`)).arrayBuffer())
       if (!current()) return
-      const opened = await host.open(bytes, "bash.pdf")
+      const opened = await host.open(bytes, "lorem.pdf")
       revision = host.revision
       if (!opened || host.disposed) return
       const starts = [

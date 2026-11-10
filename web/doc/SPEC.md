@@ -228,14 +228,14 @@ or dynamic Recipe lookup.
 
 ### Demo
 
-| URL                  | Result                                                                                                      |
-| -------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `?demo`              | Four-page Input, all pages selected, with Output ordered as `1,2,3,4,3,4,3,4`.                              |
-| `?demo=empty`        | The same Input with no Selection and empty Output, including onboarding and the addition hint.              |
-| `?demo=grid`         | 240-page Input and Output from 60 repetitions of the four sample pages.                                     |
-| `?demo&paint`        | Style with the Filled profile, available only in development.                                               |
-| `?demo=toc`          | The complete Advanced Bash-Scripting Guide with three-level Contents and arranged Output.                   |
-| `?demo=toc-multiple` | Advanced Bash-Scripting Guide and An Occurrence at Owl Creek Bridge, with pages from both Inputs in Output. |
+| URL                  | Result                                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| `?demo`              | Four-page Input, all pages selected, with Output ordered as `1,2,3,4,3,4,3,4`.                 |
+| `?demo=empty`        | The same Input with no Selection and empty Output, including onboarding and the addition hint. |
+| `?demo=grid`         | 240-page Input and Output from 60 repetitions of the four sample pages.                        |
+| `?demo&paint`        | Style with the Filled profile, available only in development.                                  |
+| `?demo=toc`          | The 59-page Lorem Ipsum sample with three-level Contents and arranged Output.                  |
+| `?demo=toc-multiple` | Lorem Ipsum and An Occurrence at Owl Creek Bridge, with pages from both Inputs in Output.      |
 
 Both TOC demos start in List with section headings. The maintained public-domain reading PDFs have real embedded
 outlines and no authored page names.

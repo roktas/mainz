@@ -52,7 +52,7 @@ const examples = new Map([
   ["recipe.json", "test/fixtures/recipe/session.json"],
   ["recipe/guides.pdf", "test/fixtures/recipe/guides.pdf"],
   ["recipe/crossings.pdf", "test/fixtures/recipe/crossings.pdf"],
-  ["toc/bash.pdf", "test/fixtures/toc/bash.pdf"],
+  ["toc/lorem.pdf", "test/fixtures/toc/lorem.pdf"],
   ["toc/bridge.pdf", "test/fixtures/toc/bridge.pdf"],
 ])
 

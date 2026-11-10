@@ -90,26 +90,20 @@ digests and covers. Keep the logical IDs `book`, `guides`, and `crossings` so th
 
 ## TOC samples
 
-[`toc/bash.pdf`](toc/bash.pdf) is Mendel Cooper's complete _Advanced Bash-Scripting Guide_, revision 10 (2014), from
-[The Linux Documentation Project](https://tldp.org/LDP/abs/abs-guide.pdf). It contains 916 pages, 38 chapters, and 156
-outline entries across three levels. Examples include Chapter 9 → Section 9.2 → Subsection 9.2.1, and Chapter 10 →
-Section 10.1 → Subsections 10.1.1 and 10.1.2. Chapters without children, appendices, tables, and code examples provide
-other realistic List cases. The author explicitly places the work in the
-[public domain](https://tldp.org/LDP/abs/html/copyright.html).
+[`toc/lorem.pdf`](toc/lorem.pdf) is a compacted copy of the 59-page _Lorem Ipsum_ PDF from the project Library
+(`Mainz/lorem.pdf`). It contains 40 embedded outline entries across three levels (four chapters, 12 sections, and 24
+subsections), linked printed contents, and public-domain metadata. The original PDF's SHA-256 is
+`6e608a1a351607b4d5d4ec140afe6aae430879229ae19df9aaf792ff4841d3bd`.
 
-The source PDF has duplicate resource dictionary keys. QPDF 12.4.2 normalizes these dictionaries and compresses object
-storage. All 916 page content streams, page boxes, and outline titles and destinations remain unchanged. No text,
-headings, or layout are authored for the demo. Output starts with pages from third-level outline entries to expose
-multilevel headers and repeated occurrences.
+The fixture was saved with PyMuPDF using `garbage=4`, `deflate=True`, and `clean=True` to stay below the 2 MiB per-PDF
+download budget. All 59 pages, 40 outlines, 40 links, and extracted text were preserved. Sample page renders matched
+byte-for-byte. Output uses third-level outline destinations to exercise multilevel headings and repeated page
+occurrences.
 
-To refresh this fixture, download the pinned source and normalize it:
+To refresh the fixture from the Library original, make the original available at `.local/tmp/web/lorem.pdf` and run:
 
 ```sh
-mkdir -p .local/tmp/web
-curl -fL https://tldp.org/LDP/abs/abs-guide.pdf -o .local/tmp/web/abs-guide.pdf
-printf '%s  %s\n' 'e36fca77351b221715567db4700cdb0041c8558d8db5c022e5dc2e2d35be4199' '.local/tmp/web/abs-guide.pdf' | sha256sum --check
-qpdf --warning-exit-0 --deterministic-id --object-streams=generate .local/tmp/web/abs-guide.pdf web/test/fixtures/toc/bash.pdf
-qpdf --check web/test/fixtures/toc/bash.pdf
+python -c 'import fitz; pdf = fitz.open(".local/tmp/web/lorem.pdf"); pdf.save("web/test/fixtures/toc/lorem.pdf", garbage=4, deflate=True, clean=True)'
 ```
 
 [`toc/bridge.pdf`](toc/bridge.pdf) contains Ambrose Bierce's complete _An Occurrence at Owl Creek Bridge_ (1890), with

@@ -1499,12 +1499,12 @@ test("Production demos download on demand and reuse verified files offline", { t
   const assets = JSON.parse(worker.match(/const ASSETS = (.*);\n/)[1])
   const examples = JSON.parse(worker.match(/const EXAMPLES = (.*);\n/)[1])
   const replacement = await readFile(join(outDir, "toc/bridge.pdf"))
-  const original = await readFile(join(outDir, "toc/bash.pdf"))
+  const original = await readFile(join(outDir, "toc/lorem.pdf"))
   const replacementHash = createHash("sha256").update(replacement).digest("hex")
   const next = examples
     .filter((asset) => asset.path !== "toc/bridge.pdf")
     .map((asset) =>
-      asset.path === "toc/bash.pdf" ? { ...asset, bytes: replacement.length, sha256: replacementHash } : asset,
+      asset.path === "toc/lorem.pdf" ? { ...asset, bytes: replacement.length, sha256: replacementHash } : asset,
     )
   const requests = []
   let changed = false
@@ -1531,7 +1531,7 @@ test("Production demos download on demand and reuse verified files offline", { t
                         .replace(/const EXAMPLES = .*;\n/, `const EXAMPLES = ${JSON.stringify(next)};\n`)
                     : worker,
                 )
-              } else if (path === "toc/bash.pdf") {
+              } else if (path === "toc/lorem.pdf") {
                 response.setHeader("Content-Type", "application/pdf")
                 response.setHeader("Cache-Control", "public, max-age=31536000")
                 response.end(changed ? replacement : original)
@@ -1550,7 +1550,7 @@ test("Production demos download on demand and reuse verified files offline", { t
       "recipe.json",
       "recipe/guides.pdf",
       "recipe/crossings.pdf",
-      "toc/bash.pdf",
+      "toc/lorem.pdf",
       "toc/bridge.pdf",
     ]
     assert.ok(assets.every((asset) => !paths.includes(asset.path)))
@@ -1567,7 +1567,7 @@ test("Production demos download on demand and reuse verified files offline", { t
     for (const multiple of [false, true]) {
       await page.goto(`${url}?demo=toc${multiple ? "-multiple" : ""}`)
       await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
-      assert.equal(await page.locator(".input-current").innerText(), "bash.pdf")
+      assert.equal(await page.locator(".input-current").innerText(), "Lorem Ipsum")
       assert.equal(
         await page.locator(".composition-output .composition-totals strong").textContent(),
         multiple ? "11 pages" : "9 pages",
@@ -1576,7 +1576,7 @@ test("Production demos download on demand and reuse verified files offline", { t
       assert.ok(
         await page
           .locator(".contents:popover-open")
-          .getByRole("button", { name: "Fold Chapter 9. Another Look at Variables", exact: true })
+          .getByRole("button", { name: "Fold 1. Foundations of Digital Documents", exact: true })
           .isVisible(),
       )
       await page.keyboard.press("Escape")
@@ -1637,7 +1637,7 @@ test("Production demos download on demand and reuse verified files offline", { t
     assert.equal(retained.length, 4, "The changed file and the retired file are removed; four unchanged files remain")
     assert.ok(retained.every((key) => !/\/toc\//.test(key)))
     const fresh = await page.evaluate(async (base) => {
-      const bytes = await (await fetch(new URL("toc/bash.pdf", base))).arrayBuffer()
+      const bytes = await (await fetch(new URL("toc/lorem.pdf", base))).arrayBuffer()
       return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
         .map((byte) => byte.toString(16).padStart(2, "0"))
         .join("")
@@ -2248,26 +2248,26 @@ test("Public TOC examples open on a fresh static-host visit without a service wo
         await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
         assert.ok(
           (await page.locator(".selection-panel .list-current").allTextContents()).includes(
-            "Chapter 2. Starting Off With a Sha-Bang",
+            "1. Foundations of Digital Documents",
           ),
         )
-        const contentsHeader = page
-          .locator(".selection-panel")
-          .getByRole("button", { name: "Table of Contents", exact: true })
-        assert.equal(await contentsHeader.locator("..").locator(".list-number").innerText(), "2")
-        assert.equal(await contentsHeader.locator("..").locator(".list-pdf-label").innerText(), "i")
-        await contentsHeader.locator("..").locator(".list-disclosure").click()
-        assert.equal(
-          await page.locator('.selection-panel .list-choice[data-page="1"]').textContent(),
-          "Table of Contents",
-        )
+        const chapter = page.locator('.selection-panel .list-section[data-index="3"]').first()
+        assert.equal(await chapter.locator(".list-number").innerText(), "4")
+        assert.equal(await chapter.locator(".list-pdf-label").count(), 0)
+        await chapter.locator(".list-disclosure").click()
+        await page
+          .getByRole("button", {
+            name: "Unfold Input section: 1. Foundations of Digital Documents › 1.1 The Document Model",
+            exact: true,
+          })
+          .waitFor()
         await page.getByRole("button", { name: "Input contents", exact: true }).click()
         const titles = await page.locator(".contents:popover-open .destination > span:first-child").allTextContents()
-        assert.equal(titles.length, 156)
-        assert.ok(titles.includes("Chapter 9. Another Look at Variables"))
-        assert.ok(titles.includes("9.2. Typing variables: declare or typeset"))
-        assert.ok(titles.includes("9.2.1. Another use for declare"))
-        assert.ok(titles.includes("10.1.1. Manipulating strings using awk"))
+        assert.equal(titles.length, 40)
+        assert.ok(titles.includes("1. Foundations of Digital Documents"))
+        assert.ok(titles.includes("1.1 The Document Model"))
+        assert.ok(titles.includes("1.1.1 Logical Structure"))
+        assert.ok(titles.includes("3.2.1 Parent and Child Entries"))
         await page.keyboard.press("Escape")
         assert.equal(
           await page.locator(".composition-output .composition-totals strong").textContent(),

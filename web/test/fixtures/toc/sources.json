@@ -129,6 +129,7 @@
   ],
   "bridgeSource": "https://www.gutenberg.org/cache/epub/375/pg375-images.html",
   "bridgeSha256": "6f8c5fde4724bd571e400a2f1fdd8608d91681f5480e86ca9d797f613064fe3a",
-  "bashSource": "https://tldp.org/LDP/abs/abs-guide.pdf",
-  "bashSourceSha256": "e36fca77351b221715567db4700cdb0041c8558d8db5c022e5dc2e2d35be4199"
+  "loremSource": "Project Library: Mainz/lorem.pdf",
+  "loremSourceSha256": "6e608a1a351607b4d5d4ec140afe6aae430879229ae19df9aaf792ff4841d3bd",
+  "loremFixtureSha256": "b28608d2bf756b7ac559efc4d953c0d06922c90378b9972083943f4a14181123"
 }
