@@ -485,59 +485,72 @@ aligned. Standard/full browser suites, physical devices, and Svelte autofixer (n
 
 This follow-up supersedes the earlier contour pulse and toolbar spacing where they conflict.
 
-- [x] Reserve 12 px above the first Grid row for lifted cards, ribbon controls, and their shadows. Apply the same clearance to scroll-into-view alignment.
-- [x] Give newly revealed List rows a contour-free 1400 ms color/opacity pulse; outline only the section explicitly unfolded.
-- [x] Fade departing visible cards/rows for 300 ms before folding in Grid and List. Handle rapid repeat toggles, preserve virtualization, and bypass transitions for reduced motion.
-- [x] Use matching compact Input eye/Open PDF and Output eye/Download gaps. Reclaim horizontal space for the Input document title.
-- [x] Align VIEW and add focused regressions for the clipped upper edge, single List outline, fold animations, and Input/Output spacing.
+- [x] Reserve 12 px above the first Grid row for lifted cards, ribbon controls, and their shadows. Apply the same
+      clearance to scroll-into-view alignment.
+- [x] Give newly revealed List rows a contour-free 1400 ms color/opacity pulse; outline only the section explicitly
+      unfolded.
+- [x] Fade departing visible cards/rows for 300 ms before folding in Grid and List. Handle rapid repeat toggles,
+      preserve virtualization, and bypass transitions for reduced motion.
+- [x] Use matching compact Input eye/Open PDF and Output eye/Download gaps. Reclaim horizontal space for the Input
+      document title.
+- [x] Align VIEW and add focused regressions for the clipped upper edge, single List outline, fold animations, and
+      Input/Output spacing.
 
-**Validation:** Svelte diagnostics reported 0 errors and 0 warnings in a local smoke copy with the new fold logic.
-Full `npm run check` timed out in the following TypeScript stage. The browser smoke run was blocked by
-`ERR_BLOCKED_BY_ADMINISTRATOR`, so visual and end-to-end regressions are **not verified**. Long tests
-were not run by owner request. The source snapshot was older than remote `next`; publish used verified
-GitHub file updates instead of the unavailable Git transport.
+**Validation:** Svelte diagnostics reported 0 errors and 0 warnings in a local smoke copy with the new fold logic. Full
+`npm run check` timed out in the following TypeScript stage. The browser smoke run was blocked by
+`ERR_BLOCKED_BY_ADMINISTRATOR`, so visual and end-to-end regressions are **not verified**. Long tests were not run by
+owner request. The source snapshot was older than remote `next`; publish used verified GitHub file updates instead of
+the unavailable Git transport.
 
 #### Fold-to-heading motion refinement (2026-11-09)
 
-- [x] Replace the short 300 ms fold fade with a 900 ms directional slide, scale, and fade toward each surviving section heading in Grid and List.
+- [x] Replace the short 300 ms fold fade with a 900 ms directional slide, scale, and fade toward each surviving section
+      heading in Grid and List.
 - [x] After departing items disappear and folding completes, pulse only the corresponding heading for 800 ms.
-- [x] Preserve nested-section target selection, rendered-window animation, pending-toggle cancellation, and reduced-motion bypass without changing keyboard controls.
-- [x] Add focused animation timing/pulse assertions and align Web VIEW and CHANGELOG. Keep long suites deferred as requested.
+- [x] Preserve nested-section target selection, rendered-window animation, pending-toggle cancellation, and
+      reduced-motion bypass without changing keyboard controls.
+- [x] Add focused animation timing/pulse assertions and align Web VIEW and CHANGELOG. Keep long suites deferred as
+      requested.
 
-**Bounded verification:** Four Node 24 section-tree checks passed for parent, nested, and fold-all targets.
-Remote source and test assertions were checked for consistency after publication to `next`.
-The focused Chromium regressions were updated but **not executed** in this session; the local snapshot
-predates the current branch and Git transport cannot reach GitHub from the container.
-Visual timing, keyboard flows, and physical-device behavior remain unverified.
+**Bounded verification:** Four Node 24 section-tree checks passed for parent, nested, and fold-all targets. Remote
+source and test assertions were checked for consistency after publication to `next`. The focused Chromium regressions
+were updated but **not executed** in this session; the local snapshot predates the current branch and Git transport
+cannot reach GitHub from the container. Visual timing, keyboard flows, and physical-device behavior remain unverified.
 
 #### Symmetric unfold animation (2026-11-09)
 
 - [x] On unfold, pulse the existing section heading for 800 ms before revealing its children.
-- [x] Reverse the 900 ms fold slide: newly visible Grid cards and List rows expand and fade in from their heading's captured position.
-- [x] Preserve nested section ancestry, animate only mounted viewport items, cancel stale animations on rapid toggles, and honor reduced-motion preferences.
+- [x] Reverse the 900 ms fold slide: newly visible Grid cards and List rows expand and fade in from their heading's
+      captured position.
+- [x] Preserve nested section ancestry, animate only mounted viewport items, cancel stale animations on rapid toggles,
+      and honor reduced-motion preferences.
 - [x] Align VIEW, CHANGELOG, and focused Grid/List timing assertions. No long browser suite was run.
 
 **Bounded validation:** The shared section-motion helper passed an 8-assertion Node 24 symmetry smoke test, including
-reduced-motion bypass. A local Svelte diagnostic pass reported 0 errors and 0 warnings; the isolated helper also
-passed Oxfmt. The local source archive predates remote `next`, so these checks do not validate the complete
-published components. Focused browser regressions were updated but **not executed**; interactive rendering remains
-unverified until a current checkout can run them.
+reduced-motion bypass. A local Svelte diagnostic pass reported 0 errors and 0 warnings; the isolated helper also passed
+Oxfmt. The local source archive predates remote `next`, so these checks do not validate the complete published
+components. Focused browser regressions were updated but **not executed**; interactive rendering remains unverified
+until a current checkout can run them.
 
 #### Grid/List page and section parity (2026-11-10)
 
-- [x] Display each section-starting physical page once in List, as its heading/page row, matching Grid; make its page number open ordinary details and its title select that page.
-- [x] Move Jump to section into the common Grid/List page-number details, preserving the original arrow, numbered paths, and target focus.
+- [x] Display each section-starting physical page once in List, as its heading/page row, matching Grid; make its page
+      number open ordinary details and its title select that page.
+- [x] Move Jump to section into the common Grid/List page-number details, preserving the original arrow, numbered paths,
+      and target focus.
 - [x] Add Grid's upper-right eye action with the same Page transition and inspected position as List.
-- [x] Show Move earlier, Move later, Remove, and Duplicate (in that order), plus the existing eye, inline in Output List, including selected and narrow rows.
+- [x] Show Move earlier, Move later, Remove, and Duplicate (in that order), plus the existing eye, inline in Output
+      List, including selected and narrow rows.
 - [x] Enable complete-section drag from Grid/List ribbons and show four grip dots while pressed.
 - [x] Align Web SPEC, VIEW, and focused browser regressions with the unified behavior.
-- [ ] Recheck the full browser matrix, responsive physical devices, and every older regression assertion; this focused checkpoint does not certify those environments.
+- [ ] Recheck the full browser matrix, responsive physical devices, and every older regression assertion; this focused
+      checkpoint does not certify those environments.
 
 **Focused verification:** Node 24 Svelte/TypeScript passed (0 errors and warnings); two Chromium interaction tests
 passed for heading-page identity, Grid/List details and Jump, Page eye, Output inline actions, ribbon press feedback,
 and native three-page group drag to Output. Browser tests used reduced motion and a desktop viewport; touch movement,
-full WebKit, and long browser suites remain unverified. Lint had 0 errors (37 existing/other warnings before final
-formatting); the standard unit suite and final formatting must be rechecked at the checkpoint.
+full WebKit, and long browser suites remain unverified. Lint had 0 errors and 37 warnings. Final formatting passed
+across 153 files, and 55/55 Node 24 unit tests passed. The Svelte autofixer was unavailable in the offline tool cache.
 
 #### Closure
 
