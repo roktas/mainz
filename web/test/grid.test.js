@@ -1753,6 +1753,32 @@ test(
   },
 )
 
+test("Grid unfolds coincident TOC headings without skipping intermediate pages", { timeout: 30000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1050 }, reducedMotion: "reduce" })
+    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=toc`)
+    await page.locator(".composer[aria-busy=false]").waitFor()
+    const input = page.locator(".selection-panel")
+    await tab(input, "Grid")
+    await input.getByRole("button", { name: "Unfold Input section: 3. Navigation and Structure", exact: true }).click()
+    const visible = await input
+      .locator(".page-image")
+      .evaluateAll((buttons) => buttons.map((button) => Number(button.dataset.page) + 1))
+    for (const number of [32, 33, 34, 35, 37])
+      assert.ok(visible.includes(number), `Page ${number} must appear after expanding section 3`)
+    assert.ok(!visible.includes(36), "Later nested section 3.1.2 retains its own folded state")
+    assert.ok(
+      await input.getByRole("button", { name: /Unfold Input section: .*3\.1\.2/ }).count(),
+      "The nested section remains independently expandable",
+    )
+  } finally {
+    await browser.close()
+  }
+})
+
 test("Grid and List section styling separates unfolded, selected, and focused states", { timeout: 60000 }, async () => {
   const server = await serve()
   const browser = await launch(chromium)
@@ -1809,8 +1835,8 @@ test("Grid and List section styling separates unfolded, selected, and focused st
       assert.equal(state.footer, "rgba(0, 0, 0, 0)", `${theme}: neutral footer`)
       await ribbon.hover()
       assert.equal((await appearance()).ribbon, state.ribbonOpen, `${theme}: hover keeps unfolded ribbon gray`)
-      const clearance = await card.evaluate((element) =>
-        element.getBoundingClientRect().top - element.closest(".grid-view").getBoundingClientRect().top,
+      const clearance = await card.evaluate(
+        (element) => element.getBoundingClientRect().top - element.closest(".grid-view").getBoundingClientRect().top,
       )
       assert.ok(clearance >= 8, `${theme}: lifted Grid card clears the upper viewport edge`)
 
@@ -1868,7 +1894,7 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .list-row")].some((row) =>
         row.getAnimations().some((animation) => {
-          if (animation.id !== "fold" || animation.effect.getTiming().duration < 900) return false
+          if (animation.id !== "fold" || animation.effect.getTiming().duration < 750) return false
           return animation.effect.getKeyframes().at(-1)?.transform?.includes("scale(0.25)")
         }),
       ),
@@ -1876,18 +1902,18 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     await section.locator('.list-disclosure[aria-expanded="false"]').waitFor()
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .list-section")].some((row) =>
-        row.getAnimations({ subtree: true }).some(
-          (animation) => animation.id === "section-heading" && animation.effect.getTiming().duration >= 800,
-        ),
+        row
+          .getAnimations({ subtree: true })
+          .some((animation) => animation.id === "section-heading" && animation.effect.getTiming().duration >= 600),
       ),
     )
     await section.locator(".list-disclosure").click()
-    await page.waitForFunction(() =>
-      [...document.querySelectorAll(".selection-panel .list-section")].some((row) =>
-        row.getAnimations().some(
-          (animation) => animation.id === "section-heading" && animation.effect.getTiming().duration === 800,
-        ),
+    assert.equal(
+      await section.evaluate((element) =>
+        element.getAnimations().some((animation) => animation.id === "section-heading"),
       ),
+      false,
+      "List unfold does not pulse the heading",
     )
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .list-row")].some((row) =>
@@ -1895,7 +1921,7 @@ test("Grid and List section styling separates unfolded, selected, and focused st
           const frames = animation.effect.getKeyframes()
           return (
             animation.id === "unfold" &&
-            animation.effect.getTiming().duration === 900 &&
+            animation.effect.getTiming().duration === 750 &&
             frames[0]?.transform?.includes("scale(0.25)") &&
             frames.at(-1)?.transform?.includes("scale(1)")
           )
@@ -1907,7 +1933,7 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .composition-card")].some((card) =>
         card.getAnimations().some((animation) => {
-          if (animation.id !== "fold" || animation.effect.getTiming().duration < 900) return false
+          if (animation.id !== "fold" || animation.effect.getTiming().duration < 750) return false
           return animation.effect.getKeyframes().at(-1)?.transform?.includes("scale(0.25)")
         }),
       ),
@@ -1915,19 +1941,18 @@ test("Grid and List section styling separates unfolded, selected, and focused st
     await input.getByRole("button", { name: "Unfold Input section: First", exact: true }).waitFor()
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .composition-card.grid-section-card")].some((card) =>
-        card.getAnimations({ subtree: true }).some(
-          (animation) => animation.id === "section-heading" && animation.effect.getTiming().duration >= 800,
-        ),
+        card
+          .getAnimations({ subtree: true })
+          .some((animation) => animation.id === "section-heading" && animation.effect.getTiming().duration >= 600),
       ),
     )
     await input.getByRole("button", { name: "Unfold Input section: First", exact: true }).click()
-    assert.equal(await input.locator('.page-image[data-page="1"]').count(), 0, "Heading pulses before pages appear")
-    await page.waitForFunction(() =>
-      [...document.querySelectorAll(".selection-panel .composition-card.grid-section-card")].some((card) =>
-        card.getAnimations({ subtree: true }).some(
-          (animation) => animation.id === "section-heading" && animation.effect.getTiming().duration === 800,
-        ),
+    assert.equal(
+      await card.evaluate((element) =>
+        element.getAnimations({ subtree: true }).some((animation) => animation.id === "section-heading"),
       ),
+      false,
+      "Grid unfold does not pulse the heading",
     )
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".selection-panel .composition-card")].some((card) =>
@@ -1935,7 +1960,7 @@ test("Grid and List section styling separates unfolded, selected, and focused st
           const frames = animation.effect.getKeyframes()
           return (
             animation.id === "unfold" &&
-            animation.effect.getTiming().duration === 900 &&
+            animation.effect.getTiming().duration === 750 &&
             frames[0]?.transform?.includes("scale(0.25)") &&
             frames.at(-1)?.transform?.includes("scale(1)")
           )
@@ -1994,7 +2019,8 @@ test("Input title, counts, file details, and original PDF view share the pane he
       const left = (selector) => document.querySelector(selector).getBoundingClientRect().left
       return {
         input: left(".input-heading > .file-picker") - right(".input-preview-tools > .view-action"),
-        output: left(".composition-output .output-actions > .primary") -
+        output:
+          left(".composition-output .output-actions > .primary") -
           right(".composition-output .output-actions > .view-action"),
       }
     })

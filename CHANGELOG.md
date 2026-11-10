@@ -47,8 +47,8 @@
 
 ### Changed
 
-- Grid and List section folding gathers disappearing items into their heading before it pulses. Unfolding reverses this
-  sequence, revealing items from the pulsing heading.
+- Grid and List sections fold and unfold faster. Unfolding starts the reverse slide without a heading pulse. Grid also
+  opens same-page child sections when their parent is unfolded, avoiding inaccessible page gaps.
 - Rename the combined Grid/List tab from Flow to Pages, beside the single-page Page tab, with a stacked-page icon.
 
 - Remove Filename from Output page actions.

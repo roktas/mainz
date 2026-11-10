@@ -89,12 +89,9 @@
       if (["fold", "unfold", "section-heading"].includes(animation.id)) animation.cancel()
 
     const origins = new Map<number, DOMRectReadOnly>()
-    const sources = new Set<HTMLElement>()
     for (const row of list?.querySelectorAll<HTMLElement>(":scope > .list-section") ?? []) {
       const id = Number(row.dataset.section)
       origins.set(id, row.getBoundingClientRect())
-      const section = sections.nodes.get(id)
-      if (section && collapsed.has(section.key) && !next.has(section.key)) sources.add(row)
     }
 
     const departing = [
@@ -131,14 +128,7 @@
     }
     const motion = foldInto(departing)
     if (motion) void motion.then(apply)
-    else if (sources.size) {
-      const pulses = [...sources].flatMap((heading) => {
-        const animation = pulseSectionHeading(heading)
-        return animation ? [animation] : []
-      })
-      if (pulses.length) void Promise.allSettled(pulses.map((animation) => animation.finished)).then(apply)
-      else apply()
-    } else apply()
+    else apply()
   }
   export function toggleSections() {
     const current = pendingFolds ?? collapsed

@@ -159,13 +159,14 @@ hints, and content share row tracks. The filename chooser belongs to Input's hea
 open-PDF list. At normal text size, desktop pane headings use 16 px text and 28 px document icons, scaling with text.
 Open PDF and Download occupy corresponding positions and have equal dimensions. Print and View icons precede Download,
 in that order. Their glyphs share the document icon's 28 px size on desktop and mobile, scaling with text. Their targets
-are at least 46 × 46 px. The visible Print–View, View–Download, and Input eye–Open PDF gaps match with compact shared spacing. These icon actions are exceptions to equal
-peer-button widths. Output totals sit before these actions. Relevant processing disables Download, View, and Print
-without changing heading dimensions. Progress and Cancel belong to the app header. The Output heading is a frameless
-button that opens the filename editor. It retains Input's heading typography and icon alignment. Hover and keyboard
-focus identify the action. Its panel uses the standard full-height entry and equal Use default and Save buttons. When
-the cover thumbnail and field share a row, the number entry ends at Use default's end edge. Wrapped fields retain a
-usable width. Invalid fields retain their error state without adding layout space.
+are at least 46 × 46 px. The visible Print–View, View–Download, and Input eye–Open PDF gaps match with compact shared
+spacing. These icon actions are exceptions to equal peer-button widths. Output totals sit before these actions. Relevant
+processing disables Download, View, and Print without changing heading dimensions. Progress and Cancel belong to the app
+header. The Output heading is a frameless button that opens the filename editor. It retains Input's heading typography
+and icon alignment. Hover and keyboard focus identify the action. Its panel uses the standard full-height entry and
+equal Use default and Save buttons. When the cover thumbnail and field share a row, the number entry ends at Use
+default's end edge. Wrapped fields retain a usable width. Invalid fields retain their error state without adding layout
+space.
 
 Input file details open from each item in the Input chooser, not from the closed selector. Long details scroll within
 the available viewport below the trigger.
@@ -175,16 +176,17 @@ Controls never wrap or move to another row. Preserve usable gaps, full-size touc
 alignment. The closed Input selector shows the document title at regular weight and preserves the source number. The
 Input chooser retains full filenames and their detail controls. Input pages/sheets and View Input PDF appear immediately
 before Open PDF. On narrow headers, Input counts move into an information popover while their eye action stays visible.
-The reclaimed header width goes to the Input document title. The Output summary uses concise counts, such as `6 pages, 3 sheets`, without PDF or duplex prefixes. If these counts
-still do not fit, make them available through a clickable details control. Do not split the header to fit them. At
-enlarged text sizes, Open PDF and Download can use their icons with the same accessible names and touch targets.
+The reclaimed header width goes to the Input document title. The Output summary uses concise counts, such as
+`6 pages, 3 sheets`, without PDF or duplex prefixes. If these counts still do not fit, make them available through a
+clickable details control. Do not split the header to fit them. At enlarged text sizes, Open PDF and Download can use
+their icons with the same accessible names and touch targets.
 
 In single-pane layouts, the Input/Output switch uses two equal columns. The Input header keeps its three groups on one
 row: selector, page/sheet summary with View Input PDF, and Open PDF. Output totals align to the end of the space before
-Print, View, and Download. These actions stay together at the end of the row with matching compact gaps. Download uses the same 28
-px icon size as Print and View, with a square primary-colored target and no text label. Desktop Download retains its
-labeled primary button. If enlarged text leaves insufficient room, keep the Input/Output switch labels and omit their
-icons.
+Print, View, and Download. These actions stay together at the end of the row with matching compact gaps. Download uses
+the same 28 px icon size as Print and View, with a square primary-colored target and no text label. Desktop Download
+retains its labeled primary button. If enlarged text leaves insufficient room, keep the Input/Output switch labels and
+omit their icons.
 
 On iOS and Android with native file sharing, Share replaces Download at the same position and keeps the primary target.
 Its 28 px share glyph matches Print and View and scales with text. Its button, tooltip, and accessible name say Share.
@@ -367,20 +369,20 @@ not hide or rename section headers. Lists without a TOC contain only page rows. 
 a combined ribbon disclosure and drag control, the starting position, an optional Input PDF page label, the heading,
 and + and View actions. The starting position is the physical page number in Input and the occurrence number in Output.
 Heading text uses the same size and small caps as page names, with the same starting edge. Folded sections use normal
-text color for current titles and starting page numbers; only the section directly unfolded by the user
-outlines its entire row in secondary (primary if selected, neutral if keyboard-focused). Newly exposed nested
-rows have no section outline until opened themselves. Ribbons use secondary when folded and a
-lighter neutral gray when unfolded, including on hover. The secondary ribbon hover glow does not recolor an unfolded
-ribbon. Folding does not change the depth tint. Text and disclosure glyphs share the row's vertical center. The ribbon
-has a long rectangular body with a shallow rear notch and front point. It points right to expand a closed section or
-down to collapse an open section. Its interaction target is at least 44 px tall and uses the grip column's width: 32 px
-for fine pointers, 44 px for touch. It uses a transparent background without a border, rounded corners, or shadow. It
-fills the section row's height. Section rows retain the page rows' thin bottom separator. The List reserves native
-scrollbar space outside the row width, so rows align with the selection bar and folding does not move columns. Header,
-footer, and toolbar separators extend by half the workspace gutter equally on both sides in Grid, List, and Page. The
-toolbar uses overlapping pages with a minus or plus to fold or unfold all sections. A separate Section headings toggle
-follows it and stays in place when the expand/collapse control disappears. Section headings are shown by default. Hiding
-them produces uninterrupted page rows and hides the fold/unfold toolbar control.
+text color for current titles and starting page numbers; only the section directly unfolded by the user outlines its
+entire row in secondary (primary if selected, neutral if keyboard-focused). Newly exposed nested rows have no section
+outline until opened themselves. Ribbons use secondary when folded and a lighter neutral gray when unfolded, including
+on hover. The secondary ribbon hover glow does not recolor an unfolded ribbon. Folding does not change the depth tint.
+Text and disclosure glyphs share the row's vertical center. The ribbon has a long rectangular body with a shallow rear
+notch and front point. It points right to expand a closed section or down to collapse an open section. Its interaction
+target is at least 44 px tall and uses the grip column's width: 32 px for fine pointers, 44 px for touch. It uses a
+transparent background without a border, rounded corners, or shadow. It fills the section row's height. Section rows
+retain the page rows' thin bottom separator. The List reserves native scrollbar space outside the row width, so rows
+align with the selection bar and folding does not move columns. Header, footer, and toolbar separators extend by half
+the workspace gutter equally on both sides in Grid, List, and Page. The toolbar uses overlapping pages with a minus or
+plus to fold or unfold all sections. A separate Section headings toggle follows it and stays in place when the
+expand/collapse control disappears. Section headings are shown by default. Hiding them produces uninterrupted page rows
+and hides the fold/unfold toolbar control.
 
 On narrow screens, toolbar icons have no gap between their 44 px targets. The Grid glyph is centered within its 44 px
 tab; Go to page sits 4 px inside the trailing toolbar edge. Wider layouts retain normal spacing.
@@ -492,17 +494,17 @@ neutral footer controls. An unfolded Grid card has a subtle secondary tint acros
 selected cards retain their primary tint. An unfolded, unselected section card has a 2 px secondary contour; selected
 cards keep the primary contour. Unfolded ribbons use neutral gray in both themes, including on hover, while the hover
 glow remains secondary. The ribbon extends to the card's top edge. The ribbon's accessible name includes the section
-path. Folding keeps the starting page visible and hides its following pages through the section end. A parent fold
-retains its children's choices. Multiple TOC headings on one physical page share a single card and an outermost-heading
-ribbon; use List for the remaining same-page disclosures. Grid page images still select and drag individual pages.
-Active transfers temporarily show every page to preserve physical insertion targets, then restore the retained folds.
-Folding slides departing visible cards and rows toward their nearest surviving section heading for 900 ms, shrinking
-and fading as they arrive. After the items disappear, the corresponding heading pulses for 800 ms without changing its
-contour. Unfolding reverses this order: the existing heading pulses for 800 ms, then newly visible cards and rows slide
-out from its position, grow, and fade in for 900 ms. Nested sections use their visible parent heading as the origin or
-destination. Only items revealed by the fold change animate, never items mounted through virtual scrolling. Reduced-motion
-preferences skip both phases. The Fold all/Unfold all and Section headings toolbar controls are available in Grid and
-List. Hiding headings restores the full flat page Grid.
+path. Folding keeps the starting page visible and hides its following pages through the section end. Opening a Grid
+section also opens descendants that start on the same physical page, because they have no separate Grid ribbon. Later
+child sections retain their independent fold choices. Multiple TOC headings on one physical page share one card and an
+outermost-heading ribbon; use List for separate same-page disclosures. Grid page images still select and drag individual
+pages. Active transfers temporarily show every page to preserve physical insertion targets, then restore the folds.
+Folding slides departing visible cards and rows toward their nearest surviving section heading for 750 ms, shrinking and
+fading as they arrive. After the items disappear, the corresponding heading pulses for 600 ms without changing its
+contour. Unfolding immediately reverses the 750 ms slide, without a preliminary heading pulse. Nested sections use their
+visible parent heading as the origin or destination. Only items revealed by the fold change animate, never items mounted
+through virtual scrolling. Reduced-motion preferences skip both effects. The Fold all/Unfold all and Section headings
+toolbar controls are available in Grid and List. Hiding headings restores the full flat page Grid.
 
 Grid footer actions appear on hover or focus with a fine pointer. Input's Add action stays visible on touch. Output
 touch actions use the existing menu. The card footer design is separate from the Pages layout. Do not change its content
@@ -537,9 +539,9 @@ move the grip.
 Image margins are measured between the page and its thumbnail area. Exclude card borders and padding inside the PDF. Top
 and bottom margins match. Side margins match and can be moderately wider. Keep at least 85% of the vertical image
 padding as a gap between cards. Minimum gaps are 9 px across columns and 10.5 px between rows. Fine-pointer hover
-requires at least 12 px where cards can lift. The Grid viewport reserves 12 px above the first row for the
-hover lift and shadow without clipping; scroll-into-view respects the same top clearance. Extra pane width is distributed between columns and outer edges without
-stretching the cards.
+requires at least 12 px where cards can lift. The Grid viewport reserves 12 px above the first row for the hover lift
+and shadow without clipping; scroll-into-view respects the same top clearance. Extra pane width is distributed between
+columns and outer edges without stretching the cards.
 
 A partial final row preserves the same card widths, positions, and gaps. Grid computes the visible window from measured
 columns and row strides. Card count changes the scroll height, not card geometry. The stable scrollbar gutter must not

@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
-import { sectionsOf, flattenSections, gridSections } from "../src/sections.ts"
+import { sectionsOf, flattenSections, gridSections, unfoldSamePage } from "../src/sections.ts"
 
 const heading = (path: string[]) =>
   path.length ? [{ path, keys: path.map((_, depth) => JSON.stringify(path.slice(0, depth + 1))) }] : []
@@ -96,4 +96,30 @@ test("Grid offers one ribbon on coincident heading pages without cloning the ima
   assert.deepEqual(visible.pages, [0, 1])
   assert.equal(visible.headings.get(0)?.path[0], "Root")
   assert.equal(visible.headings.size, 1)
+})
+
+test("Grid unfolds same-page descendants without changing later child folds", () => {
+  const paths = [
+    ["Chapter", "Part A", "Topic A"],
+    ["Chapter", "Part A", "Topic A"],
+    ["Chapter", "Part A", "Topic B"],
+    ["Chapter", "Part B"],
+    ["Next"],
+  ]
+  const tree = sectionsOf(paths.length, (page) => heading(paths[page]))
+  const chapter = tree.roots[0]
+  const partA = chapter.children[0]
+  const [topicA, topicB] = partA.children
+  const partB = chapter.children[1]
+  const folded = new Set([...tree.nodes.values()].map((section) => section.key))
+
+  unfoldSamePage(chapter, folded)
+
+  assert.equal(folded.has(chapter.key), false)
+  assert.equal(folded.has(partA.key), false)
+  assert.equal(folded.has(topicA.key), false)
+  assert.equal(folded.has(topicB.key), true)
+  assert.equal(folded.has(partB.key), true)
+  assert.deepEqual(gridSections(tree, paths.length, folded).pages, [0, 1, 2, 3, 4])
+  assert.equal(folded.has(tree.roots[1].key), true)
 })

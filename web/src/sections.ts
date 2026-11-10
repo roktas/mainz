@@ -92,3 +92,9 @@ export function flattenSections(roots: readonly Section[], count: number, collap
   pages(count)
   return rows
 }
+
+// Grid has one ribbon per page, so coincident child disclosures cannot remain inaccessible.
+export function unfoldSamePage(section: Section, folded: Set<string>) {
+  folded.delete(section.key)
+  for (const child of section.children) if (child.start === section.start) unfoldSamePage(child, folded)
+}

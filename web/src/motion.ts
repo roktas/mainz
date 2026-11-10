@@ -62,7 +62,7 @@ function slideSection(items: readonly SectionMotionItem[], opening: boolean): Pr
             { ...frames[0], offset: 1 },
           ]
         : frames,
-      { id: opening ? "unfold" : "fold", duration: 900, easing: "ease-in-out", fill: "forwards" },
+      { id: opening ? "unfold" : "fold", duration: 750, easing: "ease-in-out", fill: "forwards" },
     )
   })
   return Promise.allSettled(animations.map((animation) => animation.finished)).then(() => {
@@ -96,7 +96,7 @@ export function pulseSectionHeading(element: HTMLElement): Animation | undefined
         ],
     {
       id: "section-heading",
-      duration: 800,
+      duration: 600,
       easing: "ease-in-out",
       ...(grid ? { pseudoElement: "::after" } : {}),
     },

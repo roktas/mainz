@@ -10,7 +10,7 @@
   import { fields, shortcut, shortcutContext } from "./keyboard.ts"
   import { fit } from "./fit.ts"
   import { foldInto, pulseSectionHeading, unfoldFrom } from "./motion.ts"
-  import { gridSections, sectionsOf } from "./sections.ts"
+  import { gridSections, sectionsOf, unfoldSamePage } from "./sections.ts"
   import type { Section } from "./sections.ts"
   import type { SectionPath } from "./outline.ts"
 
@@ -86,20 +86,15 @@
         ?.closest<HTMLElement>(".composition-card")
       return { section, heading, bounds: heading?.getBoundingClientRect() ?? null }
     })
-    const sources = new Set(
-      origins.flatMap(({ section, heading }) =>
-        heading && folded.has(section.key) && !next.has(section.key) ? [heading] : [],
-      ),
-    )
 
     const departing = [...(list?.querySelectorAll<HTMLElement>(".composition-card") ?? [])].flatMap((card) => {
       const page = Number(card.querySelector<HTMLElement>(".page-image[data-page]")?.dataset.page)
       if (!Number.isFinite(page) || remaining.has(page)) return []
       const section = headings.findLast((entry) => entry.start <= page && page < entry.end)
       const heading = section
-        ? (list?.querySelector<HTMLElement>(`.page-image[data-page="${section.start}"]`)?.closest<HTMLElement>(
-            ".composition-card",
-          ) ?? null)
+        ? (list
+            ?.querySelector<HTMLElement>(`.page-image[data-page="${section.start}"]`)
+            ?.closest<HTMLElement>(".composition-card") ?? null)
         : null
       return [{ element: card, heading }]
     })
@@ -124,14 +119,7 @@
     }
     const motion = foldInto(departing)
     if (motion) void motion.then(apply)
-    else if (sources.size) {
-      const pulses = [...sources].flatMap((heading) => {
-        const animation = pulseSectionHeading(heading)
-        return animation ? [animation] : []
-      })
-      if (pulses.length) void Promise.allSettled(pulses.map((animation) => animation.finished)).then(apply)
-      else apply()
-    } else apply()
+    else apply()
   }
   export function toggleSections() {
     const current = pendingFolds ?? folded
@@ -143,8 +131,10 @@
   }
   function fold(key: string) {
     const next = new Set(pendingFolds ?? folded)
-    if (next.has(key)) next.delete(key)
-    else next.add(key)
+    if (next.has(key)) {
+      const section = [...tree.nodes.values()].find((entry) => entry.key === key)
+      if (section) unfoldSamePage(section, next)
+    } else next.add(key)
     changeFolds(next)
   }
   function expand(index: number) {
