@@ -306,13 +306,19 @@ test(
           await page.setViewportSize({ width, height: 900 })
           await page.emulateMedia({ colorScheme })
           await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+          await page.evaluate(
+            () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+          )
           const before = await input.boundingBox()
           await input.fill("999")
           await feedback.getByRole("alert").waitFor()
           assert.equal(await input.getAttribute("aria-invalid"), "true")
           assert.equal(await feedback.getByRole("alert").textContent(), "Check Input selection")
           const after = await input.boundingBox()
-          assert.ok(Math.abs(before.y - after.y) < 1 && Math.abs(before.height - after.height) < 1)
+          assert.ok(
+            Math.abs(before.y - after.y) < 1 && Math.abs(before.height - after.height) < 1,
+            `${engine.name()}, ${width}px, ${text}: ${JSON.stringify({ before, after })}`,
+          )
           assert.equal(await status.textContent(), original, "A warning does not replace workspace status")
           await bounds(page, feedback)
           await input.fill("1")
