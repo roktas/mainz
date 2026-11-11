@@ -1403,7 +1403,7 @@ test("List strips stay flat and follow their original grab point", { timeout: 30
     const { page, input } = await lists(browser, server.resolvedUrls.local[0], { reducedMotion: "no-preference" })
     const selection = input.getByRole("textbox", { name: "Page selection", exact: true })
     await selection.fill("")
-    const grip = input.locator('.list-section[data-index="1"] .list-disclosure'),
+    const grip = input.locator('.list-row:has(.list-choice[data-page="1"]) .page-grip'),
       bounds = await grip.boundingBox(),
       row = await grip.locator("..").boundingBox()
     const point = { x: Math.floor(bounds.x + bounds.width / 2), y: Math.floor(bounds.y + bounds.height / 2) }
@@ -2336,7 +2336,7 @@ test(
       await output.locator(".list-row[data-arriving]").waitFor({ state: "detached" })
       await outputSelection.fill("")
       const before = await rows.evaluateAll((elements) => elements.map((element) => element.id))
-      await output.getByRole("button", { name: "Move Output page 2 earlier", exact: true }).click()
+      await output.getByRole("button", { name: "Move Output page 2 earlier", exact: true }).press("Enter")
       assert.deepEqual(await rows.evaluateAll((elements) => elements.map((element) => element.id)), [
         before[1],
         before[0],
@@ -2365,14 +2365,14 @@ test(
       assert.equal(landing.delay, 240)
       assert.equal(landing.duration, 1200)
       assert.match(landing.shadow, /inset/, "The moved row glows after reaching its position")
-      await output.getByRole("button", { name: "Remove Output page 1", exact: true }).click()
+      await output.getByRole("button", { name: "Remove Output page 1", exact: true }).press("Enter")
       assert.equal(await rows.count(), 8)
       const outgoing = output.locator(".list-row.removing")
       await outgoing.waitFor()
       assert.equal(await outgoing.evaluate((element) => element.inert), true)
       await outgoing.waitFor({ state: "detached" })
       await page.emulateMedia({ reducedMotion: "reduce" })
-      await input.getByRole("button", { name: "Add Input page 3 to Output", exact: true }).click()
+      await input.getByRole("button", { name: "Add Input page 3 to Output", exact: true }).press("Enter")
       assert.equal(await rows.count(), 9)
       assert.equal(
         await rows.evaluateAll((elements) => elements.some((element) => element.getAnimations().length)),
@@ -2384,7 +2384,7 @@ test(
         await page.emulateMedia({ colorScheme })
         const control = output.getByRole("button", { name: "Move Output page 2 earlier", exact: true })
         const id = await control.evaluate((element) => element.closest(".composition-card").id)
-        await control.click()
+        await control.press("Enter")
         await page.waitForFunction(
           (value) =>
             document
