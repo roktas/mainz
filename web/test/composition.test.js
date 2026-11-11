@@ -7,7 +7,7 @@ import { serve } from "./server.ts"
 import { mkdir, readFile } from "node:fs/promises"
 import { chromium } from "playwright"
 import { zoom } from "./workspace.js"
-import { tab, fixture, image, pagePosition, gridPage, trackWorkers } from "./browser.js"
+import { outputCount, tab, fixture, image, pagePosition, gridPage, trackWorkers } from "./browser.js"
 
 const standard = process.env.MAINZ_TEST_MODE === "standard"
 
@@ -112,7 +112,9 @@ test("Large Output edits keep Grid rendering bounded", { timeout: 60000 }, async
     await output.getByLabel("Page selection", { exact: true }).fill("1-32")
     await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
     await page.waitForFunction(
-      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "208 pages",
+      () =>
+        document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
+        "208 pages",
     )
     await bounded()
     await grid.evaluate((element) => (element.scrollTop = element.scrollHeight))
@@ -144,7 +146,7 @@ test("Output Page removes the current occurrence, including Blank and the final 
       ["Remove Output page 1", "Duplicate Output page 1"],
     )
     await actions.getByRole("button", { name: "Remove Output page 1", exact: true }).click()
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "7 pages")
+    assert.equal(await outputCount(page).textContent(), "7 pages")
     assert.equal(await output.getByLabel("Page selection", { exact: true }).inputValue(), "")
     await output.getByLabel("Output page actions", { exact: true }).click()
     await output.getByRole("button", { name: "At end", exact: true }).click()
@@ -154,7 +156,7 @@ test("Output Page removes the current occurrence, including Blank and the final 
     await page.keyboard.press("End")
     await output.locator(".blank-sheet").waitFor()
     await actions.getByRole("button", { name: "Remove Output page 8", exact: true }).click()
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "7 pages")
+    assert.equal(await outputCount(page).textContent(), "7 pages")
     await output.getByRole("button", { name: "Select all", exact: true }).click()
     await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
     await input.getByLabel("Page selection", { exact: true }).fill("1")
@@ -203,12 +205,13 @@ test(
           window.pauseOpening = true
           window.resumeOpening = undefined
         })
-        await input
+        await page
+          .locator(".composer")
           .locator('input[type=file][aria-label="Open PDF"]')
           .setInputFiles({ name, mimeType: "application/pdf", buffer: fixture() })
         await page.waitForFunction(() => !!window.resumeOpening)
       }
-      await output.locator(".composition-totals strong").filter({ hasText: "8 pages" }).waitFor()
+      await outputCount(page).filter({ hasText: "8 pages" }).waitFor()
       await output.getByRole("button", { name: "Select Output page 1", exact: true }).click()
       await open("Second.pdf")
       const transfer = await page.evaluateHandle(() => new DataTransfer())
@@ -217,15 +220,15 @@ test(
       })
       await page.locator('.composer[data-drag="source"]').waitFor()
       await page.keyboard.press("Delete")
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
+      assert.equal(await outputCount(page).textContent(), "8 pages")
       assert.equal(await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "1")
       await page.evaluate(() => window.resumeOpening())
       await input.locator(".input-current").filter({ hasText: "Second.pdf" }).waitFor({ state: "attached" })
       await page.waitForFunction(() => !document.querySelector(".composer[data-drag]"))
       assert.equal(await page.locator(".drag-image").count(), 0)
       await output.dispatchEvent("drop", { dataTransfer: transfer })
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
-      await input.locator(".input-picker > summary").click()
+      assert.equal(await outputCount(page).textContent(), "8 pages")
+      await page.locator(".input-picker > summary").click()
       await input.locator(".input-list button[data-source]").first().click()
       assert.equal(await input.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "1-4")
       await open("Third.pdf")
@@ -240,7 +243,7 @@ test(
       await output.dispatchEvent("pointermove", { ...contact, clientX: 1000 })
       await output.dispatchEvent("pointerup", { ...contact, clientX: 1000 })
       assert.equal(await page.locator(".composer").getAttribute("data-drag"), null)
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
+      assert.equal(await outputCount(page).textContent(), "8 pages")
       await open("Fourth.pdf")
       await page.evaluate(() => {
         const time = performance.now()
@@ -268,13 +271,13 @@ test(
       await thumbnail.dispatchEvent("click", { detail: 2 })
       await thumbnail.dispatchEvent("dblclick", { detail: 2 })
       assert.equal(
-        await output.locator(".composition-totals strong").textContent(),
+        await outputCount(page).textContent(),
         "8 pages",
         "A double-click cannot start in one Input and add pages from another",
       )
       await thumbnail.dblclick()
       assert.equal(
-        await output.locator(".composition-totals strong").textContent(),
+        await outputCount(page).textContent(),
         "9 pages",
         "A complete double-click still adds the current page",
       )
@@ -296,7 +299,7 @@ test(
         "true",
         "Output's double-tap continues independently of Input changes",
       )
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "9 pages")
+      assert.equal(await outputCount(page).textContent(), "9 pages")
     } finally {
       await browser?.close()
     }
@@ -318,7 +321,7 @@ test("Grid navigation retains physical page positions during additions", { timeo
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-      await page.locator(".composition-output .composition-totals strong").waitFor({ state: "attached" })
+      await outputCount(page).waitFor({ state: "attached" })
       const output = page.locator(".composition-output")
       const workspace = page.locator(".mobile-workspace-tabs > button:last-child")
       if (await workspace.isVisible()) await workspace.click()
@@ -406,7 +409,9 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
       await page.waitForFunction(
-        () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
+        () =>
+          document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
+            ?.textContent === "8 pages",
       )
       // Freeze the moving preview before its first paint so geometry checks do not depend on machine speed.
       await page.evaluate(() => {
@@ -425,7 +430,7 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
         output = page.locator(".composition-output"),
         prepared = input.getByLabel("Page selection", { exact: true }),
         flight = page.locator(".addition-preview")
-      const total = async () => Number.parseInt(await output.locator(".composition-totals strong").textContent(), 10)
+      const total = async () => Number.parseInt(await outputCount(page).textContent(), 10)
       const finish = async () => {
         await flight.evaluate((element) => element.getAnimations().forEach((animation) => animation.finish()))
         await flight.waitFor({ state: "detached" })
@@ -671,7 +676,9 @@ test("Addition previews use their target image or the action area", { timeout: 9
       for (const action of ["card", "selection", "keyboard"]) {
         await page.goto(`${server.resolvedUrls.local[0]}?demo`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
+          () =>
+            document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
+              ?.textContent === "8 pages",
         )
         const output = page.locator(".composition-output")
         const workspace = page.locator(".mobile-workspace-tabs > button:last-child")
@@ -689,7 +696,9 @@ test("Addition previews use their target image or the action area", { timeout: 9
         if (action !== "card") await output.getByLabel("Page selection", { exact: true }).fill("2")
         const control =
           action === "card"
-            ? output.getByRole("button", { name: "Duplicate Output page 2", exact: true })
+            ? output
+                .locator(touch ? ".occurrence-menu:popover-open" : ".card-inline-actions")
+                .getByRole("button", { name: "Duplicate Output page 2", exact: true })
             : action === "selection"
               ? output.getByRole("button", { name: "Duplicate selected Output pages", exact: true })
               : output.locator(".composition-grid")
@@ -751,7 +760,9 @@ test("Addition previews use their target image or the action area", { timeout: 9
       for (const action of ["input", "copy", "repeat"]) {
         await page.goto(`${server.resolvedUrls.local[0]}?demo`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
+          () =>
+            document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
+              ?.textContent === "8 pages",
         )
         const pane = page.locator(action === "input" ? ".selection-panel" : ".composition-output")
         const workspace = page.locator(`.mobile-workspace-tabs > button:${action === "input" ? "first" : "last"}-child`)
@@ -819,7 +830,9 @@ test(
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
         await page.goto(`${server.resolvedUrls.local[0]}?demo`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
+          () =>
+            document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
+              ?.textContent === "8 pages",
         )
         await page.evaluate(() => {
           new MutationObserver(() => {
@@ -835,7 +848,7 @@ test(
         const workspace = page.locator(".mobile-workspace-tabs > button:last-child")
         if (await workspace.isVisible()) await workspace.click()
         const selection = output.getByLabel("Page selection", { exact: true })
-        const total = async () => Number.parseInt(await output.locator(".composition-totals strong").textContent(), 10)
+        const total = async () => Number.parseInt(await outputCount(page).textContent(), 10)
         const finish = async (flight) => {
           await flight.evaluate((element) => element.getAnimations().forEach((animation) => animation.finish()))
           await page.waitForFunction(() => !document.querySelector(".addition-preview, .removal-preview"))
@@ -1022,7 +1035,12 @@ test(
         }
         const allActions = width === 1440
         await details()
-        await addition(() => output.getByRole("button", { name: "Duplicate Output page 1", exact: true }).click())
+        await addition(() =>
+          output
+            .locator(hasTouch ? ".occurrence-menu:popover-open" : ".card-inline-actions")
+            .getByRole("button", { name: "Duplicate Output page 1", exact: true })
+            .click(),
+        )
         if (allActions) {
           await selection.fill("1-2")
           await addition(
@@ -1233,7 +1251,7 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
       await output
         .locator('.page-origin-info .page-details tr:has(th:text-is("Original page"), th:text-is("Size")) td')
         .allTextContents()
-    const total = () => output.locator(".composition-totals strong").textContent()
+    const total = () => outputCount(page).textContent()
     const ready = () =>
       page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
     await input.getByRole("button", { name: "Select or drag Input page 2 to Output", exact: true }).click()
@@ -1443,7 +1461,7 @@ test("Edited Padding retains its dimensions and page order in the downloaded PDF
     await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill("2")
     await input.getByLabel("Start each repeat on front", { exact: true }).check()
     await prepared.press("Enter")
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "10 pages")
+    assert.equal(await outputCount(page).textContent(), "10 pages")
     assert.equal((await output.locator(".output-state").innerText()).trim(), "10 pages, 5 sheets")
     await selected.fill("2")
     await options.click()
@@ -1487,7 +1505,7 @@ test("Edited Padding retains its dimensions and page order in the downloaded PDF
       ],
     )
     const saved = page.waitForEvent("download")
-    await output.getByRole("button", { name: "Download", exact: true }).click()
+    await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
     const download = await saved
     assert.equal(await download.failure(), null)
     const result = await page.evaluate(
@@ -1554,7 +1572,7 @@ test("Grid boundary duplication focuses the final new Output occurrence", async 
     await (await gridPage(output, 8)).press("ArrowRight")
     await page.waitForFunction(() => document.activeElement?.matches(".output-pages"))
     await page.keyboard.press("Enter")
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "10 pages")
+    assert.equal(await outputCount(page).textContent(), "10 pages")
     assert.equal(await output.getByLabel("Page selection", { exact: true }).inputValue(), "9-10")
     assert.equal(
       await output
@@ -1597,7 +1615,7 @@ test(
       await output.locator(".page-scroll").focus()
       await page.keyboard.press("+")
       await output.getByLabel("Page selection", { exact: true }).fill("1")
-      await input.locator(".input-picker > summary").click()
+      await page.locator(".input-picker > summary").click()
       await input.getByRole("button", { name: "Remove Input", exact: true }).click()
       await input.waitFor({ state: "hidden" })
       assert.equal(await output.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected"), "true")

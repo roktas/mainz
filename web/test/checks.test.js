@@ -1,5 +1,6 @@
 // Exercises shared Recipe cases through loading, explicit review, and reference alignment.
 
+import { outputCount } from "./browser.js"
 import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
@@ -397,7 +398,7 @@ test(
         await output.locator(".page-scroll").focus()
         await output.locator(".page-scroll").press("Space")
         assert.equal(
-          await output.locator(".composition-totals strong").textContent(),
+          await outputCount(page).textContent(),
           "4 pages",
           "A passive header message does not block workspace shortcuts",
         )

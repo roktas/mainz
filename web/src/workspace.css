@@ -863,6 +863,7 @@
       }
     }
 
+    .workspace-bar,
     .mobile-workspace-tabs {
       display: none;
     }
@@ -976,21 +977,7 @@
           flex-wrap: nowrap;
           gap: clamp(0.25rem, 1cqi, 0.75rem);
           & > button {
-            position: relative;
-            min-inline-size: 44px;
-            border-block-start: 3px solid transparent;
-            padding-inline: clamp(0.125em, 2cqi, 0.75em);
             white-space: nowrap;
-            &[aria-selected="true"] {
-              border-block-end-color: transparent;
-              &::after {
-                content: "";
-                position: absolute;
-                inset-inline: 4px;
-                inset-block-end: -3px;
-                border-block-end: 3px solid var(--accent);
-              }
-            }
             & > .edit-dot {
               position: absolute;
               inset-block-start: 0.25em;
@@ -1204,16 +1191,13 @@
           gap: var(--gap);
           justify-self: end;
           inline-size: min(100%, 20rem);
-          & > :is(.file-picker, button) {
+          & > button {
             inline-size: 100%;
             min-inline-size: 0;
             min-block-size: var(--input-control-height);
             padding-inline: 0.35em;
             font-size: var(--small);
             white-space: nowrap;
-          }
-          & > .file-picker {
-            display: none;
           }
           & > .danger {
             grid-column: 2;
@@ -1222,199 +1206,278 @@
       }
     }
     @container composer (width <= 30em) {
-      .composer .input-heading .input-state {
-        & > .composition-totals {
-          position: absolute;
-          visibility: hidden;
-        }
-        & > button {
-          display: inline-flex;
-          inline-size: 44px;
-          min-inline-size: 44px;
-          block-size: var(--output-action-size);
-          min-block-size: var(--output-action-size);
-        }
-      }
       .composer :is(.source-tabs, .output-tabs) {
         column-gap: 0;
       }
       .composer .page-destination {
         flex: none;
         inline-size: 44px;
-        margin-inline-end: calc((var(--icon-size) * 17 / 24 - 44px) / 2 + 4px);
       }
       .input-list .input-choice-title {
         display: none;
       }
     }
     @container composer (width <= 55em) {
-      .input-picker > summary .input-current {
-        color: var(--ink);
-      }
-      .composer .mobile-workspace-tabs {
-        margin-block-end: var(--gap);
-        & button {
-          &[aria-pressed="true"] {
-            border-color: var(--accent);
-            color: var(--accent);
-          }
-        }
-      }
       .composer[data-view="input"] .composition-output,
       .composer[data-view="output"] .selection-panel {
         display: none;
       }
-      .composer .input-heading {
-        & .input-label,
-        & .input-picker .count,
-        & .input-picker .input-current,
-        & .input-picker .input-chevron {
-          display: none;
-        }
-        & .input-picker h2 > .workspace-icon {
-          display: block;
-          inline-size: var(--document-icon-size);
-          block-size: var(--document-icon-size);
-          color: light-dark(white, black);
-        }
-        & .input-picker h2 > .provenance {
-          position: absolute;
-          visibility: hidden;
-        }
-      }
-      .composer .composition-output > .section-heading {
-        & > div:first-child {
-          display: none;
-        }
-        & .output-state {
+      .composer .workspace-bar {
+        --workspace-action-size: 46px;
+        display: grid;
+        grid-template-columns: var(--workspace-action-size) minmax(0, 1fr) var(--workspace-action-size);
+        align-items: center;
+        gap: 8px;
+        margin-block-end: 4px;
+        flex: none;
+        & > :is(.input-picker, .document-menu) {
+          grid-column: 1;
+          grid-row: 1;
           min-inline-size: 0;
-          justify-content: end;
-          text-align: end;
         }
-      }
-      .composer {
-        & .mobile-workspace-tabs,
-        & .composition-output > .section-heading {
+        & > :is(.file-picker, .output-actions) {
+          grid-column: 3;
+          grid-row: 1;
+        }
+        & > .input-picker > summary,
+        & > .document-menu > summary,
+        & > .file-picker,
+        & > .output-actions > .primary {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: var(--gap);
+          place-items: center;
+          inline-size: var(--workspace-action-size);
+          min-inline-size: var(--workspace-action-size);
+          block-size: var(--workspace-action-size);
+          min-block-size: var(--workspace-action-size);
+          padding: 4px;
+          border: 1px solid transparent;
+          border-radius: 10px;
+          background: transparent;
+          color: var(--accent);
+          & svg {
+            inline-size: 24px;
+            block-size: 24px;
+          }
+          &:active {
+            background: var(--tint);
+          }
+          &:focus-visible {
+            outline: 2px solid var(--secondary);
+            outline-offset: 1px;
+          }
         }
-        & .input-heading {
-          display: flex;
-          align-self: flex-start;
-          inline-size: 100%;
-          max-inline-size: 100%;
-          align-items: center;
-          gap: 0.75em;
-          --output-action-size: max(46px, calc(var(--document-icon-size) + 8px));
-          & > .input-picker {
-            order: 0;
-            flex: none;
-            margin-inline-end: 0;
-            & > summary {
-              display: grid;
-              place-items: center;
-              inline-size: var(--output-action-size);
-              block-size: var(--output-action-size);
-              min-block-size: var(--output-action-size);
-              aspect-ratio: 1;
-              padding: 0;
-              border-color: var(--accent);
-              background: var(--accent);
-              color: var(--on-accent);
-              & h2 {
-                justify-content: center;
-                color: inherit;
-              }
-              @media (hover: hover) and (pointer: fine) {
-                &:hover {
-                  border-color: var(--hover);
-                  background: var(--hover);
-                }
-              }
-            }
-          }
-          & > .input-preview-tools {
-            display: contents;
-          }
-          & .view-action {
-            order: 1;
-            flex: none;
-            margin-inline-end: 0;
-            inline-size: var(--output-action-size);
-            min-inline-size: var(--output-action-size);
-            min-block-size: 46px;
-            padding: 3px;
-            & svg {
-              inline-size: var(--document-icon-size);
-              block-size: var(--document-icon-size);
-            }
-          }
-          & > .file-picker {
+        & > .input-picker > summary h2 {
+          display: grid;
+          place-items: center;
+          line-height: 1;
+        }
+        & > .file-picker,
+        & > .output-actions > .primary {
+          background: var(--accent);
+          color: var(--on-accent);
+          & > span {
             display: none;
           }
-          & .input-state {
-            order: 3;
-            flex: 1 1 auto;
-            justify-content: start;
-            & > .composition-totals {
-              position: static;
-              visibility: visible;
-              white-space: normal;
-              overflow: visible;
+          &:active {
+            filter: brightness(0.9);
+          }
+        }
+        & .mobile-workspace-tabs {
+          grid-column: 2;
+          grid-row: 1;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          min-inline-size: 0;
+          border-radius: 10px;
+          background: var(--soft);
+          & > button {
+            display: flex;
+            flex-direction: column;
+            min-inline-size: 0;
+            min-block-size: 46px;
+            padding: 4px;
+            gap: 0;
+            border: 1px solid transparent;
+            border-radius: 9px;
+            background: transparent;
+            color: var(--muted);
+            font-size: var(--body);
+            font-weight: 600;
+            line-height: 1.3;
+            box-shadow: none;
+            &[aria-pressed="true"] {
+              border-color: var(--border);
+              background: var(--surface);
+              color: var(--ink);
+              box-shadow: 0 1px 3px var(--shadow);
             }
-            & > button {
-              display: none;
+            &:active {
+              background: var(--tint);
+            }
+            &:focus-visible {
+              outline: 2px solid var(--secondary);
+              outline-offset: 1px;
             }
           }
         }
-        & .mobile-workspace-tabs button,
-        & .input-picker > summary,
-        & .input-heading .file-picker,
-        & .output-actions > button,
-        & .output-state > button {
-          min-block-size: calc(2.25rem + 2 * clamp(0.5rem, 0.44rem + 0.2vi, 0.75rem) + 2px);
-        }
-        & .output-state > button {
+        & .workspace-counts {
+          position: relative;
+          display: block;
           inline-size: 100%;
           min-inline-size: 0;
+          font-size: var(--small);
+          font-weight: 400;
+          color: var(--muted);
+          text-align: center;
+          line-height: 1.3;
+          & strong {
+            font-weight: inherit;
+            color: inherit;
+          }
+          & > .composition-totals {
+            display: block;
+            inline-size: 100%;
+            font: inherit;
+            line-height: inherit;
+          }
+          & > .page-count {
+            display: none;
+            white-space: normal;
+          }
+          &[data-overflow] {
+            & > .composition-totals {
+              position: absolute;
+              visibility: hidden;
+            }
+            & > .page-count {
+              display: block;
+            }
+          }
         }
-        & .input-heading > .file-picker {
-          inline-size: max(46px, calc(var(--document-icon-size) + 8px));
-          min-inline-size: 46px;
+        & .document-menu {
+          position: relative;
         }
-        & .output-state > button {
-          border: 1px solid var(--edge);
+        & .document-actions {
+          position: absolute;
+          z-index: 6;
+          inset-block-start: calc(100% + 8px);
+          inset-inline-start: 0;
+          display: grid;
+          gap: 4px;
+          padding: 8px;
+          inline-size: min(13rem, calc(100vi - 2 * var(--gutter)));
+          max-block-size: 70dvb;
+          overflow: auto;
+          overscroll-behavior: contain;
+          border: 1px solid var(--border);
+          border-radius: 12px;
           background: var(--surface);
+          box-shadow: 0 4px 16px var(--shadow);
         }
-        & .input-picker .input-list-actions > .file-picker {
-          display: inline-flex;
-        }
-        & .input-picker > summary:focus-visible {
-          outline: 2px solid var(--secondary);
-          outline-offset: 2px;
-        }
-      }
-      .composer .composition-output > .section-heading {
-        grid-template-columns: minmax(44px, 1fr) auto;
-      }
-      .composer .output-actions {
-        gap: 0.175em;
-      }
-      .composer .output-actions > .primary {
-        flex: none;
-        align-self: center;
-        aspect-ratio: 1;
-        inline-size: var(--output-action-size);
-        min-inline-size: var(--output-action-size);
-        min-block-size: var(--output-action-size);
-        padding: 3px;
-        & > svg {
-          inline-size: var(--output-glyph-size);
-          block-size: var(--output-glyph-size);
-        }
-        & > span {
+        & .document-menu:not([open]) > .document-actions {
           display: none;
+        }
+        & .document-totals {
+          margin: 0;
+          padding: 8px;
+          font-size: var(--small);
+          color: var(--muted);
+          white-space: normal;
+        }
+        & .input-list {
+          padding: 8px;
+          gap: 4px;
+          border-color: var(--border);
+          border-radius: 12px;
+        }
+        & .input-list-actions {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          inline-size: 100%;
+          justify-self: stretch;
+          margin: 0;
+          padding: 0;
+          gap: 4px;
+          & > .danger {
+            grid-column: 1;
+          }
+        }
+        & .file-actions {
+          display: grid;
+        }
+        & :is(.document-actions, .file-actions, .input-list-actions) > button {
+          justify-content: start;
+          inline-size: 100%;
+          min-inline-size: 0;
+          min-block-size: 44px;
+          padding: 8px;
+          gap: 12px;
+          border: 0;
+          background: transparent;
+          font-size: var(--body);
+          font-weight: 600;
+          & > svg {
+            inline-size: 24px;
+            block-size: 24px;
+          }
+          &:focus-visible {
+            outline: 2px solid var(--secondary);
+            outline-offset: -2px;
+          }
+        }
+      }
+      .composer .editing-toolbar {
+        margin-block: 4px;
+        padding-block-end: 0;
+        border-image: none;
+        gap: 0;
+        & > .tabs {
+          order: 0;
+          gap: 0;
+          & > button {
+            min-inline-size: 44px;
+            min-block-size: 44px;
+            padding-inline: 8px;
+          }
+        }
+        & > button {
+          order: 2;
+        }
+        & > button[aria-label="Input contents"] {
+          order: 1;
+        }
+        & > button[aria-label="Section headings"] {
+          order: 3;
+        }
+        & > .page-destination {
+          order: 4;
+        }
+      }
+      .composer .sequence-entry {
+        margin-block: 8px;
+        & > p {
+          margin-block-start: 4px;
+        }
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .workspace-bar > .file-picker:hover,
+        .workspace-bar > .output-actions > .primary:hover {
+          background: var(--hover);
+        }
+        .mobile-workspace-tabs > button:hover,
+        .workspace-bar > :is(.input-picker, .document-menu) > summary:hover {
+          color: var(--accent);
+          background: var(--tint);
+        }
+      }
+    }
+    @container composer (width < 18em) {
+      .composer .workspace-bar {
+        --workspace-action-size: 44px;
+        column-gap: 0;
+        margin-inline: -6px;
+        & .mobile-workspace-tabs > button {
+          padding-inline: 0;
         }
       }
     }
@@ -1422,30 +1485,16 @@
       .tabs {
         gap: 0;
       }
-      .tabs > button {
-        min-inline-size: 68px;
-      }
       .tabs > button > span:not(.edit-dot) {
         display: none;
       }
     }
-    @container composer (width <= 16em) {
-      .mobile-workspace-tabs button {
-        padding-inline: 0.25em;
-        & .workspace-icon {
-          display: none;
+    @container composer (width > 55em) {
+      @container heading (width <= 28em) {
+        .composer .input-picker > summary h2 {
+          gap: 0.25em;
         }
       }
-      .composer .composition-output > .section-heading {
-        column-gap: clamp(4px, 1cqi, 8px);
-      }
-      .composer .output-actions {
-        gap: 0.175em;
-        /* Reserve the details target and gaps before fitting the four equal glyphs. */
-        --output-glyph-size: clamp(28px, calc((100cqi - 76px) / 4 - 8px), var(--document-icon-size));
-      }
-    }
-    @container composer (width > 55em) {
       @container heading (width <= 22em) {
         .composer .input-state {
           & > .composition-totals {

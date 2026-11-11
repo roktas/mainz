@@ -7,7 +7,7 @@ import { mkdir, readFile } from "node:fs/promises"
 import { resolve } from "node:path"
 import { chromium, devices } from "playwright"
 import { serve } from "./server.ts"
-import { fixture } from "./browser.js"
+import { fixture, outputAction } from "./browser.js"
 
 test("Landing and workspace share desktop edges", { timeout: 120000 }, async () => {
   const server = await serve()
@@ -253,7 +253,7 @@ test("Header messages fit representative Apple touch layouts", { timeout: 90000 
           await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
           const output = page.getByRole("button", { name: "Output", exact: true })
           if (await output.isVisible()) await output.tap()
-          await page.getByRole("button", { name: "Export recipe", exact: true }).tap()
+          await (await outputAction(page, "Export recipe")).tap()
           const recipe = page.getByRole("dialog", { name: "Export recipe", exact: true })
           await recipe.getByRole("button", { name: "Edit Name 1", exact: true }).tap()
           const name = recipe.getByRole("textbox", { name: "Name 1", exact: true })
@@ -320,7 +320,7 @@ test(
         }
         await page.setViewportSize({ width: 1100, height: 900 })
         await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
-        await page.getByRole("button", { name: "Export recipe", exact: true }).click()
+        await (await outputAction(page, "Export recipe")).click()
         const panel = page.getByRole("dialog", { name: "Export recipe", exact: true })
         await panel.getByRole("button", { name: "Edit Name 1", exact: true }).click()
         const name = panel.getByRole("textbox", { name: "Name 1", exact: true })
@@ -372,7 +372,7 @@ test("Touch dialog focus stays quiet and keyboard focus stays visible", { timeou
       await page.locator(".composer[aria-busy=false]").waitFor()
       await page.getByRole("button", { name: "Output", exact: true }).tap()
       await page.evaluate(() => (window.holdExport = true))
-      await page.locator(".composition-output").getByRole("button", { name: "Download", exact: true }).tap()
+      await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).tap()
       const dialog = page.getByRole("dialog", { name: "Download", exact: true })
       const cancel = dialog.getByRole("button", { name: "Cancel", exact: true })
       await cancel.waitFor()
@@ -651,7 +651,7 @@ test(
           await held
           await route.continue().catch(() => {})
         })
-        const download = page.locator(".composition-output").getByRole("button", { name: "Download", exact: true })
+        const download = page.locator(".composer").getByRole("button", { name: "Download", exact: true })
         await download.click()
         const dialog = page.getByRole("dialog", { name: "Download", exact: true })
         await dialog.getByText("Preparing PDF…", { exact: true }).waitFor()

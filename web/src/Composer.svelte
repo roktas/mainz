@@ -55,6 +55,7 @@
     error,
     styling,
     input,
+    openPDF,
     inspection,
     activate,
     outputProcessing = false,
@@ -81,7 +82,8 @@
     rename: (source: HTMLElement) => void
     error: (message: string) => void
     styling?: Snippet<[toolbarOnly?: boolean]>
-    input: Snippet<[heading: string]>
+    input: Snippet<[heading: string, compact?: boolean, totals?: Snippet]>
+    openPDF: Snippet
     inspection?: Inspection
     activate: (id: string) => void
     outputProcessing?: boolean
@@ -96,7 +98,26 @@
   const key = $props.id()
   const viewTabs = ["grid", "list", "page"] as const
   const viewLabels = { grid: "Grid", list: "List", page: "Page" }
-  function summary(element: HTMLDivElement) {
+  let compact = $state(false)
+  let documentMenu = $state<HTMLDetailsElement>()
+  function layout(element: HTMLDivElement) {
+    const switcher = element.querySelector<HTMLElement>(".mobile-workspace-tabs")!
+    let frame = 0
+    const update = () => {
+      compact = getComputedStyle(switcher).display !== "none"
+    }
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(update)
+    })
+    observer.observe(element)
+    update()
+    return () => {
+      cancelAnimationFrame(frame)
+      observer.disconnect()
+    }
+  }
+  function summary(element: HTMLElement) {
     const counts = element.querySelector<HTMLElement>(".composition-totals")!
     let frame: number
     const observer = new ResizeObserver(() => {
@@ -113,6 +134,21 @@
       cancelAnimationFrame(frame)
       observer.disconnect()
     }
+  }
+  function closeDocument() {
+    if (documentMenu?.open) {
+      documentMenu.open = false
+      const launcher = documentMenu.querySelector("summary")!
+      launcher.focus()
+      return launcher
+    }
+  }
+  function dismissDocument(event: MouseEvent | KeyboardEvent) {
+    if (!documentMenu?.open) return
+    if (event instanceof KeyboardEvent && event.key === "Escape") {
+      closeDocument()
+      event.preventDefault()
+    } else if (event instanceof MouseEvent && !documentMenu.contains(event.target as Node)) documentMenu.open = false
   }
   const initialView: InputView = {
     grouped: true,
@@ -1294,6 +1330,8 @@
   ondragend={() => transfer.end()}
 />
 <svelte:document
+  onclick={dismissDocument}
+  onkeydown={dismissDocument}
   onvisibilitychange={() => {
     if (document.hidden) transfer.end()
   }}
@@ -1553,6 +1591,70 @@
   {Math.ceil(pages / 2) === 1 ? "sheet" : "sheets"}
 {/snippet}
 
+{#snippet outputName(menu = false)}
+  <button
+    class="output-name"
+    aria-label="Set Output filename"
+    title={filename ? `Output filename · ${filename}` : "Set Output filename"}
+    onclick={(event) => {
+      rename(closeDocument() ?? event.currentTarget)
+    }}><Icon name="output" /><span>{menu ? "Set filename" : "Output"}</span></button
+  >
+{/snippet}
+
+{#snippet recipeAction(menu = false)}
+  <button
+    class="icon-button recipe-action"
+    aria-label="Export recipe"
+    title={downloadError ?? "Export recipe"}
+    disabled={!output.pages.length || outputProcessing || !!downloadError}
+    onclick={() => {
+      closeDocument()
+      recipe()
+    }}
+    ><Icon name="json" />{#if menu}<span>Export recipe</span>{/if}</button
+  >
+{/snippet}
+
+{#snippet printAction(menu = false)}
+  <button
+    class="icon-button print-action"
+    aria-label="Print"
+    title={downloadError ?? "Print Output PDF"}
+    disabled={!output.pages.length || outputProcessing || !!downloadError}
+    onclick={() => {
+      closeDocument()
+      print()
+    }}
+    ><Icon name="print" />{#if menu}<span>Print</span>{/if}</button
+  >
+{/snippet}
+
+{#snippet viewAction(menu = false)}
+  <button
+    class="icon-button view-action"
+    aria-label="View PDF"
+    title={downloadError ?? "View Output PDF"}
+    disabled={!output.pages.length || outputProcessing || !!downloadError}
+    onclick={() => {
+      closeDocument()
+      viewPDF()
+    }}
+    ><Icon name="eye" />{#if menu}<span>View PDF</span>{/if}</button
+  >
+{/snippet}
+
+{#snippet saveOutput()}
+  <button
+    class={{ primary: true, "share-action": sharing }}
+    aria-label={sharing ? "Share" : "Download"}
+    disabled={!output.pages.length || outputProcessing || !!downloadError}
+    title={downloadError ?? (sharing ? "Share" : "Download")}
+    aria-describedby={downloadError ? `${key}-download-error` : undefined}
+    onclick={download}><Icon name={sharing ? "share" : "down"} /><span>{sharing ? "Share" : "Download"}</span></button
+  >
+{/snippet}
+
 {#snippet outputSummary()}
   <strong>{output.pages.length} {output.pages.length === 1 ? "page" : "pages"}</strong>, {Math.ceil(
     output.pages.length / 2,
@@ -1774,6 +1876,7 @@
 
 <div
   class="composer"
+  data-compact={compact || undefined}
   style:--page-heading-height={frameHeadingHeight ? `${frameHeadingHeight + 1}px` : undefined}
   data-view={activeView}
   data-drag={transfer.value?.kind}
@@ -1783,28 +1886,68 @@
   inert={opening}
   aria-busy={opening}
   {@attach transfer.track}
+  {@attach layout}
 >
-  <nav class="mobile-workspace-tabs" aria-label="Workspace view">
-    <button
-      aria-pressed={activeView === "input" && !!source}
-      disabled={!source}
-      onclick={() => {
-        cancelMotion()
-        view = "input"
-      }}><Icon name="input" />Input</button
-    >
-    <button
-      bind:this={outputTarget}
-      aria-pressed={activeView === "output"}
-      data-drop={transfer.touching && transfer.value?.kind === "source" && activeView === "input" && transfer.inside
-        ? true
-        : undefined}
-      onclick={() => {
-        cancelMotion()
-        view = "output"
-      }}><Icon name="output" />Output</button
-    >
-  </nav>
+  <div class="workspace-bar">
+    {#if compact}
+      {#if activeView === "input" && source}
+        {@render input(`${key}-selection`, true, inputSummary)}
+      {:else}
+        <details class="document-menu" bind:this={documentMenu}>
+          <summary aria-label="Output menu" title="Output menu"><Icon name="more" /></summary>
+          <div class="document-actions">
+            <p class="document-totals">{@render outputSummary()}</p>
+            {@render outputName(true)}{@render viewAction(true)}{@render printAction(true)}{@render recipeAction(true)}
+          </div>
+        </details>
+      {/if}
+    {/if}
+    <nav class="mobile-workspace-tabs" aria-label="Workspace view">
+      <button
+        id={`${key}-input-switch`}
+        aria-label="Input"
+        aria-describedby={`${key}-input-counts`}
+        aria-pressed={activeView === "input" && !!source}
+        disabled={!source}
+        onclick={() => {
+          cancelMotion()
+          view = "input"
+        }}
+        ><span>Input</span><small id={`${key}-input-counts`} class="workspace-counts" {@attach summary}>
+          <span class="composition-totals">{@render inputSummary()}</span>
+          <span class="page-count">{count} {count === 1 ? "page" : "pages"}</span>
+        </small></button
+      >
+      <button
+        bind:this={outputTarget}
+        id={`${key}-output-switch`}
+        aria-label="Output"
+        aria-describedby={`${key}-output-counts`}
+        aria-pressed={activeView === "output"}
+        data-drop={transfer.touching && transfer.value?.kind === "source" && activeView === "input" && transfer.inside
+          ? true
+          : undefined}
+        onclick={() => {
+          cancelMotion()
+          view = "output"
+        }}
+        ><span>Output</span><small id={`${key}-output-counts`} class="workspace-counts" {@attach summary}>
+          <span class="composition-totals">{@render outputSummary()}</span>
+          <span class="page-count">{output.pages.length} {output.pages.length === 1 ? "page" : "pages"}</span>
+        </small></button
+      >
+    </nav>
+    {#if compact}
+      {#if activeView === "input" && source}
+        {@render openPDF()}
+      {:else}
+        <div class="output-actions" data-tour-target="download" data-tour-active={tour === "download"}>
+          {@render saveOutput()}
+        </div>
+      {/if}
+    {/if}
+  </div>
+  {#if compact && downloadError}<span hidden id={`${key}-download-error`}>{downloadError}</span>{/if}
   <div class="composition-panels">
     {#if source}<section
         class="selection-panel"
@@ -1813,35 +1956,37 @@
           transfer.value?.kind === "source" &&
           activeView === "input") ||
           undefined}
-        aria-labelledby={`${key}-selection`}
+        aria-labelledby={`${key}-${compact ? "input-switch" : "selection"}`}
       >
-        <div class="section-heading input-heading" data-tour-target="input" data-tour-active={tour === "input"}>
-          {@render input(`${key}-selection`)}
-          <div class="input-preview-tools output-actions">
-            <div class="input-state output-state" data-details={`${key}-input-summary`} {@attach summary}>
-              <span class="composition-totals">{@render inputSummary()}</span>
+        {#if !compact}
+          <div class="section-heading input-heading" data-tour-target="input" data-tour-active={tour === "input"}>
+            {@render input(`${key}-selection`)}
+            <div class="input-preview-tools output-actions">
+              <div class="input-state output-state" data-details={`${key}-input-summary`} {@attach summary}>
+                <span class="composition-totals">{@render inputSummary()}</span>
+                <button
+                  class="icon-button"
+                  popovertarget={`${key}-input-summary`}
+                  aria-label="Input details"
+                  title="Input details"><Icon name="info" /></button
+                >
+              </div>
               <button
-                class="icon-button"
-                popovertarget={`${key}-input-summary`}
-                aria-label="Input details"
-                title="Input details"><Icon name="info" /></button
+                class="icon-button view-action"
+                aria-label="View Input PDF"
+                title="View Input PDF"
+                onclick={viewInputPDF}><Icon name="eye" /></button
               >
             </div>
-            <button
-              class="icon-button view-action"
-              aria-label="View Input PDF"
-              title="View Input PDF"
-              onclick={viewInputPDF}><Icon name="eye" /></button
-            >
           </div>
-        </div>
-        <div id={`${key}-input-summary`} class="output-details" popover="auto" role="note" aria-label="Input details">
-          {@render inputSummary()}
-        </div>
+          <div id={`${key}-input-summary`} class="output-details" popover="auto" role="note" aria-label="Input details">
+            {@render inputSummary()}
+          </div>
+        {/if}
 
         <div class="editing-toolbar source-tabs" style:anchor-name="--input-pane">
           <div class="tabs" role="tablist" aria-label="Input workspace">
-            {#each viewTabs as tab}<button
+            {#each viewTabs as tab (tab)}<button
                 id={`${key}-${tab}`}
                 role="tab"
                 aria-label={viewLabels[tab]}
@@ -1875,6 +2020,18 @@
                   ></span>{/if}</button
               >{/if}
           </div>
+          {#if source.input.outline?.length}<Contents
+              outline={source.input.outline}
+              source={source.id}
+              position={inputPosition}
+              {titleChoice}
+              bind:tocTitles={() => inputView.tocTitles, (tocTitles) => inspectInput({ tocTitles })}
+              navigate={async (position) => {
+                inspectInput({ position, offset: position })
+                if (activeTab === "list") await inputList?.revealPage(position)
+                void interaction.reveal("Input", undefined, true)
+              }}
+            />{/if}
           {#if inputSectionView && inputSectionView.sectionState() !== "none"}<button
               type="button"
               class="icon-button"
@@ -1897,18 +2054,6 @@
               }}><Icon name="sections" /></button
             >{/if}
           {#if activeTab === "style" && styling}{@render styling(true)}{/if}
-          {#if source.input.outline?.length}<Contents
-              outline={source.input.outline}
-              source={source.id}
-              position={inputPosition}
-              {titleChoice}
-              bind:tocTitles={() => inputView.tocTitles, (tocTitles) => inspectInput({ tocTitles })}
-              navigate={async (position) => {
-                inspectInput({ position, offset: position })
-                if (activeTab === "list") await inputList?.revealPage(position)
-                void interaction.reveal("Input", undefined, true)
-              }}
-            />{/if}
           {#if activeTab !== "style"}<Jump
               pane="Input"
               {count}
@@ -2265,73 +2410,38 @@
       data-preview={transfer.preview || (activeOutputTab === "list" && transfer.destination !== undefined)
         ? true
         : undefined}
-      aria-labelledby={`${key}-output`}
+      aria-labelledby={`${key}-${compact ? "output-switch" : "output"}`}
       data-drop={transfer.value && transfer.target.kind === "append" ? "end" : undefined}
       ondragover={(event) => transfer.over(event)}
       ondragleave={transfer.leaveOutput}
       ondrop={(event) => transfer.drop(event)}
     >
-      <div class="section-heading">
-        <div>
-          <h2 id={`${key}-output`} aria-label="Output">
+      {#if !compact}<div class="section-heading">
+          <div>
+            <h2 id={`${key}-output`} aria-label="Output">
+              {@render outputName()}
+            </h2>
+          </div>
+          <div class="output-state" data-details={`${key}-output-summary`} {@attach summary}>
+            <span class="composition-totals">{@render outputSummary()}</span>
             <button
-              class="output-name"
-              onclick={(event) => rename(event.currentTarget)}
-              aria-label="Set Output filename"
-              title={filename ? `Output filename · ${filename}` : "Set Output filename"}
-              ><Icon name="output" /><span>Output</span></button
+              class="icon-button"
+              popovertarget={`${key}-output-summary`}
+              aria-label="Output details"
+              title="Output details"><Icon name="info" /></button
             >
-          </h2>
+          </div>
+          <div class="output-actions" data-tour-target="download" data-tour-active={tour === "download"}>
+            {@render recipeAction()}{@render printAction()}{@render viewAction()}{@render saveOutput()}
+          </div>
+          {#if downloadError}<span hidden id={`${key}-download-error`}>{downloadError}</span>{/if}
         </div>
-        <div class="output-state" data-details={`${key}-output-summary`} {@attach summary}>
-          <span class="composition-totals">{@render outputSummary()}</span>
-          <button
-            class="icon-button"
-            popovertarget={`${key}-output-summary`}
-            aria-label="Output details"
-            title="Output details"><Icon name="info" /></button
-          >
-        </div>
-        <div class="output-actions" data-tour-target="download" data-tour-active={tour === "download"}>
-          <button
-            class="icon-button recipe-action"
-            aria-label="Export recipe"
-            title={downloadError ?? "Export recipe"}
-            disabled={!output.pages.length || outputProcessing || !!downloadError}
-            onclick={recipe}><Icon name="json" /></button
-          >
-          <button
-            class="icon-button print-action"
-            aria-label="Print"
-            title={downloadError ?? "Print Output PDF"}
-            disabled={!output.pages.length || outputProcessing || !!downloadError}
-            onclick={print}><Icon name="print" /></button
-          >
-          <button
-            class="icon-button view-action"
-            aria-label="View PDF"
-            title={downloadError ?? "View Output PDF"}
-            disabled={!output.pages.length || outputProcessing || !!downloadError}
-            onclick={viewPDF}><Icon name="eye" /></button
-          >
-          <button
-            class={{ primary: true, "share-action": sharing }}
-            aria-label={sharing ? "Share" : "Download"}
-            disabled={!output.pages.length || outputProcessing || !!downloadError}
-            title={downloadError ?? (sharing ? "Share" : "Download")}
-            aria-describedby={downloadError ? `${key}-download-error` : undefined}
-            onclick={download}
-            ><Icon name={sharing ? "share" : "down"} /><span>{sharing ? "Share" : "Download"}</span></button
-          >
-        </div>
-        {#if downloadError}<span hidden id={`${key}-download-error`}>{downloadError}</span>{/if}
-      </div>
-      <div id={`${key}-output-summary`} class="output-details" popover="auto" role="note" aria-label="Output details">
-        {@render outputSummary()}
-      </div>
+        <div id={`${key}-output-summary`} class="output-details" popover="auto" role="note" aria-label="Output details">
+          {@render outputSummary()}
+        </div>{/if}
       <div class="editing-toolbar output-tabs">
         <div class="tabs" role="tablist" aria-label="Output workspace">
-          {#each viewTabs as tab}<button
+          {#each viewTabs as tab (tab)}<button
               id={`${key}-output-${tab}`}
               role="tab"
               aria-label={viewLabels[tab]}

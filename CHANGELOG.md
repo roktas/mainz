@@ -47,7 +47,13 @@
 
 ### Changed
 
-- Compact Input headers show page and sheet counts directly, including at very narrow widths.
+- Single-pane workspaces combine document menus, centered Input/Output counts, and Open PDF or Download/Share in one
+  compact bar. Both menus use the same three-dot icon. Counts retain their text size and show only pages when full
+  totals do not fit; document menus retain the complete page/sheet summary.
+- Narrow Input and Output align shared view tools and card addition/duplication actions while retaining desktop
+  controls.
+- View tabs use a soft selected background, with more space between labeled tabs in compact workspaces. Visible toolbar
+  icon edges align with the selection fields at every width.
 - Grid retains breathing room below its final row when scrolled to the end.
 - Grid and List sections fold and unfold faster. Unfolding starts the reverse slide without a heading pulse. Grid also
   opens same-page child sections when their parent is unfolded, avoiding inaccessible page gaps.

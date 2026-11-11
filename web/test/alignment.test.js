@@ -1,12 +1,112 @@
 // Checks shared frames, centered grips, and Page thumbnails across distinct card calibrations.
 
-import { launch } from "./browsers.js"
+import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { chromium } from "playwright"
 import { fixture, checkGrips, checkGridScroll, tab, gridPage, captureLayout } from "./browser.js"
 import { measure } from "./measure.js"
+
+test("View tabs align selected surfaces and visible icon edges with pane controls", { timeout: 180000 }, async () => {
+  const server = await serve()
+  for (const engine of engines) {
+    const browser = await launch(engine)
+    try {
+      for (const touch of [false, true]) {
+        const page = await browser.newPage({ hasTouch: touch, isMobile: touch, reducedMotion: "reduce" })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(`${server.resolvedUrls.local[0]}?demo&paint`)
+        await page.locator(".composer[aria-busy=false]").waitFor()
+        for (const width of [320, 375, 744, 940, 1440, 3840]) {
+          await page.setViewportSize({ width, height: 1100 })
+          for (const scale of [100, 200]) {
+            await page.evaluate((value) => (document.documentElement.style.fontSize = `${value}%`), scale)
+            await page.emulateMedia({ colorScheme: scale === 100 ? "dark" : "light" })
+            for (const name of ["Input", "Output"]) {
+              const switcher = page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true })
+              if (await switcher.isVisible()) await switcher.click()
+              const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+              let reference
+              for (const view of name === "Input" ? ["Grid", "List", "Page", "Style"] : ["Grid", "List", "Page"]) {
+                await tab(pane, view)
+                const geometry = await pane.evaluate((section) => {
+                  const toolbar = section.querySelector(".editing-toolbar")
+                  const current = toolbar.querySelector('[role="tab"][aria-selected="true"]')
+                  const first = toolbar.querySelector(".tabs > button:first-child")
+                  const field = section.querySelector(".sequence-entry > .entry, .profile-choice")
+                  const ink = (node) => {
+                    const path = node.querySelector("path"),
+                      box = path.getBBox(),
+                      matrix = path.getScreenCTM()
+                    return {
+                      left: new DOMPoint(box.x, box.y).matrixTransform(matrix).x,
+                      right: new DOMPoint(box.x + box.width, box.y).matrixTransform(matrix).x,
+                    }
+                  }
+                  const button = current.getBoundingClientRect(),
+                    bounds = field.getBoundingClientRect()
+                  const style = getComputedStyle(current, "::before"),
+                    surface = button.left + parseFloat(style.left)
+                  const compact = !!section.closest(".composer[data-compact]")
+                  const iconOnly = getComputedStyle(current.querySelector("span")).display === "none"
+                  const last = toolbar.querySelector(".page-destination > button, .style-actions > button")
+                  return {
+                    width: parseFloat(style.width),
+                    tint: style.backgroundColor,
+                    radius: parseFloat(style.borderRadius),
+                    gap: parseFloat(getComputedStyle(first.parentElement).columnGap),
+                    compact,
+                    iconOnly,
+                    centered:
+                      Math.abs((ink(current).left + ink(current).right) / 2 - surface - parseFloat(style.width) / 2) <
+                      1,
+                    first: ink(first).left - bounds.left,
+                    end: last ? ink(last).right - bounds.right : 0,
+                    buttons: [...toolbar.querySelectorAll(".tabs > button")].map(
+                      (el) => el.getBoundingClientRect().width,
+                    ),
+                  }
+                })
+                const label = `${engine.name()}, ${touch ? "touch" : "mouse"}, ${width}, ${scale}%, ${name}, ${view}: ${JSON.stringify(geometry)}`
+                reference ??= geometry.width
+                assert.ok(Math.abs(reference - geometry.width) < 1, label)
+                assert.ok(geometry.radius >= 6 && !["transparent", "rgba(0, 0, 0, 0)"].includes(geometry.tint), label)
+                if (geometry.compact && geometry.iconOnly) assert.ok(geometry.centered, label)
+                if (geometry.compact && !geometry.iconOnly) assert.ok(geometry.gap >= 6, label)
+                assert.ok(Math.abs(geometry.first) < 1 && Math.abs(geometry.end) < 1, label)
+                assert.ok(
+                  geometry.buttons.every((value) => Math.abs(value - geometry.buttons[0]) < 1 && value >= 44),
+                  label,
+                )
+                assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), label)
+                if (width === 375 && scale === 100 && view === "Grid") {
+                  await page.keyboard.press("Tab")
+                  const selected = pane.getByRole("tab", { name: view, exact: true })
+                  await selected.focus()
+                  assert.ok(
+                    await selected.evaluate((el) => {
+                      const focus = getComputedStyle(el, "::before")
+                      return (
+                        el.matches(":focus-visible") &&
+                        focus.outlineStyle === "solid" &&
+                        parseFloat(focus.outlineWidth) >= 2
+                      )
+                    }),
+                    label,
+                  )
+                }
+              }
+            }
+          }
+        }
+        await page.close()
+      }
+    } finally {
+      await browser.close()
+    }
+  }
+})
 
 test("Style scrolling preserves its companion Grid geometry and Page frame", { timeout: 180000 }, async () => {
   const server = await serve()
@@ -129,7 +229,9 @@ for (const hasTouch of [false, true])
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
         await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "32 pages",
+          () =>
+            document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
+              ?.textContent === "32 pages",
         )
         for (const [width, height] of hasTouch
           ? [
@@ -290,7 +392,9 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
       await page.keyboard.press("Escape")
       await input.getByRole("button", { name: "Add to Output", exact: true }).click()
       await page.waitForFunction(
-        () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "10000 pages",
+        () =>
+          document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
+            ?.textContent === "10000 pages",
       )
       await page
         .getByRole("navigation", { name: "Workspace view", exact: true })

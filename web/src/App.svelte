@@ -2,6 +2,7 @@
 
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte"
+  import type { Snippet } from "svelte"
   import { animateRemoval } from "./motion.ts"
   import { downloadInputs, downloadName, expand, maxInputBytes, plan, sizeOf, titleOf, uid } from "./model.ts"
   import type { Input, Source } from "./model.ts"
@@ -705,20 +706,29 @@
   >
 {/snippet}
 
-{#snippet inputTools(heading: string)}
-  {#if active}<details class="input-picker" bind:this={inputMenu}>
-      <summary aria-label={`Select Input · ${active?.input.name}`}>
-        <h2 id={heading}>
-          <Icon name="input" /><span class="input-label">Input</span><span class="count"
-            >{sources.length + Number(!!openingSource)}</span
-          >{#if sources.length > 1}<Provenance number={active.number} title={titleOf(active.input)} />{/if}<span
-            class="input-current"
-            title={active.input.title || active.input.name}>{active.input.title || active.input.name}</span
-          >
-          <span class="input-chevron"><Icon name="next" /></span>
+{#snippet inputTools(heading: string, compact = false, totals?: Snippet)}
+  {#if active}<details
+      class="input-picker"
+      bind:this={inputMenu}
+      data-tour-target={compact ? "input" : undefined}
+      data-tour-active={(compact && tour === "input") || undefined}
+    >
+      <summary
+        aria-label={`${compact ? "Input menu" : "Select Input"} · ${active.input.name}`}
+        title={compact ? "Input menu" : undefined}
+      >
+        <h2 id={heading} aria-label={compact ? "Input" : undefined}>
+          {#if compact}<Icon name="more" />{:else}<Icon name="input" /><span class="input-label">Input</span><span
+              class="count">{sources.length + Number(!!openingSource)}</span
+            >{#if sources.length > 1}<Provenance number={active.number} title={titleOf(active.input)} />{/if}<span
+              class="input-current"
+              title={active.input.title || active.input.name}>{active.input.title || active.input.name}</span
+            >
+            <span class="input-chevron"><Icon name="next" /></span>{/if}
         </h2>
       </summary>
       <div class="input-list" role="group" aria-label="Inputs">
+        {#if compact && totals}<p class="document-totals">{@render totals()}</p>{/if}
         {#each sources as source (source.id)}
           {@const details = inputDetails(source.input)}
           <div class="input-choice" data-active={source.id === activeId || undefined}>
@@ -744,15 +754,24 @@
             >
           </div>
         {/each}
+        {#if compact}<div class="file-actions">
+            <button
+              class="icon-button view-action"
+              aria-label="View Input PDF"
+              onclick={() => {
+                inputMenu.open = false
+                viewInputPDF()
+              }}><Icon name="eye" /><span>View Input PDF</span></button
+            >
+          </div>{/if}
         <div class="input-list-actions">
-          {@render openPDF("Add Input")}
           <button class="danger" aria-label="Remove Input" title="Remove Input" onclick={removeSource}
             ><Icon name="trash" /><span>Remove Input</span></button
           >
         </div>
       </div>
     </details>{/if}
-  {@render openPDF()}
+  {#if !compact}{@render openPDF()}{/if}
 {/snippet}
 
 <svelte:document
@@ -854,6 +873,7 @@
       {error}
       styling={sourceStyling}
       input={inputTools}
+      {openPDF}
       {inspection}
       activate={(id) => (activeId = id)}
       {outputProcessing}

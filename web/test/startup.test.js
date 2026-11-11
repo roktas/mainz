@@ -10,7 +10,17 @@ import { join, resolve as resolvePath } from "node:path"
 import { build, preview } from "vite"
 import { chromium, devices } from "playwright"
 import { aligned, zoom } from "./workspace.js"
-import { checkGeometry, checkStatus, createServer, trackWorkers, fixture, tab, pixel, gridPage } from "./browser.js"
+import {
+  outputCount,
+  checkGeometry,
+  checkStatus,
+  createServer,
+  trackWorkers,
+  fixture,
+  tab,
+  pixel,
+  gridPage,
+} from "./browser.js"
 
 let compiled
 
@@ -66,7 +76,7 @@ async function checkMobile(browser, url) {
         await views.getByRole("button").evaluateAll((buttons) =>
           buttons.every((button) => {
             const range = document.createRange()
-            range.selectNodeContents(button.lastChild)
+            range.selectNodeContents(button.querySelector(":scope > span"))
             const rects = [...range.getClientRects()]
             const bounds = button.getBoundingClientRect()
             return rects.length === 1 && rects[0].left >= bounds.left && rects[0].right <= bounds.right
@@ -77,7 +87,7 @@ async function checkMobile(browser, url) {
       )
       await input.getByLabel("Page selection", { exact: true }).fill("2,3")
       await input.getByRole("button", { name: "Add to Output", exact: true }).tap()
-      assert.equal(await output.locator(".output-state strong").textContent(), "2 pages")
+      assert.equal(await outputCount(page).textContent(), "2 pages")
       await tab(input, "Style")
       const profile = input.getByRole("combobox", { name: "Style profile", exact: true })
       await profile.selectOption("inkjet")
@@ -134,7 +144,7 @@ async function checkMobile(browser, url) {
       await zoom(output, "Reset zoom")
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
       const saved = page.waitForEvent("download")
-      await output.getByRole("button", { name: "Download", exact: true }).tap()
+      await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).tap()
       const artifact = await saved
       assert.equal(await artifact.failure(), null)
       assert.match((await readFile(await artifact.path())).subarray(0, 8).toString(), /^%PDF-/)
@@ -665,7 +675,7 @@ test("Logo clicks choose Home, animation, or examples and retain landing paralla
       () => document.querySelector(".brand .logo")?.getAnimations()[0]?.playState === "running",
     )
     assert.equal(new URL(page.url()).search, "?demo", "Double-click preserves the workspace")
-    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "8 pages")
+    assert.equal(await outputCount(page).textContent(), "8 pages")
     await home.click()
     await page.locator(".drop-zone").waitFor()
     assert.equal(new URL(page.url()).search, "", "One click opens Home")
@@ -696,15 +706,17 @@ test("PDF opening and composition work over non-secure HTTP", { timeout: 60000 }
     await page.locator(".input-current").waitFor({ state: "attached" })
     assert.equal(await page.locator(".status-input").textContent(), "demo.pdf")
     await page.waitForFunction(
-      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
+      () =>
+        document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
+        "8 pages",
     )
-    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "8 pages")
+    assert.equal(await outputCount(page).textContent(), "8 pages")
     assert.equal(await page.getByRole("alert").count(), 0)
     const output = page.locator(".composition-output")
     await output.getByRole("button", { name: "Duplicate Output page 1", exact: true }).click()
-    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "9 pages")
+    assert.equal(await outputCount(page).textContent(), "9 pages")
     const saved = page.waitForEvent("download")
-    await output.getByRole("button", { name: "Download", exact: true }).click()
+    await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
     const download = await saved
     assert.equal(await download.failure(), null)
     const bytes = await readFile(await download.path())
@@ -727,8 +739,7 @@ test(
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.addInitScript(trackWorkers)
       await page.goto(server.resolvedUrls.local[0])
-      const input = page.locator(".selection-panel"),
-        output = page.locator(".composition-output")
+      const input = page.locator(".selection-panel")
       for (const name of ["First.pdf", "Second.pdf"]) {
         await page
           .locator("input[type=file]")
@@ -749,9 +760,9 @@ test(
         await input.locator(".thumbnail[aria-busy=false] canvas").waitFor()
         assert.ok(await input.locator(".thumbnail canvas").evaluate((canvas) => canvas.width > 0))
       }
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "2 pages")
+      assert.equal(await outputCount(page).textContent(), "2 pages")
       const pending = page.waitForEvent("download")
-      await output.getByRole("button", { name: "Download", exact: true }).click()
+      await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
       assert.equal(await (await pending).failure(), null)
       await page.waitForFunction(() =>
         window.workers.filter((worker) => worker.url.includes("processor.worker")).every((worker) => worker.terminated),
@@ -780,7 +791,7 @@ test(
       const input = page.locator(".selection-panel")
       await page.locator(".status-input").filter({ hasText: "First.pdf" }).waitFor({ state: "attached" })
       await page
-        .locator('.selection-panel .input-heading > .file-picker input[type="file"]')
+        .locator('.composer .file-picker input[type="file"][aria-label="Open PDF"]')
         .setInputFiles([
           { name: "Broken.pdf", mimeType: "application/pdf", buffer: Buffer.from("Not a PDF") },
           pdf("Last.pdf"),
@@ -860,7 +871,7 @@ test("Large failure batches announce a summary and retain every file error", { t
       buffer: Buffer.from("Not a PDF"),
     }))
     await page
-      .locator('.selection-panel .input-heading > .file-picker input[type="file"]')
+      .locator('.composer .file-picker input[type="file"][aria-label="Open PDF"]')
       .setInputFiles([
         ...failed,
         { name: "Ready.pdf", mimeType: "application/pdf", buffer: fixture({ prepared: false }) },
@@ -958,7 +969,7 @@ test("The first PDF previews before validation and commits only after success", 
       await page.locator(".composer[inert]").waitFor()
       await page.waitForFunction(() => document.querySelector(".selection-panel .page-image canvas")?.width > 0)
       assert.equal(await page.locator(".drop-zone").count(), 0)
-      assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "0 pages")
+      assert.equal(await outputCount(page).textContent(), "0 pages")
       assert.equal(await page.locator(".composer").getAttribute("aria-busy"), "true")
       assert.equal(await page.locator(".header-feedback .opening-progress").isVisible(), true)
     }
@@ -966,7 +977,7 @@ test("The first PDF previews before validation and commits only after success", 
     await page.locator(".header-feedback .opening-progress .feedback-message p").click()
     for (const key of ["Control+a", "Enter", "+"]) await page.keyboard.press(key)
     assert.equal(await input.locator(".page-image[aria-pressed=true]").count(), 0)
-    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "0 pages")
+    assert.equal(await outputCount(page).textContent(), "0 pages")
     await page.setViewportSize({ width: 390, height: 1100 })
     await page.emulateMedia({ colorScheme: "dark" })
     await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
@@ -991,11 +1002,11 @@ test("The first PDF previews before validation and commits only after success", 
     await input.getByRole("tab", { name: "Style", exact: true }).waitFor()
     assert.equal(await input.getByRole("tab", { name: "Grid", exact: true }).getAttribute("aria-selected"), "true")
     assert.equal(await input.locator(".composition-card").first().isVisible(), true)
-    assert.equal(await input.locator(".input-picker .count").innerText(), "1")
+    assert.equal(await page.locator(".input-picker .count").innerText(), "1")
     assert.equal(await page.locator(".header-feedback .opening-progress").count(), 0)
     await input.getByLabel("Page selection", { exact: true }).fill("1")
     await input.getByLabel("Page selection", { exact: true }).press("Enter")
-    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "1 page")
+    assert.equal(await outputCount(page).textContent(), "1 page")
     assert.deepEqual(errors, [])
   } finally {
     release()
@@ -1036,7 +1047,9 @@ test("Development assets remain available after a production build", { timeout: 
     await page.locator(".input-current").waitFor({ state: "attached" })
     assert.equal(await page.locator(".status-input").textContent(), "demo.pdf")
     await page.waitForFunction(
-      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
+      () =>
+        document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
+        "8 pages",
     )
   } finally {
     await browser?.close()
@@ -1088,7 +1101,8 @@ test("Demo variants open the maintained Input with populated or empty Output", a
       await page.locator(".input-current").waitFor({ state: "attached" })
       await page.waitForFunction(
         (count) =>
-          document.querySelector(".composition-output .composition-totals strong")?.textContent === `${count} pages`,
+          document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
+            ?.textContent === `${count} pages`,
         pages,
       )
       const input = page.locator(".selection-panel")
@@ -1131,7 +1145,7 @@ test("Demo variants open the maintained Input with populated or empty Output", a
         await welcome.getByRole("button", { name: "Close welcome", exact: true }).click()
         await page.locator(".page-flight:popover-open").waitFor()
         assert.equal(await input.locator(".page-image[aria-pressed=true]").count(), 0)
-        assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "0 pages")
+        assert.equal(await outputCount(page).textContent(), "0 pages")
         assert.equal(await input.getByRole("button", { name: "Add to Output", exact: true }).count(), 0)
         const sequence = input.getByLabel("Page selection", { exact: true })
         await sequence.fill("1")
@@ -1232,7 +1246,7 @@ test("A delayed demo cannot replace local pages or report obsolete failures", { 
       await page.locator(".header-feedback .opening-progress").waitFor({ state: "detached" })
       assert.equal(await input.locator(".input-current").textContent(), "Local.pdf")
       assert.equal(await input.locator(".input-heading .count").textContent(), "1")
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "2 pages")
+      assert.equal(await outputCount(page).textContent(), "2 pages")
       assert.equal(await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "1-2")
       assert.equal(await page.locator(".header-feedback .feedback[data-kind=error]").count(), 0)
       await page.close()
@@ -1285,7 +1299,9 @@ test("Home asks once before discarding changes and cancellation retains the work
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
     await page.waitForFunction(
-      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
+      () =>
+        document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
+        "8 pages",
     )
     const preparation = page.locator(".selection-panel").getByLabel("Page selection", { exact: true })
     await preparation.fill("1")
@@ -1300,7 +1316,7 @@ test("Home asks once before discarding changes and cancellation retains the work
     await home.click()
     await confirmation
     assert.deepEqual(warnings, ["confirm"])
-    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "9 pages")
+    assert.equal(await outputCount(page).textContent(), "9 pages")
     page.once("dialog", async (dialog) => {
       warnings.push(dialog.type())
       await dialog.dismiss()
@@ -1309,7 +1325,7 @@ test("Home asks once before discarding changes and cancellation retains the work
     await page.evaluate(() => location.reload())
     await reloadWarning
     assert.deepEqual(warnings, ["confirm", "beforeunload"], "Reload retains its independent exit warning")
-    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "9 pages")
+    assert.equal(await outputCount(page).textContent(), "9 pages")
     page.on("dialog", async (dialog) => {
       warnings.push(dialog.type())
       await dialog.accept()
@@ -1436,7 +1452,7 @@ test("Concurrent Source previews isolate resets and ignore obsolete worker repli
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
     }
     const choose = async (index) => {
-      await input.locator(".input-picker > summary").click()
+      await page.locator(".input-picker > summary").click()
       await input.locator(".input-list button[data-source]").nth(index).click()
       await tab(input, "Style")
       await input.getByRole("button", { name: "Edit Fill", exact: true }).click()
@@ -1452,7 +1468,10 @@ test("Concurrent Source previews isolate resets and ignore obsolete worker repli
     await choose(0)
     await input.getByRole("button", { name: "Reset Fill Color", exact: true }).click()
     assert.equal(await color.inputValue(), "#000000")
-    assert.equal(await output.getByRole("button", { name: "Download", exact: true }).isDisabled(), true)
+    assert.equal(
+      await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).isDisabled(),
+      true,
+    )
     await page.evaluate(() => {
       window.holdReplies = false
       for (const reply of window.pendingReplies.splice(0).toReversed()) reply()
@@ -1476,10 +1495,10 @@ test("Concurrent Source previews isolate resets and ignore obsolete worker repli
     await page.waitForFunction(() => window.pendingReplies.length === 1)
     await output.getByRole("textbox", { name: "Page selection", exact: true }).fill("2")
     await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
-    await input.locator(".input-picker > summary").click()
+    await page.locator(".input-picker > summary").click()
     await input.getByRole("button", { name: "Remove Input", exact: true }).click()
     assert.equal(await input.locator(".input-current").innerText(), "First.pdf")
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "1 page")
+    assert.equal(await outputCount(page).textContent(), "1 page")
     await page.evaluate(() => {
       window.holdReplies = false
       for (const reply of window.pendingReplies.splice(0)) reply()
@@ -1490,7 +1509,7 @@ test("Concurrent Source previews isolate resets and ignore obsolete worker repli
       const images = [...document.querySelectorAll(".composition-output .composition-card .thumbnail canvas")]
       return images.length === 2 && images.every((canvas) => canvas.parentElement.getAttribute("aria-busy") === "false")
     })
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "2 pages")
+    assert.equal(await outputCount(page).textContent(), "2 pages")
     assert.deepEqual(await pixel(canvases.nth(0), 0.7), [0, 0, 0, 255])
     assert.deepEqual(await pixel(canvases.nth(1), 0.7), [0, 0, 0, 255])
     assert.equal(await page.locator(".header-feedback .feedback[data-kind=error]").count(), 0)
@@ -1575,10 +1594,7 @@ test("Production demos download on demand and reuse verified files offline", { t
       await page.goto(`${url}?demo=toc${multiple ? "-multiple" : ""}`)
       await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
       assert.equal(await page.locator(".input-current").innerText(), "Lorem Ipsum")
-      assert.equal(
-        await page.locator(".composition-output .composition-totals strong").textContent(),
-        multiple ? "11 pages" : "9 pages",
-      )
+      assert.equal(await outputCount(page).textContent(), multiple ? "11 pages" : "9 pages")
       await page.getByRole("button", { name: "Input contents", exact: true }).click()
       assert.ok(
         await page
@@ -1590,10 +1606,7 @@ test("Production demos download on demand and reuse verified files offline", { t
       await page.context().setOffline(true)
       await page.reload()
       await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
-      assert.equal(
-        await page.locator(".composition-output .composition-totals strong").textContent(),
-        multiple ? "11 pages" : "9 pages",
-      )
+      assert.equal(await outputCount(page).textContent(), multiple ? "11 pages" : "9 pages")
       await page.context().setOffline(false)
     }
     await page.goto(`${url}?demo=recipe`)
@@ -1674,11 +1687,10 @@ test("Production Grid demo repeats the bundled sample without another PDF asset"
     const examples = page.getByRole("dialog", { name: "Explore the app", exact: true })
     assert.equal(await examples.getByRole("link").nth(1).getAttribute("href"), "?demo=grid")
     await examples.getByRole("link").nth(1).click()
-    const input = page.locator(".selection-panel"),
-      output = page.locator(".composition-output")
+    const input = page.locator(".selection-panel")
     await page.getByText("Grid workspace · 240 pages.", { exact: true }).waitFor()
     assert.equal(await input.locator(".input-current").textContent(), "grid.pdf")
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "240 pages")
+    assert.equal(await outputCount(page).textContent(), "240 pages")
     await tab(input, "Page")
     await input.locator(".page-scroll").press("End")
     assert.match(await input.locator(".page-position").textContent(), /240/)
@@ -1686,7 +1698,7 @@ test("Production Grid demo repeats the bundled sample without another PDF asset"
     await page.context().setOffline(true)
     await page.reload()
     await page.getByText("Grid workspace · 240 pages.", { exact: true }).waitFor()
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "240 pages")
+    assert.equal(await outputCount(page).textContent(), "240 pages")
     assert.ok(requests.length >= 2)
     assert.ok(requests.every((path) => path === "/composer/demo.pdf"))
     assert.equal(await page.getByRole("alert").count(), 0)
@@ -1958,7 +1970,9 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
       timeout: 60000,
     })
     await demo.waitForFunction(
-      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
+      () =>
+        document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
+        "8 pages",
     )
     assert.equal(await demo.locator(".offline-progress").count(), 0)
     assert.equal(await demo.locator(".footnote > time").textContent(), buildId)
@@ -1969,7 +1983,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     await demo.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("inkjet")
     await demo.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
     const demoSaved = demo.waitForEvent("download")
-    await demo.locator(".composition-output").getByRole("button", { name: "Download", exact: true }).click()
+    await demo.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
     const demoArtifact = await demoSaved
     assert.equal(await demoArtifact.failure(), null)
     assert.match((await readFile(await demoArtifact.path())).subarray(0, 8).toString(), /^%PDF-/)
@@ -1985,15 +1999,14 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
       timeout: 60000,
     })
     await page.getByRole("button", { name: "Skip", exact: true }).click()
-    const input = page.locator(".selection-panel"),
-      output = page.locator(".composition-output")
+    const input = page.locator(".selection-panel")
     await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("1,1")
     await input.getByRole("button", { name: "Add to Output", exact: true }).click()
     await input.getByRole("tab", { name: "Style", exact: true }).click()
     await input.getByRole("textbox", { name: "Guide Color", exact: true }).fill("#884488")
     await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
     const saved = page.waitForEvent("download")
-    await output.getByRole("button", { name: "Download", exact: true }).click()
+    await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
     const artifact = await saved
     assert.equal(await artifact.failure(), null)
     assert.match((await readFile(await artifact.path())).subarray(0, 8).toString(), /^%PDF-/)
@@ -2060,7 +2073,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     await updateNotice.waitFor({ state: "detached" })
     assert.equal(await update.isVisible(), true)
     assert.equal(await update.isDisabled(), true)
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "2 pages")
+    assert.equal(await outputCount(page).textContent(), "2 pages")
     assert.equal(await input.getByRole("textbox", { name: "Guide Color", exact: true }).inputValue(), "#884488")
     await Promise.all([
       page.waitForEvent("load"),
@@ -2274,10 +2287,7 @@ test("Public TOC examples open on a fresh static-host visit without a service wo
         assert.ok(titles.includes("1.1.1 Logical Structure"))
         assert.ok(titles.includes("3.2.1 Parent and Child Entries"))
         await page.keyboard.press("Escape")
-        assert.equal(
-          await page.locator(".composition-output .composition-totals strong").textContent(),
-          demo === "toc" ? "9 pages" : "11 pages",
-        )
+        assert.equal(await outputCount(page).textContent(), demo === "toc" ? "9 pages" : "11 pages")
       } finally {
         await context.close()
       }

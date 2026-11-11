@@ -5,7 +5,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { chromium } from "playwright"
-import { fixture, tab } from "./browser.js"
+import { outputCount, fixture, tab } from "./browser.js"
 
 test("Native page drags survive platform focus changes and cards respond on press", { timeout: 60000 }, async () => {
   const server = await serve()
@@ -41,7 +41,7 @@ test("Native page drags survive platform focus changes and cards respond on pres
           ["-2deg", "0.98", "0.6"],
         )
         assert.equal(await selected.inputValue(), selection, "Pressing does not change selection")
-        assert.equal(await output.locator(".composition-totals strong").textContent(), "0 pages")
+        assert.equal(await outputCount(page).textContent(), "0 pages")
         await page.mouse.move(from.x + from.width / 2 + 15, from.y + from.height / 2, { steps: 3 })
         await page.locator('.composer[data-drag="source"]').waitFor()
         await page.evaluate(() => window.dispatchEvent(new Event("blur")))
@@ -212,7 +212,7 @@ test(
           assert.deepEqual(result, { blocked: true, preview: true }, method)
           await page.locator(".composer[data-drag]").waitFor({ state: "hidden" })
           assert.equal(await selection.inputValue(), cancelled ? original : `${to - 2}-${to - 1}`, method)
-          assert.equal(await output.locator(".composition-totals strong").textContent(), "10000 pages")
+          assert.equal(await outputCount(page).textContent(), "10000 pages")
         }
         await page.close()
       }
@@ -236,7 +236,7 @@ test(
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
-      await output.locator(".composition-totals strong").filter({ hasText: "8 pages" }).waitFor()
+      await outputCount(page).filter({ hasText: "8 pages" }).waitFor()
       await input.getByLabel("Page selection", { exact: true }).fill("")
       for (const pointer of ["native", "touch"]) {
         for (const interruption of [
@@ -288,12 +288,12 @@ test(
           assert.equal(await page.locator(".drag-image, [data-press]").count(), 0)
           if (interruption === "home") {
             await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-            await output.locator(".composition-totals strong").filter({ hasText: "8 pages" }).waitFor()
+            await outputCount(page).filter({ hasText: "8 pages" }).waitFor()
             await input.getByLabel("Page selection", { exact: true }).fill("")
           } else {
             if (dataTransfer) await output.dispatchEvent("drop", { dataTransfer })
             else await output.dispatchEvent("pointerup", contact)
-            assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
+            assert.equal(await outputCount(page).textContent(), "8 pages")
             await input.getByRole("button", { name: "Select Input page 1", exact: true }).click()
             assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "1")
             await input.getByLabel("Page selection", { exact: true }).fill("")

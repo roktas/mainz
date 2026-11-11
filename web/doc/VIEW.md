@@ -62,9 +62,9 @@ equal gaps between controls. After the final adjustment, measure their rendered 
 dimensions; visual estimates are not sufficient. Colors, surfaces, and hover treatments follow each control's role.
 Different control types can use their documented dimensions but must share an explicit alignment edge or centerline. In
 the Input chooser, the number button opens file details. Active numbers use a primary fill with black text in dark mode
-and white text in light mode. Filenames use neutral white or black text, with a clear gap after the number. Compact
-choosers place Add Input and Remove Input side by side at equal widths and heights. Desktop Open PDF and Download share
-the same dimensions.
+and white text in light mode. Filenames use neutral white or black text, with a clear gap after the number. Compact file
+menus use full-width View Input PDF and Remove Input rows with equal dimensions. Desktop Open PDF and Download share the
+same dimensions.
 
 The shared `--icon-size` token sets ordinary icons to 1.125 rem. Control-specific icon sizes use their own visual role.
 
@@ -159,9 +159,9 @@ Desktop Input and Output have equal widths and equal gutters around the center s
 hints, and content share row tracks. The filename chooser belongs to Input's heading and includes Remove Input below the
 open-PDF list. At normal text size, desktop pane headings use 16 px text and 28 px document icons, scaling with text.
 Open PDF and Download occupy corresponding positions and have equal dimensions. Print and View icons precede Download,
-in that order. Their glyphs share the document icon's 28 px size on desktop and mobile, scaling with text. Their targets
-are at least 46 × 46 px. The visible Print–View, View–Download, and Input eye–Open PDF gaps match with compact shared
-spacing. These icon actions are exceptions to equal peer-button widths. Output totals sit before these actions. Relevant
+in that order. On desktop, their glyphs share the document icon's 28 px size and scale with text. Their targets are at
+least 46 × 46 px. The visible Print–View, View–Download, and Input eye–Open PDF gaps match with compact shared spacing.
+These icon actions are exceptions to equal peer-button widths. Output totals sit before these actions. Relevant
 processing disables Download, View, and Print without changing heading dimensions. Progress and Cancel belong to the app
 header. The Output heading is a frameless button that opens the filename editor. It retains Input's heading typography
 and icon alignment. Hover and keyboard focus identify the action. Its panel uses the standard full-height entry and
@@ -176,35 +176,39 @@ Each pane header, view toolbar, and selection bar stays on one control row at ev
 Controls never wrap or move to another row. Preserve usable gaps, full-size touch targets, and shared vertical
 alignment. The desktop Input selector shows the document title at regular weight and preserves the source number. The
 Input chooser retains full filenames and their detail controls. Desktop Input pages/sheets and View Input PDF appear
-immediately before Open PDF. In single-pane layouts, the Input header shows a square, primary-filled file selector, View
-Input PDF, then the page/sheet summary, in that order. Center only the selector glyph inside its square. Preserve the
-eye action unchanged. The selector opens the Input list with number-triggered file details and an Add Input action,
-which is absent from the compact header. The selector and eye use equal gaps; the summary stays within the Input switch
-column when space allows. On narrower layouts, let the summary use the remaining header width and wrap within its own
-text area. Keep Input counts visible directly, without an information button. The Output summary uses concise counts,
-such as `6 pages, 3 sheets`, without PDF or duplex prefixes. If these counts still do not fit, make them available
-through a clickable details control. Do not split the header to fit them. At enlarged text sizes, Open PDF and Download
-can use their icons with the same accessible names and touch targets.
+immediately before Open PDF. Output uses concise counts, such as `6 pages, 3 sheets`. Desktop counts use a details
+control when they do not fit inline.
 
-In single-pane layouts, the Input/Output switch uses two equal columns. The Input header keeps its selector, eye, and
-page/sheet summary on one row, with the summary at the end. Output totals align to the end of the space before Print,
-View, and Download. These actions stay together at the end of the row with matching compact gaps. Download uses the same
-28 px icon size as Print and View, with a square primary-colored target and no text label. Desktop Download retains its
-labeled primary button. If enlarged text leaves insufficient room, keep the Input/Output switch labels and omit their
-icons.
+Single-pane layouts use one workspace bar instead of separate pane headers. Its fixed side slots contain a document menu
+and a primary file action. The middle holds two equal Input/Output buttons. Both menus use the same horizontal three-dot
+icon. Input offers the Input list, full page/sheet totals, View Input PDF, and Remove Input. Output offers full totals,
+Set filename, View PDF, Print, and Export recipe. Escape and outside activation close the menus. Escape restores focus
+to the launcher without clearing page selection.
+
+Open PDF occupies Input's primary slot. Download or Share occupies the same slot in Output. These actions have equal
+square targets, primary surfaces, 24 px glyphs, and accessible names. Document menu targets share their dimensions and
+use transparent surfaces. Targets are at least 44 px. The Input/Output labels and their counts are horizontally
+centered. Counts show pages and sheets when the text fits. When it does not fit, show only pages without reducing the
+text size. Full totals remain in each document menu. Enlarged text can increase the bar height while both buttons keep
+equal heights. Switching panes preserves the bar, toolbar, selection-field, and content-frame alignment.
+
+The compact app header retains the logo, Help, Settings, and Theme with full touch targets. Its reduced height and
+spacing leave more room for the document. Grid, List, and Page retain the same leading positions in both panes. Contents
+precedes the shared trailing controls in Input. Section headings and Go to page retain their corresponding trailing
+positions. Both themes, keyboard focus, and reduced-motion rules apply to the complete compact layout.
 
 On iOS and Android with native file sharing, Share replaces Download at the same position and keeps the primary target.
-Its 28 px share glyph matches Print and View and scales with text. Its button, tooltip, and accessible name say Share.
-Desktop and unsupported environments keep Download. The ready-file panel names its actions Share and Download without
-the redundant PDF suffix. A required fresh gesture uses neutral feedback rather than a permission error.
+Its share glyph matches the primary action's size. Its button, tooltip, and accessible name say Share. Desktop and
+unsupported environments keep Download. The ready-file panel names its actions Share and Download without the redundant
+PDF suffix. A required fresh gesture uses neutral feedback rather than a permission error.
 
-Export recipe uses JSON braces in the secondary color, immediately before Print and View in the Output header. Its glyph
-and target match Print and View. It remains available in every workspace view. Its centered panel uses a Name, Index,
-Path, Title table with bold column headings and equal Cancel and Export buttons with the shared control gap. Index uses
-tabular numbers. Path is compact, muted read-only text with full-path hover. The table scrolls within its panel when
-columns cannot remain readable. Title shows the Input title. Name cells use accent text, a light accent tint, and a
-dotted underline to show editing. Activating a cell replaces its button with a full-width text field. Long values wrap
-within their cells. The panel scrolls within the viewport and retains keyboard focus behavior in both themes.
+Export recipe uses JSON braces in the secondary color, immediately before Print and View in the desktop Output header.
+Its glyph and target match Print and View. It remains available in every workspace view. Its centered panel uses a Name,
+Index, Path, Title table with bold column headings and equal Cancel and Export buttons with the shared control gap.
+Index uses tabular numbers. Path is compact, muted read-only text with full-path hover. The table scrolls within its
+panel when columns cannot remain readable. Title shows the Input title. Name cells use accent text, a light accent tint,
+and a dotted underline to show editing. Activating a cell replaces its button with a full-width text field. Long values
+wrap within their cells. The panel scrolls within the viewport and retains keyboard focus behavior in both themes.
 
 Recipe matching uses paired rows: the saved cover and title on one side and the local PDF selection on the other. Keep
 cover and file selection beside each other at every width. Wide covers display at 110–130 CSS px; narrow covers use
@@ -282,15 +286,16 @@ chooser controls do not select text or open native touch callouts during a hold.
 Pointer opening places initial focus on the Settings drawer. Keyboard opening focuses its Close button. Keyboard
 navigation keeps a visible focus indicator on each control.
 
-Tabs use square corners and an accent underline. Grid uses four thumbnail squares; List uses horizontal lines; Page uses
-a single sheet. Glyphs retain the same size and visible center. Unselected tabs gain color on hover. Keyboard focus uses
-a soft tint and one border, without glow. Input offers Grid, List, Page, and eligible Style tabs. Output offers Grid,
-List, and Page. Grid and List are the two direct Pages views, each with its own tab, icon, and accessible name. Each
-Input and Output retains its selected Pages layout. Focus stays on the selected tab after activation.
+Workspace view tabs use a soft selected tint with 6 px corners and accent-colored content. Grid uses four thumbnail
+squares; List uses horizontal lines; Page uses a single sheet. Glyphs retain the same size and visible center.
+Unselected tabs gain color on hover. Keyboard focus outlines the tint area in the secondary color. Input offers Grid,
+List, Page, and eligible Style tabs. Output offers Grid, List, and Page. Grid and List are the two direct Pages views,
+each with its own tab, icon, and accessible name. Each Input and Output retains its selected Pages layout. Focus stays
+on the selected tab after activation.
 
 Toolbars at or below 26 em use icon-only tabs. Wider panes show text. Keep at least 12 CSS px between adjacent tab
 contents when labels are visible. Tabs and Style tools must not wrap or overlap. Keep their height consistent across
-views so that the pane content frame does not move. Inset each active tab underline by 4 CSS px.
+views so that the pane content frame does not move.
 
 Go to page sits at the end of the Pages/Page toolbar. Its icon opens a compact panel centered below the trigger within
 the viewport gutters. The panel has one numeric-keyboard field, a Go action, first and last page icons, the valid page
@@ -378,8 +383,11 @@ shows four grip dots without moving the control or changing selection; dragging 
 details on heading rows work exactly like those on normal page rows. Section headings are shown by default; the existing
 toolbar switches between hierarchical and flat pages without losing fold state.
 
-On narrow screens, toolbar icons have no gap between their 44 px targets. The Grid glyph is centered within its 44 px
-tab; Go to page sits 4 px inside the trailing toolbar edge. Wider layouts retain normal spacing.
+View tabs use equal widths based on the widest tab in their row. Selected surfaces have equal dimensions within each
+presentation. Across phone, tablet, and desktop layouts, the first visible tab icon starts at the selection field's
+leading edge. The last visible toolbar icon ends at the field's trailing edge. Compact labeled tabs have 6–12 px gaps
+between their targets. Compact icon-only tabs center a small selected surface on the glyph and retain separate 44 px
+targets without gaps. Selection and focus do not move icons or controls.
 
 The heading text selects or clears the complete subtree **when folded**, including pages hidden beneath it. A partly
 selected folded section appears selected and a click clears its remaining selected pages. **When unfolded**, the heading
@@ -504,9 +512,10 @@ revealed by the fold change animate, never items mounted through virtual scrolli
 effects. The Fold all/Unfold all and Section headings toolbar controls are available in Grid and List. Hiding headings
 restores the full flat page Grid.
 
-Grid footer actions appear on hover or focus with a fine pointer. Input's Add action stays visible on touch. Output
-touch actions use the existing menu. The card footer design is separate from the Pages layout. Do not change its content
-or targets while changing scroll behavior.
+Desktop Grid footer actions appear on hover or focus with a fine pointer. Narrow layouts put Input addition and Output
+duplication at the same footer center. Output keeps its additional operations in the adjacent menu. These actions appear
+when the pane has no active selection; selection controls own bulk actions. The footer retains its card dimensions and
+separate 44 px targets.
 
 A page name appears in a one-line tooltip when a Grid or Page number receives hover or keyboard focus. Long names
 truncate inside the viewport. Clicking the number opens details beneath it. The page name appears first when present.
@@ -948,17 +957,19 @@ The pane divider is a separator. It has no resize interaction, so its name is no
 | ------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | Pane header                     | Bölme üst alanı                     | The section with the Input chooser and Open PDF, or the Output heading, summary, Print, and Download. |
 | Pane heading                    | Bölme başlığı                       | The Input or Output title text.                                                                       |
-| Input selector                  | Input seçicisi                      | The chooser that opens from the filename in the Input header.                                         |
+| Input selector                  | Input seçicisi                      | The Input chooser, opened from the desktop filename or the compact Input menu.                        |
 | Input list                      | Input listesi                       | The file list with number buttons for details, filenames for selection, and an active checkmark.      |
 | Count badge                     | Sayı rozeti                         | A small bordered count, such as the Input count or a Style group's object count.                      |
-| Remove Input button             | Input kaldırma düğmesi              | The action beside Add Input in compact choosers that removes the active Input.                        |
-| File picker button              | Dosya seçme düğmesi                 | Open PDF, Add Input, or Choose a PDF. It opens the system file picker.                                |
+| Remove Input button             | Input kaldırma düğmesi              | The action that removes the active Input from its chooser.                                            |
+| File picker button              | Dosya seçme düğmesi                 | Open PDF or Choose a PDF. It opens the system file picker.                                            |
 | Output summary                  | Output özet bilgisi                 | Concise page and sheet counts, such as 6 pages, 3 sheets.                                             |
 | Output details button / popover | Output ayrıntıları düğmesi / paneli | The control that exposes the counts when the concise Output summary does not fit inline.              |
 | Download button                 | İndirme düğmesi                     | The primary action that downloads Output.                                                             |
 | Share button                    | Paylaşım düğmesi                    | The primary mobile action that opens system sharing for the completed Output PDF.                     |
-| Print button                    | Yazdır düğmesi                      | The icon action before Download that prepares Output for PDF printing.                                |
-| Output filename button / panel  | Output dosya adı düğmesi / paneli   | The Output heading and its filename editor with Use default and Save.                                 |
+| Print button                    | Yazdır düğmesi                      | The desktop icon or compact menu action that prepares Output for PDF printing.                        |
+| Output filename button / panel  | Output dosya adı düğmesi / paneli   | The Output heading or Set filename menu action and its editor with Use default and Save.              |
+| Workspace bar                   | Çalışma alanı çubuğu                | The compact row with a document menu, Input/Output switch, and primary file action.                   |
+| Document menu                   | Belge menüsü                        | The three-dot launcher for the active Input or Output and its file actions.                           |
 | Status bar / App footer         | Durum çubuğu / Uygulama alt alanı   | The bottom row with the filename, status message, and Build ID.                                       |
 | Build ID                        | Derleme kimliği                     | The build value in the status bar and Settings.                                                       |
 
@@ -972,7 +983,7 @@ Tab, tab list, and tab panel follow the [W3C tabs terminology](https://www.w3.or
 | Tab list                     | Sekme çubuğu                         | The Grid, List, Page, and Style tabs. Help groups Keyboard and Mouse.          |
 | Tab                          | Sekme                                | One Grid, List, Page, Style, Keyboard, or Mouse choice.                        |
 | Tab panel                    | Sekme içerik paneli                  | The content area associated with the active tab.                               |
-| Active tab indicator         | Etkin sekme göstergesi               | The accent underline beneath the active tab.                                   |
+| Active tab indicator         | Etkin sekme göstergesi               | The soft tint and accent-colored content of the active workspace view tab.     |
 | Grid and List tabs           | Grid ve Liste sekmeleri              | Direct tab buttons that select one of the two Pages layouts.                   |
 | Export recipe button / panel | Recipe dışa aktarma düğmesi / paneli | The arrow-out-of-square icon and the panel for saving portable Recipe JSON.    |
 | View switcher                | Görünüm değiştirici                  | The mobile Input/Output switch. Its buttons expose their pressed state.        |

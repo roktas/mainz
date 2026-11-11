@@ -6,7 +6,7 @@ import test from "node:test"
 import { mkdir, writeFile } from "node:fs/promises"
 import { chromium, webkit } from "playwright"
 import { serve } from "./server.ts"
-import { tab, fixture, gridPage } from "./browser.js"
+import { outputCount, tab, fixture, gridPage } from "./browser.js"
 
 test(
   "Folded sections select descendants and unfolded headings toggle only their pages",
@@ -207,7 +207,7 @@ test(
             : input.locator('.composition-card:has(.page-image[data-page="3"])')
         await inputSection.hover()
         await inputSection.getByRole("button", { name: "Add Input section pages 4–6 to Output" }).click()
-        assert.equal(await output.locator(".composition-totals strong").textContent(), "3 pages")
+        assert.equal(await outputCount(page).textContent(), "3 pages")
         await input.getByLabel("Page selection", { exact: true }).fill("1-6")
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
         await output.getByLabel("Page selection", { exact: true }).fill("")
@@ -218,7 +218,7 @@ test(
             : output.locator('.composition-card:has(.page-image[data-page="6"])')
         await before.hover()
         await before.getByRole("button", { name: "Move Output section pages 7–9 earlier" }).click()
-        assert.equal(await output.locator(".composition-totals strong").textContent(), "9 pages")
+        assert.equal(await outputCount(page).textContent(), "9 pages")
         if (view === "List") {
           assert.equal(await output.locator('.list-section[data-index="8"]').count(), 0)
           assert.equal(await output.locator('.list-row[data-index="8"]').count(), 1)
@@ -281,32 +281,20 @@ test(
         )
         assert.equal(await first.getByRole("button", { name: "Move Output section pages 1–3 later" }).count(), 1)
         await first.getByRole("button", { name: "Duplicate Output section pages 1–3" }).click()
-        assert.equal(await output.locator(".composition-totals strong").textContent(), "12 pages")
+        assert.equal(await outputCount(page).textContent(), "12 pages")
         await first.hover()
         await first.getByRole("button", { name: "Remove Output section pages 1–3" }).click()
-        assert.equal(await output.locator(".composition-totals strong").textContent(), "9 pages")
+        assert.equal(await outputCount(page).textContent(), "9 pages")
         const headingControl = view === "List" ? ".list-heading" : ".page-image"
         await first.locator(headingControl).focus()
         await page.keyboard.press("Enter")
-        assert.equal(
-          await output.locator(".composition-totals strong").textContent(),
-          "12 pages",
-          "Heading keyboard action duplicates the group",
-        )
+        assert.equal(await outputCount(page).textContent(), "12 pages", "Heading keyboard action duplicates the group")
         await first.locator(headingControl).focus()
         await page.keyboard.press("-")
-        assert.equal(
-          await output.locator(".composition-totals strong").textContent(),
-          "9 pages",
-          "Heading keyboard action removes the group",
-        )
+        assert.equal(await outputCount(page).textContent(), "9 pages", "Heading keyboard action removes the group")
         await inputSection.locator(headingControl).focus()
         await page.keyboard.press("Enter")
-        assert.equal(
-          await output.locator(".composition-totals strong").textContent(),
-          "12 pages",
-          "Heading keyboard action adds the Input group",
-        )
+        assert.equal(await outputCount(page).textContent(), "12 pages", "Heading keyboard action adds the Input group")
         await page.close()
       }
     } finally {
@@ -315,7 +303,7 @@ test(
   },
 )
 
-test("Touch Grid and List hide edit actions until focus while keeping eyes visible", { timeout: 60000 }, async () => {
+test("Touch Grid keeps direct actions visible and List reveals edits on focus", { timeout: 60000 }, async () => {
   const server = await serve()
   const browser = await launch(chromium)
   try {
@@ -359,7 +347,7 @@ test("Touch Grid and List hide edit actions until focus while keeping eyes visib
       const card = panel.locator(".composition-card").first()
       const edit = pane === "Input" ? card.locator(".input-footer button").first() : card.locator(".card-menu")
       const gridEye = card.locator(".grid-inspect")
-      assert.equal(await edit.evaluate((element) => getComputedStyle(element).opacity), "0")
+      assert.equal(await edit.evaluate((element) => getComputedStyle(element).opacity), "1")
       assert.equal(await gridEye.evaluate((element) => getComputedStyle(element).opacity), "1")
       await card.locator(".page-image").focus()
       assert.equal(await edit.evaluate((element) => getComputedStyle(element).opacity), "1")
@@ -408,7 +396,7 @@ test("Section ribbons show four-dot press feedback and drag complete groups", { 
     await page.mouse.move(from.x + from.width / 2 + 20, from.y + from.height / 2 + 20, { steps: 5 })
     await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 })
     await page.mouse.up()
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "3 pages")
+    assert.equal(await outputCount(page).textContent(), "3 pages")
     await tab(input, "Grid")
     const gridRibbon = input.getByRole("button", { name: "Fold Input section: First", exact: true })
     assert.equal(await gridRibbon.getAttribute("draggable"), "true")
@@ -601,7 +589,7 @@ test("List section paths put the current title first and open details independen
         await panel.waitFor()
         assert.deepEqual(await panel.locator(".path-step > span:last-child").allTextContents(), path)
         assert.equal(await selection.inputValue(), "1", "Reading the path does not select pages")
-        assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
+        assert.equal(await outputCount(page).textContent(), "8 pages")
         await panel.getByRole("button", { name: `Go to section: ${path[0]}`, exact: true }).press("Enter")
         await panel.waitFor({ state: "hidden" })
         await page.waitForFunction(
@@ -609,7 +597,7 @@ test("List section paths put the current title first and open details independen
             document.activeElement?.classList.contains("list-heading") && document.activeElement?.dataset.page === "0",
         )
         assert.equal(await selection.inputValue(), "1", "Path navigation preserves selection")
-        assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
+        assert.equal(await outputCount(page).textContent(), "8 pages")
         await heading.click()
         assert.notEqual(await selection.inputValue(), "1", "Heading retains section selection")
         const selected = await selection.inputValue()
@@ -709,7 +697,7 @@ test(
         )
         assert.equal(await page.locator(".card-menu-options:popover-open .section-path").count(), 0)
         assert.equal(await output.getByLabel("Page selection", { exact: true }).inputValue(), "130")
-        assert.equal(await output.locator(".composition-totals strong").textContent(), "130 pages")
+        assert.equal(await outputCount(page).textContent(), "130 pages")
       } finally {
         await browser.close()
       }
@@ -891,7 +879,7 @@ test("List section headings default to shown and toggle independently without ch
           "Collapsed pages become visible",
         )
         assert.equal(await selection.inputValue(), "1-2")
-        assert.equal(await output.locator(".composition-totals strong").textContent(), "9 pages")
+        assert.equal(await outputCount(page).textContent(), "9 pages")
         const other = pane === input ? output : input
         assert.equal(
           await other.getByRole("button", { name: "Section headings", exact: true }).getAttribute("aria-pressed"),
@@ -943,11 +931,10 @@ test("List section headings default to shown and toggle independently without ch
           return {
             start: icon[0] - box.left,
             end: box.right - bounds(".page-destination > button svg")[1],
-            centered: Math.abs((icon[0] + icon[1]) / 2 - (tab.left + tab.width / 2)) < 1,
+            tabTarget: tab.width >= 44,
           }
         })
-        if (width === 375) assert.ok(edges.centered && Math.abs(edges.end - 4) < 1, JSON.stringify(edges))
-        else assert.ok(edges.start > 0 && edges.end > 0, "Wide toolbar spacing stays unchanged")
+        assert.ok(edges.tabTarget && Math.abs(edges.start) < 1 && Math.abs(edges.end) < 1, JSON.stringify(edges))
         assert.ok(
           await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
           "No horizontal overflow",
@@ -1053,7 +1040,7 @@ test(
         assert.equal(await selection.inputValue(), "1-4")
         await finish(output.locator(".composition-empty"))
         assert.equal(await drag.getAttribute("aria-expanded"), "true", "Dropping does not fold the section")
-        assert.equal(await output.locator(".composition-totals strong").textContent(), "4 pages")
+        assert.equal(await outputCount(page).textContent(), "4 pages")
         await selection.fill("")
         await input.getByRole("button", { name: "Add Input section pages 5–8 to Output", exact: true }).press("Enter")
         await output.getByLabel("Page selection", { exact: true }).fill("")
@@ -1064,7 +1051,7 @@ test(
         await begin(disclosure(output, "Second group"))
         const target = output.locator(".list-heading").filter({ hasText: "First group" }).first()
         await finish(target, 0.2)
-        assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
+        assert.equal(await outputCount(page).textContent(), "8 pages")
         await output.getByRole("button", { name: "Unfold all Output sections", exact: true }).click()
         const moved = await output
           .locator(".page-list > :is(.list-row, .list-section)")
@@ -1296,7 +1283,7 @@ test("Contents keeps compact rows and fixed width across disclosure states", { t
             }),
           })
         const input = page.locator(".selection-panel")
-        await input.locator(".input-current").filter({ hasText: "Contents.pdf" }).waitFor({ state: "attached" })
+        await page.locator('.input-picker > summary[aria-label$="Contents.pdf"]').waitFor()
         await page.locator('.composer[aria-busy="false"]').waitFor()
         await tab(input, "List")
         for (const width of [1440, 768, 375, 320]) {
@@ -1371,17 +1358,6 @@ test("Contents keeps compact rows and fixed width across disclosure states", { t
               assert.ok(
                 margins.every((margin) => Math.abs(margin - margins[0]) < 1),
                 JSON.stringify(margins),
-              )
-            }
-            if (width <= 480) {
-              assert.equal(
-                await input
-                  .locator(".input-current")
-                  .evaluate(
-                    (element) =>
-                      getComputedStyle(element).color === getComputedStyle(element.closest(".input-heading")).color,
-                  ),
-                true,
               )
             }
             await page.keyboard.press("Escape")
@@ -2621,10 +2597,10 @@ test(
           true,
         )
         await page.keyboard.press("Delete")
-        assert.equal(await output.locator(".composition-totals strong").textContent(), `${count} pages`)
+        assert.equal(await outputCount(page).textContent(), `${count} pages`)
         await page.keyboard.press("-")
         await output.locator(`:is(.list-choice, .list-heading)[data-page="${count - 2}"]`).waitFor()
-        assert.equal(await output.locator(".composition-totals strong").textContent(), `${count - 1} pages`)
+        assert.equal(await outputCount(page).textContent(), `${count - 1} pages`)
         assert.equal(
           await output
             .locator(`:is(.list-choice, .list-heading)[data-page="${count - 2}"]`)
@@ -2664,14 +2640,14 @@ test(
       const selection = output.getByLabel("Page selection", { exact: true })
       await selection.fill("1-1000")
       await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "2000 pages")
+      assert.equal(await outputCount(page).textContent(), "2000 pages")
       await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "3000 pages")
+      assert.equal(await outputCount(page).textContent(), "3000 pages")
       await page.emulateMedia({ reducedMotion: "reduce" })
       await page.waitForFunction(() => !document.querySelector(".list-row[data-arriving]"))
       await page.emulateMedia({ reducedMotion: "no-preference" })
       await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "2000 pages")
+      assert.equal(await outputCount(page).textContent(), "2000 pages")
       await selection.fill("1-1000")
       await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
       await page.waitForFunction(() => !document.querySelector(".list-row[data-arriving]"))
@@ -2853,7 +2829,7 @@ test(
           () => Number(document.querySelector(".selection-panel .list-choice")?.dataset.page) > 100,
         )
         for (const name of ["Wrapped.pdf", "Short.pdf"]) {
-          await input.locator(".input-picker > summary").click()
+          await page.locator(".input-picker > summary").click()
           await input.locator(".input-choice button").filter({ hasText: name }).click()
           const first = input.locator(':is(.list-choice, .list-heading)[data-page="0"]')
           await first.waitFor()
@@ -2862,7 +2838,7 @@ test(
           assert.ok(row.y >= area.y - 1 && row.y + row.height <= area.y + area.height + 1)
           assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "2,4")
           assert.equal(
-            await input.locator(".input-picker > summary").evaluate((element) => element === document.activeElement),
+            await page.locator(".input-picker > summary").evaluate((element) => element === document.activeElement),
             true,
           )
           assert.ok((await input.locator(".list-row").count()) < 80)
@@ -2967,7 +2943,7 @@ test(
       assert.equal(await moved.getAttribute("data-index"), String(destination.index - 999))
       assert.equal(await moved.getAttribute("aria-posinset"), String(destination.index - 998))
       assert.equal(await moved.getAttribute("aria-setsize"), "10000")
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "10000 pages")
+      assert.equal(await outputCount(page).textContent(), "10000 pages")
       assert.ok((await list.locator(".list-row").count()) < 80)
     } finally {
       await browser.close()
@@ -3086,10 +3062,7 @@ test("Input additions fly from Grid and List to visible Output in both pane layo
               )
             const box = await flight.boundingBox()
             assert.ok(box.width > 0 && box.y < 1000 && box.y + box.height > 0, JSON.stringify({ width, view, box }))
-            assert.equal(
-              await output.locator(".composition-totals strong").innerText(),
-              view === "Grid" ? "10 pages" : "12 pages",
-            )
+            assert.equal(await outputCount(page).innerText(), view === "Grid" ? "10 pages" : "12 pages")
             if (width === 390)
               assert.ok(
                 await switcher.evaluate((button) => button.getAnimations().length > 0),

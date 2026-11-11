@@ -7,7 +7,7 @@ import { serve } from "./server.ts"
 import { mkdir, readFile } from "node:fs/promises"
 import { measure } from "./measure.js"
 import { chromium } from "playwright"
-import { tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
+import { outputCount, tab, fixture, trackWorkers, checkStatus, checkGeometry, captureLayout } from "./browser.js"
 
 test("Parameter hover waits, cancels on leaving or Escape, and keeps click immediate", { timeout: 30000 }, async () => {
   const server = await serve()
@@ -85,24 +85,24 @@ test("Each Input retains its Pages presentation after switching Inputs", async (
       buffer: fixture(),
     })
     const input = page.locator(".selection-panel")
-    const upload = input.locator('input[type=file][aria-label="Open PDF"]')
+    const upload = page.locator(".composer").locator('input[type=file][aria-label="Open PDF"]')
     await tab(input, "List")
     await upload.setInputFiles({ name: "Second.pdf", mimeType: "application/pdf", buffer: fixture() })
     await page.locator(".status-input").filter({ hasText: "Second.pdf" }).waitFor({ state: "attached" })
     assert.equal(await input.locator(".composition-grid").isVisible(), true)
-    await input.locator(".input-picker > summary h2").click()
+    await page.locator(".input-picker > summary h2").click()
     await input.locator(".input-list button[data-source]").filter({ hasText: "First.pdf" }).click()
     assert.equal(await input.locator(".page-list").isVisible(), true)
-    await input.locator(".input-picker > summary h2").click()
+    await page.locator(".input-picker > summary h2").click()
     await input.locator(".input-list button[data-source]").filter({ hasText: "Second.pdf" }).click()
     assert.equal(await input.locator(".composition-grid").isVisible(), true)
-    await input.locator(".input-picker > summary h2").click()
+    await page.locator(".input-picker > summary h2").click()
     await input.getByRole("button", { name: "Remove Input", exact: true }).click()
     assert.equal(await input.locator(".page-list").isVisible(), true)
     await upload.setInputFiles({ name: "Third.pdf", mimeType: "application/pdf", buffer: fixture() })
     await page.locator(".status-input").filter({ hasText: "Third.pdf" }).waitFor({ state: "attached" })
     assert.equal(await input.locator(".composition-grid").isVisible(), true)
-    await input.locator(".input-picker > summary h2").click()
+    await page.locator(".input-picker > summary h2").click()
     await input.locator(".input-list button[data-source]").filter({ hasText: "First.pdf" }).click()
     assert.equal(await input.locator(".page-list").isVisible(), true)
   } finally {
@@ -157,7 +157,7 @@ test("Profile options require compatible peers and consider future profile choic
         name !== "Peer",
       )
     }
-    await input.locator(".input-picker > summary h2").click()
+    await page.locator(".input-picker > summary h2").click()
     await input.getByRole("button", { name: /First\.pdf/ }).click()
     assert.equal(
       await input.getByRole("button", { name: "Profile options", exact: true }).isEnabled(),
@@ -251,7 +251,7 @@ test(
             .waitFor()
         }
         const activate = async (name) => {
-          await input.locator(".input-picker > summary h2").click()
+          await page.locator(".input-picker > summary h2").click()
           await input.getByRole("button", { name: new RegExp(`${name}\\.pdf`) }).click()
         }
         const options = input.getByRole("button", { name: "Profile options", exact: true })
@@ -402,7 +402,7 @@ test(
         await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).fill("0.06")
         await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
         const completed = page.waitForEvent("download")
-        await page.locator(".composition-output").getByRole("button", { name: "Download", exact: true }).click()
+        await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
         const downloaded = await completed
         const bytes = [...(await readFile(await downloaded.path()))]
         const description = await page.evaluate(async (pdfBytes) => {
@@ -540,7 +540,7 @@ test("Opaque profile-set IDs keep their annotations across Input switches", { ti
         )
       assert.equal(new Set(targets).size, 2, "Each profile set has its own details panel")
     }
-    await input.locator(".input-picker > summary h2").click()
+    await page.locator(".input-picker > summary h2").click()
     await input.getByRole("button", { name: /Profiles-0.pdf/ }).click()
     for (const set of sets) {
       const profile = input.getByRole("combobox", { name: set.name, exact: true })
@@ -902,7 +902,7 @@ test(
       await page.goto(server.resolvedUrls.local[0])
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
-      const button = output.getByRole("button", { name: "Download", exact: true })
+      const button = page.locator(".composer").getByRole("button", { name: "Download", exact: true })
       const pdf = fixture({ prepared: false })
       for (let index = 0; index < 33; index++) {
         await page
@@ -918,8 +918,8 @@ test(
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
         await page.waitForFunction(
           (count) =>
-            document.querySelector(".composition-output .composition-totals strong")?.textContent ===
-            `${count} ${count === 1 ? "page" : "pages"}`,
+            document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
+              ?.textContent === `${count} ${count === 1 ? "page" : "pages"}`,
           index + 1,
         )
       }
@@ -1036,6 +1036,7 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.locator(".composer[aria-busy=false]").waitFor()
     for (const [width, text, colorScheme, font = ""] of [
       [320, "100%", "light"],
       [320, "100%", "light", "DejaVu Sans, sans-serif"],
@@ -1056,6 +1057,7 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
         },
         { size: text, family: font },
       )
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
       for (const [selector, name] of [
         [".selection-panel", "Input"],
         [".composition-output", "Output"],
@@ -1064,14 +1066,14 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
         const views = page.locator(".mobile-workspace-tabs")
         if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
         if (name === "Input") {
-          if (text === "100%")
+          if (text === "100%" && !(await views.isVisible()))
             assert.ok(
               await pane.locator(".input-current").evaluate((element) => element.scrollWidth <= element.clientWidth),
               `${width}px: the demo filename fits the chooser`,
             )
-          await pane.locator(".input-picker > summary h2").click()
+          await page.locator(".input-picker > summary h2").click()
           assert.ok(
-            await pane.getByRole("button", { name: "Remove Input", exact: true }).evaluate((button) => {
+            await page.getByRole("button", { name: "Remove Input", exact: true }).evaluate((button) => {
               const rect = button.getBoundingClientRect()
               return (
                 rect.width >= 44 &&
@@ -1408,7 +1410,7 @@ test(
       })
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
-      const download = output.getByRole("button", { name: "Download", exact: true })
+      const download = page.locator(".composer").getByRole("button", { name: "Download", exact: true })
       await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
       await tab(input, "Style")
@@ -1416,11 +1418,14 @@ test(
       await color.fill("invalid")
       assert.equal(await download.isDisabled(), true)
       assert.match(await download.getAttribute("title"), /Styled\.pdf: fix Guide color before Download/)
-      await input.locator('input[type=file][aria-label="Open PDF"]').setInputFiles({
-        name: "Ordinary.pdf",
-        mimeType: "application/pdf",
-        buffer: fixture({ prepared: false }),
-      })
+      await page
+        .locator(".composer")
+        .locator('input[type=file][aria-label="Open PDF"]')
+        .setInputFiles({
+          name: "Ordinary.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture({ prepared: false }),
+        })
       await page.locator(".status-input").filter({ hasText: "Ordinary.pdf" }).waitFor({ state: "attached" })
       await input.getByRole("button", { name: "Add to Output", exact: true }).click()
       assert.equal(await download.isDisabled(), true, "An inactive Input's relevant draft still blocks Download")
@@ -1431,7 +1436,7 @@ test(
       const pending = page.waitForEvent("download")
       await download.click()
       assert.equal(await (await pending).failure(), null)
-      await input.locator(".input-picker > summary h2").click()
+      await page.locator(".input-picker > summary h2").click()
       await input.locator(".input-list button[data-source]").first().click()
       await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
@@ -1594,7 +1599,7 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
         await helpDialog.getByRole("tab", { name: "Mouse", exact: true }).getAttribute("aria-selected"),
         "true",
       )
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "2 pages")
+      assert.equal(await outputCount(page).textContent(), "2 pages")
       await page.keyboard.press("Escape")
       await helpDialog.waitFor({ state: "hidden" })
       assert.equal(await help.evaluate((item) => item === document.activeElement), true)
@@ -1672,7 +1677,7 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
     await tour.getByRole("button", { name: "End tour", exact: true }).click()
     assert.equal(await help.evaluate((item) => item === document.activeElement), true)
     assert.equal(await selection.inputValue(), "")
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "2 pages")
+    assert.equal(await outputCount(page).textContent(), "2 pages")
   } finally {
     await browser?.close()
   }
@@ -1768,7 +1773,7 @@ test(
       assert.equal(await color().inputValue(), "#abcdef")
       assert.equal(await page.evaluate(() => window.styleRequests), requests)
       const pending = page.waitForEvent("download")
-      await output.getByRole("button", { name: "Download", exact: true }).click()
+      await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
       const downloaded = await pending
       const bytes = await readFile(await downloaded.path())
       const colors = await page.evaluate(async (buffer) => {
@@ -1827,7 +1832,7 @@ test("Download reuses completed full-document styles and invalidates changed Out
     const saved = []
     const download = async () => {
       const pending = page.waitForEvent("download")
-      await output.getByRole("button", { name: "Download", exact: true }).click()
+      await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
       saved.push([...(await readFile(await (await pending).path()))])
     }
     for (const value of ["inkjet", "generic"]) {
@@ -1922,7 +1927,7 @@ test("Cancelling a paused batch inspection releases the next Source", { timeout:
     await page.getByRole("button", { name: "Retry Input styles", exact: true }).click()
     await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
     assert.equal(
-      await page.locator(".composition-output").getByRole("button", { name: "Download", exact: true }).isEnabled(),
+      await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).isEnabled(),
       true,
     )
     assert.equal(await input.getByRole("combobox", { name: "Style profile", exact: true }).inputValue(), "inkjet")
@@ -1998,7 +2003,7 @@ test("Style and Download cancellation release preview workers and retain choices
     await page.getByRole("button", { name: "Cancel style processing", exact: true }).click()
     await page.waitForFunction((worker) => worker.terminated, cancelledStyle)
     assert.equal(await input.getByRole("combobox", { name: "Style profile", exact: true }).inputValue(), "inkjet")
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "2 pages")
+    assert.equal(await outputCount(page).textContent(), "2 pages")
     assert.equal(await page.locator(".header-feedback").getByRole("alert").count(), 1)
     await page.evaluate(() => {
       window.holdPDFRendering = false
@@ -2023,7 +2028,10 @@ test("Style and Download cancellation release preview workers and retain choices
     )
     await input.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("inkjet")
     await page.waitForFunction((worker) => worker.terminated, supersededStyle)
-    assert.equal(await output.getByRole("button", { name: "Download", exact: true }).isEnabled(), true)
+    assert.equal(
+      await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).isEnabled(),
+      true,
+    )
     assert.equal(await page.locator(".header-feedback .feedback[data-kind=error]").count(), 0)
     await page.evaluate(() => (window.pdfContinuations = []))
     const downloads = []
@@ -2032,7 +2040,7 @@ test("Style and Download cancellation release preview workers and retain choices
       window.holdPDFRendering = true
       return window.workers.length
     })
-    await output.getByRole("button", { name: "Download", exact: true }).click()
+    await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
     const cancelledDownload = await page.waitForFunction(
       (count) =>
         window.pdfContinuations.length > 0 &&
@@ -2044,7 +2052,7 @@ test("Style and Download cancellation release preview workers and retain choices
     assert.equal(await page.getByRole("dialog", { name: "Download", exact: true }).isVisible(), false)
     assert.equal(downloads.length, 0)
     assert.equal(await page.evaluate(() => window.downloadURLs.length), 0, "Cancellation creates no downloadable URL")
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "2 pages")
+    assert.equal(await outputCount(page).textContent(), "2 pages")
     assert.equal(await input.getByRole("combobox", { name: "Style profile", exact: true }).inputValue(), "inkjet")
     await page.evaluate(() => {
       window.holdPDFRendering = false
@@ -2052,11 +2060,11 @@ test("Style and Download cancellation release preview workers and retain choices
     })
     await page.clock.install()
     const saved = page.waitForEvent("download")
-    await output.getByRole("button", { name: "Download", exact: true }).click()
+    await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
     assert.equal(await (await saved).failure(), null)
     assert.equal(downloads.length, 1)
     const replacement = page.waitForEvent("download")
-    await output.getByRole("button", { name: "Download", exact: true }).click()
+    await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
     await replacement
     assert.deepEqual(
       await page.evaluate(() => window.downloadURLs.map(({ revoked }) => revoked)),
@@ -2070,7 +2078,7 @@ test("Style and Download cancellation release preview workers and retain choices
       "The retained PDF URL expires",
     )
     await page.evaluate(() => (window.failPDFRendering = true))
-    await output.getByRole("button", { name: "Download", exact: true }).click()
+    await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
     const dialog = page.getByRole("dialog", { name: "Download", exact: true })
     await dialog.getByRole("alert").waitFor()
     assert.match(await dialog.getByRole("alert").innerText(), /Verification render failed/)
@@ -2166,7 +2174,7 @@ test(
       await page.getByRole("button", { name: "Retry Input styles", exact: true }).click()
       await status.filter({ hasText: "Updated styles." }).waitFor()
       const pending = page.waitForEvent("download")
-      await output.getByRole("button", { name: "Download", exact: true }).click()
+      await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
       const saved = await pending
       assert.equal(await saved.failure(), null)
       assert.equal(await status.textContent(), `Downloaded 2 pages · ${saved.suggestedFilename()}.`)
@@ -2187,7 +2195,7 @@ test(
         await page.locator(".header-feedback .feedback[data-kind=error]").textContent(),
         /PDF Composer cannot read this PDF/,
       )
-      assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "2 pages")
+      assert.equal(await outputCount(page).textContent(), "2 pages")
       assert.equal(await page.locator(".header-feedback .feedback[data-kind=error]").count(), 1)
       // Preserve PDF byte offsets to isolate an unknown manifest field.
       const unknown = Buffer.from(fixture().toString().replace('"groups":', '"extra": '))
@@ -2205,7 +2213,7 @@ test(
       assert.match(await banner.textContent(), /style information.*invalid or incompatible/)
       assert.match(await banner.textContent(), /Your workspace is retained\. Choose a PDF to retry\./)
       assert.match(await banner.textContent(), /prepare it again with the current Mainz format/)
-      assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "2 pages")
+      assert.equal(await outputCount(page).textContent(), "2 pages")
       for (const [viewportWidth, text, colorScheme] of [
         [1440, "100%", "light"],
         [320, "200%", "dark"],
@@ -2427,15 +2435,18 @@ test(
       await page.keyboard.press("Escape")
       await page.setViewportSize({ width: 1440, height: 1080 })
       await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+      const inputSwitch = page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Input", exact: true })
+      if (await inputSwitch.isVisible()) await inputSwitch.click()
       await page
-        .locator("input[type=file]")
+        .locator('.composer input[type=file][aria-label="Open PDF"]')
         .first()
         .setInputFiles({
           name: "Lens.pdf",
           mimeType: "application/pdf",
           buffer: fixture({ prepared: false }),
         })
-      await page.waitForFunction(() => document.querySelector(".input-current")?.textContent === "Lens.pdf")
+      await page.locator(".status-input").filter({ hasText: "Lens.pdf" }).waitFor({ state: "attached" })
       const rasters = []
       for (const [expected, steps] of [
         [2, -3],
@@ -2870,7 +2881,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     await reveal("Minors", "Width")
     await checkStatus(page)
     const pending = page.waitForEvent("download", { timeout: 60000 })
-    await output.getByRole("button", { name: "Download", exact: true }).click()
+    await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
     const download = await pending
     assert.equal(await download.failure(), null)
     const saved = await readFile(await download.path())
@@ -2921,7 +2932,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     assert.match(await minor.locator('.quartet-text[title^="Stroke opacity:"]').textContent(), /30%/)
     assert.equal(await majorOpacity.textContent(), originalMajorOpacity)
     const editedPending = page.waitForEvent("download", { timeout: 60000 })
-    await output.getByRole("button", { name: "Download", exact: true }).click()
+    await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
     const edited = await editedPending
     assert.equal(await edited.failure(), null)
     await open("custom.pdf", await readFile(await edited.path()))
@@ -3062,13 +3073,16 @@ test(
         assert.equal(await slider.inputValue(), "0.123456789")
         await page.getByRole("button", { name: "Edit Stroke", exact: true }).click()
         const download = page.waitForEvent("download")
-        await page.locator(".composition-output").getByRole("button", { name: "Download", exact: true }).click()
+        await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
         const saved = await download
-        await input.locator('input[type=file][aria-label="Open PDF"]').setInputFiles({
-          name: "Saved opacity.pdf",
-          mimeType: "application/pdf",
-          buffer: await readFile(await saved.path()),
-        })
+        await page
+          .locator(".composer")
+          .locator('input[type=file][aria-label="Open PDF"]')
+          .setInputFiles({
+            name: "Saved opacity.pdf",
+            mimeType: "application/pdf",
+            buffer: await readFile(await saved.path()),
+          })
         await page.locator(".status-input").filter({ hasText: "Saved opacity.pdf" }).waitFor({ state: "attached" })
         await tab(input, "List")
         await input.getByLabel("Page selection", { exact: true }).fill("1")
@@ -3174,8 +3188,7 @@ test("Opaque parameter IDs retain style edits, draft errors, and downloaded valu
         mimeType: "application/pdf",
         buffer: Buffer.from(pdf),
       })
-    const input = page.locator(".selection-panel"),
-      output = page.locator(".composition-output")
+    const input = page.locator(".selection-panel")
     await tab(input, "List")
     await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
     await tab(input, "Style")
@@ -3196,13 +3209,16 @@ test("Opaque parameter IDs retain style edits, draft errors, and downloaded valu
     await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).fill("0.4")
     await page.waitForFunction(() => !document.querySelector(".header-feedback .style-progress"))
     const completed = page.waitForEvent("download")
-    await output.getByRole("button", { name: "Download", exact: true }).click()
+    await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
     const downloaded = await completed
-    await input.locator('input[type=file][aria-label="Open PDF"]').setInputFiles({
-      name: downloaded.suggestedFilename(),
-      mimeType: "application/pdf",
-      buffer: await readFile(await downloaded.path()),
-    })
+    await page
+      .locator(".composer")
+      .locator('input[type=file][aria-label="Open PDF"]')
+      .setInputFiles({
+        name: downloaded.suggestedFilename(),
+        mimeType: "application/pdf",
+        buffer: await readFile(await downloaded.path()),
+      })
     await page.locator(".status-input").filter({ hasText: downloaded.suggestedFilename() }).waitFor()
     await tab(input, "Grid")
     await input.getByRole("button", { name: "Add to Output", exact: true }).click()
@@ -3230,7 +3246,7 @@ test("Page addition hint skips on any click", { timeout: 60000 }, async () => {
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(server.resolvedUrls.local[0] + "?demo=empty")
     const flight = page.locator(".page-flight:popover-open")
-    const total = () => page.locator(".composition-output .composition-totals strong").textContent()
+    const total = () => outputCount(page).textContent()
     const pause = () => flight.evaluate((element) => element.getAnimations().forEach((animation) => animation.pause()))
     await flight.waitFor()
     await pause()
@@ -3543,7 +3559,9 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
       .fill("3-5,2,2,7")
     await page.locator(".selection-panel").getByRole("textbox", { name: "Page selection", exact: true }).press("Enter")
     await page.waitForFunction(
-      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "6 pages",
+      () =>
+        document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
+        "6 pages",
     )
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
@@ -3600,7 +3618,7 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
         (await outputPage().getAttribute("aria-selected")) === "true",
       "Tour restores the previous workspace tabs",
     )
-    assert.ok((await output.locator(".composition-totals strong").textContent()) === "6 pages", "Tour preserves Output")
+    assert.ok((await outputCount(page).textContent()) === "6 pages", "Tour preserves Output")
     await startTour()
     await step("input")
     await tour.getByRole("button", { name: "Next", exact: true }).click()
@@ -3616,7 +3634,7 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
     assert.ok(
       (await inputStyle().getAttribute("aria-selected")) === "true" &&
         (await outputPage().getAttribute("aria-selected")) === "true" &&
-        (await output.locator(".composition-totals strong").textContent()) === "6 pages" &&
+        (await outputCount(page).textContent()) === "6 pages" &&
         (await help.evaluate((button) => button === document.activeElement)),
       "End tour restores the previous tabs and focus without changing Output",
     )
@@ -3841,7 +3859,7 @@ test(
         await page.getByRole("button", { name: "Select Input page 1", exact: true }).getAttribute("aria-pressed"),
         "true",
       )
-      assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "0 pages")
+      assert.equal(await outputCount(page).textContent(), "0 pages")
       const origin = await page.locator('[data-tour-target="first-page"] .thumbnail canvas').boundingBox()
       const spotlight = await flight.evaluate((element) => {
         const style = getComputedStyle(element, "::backdrop")
@@ -3874,7 +3892,7 @@ test(
       )
       await flight.waitFor({ state: "hidden" })
       assert.equal((await instructionText.textContent()).trim(), instruction)
-      assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "0 pages")
+      assert.equal(await outputCount(page).textContent(), "0 pages")
       assert.equal(
         await instructionText.evaluate((element) => getComputedStyle(element).fontWeight),
         "700",
@@ -3911,15 +3929,14 @@ test("Opening, editing, and Download preserve arranged pages and accepted styles
         mimeType: "application/pdf",
         buffer: fixture({ metadata: [{ name: "Cover" }, {}, { name: "Chapter" }] }),
       })
-    const input = page.locator(".selection-panel"),
-      output = page.locator(".composition-output")
+    const input = page.locator(".selection-panel")
     await input.getByLabel("Page selection", { exact: true }).fill("3,1,3")
     await input.getByLabel("Page selection", { exact: true }).press("Enter")
     await tab(input, "Style")
     await input.getByRole("textbox", { name: "Guide Color", exact: true }).fill("#884488")
     await page.getByRole("button", { name: "Cancel style processing", exact: true }).waitFor({ state: "hidden" })
     const pending = page.waitForEvent("download")
-    await output.getByRole("button", { name: "Download", exact: true }).click()
+    await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
     const download = await pending,
       bytes = await readFile(await download.path())
     const inspected = await page.evaluate(async (bytes) => {
@@ -3944,7 +3961,7 @@ test("Opening, editing, and Download preserve arranged pages and accepted styles
       inspected.pages.map((page) => page.name),
       ["Chapter", "Cover", "Chapter"],
     )
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "3 pages")
+    assert.equal(await outputCount(page).textContent(), "3 pages")
     const warnings = []
     page.on("dialog", async (dialog) => {
       warnings.push(dialog.type())

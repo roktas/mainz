@@ -8,7 +8,7 @@ import { mkdir, readFile } from "node:fs/promises"
 import { measure } from "./measure.js"
 import { chromium } from "playwright"
 import { aligned, zoom } from "./workspace.js"
-import { fixture, hasCursor, tab, gridPage, pagePosition, image, pixel, captureLayout } from "./browser.js"
+import { outputCount, fixture, hasCursor, tab, gridPage, pagePosition, image, pixel, captureLayout } from "./browser.js"
 
 const standard = process.env.MAINZ_TEST_MODE === "standard"
 
@@ -137,7 +137,9 @@ test("Grid PageUp and PageDown navigate continuous rows without changing selecti
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
     await page.waitForFunction(
-      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "60 pages",
+      () =>
+        document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
+        "60 pages",
     )
     for (const width of [390, 1440]) {
       await page.setViewportSize({ width, height: 900 })
@@ -200,7 +202,9 @@ test("Page and Grid share viewport bounds and preserve fitted image sizes", { ti
           await page.setViewportSize({ width, height })
           await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
           await page.waitForFunction(
-            () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "80 pages",
+            () =>
+              document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
+                ?.textContent === "80 pages",
           )
           const before = await measure(input)
           await tab(output, "Page")
@@ -347,7 +351,7 @@ test("Page pinch zoom preserves its anchor and shares the button zoom range", { 
       await page.emulateMedia({ colorScheme })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-      await page.locator(".composition-output .composition-totals strong").waitFor({ state: "attached" })
+      await outputCount(page).waitFor({ state: "attached" })
       const session = await page.context().newCDPSession(page)
       for (const name of ["Input", "Output"]) {
         await page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true }).tap()
@@ -421,7 +425,7 @@ test("Page pinch zoom preserves its anchor and shares the button zoom range", { 
           )
           assert.equal(await page.evaluate(() => visualViewport.scale), 1)
           assert.equal(await selection.inputValue(), prepared)
-          assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "8 pages")
+          assert.equal(await outputCount(page).textContent(), "8 pages")
           await zoom(pane, "Zoom in")
           assert.equal(await pane.locator("output").textContent(), value === 175 ? "200%" : "300%")
           await zoom(pane, "Zoom out")
@@ -457,7 +461,7 @@ test("Page pinch zoom preserves its anchor and shares the button zoom range", { 
             })
           }
           assert.equal(await selection.inputValue(), prepared)
-          assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "8 pages")
+          assert.equal(await outputCount(page).textContent(), "8 pages")
         }
       }
       assert.deepEqual(errors, [])
@@ -479,7 +483,7 @@ test("Page cancellation clears a pending pinch before the next render", { timeou
     page.on("pageerror", (error) => errors.push(error.message))
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-    await page.locator(".composition-output .composition-totals strong").waitFor({ state: "attached" })
+    await outputCount(page).waitFor({ state: "attached" })
     await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).click()
     const pane = page.locator(".composition-output")
     for (const action of ["touchcancel", "blur", "navigate", "hidden", "detach"]) {
@@ -690,11 +694,11 @@ test(
       await input.getByRole("button", { name: "Clear page sequence", exact: true }).click()
       await input.getByRole("button", { name: "Add Input page 2 to Output", exact: true }).press("Space")
       assert.equal(await select.inputValue(), "")
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "1 page")
+      assert.equal(await outputCount(page).textContent(), "1 page")
       await tab(input, "Page")
       await select.fill("7,2,2")
       await input.getByRole("button", { name: "Add to Output", exact: true }).click()
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "4 pages")
+      assert.equal(await outputCount(page).textContent(), "4 pages")
       assert.equal(await select.inputValue(), "")
       await select.fill("7,2,2")
       await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
@@ -1019,7 +1023,7 @@ test(
       await viewport.press("Delete")
       assert.match(await pagePosition(output), /3\s*\/ 4/)
       await output.getByRole("button", { name: "Duplicate Output page 3", exact: true }).click()
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "5 pages")
+      assert.equal(await outputCount(page).textContent(), "5 pages")
       await zoom(input, "Reset zoom")
       await zoom(output, "Reset zoom")
       await input.getByRole("button", { name: "Previous Input page", exact: true }).click()
@@ -1040,7 +1044,7 @@ test(
       await input.locator(".inspection-heading .page-grip").dragTo(output.locator(".inspection-target"), {
         targetPosition: { x: dropBox.width - 2, y: 100 },
       })
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
+      assert.equal(await outputCount(page).textContent(), "8 pages")
       assert.equal(await select.inputValue(), "")
       assert.equal(await output.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected"), "true")
       for (let position = 2; position < 7; position++)
@@ -1051,7 +1055,7 @@ test(
         assert.equal(await pane.locator(".page-actions button").count(), pane === input ? 1 : 0)
       }
       const pending = page.waitForEvent("download")
-      await output.getByRole("button", { name: "Download", exact: true }).click()
+      await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
       const saved = await readFile(await (await pending).path())
       await output.getByRole("button", { name: "Select all", exact: true }).click()
       await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
@@ -1097,7 +1101,7 @@ test(
       await input.getByLabel("Input page actions", { exact: true }).click()
       await input.getByRole("textbox", { name: "Repetitions", exact: true }).fill("1000")
       await input.getByRole("button", { name: "Add to Output", exact: true }).click()
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "10000 pages")
+      assert.equal(await outputCount(page).textContent(), "10000 pages")
       const beforeDrop = await pagePosition(output)
       const beforeSelection = await output.getByLabel("Page selection", { exact: true }).inputValue()
       await input.locator(".inspection-heading .page-grip").dispatchEvent("dragstart", {
@@ -1113,7 +1117,7 @@ test(
       await output.locator(".inspection-target").dispatchEvent("drop", { dataTransfer: transfer })
       assert.equal(await pagePosition(output), beforeDrop)
       assert.equal(await output.getByLabel("Page selection", { exact: true }).inputValue(), beforeSelection)
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "10000 pages")
+      assert.equal(await outputCount(page).textContent(), "10000 pages")
       assert.match(
         await page.locator(".header-feedback .feedback[data-kind=error]").innerText(),
         /supports up to 10000/,
@@ -1285,7 +1289,7 @@ test("Touch Page swipes navigate only without horizontal overflow", { timeout: 1
         await swipe(-96)
         assert.match(await pagePosition(pane), /^2\s*\//, "Panning at an image edge never changes page")
         assert.equal(await pane.getByLabel("Page selection", { exact: true }).inputValue(), "2,4")
-        assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "8 pages")
+        assert.equal(await outputCount(page).textContent(), "8 pages")
       }
       await session.detach()
       await page.close()
@@ -1378,7 +1382,7 @@ test("Page width fitting and horizontal keys preserve composition and focus", { 
           await selection.press("ArrowLeft")
           assert.match(await pagePosition(pane), /3\s*\//, "Fields retain their native arrow keys")
           assert.equal(await selection.inputValue(), prepared)
-          assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "8 pages")
+          assert.equal(await outputCount(page).textContent(), "8 pages")
         }
         await page.close()
       }
@@ -1548,7 +1552,7 @@ test("Page double activation toggles anchored zoom and preserves composition", {
           const point = { x: before.width * 0.63, y: before.height / 2 }
           const prepared = await pane.getByLabel("Page selection", { exact: true }).inputValue()
           const beforePosition = await pagePosition(pane)
-          const total = await page.locator(".composition-output .composition-totals strong").textContent()
+          const total = await outputCount(page).textContent()
           const activate = async (at) => {
             if (hasTouch) {
               await canvas.tap({ position: at })
@@ -1596,7 +1600,7 @@ test("Page double activation toggles anchored zoom and preserves composition", {
           assert.equal(await pane.getByLabel(`${name} page zoom`, { exact: true }).innerText(), "100%")
           assert.equal(await pane.getByLabel("Page selection", { exact: true }).inputValue(), prepared)
           assert.equal(await pagePosition(pane), beforePosition)
-          assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), total)
+          assert.equal(await outputCount(page).textContent(), total)
         }
         await page.close()
       }
@@ -1626,7 +1630,7 @@ test("Repeated Page copies emphasize status without changing focus or geometry",
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-      await page.locator(".composition-output .composition-totals strong").waitFor({ state: "attached" })
+      await outputCount(page).waitFor({ state: "attached" })
       if (hasTouch)
         await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).tap()
       const pane = page.locator(".composition-output")
@@ -1640,7 +1644,7 @@ test("Repeated Page copies emphasize status without changing focus or geometry",
         message
       for (const count of [9, 10]) {
         await pane.locator(".page-scroll").press("Space")
-        assert.equal(await pane.locator(".composition-totals strong").textContent(), `${count} pages`)
+        assert.equal(await outputCount(page).textContent(), `${count} pages`)
         assert.equal(await pane.getByLabel("Page selection", { exact: true }).inputValue(), "")
         assert.equal(await pane.locator(".page-scroll").evaluate((element) => element === document.activeElement), true)
         const after = await canvas.boundingBox()
@@ -2119,7 +2123,9 @@ test("Unused and modified Grid keys preserve pointer controls and native shortcu
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
     await page.waitForFunction(
-      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
+      () =>
+        document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
+        "8 pages",
     )
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
@@ -2183,13 +2189,9 @@ test("Unused and modified Grid keys preserve pointer controls and native shortcu
       )
     }
     await prepared.fill("1")
-    const total = await output.locator(".composition-totals strong").textContent()
+    const total = await outputCount(page).textContent()
     await prepared.dispatchEvent("keydown", { key: "Enter", isComposing: true })
-    assert.equal(
-      await output.locator(".composition-totals strong").textContent(),
-      total,
-      "IME confirmation does not add prepared pages",
-    )
+    assert.equal(await outputCount(page).textContent(), total, "IME confirmation does not add prepared pages")
   } finally {
     await browser?.close()
   }
@@ -2496,7 +2498,7 @@ test(
         pages: undefined,
         count: 51,
       })
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "18 pages")
+      assert.equal(await outputCount(page).textContent(), "18 pages")
 
       const sample = await readFile("test/fixtures/demo.pdf")
       const retained = await page.evaluate(async (bytes) => {

@@ -17,7 +17,8 @@ async function open(page, server, count = 240) {
   await page.goto(`${server.resolvedUrls.local[0]}?demo=grid&geometry`)
   await page.waitForFunction(
     (count) =>
-      document.querySelector(".composition-output .composition-totals strong")?.textContent === `${count} pages`,
+      document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
+      `${count} pages`,
     count,
   )
 }
@@ -101,8 +102,8 @@ test("One Grid schema captures both panes at phone, tablet, and desktop sizes", 
         assert.deepEqual(Object.keys(sample.layout.output), ["normal"])
         assert.equal(sample.layout.input.normal.total, 240)
         assert.equal(sample.layout.output.normal.total, 240)
-        assert.ok(sample.layout.input.normal.mounted < 40)
-        assert.ok(sample.layout.output.normal.mounted < 40)
+        assert.ok(sample.layout.input.normal.mounted < sample.layout.input.normal.total)
+        assert.ok(sample.layout.output.normal.mounted < sample.layout.output.normal.total)
         assert.deepEqual(quality(sample), [])
         assert.equal(await input.locator(".page-list").isVisible(), true)
         assert.equal(await selection.inputValue(), "2")

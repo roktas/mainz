@@ -5,7 +5,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
 import { chromium } from "playwright"
-import { fixture, captureLayout, tab, checkStatus, checkGridScroll } from "./browser.js"
+import { outputCount, fixture, captureLayout, tab, checkStatus, checkGridScroll } from "./browser.js"
 import { measure } from "./measure.js"
 import { quality } from "./quality.ts"
 
@@ -753,15 +753,14 @@ test("Grid headers reveal page names without changing card geometry", { timeout:
           }
         }
       }
-      const input = page.locator(".selection-panel"),
-        output = page.locator(".composition-output")
+      const input = page.locator(".selection-panel")
       await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("")
       await input
         .locator(".input-footer")
         .nth(1)
         .getByRole("button", { name: "Add Input page 2 to Output", exact: true })
         .click()
-      assert.match(await output.locator(".composition-totals").innerText(), /^5 pages/)
+      assert.match(await outputCount(page).locator("..").innerText(), /^5 pages/)
     } finally {
       await browser.close()
     }
@@ -1135,17 +1134,11 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
                 targets.find((entry) => entry.label.startsWith(action)) ??
                 targets.find((entry) => entry.label.startsWith("Actions"))
               assert.ok(target, label)
-              const before = parseInt(
-                await page.locator(".composition-output .composition-totals strong").textContent(),
-              )
+              const before = parseInt(await outputCount(page).textContent())
               await page.touchscreen.tap(target.points[1].x, target.points[1].y)
               if (action === "Select or drag") {
                 assert.equal(await field.inputValue(), selected ? "1" : String(lower), label)
-                assert.equal(
-                  parseInt(await page.locator(".composition-output .composition-totals strong").textContent()),
-                  before,
-                  label,
-                )
+                assert.equal(parseInt(await outputCount(page).textContent()), before, label)
               } else {
                 if (target.label.startsWith("Actions")) {
                   const menu = pane.locator(".occurrence-menu:popover-open")
@@ -1157,8 +1150,8 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
                 const expected = before + (action === "Remove" ? -1 : 1)
                 await page.waitForFunction(
                   (count) =>
-                    document.querySelector(".composition-output .composition-totals strong")?.textContent ===
-                    `${count} pages`,
+                    document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
+                      ?.textContent === `${count} pages`,
                   expected,
                 )
                 if (name === "Input") assert.equal(await field.inputValue(), selection, label)
@@ -1188,7 +1181,9 @@ test("Workspace scrolling keeps Grid and Page controls clear of status", { timeo
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
     await page.waitForFunction(
-      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "62 pages",
+      () =>
+        document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
+        "62 pages",
     )
     for (const [width, height, scale, bottom] of [
       [390, 699, 100, 0],
@@ -1279,7 +1274,9 @@ test("Grid layout stays within bounds at responsive widths", { timeout: 120000 }
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid&geometry`)
     await page.waitForFunction(
-      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "80 pages",
+      () =>
+        document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
+        "80 pages",
     )
     for (const [width, height] of [
       [390, 844],
@@ -1289,9 +1286,14 @@ test("Grid layout stays within bounds at responsive widths", { timeout: 120000 }
       [2560, 1440],
     ]) {
       await page.setViewportSize({ width, height })
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
       const sample = await page.evaluate(async () => (await import("/src/geometry.ts")).capture())
       const label = `${width}×${height}`
-      assert.deepEqual(quality(sample), [], label)
+      assert.deepEqual(
+        quality(sample),
+        [],
+        `${label}: ${JSON.stringify({ input: sample.layout.input.normal?.margins, output: sample.layout.output.normal?.margins })}`,
+      )
       for (const pane of ["input", "output"]) {
         const grid = sample.layout[pane].normal
         assert.ok(grid.card.width >= 136 && grid.card.width <= 152, `${pane}: readable card width at ${label}`)
@@ -1315,7 +1317,9 @@ test("Touch Grid keeps full pages reachable across orientations", { timeout: 120
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid&geometry`)
     await page.waitForFunction(
-      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "80 pages",
+      () =>
+        document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
+        "80 pages",
     )
     for (const [width, height] of [
       [390, 844],
@@ -1324,9 +1328,14 @@ test("Touch Grid keeps full pages reachable across orientations", { timeout: 120
       [1024, 768],
     ]) {
       await page.setViewportSize({ width, height })
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
       const sample = await page.evaluate(async () => (await import("/src/geometry.ts")).capture())
       const label = `${width}×${height}`
-      assert.deepEqual(quality(sample), [], label)
+      assert.deepEqual(
+        quality(sample),
+        [],
+        `${label}: ${JSON.stringify({ input: sample.layout.input.normal?.margins, output: sample.layout.output.normal?.margins })}`,
+      )
       for (const pane of ["input", "output"]) {
         const grid = sample.layout[pane].normal
         assert.ok(grid.scroll > 1, `${pane}: vertical scrolling at ${label}`)
@@ -1413,14 +1422,22 @@ test("Page labels and details retain aligned controls across themes and views", 
                   const element = document.querySelector(selector),
                     box = element.getBoundingClientRect(),
                     style = getComputedStyle(element),
-                    outset = parseFloat(style.borderImageOutset.split(" ")[1])
+                    outset = parseFloat(style.borderImageOutset.split(" ")[1]) || 0
                   return [box.left - outset, box.right + outset]
                 }
-                return { header: edges(".header-inner"), tabs: edges(".source-tabs"), footer: edges(".footnote") }
+                return {
+                  header: edges(".header-inner"),
+                  tabs: edges(".source-tabs"),
+                  footer: edges(".footnote"),
+                  compact: !!document.querySelector(".composer[data-compact]"),
+                  field: edges(".selection-panel .sequence-entry > .entry"),
+                }
               })
               assert.ok(
-                Math.abs(separators.header[0] - separators.tabs[0]) < 1 &&
-                  Math.abs(separators.footer[0] - separators.tabs[0]) < 1,
+                separators.compact
+                  ? Math.abs(separators.field[0] - separators.tabs[0]) < 1
+                  : Math.abs(separators.header[0] - separators.tabs[0]) < 1 &&
+                      Math.abs(separators.footer[0] - separators.tabs[0]) < 1,
                 JSON.stringify({ width, text, view, separators }),
               )
               assert.ok(Math.abs(separators.header[1] - separators.footer[1]) < 1, JSON.stringify(separators))
@@ -1512,7 +1529,7 @@ test(
                     .locator(`${view === "List" ? ":is(.list-choice, .list-heading)" : ".page-image"}[data-page="19"]`)
                     .waitFor({ state: "visible" })
                 assert.equal(await selection.inputValue(), "1,3")
-                assert.equal(await output.locator(".composition-totals strong").textContent(), "30 pages")
+                assert.equal(await outputCount(page).textContent(), "30 pages")
                 assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
                 if (width === 375 && text === "100%")
                   assert.equal(
@@ -1882,237 +1899,264 @@ test("Grid and List section styling separates unfolded, selected, and focused st
   }
 })
 
-test("Compact Input counts remain readable with enlarged text", { timeout: 60000 }, async () => {
+test("Narrow workspace counts stay centered without shrinking text", { timeout: 90000 }, async () => {
   const server = await serve()
   for (const engine of engines) {
     const browser = await launch(engine)
     try {
-      const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
+      const page = await browser.newPage({
+        viewport: { width: 375, height: 667 },
+        hasTouch: true,
+        isMobile: true,
+        reducedMotion: "reduce",
+      })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo=toc`)
-      await page.locator(".composer[aria-busy=false]").waitFor()
+      await page.goto(server.resolvedUrls.local[0])
+      await page.getByLabel("Open PDF", { exact: true }).setInputFiles({
+        name: "Long.pdf",
+        mimeType: "application/pdf",
+        buffer: fixture({ prepared: false, count: 1000 }),
+      })
+      await page.locator(".composer[data-compact]").waitFor()
+      await page
+        .locator(".selection-panel")
+        .getByRole("textbox", { name: "Page selection", exact: true })
+        .fill(Array(10).fill("1-1000").join(","))
+      await page.getByRole("button", { name: "Add to Output", exact: true }).click()
+      await page.waitForFunction(
+        () =>
+          document.querySelector(".mobile-workspace-tabs button:last-child .page-count")?.textContent === "10000 pages",
+      )
       for (const width of [320, 375, 390, 744, 768, 820]) {
         await page.setViewportSize({ width, height: 900 })
         for (const size of [100, 200]) {
           await page.evaluate((textSize) => (document.documentElement.style.fontSize = `${textSize}%`), size)
           await page.emulateMedia({ colorScheme: size === 100 ? "dark" : "light" })
-          const totals = page.locator(".input-state .composition-totals")
-          assert.match(await totals.innerText(), /59 pages, 30\s+sheets/)
-          const bounds = await totals.evaluate((element) => {
-            const box = element.getBoundingClientRect()
-            const header = element.closest(".input-heading").getBoundingClientRect()
-            const style = getComputedStyle(element)
-            return {
-              visible: style.visibility === "visible" && box.width > 0,
-              fits: element.scrollWidth <= element.clientWidth + 1 && box.right <= header.right + 1,
-              centered: Math.abs(box.y + box.height / 2 - header.y - header.height / 2) < 1,
-            }
-          })
-          assert.ok(
-            bounds.visible && bounds.fits && bounds.centered,
-            `${engine.name()}, ${width}, ${size}%: ${JSON.stringify(bounds)}`,
+          await page.evaluate(
+            () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
           )
-          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+          const counts = await page.locator(".workspace-counts").evaluateAll((elements) =>
+            elements.map((element) => {
+              const full = element.querySelector(".composition-totals")
+              const short = element.hasAttribute("data-overflow")
+              const visible = element.querySelector(short ? ".page-count" : ".composition-totals")
+              const range = document.createRange()
+              range.selectNodeContents(visible)
+              const text = range.getBoundingClientRect()
+              const button = element.closest("button").getBoundingClientRect()
+              return {
+                value: visible.textContent.trim(),
+                short,
+                font: parseFloat(getComputedStyle(visible).fontSize),
+                centered: Math.abs((text.left + text.right - button.left - button.right) / 2) < 1,
+                fits: visible.scrollWidth <= visible.clientWidth + 1,
+                full: full.textContent.replace(/\s+/g, " ").trim(),
+              }
+            }),
+          )
+          const label = `${engine.name()}, ${width}, ${size}%: ${JSON.stringify(counts)}`
+          assert.deepEqual(
+            counts.map((value) => value.full),
+            ["1000 pages, 500 sheets", "10000 pages, 5000 sheets"],
+          )
+          assert.ok(
+            counts.every((value) => value.centered && value.fits && value.font >= (11 * size) / 100),
+            label,
+          )
+          if (width <= 390)
+            assert.ok(
+              counts.every((value) => value.short),
+              label,
+            )
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), label)
         }
       }
+      await page.setViewportSize({ width: 375, height: 667 })
+      await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+      await page.locator(".input-picker > summary").click()
+      assert.equal(
+        (await page.locator(".input-list .document-totals").innerText()).replace(/\s+/g, " "),
+        "1000 pages, 500 sheets",
+      )
+      await page.keyboard.press("Escape")
+      await page
+        .getByRole("navigation", { name: "Workspace view", exact: true })
+        .getByRole("button", { name: "Output", exact: true })
+        .click()
+      await page.getByLabel("Output menu", { exact: true }).click()
+      assert.equal(
+        (await page.locator(".document-actions .document-totals").innerText()).replace(/\s+/g, " "),
+        "10000 pages, 5000 sheets",
+      )
     } finally {
       await browser.close()
     }
   }
 })
 
-test("Compact Input selector matches Output while PDF opening moves into the chooser", { timeout: 60000 }, async () => {
-  const server = await serve()
-  const browser = await launch(chromium)
-  try {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
-    await page.addInitScript(() => {
-      localStorage.setItem("mainz:onboarding", "19")
-      window.open = (url) => {
-        window.inputPDFURL = url
-        return { opener: null }
-      }
-    })
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-    await page.locator(".composer[aria-busy=false]").waitFor()
-    assert.equal(await page.locator(".input-current").innerText(), "Italic Strokes")
-    assert.match(await page.locator(".input-state .composition-totals").innerText(), /4 pages, 2\s+sheets/)
-
-    for (const width of [320, 375, 390, 768, 820, 1440]) {
-      await page.setViewportSize({ width, height: 900 })
-      await page.mouse.move(0, 0)
-      const geometry = await page.locator(".input-heading").evaluate((heading) => {
-        const pick = heading.querySelector(".input-picker > summary")
-        const eye = heading.querySelector(".view-action")
-        const summary = heading.querySelector(".input-state")
-        const open = heading.querySelector(":scope > .file-picker")
-        const icon = pick.querySelector("svg")
-        const rects = [pick, eye, summary].map((element) => element.getBoundingClientRect())
-        const [chooserRect, eyeRect, summaryRect] = rects
-        const iconRect = icon.getBoundingClientRect()
-        const mobile = getComputedStyle(heading.querySelector(".input-preview-tools")).display === "contents"
-        const output = document.querySelector(".composition-output .output-actions > .primary")
-        return {
-          mobile,
-          sameRow: rects.every((rect) => Math.abs(rect.y + rect.height / 2 - (eyeRect.y + eyeRect.height / 2)) < 2),
-          ordered: chooserRect.right <= eyeRect.left && eyeRect.right <= summaryRect.left,
-          sameGap: Math.abs(eyeRect.left - chooserRect.right - (summaryRect.left - eyeRect.right)) < 1.5,
-          square: Math.abs(chooserRect.width - chooserRect.height) < 1,
-          centered:
-            Math.abs((iconRect.left + iconRect.right - chooserRect.left - chooserRect.right) / 2) < 1 &&
-            Math.abs((iconRect.top + iconRect.bottom - chooserRect.top - chooserRect.bottom) / 2) < 1,
-          primary: getComputedStyle(pick).backgroundColor === getComputedStyle(output).backgroundColor,
-          eyeColor: getComputedStyle(eye).color,
-          eyeBackground: getComputedStyle(eye).backgroundColor,
-          countVisible: getComputedStyle(heading.querySelector(".composition-totals")).visibility === "visible",
-          detailsVisible: getComputedStyle(summary.querySelector("button")).display !== "none",
-          openVisible: getComputedStyle(open).display !== "none",
-          currentVisible: getComputedStyle(heading.querySelector(".input-current")).display !== "none",
-          countsFit:
-            heading.querySelector(".composition-totals").scrollWidth <= summaryRect.width + 1 &&
-            summaryRect.right <= heading.getBoundingClientRect().right + 1,
+test(
+  "Compact workspace shares menu and action slots while retaining desktop controls",
+  { timeout: 90000 },
+  async () => {
+    const server = await serve()
+    for (const engine of engines) {
+      const browser = await launch(engine)
+      try {
+        const page = await browser.newPage({
+          viewport: { width: 375, height: 667 },
+          hasTouch: true,
+          isMobile: true,
+          reducedMotion: "reduce",
+        })
+        await page.addInitScript(() => {
+          localStorage.setItem("mainz:onboarding", "19")
+          window.open = (url) => {
+            window.inputPDFURL = url
+            return { opener: null }
+          }
+        })
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=toc`)
+        await page.locator(".composer[data-compact]").waitFor()
+        const nav = page.getByRole("navigation", { name: "Workspace view", exact: true })
+        for (const width of [320, 375, 744, 768, 820]) {
+          await page.setViewportSize({ width, height: 900 })
+          for (const scale of [100, 200]) {
+            await page.evaluate((value) => (document.documentElement.style.fontSize = `${value}%`), scale)
+            const panes = []
+            for (const name of ["Input", "Output"]) {
+              await nav.getByRole("button", { name, exact: true }).click()
+              const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
+              await tab(pane, "Grid")
+              const geometry = await page.locator(".workspace-bar").evaluate((bar) => {
+                const rect = (element) => {
+                  const box = element.getBoundingClientRect()
+                  return { x: box.x, y: box.y, width: box.width, height: box.height }
+                }
+                const menu = bar.querySelector(":scope > details > summary")
+                const action = bar.querySelector(":scope > .file-picker, :scope > .output-actions > button")
+                const icon = menu.querySelector("path")
+                const bounds = icon.getBBox()
+                const center = new DOMPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2).matrixTransform(
+                  icon.getScreenCTM(),
+                )
+                const box = menu.getBoundingClientRect()
+                return {
+                  menu: rect(menu),
+                  action: rect(action),
+                  nav: rect(bar.querySelector("nav")),
+                  glyph: icon.getAttribute("d"),
+                  centered:
+                    Math.abs(center.x - box.x - box.width / 2) < 1 && Math.abs(center.y - box.y - box.height / 2) < 1,
+                  fill: getComputedStyle(action).backgroundColor,
+                }
+              })
+              assert.ok(
+                geometry.centered && geometry.menu.width >= 44 && geometry.action.width >= 44,
+                JSON.stringify(geometry),
+              )
+              panes.push(geometry)
+            }
+            assert.deepEqual(panes[0], panes[1], `${engine.name()}, ${width}, ${scale}%: shared bar slots`)
+          }
         }
-      })
-      if (width === 1440) {
-        assert.equal(geometry.mobile, false)
-        assert.equal(geometry.openVisible, true, "Desktop keeps Open PDF beside the eye")
-        assert.equal(geometry.currentVisible, true, "Desktop keeps the Input title")
-        assert.equal(geometry.countVisible, true)
-      } else {
-        assert.ok(geometry.mobile && geometry.sameRow && geometry.ordered && geometry.sameGap, JSON.stringify(geometry))
-        assert.ok(
-          geometry.square && geometry.centered && geometry.primary,
-          `${width}: centered primary selector ${JSON.stringify(geometry)}`,
+        await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+        await page.setViewportSize({ width: 1440, height: 900 })
+        await page.waitForFunction(() => !document.querySelector(".composer").hasAttribute("data-compact"))
+        assert.ok(await page.locator(".input-heading > .file-picker").isVisible())
+        assert.ok(await page.locator(".input-heading .view-action").isVisible())
+        assert.ok(await page.locator(".composition-output .print-action").isVisible())
+        assert.ok(await page.locator(".composition-output .view-action").isVisible())
+        assert.ok(await page.locator(".input-current").isVisible())
+        await page.setViewportSize({ width: 375, height: 667 })
+        await page.locator(".composer[data-compact]").waitFor()
+        await nav.getByRole("button", { name: "Input", exact: true }).click()
+        await page.locator(".input-picker > summary").focus()
+        await page.keyboard.press("Enter")
+        await page.getByRole("button", { name: "View Input PDF", exact: true }).click()
+        assert.equal(
+          await page.evaluate(async () =>
+            new TextDecoder().decode((await (await fetch(window.inputPDFURL)).arrayBuffer()).slice(0, 4)),
+          ),
+          "%PDF",
         )
-        assert.equal(geometry.openVisible, false, "Compact header has no separate Add PDF action")
-        assert.equal(geometry.currentVisible, false)
-        assert.equal(geometry.countVisible, true)
-        assert.equal(geometry.detailsVisible, false)
-        assert.ok(geometry.countsFit, `${width}: Input counts fit directly in the header`)
+        const chooser = page.waitForEvent("filechooser")
+        await page.locator(".workspace-bar > .file-picker").click()
+        await (
+          await chooser
+        ).setFiles({ name: "additional.pdf", mimeType: "application/pdf", buffer: fixture({ count: 2 }) })
+        await page.waitForFunction(
+          () => document.querySelector(".workspace-counts .page-count")?.textContent === "2 pages",
+        )
+        await nav.getByRole("button", { name: "Output", exact: true }).click()
+        const output = page.locator(".composition-output")
+        await output.getByRole("textbox", { name: "Page selection", exact: true }).fill("1")
+        const menu = page.getByLabel("Output menu", { exact: true })
+        await menu.focus()
+        await page.keyboard.press("Enter")
+        await page.keyboard.press("Delete")
+        await page.keyboard.press("Escape")
+        assert.equal(await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "1")
+        assert.equal(await menu.evaluate((element) => document.activeElement === element), true)
+        assert.equal(await page.locator(".document-menu").evaluate((element) => element.open), false)
+        await page.keyboard.press("Enter")
+        await page.getByRole("button", { name: "Set Output filename", exact: true }).click()
+        await page.getByRole("textbox", { name: "Filename", exact: true }).focus()
+        await page.keyboard.press("Escape")
+        assert.equal(await menu.evaluate((element) => document.activeElement === element), true)
+        await page.keyboard.press("Enter")
+        await page.getByRole("button", { name: "Export recipe", exact: true }).click()
+        await page
+          .getByRole("dialog", { name: "Export recipe", exact: true })
+          .getByRole("button", { name: "Cancel", exact: true })
+          .focus()
+        await page.keyboard.press("Escape")
+        assert.equal(await menu.evaluate((element) => document.activeElement === element), true)
+      } finally {
+        await browser.close()
       }
-      await page.locator(".input-picker > summary").click()
-      assert.ok(await page.locator(".input-choice .guidance-label").first().isVisible())
-      assert.equal(await page.locator(".input-list-actions > .file-picker").isVisible(), width !== 1440)
-      await page.locator(".input-picker > summary").click()
     }
+  },
+)
 
-    const gaps = await page.evaluate(() => {
-      const right = (selector) => document.querySelector(selector).getBoundingClientRect().right
-      const left = (selector) => document.querySelector(selector).getBoundingClientRect().left
-      return {
-        input: left(".input-heading > .file-picker") - right(".input-preview-tools > .view-action"),
-        output:
-          left(".composition-output .output-actions > .primary") -
-          right(".composition-output .output-actions > .view-action"),
-      }
-    })
-    assert.ok(Math.abs(gaps.input - gaps.output) < 1.5, `Desktop eye spacing unchanged: ${JSON.stringify(gaps)}`)
-
-    await page.setViewportSize({ width: 390, height: 900 })
-    assert.match(await page.locator(".input-state .composition-totals").innerText(), /4 pages, 2\s+sheets/)
-    await page.getByRole("button", { name: "View Input PDF" }).click()
-    const bytes = await page.evaluate(async () => {
-      const response = await fetch(window.inputPDFURL)
-      return [...new Uint8Array(await response.arrayBuffer()).subarray(0, 4)]
-    })
-    assert.deepEqual(bytes, [37, 80, 68, 70], "The eye still opens the original PDF")
-
-    await page.locator(".input-picker > summary").click()
-    const chooser = page.waitForEvent("filechooser")
-    await page.locator(".input-list-actions > .file-picker").click()
-    const fileChooser = await chooser
-    assert.ok(fileChooser.isMultiple(), "The Input chooser accepts multiple PDFs")
-    await fileChooser.setFiles({ name: "additional.pdf", mimeType: "application/pdf", buffer: fixture({ count: 2 }) })
-    await page.waitForFunction(() => document.querySelectorAll(".input-choice").length === 2)
-    assert.equal(await page.locator(".input-picker").evaluate((element) => element.open), false)
-    assert.ok(
-      await page.locator(".input-picker > summary").evaluate((element) => {
-        const box = element.getBoundingClientRect()
-        const icon = element.querySelector("svg").getBoundingClientRect()
-        return (
-          Math.abs((box.left + box.right - icon.left - icon.right) / 2) < 1 &&
-          Math.abs((box.top + box.bottom - icon.top - icon.bottom) / 2) < 1
-        )
-      }),
-      "The file icon stays centered with several Inputs",
-    )
-  } finally {
-    await browser.close()
-  }
-})
-
-test("Input chooser number badges open details and Add/Remove actions align", { timeout: 60000 }, async () => {
+test("Input chooser number badges expose details and aligned file actions", { timeout: 60000 }, async () => {
   const server = await serve()
   const browser = await launch(chromium)
   try {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-    await page.locator(".composer[aria-busy=false]").waitFor()
-
+    await page.locator(".composer[data-compact]").waitFor()
     for (const width of [390, 800, 1440]) {
       await page.setViewportSize({ width, height: 900 })
       for (const scheme of ["light", "dark"]) {
         await page.emulateMedia({ colorScheme: scheme })
         await page.locator(".input-picker > summary").click()
         const measures = await page.locator(".input-list").evaluate((list) => {
-          const selector = document.querySelector(".input-picker > summary .workspace-icon")
           const badge = list.querySelector(".input-choice .guidance-label")
           const name = list.querySelector(".input-choice-select")
-          const add = list.querySelector(".input-list-actions > .file-picker")
+          const view = list.querySelector(".file-actions button")
           const remove = list.querySelector(".input-list-actions > .danger")
-          const a = add.getBoundingClientRect(),
+          const a = view?.getBoundingClientRect(),
             b = remove.getBoundingClientRect()
           return {
-            iconColor: getComputedStyle(selector).color,
             badgeColor: getComputedStyle(badge).color,
-            badgeBackground: getComputedStyle(badge).backgroundColor,
-            accent: getComputedStyle(selector).backgroundColor,
             nameColor: getComputedStyle(name).color,
             nameGap: name.getBoundingClientRect().left - badge.getBoundingClientRect().right,
             badgeSelected: name.getAttribute("aria-pressed") === "true",
-            addVisible: getComputedStyle(add).display !== "none",
             aligned:
-              Math.abs(a.top - b.top) < 1 && Math.abs(a.width - b.width) < 1 && Math.abs(a.height - b.height) < 1,
-            labels: [add.textContent.trim(), remove.textContent.trim()],
+              !!a && Math.abs(a.x - b.x) < 1 && Math.abs(a.width - b.width) < 1 && Math.abs(a.height - b.height) < 1,
           }
         })
         assert.equal(measures.badgeSelected, true)
         assert.equal(measures.nameColor, scheme === "light" ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)")
         assert.equal(measures.badgeColor, scheme === "light" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)")
-        assert.ok(measures.nameGap >= 10, `${width}: badge-to-name spacing`)
-        if (width === 1440) {
-          assert.equal(measures.addVisible, false, "Desktop retains its external PDF picker")
-        } else {
-          assert.equal(measures.iconColor, measures.badgeColor, "Primary icons and badges share contrast ink")
-          assert.equal(measures.addVisible, true)
-          assert.ok(measures.aligned, `${width}: equal inline Add/Remove buttons`)
-          assert.deepEqual(measures.labels, ["Add Input", "Remove Input"])
-        }
-        assert.equal(await page.locator(".input-choice .icon-button.guidance-trigger").count(), 0)
+        assert.ok(measures.nameGap >= 10)
+        if (width !== 1440) assert.ok(measures.aligned, `${width}: View and Remove share row dimensions`)
         await page.getByRole("button", { name: "Details for Input 1" }).click()
-        assert.equal(await page.locator(".guidance:popover-open").count(), 1)
-        assert.equal(await page.locator(".input-choice-select[aria-pressed=true]").count(), 1)
         await page.locator(".guidance:popover-open").getByRole("button", { name: "Close details" }).click()
         await page.locator(".input-picker > summary").click()
       }
     }
-
-    await page.setViewportSize({ width: 390, height: 900 })
-    await page.locator(".input-picker > summary").click()
-    const chooser = page.waitForEvent("filechooser")
-    await page.locator(".input-list-actions .file-picker").click()
-    await (await chooser).setFiles({ name: "added.pdf", mimeType: "application/pdf", buffer: fixture({ count: 2 }) })
-    await page.waitForFunction(() => document.querySelectorAll(".input-choice-select").length === 2)
-    assert.equal(await page.locator(".input-picker").evaluate((element) => element.open), false)
-    await page.locator(".input-picker > summary").click()
-    assert.equal(await page.locator('.input-choice[data-active="true"] .guidance-label').innerText(), "2")
-    await page.getByRole("button", { name: "Details for Input 1" }).click()
-    assert.equal(await page.locator('.input-choice[data-active="true"] .guidance-label').innerText(), "2")
-    await page.locator(".guidance:popover-open").getByRole("button", { name: "Close details" }).click()
-    await page.locator(".input-choice-select", { hasText: "demo.pdf" }).click()
-    await page.locator(".input-picker > summary").click()
-    assert.equal(await page.locator('.input-choice[data-active="true"] .guidance-label').innerText(), "1")
   } finally {
     await browser.close()
   }

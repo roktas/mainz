@@ -434,6 +434,63 @@
 
 @layer views {
   @scope (.composer) {
+    @container composer (width <= 55em) {
+      .composition-card {
+        & > .input-footer,
+        & > .occurrence-actions {
+          min-inline-size: 0;
+          margin-inline: calc(-1 * var(--card-inset));
+          grid-template-columns: repeat(3, 44px);
+          justify-content: center;
+          align-items: center;
+          column-gap: 0;
+          & button {
+            inline-size: 44px;
+            min-inline-size: 44px;
+            &::after {
+              inset-inline: 0;
+            }
+          }
+        }
+        & > .input-footer > button {
+          grid-column: 2;
+          grid-row: 1;
+          opacity: 1;
+          pointer-events: auto;
+          & > svg {
+            inline-size: 16px;
+            block-size: 16px;
+          }
+        }
+        & > .occurrence-actions {
+          & > .card-inline-actions {
+            display: contents;
+            & > .occurrence-moves {
+              display: none;
+            }
+            & > .occurrence-copies {
+              display: contents;
+              & > button:first-child {
+                display: none;
+              }
+              & > button:last-child {
+                grid-column: 2;
+                grid-row: 1;
+                opacity: 1;
+                pointer-events: auto;
+              }
+            }
+          }
+          & > .card-menu {
+            display: inline-flex;
+            grid-column: 3;
+            grid-row: 1;
+            opacity: 1;
+            pointer-events: auto;
+          }
+        }
+      }
+    }
     .card-menu-options[popover] {
       margin: 0;
       inset-block: auto;

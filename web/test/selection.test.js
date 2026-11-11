@@ -6,7 +6,7 @@ import test from "node:test"
 import { serve } from "./server.ts"
 import { chromium } from "playwright"
 import { zoom } from "./workspace.js"
-import { tab, pagePosition, gridPage, fixture, hasCursor, captureLayout } from "./browser.js"
+import { outputCount, tab, pagePosition, gridPage, fixture, hasCursor, captureLayout } from "./browser.js"
 import { measure } from "./measure.js"
 
 test("Input clicks retain the last valid sequence at the page limit", async () => {
@@ -26,7 +26,7 @@ test("Input clicks retain the last valid sequence at the page limit", async () =
       "false",
     )
     assert.equal(await input.getByRole("button", { name: "Add to Output", exact: true }).isDisabled(), true)
-    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "0 pages")
+    assert.equal(await outputCount(page).textContent(), "0 pages")
     await input.getByRole("button", { name: "Select Input page 1", exact: true }).click()
     assert.equal(await selection.inputValue(), "")
     assert.notEqual(await selection.getAttribute("aria-invalid"), "true")
@@ -94,7 +94,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
-      await output.locator(".composition-totals strong").waitFor({ state: "attached" })
+      await outputCount(page).waitFor({ state: "attached" })
       const views = page.locator(".mobile-workspace-tabs")
       if (await views.isVisible()) await views.getByRole("button", { name: "Output", exact: true }).tap()
       await measure(output)
@@ -194,7 +194,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
           "Progress toward Output dismisses the delayed hint",
         )
         await send("touchEnd")
-        assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "8 pages")
+        assert.equal(await outputCount(page).textContent(), "8 pages")
         assert.equal(await preparation.inputValue(), "1", "Input rejects drops without consuming the preparation")
         await send("touchStart", { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 })
         await send("touchMove", { x: bounds.x + bounds.width / 2 + 10, y: bounds.y + bounds.height / 2 })
@@ -209,7 +209,9 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
         await send("touchEnd")
         await output.waitFor({ state: "visible" })
         await page.waitForFunction(
-          () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "9 pages",
+          () =>
+            document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
+              ?.textContent === "9 pages",
         )
         assert.equal(await input.locator('input[aria-label="Page selection"]').inputValue(), "")
         assert.equal(await page.evaluate(() => document.activeElement instanceof HTMLInputElement), false)
@@ -257,7 +259,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
         await send("touchEnd")
         assert.match(await pagePosition(output), /^3\s*\/\s*9$/, "Insertion preserves the inspected occurrence")
         assert.equal(await preparation.inputValue(), "")
-        assert.equal(await output.locator(".composition-totals strong").textContent(), "9 pages")
+        assert.equal(await outputCount(page).textContent(), "9 pages")
         assert.equal(await page.locator(".drag-image, .page-drop-ghost, .composer[data-touch-drag]").count(), 0)
         await tab(output, "Grid")
         await cards.nth(2).waitFor()
@@ -297,7 +299,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
           document.addEventListener("dblclick", (event) => event.stopImmediatePropagation(), true),
         )
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-      await page.locator(".composition-output .composition-totals strong").waitFor({ state: "attached" })
+      await outputCount(page).waitFor({ state: "attached" })
       await page.evaluate((size) => {
         document.documentElement.style.fontSize = size
         if (size === "200%") document.body.style.fontFamily = "DejaVu Sans"
@@ -305,7 +307,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
       const session = await page.context().newCDPSession(page)
       const send = (type, point) =>
         session.send("Input.dispatchTouchEvent", { type, touchPoints: point ? [{ ...point, id: 1 }] : [] })
-      const total = () => page.locator(".composition-output .composition-totals strong").textContent()
+      const total = () => outputCount(page).textContent()
       const lens = page.getByRole("region", { name: /^Magnified page / })
       for (const name of ["Input", "Output"]) {
         await page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true }).tap()
@@ -813,7 +815,7 @@ test("Dragging keeps page slots and previews through cancel and drop", { timeout
       await output.dispatchEvent("dragover", { dataTransfer: transfer })
       await output.locator(".composition-empty .drop-placeholder").waitFor()
       await output.dispatchEvent("drop", { dataTransfer: transfer })
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "1 page")
+      assert.equal(await outputCount(page).textContent(), "1 page")
       assert.equal(await page.locator(".drag-image").count(), 0)
       assert.deepEqual(errors, [])
       await transfer.dispose()
@@ -879,7 +881,7 @@ test("Dragging page images and grips preserves selection and page focus", { time
         assert.equal(await prepared.inputValue(), "1,3,3")
         assert.equal(await selected.inputValue(), "1,3")
         assert.equal(await target.evaluate((element) => element === document.activeElement), true)
-        assert.equal(await output.locator(".composition-totals strong").textContent(), "7 pages")
+        assert.equal(await outputCount(page).textContent(), "7 pages")
       }
     }
   } finally {
@@ -906,7 +908,7 @@ test("Open menus retain page commands from both panes", async () => {
     for (const key of ["Shift+ArrowRight", "Space", "Enter", "Delete", "Control+ArrowLeft", "?", "v"]) {
       await page.keyboard.press(key)
       assert.equal(await selected.inputValue(), "2", `${key} retains selection while a menu is open`)
-      assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
+      assert.equal(await outputCount(page).textContent(), "8 pages")
       assert.equal(await output.getByRole("tab", { name: "Grid", exact: true }).getAttribute("aria-selected"), "true")
       assert.equal(await page.getByRole("dialog", { name: "Help", exact: true }).isVisible(), false)
     }
@@ -916,12 +918,12 @@ test("Open menus retain page commands from both panes", async () => {
     assert.equal(await selected.inputValue(), "2")
     await thumbnail.focus()
     await page.keyboard.press("Delete")
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "7 pages")
+    assert.equal(await outputCount(page).textContent(), "7 pages")
     await prepared.fill("1")
     await input.getByLabel("Input page actions", { exact: true }).click()
     await prepared.press("Enter")
     assert.equal(
-      await output.locator(".composition-totals strong").textContent(),
+      await outputCount(page).textContent(),
       "8 pages",
       "The selection field retains its own Enter action after configuring repetitions",
     )
@@ -1177,7 +1179,7 @@ test("Grid keyboard selection toggles at the cursor and stops at boundaries", { 
           await page.keyboard.press("Delete")
           assert.equal(await selection.inputValue(), "1,9-10", "Delete keeps immutable Input pages and preparation")
         } else {
-          const total = () => output.locator(".composition-totals strong").textContent()
+          const total = () => outputCount(page).textContent()
           await selection.fill("1,13-14")
           await (await gridPage(panel, 2)).focus()
           await cards.last().dispatchEvent("keydown", { key: "Delete", repeat: true })
@@ -1401,7 +1403,7 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     await tab(output, "Page")
     assert.equal(await output.locator(".page-actions button").count(), 0)
     await output.getByRole("region", { name: "PDF viewport", exact: true }).press("Space")
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
+    assert.equal(await outputCount(page).textContent(), "8 pages")
     assert.equal(await selected.inputValue(), "1")
     await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
     assert.equal(await output.locator(".page-actions button").count(), 2)
@@ -1425,7 +1427,7 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     assert.equal(await selected.inputValue(), "1-3")
     await output.getByLabel("Output page actions", { exact: true }).focus()
     await page.keyboard.press("Delete")
-    assert.equal(await output.locator(".composition-totals strong").textContent(), "0 pages")
+    assert.equal(await outputCount(page).textContent(), "0 pages")
     assert.equal(
       await output
         .getByRole("tab", { name: "Grid", exact: true })
@@ -1456,7 +1458,7 @@ test("Output separates page controls from group actions for keyboard and mouse",
         output = page.locator(".composition-output")
       const prepared = input.getByRole("textbox", { name: "Page selection", exact: true })
       const selected = output.getByRole("textbox", { name: "Page selection", exact: true })
-      const total = () => output.locator(".composition-totals strong").textContent()
+      const total = () => outputCount(page).textContent()
       const contents = async () =>
         await output
           .locator(
@@ -1642,7 +1644,7 @@ test(
           .allTextContents()
       const clear = async () => {
         if (!(await selected.isDisabled())) {
-          const count = parseInt(await output.locator(".composition-totals strong").textContent())
+          const count = parseInt(await outputCount(page).textContent())
           await selected.fill(`1-${count}`)
           await selected.press("Enter")
         }
@@ -1821,11 +1823,7 @@ test(
             )
         })
         await page.keyboard.press("Delete")
-        assert.equal(
-          await output.locator(".composition-totals strong").textContent(),
-          "0 pages",
-          "Removal changes data immediately",
-        )
+        assert.equal(await outputCount(page).textContent(), "0 pages", "Removal changes data immediately")
         await page.waitForFunction(() => window.removalFrames.length === 3)
         assert.deepEqual(
           await page.evaluate(() => window.removalFrames),
@@ -2194,7 +2192,7 @@ test("Page and Grid keyboard actions respect key priority and the visible page o
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     const selection = input.getByRole("textbox", { name: "Page selection", exact: true })
-    const total = () => output.locator(".composition-totals strong").textContent()
+    const total = () => outputCount(page).textContent()
     const ready = () =>
       page.waitForFunction(() => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"))
     await input.getByRole("button", { name: "Select Input page 1", exact: true }).waitFor()

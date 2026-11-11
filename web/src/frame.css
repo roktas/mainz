@@ -2,6 +2,36 @@
 
 @layer views {
   @scope (#app) {
+    :scope:has(> main > .composer[data-compact]) {
+      .header-inner {
+        min-block-size: calc(56px + env(safe-area-inset-top, 0px));
+      }
+      .brand .logo {
+        inline-size: 44px;
+        block-size: 44px;
+      }
+      .header-actions {
+        gap: 4px;
+        & > :is(button, .theme) {
+          inline-size: 44px;
+          min-inline-size: 44px;
+          block-size: 44px;
+          min-block-size: 44px;
+          padding: 0;
+          & svg {
+            inline-size: 24px;
+            block-size: 24px;
+          }
+        }
+      }
+      main {
+        padding-block: 8px;
+      }
+      .footnote {
+        padding-block: 8px;
+        padding-block-end: calc(8px + env(safe-area-inset-bottom, 0px));
+      }
+    }
     /* Keep descendant mutations from rebuilding a relational scope across the workspace. */
     :scope:has(> main > .composer) {
       block-size: 100dvb;
@@ -57,18 +87,124 @@
       }
     }
     .editing-toolbar {
+      --tab-icon-size: calc(1.5 * var(--body));
+      --tab-inset: calc(var(--tab-icon-size) * 3 / 24);
+      --toolbar-action-size: max(44px, calc(var(--icon-size) + 16px));
       min-block-size: calc(46px + var(--gap));
       align-items: center;
 
       & > .tabs {
-        flex: 1 1 0;
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 1fr;
+        inline-size: max-content;
+        flex: 0 1 auto;
         min-inline-size: 0;
         max-inline-size: 100%;
-        margin-inline-end: 0;
+        margin-inline-start: calc(-1 * (var(--tab-inset) + 6px));
+        padding-inline-start: 6px;
+        margin-inline-end: auto;
         overflow: auto;
         scrollbar-width: none;
         & > button {
           flex: none;
+          position: relative;
+          isolation: isolate;
+          justify-content: start;
+          min-inline-size: 44px;
+          padding-inline: var(--tab-inset) 0.75em;
+          border: 0;
+          border-radius: 6px;
+          &::before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            inset-block: 4px;
+            inset-inline: calc(var(--tab-inset) - 6px) calc(0.75em - 6px);
+            border-radius: 6px;
+          }
+          & > svg {
+            --icon-inset: calc(var(--tab-icon-size) * 2 / 24);
+            inline-size: var(--tab-icon-size);
+            block-size: var(--tab-icon-size);
+            translate: calc(-1 * var(--icon-inset)) 0;
+          }
+          &[aria-label="Grid"] > svg {
+            --icon-inset: calc(var(--tab-icon-size) * 3 / 24);
+          }
+          &[aria-label="List"] > svg {
+            --icon-inset: calc(var(--tab-icon-size) * 4 / 24);
+          }
+          &[aria-label="Page"] > svg {
+            --icon-inset: calc(var(--tab-icon-size) * 5 / 24);
+          }
+          &[aria-selected="true"]::before {
+            background: var(--tint);
+            @media (forced-colors: active) {
+              outline: 1px solid Highlight;
+              outline-offset: -1px;
+            }
+          }
+          &:focus-visible {
+            background: transparent;
+            &::before {
+              outline: 2px solid var(--secondary);
+              outline-offset: -2px;
+            }
+          }
+        }
+      }
+      & > .page-destination {
+        inline-size: var(--toolbar-action-size);
+        margin-inline-end: calc(var(--icon-size) * 9 / 24 - var(--toolbar-action-size) / 2);
+        & > button {
+          inline-size: 100%;
+        }
+      }
+      & > .style-actions {
+        order: 4;
+        margin-inline-start: 0;
+        /* The reset arc ends at x=20.1352 in its 24-unit viewBox. */
+        margin-inline-end: calc(var(--icon-size) * 8.1352 / 24 - var(--toolbar-action-size) / 2);
+        &:empty {
+          display: none;
+        }
+      }
+      &:not(:has(.page-destination, .style-actions > button)) > button[aria-label="Input contents"] {
+        margin-inline-end: calc(var(--icon-size) * 10 / 24 - var(--toolbar-action-size) / 2);
+      }
+    }
+    @container toolbar (width <= 26em) {
+      .editing-toolbar > .tabs > button {
+        min-inline-size: max(44px, calc(var(--tab-icon-size) + 2 * var(--tab-inset)));
+        padding-inline-end: 0;
+        &::before {
+          inset-inline-end: 4px;
+        }
+      }
+    }
+    @container composer (width <= 55em) {
+      .editing-toolbar > .tabs {
+        gap: clamp(6px, 1.5cqi, 12px);
+      }
+      @container toolbar (width <= 26em) {
+        .editing-toolbar > .tabs {
+          gap: 0;
+          margin-inline-start: calc(-2 * var(--tab-inset) - 6px);
+          & > button {
+            & > svg {
+              translate: none;
+            }
+            &::before {
+              inset-inline-start: calc(var(--tab-inset) - 4px);
+              inset-inline-end: auto;
+              inset-block-start: 50%;
+              inset-block-end: auto;
+              inline-size: calc(var(--tab-icon-size) + 8px);
+              block-size: calc(var(--tab-icon-size) + 8px);
+              translate: 0 -50%;
+            }
+          }
         }
       }
     }
@@ -202,6 +338,9 @@
     }
 
     @container composer (width <= 55em) {
+      .editing-toolbar {
+        min-block-size: 44px;
+      }
       .composition-panels {
         display: flex;
         flex-direction: column;

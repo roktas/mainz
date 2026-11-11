@@ -50,11 +50,13 @@ references it. Removing Inputs never changes existing Blank dimensions.
 Input titles come from nonblank XMP `dc:title`, then PDF Info `Title`, then the opened filename. Candidates must fit the
 4096-byte UTF-8 limit and XML text rules. If no valid candidate exists, use `Untitled`. The closed Input selector shows
 only the title, falling back to the opened filename. The open chooser lists the full filename, title, source number, and
-an information button. A page/sheet count and View Input PDF action precede Open PDF in the header. The view action
-opens the original Input PDF without processing or changing Output. Available XMP fields appear as plain text in those
-details. Missing fields add no empty placeholders. Details include Author and Copyright when declared in XMP; PDF Info
-Author supplies the author when XMP has none. The declared XMP `mainz:coverPage` selects the cover when it is a valid
-physical page; otherwise the first page is used.
+an information button. Desktop headers place page/sheet totals and View Input PDF before Open PDF. Single-pane layouts
+keep Open PDF beside the Input/Output switch and put View Input PDF and full totals in the Input menu. The switch shows
+page/sheet totals when they fit and only pages otherwise. The view action opens the original Input PDF without
+processing or changing Output. Available XMP fields appear as plain text in those details. Missing fields add no empty
+placeholders. Details include Author and Copyright when declared in XMP; PDF Info Author supplies the author when XMP
+has none. The declared XMP `mainz:coverPage` selects the cover when it is a valid physical page; otherwise the first
+page is used.
 
 The Input chooser switches Inputs. Each retains its view, inspected page, zoom, Pages layout, scroll position, and
 preparation. Home requests confirmation before discarding undownloaded style or Output changes. Acceptance suppresses

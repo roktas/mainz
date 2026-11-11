@@ -885,7 +885,7 @@ test("Source replacement retains opened rasters for comparison and releases them
     const output = page.locator(".composition-output")
     await output.getByLabel("Page selection", { exact: true }).fill("1-2")
     await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
-    await input.locator(".input-picker > summary").click()
+    await page.locator(".input-picker > summary").click()
     await input.getByRole("button", { name: "Remove Input", exact: true }).click()
     await page.waitForFunction(() => window.openedRaster.width === 0)
     assert.equal(await page.locator(".composer").count(), 0)

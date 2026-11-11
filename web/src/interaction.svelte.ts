@@ -407,7 +407,7 @@ export class Interaction {
       this.usingKeyboard = true
     const context = shortcutContext(event, {
       overlay: !!document.querySelector(
-        "dialog[open], [popover]:popover-open:not(.header-feedback), .input-picker[open], .lens, .quartet-panel, .control details:is([open], [data-hover-pending])",
+        "dialog[open], [popover]:popover-open:not(.header-feedback), .input-picker[open], .document-menu[open], .lens, .quartet-panel, .control details:is([open], [data-hover-pending])",
       ),
     })
     if (shortcut(event, context, "escape") !== "clear") return

@@ -27,6 +27,7 @@ export function geometry(viewport = true) {
     const bounds = rect(area)
     const columns = Number(element.dataset.columns)
     const rows = Number(element.dataset.rows)
+    if (!columns || !rows) return null
     const total = Number(area.getAttribute("aria-setsize")) || cards.length
     const pane = element.closest<HTMLElement>(".selection-panel, .composition-output")!
     const style = getComputedStyle(pane)
@@ -43,7 +44,7 @@ export function geometry(viewport = true) {
       cards,
       image,
       thumbnail,
-      edges: [card.left - bounds.left, bounds.right - cards[columns - 1].right],
+      edges: [card.left - bounds.left, bounds.right - cards[Math.min(columns, cards.length) - 1].right],
       margins: [
         image.top - thumbnail.top,
         thumbnail.bottom - image.bottom,
@@ -51,7 +52,7 @@ export function geometry(viewport = true) {
         thumbnail.right - image.right,
       ],
       gaps: [
-        columns > 1 ? cards[1].left - card.right : null,
+        columns > 1 && cards.length > 1 ? cards[1].left - card.right : null,
         cards.length > columns ? cards[columns].top - card.bottom : null,
       ],
       scroll: Math.max(0, element.scrollHeight - element.clientHeight),
@@ -255,7 +256,7 @@ export type Geometry = ReturnType<typeof geometry>
 function choose(name: string) {
   const tabs = document.querySelector(".mobile-workspace-tabs")
   if (tabs?.getBoundingClientRect().width)
-    [...tabs.querySelectorAll("button")].find((button) => button.textContent?.trim() === name)?.click()
+    [...tabs.querySelectorAll("button")].find((button) => button.getAttribute("aria-label") === name)?.click()
 }
 
 function mode(pane: HTMLElement) {

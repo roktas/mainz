@@ -29,6 +29,21 @@ export async function tab(pane, name) {
   await pane.getByRole("tab", { name, exact: true }).click()
 }
 
+export async function outputAction(page, name) {
+  const workspace = page.locator(".composer")
+  const switcher = workspace.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true })
+  if (await switcher.isVisible()) await switcher.click()
+  const action = workspace.getByRole("button", { name, exact: true })
+  const menu = workspace.getByLabel("Output menu", { exact: true })
+  if (!(await action.isVisible()) && (await menu.isVisible())) await menu.click()
+  return action
+}
+
+export const outputCount = (page) =>
+  page.locator(
+    '.composer:not([data-compact]) .composition-output .composition-totals strong, .composer[data-compact] .mobile-workspace-tabs > button[aria-label="Output"] .composition-totals strong',
+  )
+
 export const image = (pane) => pane.locator(".page-scroll canvas")
 
 export const pagePosition = (pane) => pane.locator(".inspection-heading .page-position").innerText()
