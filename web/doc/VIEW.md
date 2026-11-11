@@ -180,10 +180,11 @@ immediately before Open PDF. In single-pane layouts, the Input header shows a sq
 Input PDF, then the page/sheet summary, in that order. Center only the selector glyph inside its square. Preserve the
 eye action unchanged. The selector opens the Input list with number-triggered file details and an Add Input action,
 which is absent from the compact header. The selector and eye use equal gaps; the summary stays within the Input switch
-column when space allows. If the summary cannot fit, replace it with an information button that opens the same counts.
-The Output summary uses concise counts, such as `6 pages, 3 sheets`, without PDF or duplex prefixes. If these counts
-still do not fit, make them available through a clickable details control. Do not split the header to fit them. At
-enlarged text sizes, Open PDF and Download can use their icons with the same accessible names and touch targets.
+column when space allows. On narrower layouts, let the summary use the remaining header width and wrap within its own
+text area. Keep Input counts visible directly, without an information button. The Output summary uses concise counts,
+such as `6 pages, 3 sheets`, without PDF or duplex prefixes. If these counts still do not fit, make them available
+through a clickable details control. Do not split the header to fit them. At enlarged text sizes, Open PDF and Download
+can use their icons with the same accessible names and touch targets.
 
 In single-pane layouts, the Input/Output switch uses two equal columns. The Input header keeps its selector, eye, and
 page/sheet summary on one row, with the summary at the end. Output totals align to the end of the space before Print,
@@ -478,6 +479,8 @@ Grid renders page cards in continuous rows inside its fixed viewport. Input uses
 ordered list. Long documents mount a bounded row window and spacer rows. The scrollbar stays in the pane gutter. Wheel,
 touch, and keyboard navigation reach the full sequence. Responsive columns preserve the first visible page. Changing
 Pages layout restores the previous Grid or List scroll position.
+
+Grid keeps equal block padding before the first row and after the last row, including at the end of scrolling.
 
 When sections are shown for a PDF with a TOC, Grid shares each pane's fold/unfold choices with List. Its single vertical
 ribbon replaces the center grip on each visible heading-page card. The ribbon has a straight top edge and a notched

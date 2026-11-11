@@ -47,6 +47,8 @@
 
 ### Changed
 
+- Compact Input headers show page and sheet counts directly, including at very narrow widths.
+- Grid retains breathing room below its final row when scrolled to the end.
 - Grid and List sections fold and unfold faster. Unfolding starts the reverse slide without a heading pulse. Grid also
   opens same-page child sections when their parent is unfolded, avoiding inaccessible page gaps.
 - Remove Filename from Output page actions.

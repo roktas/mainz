@@ -1225,8 +1225,12 @@ test("Workspace scrolling keeps Grid and Page controls clear of status", { timeo
           const end = await viewport.evaluate((element) => ({
             top: element.scrollTop,
             max: element.scrollHeight - element.clientHeight,
+            gap:
+              element.getBoundingClientRect().bottom -
+              [...element.querySelectorAll(".composition-card")].at(-1).getBoundingClientRect().bottom,
           }))
           assert.ok(end.top >= end.max - 2, `${name}: Grid reaches the last page`)
+          assert.ok(end.gap >= 11 && end.gap <= 13, `${name}: the last row retains its bottom inset`)
           await tab(pane, "Page")
           await pane.locator(".page-scroll canvas").waitFor()
           await checkStatus(page)
@@ -1878,6 +1882,45 @@ test("Grid and List section styling separates unfolded, selected, and focused st
   }
 })
 
+test("Compact Input counts remain readable with enlarged text", { timeout: 60000 }, async () => {
+  const server = await serve()
+  for (const engine of engines) {
+    const browser = await launch(engine)
+    try {
+      const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=toc`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      for (const width of [320, 375, 390, 744, 768, 820]) {
+        await page.setViewportSize({ width, height: 900 })
+        for (const size of [100, 200]) {
+          await page.evaluate((textSize) => (document.documentElement.style.fontSize = `${textSize}%`), size)
+          await page.emulateMedia({ colorScheme: size === 100 ? "dark" : "light" })
+          const totals = page.locator(".input-state .composition-totals")
+          assert.match(await totals.innerText(), /59 pages, 30\s+sheets/)
+          const bounds = await totals.evaluate((element) => {
+            const box = element.getBoundingClientRect()
+            const header = element.closest(".input-heading").getBoundingClientRect()
+            const style = getComputedStyle(element)
+            return {
+              visible: style.visibility === "visible" && box.width > 0,
+              fits: element.scrollWidth <= element.clientWidth + 1 && box.right <= header.right + 1,
+              centered: Math.abs(box.y + box.height / 2 - header.y - header.height / 2) < 1,
+            }
+          })
+          assert.ok(
+            bounds.visible && bounds.fits && bounds.centered,
+            `${engine.name()}, ${width}, ${size}%: ${JSON.stringify(bounds)}`,
+          )
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+        }
+      }
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
 test("Compact Input selector matches Output while PDF opening moves into the chooser", { timeout: 60000 }, async () => {
   const server = await serve()
   const browser = await launch(chromium)
@@ -1895,7 +1938,7 @@ test("Compact Input selector matches Output while PDF opening moves into the cho
     assert.equal(await page.locator(".input-current").innerText(), "Italic Strokes")
     assert.match(await page.locator(".input-state .composition-totals").innerText(), /4 pages, 2\s+sheets/)
 
-    for (const width of [320, 390, 768, 820, 1440]) {
+    for (const width of [320, 375, 390, 768, 820, 1440]) {
       await page.setViewportSize({ width, height: 900 })
       await page.mouse.move(0, 0)
       const geometry = await page.locator(".input-heading").evaluate((heading) => {
@@ -1925,11 +1968,9 @@ test("Compact Input selector matches Output while PDF opening moves into the cho
           detailsVisible: getComputedStyle(summary.querySelector("button")).display !== "none",
           openVisible: getComputedStyle(open).display !== "none",
           currentVisible: getComputedStyle(heading.querySelector(".input-current")).display !== "none",
-          withinInputTab:
-            (getComputedStyle(summary.querySelector("button")).display !== "none"
-              ? summary.querySelector("button").getBoundingClientRect().right
-              : summaryRect.right) <=
-            document.querySelector(".mobile-workspace-tabs button:first-child").getBoundingClientRect().right + 1,
+          countsFit:
+            heading.querySelector(".composition-totals").scrollWidth <= summaryRect.width + 1 &&
+            summaryRect.right <= heading.getBoundingClientRect().right + 1,
         }
       })
       if (width === 1440) {
@@ -1945,9 +1986,9 @@ test("Compact Input selector matches Output while PDF opening moves into the cho
         )
         assert.equal(geometry.openVisible, false, "Compact header has no separate Add PDF action")
         assert.equal(geometry.currentVisible, false)
-        assert.equal(geometry.countVisible, width >= 768)
-        assert.equal(geometry.detailsVisible, width < 768)
-        if (width >= 390) assert.ok(geometry.withinInputTab, `${width}: Input actions stay within tab width`)
+        assert.equal(geometry.countVisible, true)
+        assert.equal(geometry.detailsVisible, false)
+        assert.ok(geometry.countsFit, `${width}: Input counts fit directly in the header`)
       }
       await page.locator(".input-picker > summary").click()
       assert.ok(await page.locator(".input-choice .guidance-label").first().isVisible())
@@ -1968,8 +2009,7 @@ test("Compact Input selector matches Output while PDF opening moves into the cho
     assert.ok(Math.abs(gaps.input - gaps.output) < 1.5, `Desktop eye spacing unchanged: ${JSON.stringify(gaps)}`)
 
     await page.setViewportSize({ width: 390, height: 900 })
-    await page.getByRole("button", { name: "Input details" }).click()
-    assert.match(await page.locator('[popover][aria-label="Input details"]').innerText(), /4 pages, 2\s+sheets/)
+    assert.match(await page.locator(".input-state .composition-totals").innerText(), /4 pages, 2\s+sheets/)
     await page.getByRole("button", { name: "View Input PDF" }).click()
     const bytes = await page.evaluate(async () => {
       const response = await fetch(window.inputPDFURL)
