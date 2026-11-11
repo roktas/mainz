@@ -2265,12 +2265,7 @@ test("Public TOC examples open on a fresh static-host visit without a service wo
         assert.equal(await chapter.locator(".list-pdf-label").count(), 0)
         if ((await chapter.locator(".list-disclosure").getAttribute("aria-expanded")) === "false")
           await chapter.locator(".list-disclosure").click()
-        await page
-          .getByRole("button", {
-            name: "Unfold Input section: 1. Foundations of Digital Documents › 1.1 The Document Model",
-            exact: true,
-          })
-          .waitFor()
+        assert.equal(await chapter.locator(".list-disclosure").getAttribute("aria-expanded"), "true")
         await page.getByRole("button", { name: "Input contents", exact: true }).click()
         const titles = await page.locator(".contents:popover-open .destination > span:first-child").allTextContents()
         assert.equal(titles.length, 40)

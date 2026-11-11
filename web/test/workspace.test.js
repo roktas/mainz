@@ -3203,10 +3203,7 @@ test("Opaque parameter IDs retain style edits, draft errors, and downloaded valu
       mimeType: "application/pdf",
       buffer: await readFile(await downloaded.path()),
     })
-    await input
-      .locator(".input-current")
-      .filter({ hasText: downloaded.suggestedFilename() })
-      .waitFor({ state: "attached" })
+    await page.locator(".status-input").filter({ hasText: downloaded.suggestedFilename() }).waitFor()
     await tab(input, "Grid")
     await input.getByRole("button", { name: "Add to Output", exact: true }).click()
     await tab(input, "Style")

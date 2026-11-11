@@ -764,7 +764,8 @@ test(
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
       await page.getByText("Demo workspace ready.", { exact: true }).waitFor()
       const input = page.locator(".selection-panel")
-      await input.getByRole("button", { name: "Details for Italic Strokes", exact: true }).click()
+      await input.locator(".input-picker > summary").click()
+      await input.getByRole("button", { name: "Details for Input 1", exact: true }).click()
       assert.ok(await page.getByRole("region", { name: "Italic Strokes", exact: true }).isVisible())
       assert.deepEqual(await page.locator(".guidance:popover-open th").allTextContents(), [
         "Filename",
@@ -772,6 +773,7 @@ test(
         "Producer",
       ])
       await page.getByRole("button", { name: "Close details", exact: true }).click()
+      await input.locator(".input-picker > summary").click()
       await page.getByRole("button", { name: "Set Output filename", exact: true }).click()
       const editor = page.locator(".filename-panel")
       await editor.getByRole("textbox", { name: "Filename", exact: true }).fill("collected.pdf")
@@ -796,7 +798,8 @@ test(
         .locator('input[type=file][aria-label="Open PDF"]')
         .setInputFiles({ name: "collected.pdf", mimeType: "application/pdf", buffer: bytes })
       await page.locator(".status-input").filter({ hasText: "collected.pdf" }).waitFor({ state: "attached" })
-      await input.getByRole("button", { name: "Details for Collected strokes & guides", exact: true }).click()
+      await input.locator(".input-picker > summary").click()
+      await input.getByRole("button", { name: "Details for Input 2", exact: true }).click()
       const details = page.getByRole("region", { name: "Collected strokes & guides", exact: true })
       assert.match(await details.innerText(), /Cover page\s+2/)
     } finally {
