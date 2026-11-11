@@ -1092,7 +1092,7 @@ test("Demo variants open the maintained Input with populated or empty Output", a
         pages,
       )
       const input = page.locator(".selection-panel")
-      assert.equal(await input.locator(".input-current").textContent(), "demo.pdf")
+      assert.equal(await page.locator(".status-input").textContent(), "demo.pdf")
       assert.equal(await input.locator(".thumbnail").count(), 4)
       assert.equal(await input.locator(".page-image[aria-pressed=true]").count(), selected)
       if (!query) {
