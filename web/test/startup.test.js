@@ -656,7 +656,7 @@ test("Logo clicks choose Home, animation, or examples and retain landing paralla
       await examples.getByRole("button", { name: "Close examples", exact: true }).click()
     }
     await page.goto(server.resolvedUrls.local[0] + "?demo")
-    await page.locator(".input-current").waitFor()
+    await page.locator(".input-current").waitFor({ state: "attached" })
     assert.equal(await page.getByRole("link", { name: "PDF Composer home" }).count(), 1)
     const home = page.getByRole("link", { name: "PDF Composer home", exact: true })
     await page.emulateMedia({ reducedMotion: "no-preference" })
@@ -670,7 +670,7 @@ test("Logo clicks choose Home, animation, or examples and retain landing paralla
     await page.locator(".drop-zone").waitFor()
     assert.equal(new URL(page.url()).search, "", "One click opens Home")
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-    await page.locator(".input-current").waitFor()
+    await page.locator(".input-current").waitFor({ state: "attached" })
     await home.press("Enter")
     await page.locator(".drop-zone").waitFor()
     assert.equal(new URL(page.url()).search, "", "Keyboard activation opens Home")
@@ -693,8 +693,8 @@ test("PDF opening and composition work over non-secure HTTP", { timeout: 60000 }
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.goto(server.resolvedUrls.local[0].replace("127.0.0.1", "mainz.test") + "?demo")
     assert.deepEqual(await page.evaluate(() => [isSecureContext, typeof crypto.randomUUID]), [false, "undefined"])
-    await page.locator(".input-current").waitFor()
-    assert.equal(await page.locator(".input-current").textContent(), "demo.pdf")
+    await page.locator(".input-current").waitFor({ state: "attached" })
+    assert.equal(await page.locator(".status-input").textContent(), "demo.pdf")
     await page.waitForFunction(
       () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
     )
@@ -734,7 +734,7 @@ test(
           .locator("input[type=file]")
           .first()
           .setInputFiles({ name, mimeType: "application/pdf", buffer: fixture({ prepared: false }) })
-        await input.locator(".input-current").filter({ hasText: name }).waitFor()
+        await page.locator(".status-input").filter({ hasText: name }).waitFor({ state: "attached" })
         await page.locator(".composer:not([inert])").waitFor()
         assert.equal(await input.getByRole("tab", { name: "Style", exact: true }).count(), 0)
         assert.equal(
@@ -778,14 +778,14 @@ test(
       const pdf = (name) => ({ name, mimeType: "application/pdf", buffer: bytes })
       await page.locator('input[type="file"]').first().setInputFiles(pdf("First.pdf"))
       const input = page.locator(".selection-panel")
-      await input.locator(".input-current").filter({ hasText: "First.pdf" }).waitFor()
+      await page.locator(".status-input").filter({ hasText: "First.pdf" }).waitFor({ state: "attached" })
       await page
         .locator('.selection-panel .input-heading > .file-picker input[type="file"]')
         .setInputFiles([
           { name: "Broken.pdf", mimeType: "application/pdf", buffer: Buffer.from("Not a PDF") },
           pdf("Last.pdf"),
         ])
-      await input.locator(".input-current").filter({ hasText: "Last.pdf" }).waitFor()
+      await page.locator(".status-input").filter({ hasText: "Last.pdf" }).waitFor({ state: "attached" })
       await page.locator(".header-feedback .opening-progress").waitFor({ state: "detached" })
       assert.deepEqual(await input.locator(".input-list button[data-source] > span:first-child").allTextContents(), [
         "First.pdf",
@@ -816,7 +816,7 @@ test(
       await page.waitForFunction(() => !!window.releaseRead)
       await page.getByRole("button", { name: "Cancel", exact: true }).click()
       await input.locator('.input-heading > .file-picker input[type="file"]').setInputFiles(pdf("Retry.pdf"))
-      await input.locator(".input-current").filter({ hasText: "Retry.pdf" }).waitFor()
+      await page.locator(".status-input").filter({ hasText: "Retry.pdf" }).waitFor({ state: "attached" })
       await page.evaluate(() => window.releaseRead())
       await page.evaluate(() => new Promise(requestAnimationFrame))
       assert.deepEqual(await page.evaluate(() => window.readFiles), [
@@ -853,7 +853,7 @@ test("Large failure batches announce a summary and retain every file error", { t
       .locator('input[type="file"]')
       .first()
       .setInputFiles({ name: "Initial.pdf", mimeType: "application/pdf", buffer: fixture({ prepared: false }) })
-    await page.locator(".input-current").filter({ hasText: "Initial.pdf" }).waitFor()
+    await page.locator(".status-input").filter({ hasText: "Initial.pdf" }).waitFor({ state: "attached" })
     const failed = Array.from({ length: 40 }, (_, index) => ({
       name: `${index}-${"long-publication-name-".repeat(6)}.${index < 2 ? "pdf" : "txt"}`,
       mimeType: "application/pdf",
@@ -865,7 +865,7 @@ test("Large failure batches announce a summary and retain every file error", { t
         ...failed,
         { name: "Ready.pdf", mimeType: "application/pdf", buffer: fixture({ prepared: false }) },
       ])
-    await page.locator(".input-current").filter({ hasText: "Ready.pdf" }).waitFor()
+    await page.locator(".status-input").filter({ hasText: "Ready.pdf" }).waitFor({ state: "attached" })
     const announcement = page.getByRole("alert")
     await announcement.waitFor()
     assert.ok((await announcement.innerText()).length < 120, "Batch announcements must not include every diagnostic")
@@ -1015,7 +1015,7 @@ test("Development assets remain available after a production build", { timeout: 
     page.setDefaultTimeout(10000)
     const url = server.resolvedUrls.local[0]
     await page.goto(`${url}?demo`)
-    await page.locator(".input-current").waitFor()
+    await page.locator(".input-current").waitFor({ state: "attached" })
     const previous = process.env.NODE_ENV
     try {
       process.env.NODE_ENV = "production"
@@ -1033,8 +1033,8 @@ test("Development assets remain available after a production build", { timeout: 
       "The open development server keeps serving WASM, not the HTML fallback",
     )
     await page.reload()
-    await page.locator(".input-current").waitFor()
-    assert.equal(await page.locator(".input-current").textContent(), "demo.pdf")
+    await page.locator(".input-current").waitFor({ state: "attached" })
+    assert.equal(await page.locator(".status-input").textContent(), "demo.pdf")
     await page.waitForFunction(
       () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
     )
@@ -1056,7 +1056,7 @@ test("Demo composition follows the opened page count", async () => {
         route.fulfill({ contentType: "application/pdf", body: fixture({ count: 1 }) }),
       )
       await page.goto(`${server.resolvedUrls.local[0]}?demo${query}`)
-      await page.locator(".input-current").waitFor()
+      await page.locator(".input-current").waitFor({ state: "attached" })
       await page
         .locator(".composition-output .composition-totals strong")
         .filter({ hasText: /^1 page$/ })
@@ -1085,7 +1085,7 @@ test("Demo variants open the maintained Input with populated or empty Output", a
       })
       page.setDefaultTimeout(10000)
       await page.goto(`${server.resolvedUrls.local[0]}?demo${query}`)
-      await page.locator(".input-current").waitFor()
+      await page.locator(".input-current").waitFor({ state: "attached" })
       await page.waitForFunction(
         (count) =>
           document.querySelector(".composition-output .composition-totals strong")?.textContent === `${count} pages`,
@@ -1370,7 +1370,7 @@ test("Input switching renders thumbnails and the lens from the selected PDF", { 
         mimeType: "application/pdf",
         buffer: document.buffer,
       })
-      await page.locator(".input-current").filter({ hasText: document.name }).waitFor()
+      await page.locator(".status-input").filter({ hasText: document.name }).waitFor({ state: "attached" })
       await inspect(document.name, document.color)
     }
     for (const index of [0, 1, 0, 1]) {
@@ -1431,9 +1431,9 @@ test("Concurrent Source previews isolate resets and ignore obsolete worker repli
           mimeType: "application/pdf",
           buffer: fixture({ grouped: true, fillOnly: true }),
         })
-      await input.locator(".input-current").filter({ hasText: name }).waitFor()
+      await page.locator(".status-input").filter({ hasText: name }).waitFor({ state: "attached" })
       await tab(input, "List")
-      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
     }
     const choose = async (index) => {
       await input.locator(".input-picker > summary").click()
@@ -1485,7 +1485,7 @@ test("Concurrent Source previews isolate resets and ignore obsolete worker repli
       for (const reply of window.pendingReplies.splice(0)) reply()
     })
     await tab(input, "List")
-    await input.getByRole("button", { name: "Add Input page 2 to Output", exact: true }).click()
+    await input.getByRole("button", { name: "Add Input page 2 to Output", exact: true }).press("Enter")
     await page.waitForFunction(() => {
       const images = [...document.querySelectorAll(".composition-output .composition-card .thumbnail canvas")]
       return images.length === 2 && images.every((canvas) => canvas.parentElement.getAttribute("aria-busy") === "false")
@@ -1954,7 +1954,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     await context.setOffline(true)
     const demo = await context.newPage()
     await demo.goto(`${url}?demo`)
-    await demo.waitForFunction(() => document.querySelector(".input-current")?.textContent === "demo.pdf", null, {
+    await demo.waitForFunction(() => document.querySelector(".status-input")?.textContent === "demo.pdf", null, {
       timeout: 60000,
     })
     await demo.waitForFunction(
@@ -2263,7 +2263,8 @@ test("Public TOC examples open on a fresh static-host visit without a service wo
         const chapter = page.locator('.selection-panel .list-section[data-index="3"]').first()
         assert.equal(await chapter.locator(".list-number").innerText(), "4")
         assert.equal(await chapter.locator(".list-pdf-label").count(), 0)
-        await chapter.locator(".list-disclosure").click()
+        if ((await chapter.locator(".list-disclosure").getAttribute("aria-expanded")) === "false")
+          await chapter.locator(".list-disclosure").click()
         await page
           .getByRole("button", {
             name: "Unfold Input section: 1. Foundations of Digital Documents › 1.1 The Document Model",
@@ -2350,7 +2351,7 @@ test(
           mimeType: "application/pdf",
           buffer: fixture({ prepared: false }),
         })
-        await page.locator(".input-current").filter({ hasText: "Retry.pdf" }).waitFor()
+        await page.locator(".status-input").filter({ hasText: "Retry.pdf" }).waitFor({ state: "attached" })
         await page.evaluate(() => window.dispatchEvent(new Event("release-open")))
         await page.waitForFunction(() => document.documentElement.dataset.openPending === "false")
         assert.equal(await page.locator(".input-current").textContent(), "Retry.pdf")

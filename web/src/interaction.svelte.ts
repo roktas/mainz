@@ -107,12 +107,12 @@ export class Interaction {
         tab === "page"
           ? panel?.querySelector<HTMLElement>(".page-scroll")
           : panel?.querySelector<HTMLElement>(
-              `.${tab === "list" ? "list-choice" : "page-image"}[data-page="${position}"]`,
+              `${tab === "list" ? ":is(.list-choice, .list-heading)" : ".page-image"}[data-page="${position}"]`,
             )
     control?.scrollIntoView({ block: "nearest" })
     if (event) control?.focus({ preventScroll: true })
     if (jump && control) {
-      const target = control.closest<HTMLElement>(".list-row, .composition-card, .page-view")
+      const target = control.closest<HTMLElement>(".list-row, .list-section, .composition-card, .page-view")
       if (target) flash(target)
       return
     }

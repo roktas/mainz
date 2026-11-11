@@ -85,10 +85,10 @@ test("Each Input retains its Pages presentation after switching Inputs", async (
       buffer: fixture(),
     })
     const input = page.locator(".selection-panel")
-    const upload = input.locator('input[type="file"]')
+    const upload = input.locator('input[type=file][aria-label="Open PDF"]')
     await tab(input, "List")
     await upload.setInputFiles({ name: "Second.pdf", mimeType: "application/pdf", buffer: fixture() })
-    await input.locator(".input-current").filter({ hasText: "Second.pdf" }).waitFor()
+    await page.locator(".status-input").filter({ hasText: "Second.pdf" }).waitFor({ state: "attached" })
     assert.equal(await input.locator(".composition-grid").isVisible(), true)
     await input.locator(".input-picker > summary h2").click()
     await input.locator(".input-list button[data-source]").filter({ hasText: "First.pdf" }).click()
@@ -100,7 +100,7 @@ test("Each Input retains its Pages presentation after switching Inputs", async (
     await input.getByRole("button", { name: "Remove Input", exact: true }).click()
     assert.equal(await input.locator(".page-list").isVisible(), true)
     await upload.setInputFiles({ name: "Third.pdf", mimeType: "application/pdf", buffer: fixture() })
-    await input.locator(".input-current").filter({ hasText: "Third.pdf" }).waitFor()
+    await page.locator(".status-input").filter({ hasText: "Third.pdf" }).waitFor({ state: "attached" })
     assert.equal(await input.locator(".composition-grid").isVisible(), true)
     await input.locator(".input-picker > summary h2").click()
     await input.locator(".input-list button[data-source]").filter({ hasText: "First.pdf" }).click()
@@ -150,7 +150,7 @@ test("Profile options require compatible peers and consider future profile choic
         .filter({ hasText: `${name}.pdf` })
         .waitFor()
       await tab(input, "List")
-      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
       await tab(input, "Style")
       assert.equal(
         await input.getByRole("button", { name: "Profile options", exact: true }).isDisabled(),
@@ -259,7 +259,7 @@ test(
         const profile = (name) => input.getByRole("combobox", { name: `${name} choices`, exact: true })
         await activate("Alpha")
         await tab(input, "List")
-        await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+        await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
         await tab(input, "Style")
         for (const [width, size, colorScheme] of [
           [1440, 100, "dark"],
@@ -321,7 +321,7 @@ test(
         )
         await activate("Beta")
         await tab(input, "List")
-        await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+        await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
         await tab(input, "Style")
         assert.equal(await profile("Beta").inputValue(), "beta-fine", "Different IDs and set names still match")
         assert.equal(
@@ -372,7 +372,7 @@ test(
         await profile("Alpha").selectOption("alpha-fine")
         await activate("Gamma")
         await tab(input, "List")
-        await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+        await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
         await tab(input, "Style")
         assert.equal(
           await profile("Gamma").inputValue(),
@@ -489,7 +489,7 @@ test("Opaque profile-set IDs keep their annotations across Input switches", { ti
         .filter({ hasText: `Profiles-${index}.pdf` })
         .waitFor()
       await tab(input, "List")
-      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
       await tab(input, "Style")
       for (const set of sets) {
         const profile = input.getByRole("combobox", { name: set.name, exact: true })
@@ -607,7 +607,7 @@ test("Authored details share one panel across Style owners and omit blank guidan
           buffer: fixture({ count: 3, grouped: true, annotations, profileSets: [set] }),
         })
       await tab(input, "List")
-      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
       await tab(input, "Style")
       assert.equal(await input.locator(".guidance-trigger").count(), 3)
       const chooser = input.getByRole("combobox", { name: "Appearance", exact: true })
@@ -736,9 +736,9 @@ test("Authored details share one panel across Style owners and omit blank guidan
             ],
           }),
         })
-      await input.locator(".input-current").filter({ hasText: "Blank-guidance.pdf" }).waitFor()
+      await page.locator(".status-input").filter({ hasText: "Blank-guidance.pdf" }).waitFor({ state: "attached" })
       await tab(input, "List")
-      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
       await tab(input, "Style")
       assert.equal(await input.locator(".guidance-trigger").count(), 0)
     } finally {
@@ -1410,7 +1410,7 @@ test(
         output = page.locator(".composition-output")
       const download = output.getByRole("button", { name: "Download", exact: true })
       await tab(input, "List")
-      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
       await tab(input, "Style")
       const color = input.getByRole("textbox", { name: "Guide Color", exact: true })
       await color.fill("invalid")
@@ -1421,7 +1421,7 @@ test(
         mimeType: "application/pdf",
         buffer: fixture({ prepared: false }),
       })
-      await input.locator(".input-current").filter({ hasText: "Ordinary.pdf" }).waitFor()
+      await page.locator(".status-input").filter({ hasText: "Ordinary.pdf" }).waitFor({ state: "attached" })
       await input.getByRole("button", { name: "Add to Output", exact: true }).click()
       assert.equal(await download.isDisabled(), true, "An inactive Input's relevant draft still blocks Download")
       const selection = output.getByRole("textbox", { name: "Page selection", exact: true })
@@ -1434,7 +1434,7 @@ test(
       await input.locator(".input-picker > summary h2").click()
       await input.locator(".input-list button[data-source]").first().click()
       await tab(input, "List")
-      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
       assert.equal(await download.isDisabled(), true, "Adding an affected page restores the draft error")
       await tab(input, "Style")
       await color.fill("#123456")
@@ -1705,7 +1705,7 @@ test(
       const open = async (name, buffer) => {
         const count = await page.locator(".input-list button[data-source]").count()
         await page.locator("input[type=file]").first().setInputFiles({ name, mimeType: "application/pdf", buffer })
-        await page.locator(".input-current").filter({ hasText: name }).waitFor()
+        await page.locator(".status-input").filter({ hasText: name }).waitFor({ state: "attached" })
         await page.waitForFunction(
           (previous) => document.querySelectorAll(".input-list button[data-source]").length === previous + 1,
           count,
@@ -1893,7 +1893,7 @@ test("Cancelling a paused batch inspection releases the next Source", { timeout:
         .filter({ hasText: `${name}.pdf` })
         .waitFor()
       await tab(input, "List")
-      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
     }
     await tab(input, "Style")
     await page.evaluate(async () => {
@@ -2641,9 +2641,9 @@ test("Demo Cover is first and its fill survives Download and reopening", { timeo
       .locator("input[type=file]")
       .first()
       .setInputFiles({ name: "Cover.pdf", mimeType: "application/pdf", buffer })
-    await input.locator(".input-current").filter({ hasText: "Cover.pdf" }).waitFor()
+    await page.locator(".status-input").filter({ hasText: "Cover.pdf" }).waitFor({ state: "attached" })
     await tab(input, "List")
-    await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+    await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
     await tab(input, "Style")
     assert.equal(await input.getByRole("textbox", { name: "Cover", exact: true }).inputValue(), "#21478E")
   } finally {
@@ -2666,7 +2666,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     const sample = await readFile("test/fixtures/demo.pdf")
     const open = async (name, buffer) => {
       await page.locator("input[type=file]").first().setInputFiles({ name, mimeType: "application/pdf", buffer })
-      await page.waitForFunction((label) => document.querySelector(".input-current")?.textContent === label, name, {
+      await page.waitForFunction((label) => document.querySelector(".status-input")?.textContent === label, name, {
         timeout: 60000,
       })
       await page.locator(".composer:not([inert])").waitFor()
@@ -3023,7 +3023,7 @@ async function opacityPage(browser, server) {
     })
   const input = page.locator(".selection-panel")
   await tab(input, "List")
-  await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+  await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
   await tab(input, "Style")
   return { page, input }
 }
@@ -3069,7 +3069,7 @@ test(
           mimeType: "application/pdf",
           buffer: await readFile(await saved.path()),
         })
-        await input.locator(".input-current").filter({ hasText: "Saved opacity.pdf" }).waitFor()
+        await page.locator(".status-input").filter({ hasText: "Saved opacity.pdf" }).waitFor({ state: "attached" })
         await tab(input, "List")
         await input.getByLabel("Page selection", { exact: true }).fill("1")
         await input.getByLabel("Page selection", { exact: true }).press("Enter")
@@ -3177,7 +3177,7 @@ test("Opaque parameter IDs retain style edits, draft errors, and downloaded valu
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     await tab(input, "List")
-    await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).click()
+    await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
     await tab(input, "Style")
     assert.equal(await input.getByRole("button", { name: "Edit Stroke", exact: true }).count(), 1)
     assert.deepEqual(errors, [])
@@ -3203,7 +3203,10 @@ test("Opaque parameter IDs retain style edits, draft errors, and downloaded valu
       mimeType: "application/pdf",
       buffer: await readFile(await downloaded.path()),
     })
-    await input.locator(".input-current").filter({ hasText: downloaded.suggestedFilename() }).waitFor()
+    await input
+      .locator(".input-current")
+      .filter({ hasText: downloaded.suggestedFilename() })
+      .waitFor({ state: "attached" })
     await tab(input, "Grid")
     await input.getByRole("button", { name: "Add to Output", exact: true }).click()
     await tab(input, "Style")
@@ -3566,7 +3569,7 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
     await startTour()
     await step("input")
     assert.ok(
-      await page.locator('[data-tour-target="input"] input').evaluate((field) => field.multiple),
+      await page.locator('[data-tour-target="input"] input[aria-label="Open PDF"]').evaluate((field) => field.multiple),
       "The Input step includes the file chooser that accepts several PDFs",
     )
     for (const key of workspaceSteps) {
@@ -3805,7 +3808,7 @@ test(
             mimeType: "application/pdf",
             buffer: fixture({ prepared: false }),
           })
-        await page.locator(".input-current").waitFor()
+        await page.locator(".input-current").waitFor({ state: "attached" })
       }
       await openHintInput()
       const instruction = "Select pages · Use + to add to Output"

@@ -471,6 +471,8 @@
         border: 0;
 
         & button {
+          opacity: 1;
+          pointer-events: auto;
           inline-size: 44px;
           min-inline-size: 44px;
           block-size: 44px;

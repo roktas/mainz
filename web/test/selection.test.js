@@ -1642,9 +1642,9 @@ test(
           .allTextContents()
       const clear = async () => {
         if (!(await selected.isDisabled())) {
-          const all = output.getByRole("button", { name: "Select all", exact: true })
-          if (await all.count()) await all.click()
-          await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
+          const count = parseInt(await output.locator(".composition-totals strong").textContent())
+          await selected.fill(`1-${count}`)
+          await selected.press("Enter")
         }
         const reset = input.getByRole("button", { name: "Clear page sequence", exact: true })
         if (await reset.count()) await reset.click()
@@ -1675,12 +1675,14 @@ test(
               if (key === "Escape") await page.mouse.move(pane === "Input" ? 8 : 1432, 20)
               await page.keyboard.press(key)
               let expected = ["1", "2", "3", "4"]
-              if (pane === "Input" && key === "Enter" && inputSelection) {
-                expected.push("2", "3")
-              } else if (pane === "Output" && outputSelection && ["Enter", "Shift+Equal"].includes(key)) {
-                expected.push("2", "4")
+              if (pane === "Input" && key === "Enter") {
+                expected.push(...(inputSelection ? ["2", "3"] : ["1"]))
+              } else if (pane === "Output" && ["Enter", "Shift+Equal"].includes(key)) {
+                if (outputSelection) expected.push("2", "4")
+                else expected = ["1", "1", "2", "3", "4"]
               } else if (key === "Delete" || (pane === "Output" && key === "-")) {
                 if (outputSelection) expected = ["1", "3"]
+                else if (pane === "Output" && key === "-") expected = ["2", "3", "4"]
               } else if (outputSelection && key === "Control+ArrowLeft") {
                 expected = ["2", "1", "4", "3"]
               } else if (pane === "Output" && !outputSelection && key === "Control+ArrowRight") {
@@ -1840,7 +1842,7 @@ test(
         true,
         "List retains individual actions after Grid keyboard navigation",
       )
-      await input.getByRole("button", { name: "Add Input page 4 to Output", exact: true }).click()
+      await input.getByRole("button", { name: "Add Input page 4 to Output", exact: true }).press("Enter")
       assert.equal(
         await input
           .getByRole("button", { name: "Add Input page 4 to Output", exact: true })
@@ -1849,7 +1851,7 @@ test(
       )
       await tab(input, "Page")
       assert.match(await pagePosition(input), /4\s*\/ 7/, "A List addition updates the page opened for inspection")
-      await input.getByRole("button", { name: "Add Input page 4 to Output", exact: true }).click()
+      await input.getByRole("button", { name: "Add Input page 4 to Output", exact: true }).press("Enter")
       assert.equal(
         await input
           .getByRole("region", { name: "PDF viewport", exact: true })

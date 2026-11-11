@@ -439,6 +439,8 @@ scroll outside document bounds.
 | Enter                         | Adds prepared Input pages or duplicates selected Output occurrences.                                       |
 | + / − in Output               | Duplicates/removes the selection. Input Grid gives these keys no page action.                              |
 
+Without a selection, Enter and Output + / − act on the focused page or section.
+
 Without active Grid navigation, right starts at the first mounted page and left starts at the last mounted page.
 PageUp/PageDown target the mouse-side Grid, with the visible pane as fallback. They stop at the sequence boundaries.
 

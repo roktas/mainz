@@ -34,16 +34,14 @@ export const image = (pane) => pane.locator(".page-scroll canvas")
 export const pagePosition = (pane) => pane.locator(".inspection-heading .page-position").innerText()
 
 export async function gridPage(pane, number) {
-  const grid = pane.locator(".grid-view")
   const preview = pane.locator(`.composition-card:not([inert]) .page-image[data-page="${number - 1}"]`)
-  if (!(await preview.count()))
-    await grid.evaluate((element, index) => {
-      const list = element.querySelector(".composition-grid")
-      const style = getComputedStyle(list)
-      const columns = style.gridTemplateColumns.split(" ").length
-      const stride = parseFloat(style.gridAutoRows) + parseFloat(style.rowGap)
-      element.scrollTop = Math.floor(index / columns) * stride
-    }, number - 1)
+  if (!(await preview.count())) {
+    const name = await pane.evaluate((element) => (element.matches(".selection-panel") ? "Input" : "Output"))
+    await pane.getByRole("button", { name: `Go to page in ${name}`, exact: true }).click()
+    const field = pane.getByRole("textbox", { name: `${name} page number`, exact: true })
+    await field.fill(String(number))
+    await field.press("Enter")
+  }
   await preview.waitFor()
   return preview
 }

@@ -481,6 +481,9 @@
         --return-surface: color-mix(in oklch, var(--accent) 8%, var(--soft));
       }
     }
+    .ribbon-symbol {
+      display: inline flex;
+    }
     .ribbon-dots {
       display: none;
     }

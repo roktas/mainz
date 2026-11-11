@@ -50,7 +50,6 @@ export function fit(element: HTMLElement) {
   const gap = parseFloat(style.columnGap)
   const padding = Math.min(length("--thumbnail-padding"), rem * 0.875)
   const tools = length("--card-tools-height")
-  const image = rem * 8
   const maxImage = (4.34375 * rem * 2) / 0.85
   const minimumWidth = Math.min(
     preferredWidth,
@@ -59,7 +58,7 @@ export function fit(element: HTMLElement) {
   const bounds = element.getBoundingClientRect()
   if (!bounds.width || !Number.isFinite(preferredWidth + preferredHeight)) return
   const columns = Math.max(1, Math.floor((bounds.width - gap) / (minimumWidth + gap)))
-  let width = Math.max(
+  const width = Math.max(
     minimumWidth,
     Math.min(
       preferredWidth,
@@ -68,38 +67,7 @@ export function fit(element: HTMLElement) {
       (bounds.width - gap) / columns - gap,
     ),
   )
-  if (element.matches(".composition-grid")) {
-    element.style.setProperty("--grid-width", `${width}px`)
-    element.style.setProperty("--grid-fit-columns", String(columns))
-    element.style.setProperty("--thumbnail-padding", `${padding}px`)
-    return
-  }
-  // Page references retain their measured fitting behavior.
-  const available =
-    element.closest<HTMLElement>(".page-content")!.getBoundingClientRect().height - length("--page-fit-reserve") - 10
-  const minimumHeight = (cardWidth: number) =>
-    Math.max(Math.SQRT2 * cardWidth, Math.max(image, Math.SQRT2 * (cardWidth - 2 - 4 * padding)) + tools + 2 * padding)
-  const rowCount = (cardWidth: number) => {
-    const minimumGap = Math.max(gap, (0.85 * (bounds.width - columns * cardWidth)) / (columns + 1))
-    return Math.max(1, Math.floor((available + minimumGap) / (minimumHeight(cardWidth) + minimumGap)))
-  }
-  const columnGap = (bounds.width - columns * width) / (columns + 1)
-  const minimumGap = Math.max(gap, 0.85 * columnGap)
-  const rows = rowCount(width)
-  const idealGap = Math.max(gap, columnGap)
-  const height = Math.max(
-    minimumHeight(width),
-    Math.min(
-      preferredHeight,
-      (280 / 150) * width,
-      maxImage + tools + 2 * padding,
-      (available + idealGap) / rows - idealGap,
-    ),
-  )
-  const rowGap = Math.max(minimumGap, Math.min(idealGap, (available - rows * height) / Math.max(1, rows - 1)))
   element.style.setProperty("--grid-width", `${width}px`)
   element.style.setProperty("--grid-fit-columns", String(columns))
-  element.style.setProperty("--grid-height", `${height}px`)
-  element.style.setProperty("--grid-row-gap", `${rowGap}px`)
   element.style.setProperty("--thumbnail-padding", `${padding}px`)
 }

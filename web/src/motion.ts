@@ -285,10 +285,8 @@ export function animateAddition(
     frame = requestAnimationFrame(() => {
       const target = destination()
       if (disposed || !target) return stop()
-      const current = sheet.isConnected ? visibleBounds(sheet) : start
-      const from = current.width && current.height ? current : start
-      const x = from.left + (from.width - width) / 2,
-        y = from.top + (from.height - height) / 2
+      const x = start.left + (start.width - width) / 2,
+        y = start.top + (start.height - height) / 2
       const thumbnail = target.querySelector<HTMLElement>(".thumbnail")
       const end = (thumbnail ?? target).getBoundingClientRect()
       if (!end.width || !end.height) return stop()

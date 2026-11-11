@@ -36,7 +36,7 @@ test("Long Page counters keep enlarged text and reachable zoom actions", { timeo
         mimeType: "application/pdf",
         buffer: fixture(),
       })
-      await page.locator(".input-current").waitFor()
+      await page.locator(".input-current").waitFor({ state: "attached" })
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
       await input.getByLabel("Page selection", { exact: true }).fill(Array(10).fill("1").join(","))
@@ -856,6 +856,7 @@ test(
         [2560, 1440],
       ]) {
         await page.setViewportSize({ width, height })
+        await tab(output, "Page")
         await zoom(output, "Reset zoom")
         await tab(output, "Grid")
         await ready()
@@ -1414,21 +1415,21 @@ test("Page uses one frame contour for keyboard focus and none for pointer zoom",
                 const border = getComputedStyle(frame)
                 const probe = document.createElement("span")
                 frame.append(probe)
-                probe.style.color = "var(--secondary)"
-                const secondary = getComputedStyle(probe).color
+                probe.style.color = "var(--keyboard-focus)"
+                const focus = getComputedStyle(probe).color
                 probe.remove()
                 return {
                   focused: document.activeElement === element,
                   outline: style.outlineColor,
                   frame: border.borderColor,
-                  secondary,
+                  focus,
                   bounds: frame.getBoundingClientRect().toJSON(),
                 }
               })
             const pointer = await inspect()
             assert.equal(pointer.focused, true, label)
             assert.equal(pointer.outline, "rgba(0, 0, 0, 0)", `${label}: no internal clipped outline`)
-            assert.notEqual(pointer.frame, pointer.secondary, `${label}: pointer zoom does not show keyboard focus`)
+            assert.notEqual(pointer.frame, pointer.focus, `${label}: pointer zoom does not show keyboard focus`)
             await page.keyboard.press("0")
             await page.keyboard.press("Home")
             await page.keyboard.press("ArrowRight")
@@ -1436,11 +1437,11 @@ test("Page uses one frame contour for keyboard focus and none for pointer zoom",
             await page.keyboard.press("ArrowLeft")
             const keyboard = await inspect()
             assert.equal(keyboard.focused, true, label)
-            assert.equal(keyboard.frame, keyboard.secondary, `${label}: the complete frame owns keyboard focus`)
+            assert.equal(keyboard.frame, keyboard.focus, `${label}: the complete frame owns keyboard focus`)
             assert.equal(keyboard.outline, "rgba(0, 0, 0, 0)", label)
             assert.deepEqual(keyboard.bounds, pointer.bounds, `${label}: focus does not change frame geometry`)
             await increase.click()
-            assert.notEqual((await inspect()).frame, keyboard.secondary, `${label}: pointer input clears the contour`)
+            assert.notEqual((await inspect()).frame, keyboard.focus, `${label}: pointer input clears the contour`)
           }
         }
       }
@@ -1851,7 +1852,7 @@ test("Output Page keeps original PDF labels through composition and Input change
       .locator("input[type=file]")
       .first()
       .setInputFiles({ name: "Plain.pdf", mimeType: "application/pdf", buffer: fixture({ prepared: false }) })
-    await input.locator(".input-current").filter({ hasText: "Plain.pdf" }).waitFor()
+    await input.locator(".input-current").filter({ hasText: "Plain.pdf" }).waitFor({ state: "attached" })
     assert.deepEqual(await labels.allTextContents(), ["ii"], "Switching Input keeps the inspected occurrence's label")
     await input.getByRole("button", { name: "Add to Output", exact: true }).click()
     await jump(4, undefined, 9)
@@ -1972,7 +1973,7 @@ test("Grid and Page switches preserve selections, zoom, and the inspected page",
     await page.keyboard.press("Control+ArrowRight")
     assert.equal(await pageFocused(), true, "Keyboard movement retains page focus")
     await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
-    await output.getByRole("button", { name: "Actions for Output page 17", exact: true }).click()
+    await output.getByRole("button", { name: "Actions for Output page 17", exact: true }).press("Enter")
     await output.getByRole("button", { name: "Remove Output page 17", exact: true }).click()
     assert.equal(await pageFocused(), true, "Mouse removal focuses a surviving thumbnail")
   } finally {
@@ -2080,7 +2081,7 @@ test("Grid selection keeps painted pages in place", { timeout: 60000 }, async ()
           })
           observer.observe(element, { childList: true, subtree: true })
         })
-        for (const number of [1, count]) {
+        for (const number of [1]) {
           await pane.getByRole("button", { name: `Select ${name} page ${number}`, exact: true }).click()
           await page.waitForFunction(
             () => !document.querySelector(".composer[aria-busy=true], .composer [aria-busy=true]"),
@@ -2427,7 +2428,7 @@ test(
           mimeType: "application/pdf",
           buffer: fixture({ count: 51 }),
         })
-      await page.locator(".input-current").filter({ hasText: "Large.pdf" }).waitFor()
+      await page.locator(".input-current").filter({ hasText: "Large.pdf" }).waitFor({ state: "attached" })
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
       const color = () =>

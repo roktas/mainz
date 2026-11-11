@@ -85,7 +85,7 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
       mimeType: "application/pdf",
       buffer: fixture(),
     })
-    await page.locator(".input-current").waitFor()
+    await page.locator(".input-current").waitFor({ state: "attached" })
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     const show = async (name) => {

@@ -118,8 +118,13 @@
 
 ### Fixed
 
+- Restored List heading focus and highlighting when jumping from Contents.
+- Matched Grid and Page thumbnail sizing for consistent lens scales.
+
 - Modified Enter and Space on List section headings preserve selection and the current view.
 - Grid removal finishes without reading discarded row state.
+- Grid action menus retain clickable controls after focus moves into them. Addition previews start at the captured image
+  position.
 
 - Keep Grid card touch targets fully inside the scroll frame and prevent touch grip selection from toggling twice.
 - Compact repetition menus and Page navigation, widen phone landing actions, and clear stale notices when new work

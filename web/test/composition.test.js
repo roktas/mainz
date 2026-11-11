@@ -220,7 +220,7 @@ test(
       assert.equal(await output.locator(".composition-totals strong").textContent(), "8 pages")
       assert.equal(await output.getByRole("textbox", { name: "Page selection", exact: true }).inputValue(), "1")
       await page.evaluate(() => window.resumeOpening())
-      await input.locator(".input-current").filter({ hasText: "Second.pdf" }).waitFor()
+      await input.locator(".input-current").filter({ hasText: "Second.pdf" }).waitFor({ state: "attached" })
       await page.waitForFunction(() => !document.querySelector(".composer[data-drag]"))
       assert.equal(await page.locator(".drag-image").count(), 0)
       await output.dispatchEvent("drop", { dataTransfer: transfer })
@@ -235,7 +235,7 @@ test(
         .dispatchEvent("pointerdown", contact)
       assert.equal(await input.locator("[data-press]").count(), 1)
       await page.evaluate(() => window.resumeOpening())
-      await input.locator(".input-current").filter({ hasText: "Third.pdf" }).waitFor()
+      await input.locator(".input-current").filter({ hasText: "Third.pdf" }).waitFor({ state: "attached" })
       assert.equal(await input.locator("[data-press]").count(), 0, "Input switching also releases a pending touch grip")
       await output.dispatchEvent("pointermove", { ...contact, clientX: 1000 })
       await output.dispatchEvent("pointerup", { ...contact, clientX: 1000 })
@@ -250,7 +250,7 @@ test(
       await thumbnail.dispatchEvent("pointerdown", contact)
       await thumbnail.dispatchEvent("click", { detail: 1 })
       await page.evaluate(() => window.resumeOpening())
-      await input.locator(".input-current").filter({ hasText: "Fourth.pdf" }).waitFor()
+      await input.locator(".input-current").filter({ hasText: "Fourth.pdf" }).waitFor({ state: "attached" })
       await thumbnail.dispatchEvent("pointerdown", contact)
       await thumbnail.dispatchEvent("click", { detail: 1 })
       await page.evaluate(() => delete performance.now)
@@ -264,7 +264,7 @@ test(
       await thumbnail.dispatchEvent("pointerdown", { pointerType: "mouse", isPrimary: true, button: 0 })
       await thumbnail.dispatchEvent("click", { detail: 1 })
       await page.evaluate(() => window.resumeOpening())
-      await input.locator(".input-current").filter({ hasText: "Fifth.pdf" }).waitFor()
+      await input.locator(".input-current").filter({ hasText: "Fifth.pdf" }).waitFor({ state: "attached" })
       await thumbnail.dispatchEvent("click", { detail: 2 })
       await thumbnail.dispatchEvent("dblclick", { detail: 2 })
       assert.equal(
@@ -287,7 +287,7 @@ test(
       await outputImage.dispatchEvent("pointerdown", contact)
       await outputImage.dispatchEvent("click", { detail: 1 })
       await page.evaluate(() => window.resumeOpening())
-      await input.locator(".input-current").filter({ hasText: "Sixth.pdf" }).waitFor()
+      await input.locator(".input-current").filter({ hasText: "Sixth.pdf" }).waitFor({ state: "attached" })
       await outputImage.dispatchEvent("pointerdown", contact)
       await outputImage.dispatchEvent("click", { detail: 1 })
       await page.evaluate(() => delete performance.now)
@@ -684,7 +684,7 @@ test("Addition previews use their target image or the action area", { timeout: 9
         )
         if (action === "card") {
           const menu = output.getByRole("button", { name: "Actions for Output page 2", exact: true })
-          if (await menu.isVisible()) await menu.click()
+          if (await menu.isVisible()) await menu.press("Enter")
         }
         if (action !== "card") await output.getByLabel("Page selection", { exact: true }).fill("2")
         const control =
@@ -1018,7 +1018,7 @@ test(
         if (await clear.isVisible()) await clear.click()
         const details = async () => {
           const menu = output.getByRole("button", { name: "Actions for Output page 1", exact: true })
-          if (await menu.isVisible()) await menu.click()
+          if (await menu.isVisible()) await menu.press("Enter")
         }
         const allActions = width === 1440
         await details()
@@ -1330,8 +1330,11 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     await tab(output, "Grid")
     const moved = output.getByRole("button", { name: "Select or drag Output page 4", exact: true })
     await moved.dispatchEvent("dragstart", { dataTransfer: data })
-    await output.locator(".composition-card").nth(4).dispatchEvent("dragover", { dataTransfer: data })
-    await output.locator(".composition-card").nth(4).dispatchEvent("drop", { dataTransfer: data })
+    const target = output.locator(".composition-card").nth(4)
+    const bounds = await target.boundingBox()
+    const contact = { dataTransfer: data, clientX: bounds.x + bounds.width / 2, clientY: bounds.y + bounds.height / 2 }
+    await target.dispatchEvent("dragover", contact)
+    await target.dispatchEvent("drop", contact)
     assert.deepEqual(await order(), ["1", "3", "5", "2", "4"])
     assert.equal(await selected.inputValue(), "4-5")
     await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).click()
