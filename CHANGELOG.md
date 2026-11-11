@@ -126,6 +126,8 @@
 
 ### Fixed
 
+- Keep mobile Input and Output labels within their buttons at enlarged text sizes.
+
 - Restored List heading focus and highlighting when jumping from Contents.
 - Matched Grid and Page thumbnail sizing for consistent lens scales.
 

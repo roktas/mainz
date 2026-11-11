@@ -1286,7 +1286,7 @@
           grid-column: 2;
           grid-row: 1;
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: repeat(2, minmax(min-content, 1fr));
           min-inline-size: 0;
           border-radius: 10px;
           background: var(--soft);
@@ -1321,6 +1321,7 @@
           }
         }
         & .workspace-counts {
+          contain: inline-size;
           position: relative;
           display: block;
           inline-size: 100%;
