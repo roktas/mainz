@@ -1245,11 +1245,17 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
                 targets.find((entry) => entry.label.startsWith(action)) ??
                 targets.find((entry) => entry.label.startsWith("Actions"))
               assert.ok(target, label)
-              const before = parseInt(await page.locator(".composition-totals strong").textContent())
+              const before = parseInt(
+                await page.locator(".composition-output .composition-totals strong").textContent(),
+              )
               await page.touchscreen.tap(target.points[1].x, target.points[1].y)
               if (action === "Select or drag") {
                 assert.equal(await field.inputValue(), selected ? "1" : String(lower), label)
-                assert.equal(parseInt(await page.locator(".composition-totals strong").textContent()), before, label)
+                assert.equal(
+                  parseInt(await page.locator(".composition-output .composition-totals strong").textContent()),
+                  before,
+                  label,
+                )
               } else {
                 if (target.label.startsWith("Actions")) {
                   const menu = pane.locator(".occurrence-menu:popover-open")
@@ -1260,7 +1266,9 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
                 }
                 const expected = before + (action === "Remove" ? -1 : 1)
                 await page.waitForFunction(
-                  (count) => document.querySelector(".composition-totals strong")?.textContent === `${count} pages`,
+                  (count) =>
+                    document.querySelector(".composition-output .composition-totals strong")?.textContent ===
+                    `${count} pages`,
                   expected,
                 )
                 if (name === "Input") assert.equal(await field.inputValue(), selection, label)
@@ -1289,7 +1297,9 @@ test("Workspace scrolling keeps Grid and Page controls clear of status", { timeo
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 62 }) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
-    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "62 pages")
+    await page.waitForFunction(
+      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "62 pages",
+    )
     for (const [width, height, scale, bottom] of [
       [390, 699, 100, 0],
       [375, 667, 100, 0],
@@ -1374,7 +1384,9 @@ test("Grid layout stays within bounds at responsive widths", { timeout: 120000 }
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 80 }) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid&geometry`)
-    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "80 pages")
+    await page.waitForFunction(
+      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "80 pages",
+    )
     for (const [width, height] of [
       [390, 844],
       [768, 1024],
@@ -1408,7 +1420,9 @@ test("Touch Grid keeps full pages reachable across orientations", { timeout: 120
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 80 }) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid&geometry`)
-    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "80 pages")
+    await page.waitForFunction(
+      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "80 pages",
+    )
     for (const [width, height] of [
       [390, 844],
       [844, 390],

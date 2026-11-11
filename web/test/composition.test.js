@@ -92,6 +92,10 @@ test("Large Output edits keep Grid rendering bounded", { timeout: 60000 }, async
   const browser = await launch(chromium)
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
+    const warnings = []
+    page.on("console", (message) => {
+      if (message.type() === "warning") warnings.push(message.text())
+    })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.route("**/grid.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 240 }) }),
@@ -107,11 +111,14 @@ test("Large Output edits keep Grid rendering bounded", { timeout: 60000 }, async
     await bounded()
     await output.getByLabel("Page selection", { exact: true }).fill("1-32")
     await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
-    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "208 pages")
+    await page.waitForFunction(
+      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "208 pages",
+    )
     await bounded()
     await grid.evaluate((element) => (element.scrollTop = element.scrollHeight))
     await grid.locator('.page-image[data-page="207"]').waitFor()
     await bounded()
+    assert.deepEqual(warnings, [], "Removed cards do not read destroyed reactive scopes")
   } finally {
     await browser.close()
   }
@@ -196,7 +203,9 @@ test(
           window.pauseOpening = true
           window.resumeOpening = undefined
         })
-        await input.locator("input[type=file]").setInputFiles({ name, mimeType: "application/pdf", buffer: fixture() })
+        await input
+          .locator('input[type=file][aria-label="Open PDF"]')
+          .setInputFiles({ name, mimeType: "application/pdf", buffer: fixture() })
         await page.waitForFunction(() => !!window.resumeOpening)
       }
       await output.locator(".composition-totals strong").filter({ hasText: "8 pages" }).waitFor()
@@ -309,7 +318,7 @@ test("Grid navigation retains physical page positions during additions", { timeo
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-      await page.locator(".composition-totals strong").waitFor({ state: "attached" })
+      await page.locator(".composition-output .composition-totals strong").waitFor({ state: "attached" })
       const output = page.locator(".composition-output")
       const workspace = page.locator(".mobile-workspace-tabs > button:last-child")
       if (await workspace.isVisible()) await workspace.click()
@@ -396,7 +405,9 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-      await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "8 pages")
+      await page.waitForFunction(
+        () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
+      )
       // Freeze the moving preview before its first paint so geometry checks do not depend on machine speed.
       await page.evaluate(() => {
         new MutationObserver(() => {
@@ -660,7 +671,7 @@ test("Addition previews use their target image or the action area", { timeout: 9
       for (const action of ["card", "selection", "keyboard"]) {
         await page.goto(`${server.resolvedUrls.local[0]}?demo`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "8 pages",
+          () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
         )
         const output = page.locator(".composition-output")
         const workspace = page.locator(".mobile-workspace-tabs > button:last-child")
@@ -740,7 +751,7 @@ test("Addition previews use their target image or the action area", { timeout: 9
       for (const action of ["input", "copy", "repeat"]) {
         await page.goto(`${server.resolvedUrls.local[0]}?demo`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "8 pages",
+          () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
         )
         const pane = page.locator(action === "input" ? ".selection-panel" : ".composition-output")
         const workspace = page.locator(`.mobile-workspace-tabs > button:${action === "input" ? "first" : "last"}-child`)
@@ -808,7 +819,7 @@ test(
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
         await page.goto(`${server.resolvedUrls.local[0]}?demo`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "8 pages",
+          () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
         )
         await page.evaluate(() => {
           new MutationObserver(() => {

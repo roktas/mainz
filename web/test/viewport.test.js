@@ -16,7 +16,8 @@ async function open(page, server, count = 240) {
   )
   await page.goto(`${server.resolvedUrls.local[0]}?demo=grid&geometry`)
   await page.waitForFunction(
-    (count) => document.querySelector(".composition-totals strong")?.textContent === `${count} pages`,
+    (count) =>
+      document.querySelector(".composition-output .composition-totals strong")?.textContent === `${count} pages`,
     count,
   )
 }

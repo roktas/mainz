@@ -2679,7 +2679,9 @@
                       out:removal|global
                       onoutroend={(event) => {
                         const grid = event.currentTarget.parentElement
-                        if (grid && removing.has(page.id) && !feedback.move) feedback.move = animateOrder(grid, 350)
+                        // The row's reactive scope is already destroyed when its outro finishes.
+                        const id = event.currentTarget.id.slice(key.length + 1)
+                        if (grid && removing.has(id) && !feedback.move) feedback.move = animateOrder(grid, 350)
                       }}
                       data-face={transfer.number(index) % 2 === 1 ? "front" : "back"}
                       data-dragging={transfer.moving(page.id) || undefined}

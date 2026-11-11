@@ -26,7 +26,7 @@ test("Input clicks retain the last valid sequence at the page limit", async () =
       "false",
     )
     assert.equal(await input.getByRole("button", { name: "Add to Output", exact: true }).isDisabled(), true)
-    assert.equal(await page.locator(".composition-totals strong").textContent(), "0 pages")
+    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "0 pages")
     await input.getByRole("button", { name: "Select Input page 1", exact: true }).click()
     assert.equal(await selection.inputValue(), "")
     assert.notEqual(await selection.getAttribute("aria-invalid"), "true")
@@ -194,7 +194,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
           "Progress toward Output dismisses the delayed hint",
         )
         await send("touchEnd")
-        assert.equal(await page.locator(".composition-totals strong").textContent(), "8 pages")
+        assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "8 pages")
         assert.equal(await preparation.inputValue(), "1", "Input rejects drops without consuming the preparation")
         await send("touchStart", { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 })
         await send("touchMove", { x: bounds.x + bounds.width / 2 + 10, y: bounds.y + bounds.height / 2 })
@@ -209,7 +209,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
         await send("touchEnd")
         await output.waitFor({ state: "visible" })
         await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "9 pages",
+          () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "9 pages",
         )
         assert.equal(await input.locator('input[aria-label="Page selection"]').inputValue(), "")
         assert.equal(await page.evaluate(() => document.activeElement instanceof HTMLInputElement), false)
@@ -297,7 +297,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
           document.addEventListener("dblclick", (event) => event.stopImmediatePropagation(), true),
         )
       await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-      await page.locator(".composition-totals strong").waitFor({ state: "attached" })
+      await page.locator(".composition-output .composition-totals strong").waitFor({ state: "attached" })
       await page.evaluate((size) => {
         document.documentElement.style.fontSize = size
         if (size === "200%") document.body.style.fontFamily = "DejaVu Sans"
@@ -305,7 +305,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
       const session = await page.context().newCDPSession(page)
       const send = (type, point) =>
         session.send("Input.dispatchTouchEvent", { type, touchPoints: point ? [{ ...point, id: 1 }] : [] })
-      const total = () => page.locator(".composition-totals strong").textContent()
+      const total = () => page.locator(".composition-output .composition-totals strong").textContent()
       const lens = page.getByRole("region", { name: /^Magnified page / })
       for (const name of ["Input", "Output"]) {
         await page.locator(".mobile-workspace-tabs").getByRole("button", { name, exact: true }).tap()

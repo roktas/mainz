@@ -1098,25 +1098,6 @@
           font-size: var(--small);
         }
       }
-      & .input-information {
-        anchor-scope: --input-information;
-        flex: none;
-        display: inline-flex;
-        & > .guidance-trigger {
-          anchor-name: --input-information;
-          block-size: 44px;
-          inline-size: 44px;
-        }
-      }
-      & .input-title {
-        flex: 0 1 40%;
-        min-inline-size: 0;
-        overflow: clip;
-        text-overflow: ellipsis;
-        font-size: var(--body);
-        font-weight: 400;
-        color: var(--muted);
-      }
       & .input-current {
         flex: 1;
         min-inline-size: 0;
@@ -1267,25 +1248,6 @@
       }
     }
     @container composer (width <= 55em) {
-      .input-information > .guidance {
-        position-anchor: --input-information;
-        position-area: block-end span-all;
-        inset: auto;
-        justify-self: anchor-center;
-        margin-inline: var(--gutter);
-        position-try-fallbacks: flip-block;
-        position-try-order: most-block-size;
-        max-block-size: calc(100% - var(--gap) / 2 - var(--gutter));
-      }
-      .input-picker > summary:has(.input-information) {
-        gap: 0;
-        & .input-chevron {
-          display: none;
-        }
-      }
-      .input-picker > summary .input-title {
-        display: none;
-      }
       .input-picker > summary .input-current {
         color: var(--ink);
       }

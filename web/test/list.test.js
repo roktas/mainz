@@ -56,6 +56,13 @@ test(
           if (await fold.isVisible()) await fold.click()
           await unfold.waitFor()
           assert.equal(await heading.getAttribute("aria-pressed"), "false")
+          for (const modifier of ["Control", "Meta", "Alt", "Shift"]) {
+            for (const key of ["Enter", "Space"]) {
+              await heading.press(`${modifier}+${key}`)
+              assert.equal(await heading.count(), 1, `${modifier}+${key} preserves the page view`)
+              assert.equal(await selected.inputValue(), "", `${modifier}+${key} preserves section selection`)
+            }
+          }
           await heading.click()
           assert.equal(await selected.inputValue(), "1-3")
           await unfold.click()

@@ -291,7 +291,7 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
     await page.keyboard.press("Escape")
     await input.getByLabel("Page selection", { exact: true }).press("Enter")
     await page.waitForFunction(
-      () => document.querySelector(".composition-totals strong")?.textContent === "10000 pages",
+      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "10000 pages",
     )
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 844 })

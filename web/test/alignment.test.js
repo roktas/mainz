@@ -129,7 +129,7 @@ for (const hasTouch of [false, true])
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
         await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
         await page.waitForFunction(
-          () => document.querySelector(".composition-totals strong")?.textContent === "32 pages",
+          () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "32 pages",
         )
         for (const [width, height] of hasTouch
           ? [
@@ -290,7 +290,7 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
       await page.keyboard.press("Escape")
       await input.getByRole("button", { name: "Add to Output", exact: true }).click()
       await page.waitForFunction(
-        () => document.querySelector(".composition-totals strong")?.textContent === "10000 pages",
+        () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "10000 pages",
       )
       await page
         .getByRole("navigation", { name: "Workspace view", exact: true })

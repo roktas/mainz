@@ -49,12 +49,9 @@
 
 - Grid and List sections fold and unfold faster. Unfolding starts the reverse slide without a heading pulse. Grid also
   opens same-page child sections when their parent is unfolded, avoiding inaccessible page gaps.
-- Rename the combined Grid/List tab from Flow to Pages, beside the single-page Page tab, with a stacked-page icon.
-
 - Remove Filename from Output page actions.
 
-- List retains every TOC entry as a separate header, including entries without children, and folds, selects, or copies
-  its subtree.
+- Grid and List share section ribbons and fold choices, with one visible heading per physical starting page.
 - The TOC examples use the 59-page Lorem Ipsum PDF with three outline levels.
 - List section headings put the current title first, with muted parent titles and a compact full-path panel.
 - List places drag grips before page numbers. Section ribbons combine folding and dragging, followed by their starting
@@ -79,7 +76,6 @@
 - The header logo opens Home with one click, replays its animation with two, and opens examples with three or more.
 - Bounded mounted List rows while preserving physical positions, occurrence identities, selection, and scrolling.
 - Centralized persisted Style intent and moved row interaction and edit feedback lifecycle to their owning surfaces.
-- Grid toolbars use one button that shows the density selected by activation at every width.
 - Page names use small caps across List, captions, details, previews, and drag strips.
 - Product tour steps cover Input and Output List views and explain Recipe export, Print, and View PDF. Help clarifies
   its view-specific shortcuts and List range selection. Recipe export uses JSON braces in the secondary color and bold
@@ -121,6 +117,9 @@
 - Compact mobile Output actions, with a square Download icon button and totals beside the icons.
 
 ### Fixed
+
+- Modified Enter and Space on List section headings preserve selection and the current view.
+- Grid removal finishes without reading discarded row state.
 
 - Keep Grid card touch targets fully inside the scroll frame and prevent touch grip selection from toggling twice.
 - Compact repetition menus and Page navigation, widen phone landing actions, and clear stale notices when new work

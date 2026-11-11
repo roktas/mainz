@@ -652,7 +652,7 @@ test("Recipe batches match named PDFs first and discard abandoned reads", { time
     await page.evaluate(() => new Promise(requestAnimationFrame))
     await panel.getByRole("button", { name: "Apply recipe", exact: true }).click()
     await panel.waitFor({ state: "hidden" })
-    assert.equal(await page.locator(".composition-totals strong").textContent(), "1 page")
+    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "1 page")
     await page.close()
     const interrupted = await browser.newPage({ reducedMotion: "reduce" })
     let releaseDemo
@@ -731,7 +731,7 @@ test("Opaque Input names load and export without optional cover previews", { tim
     )
     await panel.getByRole("button", { name: "Apply recipe", exact: true }).click()
     await panel.waitFor({ state: "hidden" })
-    assert.equal(await page.locator(".composition-totals strong").textContent(), "2 pages")
+    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "2 pages")
     await page.evaluate(() => {
       HTMLCanvasElement.prototype.toDataURL = () => {
         throw new Error("Cover encoding unavailable")
@@ -1545,7 +1545,7 @@ test("Output actions stay reachable with enlarged text", { timeout: 30000 }, asy
           Math.abs(ink[1].left - ink[0].right - (download.x - ink[1].right)) < 1,
           "Visible Print–View and View–Download gaps match",
         )
-        const documentIcon = page.locator(".input-heading .workspace-icon, .input-title .workspace-icon").first()
+        const documentIcon = page.locator(".input-heading .workspace-icon").first()
         if (await documentIcon.isVisible()) assert.equal((await documentIcon.boundingBox()).width, glyphs[0])
         assert.ok(print.width >= 44 && print.height >= 44 && download.width >= 44 && download.height >= 44)
         assert.ok(print.x >= 0 && print.x + print.width < download.x && download.x + download.width <= width)

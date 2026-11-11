@@ -55,7 +55,7 @@ export function shortcutContext(
     field: !!target?.closest(fields),
     native: !!target?.closest("button, summary, a[href]"),
     tab: !!target?.matches('[role="tab"]'),
-    pageControl: !!target?.matches(".page-image, .page-grip, .list-choice"),
+    pageControl: !!target?.matches(".page-image, .page-grip, .list-choice, .list-heading"),
     overlay: context.overlay ?? blocked(),
     repeat: event.repeat,
     pane: context.pane,

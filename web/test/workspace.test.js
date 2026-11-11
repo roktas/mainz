@@ -918,7 +918,7 @@ test(
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
         await page.waitForFunction(
           (count) =>
-            document.querySelector(".composition-totals strong")?.textContent ===
+            document.querySelector(".composition-output .composition-totals strong")?.textContent ===
             `${count} ${count === 1 ? "page" : "pages"}`,
           index + 1,
         )
@@ -1416,7 +1416,7 @@ test(
       await color.fill("invalid")
       assert.equal(await download.isDisabled(), true)
       assert.match(await download.getAttribute("title"), /Styled\.pdf: fix Guide color before Download/)
-      await input.locator("input[type=file]").setInputFiles({
+      await input.locator('input[type=file][aria-label="Open PDF"]').setInputFiles({
         name: "Ordinary.pdf",
         mimeType: "application/pdf",
         buffer: fixture({ prepared: false }),
@@ -2187,7 +2187,7 @@ test(
         await page.locator(".header-feedback .feedback[data-kind=error]").textContent(),
         /PDF Composer cannot read this PDF/,
       )
-      assert.equal(await page.locator(".composition-totals strong").textContent(), "2 pages")
+      assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "2 pages")
       assert.equal(await page.locator(".header-feedback .feedback[data-kind=error]").count(), 1)
       // Preserve PDF byte offsets to isolate an unknown manifest field.
       const unknown = Buffer.from(fixture().toString().replace('"groups":', '"extra": '))
@@ -2205,7 +2205,7 @@ test(
       assert.match(await banner.textContent(), /style information.*invalid or incompatible/)
       assert.match(await banner.textContent(), /Your workspace is retained\. Choose a PDF to retry\./)
       assert.match(await banner.textContent(), /prepare it again with the current Mainz format/)
-      assert.equal(await page.locator(".composition-totals strong").textContent(), "2 pages")
+      assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "2 pages")
       for (const [viewportWidth, text, colorScheme] of [
         [1440, "100%", "light"],
         [320, "200%", "dark"],
@@ -3064,7 +3064,7 @@ test(
         const download = page.waitForEvent("download")
         await page.locator(".composition-output").getByRole("button", { name: "Download", exact: true }).click()
         const saved = await download
-        await input.locator("input[type=file]").setInputFiles({
+        await input.locator('input[type=file][aria-label="Open PDF"]').setInputFiles({
           name: "Saved opacity.pdf",
           mimeType: "application/pdf",
           buffer: await readFile(await saved.path()),
@@ -3198,7 +3198,7 @@ test("Opaque parameter IDs retain style edits, draft errors, and downloaded valu
     const completed = page.waitForEvent("download")
     await output.getByRole("button", { name: "Download", exact: true }).click()
     const downloaded = await completed
-    await input.locator("input[type=file]").setInputFiles({
+    await input.locator('input[type=file][aria-label="Open PDF"]').setInputFiles({
       name: downloaded.suggestedFilename(),
       mimeType: "application/pdf",
       buffer: await readFile(await downloaded.path()),
@@ -3230,7 +3230,7 @@ test("Page addition hint skips on any click", { timeout: 60000 }, async () => {
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(server.resolvedUrls.local[0] + "?demo=empty")
     const flight = page.locator(".page-flight:popover-open")
-    const total = () => page.locator(".composition-totals strong").textContent()
+    const total = () => page.locator(".composition-output .composition-totals strong").textContent()
     const pause = () => flight.evaluate((element) => element.getAnimations().forEach((animation) => animation.pause()))
     await flight.waitFor()
     await pause()
@@ -3542,7 +3542,9 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
       .getByRole("textbox", { name: "Page selection", exact: true })
       .fill("3-5,2,2,7")
     await page.locator(".selection-panel").getByRole("textbox", { name: "Page selection", exact: true }).press("Enter")
-    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "6 pages")
+    await page.waitForFunction(
+      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "6 pages",
+    )
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     assert.ok(
@@ -3839,7 +3841,7 @@ test(
         await page.getByRole("button", { name: "Select Input page 1", exact: true }).getAttribute("aria-pressed"),
         "true",
       )
-      assert.equal(await page.locator(".composition-totals strong").textContent(), "0 pages")
+      assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "0 pages")
       const origin = await page.locator('[data-tour-target="first-page"] .thumbnail canvas').boundingBox()
       const spotlight = await flight.evaluate((element) => {
         const style = getComputedStyle(element, "::backdrop")
@@ -3872,7 +3874,7 @@ test(
       )
       await flight.waitFor({ state: "hidden" })
       assert.equal((await instructionText.textContent()).trim(), instruction)
-      assert.equal(await page.locator(".composition-totals strong").textContent(), "0 pages")
+      assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "0 pages")
       assert.equal(
         await instructionText.evaluate((element) => getComputedStyle(element).fontWeight),
         "700",
@@ -3994,7 +3996,7 @@ test("First-action feedback respects reduced motion and enlarged phone text", { 
   }
 })
 
-test("Input file details stay below their trigger in single-pane tablet layouts", { timeout: 60000 }, async () => {
+test("Input chooser file details stay within single-pane layouts", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of engines) {
     const browser = await launch(engine)
@@ -4007,19 +4009,15 @@ test("Input file details stay below their trigger in single-pane tablet layouts"
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       await page.goto(`${server.resolvedUrls.local[0]}?demo=toc`)
       await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
-      const trigger = page.locator(".input-information > .guidance-trigger")
+      const trigger = page.getByRole("button", { name: "Details for Input 1", exact: true })
       for (const width of [390, 810])
         for (const colorScheme of ["light", "dark"]) {
           await page.setViewportSize({ width, height: 1080 })
           await page.emulateMedia({ colorScheme })
+          await page.locator(".input-picker > summary").click()
           await trigger.tap()
-          const panel = page.locator(".input-information > .guidance:popover-open")
-          const box = await panel.boundingBox(),
-            button = await trigger.boundingBox()
-          assert.ok(
-            box.y >= button.y + button.height - 1 && box.y - button.y - button.height < 24,
-            JSON.stringify({ engine: engine.name(), width, box, button }),
-          )
+          const panel = page.locator(".input-choice > .guidance:popover-open")
+          const box = await panel.boundingBox()
           assert.ok(box.x >= 0 && box.x + box.width <= width + 1 && box.y + box.height <= 1080 + 1, JSON.stringify(box))
           await panel
             .locator("td")
@@ -4029,9 +4027,10 @@ test("Input file details stay below their trigger in single-pane tablet layouts"
           assert.ok(expanded.y + expanded.height <= 1080, JSON.stringify(expanded))
           assert.ok(
             await panel.evaluate((element) => element.scrollHeight > element.clientHeight),
-            "Long details scroll inside the anchored panel",
+            "Long details scroll inside the panel",
           )
-          await page.keyboard.press("Escape")
+          await panel.getByRole("button", { name: "Close details", exact: true }).click()
+          await page.locator(".input-picker > summary").click()
         }
     } finally {
       await browser.close()

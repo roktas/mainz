@@ -68,8 +68,8 @@ production assets and the offline cache. The examples dialog lists it second as 
 
 ## Geometry collection and calibration
 
-See [MEMO](../../doc/MEMO.md#collection-and-calibration) for the shared probe, native Simulator acquisition, desktop
-references, calibration commands, and evidence retention. [VIEW](../../doc/VIEW.md#grid-and-page) owns visual acceptance
+See [MEMO](../../doc/MEMO.md#collection-and-geometry) for the shared probe, native Simulator acquisition, desktop
+references, collection commands, and evidence retention. [VIEW](../../doc/VIEW.md#grid-and-page) owns visual acceptance
 limits.
 
 ## Recipe fixture

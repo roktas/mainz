@@ -665,7 +665,7 @@ test("Logo clicks choose Home, animation, or examples and retain landing paralla
       () => document.querySelector(".brand .logo")?.getAnimations()[0]?.playState === "running",
     )
     assert.equal(new URL(page.url()).search, "?demo", "Double-click preserves the workspace")
-    assert.equal(await page.locator(".composition-totals strong").textContent(), "8 pages")
+    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "8 pages")
     await home.click()
     await page.locator(".drop-zone").waitFor()
     assert.equal(new URL(page.url()).search, "", "One click opens Home")
@@ -695,12 +695,14 @@ test("PDF opening and composition work over non-secure HTTP", { timeout: 60000 }
     assert.deepEqual(await page.evaluate(() => [isSecureContext, typeof crypto.randomUUID]), [false, "undefined"])
     await page.locator(".input-current").waitFor()
     assert.equal(await page.locator(".input-current").textContent(), "demo.pdf")
-    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "8 pages")
-    assert.equal(await page.locator(".composition-totals strong").textContent(), "8 pages")
+    await page.waitForFunction(
+      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
+    )
+    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "8 pages")
     assert.equal(await page.getByRole("alert").count(), 0)
     const output = page.locator(".composition-output")
     await output.getByRole("button", { name: "Duplicate Output page 1", exact: true }).click()
-    assert.equal(await page.locator(".composition-totals strong").textContent(), "9 pages")
+    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "9 pages")
     const saved = page.waitForEvent("download")
     await output.getByRole("button", { name: "Download", exact: true }).click()
     const download = await saved
@@ -956,7 +958,7 @@ test("The first PDF previews before validation and commits only after success", 
       await page.locator(".composer[inert]").waitFor()
       await page.waitForFunction(() => document.querySelector(".selection-panel .page-image canvas")?.width > 0)
       assert.equal(await page.locator(".drop-zone").count(), 0)
-      assert.equal(await page.locator(".composition-totals strong").textContent(), "0 pages")
+      assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "0 pages")
       assert.equal(await page.locator(".composer").getAttribute("aria-busy"), "true")
       assert.equal(await page.locator(".header-feedback .opening-progress").isVisible(), true)
     }
@@ -964,7 +966,7 @@ test("The first PDF previews before validation and commits only after success", 
     await page.locator(".header-feedback .opening-progress .feedback-message p").click()
     for (const key of ["Control+a", "Enter", "+"]) await page.keyboard.press(key)
     assert.equal(await input.locator(".page-image[aria-pressed=true]").count(), 0)
-    assert.equal(await page.locator(".composition-totals strong").textContent(), "0 pages")
+    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "0 pages")
     await page.setViewportSize({ width: 390, height: 1100 })
     await page.emulateMedia({ colorScheme: "dark" })
     await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
@@ -993,7 +995,7 @@ test("The first PDF previews before validation and commits only after success", 
     assert.equal(await page.locator(".header-feedback .opening-progress").count(), 0)
     await input.getByLabel("Page selection", { exact: true }).fill("1")
     await input.getByLabel("Page selection", { exact: true }).press("Enter")
-    assert.equal(await page.locator(".composition-totals strong").textContent(), "1 page")
+    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "1 page")
     assert.deepEqual(errors, [])
   } finally {
     release()
@@ -1033,7 +1035,9 @@ test("Development assets remain available after a production build", { timeout: 
     await page.reload()
     await page.locator(".input-current").waitFor()
     assert.equal(await page.locator(".input-current").textContent(), "demo.pdf")
-    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "8 pages")
+    await page.waitForFunction(
+      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
+    )
   } finally {
     await browser?.close()
     await rm(outDir, { recursive: true, force: true })
@@ -1054,7 +1058,7 @@ test("Demo composition follows the opened page count", async () => {
       await page.goto(`${server.resolvedUrls.local[0]}?demo${query}`)
       await page.locator(".input-current").waitFor()
       await page
-        .locator(".composition-totals strong")
+        .locator(".composition-output .composition-totals strong")
         .filter({ hasText: /^1 page$/ })
         .waitFor()
       assert.equal(await page.locator(".composition-output .page-image").count(), 1)
@@ -1083,7 +1087,8 @@ test("Demo variants open the maintained Input with populated or empty Output", a
       await page.goto(`${server.resolvedUrls.local[0]}?demo${query}`)
       await page.locator(".input-current").waitFor()
       await page.waitForFunction(
-        (count) => document.querySelector(".composition-totals strong")?.textContent === `${count} pages`,
+        (count) =>
+          document.querySelector(".composition-output .composition-totals strong")?.textContent === `${count} pages`,
         pages,
       )
       const input = page.locator(".selection-panel")
@@ -1126,7 +1131,7 @@ test("Demo variants open the maintained Input with populated or empty Output", a
         await welcome.getByRole("button", { name: "Close welcome", exact: true }).click()
         await page.locator(".page-flight:popover-open").waitFor()
         assert.equal(await input.locator(".page-image[aria-pressed=true]").count(), 0)
-        assert.equal(await page.locator(".composition-totals strong").textContent(), "0 pages")
+        assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "0 pages")
         assert.equal(await input.getByRole("button", { name: "Add to Output", exact: true }).count(), 0)
         const sequence = input.getByLabel("Page selection", { exact: true })
         await sequence.fill("1")
@@ -1279,7 +1284,9 @@ test("Home asks once before discarding changes and cancellation retains the work
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(`${server.resolvedUrls.local[0]}?demo`)
-    await page.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "8 pages")
+    await page.waitForFunction(
+      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
+    )
     const preparation = page.locator(".selection-panel").getByLabel("Page selection", { exact: true })
     await preparation.fill("1")
     await preparation.press("Enter")
@@ -1293,7 +1300,7 @@ test("Home asks once before discarding changes and cancellation retains the work
     await home.click()
     await confirmation
     assert.deepEqual(warnings, ["confirm"])
-    assert.equal(await page.locator(".composition-totals strong").textContent(), "9 pages")
+    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "9 pages")
     page.once("dialog", async (dialog) => {
       warnings.push(dialog.type())
       await dialog.dismiss()
@@ -1302,7 +1309,7 @@ test("Home asks once before discarding changes and cancellation retains the work
     await page.evaluate(() => location.reload())
     await reloadWarning
     assert.deepEqual(warnings, ["confirm", "beforeunload"], "Reload retains its independent exit warning")
-    assert.equal(await page.locator(".composition-totals strong").textContent(), "9 pages")
+    assert.equal(await page.locator(".composition-output .composition-totals strong").textContent(), "9 pages")
     page.on("dialog", async (dialog) => {
       warnings.push(dialog.type())
       await dialog.accept()
@@ -1950,11 +1957,13 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     await demo.waitForFunction(() => document.querySelector(".input-current")?.textContent === "demo.pdf", null, {
       timeout: 60000,
     })
-    await demo.waitForFunction(() => document.querySelector(".composition-totals strong")?.textContent === "8 pages")
+    await demo.waitForFunction(
+      () => document.querySelector(".composition-output .composition-totals strong")?.textContent === "8 pages",
+    )
     assert.equal(await demo.locator(".offline-progress").count(), 0)
     assert.equal(await demo.locator(".footnote > time").textContent(), buildId)
     assert.equal(await demo.locator(".status-input").textContent(), "demo.pdf")
-    assert.equal(await demo.locator(".composition-totals strong").textContent(), "8 pages")
+    assert.equal(await demo.locator(".composition-output .composition-totals strong").textContent(), "8 pages")
     assert.equal(await demo.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true }).count(), 0)
     await demo.locator(".selection-panel").getByRole("tab", { name: "Style", exact: true }).click()
     await demo.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("inkjet")
@@ -2327,7 +2336,7 @@ test(
           },
           { stage, bytes: Array.from(fixture({ prepared: false })) },
         )
-        const input = page.locator(".input-heading input[type=file]")
+        const input = page.locator('.input-heading input[type=file][aria-label="Open PDF"]')
         await input.setInputFiles({
           name: "Cancelled.pdf",
           mimeType: "application/pdf",
