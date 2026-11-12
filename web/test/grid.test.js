@@ -9,6 +9,109 @@ import { outputCount, fixture, captureLayout, tab, checkStatus, checkGridScroll 
 import { measure } from "./measure.js"
 import { quality } from "./quality.ts"
 
+test("Scroll endpoints preserve native extents, selection, and keyboard scrolling", { timeout: 90000 }, async (t) => {
+  const server = await serve()
+  for (const engine of engines) {
+    const browser = await launch(engine)
+    try {
+      for (const width of [390, 1440]) {
+        t.diagnostic(`${engine.name()}, ${width}px`)
+        const page = await browser.newPage({
+          viewport: { width, height: 1000 },
+          hasTouch: width === 390,
+          reducedMotion: "reduce",
+        })
+        page.setDefaultTimeout(10000)
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        const errors = []
+        page.on("pageerror", (error) => errors.push(error.message))
+        await page.goto(server.resolvedUrls.local[0])
+        await page.getByLabel("Open PDF", { exact: true }).setInputFiles({
+          name: "Long.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture({ prepared: false, count: 300 }),
+        })
+        const input = page.locator(".selection-panel")
+        const selection = input.getByLabel("Page selection", { exact: true })
+        await selection.fill("2,4")
+        for (const view of ["Grid", "List"]) {
+          await tab(input, view)
+          const viewport = input.locator(view === "Grid" ? ".grid-view" : ".page-list")
+          const controls = page.getByRole("group", {
+            name: `Input ${view} scroll controls`,
+            exact: true,
+            includeHidden: true,
+          })
+          await controls.waitFor()
+          const extent = await viewport.evaluate((element) => [element.clientHeight, element.scrollHeight])
+          await controls.evaluate((element) => element.hidePopover())
+          assert.deepEqual(
+            await viewport.evaluate((element) => [element.clientHeight, element.scrollHeight]),
+            extent,
+            "Scroll controls preserve the native thumb ratio",
+          )
+          await controls.evaluate((element) => element.showPopover())
+          for (const [name, fraction] of [
+            ["end", 1],
+            ["start", 0],
+          ]) {
+            await controls.getByRole("button", { name: `Scroll Input ${view} to ${name}`, exact: true }).click()
+            await page.waitForFunction(
+              ({ element, fraction }) =>
+                Math.abs(element.scrollTop - fraction * (element.scrollHeight - element.clientHeight)) <=
+                Math.max(2, (element.scrollHeight - element.clientHeight) * 0.015),
+              { element: await viewport.elementHandle(), fraction },
+            )
+            assert.equal(await selection.inputValue(), "2,4")
+          }
+          const item = view === "Grid" ? ".page-image" : ".list-choice"
+          await viewport.locator(`${item}[data-page="0"]`).waitFor({ state: "visible" })
+          await viewport.locator(`${item}[data-page="0"]`).focus()
+          await page.keyboard.press("End")
+          await viewport.locator(`${item}[data-page="299"]`).waitFor({ state: "visible" })
+          assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("data-page")), "299")
+          await page.keyboard.press("Home")
+          await viewport.locator(`${item}[data-page="0"]`).waitFor({ state: "visible" })
+          const peek = await viewport
+            .locator(view === "Grid" ? ".grid-inspect" : ".list-peek")
+            .first()
+            .boundingBox()
+          const rail = await controls.boundingBox()
+          assert.ok(
+            rail.x >= peek.x + peek.width - 1,
+            `${engine.name()}, ${width}px, ${view}: ${JSON.stringify({ rail, peek })}`,
+          )
+          const field = await input.locator(".sequence-entry > .entry").boundingBox()
+          const glyphs = await controls
+            .locator("svg")
+            .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()))
+          assert.ok(
+            glyphs.every((box) => box.x + box.width / 2 > field.x + field.width),
+            "Scrollbar controls sit outside the selection-field edge",
+          )
+          const footer = await page.locator(".footnote").boundingBox()
+          assert.ok(glyphs[1].bottom < footer.y, "The last control stays clear of the status bar")
+        }
+        await page.getByRole("button", { name: "Help", exact: true }).click()
+        const help = page.getByRole("dialog", { name: "Help", exact: true })
+        await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
+        const helpControls = help.locator(".scroll-controls").first()
+        await helpControls.waitFor()
+        const end = helpControls.getByRole("button", { name: /to end$/ })
+        await end.click()
+        await helpControls.getByRole("button", { name: /to start$/ }).click()
+        await page.keyboard.press("Escape")
+        await help.waitFor({ state: "hidden" })
+        assert.equal(await selection.inputValue(), "2,4")
+        assert.deepEqual(errors, [])
+        await page.close()
+      }
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
 test("Grid and List tabs preserve layout choices and Page return", { timeout: 60000 }, async () => {
   const server = await serve()
   const browser = await launch(chromium)
@@ -1385,6 +1488,14 @@ test(
               await selection.fill("1,3")
               for (const view of ["Grid", "List", "Page"]) {
                 await tab(pane, view)
+                if (name === "Input") {
+                  const go = await pane.getByRole("button", { name: "Go to page in Input", exact: true }).boundingBox()
+                  const toc = await pane.getByRole("button", { name: "Input contents", exact: true }).boundingBox()
+                  assert.ok(
+                    go.x >= toc.x + toc.width - 1,
+                    `${engine.name()}, ${width}, ${text}, ${view}: Go to follows Contents at the right edge`,
+                  )
+                }
                 const trigger = pane.getByRole("button", { name: `Go to page in ${name}`, exact: true })
                 await trigger.click()
                 const popup = pane.locator(".page-destination-panel:popover-open")
@@ -1419,7 +1530,7 @@ test(
                 assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
                 if (width === 375 && text === "100%")
                   assert.equal(
-                    await pane.getByRole("tab", { name: view, exact: true }).locator("span:not(.edit-dot)").isVisible(),
+                    await pane.getByRole("tab", { name: view, exact: true }).locator("span").isVisible(),
                     false,
                   )
                 if (width !== 375 || text !== "100%") continue

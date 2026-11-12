@@ -54,6 +54,15 @@ reduce gutters before reducing usable control space. Standard controls use 4 px 
 12 px corners. Primary buttons are at least 104 × 46 px. Interactive targets are at least 44 px. Grid headers and Page
 controls use the target sizes in [Grid and Page](#grid-and-page).
 
+Vertical scroll controls supplement native scrolling. A compact 24 px-wide track on the scrollbar axis has 44 px-high
+start/end targets. Their visible glyphs sit just above and below the scrollbar, with no hover box or tooltip. Hide the
+controls when the content fits or the scrollbar belongs to the Page image viewport. They must stay clear of page
+inspection controls and remain usable inside dialogs and popovers. Native wheel, touch, scrollbar dragging, keyboard
+scrolling, and Selection remain independent. The native thumb retains its content-based size. The compact track is an
+exception to the general 44 px target width. Grid and List retain at least an 8 px scrollbar gutter outside the
+selection-field edge, including overlay scrollbars. Compact layouts leave 24 px below the workspace before the status
+bar so the final control remains separate from footer text.
+
 Controls of the same type in a visible panel, toolbar, or action group must have the same width and height unless this
 document defines an explicit exception. Type means interaction role, such as a selection row, action button, icon
 button, or form field. Label length, icons, color, and action priority do not create a different type. Use the control
@@ -163,11 +172,10 @@ in that order. On desktop, their glyphs share the document icon's 28 px size and
 least 46 × 46 px. The visible Print–View, View–Download, and Input eye–Open PDF gaps match with compact shared spacing.
 These icon actions are exceptions to equal peer-button widths. Output totals sit before these actions. Relevant
 processing disables Download, View, and Print without changing heading dimensions. Progress and Cancel belong to the app
-header. The Output heading is a frameless button that opens the filename editor. It retains Input's heading typography
-and icon alignment. Hover and keyboard focus identify the action. Its panel uses the standard full-height entry and
-equal Use default and Save buttons. When the cover thumbnail and field share a row, the number entry ends at Use
-default's end edge. Wrapped fields retain a usable width. Invalid fields retain their error state without adding layout
-space.
+header. The Output heading is a frameless button with a visible downward chevron that opens the filename editor. It
+retains Input's heading typography and icon alignment. Its panel uses the standard entry height and centered, compact
+Use default and Save buttons with the standard control gap. The actions wrap when enlarged text needs more space.
+Wrapped fields retain a usable width. Invalid fields retain their error state without adding layout space.
 
 Input file details open from each item's number button, not from a separate information icon or the closed selector.
 Long details scroll within the available viewport below the trigger.
@@ -182,8 +190,9 @@ control when they do not fit inline.
 Single-pane layouts use one workspace bar instead of separate pane headers. Its fixed side slots contain a document menu
 and a primary file action. The middle holds two equal Input/Output buttons. Both menus use the same horizontal three-dot
 icon. Input offers the Input list, View PDF, and Remove Input. Compact menus omit page/sheet totals. Output offers an
-editable filename with a trailing downward chevron for details, View PDF, Print PDF, and Export recipe. Escape and
-outside activation close the menus. Escape restores focus to the launcher without clearing page selection.
+editable filename at the standard entry height with a trailing downward chevron for details, View PDF, Print PDF, and
+Export recipe. Escape and outside activation close the menus. Escape restores focus to the launcher without clearing
+page selection.
 
 Open PDF occupies Input's primary slot. Download or Share occupies the same slot in Output. These actions have equal
 square targets, primary surfaces, 24 px glyphs, and accessible names. Document menu targets share their dimensions and
@@ -194,8 +203,9 @@ equal heights. Switching panes preserves the bar, toolbar, selection-field, and 
 
 The compact app header retains the logo, Help, Settings, and Theme with full touch targets. Its reduced height and
 spacing leave more room for the document. Grid, List, and Page retain the same leading positions in both panes. Contents
-follows Go to page at the end of the Input toolbar. Section headings and Go to page retain their corresponding trailing
-positions. Both themes, keyboard focus, and reduced-motion rules apply to the complete compact layout.
+precedes Go to page, which stays at the far right of the Input toolbar. Section headings and Go to page retain their
+corresponding trailing positions. Both themes, keyboard focus, and reduced-motion rules apply to the complete compact
+layout.
 
 On iOS and Android with native file sharing, Share replaces Download at the same position and keeps the primary target.
 Its share glyph matches the primary action's size. Its button, tooltip, and accessible name say Share. Desktop and
@@ -298,10 +308,17 @@ Toolbars at or below 26 em use icon-only tabs. Wider panes show text. Keep at le
 contents when labels are visible. Tabs and Style tools must not wrap or overlap. Keep their height consistent across
 views so that the pane content frame does not move.
 
+Center the changed-Style dot above the tab's visible surface, including icon-only tabs. Use a 4 px dot with its center 6
+px above that surface. Grid cards, List strips, the Page frame, and the Style profile divider share one content-start
+line below their field and hint. Retain the same field-to-hint spacing and body text metrics in every view. The content
+uses a compact 6 px inset within the shared hint-to-content spacing.
+
 Go to page sits at the end of the Pages/Page toolbar. Its icon opens a compact panel centered below the trigger within
-the viewport gutters. The panel has one numeric-keyboard field, a Go action, first and last page icons, the valid page
-range, and a Close target. Opening selects the current page number. Enter confirms valid input; Escape cancels.
-Navigation preserves Selection. The Selection bar and its hints retain their selection role.
+the viewport gutters. Physical page entry uses a four-character-wide numeric-keyboard field. When page labels exist,
+logical page entry appears below a subtle divider with the same heading size. Both rows have a Go action and
+double-chevron first/last controls with muted page captions below them. Numbers use muted text. Keep balanced top and
+bottom space and a Close target. Opening selects the current physical page number. Enter confirms valid input; Escape
+cancels. Navigation preserves Selection. The Selection bar and its hints retain their selection role.
 
 Routine hints, empty states, and tour steps describe controls and results without assuming a mouse or keyboard. Keep
 input-specific instructions in Help's Keyboard and Mouse sections.
@@ -357,8 +374,8 @@ images. Input and Output use the same control dimensions. Preserve usable field 
 
 ## List
 
-Contents uses an open-book icon distinct from List, fixed at the far right of Input's Pages and Page toolbar. The Pages
-switch sits beside the tabs. Its tree uses indentation, fine branch lines, quiet page positions, and a thin
+Contents uses an open-book icon distinct from List, immediately before Go to page in Input's Pages and Page toolbar. The
+Pages switch sits beside the tabs. Its tree uses indentation, fine branch lines, quiet page positions, and a thin
 current-section marker. Nodes have no individual boxes or filled cards. Full titles wrap, and navigation preserves
 selection. Output has no Contents control.
 
@@ -493,7 +510,8 @@ ordered list. Long documents mount a bounded row window and spacer rows. The scr
 touch, and keyboard navigation reach the full sequence. Responsive columns preserve the first visible page. Changing
 Pages layout restores the previous Grid or List scroll position.
 
-Grid keeps equal block padding before the first row and after the last row, including at the end of scrolling.
+Grid uses the shared compact inset before the first row and retains 12 px after the last row, including at the end of
+scrolling.
 
 When sections are shown for a PDF with a TOC, Grid shares each pane's fold/unfold choices with List. Its single vertical
 ribbon replaces the center grip on each visible heading-page card. The ribbon has a straight top edge and a notched
@@ -598,17 +616,17 @@ an accessible busy state. Rendering does not stretch unfinished canvases.
 
 ## Style presentation
 
-Style labels and widgets share a row on wide panes and stack on narrow panes. Native group disclosures follow authored
-order. Group names use small uppercase text. Open groups use the accent color; closed groups use the normal text color.
-Their type size, weight, and spacing remain unchanged when toggled. Group names use the shared hover color without
-moving text. Group disclosure outlines follow the input method: keyboard activation shows focus, and pointer activation
-clears it. Their targets are at least 44 px high. The object count and disclosure arrow sit at the inline end, including
-while collapsed. Group titles, object titles, and widget blocks share the same inline start without indentation,
-including with enlarged text and on narrow panes. Their right edges remain at the group's content edge. Quartet
-components share the remaining width equally. A first individual control adds no extra top padding below the group
-heading. Editors inside a Quartet retain their component alignment. Descriptions use muted text, wrap naturally, and
-explain meaning rather than repeat a label. Parameter IDs belong in information panels, not main field labels. Baseline,
-override, mixed, and unrepresentable states remain distinguishable.
+Style labels precede their widgets. Individual widget bars and Quartet blocks use the full group width. Native group
+disclosures follow authored order. Group names use small uppercase text. Open groups use the accent color; closed groups
+use the normal text color. Their type size, weight, and spacing remain unchanged when toggled. Group names use the
+shared hover color without moving text. Group disclosure outlines follow the input method: keyboard activation shows
+focus, and pointer activation clears it. Their targets are at least 44 px high. The object count and disclosure arrow
+sit at the inline end, including while collapsed. Group titles, object titles, and widget blocks share the same inline
+start without indentation, including with enlarged text and on narrow panes. Their right edges remain at the group's
+content edge. Quartet components share the remaining width equally. A first individual control adds no extra top padding
+below the group heading. Editors inside a Quartet retain their component alignment. Descriptions use muted text, wrap
+naturally, and explain meaning rather than repeat a label. Parameter IDs belong in information panels, not main field
+labels. Baseline, override, mixed, and unrepresentable states remain distinguishable.
 
 Narrow Style color and width controls place their value above the adjustment buttons, including with enlarged text.
 Opacity value fields have a fixed width and a visible percent suffix. Sliders use the remaining width. Decimal precision

@@ -4,6 +4,7 @@
   @scope (#app) {
     .sequence-entry {
       margin-block: var(--gap);
+      margin-block-end: calc(var(--gap) - var(--content-inset));
       & > .entry {
         position: relative;
       }
@@ -12,7 +13,8 @@
         text-align: start;
       }
     }
-    .sequence-help {
+    .sequence-help,
+    .profile-summary > .control-description {
       display: block grid;
       font-size: var(--body);
       line-height: 1.5;

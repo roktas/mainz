@@ -7,8 +7,8 @@
       min-inline-size: 0;
       min-block-size: 0;
       overflow: auto;
-      padding-block: 12px;
-      scroll-padding-block: 12px;
+      padding-block: var(--content-inset) 12px;
+      scroll-padding-block: var(--content-inset) 12px;
       scrollbar-width: thin;
       scrollbar-gutter: stable;
       overscroll-behavior: contain;
@@ -22,7 +22,10 @@
       min-block-size: 0;
     }
     .page-content:has(> .grid-view) {
-      margin-inline-end: calc(-1 * var(--grid-gutter, 0px));
+      margin-inline-end: calc(-1 * max(8px, var(--grid-gutter, 0px)));
+    }
+    .grid-view {
+      padding-inline-end: max(0px, calc(8px - var(--grid-gutter, 0px)));
     }
 
     .page-name {
@@ -131,7 +134,7 @@
       display: grid;
       grid-template-rows: minmax(0, 1fr);
       min-block-size: 20rem;
-      margin-inline-end: calc(-1 * var(--list-gutter, 0px));
+      margin-inline-end: calc(-1 * max(8px, var(--list-gutter, 0px)));
     }
     .page-list {
       position: relative;
@@ -154,6 +157,8 @@
       list-style: none;
       margin: 0;
       padding: 0;
+      padding-block: var(--content-inset) 12px;
+      padding-inline-end: max(0px, calc(8px - var(--list-gutter, 0px)));
       color: color-mix(in oklch, var(--ink) 80%, var(--paper));
       &.labeled {
         --list-label-width: 4ch;
@@ -681,6 +686,7 @@
       inline-size: var(--destination-width);
       max-block-size: calc(100% - 4px - var(--gutter));
       padding: calc(var(--gap) / 2);
+      padding-block-end: calc(var(--gap) / 2 + 4px);
       overflow: auto;
       border: 1px solid var(--edge);
       border-radius: var(--radius);
@@ -693,10 +699,12 @@
         & > label {
           flex: 1;
           margin: 0;
-          font-size: var(--body);
-          font-weight: 600;
-          padding-inline-start: 4px;
         }
+      }
+      & :is(.page-destination-heading > label, .logical-heading) {
+        font-size: var(--body);
+        font-weight: 600;
+        padding-inline-start: 4px;
       }
       & .page-destination-row {
         display: flex;
@@ -958,14 +966,18 @@
       inline-size: calc(4ch + 0.6em);
       padding-inline: 0.3em;
       text-align: center;
+      color: var(--muted);
     }
     .page-destination-panel .logical-heading {
       display: block;
-      font-weight: 600;
       margin-block: 0.5em 0.25em;
+      padding-block-start: 0.5em;
+      border-block-start: 1px solid var(--border);
     }
     .page-destination-row small {
       font-size: var(--small);
+      font-weight: 400;
+      color: var(--muted);
       max-inline-size: 7ch;
       overflow-wrap: anywhere;
     }

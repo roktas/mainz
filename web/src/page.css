@@ -514,6 +514,10 @@
       max-block-size: none;
       grid-template-rows: minmax(0, 1fr);
     }
+    .page-navigation .occurrence-actions {
+      margin: 0;
+      border: 0;
+    }
     .pdf-viewport {
       --fit-width: min(
         calc(100cqi - var(--page-inset) - 26px),
@@ -564,10 +568,6 @@
       max-inline-size: 8ch;
       overflow: clip;
       text-overflow: ellipsis;
-    }
-    .page-navigation .occurrence-actions {
-      margin: 0;
-      border: 0;
     }
   }
 }

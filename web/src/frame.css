@@ -26,6 +26,7 @@
       }
       main {
         padding-block: 8px;
+        padding-block-end: 24px;
       }
       .footnote {
         padding-block: 8px;
@@ -54,6 +55,7 @@
       --page-fit-reserve: 44px;
       --fit-height: max(860px, 33.59375vi);
       --frame-heading-height: 45px;
+      --content-inset: 6px;
     }
     /* Defaults work without a device match; calibrations below only change card geometry. */
     :is(.selection-panel, .composition-output) {
@@ -87,6 +89,8 @@
       }
     }
     .editing-toolbar {
+      position: relative;
+      anchor-scope: --style-tab;
       --tab-icon-size: calc(1.5 * var(--body));
       --tab-inset: calc(var(--tab-icon-size) * 3 / 24);
       --toolbar-action-size: max(44px, calc(var(--icon-size) + 16px));
@@ -94,6 +98,16 @@
       align-items: center;
 
       padding-block-end: 4px;
+      & > .edit-dot {
+        position: absolute;
+        position-anchor: --style-tab;
+        inset-inline-start: calc(anchor(center) + (var(--tab-inset) - 0.75 * var(--body)) / 2);
+        inset-block-start: calc(anchor(top) - 4px);
+        inline-size: 4px;
+        block-size: 4px;
+        translate: -50% 0;
+        pointer-events: none;
+      }
       & > .tabs {
         display: grid;
         grid-auto-flow: column;
@@ -164,7 +178,6 @@
         }
       }
       & > .style-actions {
-        order: 4;
         margin-inline-start: 0;
         /* The reset arc ends at x=20.1352 in its 24-unit viewBox. */
         margin-inline-end: calc(var(--icon-size) * 8.1352 / 24 - var(--toolbar-action-size) / 2);
@@ -172,14 +185,14 @@
           display: none;
         }
       }
-      & > .page-destination:has(+ button[aria-label="Input contents"]) {
-        margin-inline-end: 0;
-      }
       & > button[aria-label="Input contents"] {
-        margin-inline-end: calc(var(--icon-size) * 10 / 24 - var(--toolbar-action-size) / 2);
+        margin-inline-end: 0;
       }
     }
     @container toolbar (width <= 26em) {
+      .editing-toolbar > .edit-dot {
+        inset-inline-start: calc(anchor(center) + (var(--tab-inset) - 10px) / 2);
+      }
       .editing-toolbar > .tabs > button {
         min-inline-size: max(44px, calc(var(--tab-icon-size) + 2 * var(--tab-inset)));
         padding-inline-end: 0;
@@ -193,6 +206,10 @@
         gap: clamp(6px, 1.5cqi, 12px);
       }
       @container toolbar (width <= 26em) {
+        .editing-toolbar > .edit-dot {
+          inset-inline-start: calc(anchor(left) + var(--tab-inset) + var(--tab-icon-size) / 2);
+          inset-block-start: calc(anchor(top) + (anchor-size(block) - var(--tab-icon-size) - 8px) / 2 - 8px);
+        }
         .editing-toolbar > .tabs {
           gap: 0;
           margin-inline-start: calc(-2 * var(--tab-inset) - 6px);
@@ -248,7 +265,7 @@
         & .page-content {
           align-self: start;
           min-inline-size: 0;
-          container: catalog / inline-size;
+          container-type: inline-size;
 
           &:has(.grid-view, .page-list, .page-view) {
             align-self: stretch;
@@ -281,6 +298,7 @@
 
     .page-content:has(.page-view) {
       min-block-size: calc(320px + var(--page-heading-height, var(--frame-heading-height)) + 46px);
+      padding-block-start: var(--content-inset);
     }
 
     .inspection-target:has(.page-view) {

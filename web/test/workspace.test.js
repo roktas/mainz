@@ -1089,7 +1089,7 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
           await page.keyboard.press("Escape")
         }
         if (name === "Output") await pane.getByRole("textbox", { name: "Page selection", exact: true }).fill("2")
-        let reference
+        let reference, preparation, contentStart
         for (const view of name === "Input" ? ["Page", "Grid", "List", "Style"] : ["Page", "Grid", "List"]) {
           await tab(pane, view)
           const bounds = await pane.locator(".tabs").evaluate((tabs) => {
@@ -1106,6 +1106,87 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
           })
           reference ??= bounds
           const label = `${name} ${view}, ${width}px, ${text}`
+          const start = await pane.evaluate((panel, view) => {
+            const field = panel.querySelector(view === "Style" ? ".profile-choice" : ".sequence-entry > .entry")
+            const content = panel
+              .querySelector(
+                view === "Style"
+                  ? ".style-profile"
+                  : view === "Page"
+                    ? ".page-view"
+                    : view === "Grid"
+                      ? ".composition-card"
+                      : ".page-list > li:not(.list-spacer)",
+              )
+              .getBoundingClientRect()
+            const hint = panel.querySelector(view === "Style" ? ".profile-summary > p" : ".sequence-help")
+            return (
+              (view === "Style" ? content.bottom - 1 : content.top) -
+              field.getBoundingClientRect().bottom -
+              hint.getBoundingClientRect().height
+            )
+          }, view)
+          contentStart ??= start
+          assert.ok(
+            Math.abs(start - contentStart) < 1,
+            `${label}: shared content spacing after the hint ${start}, ${contentStart}`,
+          )
+          if (name === "Input" && ["Grid", "Style"].includes(view)) {
+            const profile = view === "Style"
+            const layout = await pane.evaluate((panel, profile) => {
+              const bar = panel
+                .querySelector(profile ? ".profile-choice" : ".sequence-entry > .entry")
+                .getBoundingClientRect()
+              const hint = panel.querySelector(profile ? ".profile-summary > p > span" : ".sequence-help > span")
+              const range = document.createRange()
+              range.selectNodeContents(hint)
+              const text = range.getBoundingClientRect()
+              const style = getComputedStyle(hint)
+              return {
+                gap: bar.top - panel.querySelector(".editing-toolbar").getBoundingClientRect().bottom,
+                height: bar.height,
+                left: text.left - bar.left,
+                hintGap: text.top - bar.bottom,
+                font: style.fontSize,
+                line: style.lineHeight,
+                color: style.color,
+              }
+            }, profile)
+            if (!profile) preparation = layout
+            else {
+              assert.equal(layout.font, preparation.font, `${label}: profile hint uses selection hint text size`)
+              assert.equal(layout.line, preparation.line)
+              assert.equal(layout.color, preparation.color)
+              for (const key of ["gap", "height", "left", "hintGap"])
+                assert.ok(
+                  Math.abs(layout[key] - preparation[key]) < 1,
+                  `${label}: ${key} ${JSON.stringify({ layout, preparation })}`,
+                )
+              await pane.getByRole("combobox", { name: "Style profile", exact: true }).selectOption({ label: "Filled" })
+              const marker = await pane.locator(".editing-toolbar").evaluate((toolbar) => {
+                const button = toolbar.querySelector('[role="tab"][aria-label="Style"]')
+                const bounds = button.getBoundingClientRect(),
+                  surface = getComputedStyle(button, "::before"),
+                  dot = toolbar.querySelector(".edit-dot").getBoundingClientRect()
+                return {
+                  width: dot.width,
+                  height: dot.height,
+                  x: dot.x + dot.width / 2 - bounds.x - parseFloat(surface.left) - parseFloat(surface.width) / 2,
+                  y:
+                    dot.y +
+                    dot.height / 2 -
+                    bounds.top -
+                    parseFloat(surface.top) +
+                    (surface.translate === "none" ? 0 : parseFloat(surface.height) / 2) +
+                    6,
+                }
+              })
+              assert.ok(
+                marker.width === 4 && marker.height === 4 && Math.abs(marker.x) < 1 && Math.abs(marker.y) < 1,
+                `${label}: ${JSON.stringify(marker)}`,
+              )
+            }
+          }
           assert.deepEqual(bounds, reference, `${label}: adjacent tools preserve tab positions and sizes`)
           assert.ok(
             bounds.every((rect) => rect.y === 0),
@@ -2296,6 +2377,19 @@ test("Style selectors retain touch height and inset arrows across workspace widt
           assert.ok(geometry.inset >= 12, `${label}: inset arrow`)
           assert.equal(geometry.target, true, `${label}: the arrow retains the native select target`)
           assert.equal(geometry.overflow, false, `${label}: no horizontal overflow`)
+          const control = await page
+            .locator(".style-group .control:not(.compact)")
+            .first()
+            .evaluate((element) => {
+              const label = element.querySelector(".control-label").getBoundingClientRect(),
+                field = element.querySelector(".entry").getBoundingClientRect(),
+                group = element.closest("fieldset").getBoundingClientRect()
+              return { left: field.left - group.left, right: field.right - group.right, gap: field.top - label.bottom }
+            })
+          assert.ok(
+            Math.abs(control.left) < 1 && Math.abs(control.right) < 1 && control.gap >= -1,
+            `${label}: individual Style fields retain the group's full width ${JSON.stringify(control)}`,
+          )
           const output = page.locator(".composition-output .sequence-entry > .entry")
           if (await output.isVisible()) {
             const reference = await output.boundingBox(),

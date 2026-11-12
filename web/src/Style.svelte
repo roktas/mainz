@@ -168,7 +168,7 @@
             </div>
             <div class="profile-summary">
               <p id={`${key}-profile-${index}`} class="control-description">
-                {description}
+                <span>{description}</span>
               </p>
               {#key selected}
                 <Guidance title={selected?.name ?? set.name} details={selected?.details} />

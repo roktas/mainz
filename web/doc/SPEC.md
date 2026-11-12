@@ -133,6 +133,9 @@ Output occurrences without changing the PDF or Recipe. The default priority alwa
 Input detail headings show one flat title. Output details use flat headings, filename and original page number, and the
 document Title when several Inputs contribute pages.
 
+Vertical scrolling outside the Page image viewport offers direct start and end controls. These actions retain the
+selection and inspected page. The native scrollbar keeps its normal content-based range and remains draggable.
+
 The open-book Contents control navigates the Input outline in Grid, List, and Page without changing selection. Output
 has no Contents control. Opening Contents folds every branch and reveals the current visible ancestor. Grid and List
 share a section tree and show **one physical page item per page**: a section starting on page N uses that page's

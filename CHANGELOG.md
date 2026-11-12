@@ -4,8 +4,8 @@
 
 ### Added
 
+- Direct start/end controls for vertical scrolling outside the Page image viewport.
 - Blank-page insertion after the current Output page, alongside After last page.
-
 - Compact physical and logical page-label navigation, with labeled first/last controls.
 - Editable Output filenames in the compact document menu, with access to document details.
 - Go to page in the view toolbar, with a temporary number field and first/last shortcuts that preserve Selection.
@@ -130,6 +130,11 @@
 
 ### Fixed
 
+- Align Grid, List, Page, and Style content below compact selection hints; keep individual Style fields at full width.
+- Keep large Grid and List scroll destinations reachable in WebKit without changing the native scrollbar range.
+- Keep Contents destinations visible after unfolding and align Page footer actions vertically.
+- Use compact filename fields and spaced dialog actions, a visible desktop Output disclosure, and consistent Go to page
+  headings.
 - Preserve folded Grid cards on Page return, highlight navigation targets, and keep touch editing controls visible.
 - Keep tablet detail and action panels compact and opaque; align Page footer controls and simplify Help and menus.
 - Keep mobile Input and Output labels within their buttons at enlarged text sizes.

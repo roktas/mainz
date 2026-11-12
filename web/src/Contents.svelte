@@ -59,6 +59,10 @@
     panel.hidePopover()
     navigate(page)
   }
+  $effect(() => {
+    if (!opened || !current) return
+    void tick().then(() => panel.querySelector('[aria-current="location"]')?.scrollIntoView({ block: "nearest" }))
+  })
 </script>
 
 <button
@@ -78,11 +82,6 @@
   onbeforetoggle={(event) => {
     opened = event.newState === "open"
     if (opened) collapsed = new Set(parents.map((item) => item.key))
-  }}
-  ontoggle={async (event) => {
-    if (event.newState !== "open") return
-    await tick()
-    panel.querySelector('[aria-current="location"]')?.scrollIntoView({ block: "nearest" })
   }}
 >
   <header>

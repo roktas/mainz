@@ -22,7 +22,7 @@
     .selection-panel,
     .composition-output {
       min-inline-size: 0;
-      container: catalog / inline-size;
+      container-type: inline-size;
     }
     .composition-output:only-child {
       grid-column: 1 / -1;
@@ -49,6 +49,11 @@
       color: inherit;
       font: inherit;
       gap: 0.5em;
+      & > svg:last-child {
+        inline-size: 16px;
+        block-size: 16px;
+        rotate: 90deg;
+      }
       @media (hover: hover) and (pointer: fine) {
         &:hover {
           color: var(--accent);
@@ -84,9 +89,13 @@
         min-inline-size: 0;
       }
       & .filename-actions {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--action-width)), 1fr));
-        gap: calc(var(--gap) / 2);
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: var(--gap);
+        & > button {
+          flex: 0 1 8em;
+        }
       }
       & .file-cover {
         display: flex;
@@ -978,11 +987,6 @@
           gap: clamp(0.25rem, 1cqi, 0.75rem);
           & > button {
             white-space: nowrap;
-            & > .edit-dot {
-              position: absolute;
-              inset-block-start: 0.25em;
-              inset-inline-end: 0.25em;
-            }
           }
         }
       }
@@ -1434,7 +1438,6 @@
         border-image: none;
         gap: 0;
         & > .tabs {
-          order: 0;
           gap: 0;
           & > button {
             min-inline-size: 44px;
@@ -1442,24 +1445,19 @@
             padding-inline: 8px;
           }
         }
-        & > button {
-          order: 2;
-        }
-        & > button[aria-label="Input contents"] {
-          order: 5;
-        }
-        & > button[aria-label="Section headings"] {
-          order: 3;
-        }
-        & > .page-destination {
-          order: 4;
-        }
       }
-      .composer .sequence-entry {
+      .composer :is(.sequence-entry, .style-profile) {
         margin-block: 8px;
         & > p {
           margin-block-start: 4px;
         }
+      }
+      .composer .sequence-entry {
+        margin-block-end: calc(8px - var(--content-inset));
+      }
+      .composer .style-profile {
+        row-gap: 4px;
+        padding-block-end: 8px;
       }
       @media (hover: hover) and (pointer: fine) {
         .workspace-bar > .file-picker:hover,
@@ -1487,7 +1485,7 @@
       .tabs {
         gap: 0;
       }
-      .tabs > button > span:not(.edit-dot) {
+      .tabs > button > span {
         display: none;
       }
     }
@@ -1525,13 +1523,7 @@
       inline-size: min(32rem, calc(100vi - 2 * var(--gutter)));
     }
     .output-filename {
-      min-inline-size: 0;
-      display: flex;
-      align-items: center;
-      gap: 0.5em;
-      border: 1px solid var(--accent);
-      border-radius: var(--radius);
-      padding: 0.5em;
+      border-color: var(--accent);
     }
     .output-filename > button {
       flex: none;
@@ -1540,13 +1532,6 @@
       & svg {
         rotate: 90deg;
       }
-    }
-    .output-filename input {
-      flex: 1;
-      min-inline-size: 0;
-      background: transparent;
-      border: 0;
-      color: var(--ink);
     }
   }
 }

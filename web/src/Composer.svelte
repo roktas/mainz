@@ -1598,7 +1598,7 @@
 
 {#snippet outputName(menu = false)}
   {#if menu}
-    <div class="input-choice output-filename">
+    <div class="entry output-filename">
       <input
         aria-label="Output filename"
         value={filename || suggestFilename()}
@@ -1624,9 +1624,10 @@
     <button
       class="output-name"
       aria-label="Set Output filename"
+      aria-haspopup="dialog"
       title={filename ? `Output filename · ${filename}` : "Set Output filename"}
       onclick={(event) => rename(closeDocument() ?? event.currentTarget)}
-      ><Icon name="output" /><span>Output</span></button
+      ><Icon name="output" /><span>Output</span><Icon name="next" /></button
     >
   {/if}
 {/snippet}
@@ -2020,6 +2021,7 @@
                 id={`${key}-style`}
                 role="tab"
                 aria-label="Style"
+                style:anchor-name="--style-tab"
                 aria-selected={activeTab === "style"}
                 aria-controls={`${key}-source-panel`}
                 tabindex={activeTab === "style" ? 0 : -1}
@@ -2032,11 +2034,13 @@
                   : "Style unavailable. Add applicable pages from this Input to Output to use Style."}
                 data-tour-tab="style"
                 data-tour-active={tour === "style"}
-                ><Icon name={styleable ? "style" : "style-off"} /><span>Style</span
-                >{#if Object.keys(source.overrides).length || Object.keys(source.drafts).length}<span class="edit-dot"
-                  ></span>{/if}</button
+                ><Icon name={styleable ? "style" : "style-off"} /><span>Style</span></button
               >{/if}
           </div>
+          {#if hasStyles && (Object.keys(source.overrides).length || Object.keys(source.drafts).length)}<span
+              class="edit-dot"
+              aria-hidden="true"
+            ></span>{/if}
 
           {#if inputSectionView && inputSectionView.sectionState() !== "none"}<button
               type="button"
@@ -2060,13 +2064,6 @@
               }}><Icon name="sections" /></button
             >{/if}
           {#if activeTab === "style" && styling}{@render styling(true)}{/if}
-          {#if activeTab !== "style"}<Jump
-              pane="Input"
-              labels={source.input.labels}
-              {count}
-              position={inputPosition}
-              navigate={(position, event) => void goTo("Input", position, event)}
-            />{/if}
           {#if source.input.outline?.length}<Contents
               outline={source.input.outline}
               source={source.id}
@@ -2078,6 +2075,13 @@
                 if (activeTab === "list") await inputList?.revealPage(position)
                 void interaction.reveal("Input", undefined, true)
               }}
+            />{/if}
+          {#if activeTab !== "style"}<Jump
+              pane="Input"
+              labels={source.input.labels}
+              {count}
+              position={inputPosition}
+              navigate={(position, event) => void goTo("Input", position, event)}
             />{/if}
         </div>
 

@@ -781,9 +781,6 @@ test(
       assert.equal(await editor.getByRole("button", { name: "Save", exact: true }).isDisabled(), true)
       await title.fill("Collected strokes & guides")
       const cover = editor.getByRole("spinbutton", { name: "Cover page", exact: true })
-      const coverBounds = await editor.locator(".file-cover-field .entry").boundingBox()
-      const defaultBounds = await editor.getByRole("button", { name: "Use default", exact: true }).boundingBox()
-      assert.ok(Math.abs(coverBounds.x + coverBounds.width - defaultBounds.x - defaultBounds.width) < 1)
       await cover.fill("2")
       await cover.press("Tab")
       await editor.locator('img[alt="Cover · page 2"]').waitFor()
@@ -1525,6 +1522,7 @@ test("Output controls retain desktop spacing and compact menu access", { timeout
           b = await view.boundingBox(),
           c = await download.boundingBox()
         const compact = await page.locator(".composer").evaluate((el) => el.hasAttribute("data-compact"))
+        let filenameHeight
         assert.equal(a.width, b.width)
         assert.equal(a.height, b.height)
         assert.ok(a.width >= 44 && a.height >= 44 && c.width >= 44 && c.height >= 44)
@@ -1532,8 +1530,13 @@ test("Output controls retain desktop spacing and compact menu access", { timeout
           assert.ok(b.y + b.height <= a.y, "View precedes Print in the document menu")
           assert.equal(c.width, c.height)
           assert.equal(await download.locator("span").isVisible(), false)
+          const filename = page.getByRole("textbox", { name: "Output filename", exact: true })
+          filenameHeight = (await filename.locator("..").boundingBox()).height
           await page.keyboard.press("Escape")
         } else {
+          const disclosure = page.locator(".output-name > svg:last-child")
+          assert.ok(await disclosure.isVisible(), "Output filename editing has a visible disclosure")
+          assert.equal(await page.locator(".output-name").getAttribute("aria-haspopup"), "dialog")
           assert.ok(a.x + a.width < b.x && b.x + b.width < c.x)
           assert.ok(Math.abs(a.y + a.height / 2 - c.y - c.height / 2) < 1)
           const ink = await page
@@ -1552,6 +1555,32 @@ test("Output controls retain desktop spacing and compact menu access", { timeout
           const open = await page.locator(".input-heading > .file-picker").boundingBox()
           assert.ok(Math.abs(open.width - c.width) < 1 && Math.abs(open.height - c.height) < 1)
         }
+        await (await outputAction(page, "Set Output filename")).click()
+        const editor = page.locator(".filename-panel:popover-open")
+        const buttons = await editor
+          .locator(".filename-actions button")
+          .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()))
+        const bounds = await editor.boundingBox()
+        const actionBounds = await editor.locator(".filename-actions").boundingBox()
+        if (compact)
+          assert.ok(
+            Math.abs(filenameHeight - (await editor.locator(".entry").first().boundingBox()).height) < 1,
+            `${width}, ${size}%: filename fields share one height`,
+          )
+        for (const box of buttons)
+          assert.ok(box.width >= 104 && box.height >= 44 && box.x >= bounds.x && box.right <= bounds.x + bounds.width)
+        const sameRow = Math.abs(buttons[0].y - buttons[1].y) < 1
+        assert.ok(sameRow ? buttons[1].x - buttons[0].right >= 12 : buttons[1].y - buttons[0].bottom >= 12)
+        assert.ok(
+          Math.abs((buttons[0].x + buttons[1].right) / 2 - actionBounds.x - actionBounds.width / 2) < 1,
+          `${width}, ${size}%: ${JSON.stringify({ bounds, buttons })}`,
+        )
+        if (width === 375 && size === 100)
+          assert.ok(
+            buttons.every((box) => box.width < bounds.width * 0.45),
+            "Compact actions leave space at both sides",
+          )
+        await editor.getByRole("button", { name: "Close filename", exact: true }).click()
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
       }
     }

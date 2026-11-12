@@ -43,6 +43,7 @@
   import Theme from "./Theme.svelte"
   import Logo from "./Logo.svelte"
   import Icon from "./Icon.svelte"
+  import Scroll from "./Scroll.svelte"
   import { provideFeedback } from "./Feedback.svelte"
   import Header from "./Header.svelte"
   import Align from "./Align.svelte"
@@ -840,6 +841,7 @@
     </div>
   </div>
 </header>
+<Scroll />
 <main id="workspace">
   {#if !active && !parts.length && !matching}
     <Landing {loading} {updating} replay={logoReplay} open={landingFiles} recipe={(file) => void openRecipe(file)} />

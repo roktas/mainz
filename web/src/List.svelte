@@ -6,7 +6,7 @@
 </script>
 
 <script lang="ts">
-  import { tick, untrack } from "svelte"
+  import { flushSync, tick, untrack } from "svelte"
   import type { Snippet } from "svelte"
   import { shortcut, shortcutContext } from "./keyboard.ts"
   import { gridSections, sectionsOf, unfoldSamePage } from "./sections.ts"
@@ -252,8 +252,12 @@
     saved.offset = row ? row.getBoundingClientRect().top - list.getBoundingClientRect().top : undefined
   }
   function scrolling(element: HTMLElement) {
-    scroll = element.scrollTop
-    remember()
+    const top = element.scrollTop
+    flushSync(() => {
+      scroll = top
+      remember()
+    })
+    element.scrollTop = top
     const focused =
       document.activeElement instanceof HTMLElement
         ? document.activeElement.closest<HTMLElement>(".list-row, .list-section")

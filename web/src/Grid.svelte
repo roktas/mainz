@@ -5,7 +5,7 @@
 </script>
 
 <script lang="ts">
-  import { tick, untrack } from "svelte"
+  import { flushSync, tick, untrack } from "svelte"
   import type { Snippet } from "svelte"
   import { fields, shortcut, shortcutContext } from "./keyboard.ts"
   import { fit } from "./fit.ts"
@@ -164,10 +164,18 @@
     if (!list || !pages.length) return
     const top = Math.floor(rankOf(index) / columns) * stride
     const bottom = top + height
-    if (top < list.scrollTop) list.scrollTop = top
-    else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight
-    scroll = list.scrollTop
-    saved.scroll = scroll
+    const target =
+      top < list.scrollTop
+        ? top
+        : bottom > list.scrollTop + list.clientHeight
+          ? bottom - list.clientHeight
+          : list.scrollTop
+    // Commit virtual padding before scrolling; WebKit clamps during DOM replacement.
+    flushSync(() => {
+      scroll = target
+      saved.scroll = target
+    })
+    list.scrollTop = scroll
   }
   export async function revealPage(index: number) {
     expand(index)
@@ -195,8 +203,12 @@
     if (card) flash(card)
   }
   function scrolling(element: HTMLElement) {
-    scroll = element.scrollTop
-    saved.scroll = scroll
+    const top = element.scrollTop
+    flushSync(() => {
+      scroll = top
+      saved.scroll = top
+    })
+    element.scrollTop = top
     const focused = document.activeElement?.closest<HTMLElement>(".composition-card")
     if (!focused || !element.contains(focused)) return
     const bounds = focused.getBoundingClientRect(),

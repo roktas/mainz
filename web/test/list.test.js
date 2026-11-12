@@ -3330,6 +3330,22 @@ test(
         const physical = input.getByRole("textbox", { name: "Input page number", exact: true })
         assert.ok(await physical.evaluate((e) => e.getBoundingClientRect().width < 80))
         const logical = input.getByRole("textbox", { name: "Input page label", exact: true })
+        const navigation = await input.locator(".page-destination-panel:popover-open").evaluate((panel) => {
+          const physical = getComputedStyle(panel.querySelector(".page-destination-heading label")),
+            logical = getComputedStyle(panel.querySelector(".logical-heading")),
+            number = getComputedStyle(panel.querySelector("input")),
+            caption = getComputedStyle(panel.querySelector("small"))
+          return {
+            headings: [physical.fontSize, logical.fontSize],
+            divider: logical.borderBlockStartWidth,
+            colors: [number.color, caption.color],
+            ink: getComputedStyle(panel).color,
+          }
+        })
+        assert.equal(navigation.headings[0], navigation.headings[1])
+        assert.equal(navigation.divider, "1px")
+        assert.equal(navigation.colors[0], navigation.colors[1])
+        assert.notEqual(navigation.colors[0], navigation.ink)
         await logical.fill("missing")
         await logical.press("Enter")
         assert.equal(await logical.getAttribute("aria-invalid"), "true")
@@ -3351,7 +3367,7 @@ test(
           const toc = e.querySelector('[aria-label="Input contents"]').getBoundingClientRect()
           return { goto: goto.x, toc: toc.x }
         })
-        assert.ok(bounds.toc > bounds.goto)
+        assert.ok(bounds.goto > bounds.toc)
       } finally {
         await page.close()
         await browser.close()

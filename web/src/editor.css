@@ -91,7 +91,8 @@
     }
     .style-profile {
       display: grid;
-      gap: calc(var(--gap) / 2);
+      gap: 0.5em;
+      font-size: var(--body);
       padding-block-end: var(--gap);
       margin-block: var(--gap);
       border-block-end: 1px solid var(--border);
@@ -122,8 +123,17 @@
       }
     }
     .style-profile > .profile-summary {
-      grid-template-columns: minmax(0, max-content) auto;
-      justify-content: start;
+      position: relative;
+      inline-size: fit-content;
+      max-inline-size: 100%;
+      &:has(> .guidance-trigger) {
+        padding-inline-end: calc(44px + var(--gap) / 2);
+      }
+      & > .guidance-trigger {
+        position: absolute;
+        inset-inline-end: 0;
+        inset-block-start: min(0px, calc((1.5em - 44px) / 2));
+      }
     }
     .profile-options {
       margin: 0;
@@ -169,17 +179,13 @@
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: start;
       column-gap: calc(var(--gap) / 2);
-      &:has(> button) > :is(p, [role="heading"], span:first-child) {
+      &:not(.profile-summary):has(> button) > :is(p, [role="heading"], span:first-child) {
         margin: 0;
         padding-block: max(0px, calc((44px - 1lh) / 2));
       }
       & > button {
         block-size: max(44px, 1lh);
       }
-    }
-    .profile-summary > button > svg {
-      inline-size: 1.5rem;
-      block-size: 1.5rem;
     }
     .guidance {
       margin: 0;
@@ -485,25 +491,6 @@
         & .step,
         & .reset {
           flex: 1 0 44px;
-        }
-      }
-    }
-    @container catalog (width > 35em) {
-      .composer .control:not(.compact) {
-        display: grid;
-        grid-template-columns: minmax(9rem, 0.7fr) minmax(0, 1.3fr);
-        gap: 0.4em var(--gap);
-        align-items: center;
-        & .control-label {
-          grid-column: 1;
-          grid-row: 1;
-        }
-        & > .entry {
-          grid-column: 2;
-          grid-row: 1;
-        }
-        & .state {
-          grid-column: 2;
         }
       }
     }
