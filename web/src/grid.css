@@ -415,6 +415,42 @@
           display: none;
         }
       }
+      & .occurrence-actions:has(> .list-edit-trigger) {
+        grid-template-columns: var(--list-action-size);
+        column-gap: 0;
+      }
+      & .list-edit-options {
+        position-area: block-end span-inline-start;
+        position-try-fallbacks: flip-block, flip-inline;
+        margin-block-start: 4px;
+        padding: 4px;
+        inline-size: max-content;
+        max-inline-size: calc(100vi - 2 * var(--gutter));
+        max-block-size: calc(100dvb - 2 * var(--gutter));
+        overflow: auto;
+        border: 1px solid var(--edge);
+        border-radius: var(--radius);
+        background: var(--surface);
+        color: var(--ink);
+        box-shadow: 0 4px 16px var(--shadow);
+        &:popover-open {
+          display: grid;
+        }
+        & > button {
+          display: grid;
+          grid-template-columns: var(--icon-size) minmax(0, 1fr);
+          align-items: center;
+          gap: 0.75em;
+          justify-content: start;
+          inline-size: 100%;
+          min-inline-size: 0;
+          block-size: auto;
+          min-block-size: 44px;
+          padding-inline: 12px;
+          text-align: start;
+          font-size: var(--body);
+        }
+      }
       & :is(.occurrence-moves, .occurrence-copies) {
         display: grid;
         grid-template-columns: repeat(2, var(--list-action-size));
@@ -517,6 +553,10 @@
       &.output-section {
         --section-actions: 5;
         --section-actions-gap: 6px;
+      }
+      &.output-section:has(> .list-actions .list-edit-trigger) {
+        --section-actions: 2;
+        --section-actions-gap: 0px;
       }
       &.output-section:has(> .list-actions > .occurrence-actions:empty) {
         --section-actions: 1;

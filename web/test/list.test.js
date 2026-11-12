@@ -2282,6 +2282,7 @@ test("List previews whole pages and returns to its row without changing selectio
         .getByRole("button", { name: "Output", exact: true })
         .click()
       await output.getByRole("textbox", { name: "Page selection", exact: true }).fill("")
+      await output.getByRole("button", { name: "Actions for Output page 2", exact: true }).press("Enter")
       await output.getByRole("button", { name: "Move Output page 2 earlier", exact: true }).press("Enter")
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
       assert.deepEqual(errors, [])
@@ -3393,7 +3394,7 @@ test("Compact List columns preserve title space independently of Page action spa
       await page.goto(`${server.resolvedUrls.local[0]}?demo=toc`)
       await page.locator(".composer[aria-busy=false]").waitFor()
       const output = page.locator(".composition-output")
-      for (const width of [320, 375, 393, 428, 744]) {
+      for (const width of [320, 375, 393, 428, 480, 481, 744]) {
         await page.setViewportSize({ width, height: 1000 })
         await page.emulateMedia({ colorScheme: width % 2 ? "dark" : "light" })
         await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).click()
@@ -3404,7 +3405,9 @@ test("Compact List columns preserve title space independently of Page action spa
           .evaluate((row) => {
             const title = row.querySelector(".list-heading").getBoundingClientRect()
             const actions = row.querySelector(".list-actions").getBoundingClientRect()
-            const buttons = [...row.querySelectorAll(".list-actions button")].map((el) => el.getBoundingClientRect())
+            const buttons = [...row.querySelectorAll(".list-actions button")]
+              .filter((el) => el.checkVisibility())
+              .map((el) => el.getBoundingClientRect())
             return {
               title: title.width,
               separate: title.right <= actions.left + 1,
@@ -3422,8 +3425,33 @@ test("Compact List columns preserve title space independently of Page action spa
             geometry.buttons.every((box) => box.width === 32),
             JSON.stringify(geometry),
           )
+        assert.equal(
+          await output
+            .locator(".list-edit-trigger")
+            .first()
+            .isVisible()
+            .catch(() => false),
+          width <= 480,
+        )
         if (width >= 393) assert.ok(geometry.title >= 100, JSON.stringify({ width, geometry }))
         if (width === 393) {
+          const trigger = output.locator(".list-edit-trigger").first()
+          await trigger.press("Enter")
+          const menu = output.locator(".list-edit-options:popover-open")
+          assert.equal(await menu.getByRole("button").count(), 4)
+          assert.equal(await menu.getByRole("button", { name: /earlier$/ }).isDisabled(), true)
+          await page.keyboard.press("Escape")
+          await menu.waitFor({ state: "hidden" })
+          assert.equal(await trigger.evaluate((el) => el === document.activeElement), true)
+          await trigger.click()
+          const before = await outputCount(page).textContent()
+          await menu.getByRole("button", { name: /^Duplicate Output/ }).click()
+          assert.notEqual(
+            await outputCount(page).textContent(),
+            before,
+            "The menu duplicates the same section as inline controls",
+          )
+          assert.equal(await output.locator(".list-edit-options:popover-open").count(), 0)
           const selection = output.getByLabel("Page selection", { exact: true })
           await selection.fill("2")
           const selected = await output
@@ -3433,7 +3461,7 @@ test("Compact List columns preserve title space independently of Page action spa
               title: row.querySelector(".list-heading").getBoundingClientRect().width,
               actions: row.querySelector(".list-actions").getBoundingClientRect().width,
             }))
-          assert.ok(selected.title >= geometry.title + 100, JSON.stringify({ geometry, selected }))
+          assert.ok(selected.title >= geometry.title + 28, JSON.stringify({ geometry, selected }))
           assert.equal(selected.actions, 32, "Selection leaves only the Page inspection slot")
           await selection.fill("")
           const restored = await output.locator(".list-section").first().locator(".list-heading").boundingBox()

@@ -3,6 +3,7 @@
 <script lang="ts">
   import Feedback from "./Feedback.svelte"
   import { onDestroy, tick, untrack } from "svelte"
+  import { MediaQuery } from "svelte/reactivity"
   import type { Snippet } from "svelte"
   import { copyError, parseCopies, sizeOf, titleOf, uid } from "./model.ts"
   import type { Content, Expanded, Page, Part, Source } from "./model.ts"
@@ -36,6 +37,7 @@
   import Jump from "./Jump.svelte"
   import Icon from "./Icon.svelte"
   import type { TourStep } from "./Tour.svelte"
+  const narrow = new MediaQuery("(width <= 30rem)")
   let {
     source,
     styleable,
@@ -1735,7 +1737,7 @@
 {#snippet occurrenceActions(page: Expanded, index: number, controls: boolean, end = index + 1)}
   {@const ids = chosen.length || outputSelectionError ? [] : output.pages.slice(index, end).map((item) => item.id)}
   {@const group = end > index + 1}
-  {#snippet move(offset: -1 | 1)}
+  {#snippet move(offset: -1 | 1, menu = false)}
     <button
       class="icon-button move"
       aria-label={`Move Output ${group ? `section pages ${index + 1}–${end}` : `page ${index + 1}`} ${offset < 0 ? "earlier" : "later"}`}
@@ -1747,10 +1749,10 @@
       }}
       ><Icon
         name={activeOutputTab === "list" ? (offset < 0 ? "move-up" : "move-down") : offset < 0 ? "earlier" : "later"}
-      /></button
+      />{#if menu}<span>{offset < 0 ? "Move earlier" : "Move later"}</span>{/if}</button
     >
   {/snippet}
-  {#snippet copies()}
+  {#snippet copies(menu = false)}
     <button
       class="icon-button"
       aria-label={`Remove Output ${group ? `section pages ${index + 1}–${end}` : `page ${index + 1}`}`}
@@ -1759,7 +1761,8 @@
       onclick={(event) => {
         event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
         remove(ids)
-      }}><Icon name="remove" /></button
+      }}
+      ><Icon name="remove" />{#if menu}<span>Remove</span>{/if}</button
     ><button
       class="icon-button"
       aria-label={`Duplicate Output ${group ? `section pages ${index + 1}–${end}` : `page ${index + 1}`}`}
@@ -1768,7 +1771,8 @@
       onclick={(event) => {
         event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
         duplicate(ids, "keep")
-      }}><Icon name="add" /></button
+      }}
+      ><Icon name="add" />{#if menu}<span>Duplicate</span>{/if}</button
     >
   {/snippet}
   {#snippet pairs()}
@@ -1781,7 +1785,18 @@
   {/snippet}
   <div class="occurrence-actions">
     {#if controls && ids.length}
-      {#if activeOutputTab === "grid"}<span class="card-inline-actions">{@render pairs()}</span>
+      {#if activeOutputTab === "list" && narrow.current}
+        {@const menuId = `${key}-${page.id}-actions`}
+        <button
+          class="list-edit-trigger icon-button"
+          aria-label={`Actions for Output page ${index + 1}`}
+          title="Page actions"
+          popovertarget={menuId}><Icon name="more" /></button
+        >
+        <div id={menuId} class="list-edit-options" popover="auto" aria-label={`Actions for Output page ${index + 1}`}>
+          {@render move(-1, true)}{@render move(1, true)}{@render copies(true)}
+        </div>
+      {:else if activeOutputTab === "grid"}<span class="card-inline-actions">{@render pairs()}</span>
       {:else}{@render pairs()}{/if}
     {/if}
   </div>

@@ -4,6 +4,8 @@
 
 ### Added
 
+- A single Output List page-actions menu on phone-width screens, keeping titles readable and the eye control separate.
+
 - Virtual Prelude and Postlude groups for uncovered TOC edge pages, with named cover exceptions and italic small-cap
   headings in List and Contents. The Lorem sample names its first page Cover.
 
