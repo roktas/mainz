@@ -33,7 +33,6 @@
       <section
         id="unsupported"
         hidden
-        role="alert"
         style="
           box-sizing: border-box;
           max-width: 36rem;
@@ -53,7 +52,9 @@
     </div>
     <script>
       if (!window.mainzSupported) {
-        document.getElementById("unsupported").hidden = false
+        const unsupported = document.getElementById("unsupported")
+        unsupported.setAttribute("role", "alert")
+        unsupported.hidden = false
         const agent = navigator.userAgent
         const ipad = /iPad/.test(agent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
         const iphone = /iPhone|iPod/.test(agent)

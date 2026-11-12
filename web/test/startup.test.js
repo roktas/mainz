@@ -47,7 +47,6 @@ test(
       await context.close()
     } finally {
       await browser.close()
-      await server.close()
     }
   },
 )
@@ -193,6 +192,7 @@ test(
     try {
       const page = await browser.newPage({ reducedMotion: "reduce" })
       await page.goto(server.resolvedUrls.local[0])
+      await page.locator(".welcome .buttons > label").first().waitFor()
       for (const [width, text, family = ""] of [
         [1920, "100%"],
         [1440, "100%"],
@@ -558,6 +558,8 @@ test("Landing top spacing stays bounded on wide coarse-pointer screens", async (
         [1194, 834],
       ]) {
         await page.setViewportSize({ width, height })
+        await page.locator(".drop-zone").waitFor()
+        await page.locator(".header-inner").waitFor()
         const layout = await page.evaluate(() => {
           const area = document.querySelector(".drop-zone").getBoundingClientRect()
           const header = document.querySelector(".header-inner").getBoundingClientRect()

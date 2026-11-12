@@ -28,6 +28,7 @@ const harness = {
 
 async function fixture(page, url, delayed = false, name) {
   await page.goto(url)
+  await page.locator("#workspace").waitFor()
   await page.addScriptTag({ type: "module", url: `${url}lens-fixture.js` })
   await page.waitForFunction(() => !!window.mountLens)
   await page.evaluate(

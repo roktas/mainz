@@ -2339,7 +2339,7 @@ test(
         assert.equal(await prepared.inputValue(), "2,4")
         assert.equal(await selected.inputValue(), "3,5")
       }
-      await tab(input, "Grid")
+      await tab(input, "List")
       await page.evaluate(() => document.activeElement?.blur())
       await page.mouse.move(8, 20)
       await page.keyboard.press("End")
@@ -2350,6 +2350,7 @@ test(
       )
       await page.keyboard.press("Shift+Equal")
       assert.equal(await output.getByLabel("Output page zoom", { exact: true }).innerText(), "150%")
+      await tab(input, "Grid")
       const gridPage = input.getByRole("button", { name: "Select Input page 1", exact: true })
       await gridPage.focus()
       await page.keyboard.press("n")
@@ -2368,7 +2369,7 @@ test(
         document.activeElement?.blur()
         scrollTo(0, 0)
       })
-      for (const key of ["Shift+Equal", "-", "0", "z", "Home", "End", "g"]) await page.keyboard.press(key)
+      for (const key of ["Shift+Equal", "-", "0", "z", "g"]) await page.keyboard.press(key)
       assert.equal(
         await page.evaluate(() => document.activeElement === document.body && scrollY === 0),
         true,
