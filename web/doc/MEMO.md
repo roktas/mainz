@@ -154,12 +154,16 @@ ordinary PRs and pushes.
 `npm run test:viewport` runs the full current Grid geometry and viewport checks. Keep the native measurement evidence
 required below.
 
-CI runs standard in six browser groups for main pushes and pull requests. A `v*` version tag runs full in nine groups,
-including a separate viewport group. Native, sanitizer, and WASM checks run for both modes. Browser jobs wait for the
-native job that supplies WASM. The sanitizer job runs independently. Deployment requires both jobs and all browser
-groups to pass. In GitHub Actions, open **Check and publish Mainz → Run workflow** and select `standard` or `full` for a
-manual check. Manual checks never upload a Pages artifact, deploy, or cancel a push run. Only a successful push to
-`main` deploys the web application.
+CI runs standard in ten browser groups for main pushes and pull requests: Grid, List, preview, composition, selection,
+startup, Page, workspace, feedback, and export. Preview covers PDF rendering, lens, and processor tests. Workspace
+covers workspace and Recipe checks. A `v*` version tag runs full in thirteen groups, adding alignment, geometry, and
+viewport. Each job runs its browser files sequentially. Export installs full Chromium for native printing. Every group
+that uses WebKit installs it, including full alignment. Failed jobs retain layout screenshots and their JSON
+measurements. Native, sanitizer, and WASM checks run for both modes. Browser jobs wait for the native job that supplies
+WASM. The sanitizer job runs independently. Deployment requires both jobs and all browser groups to pass. In GitHub
+Actions, open **Check and publish Mainz → Run workflow** and select `standard` or `full` for a manual check. Manual
+checks never upload a Pages artifact, deploy, or cancel a push run. Only a successful push to `main` deploys the web
+application.
 
 `PLAYWRIGHT_CHANNEL=chrome` selects installed Chrome; `chrome-beta` selects the Beta channel. Record the actual browser
 version with its results. On macOS, use Playwright's `ControlOrMeta` for native selection and modified pointer actions.

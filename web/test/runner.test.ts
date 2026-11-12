@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict"
 import test from "node:test"
+import { readFileSync } from "node:fs"
 import { select } from "./run.ts"
 
 test("Browser modes retain critical regressions and reserve calibration matrices for full checks", () => {
@@ -24,10 +25,10 @@ test("Browser modes retain critical regressions and reserve calibration matrices
   assert.equal(skipped.test("Normal card targets stay separate through phone pane and text transitions"), false)
   assert.deepEqual(full.flags, [])
   assert.deepEqual(select("full", "viewport").files, ["test/viewport.test.js"])
-  assert.deepEqual(select("standard", "grid").files, [
-    "test/grid.test.js",
+  assert.deepEqual(select("standard", "grid").files, ["test/grid.test.js"])
+  assert.deepEqual(select("standard", "list").files, ["test/list.test.js"])
+  assert.deepEqual(select("standard", "preview").files, [
     "test/lens.test.js",
-    "test/list.test.js",
     "test/pdf.test.js",
     "test/processor.test.js",
   ])
@@ -37,13 +38,38 @@ test("Browser modes retain critical regressions and reserve calibration matrices
     "test/install.test.js",
     "test/startup.test.js",
   ])
-  assert.deepEqual(select("standard", "workspace").files, [
-    "test/checks.test.js",
-    "test/export.test.js",
-    "test/feedback.test.js",
-    "test/workspace.test.js",
-  ])
+  assert.deepEqual(select("standard", "workspace").files, ["test/checks.test.js", "test/workspace.test.js"])
+  assert.deepEqual(select("standard", "feedback").files, ["test/feedback.test.js"])
+  assert.deepEqual(select("standard", "export").files, ["test/export.test.js"])
   assert.throws(() => select("unknown"), /Unknown browser mode/)
   assert.throws(() => select("standard", "unknown"), /Unknown browser group/)
   assert.throws(() => select("standard", "viewport"), /No standard browser checks/)
+})
+
+test("CI matrices cover each browser file once and install its browser dependencies", () => {
+  const workflow = readFileSync(new URL("../../.github/workflows/build.yml", import.meta.url), "utf8")
+  const matrices = workflow.match(/&& '(\[[^']+\])'\s*\|\| '(\[[^']+\])'/)
+  assert.ok(matrices, "Full and standard CI matrices are declared")
+  const webkit = workflow.match(/contains\(fromJSON\('(\[[^']+\])'\), matrix.suite\)/)
+  assert.ok(webkit, "WebKit groups are declared")
+  const installed = JSON.parse(webkit[1]) as string[]
+  for (const [mode, index, count] of [
+    ["full", 1, 13],
+    ["standard", 2, 10],
+  ] as const) {
+    const groups = JSON.parse(matrices[index]) as string[]
+    assert.equal(groups.length, count)
+    const files = groups.flatMap((group) => select(mode, group).files)
+    assert.deepEqual(files.toSorted(), select(mode).files.toSorted(), `${mode}: each file runs exactly once`)
+    for (const group of groups) {
+      const usesWebkit = select(mode, group).files.some((file) =>
+        /import\s*\{[^}]*\b(?:engines|webkit)\b[^}]*\}/.test(
+          readFileSync(new URL(`../${file}`, import.meta.url), "utf8"),
+        ),
+      )
+      if (usesWebkit) assert.ok(installed.includes(group), `${group}: WebKit is installed`)
+    }
+  }
+  assert.match(workflow, /Install Chromium for native PDF printing\s+if: matrix.suite == 'export'/)
+  assert.match(workflow, /Download Recipe cases\s+if: matrix.suite == 'workspace'/)
 })

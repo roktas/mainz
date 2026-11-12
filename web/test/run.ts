@@ -9,13 +9,17 @@ import { fileURLToPath } from "node:url"
 
 const groups: Record<string, string[]> = {
   alignment: ["alignment"],
-  grid: ["grid", "list", "pdf", "lens", "processor"],
+  grid: ["grid"],
+  list: ["list"],
+  preview: ["pdf", "lens", "processor"],
   geometry: ["geometry"],
   composition: ["composition", "transfer"],
   selection: ["selection"],
   startup: ["startup", "install", "assets"],
   page: ["page"],
-  workspace: ["workspace", "feedback", "export", "checks"],
+  workspace: ["workspace", "checks"],
+  feedback: ["feedback"],
+  export: ["export"],
   viewport: ["viewport"],
 }
 const files = readdirSync(new URL(".", import.meta.url))
