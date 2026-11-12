@@ -4,6 +4,10 @@
 
 ### Added
 
+- Blank-page insertion after the current Output page, alongside After last page.
+
+- Compact physical and logical page-label navigation, with labeled first/last controls.
+- Editable Output filenames in the compact document menu, with access to document details.
 - Go to page in the view toolbar, with a temporary number field and first/last shortcuts that preserve Selection.
 - Input List shows PDF page labels in their own column before page names when the document defines them.
 - Collapsible List sections with block selection and dragging, section addition or copying, and first-page viewing.
@@ -126,6 +130,8 @@
 
 ### Fixed
 
+- Preserve folded Grid cards on Page return, highlight navigation targets, and keep touch editing controls visible.
+- Keep tablet detail and action panels compact and opaque; align Page footer controls and simplify Help and menus.
 - Keep mobile Input and Output labels within their buttons at enlarged text sizes.
 
 - Restored List heading focus and highlighting when jumping from Contents.

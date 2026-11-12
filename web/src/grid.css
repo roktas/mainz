@@ -48,8 +48,7 @@
         anchor-name: --page-name;
       }
     }
-    :is(.page-origin, .page-number) > .page-name,
-    .page-origin > summary > .page-name {
+    :is(.page-origin, .page-number) > .page-name {
       position: fixed;
       z-index: 5;
       inset: auto;
@@ -71,14 +70,12 @@
       display: none;
     }
     @media (hover: hover) and (pointer: fine) {
-      :is(.page-origin, .page-number):hover > .page-name,
-      .page-origin:hover > summary > .page-name {
+      :is(.page-origin, .page-number):hover > .page-name {
         display: block;
         animation: caption 220ms step-end;
       }
     }
-    :is(.page-origin, .page-number):focus-within > .page-name,
-    .page-origin:focus-within > summary > .page-name {
+    :is(.page-origin, .page-number):focus-within > .page-name {
       display: block;
       animation: none;
     }
@@ -125,24 +122,7 @@
       overflow: clip;
       text-overflow: ellipsis;
     }
-    :is(.list-row-menu, .occurrence-menu)[popover] {
-      inline-size: max-content;
-      & .occurrence-actions {
-        grid-template-columns: repeat(2, 88px);
-        gap: 8px;
-      }
-      & :is(.occurrence-moves, .occurrence-copies) {
-        grid-template-columns: repeat(2, 44px);
-      }
-      & button {
-        inline-size: 44px;
-        min-inline-size: 44px;
-        block-size: 44px;
-        min-block-size: 44px;
-        padding: 0;
-      }
-    }
-    .page-list .card-menu-options:not(.list-row-menu) .page-context {
+    .page-list .card-menu-options .page-context {
       display: block;
       margin-block-start: 0.35em;
     }
@@ -517,6 +497,7 @@
         box-shadow: none;
         & > header {
           padding-block-end: 0.3em;
+          border-block-end: 0;
           & h3 {
             font-size: var(--body);
           }
@@ -687,7 +668,7 @@
       }
     }
     .page-destination-panel {
-      --destination-width: min(16rem, calc(100vi - 2 * var(--gutter)));
+      --destination-width: min(18rem, calc(100vi - 2 * var(--gutter)));
       position-anchor: --page-destination;
       position-area: block-end span-all;
       inset: auto;
@@ -722,11 +703,14 @@
         align-items: center;
         gap: 4px;
         & .entry {
-          flex: 1;
+          flex: none;
+          inline-size: calc(4ch + 56px);
           min-inline-size: 0;
         }
         & > button {
-          padding: 8px;
+          flex: 1;
+          flex-direction: column;
+          padding: 4px;
         }
       }
       & .control-description {
@@ -963,6 +947,32 @@
           overflow: clip;
           text-overflow: ellipsis;
         }
+      }
+    }
+  }
+}
+
+@layer views {
+  @scope (.composer) {
+    .page-destination-panel .entry input {
+      inline-size: calc(4ch + 0.6em);
+      padding-inline: 0.3em;
+      text-align: center;
+    }
+    .page-destination-panel .logical-heading {
+      display: block;
+      font-weight: 600;
+      margin-block: 0.5em 0.25em;
+    }
+    .page-destination-row small {
+      font-size: var(--small);
+      max-inline-size: 7ch;
+      overflow-wrap: anywhere;
+    }
+    @media (any-pointer: coarse) {
+      .page-list > li .list-actions > :not(.list-peek) {
+        opacity: 1;
+        pointer-events: auto;
       }
     }
   }

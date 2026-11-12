@@ -137,9 +137,9 @@ test("Grid and List share heading pages, details, and inline Output controls", {
     await input.getByRole("button", { name: "View Input page 1", exact: true }).click()
     assert.equal(await input.getByRole("tab", { name: "Page", exact: true }).getAttribute("aria-selected"), "true")
     await tab(input, "Grid")
-    await input.locator('.composition-card:has(.page-image[data-page="0"]) .page-origin summary').click()
-    assert.equal(await input.locator(".page-origin[open] .page-origin-info .section-path .path-step").count(), 1)
-    await input.locator('.composition-card:has(.page-image[data-page="0"]) .page-origin summary').click()
+    await input.locator('.composition-card:has(.page-image[data-page="0"]) .page-origin > button').click()
+    assert.equal(await input.locator(".page-origin-info:popover-open .section-path .path-step").count(), 1)
+    await input.locator('.composition-card:has(.page-image[data-page="0"]) .page-origin > button').click()
     await input.getByLabel("Page selection", { exact: true }).fill("1-6")
     await input.getByRole("button", { name: "Add to Output", exact: true }).click()
     await output.getByLabel("Page selection", { exact: true }).fill("")
@@ -303,7 +303,7 @@ test(
   },
 )
 
-test("Touch Grid keeps direct actions visible and List reveals edits on focus", { timeout: 60000 }, async () => {
+test("Touch Grid and List keep editing actions visible", { timeout: 60000 }, async () => {
   const server = await serve()
   const browser = await launch(chromium)
   try {
@@ -339,13 +339,16 @@ test("Touch Grid keeps direct actions visible and List reveals edits on focus", 
       const list = panel.locator(".list-section").first()
       const actions = list.locator(".list-actions > :not(.list-peek)").first()
       const eye = list.locator(".list-peek").first()
-      assert.equal(await actions.evaluate((element) => getComputedStyle(element).opacity), "0")
+      assert.equal(await actions.evaluate((element) => getComputedStyle(element).opacity), "1")
       assert.equal(await eye.evaluate((element) => getComputedStyle(element).opacity), "1")
       await list.locator(".list-heading").focus()
       assert.equal(await actions.evaluate((element) => getComputedStyle(element).opacity), "1")
       await tab(panel, "Grid")
       const card = panel.locator(".composition-card").first()
-      const edit = pane === "Input" ? card.locator(".input-footer button").first() : card.locator(".card-menu")
+      const edit =
+        pane === "Input"
+          ? card.locator(".input-footer button").first()
+          : card.locator(".card-inline-actions button").last()
       const gridEye = card.locator(".grid-inspect")
       assert.equal(await edit.evaluate((element) => getComputedStyle(element).opacity), "1")
       assert.equal(await gridEye.evaluate((element) => getComputedStyle(element).opacity), "1")
@@ -901,13 +904,15 @@ test("List section headings default to shown and toggle independently without ch
         await page.setViewportSize({ width, height: 1000 })
         if (width === 375)
           await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Input", exact: true }).click()
-        const controls = await input.locator(".source-tabs > .icon-button").evaluateAll((buttons) =>
-          buttons.map((button) => {
-            const box = button.getBoundingClientRect()
-            return { x: box.x, right: box.right, width: box.width, height: box.height }
-          }),
-        )
-        assert.equal(controls.length, 3)
+        const controls = await input
+          .locator(".source-tabs > .icon-button, .source-tabs > .page-destination > button")
+          .evaluateAll((buttons) =>
+            buttons.map((button) => {
+              const box = button.getBoundingClientRect()
+              return { x: box.x, right: box.right, width: box.width, height: box.height }
+            }),
+          )
+        assert.equal(controls.length, 4)
         assert.ok(
           controls.every((box) => box.width >= 44 && box.height >= 44),
           "Keep full touch targets",
@@ -930,7 +935,7 @@ test("List section headings default to shown and toggle independently without ch
           const icon = bounds(".tabs > button:first-child svg")
           return {
             start: icon[0] - box.left,
-            end: box.right - bounds(".page-destination > button svg")[1],
+            end: box.right - bounds('[aria-label="Input contents"] svg')[1],
             tabTarget: tab.width >= 44,
           }
         })
@@ -1229,7 +1234,7 @@ test("Contents titles are a per-Input display preference with authored-name fall
         assert.equal(await input.locator(':is(.list-choice, .list-heading)[data-page="2"]').innerText(), "Section")
         assert.equal(await output.locator(`.list-choice[data-page="${complete ? 2 : 6}"]`).innerText(), "Section")
         await input.getByRole("button", { name: "Details for Input page 2", exact: true }).click()
-        assert.equal(await input.locator("[popover]:popover-open .detail-name").innerText(), "Chapter\n›\nSection")
+        assert.equal(await input.locator("[popover]:popover-open .detail-name").innerText(), "Section")
         await page.keyboard.press("Escape")
         await input.getByRole("button", { name: "Input contents", exact: true }).click()
         await preference.uncheck()
@@ -1303,7 +1308,7 @@ test("Contents keeps compact rows and fixed width across disclosure states", { t
               .locator(".destination")
               .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height))
             if (font === "100%") assert.ok(rows[0] <= 33 && rows[1] <= 29, JSON.stringify({ hasTouch, width, rows }))
-            for (const state of ["Fold all", "Unfold all"]) {
+            for (const state of ["Unfold all", "Fold all"]) {
               const toggle = panel.getByRole("button", { name: state, exact: true })
               const target = await toggle.evaluate((element) => {
                 const box = element.getBoundingClientRect(),
@@ -1589,7 +1594,7 @@ test(
           session = await page.context().newCDPSession(page)
         const numbers = () =>
           (view === "List" ? rows.locator(":scope:not([data-dragging])") : rows)
-            .locator(".page-origin > button strong, .page-origin > summary strong")
+            .locator(".page-origin > button strong")
             .allTextContents()
         const drag = async (index, target, after) => {
           const grip = rows.nth(index).locator(".page-grip"),
@@ -2083,7 +2088,7 @@ async function lists(browser, url, options = {}) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce", ...options })
   page.setDefaultTimeout(10000)
   await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-  await page.goto(`${url}?demo`)
+  await page.goto(`${url}?demo=single`)
   await page.locator('.composer[aria-busy="false"]').waitFor()
   const input = page.locator(".selection-panel"),
     output = page.locator(".composition-output")
@@ -2117,7 +2122,7 @@ test(
         for (const pane of [input, output]) {
           {
             const row = pane.locator(".composition-card").nth(1),
-              number = row.locator(".page-origin > button, .page-origin > summary")
+              number = row.locator(".page-origin > button")
             await number.hover()
             const caption = row.locator(".page-name")
             await caption.waitFor()
@@ -2129,12 +2134,12 @@ test(
                 return (
                   !card.querySelector(".page-name") &&
                   !!card.querySelector(".detail-name") &&
-                  !!card.querySelector(".card-menu-options:popover-open, .page-origin[open]")
+                  !!card.querySelector(".card-menu-options:popover-open, .page-origin-info:popover-open")
                 )
               }),
               true,
             )
-            const details = row.locator(".card-menu-options:popover-open, .page-origin[open] .page-origin-info")
+            const details = row.locator(".card-menu-options:popover-open, .page-origin-info:popover-open")
             await details.waitFor()
             assert.equal(await row.locator(".page-name").count(), 0)
             assert.equal(await details.locator(".detail-name").innerText(), name)
@@ -2145,7 +2150,7 @@ test(
                 12,
             )
             await page.keyboard.press("Escape")
-            if (await row.locator(".page-origin[open]").count()) await number.click()
+            if (await row.locator(".page-origin-info:popover-open").count()) await number.click()
           }
           await tab(pane, "List")
           const title = pane === input ? "Input" : "Output"
@@ -2988,6 +2993,8 @@ test(
         await open()
         const current = contents.locator('[aria-current="location"]')
         assert.equal(await current.count(), 1)
+        assert.match(await current.innerText(), /^Book/)
+        await contents.getByRole("button", { name: "Unfold Book", exact: true }).click()
         assert.match(await current.innerText(), /Chapter 100/)
         await page.waitForFunction(() => {
           const entry = document.querySelector('.contents:popover-open [aria-current="location"]')
@@ -3025,7 +3032,7 @@ test("Input additions fly from Grid and List to visible Output in both pane layo
           })
           page.setDefaultTimeout(10000)
           await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-          await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+          await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
           await page.locator(".composer[aria-busy=false]").waitFor()
           await page.evaluate(() => {
             new MutationObserver(() =>
@@ -3259,6 +3266,94 @@ test(
         await page.dispatchEvent("body", "pointercancel", { pointerType: "touch", pointerId: 9, isPrimary: true })
         assert.equal(await strip.count(), 0)
       } finally {
+        await browser.close()
+      }
+    }
+  },
+)
+
+test(
+  "Tablet page navigation retains folds, highlights returns, and resolves logical labels",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    for (const engine of engines) {
+      const browser = await launch(engine)
+      const page = await browser.newPage({ viewport: { width: 810, height: 1080 }, hasTouch: true })
+      page.setDefaultTimeout(8000)
+      try {
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        await page
+          .locator('input[type="file"]')
+          .first()
+          .setInputFiles({
+            name: "Navigation.pdf",
+            mimeType: "application/pdf",
+            buffer: fixture({
+              prepared: false,
+              count: 6,
+              labels: ["i", "ii", "1", "2", "3", "4"],
+              outline: [
+                { title: "First", page: 0 },
+                { title: "Second", page: 3 },
+              ],
+            }),
+          })
+        const input = page.locator(".selection-panel")
+        await input.locator(".grid-inspect").first().waitFor()
+        const fold = input.getByRole("button", { name: "Fold all Input sections", exact: true })
+        if (await fold.count()) await fold.click()
+        await page.waitForFunction(
+          () => document.querySelectorAll(".selection-panel .composition-card:not([inert])").length === 2,
+        )
+        await input.locator(".grid-inspect").first().click()
+        await tab(input, "Grid")
+        assert.equal(await input.locator(".composition-card:not([inert])").count(), 2)
+        assert.ok(
+          await input
+            .locator(".composition-card")
+            .first()
+            .evaluate((e) => e.getAnimations({ subtree: true }).some((a) => a.id === "jump")),
+        )
+        await input.locator(".page-origin > button").first().click()
+        const detail = input.locator(".page-origin-info").first()
+        assert.ok(await detail.evaluate((e) => e.getBoundingClientRect().height < 400))
+        await detail.getByRole("button", { name: "Go to section: First", exact: true }).click()
+        assert.ok(
+          await input
+            .locator(".composition-card")
+            .first()
+            .evaluate((e) => e.getAnimations({ subtree: true }).some((a) => a.id === "jump")),
+        )
+        await input.getByRole("button", { name: "Go to page in Input", exact: true }).click()
+        const physical = input.getByRole("textbox", { name: "Input page number", exact: true })
+        assert.ok(await physical.evaluate((e) => e.getBoundingClientRect().width < 80))
+        const logical = input.getByRole("textbox", { name: "Input page label", exact: true })
+        await logical.fill("missing")
+        await logical.press("Enter")
+        assert.equal(await logical.getAttribute("aria-invalid"), "true")
+        await logical.fill("ii")
+        await logical.press("Enter")
+        await tab(input, "Page")
+        assert.match(await input.locator(".page-position").innerText(), /ii/)
+        const controls = input.locator(".page-navigation")
+        assert.equal(await controls.getByRole("button", { name: /Add Input page/ }).count(), 1)
+        await tab(input, "List")
+        assert.ok(
+          await input
+            .locator("li")
+            .evaluateAll((rows) => rows.some((e) => e.getAnimations().some((a) => a.id === "jump"))),
+        )
+        await input.getByRole("button", { name: "Input contents", exact: true }).click()
+        const bounds = await input.locator(".editing-toolbar").evaluate((e) => {
+          const goto = e.querySelector(".page-destination").getBoundingClientRect()
+          const toc = e.querySelector('[aria-label="Input contents"]').getBoundingClientRect()
+          return { goto: goto.x, toc: toc.x }
+        })
+        assert.ok(bounds.toc > bounds.goto)
+      } finally {
+        await page.close()
         await browser.close()
       }
     }

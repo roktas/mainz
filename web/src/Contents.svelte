@@ -75,7 +75,10 @@
   class="contents"
   popover="auto"
   aria-label="Input contents"
-  onbeforetoggle={(event) => (opened = event.newState === "open")}
+  onbeforetoggle={(event) => {
+    opened = event.newState === "open"
+    if (opened) collapsed = new Set(parents.map((item) => item.key))
+  }}
   ontoggle={async (event) => {
     if (event.newState !== "open") return
     await tick()

@@ -91,7 +91,7 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
       page.on("pageerror", (error) => errors.push(error.message))
       await page.emulateMedia({ colorScheme })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
       await outputCount(page).waitFor({ state: "attached" })
@@ -298,7 +298,7 @@ test("Touch Selection keeps the keyboard closed and image gestures preserve page
         await page.addInitScript(() =>
           document.addEventListener("dblclick", (event) => event.stopImmediatePropagation(), true),
         )
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await outputCount(page).waitFor({ state: "attached" })
       await page.evaluate((size) => {
         document.documentElement.style.fontSize = size
@@ -896,7 +896,7 @@ test("Open menus retain page commands from both panes", async () => {
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     const prepared = input.getByLabel("Page selection", { exact: true })
@@ -938,7 +938,7 @@ test("Output menu labels fit one line with narrow and enlarged text", { timeout:
   try {
     const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     const output = page.locator(".composition-output")
     for (const colorScheme of ["light", "dark"]) {
       await page.emulateMedia({ colorScheme })
@@ -979,7 +979,7 @@ test("Output menu labels fit one line with narrow and enlarged text", { timeout:
           })
           assert.deepEqual(
             controls.slice(-3).map((button) => button.label),
-            ["Before", "At end", "Repeat"],
+            ["Before", "After current page", "After last page", "Repeat"],
           )
           assert.ok(
             controls.every((button) => button.lines === 1 && button.fits),
@@ -2486,7 +2486,7 @@ test("Output movement keeps direction buttons fixed at selection boundaries", { 
     for (const colorScheme of ["light", "dark"]) {
       const page = await browser.newPage({ colorScheme, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       const output = page.locator(".composition-output")
       const selected = output.getByRole("textbox", { name: "Page selection", exact: true })
       const earlier = output.getByRole("button", { name: "Move selected pages earlier", exact: true })

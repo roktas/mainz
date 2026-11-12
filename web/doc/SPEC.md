@@ -51,12 +51,11 @@ Input titles come from nonblank XMP `dc:title`, then PDF Info `Title`, then the 
 4096-byte UTF-8 limit and XML text rules. If no valid candidate exists, use `Untitled`. The closed Input selector shows
 only the title, falling back to the opened filename. The open chooser lists the full filename, title, source number, and
 an information button. Desktop headers place page/sheet totals and View Input PDF before Open PDF. Single-pane layouts
-keep Open PDF beside the Input/Output switch and put View Input PDF and full totals in the Input menu. The switch shows
-page/sheet totals when they fit and only pages otherwise. The view action opens the original Input PDF without
-processing or changing Output. Available XMP fields appear as plain text in those details. Missing fields add no empty
-placeholders. Details include Author and Copyright when declared in XMP; PDF Info Author supplies the author when XMP
-has none. The declared XMP `mainz:coverPage` selects the cover when it is a valid physical page; otherwise the first
-page is used.
+keep Open PDF beside the Input/Output switch and put View PDF in the Input menu. The switch shows page/sheet totals when
+they fit and only pages otherwise. The view action opens the original Input PDF without processing or changing Output.
+Available XMP fields appear as plain text in those details. Missing fields add no empty placeholders. Details include
+Author and Copyright when declared in XMP; PDF Info Author supplies the author when XMP has none. The declared XMP
+`mainz:coverPage` selects the cover when it is a valid physical page; otherwise the first page is used.
 
 The Input chooser switches Inputs. Each retains its view, inspected page, zoom, Pages layout, scroll position, and
 preparation. Home requests confirmation before discarding undownloaded style or Output changes. Acceptance suppresses
@@ -83,9 +82,11 @@ Grid and List interactions set the page that Page inspects. Output inspection fo
 Removal chooses the next surviving neighbor, or the previous neighbor at the end. Switching Inputs does not change
 Output inspection. Changing a view does not change page selection.
 
-Pages and Page offer Go to page in their toolbar. Its temporary number field accepts one physical Input page or one
-Output position. Enter navigates without changing selection. Escape or an outside click cancels navigation. First and
-last page controls navigate directly. Invalid numbers keep the field open with an error.
+Pages and Page offer Go to page in their toolbar. Its compact number field accepts one physical Input page or one Output
+position. When PDF page labels exist, a second field accepts an exact logical label. Duplicate labels resolve to the
+first matching page. First and last controls show their page numbers or labels below the icons. Enter navigates without
+changing selection. Escape or an outside click cancels navigation. First and last page controls navigate directly.
+Invalid numbers keep the field open with an error.
 
 Page preserves the originating Grid or List presentation for V and modified-click return gestures. Grid/List tab changes
 retain toolbar focus. Pointer returns briefly emphasize the inspected card or row. Keyboard returns use a separate focus
@@ -96,7 +97,7 @@ single-pane layout, Style uses document scrolling.
 
 Input page numbers show copy counts and Output positions when copies exist. Output numbers show their source Input and
 original page. Mappings distinguish Inputs and follow edits. Outside click or Escape closes details. PDF labels
-supplement physical numbers. Page shows both when they differ.
+supplement physical numbers. Page shows PDF labels beside the physical counter.
 
 ### Named pages and List
 
@@ -129,23 +130,23 @@ Contents offers Use TOC titles only when at least one authored page name differs
 off by default. This per-Input preference reverses the display priority to section title, authored name, then `Page N`.
 The preference changes page display titles independently of the section hierarchy. It applies to that Input and its
 Output occurrences without changing the PDF or Recipe. The default priority always favors authored names. TOC-derived
-Input detail headings show breadcrumbs; authored names retain a flat heading. Output details use flat headings, filename
-and original page number, and the document Title when several Inputs contribute pages.
+Input detail headings show one flat title. Output details use flat headings, filename and original page number, and the
+document Title when several Inputs contribute pages.
 
 The open-book Contents control navigates the Input outline in Grid, List, and Page without changing selection. Output
-has no Contents control. Opening Contents reveals the current leaf or its visible ancestor. Grid and List share a
-section tree and show **one physical page item per page**: a section starting on page N uses that page's ordinary Grid
-card or List row, rather than inserting an additional row before page N. Multiple TOC entries starting on one page share
-one visible ribbon, preferring the outermost active section; the underlying section tree keeps their separate folds.
-Section ribbons fold or unfold their subtrees, without changing page selection or Output. Clicking a folded section's
-heading page selects every page in its subtree, or clears the subtree when any of those pages are selected. Unfolding
-reveals the retained selections. In an unfolded section, clicking its heading changes only its starting page, so the
-heading can be unselected while its descendants remain selected. Folding and clicking again clears those descendants.
-Shift-click keeps the ordinary page-range behavior. This applies to Grid and List, Input and Output, without changing
-the page-selection order outside the section or the Output content. Clicking a heading's page number opens the same
-provenance/details UI as an ordinary page. A press on any section ribbon displays four grip dots; dragging carries the
-complete section's pages, while a stationary press does not fold or select them. Input section drags copy to Output;
-Output drags move the group. Closed sections accept drops before or after the entire group.
+has no Contents control. Opening Contents folds every branch and reveals the current visible ancestor. Grid and List
+share a section tree and show **one physical page item per page**: a section starting on page N uses that page's
+ordinary Grid card or List row, rather than inserting an additional row before page N. Multiple TOC entries starting on
+one page share one visible ribbon, preferring the outermost active section; the underlying section tree keeps their
+separate folds. Section ribbons fold or unfold their subtrees, without changing page selection or Output. Clicking a
+folded section's heading page selects every page in its subtree, or clears the subtree when any of those pages are
+selected. Unfolding reveals the retained selections. In an unfolded section, clicking its heading changes only its
+starting page, so the heading can be unselected while its descendants remain selected. Folding and clicking again clears
+those descendants. Shift-click keeps the ordinary page-range behavior. This applies to Grid and List, Input and Output,
+without changing the page-selection order outside the section or the Output content. Clicking a heading's page number
+opens the same provenance/details UI as an ordinary page. A press on any section ribbon displays four grip dots;
+dragging carries the complete section's pages, while a stationary press does not fold or select them. Input section
+drags copy to Output; Output drags move the group. Closed sections accept drops before or after the entire group.
 
 Jump to section appears **inline inside page-number details** in Grid and List. It retains the numbered ancestry,
 matching paths on each page, and physical page numbers. It has no separate icon or nested popover. Following a path
@@ -163,10 +164,11 @@ Section headings toggle and Fold all/Unfold all actions apply to both views with
 
 List section headings use the ordinary actions for their entire subtree: Input adds all section pages; Output moves,
 duplicates, or removes the section as one group. Ordinary rows act on one page. List places Move up, Move down, Remove,
-and Duplicate in that order. Grid uses left/right move icons. Both views show the eye action at rest and reveal other
-item actions on hover or keyboard focus. When a pane has a selection, its action bar owns editing and item edit buttons
-are absent. The eye opens Page without changing the pane's selection or inspection-return behavior. Output grouping
-tracks actual source section starts, so reordering or duplicating pages never creates a heading on a continuation page.
+and Duplicate in that order. Grid uses left/right move icons. On fine pointers, both views show the eye action at rest
+and reveal other item actions on hover or keyboard focus. When a pane has a selection, its action bar owns editing and
+item edit buttons are absent. The eye opens Page without changing the pane's selection or inspection-return behavior.
+Output grouping tracks actual source section starts, so reordering or duplicating pages never creates a heading on a
+continuation page.
 
 On first List opening, sections start closed if the expanded list exceeds the pane height; otherwise, they start open.
 Each pane retains expansion choices across view changes and resizing. The toolbar folds or unfolds all sections.
@@ -183,7 +185,8 @@ reordering and duplication; filename and original page details provide the sourc
 
 List mounts the visible window and a small margin, with spacers retaining the scroll range. Unmounted rows keep their
 physical positions, occurrence identities, and selections in the existing workspace owners. List offers inline edit
-actions on hover or focus; Grid retains its contextual card menu.
+actions on hover or focus. Grid exposes Move earlier, Move later, Remove, and Duplicate directly in each Output card
+footer, including narrow and touch layouts. Input keeps one centered Add action.
 
 List choices use the existing Selection and page-action model. They resolve to physical indexes or Output occurrence
 identities. List does not own another selection state or change the numeric Selection grammar. View changes retain the
@@ -206,15 +209,15 @@ Page, V returns to the originating List or Grid. Returning to List restores focu
 Clicking a row's selection area uses the shared selection model. Page numbers open anchored details beside the number.
 Individual actions preserve selection; new Output occurrences remain unselected. When any pages are selected, the pane's
 shared action bar owns additions and edits; individual item Add, Move, Remove, and Duplicate buttons are absent. On fine
-pointers, these actions appear on hover or keyboard focus. On touch, editing actions appear on keyboard focus, while the
-eye stays visible. List uses two Output button pairs; Grid retains its card action menu. A section heading's actions,
-including focused keyboard shortcuts, act on its complete section; ordinary rows act on one page. Item and group moves
-preserve occurrence identity. All controls retain accessible names and keyboard focus. Removing a focused occurrence
-focuses the surviving neighbor. Switching views reveals the inspected item and transfers content focus to its equivalent
-only when content had focus. Tab activation keeps focus on the tab. List scrolls within the same pane content frame as
-Grid. Input switching restores its inspected item and reveals that row without changing Output. List edits use immediate
-document updates with addition, removal, and movement feedback. Reduced motion disables this feedback. Animation does
-not delay actions or leave outgoing rows interactive.
+pointers, these actions appear on hover or keyboard focus. On touch, editing actions stay visible. List uses two Output
+button pairs in List and Grid. A section heading's actions, including focused keyboard shortcuts, act on its complete
+section; ordinary rows act on one page. Item and group moves preserve occurrence identity. All controls retain
+accessible names and keyboard focus. Removing a focused occurrence focuses the surviving neighbor. Switching views
+reveals the inspected item and transfers content focus to its equivalent only when content had focus. Tab activation
+keeps focus on the tab. List scrolls within the same pane content frame as Grid. Input switching restores its inspected
+item and reveals that row without changing Output. List edits use immediate document updates with addition, removal, and
+movement feedback. Reduced motion disables this feedback. Animation does not delay actions or leave outgoing rows
+interactive.
 
 Grid and Page show supplied names after 220 ms of pointer hover over their page number, or immediately on keyboard
 focus. List shows names inline and uses selection help on the name instead of repeating it in hover tooltips. Full names
@@ -233,10 +236,11 @@ or dynamic Recipe lookup.
 
 | URL                  | Result                                                                                         |
 | -------------------- | ---------------------------------------------------------------------------------------------- |
-| `?demo`              | Four-page Input, all pages selected, with Output ordered as `1,2,3,4,3,4,3,4`.                 |
+| `?demo=single`       | Four-page Input, all pages selected, with Output ordered as `1,2,3,4,3,4,3,4`.                 |
+| `?demo`              | The demo menu, without opening a document.                                                     |
 | `?demo=empty`        | The same Input with no Selection and empty Output, including onboarding and the addition hint. |
 | `?demo=grid`         | 240-page Input and Output from 60 repetitions of the four sample pages.                        |
-| `?demo&paint`        | Style with the Filled profile, available only in development.                                  |
+| `?demo=single&paint` | Style with the Filled profile, available only in development.                                  |
 | `?demo=toc`          | The 59-page Lorem Ipsum sample with three-level Contents and arranged Output.                  |
 | `?demo=toc-multiple` | Lorem Ipsum and An Occurrence at Owl Creek Bridge, with pages from both Inputs in Output.      |
 
@@ -310,14 +314,14 @@ Every Output occurrence is independently editable. Selection follows occurrence 
 occurrences, Input pages, and styles remain intact. Page edits preserve expanded order, materialize existing Padding as
 fixed removable Blanks, and discard internal Part boundaries.
 
-| Action               | Result                                                                                                      |
-| -------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Duplicate selection  | One copy of each target in print order, inserted after the last target. New copies form one selected block. |
-| Remove               | Removes the target occurrences.                                                                             |
-| Move earlier/later   | Shifts every selected occurrence one position, preserving order and gaps.                                   |
-| Drag selected Output | Moves the selection as one block in print order.                                                            |
-| Insert Blank         | Adds one fixed-size Blank before the first selected page or at the end, and selects it.                     |
-| Repeat sequence      | Repeats consecutive occurrences, including Inputs and Blanks, in order.                                     |
+| Action               | Result                                                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Duplicate selection  | One copy of each target in print order, inserted after the last target. New copies form one selected block.               |
+| Remove               | Removes the target occurrences.                                                                                           |
+| Move earlier/later   | Shifts every selected occurrence one position, preserving order and gaps.                                                 |
+| Drag selected Output | Moves the selection as one block in print order.                                                                          |
+| Insert Blank         | Adds one fixed-size Blank before the first selected page, after the current page, or after the last page, and selects it. |
+| Repeat sequence      | Repeats consecutive occurrences, including Inputs and Blanks, in order.                                                   |
 
 Output offers movement actions in its selection bar, or in the page actions menu when space is limited. Both directions
 retain their positions while a selection exists. Each action is disabled at its boundary. A selection touching both
@@ -343,7 +347,8 @@ If preceding pages end on a Front face, a leading Blank completes that sheet.
 
 Padding uses the preceding page's dimensions and contributes to pages and totals. Unedited Parts recalculate it. Page
 edits preserve it as explicit Blanks. An explicit Blank takes the preceding page's dimensions, or the following page at
-the beginning. Insertion requires an adjacent page. Its dimensions remain fixed.
+the beginning. Insertion requires an adjacent page. Its dimensions remain fixed. After current page uses the inspected
+Output position; After last page uses the end of Output.
 
 Composition preserves page boxes, rotation, and mixed physical sizes. Alignment does not configure a printer or binding
 edge. Booklet imposition, multiple pages per sheet, crop, scaling, and rotation edits are outside this version.
@@ -847,10 +852,11 @@ The default filename is `<input-name>_YYYY-MMDD-HHmm-sscc.pdf`, using the first 
 without its `.pdf` extension. Automatic naming removes all consecutive trailing `_YYYY-MMDD-HHmm-sscc` suffixes before
 it adds the new timestamp. Other parts of the name remain unchanged. An empty stem uses `blank-pages`. The timestamp
 uses local time when the PDF is ready. `ss` means seconds and `cc` hundredths. Unused Inputs do not affect the name.
-Blank-only Output uses `blank-pages`. In wide layouts, the Output heading opens the filename editor. A custom name
-applies to Download, Share, and Print and remains in the workspace until Home. The editor rejects empty names, path
-separators, and control characters, and adds `.pdf` when needed. Use default restores automatic naming. The header does
-not display the filename beside its controls.
+Blank-only Output uses `blank-pages`. In wide layouts, the Output heading opens the filename editor. The compact Output
+menu edits the filename inline; its trailing downward chevron opens the complete editor. A custom name applies to
+Download, Share, and Print and remains in the workspace until Home. The editor rejects empty names, path separators, and
+control characters, and adds `.pdf` when needed. Use default restores automatic naming. The header does not display the
+filename beside its controls.
 
 The same editor contains the Output title and cover-page choice, with a preview of that page. The title defaults to the
 first contributing Input's title, or its filename stem when no authored title exists. Empty stems retain the opened
@@ -965,8 +971,8 @@ Messages identify the action, relevant setting, and page quantities or positions
 context. Other Inputs are named only for operations concerning them. Opening progress appears once. Detailed errors do
 not repeat in the footer. The offline-ready and update-ready events use Notices. An installed application does not
 repeat offline-ready guidance. Update controls remain after their Notice expires. Offline installation progress appears
-in the header. Update app stays in the footer. The update-ready Notice asks users to download and close their PDF only
-while a workspace or opening operation exists.
+in the header. Update application stays in the footer. The update-ready Notice asks users to download and close their
+PDF only while a workspace or opening operation exists.
 
 Build ID identifies the application build, separately from software version. Its format is `YYYY-MMDD-HHmm-sscc` in
 `Europe/Istanbul` time. Hover identifies this time zone and exposes the full UTC timestamp and available Git revision.

@@ -51,6 +51,8 @@
     viewInputPDF,
     recipe,
     filename,
+    suggestFilename,
+    setFilename,
     rename,
     error,
     styling,
@@ -79,10 +81,12 @@
     viewInputPDF: () => void
     recipe: () => void
     filename?: string
+    suggestFilename: () => string
+    setFilename: (name: string) => void
     rename: (source: HTMLElement) => void
     error: (message: string) => void
     styling?: Snippet<[toolbarOnly?: boolean]>
-    input: Snippet<[heading: string, compact?: boolean, totals?: Snippet]>
+    input: Snippet<[heading: string, compact?: boolean]>
     openPDF: Snippet
     inspection?: Inspection
     activate: (id: string) => void
@@ -1452,6 +1456,7 @@
   <span class="page-number"
     ><Counter
       pane="Input"
+      label={source?.input.labels[inputPosition]}
       bind:this={inputCounter}
       bind:position={() => inputView.position, (position) => inspectInput({ position, alignment: undefined })}
       {count}
@@ -1592,14 +1597,38 @@
 {/snippet}
 
 {#snippet outputName(menu = false)}
-  <button
-    class="output-name"
-    aria-label="Set Output filename"
-    title={filename ? `Output filename · ${filename}` : "Set Output filename"}
-    onclick={(event) => {
-      rename(closeDocument() ?? event.currentTarget)
-    }}><Icon name="output" /><span>{menu ? "Set filename" : "Output"}</span></button
-  >
+  {#if menu}
+    <div class="input-choice output-filename">
+      <input
+        aria-label="Output filename"
+        value={filename || suggestFilename()}
+        onchange={(event) => {
+          const name = event.currentTarget.value.trim()
+          if (!name || /[/\\\u0000-\u001f\u007f-\u009f]/.test(name)) {
+            error("Use a filename without slashes or control characters.")
+            event.currentTarget.value = filename || suggestFilename()
+            return
+          }
+          setFilename(/\.pdf$/i.test(name) ? name : `${name}.pdf`)
+        }}
+      />
+      <button
+        class="icon-button"
+        aria-haspopup="dialog"
+        aria-label="Set Output filename"
+        title="Output details"
+        onclick={(event) => rename(closeDocument() ?? event.currentTarget)}><Icon name="next" /></button
+      >
+    </div>
+  {:else}
+    <button
+      class="output-name"
+      aria-label="Set Output filename"
+      title={filename ? `Output filename · ${filename}` : "Set Output filename"}
+      onclick={(event) => rename(closeDocument() ?? event.currentTarget)}
+      ><Icon name="output" /><span>Output</span></button
+    >
+  {/if}
 {/snippet}
 
 {#snippet recipeAction(menu = false)}
@@ -1619,14 +1648,14 @@
 {#snippet printAction(menu = false)}
   <button
     class="icon-button print-action"
-    aria-label="Print"
+    aria-label="Print PDF"
     title={downloadError ?? "Print Output PDF"}
     disabled={!output.pages.length || outputProcessing || !!downloadError}
     onclick={() => {
       closeDocument()
       print()
     }}
-    ><Icon name="print" />{#if menu}<span>Print</span>{/if}</button
+    ><Icon name="print" />{#if menu}<span>Print PDF</span>{/if}</button
   >
 {/snippet}
 
@@ -1748,26 +1777,23 @@
   {/snippet}
   <div class="occurrence-actions">
     {#if controls && ids.length}
-      {#if activeOutputTab === "list"}
-        {@render pairs()}
-      {:else}
-        <span class="card-inline-actions">{@render pairs()}</span>
-        <button
-          class="icon-button card-menu"
-          popovertarget={`${key}-card-actions-${page.id}`}
-          aria-label={`Actions for Output page ${index + 1}`}><Icon name="more" /></button
-        >
-        <div id={`${key}-card-actions-${page.id}`} class="card-menu-options occurrence-menu" popover="auto">
-          <div class="occurrence-actions">{@render pairs()}</div>
-        </div>
-      {/if}
+      {#if activeOutputTab === "grid"}<span class="card-inline-actions">{@render pairs()}</span>
+      {:else}{@render pairs()}{/if}
     {/if}
   </div>
 {/snippet}
 
 {#snippet outputPageHeading(fitWidth: () => void)}
   <span class="page-number">
-    <Counter pane="Output" bind:this={outputCounter} bind:position={output.position} count={output.pages.length} />
+    <Counter
+      label={inspected && "source" in inspected.content
+        ? provenance(inspected.content)?.input.labels[inspected.content.page]
+        : undefined}
+      pane="Output"
+      bind:this={outputCounter}
+      bind:position={output.position}
+      count={output.pages.length}
+    />
     {#if inspected && pageName(inspected.content)}<p class="page-name">{pageName(inspected.content)}</p>{/if}
   </span>
   {@render pageTools("Output", fitWidth)}
@@ -1776,20 +1802,7 @@
 
 {#snippet outputPageActions()}
   {#if inspected}
-    <button
-      class="icon-button"
-      aria-label={`Remove Output page ${output.position + 1}`}
-      title="Remove this page"
-      disabled={!!outputSelectionError}
-      onclick={() => remove(outputTargets(inspected.id))}><Icon name="remove" /></button
-    >
-    <button
-      class="icon-button"
-      aria-label={`Duplicate Output page ${output.position + 1}`}
-      title="Add one adjacent copy"
-      disabled={!!outputSelectionError}
-      onclick={() => duplicate(outputTargets(inspected.id))}><Icon name="add" /></button
-    >
+    {@render occurrenceActions(inspected, output.position, true)}
   {/if}
 {/snippet}
 
@@ -1821,7 +1834,7 @@
       title={`Move selected pages earlier · Ctrl/⌘+${activeOutputTab === "list" ? "↑" : "←"}`}
       disabled={!chosen.length || !!outputSelectionError || positions[0] === 0}
       onclick={() => order(-1)}
-      ><Icon name="earlier" />{#if !inline}Earlier{/if}</button
+      ><Icon name={activeOutputTab === "list" ? "move-up" : "earlier"} />{#if !inline}Earlier{/if}</button
     >
     <button
       class={inline ? "step" : undefined}
@@ -1829,7 +1842,7 @@
       title={`Move selected pages later · Ctrl/⌘+${activeOutputTab === "list" ? "↓" : "→"}`}
       disabled={!chosen.length || !!outputSelectionError || positions.at(-1) === output.pages.length - 1}
       onclick={() => order(1)}
-      ><Icon name="later" />{#if !inline}Later{/if}</button
+      ><Icon name={activeOutputTab === "list" ? "move-down" : "later"} />{#if !inline}Later{/if}</button
     >{/if}
 {/snippet}
 
@@ -1859,8 +1872,13 @@
           >{/if}
         <button
           disabled={!output.pages.length}
+          onclick={() => blank(output.position + 1)}
+          title="Insert a blank after the current Output page"><Icon name="blank" />After current page</button
+        >
+        <button
+          disabled={!output.pages.length}
           onclick={() => blank(output.pages.length)}
-          title="Add a blank page at the end"><Icon name="blank" />At end</button
+          title="Insert a blank after the last Output page"><Icon name="blank" />After last page</button
         >
       </div>
       {#if chosen.length && adjacent}
@@ -1891,12 +1909,11 @@
   <div class="workspace-bar">
     {#if compact}
       {#if activeView === "input" && source}
-        {@render input(`${key}-selection`, true, inputSummary)}
+        {@render input(`${key}-selection`, true)}
       {:else}
         <details class="document-menu" bind:this={documentMenu}>
           <summary aria-label="Output menu" title="Output menu"><Icon name="more" /></summary>
           <div class="document-actions">
-            <p class="document-totals">{@render outputSummary()}</p>
             {@render outputName(true)}{@render viewAction(true)}{@render printAction(true)}{@render recipeAction(true)}
           </div>
         </details>
@@ -2020,18 +2037,7 @@
                   ></span>{/if}</button
               >{/if}
           </div>
-          {#if source.input.outline?.length}<Contents
-              outline={source.input.outline}
-              source={source.id}
-              position={inputPosition}
-              {titleChoice}
-              bind:tocTitles={() => inputView.tocTitles, (tocTitles) => inspectInput({ tocTitles })}
-              navigate={async (position) => {
-                inspectInput({ position, offset: position })
-                if (activeTab === "list") await inputList?.revealPage(position)
-                void interaction.reveal("Input", undefined, true)
-              }}
-            />{/if}
+
           {#if inputSectionView && inputSectionView.sectionState() !== "none"}<button
               type="button"
               class="icon-button"
@@ -2056,9 +2062,22 @@
           {#if activeTab === "style" && styling}{@render styling(true)}{/if}
           {#if activeTab !== "style"}<Jump
               pane="Input"
+              labels={source.input.labels}
               {count}
               position={inputPosition}
               navigate={(position, event) => void goTo("Input", position, event)}
+            />{/if}
+          {#if source.input.outline?.length}<Contents
+              outline={source.input.outline}
+              source={source.id}
+              position={inputPosition}
+              {titleChoice}
+              bind:tocTitles={() => inputView.tocTitles, (tocTitles) => inspectInput({ tocTitles })}
+              navigate={async (position) => {
+                inspectInput({ position, offset: position })
+                if (activeTab === "list") await inputList?.revealPage(position)
+                void interaction.reveal("Input", undefined, true)
+              }}
             />{/if}
         </div>
 
@@ -2145,7 +2164,6 @@
                     {count}
                     sheet={inputInspection}
                     name={inputName(inputPosition)}
-                    label={source.input.labels[inputPosition]}
                     bind:headingHeight={inputHeadingHeight}
                     bind:controls={inputControls}
                     initialize={!opening && !inputView.pageInitialized ? (zoom) => setZoom("Input", zoom) : undefined}
@@ -2466,7 +2484,7 @@
             onclick={() => outputSectionView.toggleSections()}
             ><Icon name={outputSectionView.sectionState() === "closed" ? "expand" : "collapse"} /></button
           >{/if}
-        {#if activeOutputTab === "list" || activeOutputTab === "grid"}<button
+        {#if (activeOutputTab === "list" || activeOutputTab === "grid") && output.pages.some((page, index) => outputHeadings(page.content, index).length)}<button
             type="button"
             class="icon-button"
             aria-label="Section headings"
@@ -2480,6 +2498,9 @@
         <Jump
           pane="Output"
           count={output.pages.length}
+          labels={output.pages.map((page) =>
+            "source" in page.content ? (provenance(page.content)?.input.labels[page.content.page] ?? "") : "",
+          )}
           position={output.position}
           navigate={(position, event) => void goTo("Output", position, event)}
         />
@@ -2597,9 +2618,6 @@
                 count={output.pages.length}
                 sheet={inspection}
                 name={inspected ? pageName(inspected.content) : undefined}
-                label={inspected && "page" in inspected.content
-                  ? provenance(inspected.content)?.input.labels[inspected.content.page]
-                  : undefined}
                 bind:headingHeight={outputHeadingHeight}
                 bind:controls={outputControls}
                 initialize={!opening && !outputPageInitialized ? (zoom) => setZoom("Output", zoom) : undefined}

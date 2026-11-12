@@ -290,7 +290,7 @@ test(
       try {
         const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, reducedMotion: "reduce" })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
         await page.locator(".composer[aria-busy=false]").waitFor()
         const status = page.locator(".footnote [role=status]")
         const original = await status.textContent()
@@ -374,7 +374,7 @@ test("Touch dialog focus stays quiet and keyboard focus stays visible", { timeou
           }
         }
       })
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await page.locator(".composer[aria-busy=false]").waitFor()
       await page.getByRole("button", { name: "Output", exact: true }).tap()
       await page.evaluate(() => (window.holdExport = true))
@@ -426,7 +426,7 @@ test("Header progress preserves workspace bounds and scroll at narrow widths", {
           }
         }
       })
-      await page.goto(server.resolvedUrls.local[0] + "?demo")
+      await page.goto(server.resolvedUrls.local[0] + "?demo=single")
       await page.locator(".composer[aria-busy=false]").waitFor()
       const geometry = () =>
         page.evaluate(() => ({
@@ -584,7 +584,7 @@ test(
             }
           }
         })
-        await page.goto(server.resolvedUrls.local[0] + "?demo")
+        await page.goto(server.resolvedUrls.local[0] + "?demo=single")
         await page.locator(".composer[aria-busy=false]").waitFor()
         await page.locator(".selection-panel").getByRole("tab", { name: "Style", exact: true }).click()
         await page.evaluate(() => (window.holdStyles = true))
@@ -649,7 +649,7 @@ test(
       try {
         const page = await browser.newPage({ reducedMotion: "reduce" })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        await page.goto(server.resolvedUrls.local[0] + "?demo")
+        await page.goto(server.resolvedUrls.local[0] + "?demo=single")
         await page.locator(".composer[aria-busy=false]").waitFor()
         let release
         const held = new Promise((finish) => (release = finish))

@@ -636,6 +636,10 @@
       history.replaceState(history.state, "", url)
     }
     if (demo === null) return
+    if (demo === "") {
+      examples.show()
+      return
+    }
     void openExample(demo, {
       get revision() {
         return openRevision
@@ -706,7 +710,7 @@
   >
 {/snippet}
 
-{#snippet inputTools(heading: string, compact = false, totals?: Snippet)}
+{#snippet inputTools(heading: string, compact = false)}
   {#if active}<details
       class="input-picker"
       bind:this={inputMenu}
@@ -728,7 +732,6 @@
         </h2>
       </summary>
       <div class="input-list" role="group" aria-label="Inputs">
-        {#if compact && totals}<p class="document-totals">{@render totals()}</p>{/if}
         {#each sources as source (source.id)}
           {@const details = inputDetails(source.input)}
           <div class="input-choice" data-active={source.id === activeId || undefined}>
@@ -757,11 +760,11 @@
         {#if compact}<div class="file-actions">
             <button
               class="icon-button view-action"
-              aria-label="View Input PDF"
+              aria-label="View PDF"
               onclick={() => {
                 inputMenu.open = false
                 viewInputPDF()
-              }}><Icon name="eye" /><span>View Input PDF</span></button
+              }}><Icon name="eye" /><span>View PDF</span></button
             >
           </div>{/if}
         <div class="input-list-actions">
@@ -793,7 +796,7 @@
       class="brand"
       href={import.meta.env.BASE_URL}
       aria-label="PDF Composer home"
-      title="Home · Double-click to replay logo animation · Click 3 or more times for examples"
+      title="Home"
       data-replay={logoReplay > 0 || undefined}
       onclick={logo}
       >{#key logoReplay}<Logo />{/key}</a
@@ -869,6 +872,8 @@
       {viewInputPDF}
       recipe={() => recorder.show()}
       filename={output.filename}
+      suggestFilename={() => downloadName(parts, sources)}
+      setFilename={(name) => (output.filename = name)}
       rename={(source) => filenameEditor.show(source)}
       {error}
       styling={sourceStyling}

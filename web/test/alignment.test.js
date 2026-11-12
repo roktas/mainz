@@ -16,7 +16,7 @@ test("View tabs align selected surfaces and visible icon edges with pane control
       for (const touch of [false, true]) {
         const page = await browser.newPage({ hasTouch: touch, isMobile: touch, reducedMotion: "reduce" })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        await page.goto(`${server.resolvedUrls.local[0]}?demo&paint`)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=single&paint`)
         await page.locator(".composer[aria-busy=false]").waitFor()
         for (const width of [320, 375, 744, 940, 1440, 3840]) {
           await page.setViewportSize({ width, height: 1100 })
@@ -115,7 +115,7 @@ test("Style scrolling preserves its companion Grid geometry and Page frame", { t
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     await tab(input, "Grid")
@@ -418,7 +418,7 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
           const thumbnail = await gridPage(output, 10000)
           const gap = await thumbnail.evaluate((button) => {
             const card = button.closest(".composition-card")
-            const number = card.querySelector(".page-origin > :is(summary,.card-number) strong").getBoundingClientRect()
+            const number = card.querySelector(".page-origin > :is(button,.card-number) strong").getBoundingClientRect()
             const grip = card.querySelector(".page-grip svg").getBoundingClientRect()
             return grip.left - number.right
           })
@@ -436,3 +436,116 @@ test("Calibrations keep five-digit numbers clear of centered grips", { timeout: 
     await browser?.close()
   }
 })
+
+test(
+  "Detail layers, compact footers, tab surfaces, and Help lists retain their visible controls",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    for (const engine of engines) {
+      const browser = await launch(engine)
+      try {
+        for (const [width, touch, theme] of [
+          [1440, false, "dark"],
+          [810, true, "dark"],
+          [390, true, "light"],
+        ]) {
+          const page = await browser.newPage({
+            viewport: { width, height: 1080 },
+            hasTouch: touch,
+            colorScheme: theme,
+            reducedMotion: "reduce",
+          })
+          page.setDefaultTimeout(8000)
+          const warnings = []
+          page.on("console", (message) => {
+            if (message.type() === "warning" && message.text().includes("beforetoggle")) warnings.push(message.text())
+          })
+          await page.goto(`${server.resolvedUrls.local[0]}?demo=toc`)
+          const input = page.locator(".selection-panel")
+          await tab(input, "Grid")
+          for (const card of await input.locator(".composition-card:not([inert])").all()) {
+            const center = await card.evaluate((element) => {
+              const frame = element.getBoundingClientRect(),
+                footer = element.querySelector(".input-footer").getBoundingClientRect(),
+                add = element.querySelector(".input-footer button").getBoundingClientRect()
+              return {
+                x: add.x + add.width / 2 - frame.x - frame.width / 2,
+                y: add.y + add.height / 2 - footer.y - footer.height / 2,
+              }
+            })
+            assert.ok(Math.abs(center.x) < 1 && Math.abs(center.y) < 1, JSON.stringify(center))
+          }
+          const current = input.getByRole("tab", { name: "Grid", exact: true })
+          const surface = () =>
+            current.evaluate((element) => ({
+              base: getComputedStyle(element).backgroundColor,
+              color: getComputedStyle(element, "::before").backgroundColor,
+              width: getComputedStyle(element, "::before").width,
+              height: getComputedStyle(element, "::before").height,
+            }))
+          await current.evaluate((element) => element.blur())
+          const resting = await surface()
+          assert.ok(["transparent", "rgba(0, 0, 0, 0)"].includes(resting.base), JSON.stringify(resting))
+          if (!touch) {
+            await current.hover()
+            assert.deepEqual(await surface(), resting)
+          }
+          await input.getByLabel("Details for Input page 4", { exact: true }).click()
+          const panel = input.locator(".page-origin-info:visible")
+          await panel.waitFor()
+          assert.deepEqual(
+            await panel.evaluate((element) => {
+              const box = element.getBoundingClientRect(),
+                misses = []
+              for (let y = box.top + 4; y < box.bottom - 4; y += 8)
+                for (let x = box.left + 4; x < box.right - 4; x += 8) {
+                  const target = document.elementFromPoint(x, y)
+                  if (!element.contains(target)) misses.push({ x, y, tag: target?.className })
+                }
+              return misses
+            }),
+            [],
+          )
+          await page.keyboard.press("Escape")
+          await page.getByRole("button", { name: "Help", exact: true }).click()
+          const help = page.getByRole("dialog", { name: "Help", exact: true })
+          await help.getByRole("tab", { name: touch ? "Touch" : "Mouse", exact: true }).click()
+          const list = help.locator('[role="tabpanel"][aria-hidden="false"] .help-body > ul').first()
+          assert.equal(await list.evaluate((element) => getComputedStyle(element).listStyleType), "disc")
+          assert.ok((await list.locator("li").count()) >= 3)
+          if (width === 810 && engine.name() === "chromium")
+            await help.screenshot({ path: "../.local/tmp/web/help-touch.png" })
+          await page.keyboard.press("Escape")
+          const outputSwitch = page
+            .locator(".mobile-workspace-tabs")
+            .getByRole("button", { name: "Output", exact: true })
+          if (await outputSwitch.isVisible()) await outputSwitch.click()
+          const output = page.locator(".composition-output")
+          await tab(output, "Grid")
+          await output.getByRole("button", { name: "Fold all Output sections", exact: true }).click()
+          const card = output.locator(".composition-card:not([inert])").first()
+          const controls = card.locator(".occurrence-actions button")
+          const boxes = await controls.evaluateAll((elements) =>
+            elements
+              .filter((element) => element.checkVisibility())
+              .map((element) => element.getBoundingClientRect().toJSON()),
+          )
+          assert.equal(boxes.length, 4)
+          const bounds = await card.boundingBox()
+          for (const [index, box] of boxes.entries()) {
+            assert.ok(box.x >= bounds.x && box.right <= bounds.x + bounds.width, JSON.stringify({ bounds, boxes }))
+            assert.equal(box.y, boxes[0].y)
+            if (index) assert.ok(box.x >= boxes[index - 1].right)
+          }
+          if (width === 810 && engine.name() === "chromium")
+            await card.screenshot({ path: "../.local/tmp/web/output-footer.png" })
+          assert.deepEqual(warnings, [])
+          await page.close()
+        }
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)

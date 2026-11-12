@@ -1364,6 +1364,7 @@
           inset-block-start: calc(100% + 8px);
           inset-inline-start: 0;
           display: grid;
+          grid-template-columns: minmax(0, 1fr);
           gap: 4px;
           padding: 8px;
           inline-size: min(13rem, calc(100vi - 2 * var(--gutter)));
@@ -1429,7 +1430,7 @@
       }
       .composer .editing-toolbar {
         margin-block: 4px;
-        padding-block-end: 0;
+        padding-block-end: 4px;
         border-image: none;
         gap: 0;
         & > .tabs {
@@ -1445,7 +1446,7 @@
           order: 2;
         }
         & > button[aria-label="Input contents"] {
-          order: 1;
+          order: 5;
         }
         & > button[aria-label="Section headings"] {
           order: 3;
@@ -1514,6 +1515,38 @@
         min-inline-size: 44px;
         padding-inline: 4px;
       }
+    }
+  }
+}
+
+@layer views {
+  @scope (.composer) {
+    :is(.document-actions, .input-list) {
+      inline-size: min(32rem, calc(100vi - 2 * var(--gutter)));
+    }
+    .output-filename {
+      min-inline-size: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 0.5em;
+    }
+    .output-filename > button {
+      flex: none;
+      border-inline-start: 1px solid var(--border);
+      border-radius: 0;
+      & svg {
+        rotate: 90deg;
+      }
+    }
+    .output-filename input {
+      flex: 1;
+      min-inline-size: 0;
+      background: transparent;
+      border: 0;
+      color: var(--ink);
     }
   }
 }

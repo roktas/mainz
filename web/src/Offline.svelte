@@ -86,6 +86,6 @@
     type="button"
     disabled={busy || updating}
     title={busy ? "Download and close your PDF before updating." : "Update PDF Composer"}
-    onclick={update}>Update app</button
+    onclick={update}>Update application</button
   >
 {/if}

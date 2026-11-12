@@ -484,27 +484,27 @@
                       <dd>Remove Output selection</dd>
                     </div>
                   </dl>
-                  <div>
-                    <p>
+                  <ul>
+                    <li>
                       Fields and menus keep their keys. V, Ctrl+A, Esc, and starting Grid navigation use the mouse-side
                       pane. PgUp/PgDn change its Grid group. Page keys use its Page, or the other open Page.
-                    </p>
+                    </li>
                     {#if modes.input === "list" || modes.output === "list"}
-                      <p>
+                      <li>
                         List keys act while a row has focus. <kbd class="named">Shift</kbd> +
                         <kbd class="named">Home</kbd> / <kbd class="named">End</kbd> extends selection to the first /
                         last row.
                         <kbd class="named">Shift</kbd> + <kbd class="named">PgUp</kbd> / <kbd class="named">PgDn</kbd>
                         extends selection by one screen of rows.
-                      </p>
+                      </li>
                     {/if}
                     {#if modes.input === "grid" || modes.output === "grid"}
-                      <p>
+                      <li>
                         Without a selection, → starts at the first page of the current group. ← starts at the last.
                         Reversing Shift+←/→ restores the step. Navigation stops at each end.
-                      </p>
+                      </li>
                     {/if}
-                  </div>
+                  </ul>
                 </div>
               </section>
             </div>
@@ -518,9 +518,13 @@
             tabindex="0"
           >
             <div class="help-body">
-              <p>Grid and Input Page grips share Selection with the page fields.</p>
-              <p>Page starts enlarged when the complete page would look narrow.</p>
-              <p>The zoom reset button returns to the complete page at 100%. At 100%, it fits the page to the width.</p>
+              <ul>
+                <li>Grid and Input Page grips share Selection with the page fields.</li>
+                <li>Page starts enlarged when the complete page would look narrow.</li>
+                <li>
+                  The zoom reset button returns to the complete page at 100%. At 100%, it fits the page to the width.
+                </li>
+              </ul>
               <dl class="shortcut-list">
                 <div>
                   <dt>Click a Page counter</dt>
@@ -576,20 +580,24 @@
             tabindex="0"
           >
             <div class="help-body">
-              <p>Tap a page image or grip to select it. The page field shows the same selection.</p>
-              {#if hasInput}<p>Use the selection bar to add Input pages to Output.</p>{/if}
-              {#if hasOutput}<p>Use the selection bar to move, copy, and remove Output pages.</p>{/if}
-              <p>Page starts enlarged when the complete page would look narrow.</p>
-              <p>The zoom reset button returns to the complete page at 100%. At 100%, it fits the page to the width.</p>
-              <p>
-                Double-tap a Grid image to open Page. In Page, double-tap to zoom to 200% at that point, or return an
-                enlarged page to 100%. Select the Grid or List tab to change the Pages layout without changing your
-                selection.
-              </p>
-              <p>
-                Drag pages from their grips. In Page, swipe left or right to change pages when the image fits
-                horizontally. A wider image pans instead. Pinch to zoom, or hold to inspect with the lens.
-              </p>
+              <ul>
+                <li>Tap a page image or grip to select it. The page field shows the same selection.</li>
+                {#if hasInput}<li>Use the selection bar to add Input pages to Output.</li>{/if}
+                {#if hasOutput}<li>Use the selection bar to move, copy, and remove Output pages.</li>{/if}
+                <li>Page starts enlarged when the complete page would look narrow.</li>
+                <li>
+                  The zoom reset button returns to the complete page at 100%. At 100%, it fits the page to the width.
+                </li>
+                <li>
+                  Double-tap a Grid image to open Page. In Page, double-tap to zoom to 200% at that point, or return an
+                  enlarged page to 100%. Select the Grid or List tab to change the Pages layout without changing your
+                  selection.
+                </li>
+                <li>
+                  Drag pages from their grips. In Page, swipe left or right to change pages when the image fits
+                  horizontally. A wider image pans instead. Pinch to zoom, or hold to inspect with the lens.
+                </li>
+              </ul>
             </div>
           </div>{/if}
         <div
@@ -603,7 +611,7 @@
           <div class="help-body">
             <h3>App installation</h3>
             {@render content(false)}
-            {#if !workspace}<p>Choose a PDF to see help for page selection and editing.</p>{/if}
+            {#if !workspace}<ul><li>Choose a PDF to see help for page selection and editing.</li></ul>{/if}
           </div>
         </div>
       </div>

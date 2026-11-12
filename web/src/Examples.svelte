@@ -19,7 +19,7 @@
     >
   </div>
   <nav aria-label="Examples">
-    <a href="?demo" onclick={navigate}>
+    <a href="?demo=single" onclick={navigate}>
       <strong>Single demo</strong><span>Open a sample PDF with pages already arranged in Output.</span>
     </a>
     <a href="?demo=grid" onclick={navigate}>

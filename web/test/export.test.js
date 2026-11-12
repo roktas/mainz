@@ -761,7 +761,7 @@ test(
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await page.getByText("Demo workspace ready.", { exact: true }).waitFor()
       await page.locator(".input-picker > summary").click()
       await page.locator(".composer").getByRole("button", { name: "Details for Input 1", exact: true }).click()
@@ -841,7 +841,7 @@ test(
             reducedMotion: "reduce",
           })
           await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-          await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+          await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
           await page.locator(".composer[aria-busy=false]").waitFor()
           if (text === 2) await page.addStyleTag({ content: "html { font-size: 200%; }" })
           const switcher = page.getByRole("button", { name: "Output", exact: true })
@@ -975,7 +975,7 @@ test(
       await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
       await output.getByLabel("Output page actions", { exact: true }).click()
-      await output.getByRole("button", { name: "At end", exact: true }).click()
+      await output.getByRole("button", { name: "After last page", exact: true }).click()
       const exportAction = page.locator(".composer").getByRole("button", { name: "Export recipe", exact: true })
       await exportAction.click()
       const panel = page.getByRole("dialog", { name: "Export recipe", exact: true })
@@ -1145,7 +1145,7 @@ test(
           }
         }
       })
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await page.locator(".composer[aria-busy=false]").waitFor()
       const output = page.locator(".composition-output")
       await page.evaluate(() => (window.holdExport = true))
@@ -1218,7 +1218,7 @@ test("iPad Chrome View opens without another confirmation or download", { timeou
         "Mozilla/5.0 (iPad; CPU OS 26_6_2 like Mac OS X) AppleWebKit/605.1.15 CriOS/158.0.8127.2 Mobile Safari/604.1",
     })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.locator(".composer[aria-busy=false]").waitFor()
     await page.getByRole("button", { name: "Output", exact: true }).tap()
     const downloads = []
@@ -1251,7 +1251,7 @@ test("Installed View opens the native PDF viewer without another confirmation", 
         }
       }
     })
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.locator(".composer[aria-busy=false]").waitFor()
     const pending = page.waitForEvent("popup")
     await (await outputAction(page, "View PDF")).click()
@@ -1320,7 +1320,7 @@ test("Mobile Share preserves named PDFs and desktop Download", { timeout: 60000 
             : undefined,
         })
       }, entry)
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await page.locator(".composer[aria-busy=false]").waitFor()
       const button = page.locator(".composer").getByRole("button", { name: entry.label, exact: true })
       const heading = page.locator(
@@ -1438,7 +1438,7 @@ test(
           },
         })
       })
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await page.locator(".composer[aria-busy=false]").waitFor()
       const button = page.locator(".composer").getByRole("button", { name: "Share", exact: true })
       await page.getByRole("button", { name: "Output", exact: true }).click()
@@ -1512,13 +1512,13 @@ test("Output controls retain desktop spacing and compact menu access", { timeout
   try {
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.locator(".composer[aria-busy=false]").waitFor()
     for (const width of [320, 375, 390, 768, 1440, 1920]) {
       await page.setViewportSize({ width, height: 1000 })
       for (const size of [100, 200]) {
         await page.evaluate((value) => (document.documentElement.style.fontSize = `${value}%`), size)
-        const print = await outputAction(page, "Print")
+        const print = await outputAction(page, "Print PDF")
         const view = page.locator(".composer").getByRole("button", { name: "View PDF", exact: true })
         const download = page.locator(".composer").getByRole("button", { name: "Download", exact: true })
         const a = await print.boundingBox(),
@@ -1569,7 +1569,7 @@ test("Mobile Output keeps Download direct and document actions in its menu", { t
     try {
       const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await page.locator(".composer[aria-busy=false]").waitFor()
       for (const {
         id,
@@ -1590,14 +1590,15 @@ test("Mobile Output keeps Download direct and document actions in its menu", { t
           assert.deepEqual({ w: a.width, h: a.height }, { w: b.width, h: b.height }, label)
           assert.ok(a.width >= 44 && a.height >= 44 && Math.abs(a.y - b.y) < 1, label)
           await menu.click()
-          const actions = page.locator(".document-actions > button")
+          const actions = page.locator(".document-actions > :is(button, .output-filename)")
           const boxes = await actions.evaluateAll((elements) =>
             elements.map((el) => el.getBoundingClientRect().toJSON()),
           )
           assert.equal(boxes.length, 4)
           for (const [index, box] of boxes.entries()) {
             assert.ok(box.width >= 44 && box.height >= 44 && box.x >= 0 && box.right <= width + 1, label)
-            assert.ok(Math.abs(box.width - boxes[0].width) < 1 && Math.abs(box.height - boxes[0].height) < 1, label)
+            assert.ok(Math.abs(box.width - boxes[0].width) < 1, label)
+            if (index > 1) assert.ok(Math.abs(box.height - boxes[1].height) < 1, label)
             if (index) assert.ok(box.y >= boxes[index - 1].bottom, label)
           }
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), label)
@@ -1691,7 +1692,7 @@ test("Print receives the generated Output PDF and its selected filename", { time
       assert.equal(await editor.getByRole("button", { name: "Save", exact: true }).isDisabled(), true)
       await field.fill("Practice")
       await editor.getByRole("button", { name: "Save", exact: true }).click()
-      const action = page.locator(".composer").getByRole("button", { name: "Print", exact: true })
+      const action = page.locator(".composer").getByRole("button", { name: "Print PDF", exact: true })
       await action.focus()
       const before = await output.locator(".section-heading").boundingBox()
       await page.evaluate(() => {
@@ -1800,7 +1801,7 @@ test(
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        await page.goto(`${server.resolvedUrls.local[0]}?demo&paint`)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=single&paint`)
         const input = page.locator(".selection-panel")
         await page.locator(".composer[aria-busy=false]").waitFor()
         await mkdir("../.local/tmp/web/layout/export", { recursive: true })
@@ -1954,12 +1955,12 @@ test(
           throw new DOMException("Cancelled", "AbortError")
         }
       })
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await page.locator(".composer[aria-busy=false]").waitFor()
       await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).click()
       const popups = []
       page.on("popup", (popup) => popups.push(popup))
-      await (await outputAction(page, "Print")).click()
+      await (await outputAction(page, "Print PDF")).click()
       const dialog = page.getByRole("dialog", { name: "Print", exact: true })
       const share = dialog.getByRole("button", { name: "Share PDF to print", exact: true })
       await share.click()

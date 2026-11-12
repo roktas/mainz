@@ -665,7 +665,7 @@ test("Logo clicks choose Home, animation, or examples and retain landing paralla
       assert.equal(await examples.getByRole("link").nth(1).getAttribute("href"), "?demo=grid")
       await examples.getByRole("button", { name: "Close examples", exact: true }).click()
     }
-    await page.goto(server.resolvedUrls.local[0] + "?demo")
+    await page.goto(server.resolvedUrls.local[0] + "?demo=single")
     await page.locator(".input-current").waitFor({ state: "attached" })
     assert.equal(await page.getByRole("link", { name: "PDF Composer home" }).count(), 1)
     const home = page.getByRole("link", { name: "PDF Composer home", exact: true })
@@ -674,12 +674,12 @@ test("Logo clicks choose Home, animation, or examples and retain landing paralla
     await page.waitForFunction(
       () => document.querySelector(".brand .logo")?.getAnimations()[0]?.playState === "running",
     )
-    assert.equal(new URL(page.url()).search, "?demo", "Double-click preserves the workspace")
+    assert.equal(new URL(page.url()).search, "?demo=single", "Double-click preserves the workspace")
     assert.equal(await outputCount(page).textContent(), "8 pages")
     await home.click()
     await page.locator(".drop-zone").waitFor()
     assert.equal(new URL(page.url()).search, "", "One click opens Home")
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.locator(".input-current").waitFor({ state: "attached" })
     await home.press("Enter")
     await page.locator(".drop-zone").waitFor()
@@ -701,7 +701,7 @@ test("PDF opening and composition work over non-secure HTTP", { timeout: 60000 }
       args: ["--host-resolver-rules=MAP mainz.test 127.0.0.1"],
     })
     const page = await browser.newPage({ reducedMotion: "reduce" })
-    await page.goto(server.resolvedUrls.local[0].replace("127.0.0.1", "mainz.test") + "?demo")
+    await page.goto(server.resolvedUrls.local[0].replace("127.0.0.1", "mainz.test") + "?demo=single")
     assert.deepEqual(await page.evaluate(() => [isSecureContext, typeof crypto.randomUUID]), [false, "undefined"])
     await page.locator(".input-current").waitFor({ state: "attached" })
     assert.equal(await page.locator(".status-input").textContent(), "demo.pdf")
@@ -1025,7 +1025,7 @@ test("Development assets remain available after a production build", { timeout: 
     const page = await browser.newPage()
     page.setDefaultTimeout(10000)
     const url = server.resolvedUrls.local[0]
-    await page.goto(`${url}?demo`)
+    await page.goto(`${url}?demo=single`)
     await page.locator(".input-current").waitFor({ state: "attached" })
     const previous = process.env.NODE_ENV
     try {
@@ -1061,7 +1061,7 @@ test("Demo composition follows the opened page count", async () => {
   const server = await serve()
   const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
-    for (const query of ["", "=grid"]) {
+    for (const query of ["=single", "=grid"]) {
       const page = await browser.newPage({ reducedMotion: "reduce" })
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -1089,7 +1089,7 @@ test("Demo variants open the maintained Input with populated or empty Output", a
   try {
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     for (const [query, pages, selected] of [
-      ["", 8, 4],
+      ["=single", 8, 4],
       ["=empty", 0, 0],
     ]) {
       const page = await browser.newPage({
@@ -1109,7 +1109,7 @@ test("Demo variants open the maintained Input with populated or empty Output", a
       assert.equal(await page.locator(".status-input").textContent(), "demo.pdf")
       assert.equal(await input.locator(".thumbnail").count(), 4)
       assert.equal(await input.locator(".page-image[aria-pressed=true]").count(), selected)
-      if (!query) {
+      if (query === "=single") {
         const output = page.locator(".composition-output")
         const order = []
         for (let number = 1; number <= 8; number++) {
@@ -1141,7 +1141,7 @@ test("Demo variants open the maintained Input with populated or empty Output", a
           assert.equal(await button.locator("svg").evaluate((svg) => getComputedStyle(svg).strokeWidth), "3px")
       }
       const welcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true })
-      if (query) {
+      if (query === "=empty") {
         await welcome.getByRole("button", { name: "Close welcome", exact: true }).click()
         await page.locator(".page-flight:popover-open").waitFor()
         assert.equal(await input.locator(".page-image[aria-pressed=true]").count(), 0)
@@ -1229,7 +1229,7 @@ test("A delayed demo cannot replace local pages or report obsolete failures", { 
         await response.promise
         await route.fulfill({ status, contentType: "application/pdf", body: fixture() })
       })
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await request.promise
       await page.locator("input[type=file]").first().setInputFiles({
         name: "Local.pdf",
@@ -1262,7 +1262,7 @@ test("Grid, List and Page transitions keep thumbnail bounds", { timeout: 60000 }
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     const output = page.locator(".composition-output")
     const errors = []
     page.on("pageerror", (error) => errors.push(error.message))
@@ -1297,7 +1297,7 @@ test("Home asks once before discarding changes and cancellation retains the work
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.waitForFunction(
       () =>
         document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
@@ -1599,7 +1599,7 @@ test("Production demos download on demand and reuse verified files offline", { t
       assert.ok(
         await page
           .locator(".contents:popover-open")
-          .getByRole("button", { name: "Fold 1. Foundations of Digital Documents", exact: true })
+          .getByRole("button", { name: "Unfold 1. Foundations of Digital Documents", exact: true })
           .isVisible(),
       )
       await page.keyboard.press("Escape")
@@ -1772,7 +1772,7 @@ test(
           }
           const header = await page.locator(".header-inner").boundingBox()
           const main = await page.locator("main").boundingBox()
-          await page.getByRole("button", { name: "Update app", exact: true }).click()
+          await page.getByRole("button", { name: "Update application", exact: true }).click()
           await page.getByText("Updating application…", { exact: true }).waitFor()
           const panel = page.locator(".header-feedback")
           assert.equal(await panel.locator(":scope > .feedback").count(), 1)
@@ -1891,7 +1891,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     )
     await page.getByText("Installing offline application…", { exact: true }).waitFor()
     const installingPage = await context.newPage()
-    await installingPage.goto(`${url}?demo`)
+    await installingPage.goto(`${url}?demo=single`)
     const feedback = installingPage.getByText("Demo workspace ready.", { exact: true })
     const offline = installingPage.getByText("Installing offline application…", {
       exact: true,
@@ -1965,7 +1965,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     await page.evaluate(() => localStorage.setItem("mainz:onboarding", "19"))
     await context.setOffline(true)
     const demo = await context.newPage()
-    await demo.goto(`${url}?demo`)
+    await demo.goto(`${url}?demo=single`)
     await demo.waitForFunction(() => document.querySelector(".status-input")?.textContent === "demo.pdf", null, {
       timeout: 60000,
     })
@@ -2053,12 +2053,15 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     }, foreignCache)
     release = "next"
     await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update())
-    const update = page.getByRole("button", { name: "Update app", exact: true })
+    const update = page.getByRole("button", { name: "Update application", exact: true })
     await update.waitFor({ timeout: 60000 })
     const updateNotice = page.getByRole("banner").getByRole("status")
     await page.clock.fastForward(5500)
     assert.equal(await updateNotice.isVisible(), true)
     assert.match(await updateNotice.textContent(), /Update ready\. Download and close your PDF$/)
+    await updateNotice.getByRole("button").click()
+    assert.match(await page.locator(".message-details:popover-open p").innerText(), /new application version is ready/)
+    await page.keyboard.press("Escape")
     for (const width of [810, 1080]) {
       await page.setViewportSize({ width, height: 1080 })
       const lines = await updateNotice.evaluate((element) => {
@@ -2109,7 +2112,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
         const timestamp = document.querySelector(".footnote > time").getBoundingClientRect()
         return timestamp.top - button.getBoundingClientRect().bottom
       })
-      assert.ok(gap >= 12, `${width}px, ${text}: Update app retains space above Build ID`)
+      assert.ok(gap >= 12, `${width}px, ${text}: Update application retains space above Build ID`)
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
     }
     const other = await context.newPage()
@@ -2280,6 +2283,7 @@ test("Public TOC examples open on a fresh static-host visit without a service wo
           await chapter.locator(".list-disclosure").click()
         assert.equal(await chapter.locator(".list-disclosure").getAttribute("aria-expanded"), "true")
         await page.getByRole("button", { name: "Input contents", exact: true }).click()
+        await page.locator(".contents:popover-open").getByRole("button", { name: "Unfold all", exact: true }).click()
         const titles = await page.locator(".contents:popover-open .destination > span:first-child").allTextContents()
         assert.equal(titles.length, 40)
         assert.ok(titles.includes("1. Foundations of Digital Documents"))
@@ -2308,7 +2312,7 @@ test(
       for (const stage of ["read", "labels"]) {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
         await page.getByText("Demo workspace ready.", { exact: true }).waitFor()
         const original = await page.locator(".input-current").textContent()
         await page.evaluate(
@@ -2368,3 +2372,44 @@ test(
     }
   },
 )
+
+test("Bare demo URL opens the example menu before choosing a document", async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 810, height: 1080 }, hasTouch: true })
+    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    const menu = page.getByRole("dialog", { name: "Explore the app" })
+    await menu.waitFor()
+    await menu.getByRole("link", { name: /Single demo/ }).click()
+    await page.locator(".composer").waitFor()
+    assert.equal(new URL(page.url()).searchParams.get("demo"), "single")
+    await page
+      .getByRole("navigation", { name: "Workspace view" })
+      .getByRole("button", { name: "Output", exact: true })
+      .click()
+    const panel = page.locator(".composition-output .composition-card").first().locator(".occurrence-actions")
+    const boxes = await panel
+      .locator("button")
+      .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()))
+    assert.equal(boxes.length, 4)
+    for (let index = 1; index < boxes.length; index++) assert.ok(boxes[index].x >= boxes[index - 1].right)
+    assert.ok(await panel.evaluate((element) => element.getBoundingClientRect().height < 120))
+    await page.keyboard.press("Escape")
+    await page.getByLabel("Output menu", { exact: true }).click()
+    const filename = page.getByRole("textbox", { name: "Output filename", exact: true })
+    await filename.fill("result.pdf")
+    await filename.press("Tab")
+    await page.keyboard.press("Escape")
+    await page.getByLabel("Output menu", { exact: true }).click()
+    assert.equal(await filename.inputValue(), "result.pdf")
+    const disclosure = page.getByRole("button", { name: "Set Output filename", exact: true })
+    assert.ok(
+      (await disclosure.boundingBox()).x >= (await filename.boundingBox()).x + (await filename.boundingBox()).width,
+    )
+    await disclosure.click()
+    await page.getByRole("textbox", { name: "Filename", exact: true }).waitFor()
+  } finally {
+    await browser.close()
+  }
+})

@@ -206,7 +206,7 @@ test("Input and Output lenses retain physical page names in Grid and Page", { ti
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.locator('.composer[aria-busy="false"]').waitFor()
     for (const pane of [page.locator(".selection-panel"), page.locator(".composition-output")]) {
       const previewCanvas = pane.locator('.page-image[data-page="1"] canvas')

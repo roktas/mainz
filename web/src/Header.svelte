@@ -182,7 +182,14 @@
               title="Retry styles"
               onclick={() => retry(source.id)}>Retry</button
             >{/snippet}
-        </Feedback>{/each}{:else if notice}<Feedback kind="notice" class="notice" text={notice}>
+        </Feedback>{/each}{:else if notice}<Feedback
+        kind="notice"
+        class="notice"
+        text={notice}
+        details={notice.startsWith("Update ready")
+          ? "A new application version is ready. Download your PDF and close it, then choose Update application."
+          : undefined}
+      >
         {#snippet actions()}<button type="button" aria-label="Dismiss notification" onclick={() => notify("")}
             >Dismiss</button
           >{/snippet}

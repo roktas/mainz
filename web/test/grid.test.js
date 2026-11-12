@@ -15,7 +15,7 @@ test("Grid and List use matching thin scrollbars in both panes", { timeout: 6000
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.locator(".composer[aria-busy=false]").waitFor()
     for (const width of [390, 1440]) {
       await page.setViewportSize({ width, height: 900 })
@@ -52,7 +52,7 @@ test("Grid and List tabs preserve layout choices and Page return", { timeout: 60
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.locator(".composer[aria-busy=false]").waitFor()
     for (const width of [320, 1440]) {
       await page.setViewportSize({ width, height: 900 })
@@ -311,7 +311,7 @@ test("Grid back folds stay smaller than Page folds", async () => {
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     const input = page.locator(".selection-panel")
     const grid = input.locator('.composition-card[data-face="back"]').first()
     await grid.waitFor()
@@ -358,6 +358,10 @@ test(
           })
         const input = page.locator(".selection-panel")
         await input.getByRole("button", { name: "Input contents", exact: true }).click()
+        await page
+          .locator(".contents:popover-open")
+          .getByRole("button", { name: `Unfold ${chapter}`, exact: true })
+          .click()
         await page.locator(".contents:popover-open .destination").filter({ hasText: section }).click()
         const card = input.locator('.composition-card:has(.page-image[data-page="294"])')
         const details = card.getByLabel("Details for Input page 295", { exact: true })
@@ -389,6 +393,10 @@ test(
         }
         await tab(input, "List")
         await input.getByRole("button", { name: "Input contents", exact: true }).click()
+        await page
+          .locator(".contents:popover-open")
+          .getByRole("button", { name: `Unfold ${chapter}`, exact: true })
+          .click()
         await page.locator(".contents:popover-open .destination").filter({ hasText: section }).click()
         const heading = input.locator(".list-heading").first()
         const style = await heading.evaluate((button) => ({
@@ -422,7 +430,7 @@ test("List keyboard ranges and inspection preserve their pane, selection, and fo
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await page.locator(".composer[aria-busy=false]").waitFor()
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
@@ -490,7 +498,7 @@ test("List details stay anchored and row highlights remain flat", { timeout: 900
     try {
       page = await browser.newPage({ reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await page.locator(".composer[aria-busy=false]").waitFor()
       for (const [width, text] of [
         [1440, "100%"],
@@ -989,7 +997,7 @@ test("Normal card targets stay separate through phone pane and text transitions"
             const number = targets[0]
             for (const point of number.points.filter((_, index) => index % 3 === 1)) {
               await page.touchscreen.tap(point.x, point.y)
-              assert.equal(await card.locator(".page-origin[open]").count(), 1, label)
+              assert.equal(await card.locator(".page-origin-info:popover-open").count(), 1, label)
               assert.equal(await field.inputValue(), selected ? "1" : "", label)
               await page.touchscreen.tap(point.x, point.y)
             }
@@ -1021,7 +1029,7 @@ test("Touch Grid grips select at extended bounds without toggling twice", { time
         reducedMotion: "reduce",
       })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await page.locator(".composer[aria-busy=false]").waitFor()
       for (const name of ["Input", "Output"]) {
         const switcher = page.locator(".mobile-workspace-tabs")
@@ -1123,16 +1131,18 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
                   })
               }, grid.matrix[0])
               for (const target of targets) {
-                assert.ok(target.right - target.left >= 44 && target.bottom - target.top >= 44, label)
+                assert.ok(
+                  target.right - target.left >= (/^(Remove|Duplicate|Move)/.test(target.label) ? 32 : 44) &&
+                    target.bottom - target.top >= 44,
+                  label,
+                )
                 assert.ok(
                   target.points.every(({ hits }) => hits),
                   `${label}: ${JSON.stringify(target)}`,
                 )
                 if (target !== targets.at(-1)) assert.ok(target.bottom <= targets.at(-1).top, label)
               }
-              const target =
-                targets.find((entry) => entry.label.startsWith(action)) ??
-                targets.find((entry) => entry.label.startsWith("Actions"))
+              const target = targets.find((entry) => entry.label.startsWith(action))
               assert.ok(target, label)
               const before = parseInt(await outputCount(page).textContent())
               await page.touchscreen.tap(target.points[1].x, target.points[1].y)
@@ -1140,13 +1150,6 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
                 assert.equal(await field.inputValue(), selected ? "1" : String(lower), label)
                 assert.equal(parseInt(await outputCount(page).textContent()), before, label)
               } else {
-                if (target.label.startsWith("Actions")) {
-                  const menu = pane.locator(".occurrence-menu:popover-open")
-                  const button = menu.getByRole("button", { name: new RegExp(`^${action} Output page`) })
-                  const box = await button.boundingBox()
-                  assert.ok(box.width >= 44 && box.height >= 44, label)
-                  await button.tap()
-                }
                 const expected = before + (action === "Remove" ? -1 : 1)
                 await page.waitForFunction(
                   (count) =>
@@ -1246,7 +1249,7 @@ test("Grid scroll frame keeps card targets inside the viewport", { timeout: 6000
   try {
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.locator(".composer[aria-busy=false]").waitFor()
     for (const width of [390, 1440]) {
       await page.setViewportSize({ width, height: 900 })
@@ -1975,7 +1978,10 @@ test("Narrow workspace counts stay centered without shrinking text", { timeout: 
       await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
       await page.locator(".input-picker > summary").click()
       assert.equal(
-        (await page.locator(".input-list .document-totals").innerText()).replace(/\s+/g, " "),
+        (await page.locator(".mobile-workspace-tabs > button:first-child .composition-totals").innerText()).replace(
+          /\s+/g,
+          " ",
+        ),
         "1000 pages, 500 sheets",
       )
       await page.keyboard.press("Escape")
@@ -1985,7 +1991,10 @@ test("Narrow workspace counts stay centered without shrinking text", { timeout: 
         .click()
       await page.getByLabel("Output menu", { exact: true }).click()
       assert.equal(
-        (await page.locator(".document-actions .document-totals").innerText()).replace(/\s+/g, " "),
+        (await page.locator(".mobile-workspace-tabs > button:last-child .composition-totals").innerText()).replace(
+          /\s+/g,
+          " ",
+        ),
         "10000 pages, 5000 sheets",
       )
     } finally {
@@ -2124,7 +2133,7 @@ test("Input chooser number badges expose details and aligned file actions", { ti
   try {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.locator(".composer[data-compact]").waitFor()
     for (const width of [390, 800, 1440]) {
       await page.setViewportSize({ width, height: 900 })

@@ -170,8 +170,8 @@ Before the first UI or visual-mockup edit, start or reuse the preview server, co
 Do not edit before sharing a working URL. Use `npm run dev -- --port 5173 --strictPort`. Keep the server until push,
 then stop it. Documentation-only work needs no server.
 
-`http://127.0.0.1:5173/?demo` opens the maintained four-page fixture with eight Output occurrences. Development also
-accepts `?demo&paint` for Style with Filled. Production preview uses `npm run preview -- --port 4173 --strictPort`.
+`?demo` opens the demo menu; `?demo=single` opens the four-page fixture with eight Output pages. Development accepts
+`?demo=single&paint` for Style with Filled. Preview: `npm run preview -- --port 4173 --strictPort`.
 
 Keep self-contained HTML mockups under `.local/tmp/web/`, using project tokens and vocabulary. Retain descriptive
 variants for comparison. Add `package.json` containing `{"private":true}` in that temporary tree to keep Vite's cache

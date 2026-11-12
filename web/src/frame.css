@@ -93,6 +93,7 @@
       min-block-size: calc(46px + var(--gap));
       align-items: center;
 
+      padding-block-end: 4px;
       & > .tabs {
         display: grid;
         grid-auto-flow: column;
@@ -115,6 +116,7 @@
           padding-inline: var(--tab-inset) 0.75em;
           border: 0;
           border-radius: 6px;
+          background: transparent;
           &::before {
             content: "";
             position: absolute;
@@ -170,7 +172,10 @@
           display: none;
         }
       }
-      &:not(:has(.page-destination, .style-actions > button)) > button[aria-label="Input contents"] {
+      & > .page-destination:has(+ button[aria-label="Input contents"]) {
+        margin-inline-end: 0;
+      }
+      & > button[aria-label="Input contents"] {
         margin-inline-end: calc(var(--icon-size) * 10 / 24 - var(--toolbar-action-size) / 2);
       }
     }

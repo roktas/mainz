@@ -233,7 +233,7 @@ test(
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
       await outputCount(page).filter({ hasText: "8 pages" }).waitFor()
@@ -287,7 +287,7 @@ test(
           )
           assert.equal(await page.locator(".drag-image, [data-press]").count(), 0)
           if (interruption === "home") {
-            await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+            await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
             await outputCount(page).filter({ hasText: "8 pages" }).waitFor()
             await input.getByLabel("Page selection", { exact: true }).fill("")
           } else {

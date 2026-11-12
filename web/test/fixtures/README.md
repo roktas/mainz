@@ -1,8 +1,8 @@
 # Prepared PDF sample
 
-[demo.pdf](demo.pdf) contains four Pages from Megic's Ital Winters 7.9 mm A4 series. PDF Composer's `?demo` mode opens
-it in development and production. The sample downloads on first use and then works offline when its optional cache is
-available.
+[demo.pdf](demo.pdf) contains four Pages from Megic's Ital Winters 7.9 mm A4 series. PDF Composer's `?demo=single` mode
+opens it in development and production. The sample downloads on first use and then works offline when its optional cache
+is available.
 
 The Pages are the cover, `ital-guid-79a4-wxgx`, full-sheet CROS (`ital-cros-79a4-wxgf`), and partial CROS
 (`ital-cros-79a4-wxgr`), in that order. Output starts with `1,2,3,4,3,4,3,4`. Repetitions expose no additional Book

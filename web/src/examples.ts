@@ -118,7 +118,7 @@ export async function openExample(demo: string, host: Host) {
       return
     }
     const grid = demo === "grid"
-    if (demo !== "" && demo !== "empty" && !grid) throw new Error(`Unknown demo: ${demo}. Choose a local PDF.`)
+    if (demo !== "single" && demo !== "empty" && !grid) throw new Error(`Unknown demo: ${demo}. Choose a local PDF.`)
     const filename = grid ? "grid.pdf" : "demo.pdf"
     let bytes = new Uint8Array(
       await (await fetchExample(`${base}${grid && import.meta.env.DEV ? filename : "demo.pdf"}`)).arrayBuffer(),

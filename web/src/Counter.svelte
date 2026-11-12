@@ -7,10 +7,12 @@
     pane,
     position = $bindable(0),
     count,
+    label,
   }: {
     pane: "Input" | "Output"
     position?: number
     count: number
+    label?: string
   } = $props()
   const id = $props.id()
   let editing = $state(false)
@@ -79,6 +81,7 @@
         <span hidden id={`${id}-help`}>Enter a page number from 1 to {count}. Enter confirms. Escape cancels.</span>
       {/if}
     </span><span class="page-total">/ {count}</span>
+    {#if label}<span class="counter-label" title={`Page Label: ${label}`}>{label}</span>{/if}
   </strong>
 {/snippet}
 

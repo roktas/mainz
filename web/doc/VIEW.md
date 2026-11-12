@@ -63,8 +63,8 @@ dimensions; visual estimates are not sufficient. Colors, surfaces, and hover tre
 Different control types can use their documented dimensions but must share an explicit alignment edge or centerline. In
 the Input chooser, the number button opens file details. Active numbers use a primary fill with black text in dark mode
 and white text in light mode. Filenames use neutral white or black text, with a clear gap after the number. Compact file
-menus use full-width View Input PDF and Remove Input rows with equal dimensions. Desktop Open PDF and Download share the
-same dimensions.
+menus use full-width View PDF and Remove Input rows with equal dimensions. Desktop Open PDF and Download share the same
+dimensions.
 
 The shared `--icon-size` token sets ordinary icons to 1.125 rem. Control-specific icon sizes use their own visual role.
 
@@ -181,9 +181,9 @@ control when they do not fit inline.
 
 Single-pane layouts use one workspace bar instead of separate pane headers. Its fixed side slots contain a document menu
 and a primary file action. The middle holds two equal Input/Output buttons. Both menus use the same horizontal three-dot
-icon. Input offers the Input list, full page/sheet totals, View Input PDF, and Remove Input. Output offers full totals,
-Set filename, View PDF, Print, and Export recipe. Escape and outside activation close the menus. Escape restores focus
-to the launcher without clearing page selection.
+icon. Input offers the Input list, View PDF, and Remove Input. Compact menus omit page/sheet totals. Output offers an
+editable filename with a trailing downward chevron for details, View PDF, Print PDF, and Export recipe. Escape and
+outside activation close the menus. Escape restores focus to the launcher without clearing page selection.
 
 Open PDF occupies Input's primary slot. Download or Share occupies the same slot in Output. These actions have equal
 square targets, primary surfaces, 24 px glyphs, and accessible names. Document menu targets share their dimensions and
@@ -194,7 +194,7 @@ equal heights. Switching panes preserves the bar, toolbar, selection-field, and 
 
 The compact app header retains the logo, Help, Settings, and Theme with full touch targets. Its reduced height and
 spacing leave more room for the document. Grid, List, and Page retain the same leading positions in both panes. Contents
-precedes the shared trailing controls in Input. Section headings and Go to page retain their corresponding trailing
+follows Go to page at the end of the Input toolbar. Section headings and Go to page retain their corresponding trailing
 positions. Both themes, keyboard focus, and reduced-motion rules apply to the complete compact layout.
 
 On iOS and Android with native file sharing, Share replaces Download at the same position and keeps the primary target.
@@ -286,12 +286,13 @@ chooser controls do not select text or open native touch callouts during a hold.
 Pointer opening places initial focus on the Settings drawer. Keyboard opening focuses its Close button. Keyboard
 navigation keeps a visible focus indicator on each control.
 
-Workspace view tabs use a soft selected tint with 6 px corners and accent-colored content. Grid uses four thumbnail
-squares; List uses horizontal lines; Page uses a single sheet. Glyphs retain the same size and visible center.
-Unselected tabs gain color on hover. Keyboard focus outlines the tint area in the secondary color. Input offers Grid,
-List, Page, and eligible Style tabs. Output offers Grid, List, and Page. Grid and List are the two direct Pages views,
-each with its own tab, icon, and accessible name. Each Input and Output retains its selected Pages layout. Focus stays
-on the selected tab after activation.
+All tabs omit selection underlines and retain the same surface dimensions on hover. Workspace view tabs use one soft
+selected tint with 6 px corners and accent-colored content. Grid uses four thumbnail squares; List uses horizontal
+lines; Page uses a single sheet. Glyphs retain the same size and visible center. Unselected tabs gain color on hover.
+Keyboard focus outlines the tint area in the secondary color. Input offers Grid, List, Page, and eligible Style tabs.
+Output offers Grid, List, and Page. Grid and List are the two direct Pages views, each with its own tab, icon, and
+accessible name. Each Input and Output retains its selected Pages layout. Focus stays on the selected tab after
+activation.
 
 Toolbars at or below 26 em use icon-only tabs. Wider panes show text. Keep at least 12 CSS px between adjacent tab
 contents when labels are visible. Tabs and Style tools must not wrap or overlap. Keep their height consistent across
@@ -419,16 +420,20 @@ highlight and reduced-motion behavior.
 The Contents toolbar icon uses the primary color while its panel is open. Selecting an entry reveals its exact physical
 page in Grid, List, or Page, including Grid pages outside the visible scroll window.
 
+Input Grid centers its single Add action on the card. Output Grid keeps Move earlier, Move later, Remove, and Duplicate
+in one centered footer row, including on narrow and touch screens. Each compact button has a 32 px horizontal slot and a
+44 px high hit area. Help prose lists use visible bullets and space between items.
+
 Grid headers show only physical page numbers. Page Label and Output mappings appear in a two-column detail table. Normal
-Grid detail columns shrink within the viewport even when breadcrumb titles are long.
+Grid detail columns shrink within the viewport for long titles. Detail surfaces are opaque, use their content height,
+and stay above all card controls.
 
-TOC-derived Input detail headings retain breadcrumbs with full-title popovers. Output details retain flat headings. The
-detail table pairs each field with its value. The Output field shows copy mappings such as `2× → 2, 9`, without repeated
-leaf titles or inferred-range explanations. Page labels remain available in details even without an outline or Output
-copies.
+Input and Output details use one flat heading. The detail table pairs each field with its value. The Output field shows
+copy mappings such as `2× → 2, 9`, without repeated leaf titles or inferred-range explanations. Page labels remain
+available in details even without an outline or Output copies.
 
-The section used as the display title remains the bold detail heading. Other paths follow below its separator in
-regular-weight, muted text, so the distinction survives without color.
+The section used as the display title remains the bold detail heading. Jump to section lists matching paths below the
+detail table.
 
 Multiple-source Output List rows show an 8 px source-color dot centered exactly between the number and grip. The same
 dot identifies Input's current file and chooser entries. Dots have no contour, retain their colors during selection, use
@@ -557,8 +562,10 @@ reduce the thumbnail's measured width. The Grid's internal layout remains indepe
 ### Page alignment and controls
 
 Page headings and navigation stay outside the image viewport. The frame provides the alignment reference for both rows.
-Counter and Page Label share the start edge; zoom reset uses the end edge. Keep visible control content at least 8 CSS
-px inside the folded corner's inner edge. Center the complete action group on the frame's true centerline.
+Page Label follows the counter in the heading; previous and next controls use the footer edges. The center of the footer
+uses Input Add or Output Move earlier, Move later, Remove, and Duplicate in that order. Zoom reset uses the end edge.
+Keep visible control content at least 8 CSS px inside the folded corner's inner edge. Center the complete action group
+on the frame's true centerline.
 
 Page headers and footers occupy one row. Never wrap controls, counters, or text into another row. If controls do not
 fit, put excess Page actions in the existing page-actions menu. Targets remain at least 44 CSS px high and stay within
@@ -781,7 +788,7 @@ The workspace uses the document-flow rule above so that its last controls remain
 and update controls share a centered column. Larger workspace views show the active filename at the start and Build ID
 at the end. Narrow mobile workspace views retain feedback and offline actions only. The landing places Build ID at the
 bottom center. It can wrap between groups with enlarged text. Long filenames truncate with full hover text. The landing
-keeps one standard gap between Update app and Build ID.
+keeps one standard gap between Update application and Build ID.
 
 New footer status briefly highlights the message with a light accent tint and a soft glow just around the text, then
 fades to its ordinary treatment. Repeated operations restart the feedback. Reduced motion skips this effect, which does
@@ -967,7 +974,7 @@ The pane divider is a separator. It has no resize interaction, so its name is no
 | Download button                 | İndirme düğmesi                     | The primary action that downloads Output.                                                             |
 | Share button                    | Paylaşım düğmesi                    | The primary mobile action that opens system sharing for the completed Output PDF.                     |
 | Print button                    | Yazdır düğmesi                      | The desktop icon or compact menu action that prepares Output for PDF printing.                        |
-| Output filename button / panel  | Output dosya adı düğmesi / paneli   | The Output heading or Set filename menu action and its editor with Use default and Save.              |
+| Output filename button / panel  | Output dosya adı düğmesi / paneli   | The Output heading or trailing filename disclosure and its editor with Use default and Save.          |
 | Workspace bar                   | Çalışma alanı çubuğu                | The compact row with a document menu, Input/Output switch, and primary file action.                   |
 | Document menu                   | Belge menüsü                        | The three-dot launcher for the active Input or Output and its file actions.                           |
 | Status bar / App footer         | Durum çubuğu / Uygulama alt alanı   | The bottom row with the filename, status message, and Build ID.                                       |
@@ -1027,12 +1034,12 @@ The bar is the complete bordered row. The field is only the text-entry area with
 
 #### Repetition and blank pages
 
-| English term             | Turkish equivalent           | UI element                                                                                |
-| ------------------------ | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| Repetition control       | Tekrar sayısı denetimi       | The repetition field with decrease, increase, and reset buttons in the page actions menu. |
-| Front alignment checkbox | Ön yüze hizalama onay kutusu | The “Start each repeat on front” choice.                                                  |
-| Repeat button            | Tekrarlama düğmesi           | The “Repeat” button in the Output page actions menu.                                      |
-| Insert blank actions     | Boş sayfa ekleme işlemleri   | The choices that insert a Blank before the first selected page or at the end of Output.   |
+| English term             | Turkish equivalent           | UI element                                                                                                      |
+| ------------------------ | ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Repetition control       | Tekrar sayısı denetimi       | The repetition field with decrease, increase, and reset buttons in the page actions menu.                       |
+| Front alignment checkbox | Ön yüze hizalama onay kutusu | The “Start each repeat on front” choice.                                                                        |
+| Repeat button            | Tekrarlama düğmesi           | The “Repeat” button in the Output page actions menu.                                                            |
+| Insert blank actions     | Boş sayfa ekleme işlemleri   | The choices that insert a Blank before the first selected page, after the current page, or after the last page. |
 
 ### Grid
 
@@ -1267,7 +1274,7 @@ Their visual popover name does not require every panel to use the browser's Popo
 | Empty state                 | Boş durum görünümü                    | Explanatory content such as “Your Output starts here.”                                 |
 | Operation highlight         | İşlem vurgusu                         | Temporary emphasis after addition, movement, or removal.                               |
 | Page transfer animation     | Sayfa aktarım animasyonu              | A page or stack moving toward Output after addition or during first-addition guidance. |
-| Offline/update status       | Çevrimdışı kullanım/güncelleme durumu | Header installation/update feedback and the footer's Update app button.                |
+| Offline/update status       | Çevrimdışı kullanım/güncelleme durumu | Header installation/update feedback and the footer's Update application button.        |
 
 #### Drop targets and previews
 

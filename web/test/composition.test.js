@@ -22,7 +22,7 @@ test(
       try {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
         await page.locator(".composer[aria-busy=false]").waitFor()
         const output = page.locator(".composition-output")
         for (const [width, size, colorScheme] of [
@@ -133,7 +133,7 @@ test("Output Page removes the current occurrence, including Blank and the final 
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.locator(".composer[aria-busy=false]").waitFor()
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
@@ -143,13 +143,13 @@ test("Output Page removes the current occurrence, including Blank and the final 
       await actions
         .getByRole("button")
         .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label"))),
-      ["Remove Output page 1", "Duplicate Output page 1"],
+      ["Move Output page 1 earlier", "Move Output page 1 later", "Remove Output page 1", "Duplicate Output page 1"],
     )
     await actions.getByRole("button", { name: "Remove Output page 1", exact: true }).click()
     assert.equal(await outputCount(page).textContent(), "7 pages")
     assert.equal(await output.getByLabel("Page selection", { exact: true }).inputValue(), "")
     await output.getByLabel("Output page actions", { exact: true }).click()
-    await output.getByRole("button", { name: "At end", exact: true }).click()
+    await output.getByRole("button", { name: "After last page", exact: true }).click()
     assert.equal(await actions.getByRole("button").count(), 0, "Selection hides individual actions")
     await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
     await output.getByRole("button", { name: "Next Output page", exact: true }).focus()
@@ -197,7 +197,7 @@ test(
           }
         }
       })
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
       const open = async (name) => {
@@ -320,7 +320,7 @@ test("Grid navigation retains physical page positions during additions", { timeo
       const page = await browser.newPage({ viewport: { width, height }, colorScheme, reducedMotion: "no-preference" })
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await outputCount(page).waitFor({ state: "attached" })
       const output = page.locator(".composition-output")
       const workspace = page.locator(".mobile-workspace-tabs > button:last-child")
@@ -407,7 +407,7 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
       t.diagnostic(`${width} × ${height}, ${colorScheme}, ${cpu}× CPU slowdown`)
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await page.waitForFunction(
         () =>
           document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
@@ -674,7 +674,7 @@ test("Addition previews use their target image or the action area", { timeout: 9
       })
 
       for (const action of ["card", "selection", "keyboard"]) {
-        await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
         await page.waitForFunction(
           () =>
             document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
@@ -689,15 +689,11 @@ test("Addition previews use their target image or the action area", { timeout: 9
             (element) => element.getAttribute("aria-busy") === "false",
           ),
         )
-        if (action === "card") {
-          const menu = output.getByRole("button", { name: "Actions for Output page 2", exact: true })
-          if (await menu.isVisible()) await menu.press("Enter")
-        }
         if (action !== "card") await output.getByLabel("Page selection", { exact: true }).fill("2")
         const control =
           action === "card"
             ? output
-                .locator(touch ? ".occurrence-menu:popover-open" : ".card-inline-actions")
+                .locator(".card-inline-actions")
                 .getByRole("button", { name: "Duplicate Output page 2", exact: true })
             : action === "selection"
               ? output.getByRole("button", { name: "Duplicate selected Output pages", exact: true })
@@ -758,7 +754,7 @@ test("Addition previews use their target image or the action area", { timeout: 9
       }
 
       for (const action of ["input", "copy", "repeat"]) {
-        await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
         await page.waitForFunction(
           () =>
             document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
@@ -828,7 +824,7 @@ test(
         t.diagnostic(`${width} × ${height}, ${colorScheme}, ${rate}× CPU slowdown`)
         page.setDefaultTimeout(10000)
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
         await page.waitForFunction(
           () =>
             document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")
@@ -1029,15 +1025,10 @@ test(
         t.diagnostic(`${width}: edit feedback`)
         const clear = output.getByRole("button", { name: "Clear Output selection", exact: true })
         if (await clear.isVisible()) await clear.click()
-        const details = async () => {
-          const menu = output.getByRole("button", { name: "Actions for Output page 1", exact: true })
-          if (await menu.isVisible()) await menu.press("Enter")
-        }
         const allActions = width === 1440
-        await details()
         await addition(() =>
           output
-            .locator(hasTouch ? ".occurrence-menu:popover-open" : ".card-inline-actions")
+            .locator(".card-inline-actions")
             .getByRole("button", { name: "Duplicate Output page 1", exact: true })
             .click(),
         )
@@ -1060,7 +1051,7 @@ test(
           await output.getByLabel("Output page actions", { exact: true }).click()
           await output.getByRole("textbox", { name: "Repeat selected sequence", exact: true }).fill("2")
           await addition(() => output.getByRole("button", { name: "Repeat", exact: true }).click())
-          for (const label of ["Before", "At end"]) {
+          for (const label of ["Before", "After last page"]) {
             await output.getByLabel("Output page actions", { exact: true }).click()
             await addition(() => output.getByRole("button", { name: label, exact: true }).click(), 1, true)
           }
@@ -1069,7 +1060,6 @@ test(
         if (await clearAfterCopy.isVisible()) await clearAfterCopy.click()
         await output.locator(".page-image").first().press("Home")
         await page.mouse.move(1, 1)
-        await details()
         await removal(() => output.getByRole("button", { name: "Remove Output page 1", exact: true }).click())
         if (allActions) {
           for (const action of [
@@ -1399,7 +1389,7 @@ test("Bulk page actions consume preparations and preserve selected occurrences",
     await output.getByRole("button", { name: "Before", exact: true }).click()
     assert.equal(await selected.inputValue(), "9")
     await outputOptions.click()
-    await output.getByRole("button", { name: "At end", exact: true }).click()
+    await output.getByRole("button", { name: "After last page", exact: true }).click()
     assert.equal(await selected.inputValue(), "13")
     await selected.fill("1-13")
     await selected.press("Enter")
@@ -1566,7 +1556,7 @@ test("Grid boundary duplication focuses the final new Output occurrence", async 
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     const output = page.locator(".composition-output")
     await output.getByLabel("Page selection", { exact: true }).fill("2,8")
     await (await gridPage(output, 8)).press("ArrowRight")
@@ -1608,7 +1598,7 @@ test(
       await input.getByLabel("Page selection", { exact: true }).fill("1")
       await input.getByLabel("Page selection", { exact: true }).press("Enter")
       await output.locator(".output-options > summary").click()
-      await output.getByRole("button", { name: "At end", exact: true }).click()
+      await output.getByRole("button", { name: "After last page", exact: true }).click()
       await output.getByLabel("Page selection", { exact: true }).fill("1")
       await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
       await tab(output, "Page")
@@ -1638,3 +1628,25 @@ test(
     }
   },
 )
+
+test("Blank insertion distinguishes the current Output page from the last page", async () => {
+  const server = await serve(),
+    browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
+    const output = page.locator(".composition-output")
+    await output.getByRole("button", { name: "Go to page in Output", exact: true }).click()
+    await output.getByRole("textbox", { name: "Output page number", exact: true }).fill("3")
+    await output.getByRole("textbox", { name: "Output page number", exact: true }).press("Enter")
+    await output.getByLabel("Output page actions", { exact: true }).click()
+    await output.getByRole("button", { name: "After current page", exact: true }).click()
+    assert.equal(await output.getByLabel("Page selection", { exact: true }).inputValue(), "4")
+    await output.getByLabel("Output page actions", { exact: true }).click()
+    await output.getByRole("button", { name: "After last page", exact: true }).click()
+    assert.equal(await output.getByLabel("Page selection", { exact: true }).inputValue(), "10")
+    assert.equal(await outputCount(page).textContent(), "10 pages")
+  } finally {
+    await browser.close()
+  }
+})

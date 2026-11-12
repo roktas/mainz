@@ -115,7 +115,7 @@ test("Installation guidance stays optional and independent of the product tour",
     const context = await browser.newContext({ reducedMotion: "reduce" })
     try {
       const page = await context.newPage()
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       const icons = await page.evaluate(async () => {
         const manifest = await (await fetch("manifest.webmanifest")).json()
         const asset = manifest.icons.find((item) => item.purpose.split(" ").includes("maskable"))

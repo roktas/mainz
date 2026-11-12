@@ -35,7 +35,6 @@
     count,
     sheet,
     name,
-    label,
     position = $bindable(0),
     comparing = $bindable(false),
     zoom = $bindable(100),
@@ -58,7 +57,6 @@
     count: number
     sheet?: Inspection
     name?: string
-    label?: string
     position?: number
     comparing?: boolean
     zoom?: number
@@ -587,12 +585,6 @@
   </div>
   {#if sheet}
     <nav class="page-navigation" aria-label={`${pane} page navigation`}>
-      {#if label && label !== String(physicalPage! + 1)}<span
-          class="page-context"
-          role="note"
-          aria-label={`Page Label: ${label}`}
-          title={`Page Label: ${label}`}>{label}</span
-        >{/if}
       <button
         class="icon-button"
         data-step="-1"

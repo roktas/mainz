@@ -350,7 +350,7 @@ test("Page pinch zoom preserves its anchor and shares the button zoom range", { 
       page.on("pageerror", (error) => errors.push(error.message))
       await page.emulateMedia({ colorScheme })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await outputCount(page).waitFor({ state: "attached" })
       const session = await page.context().newCDPSession(page)
       for (const name of ["Input", "Output"]) {
@@ -482,7 +482,7 @@ test("Page cancellation clears a pending pinch before the next render", { timeou
     const errors = []
     page.on("pageerror", (error) => errors.push(error.message))
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await outputCount(page).waitFor({ state: "attached" })
     await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).click()
     const pane = page.locator(".composition-output")
@@ -549,7 +549,7 @@ test("The lens waits for a settled mouse and cancels pending openings", { timeou
         localStorage.setItem("mainz:onboarding", "19")
         localStorage.setItem("mainz:theme", choice)
       }, theme)
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await page.evaluate((size) => (document.documentElement.style.fontSize = size), textSize)
       const lens = page.getByRole("region", { name: /^Magnified page / })
       for (const name of ["Input", "Output"]) {
@@ -1181,7 +1181,7 @@ test("Touch Page swipes navigate only without horizontal overflow", { timeout: 1
         reducedMotion: "reduce",
       })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await page.locator(".composer[aria-busy=false]").waitFor()
       const session = await page.context().newCDPSession(page)
       const send = (type, touchPoints = []) => session.send("Input.dispatchTouchEvent", { type, touchPoints })
@@ -1300,7 +1300,7 @@ test("Touch Page swipes navigate only without horizontal overflow", { timeout: 1
       reducedMotion: "reduce",
     })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.locator(".composer[aria-busy=false]").waitFor()
     const pane = page.locator(".selection-panel")
     await tab(pane, "Page")
@@ -1331,7 +1331,7 @@ test("Page width fitting and horizontal keys preserve composition and focus", { 
           reducedMotion: "reduce",
         })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
         for (const name of ["Input", "Output"]) {
           const views = page.locator(".mobile-workspace-tabs")
           if (await views.isVisible()) await views.getByRole("button", { name, exact: true }).click()
@@ -1400,7 +1400,7 @@ test("Page uses one frame contour for keyboard focus and none for pointer zoom",
     try {
       page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       for (const colorScheme of ["light", "dark"]) {
         await page.emulateMedia({ colorScheme })
         for (const name of ["Input", "Output"]) {
@@ -1472,7 +1472,7 @@ test(
           reducedMotion: "reduce",
         })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
         for (const name of ["Input", "Output"]) {
           const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
           await tab(pane, "Page")
@@ -1536,7 +1536,7 @@ test("Page double activation toggles anchored zoom and preserves composition", {
           reducedMotion: "reduce",
         })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
         await page.locator(".composer[aria-busy=false]").waitFor()
         for (const name of ["Input", "Output"]) {
           const tabs = page.locator(".mobile-workspace-tabs")
@@ -1629,7 +1629,7 @@ test("Repeated Page copies emphasize status without changing focus or geometry",
       })
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await outputCount(page).waitFor({ state: "attached" })
       if (hasTouch)
         await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).tap()
@@ -1732,7 +1732,7 @@ test("Output Page keeps original PDF labels through composition and Input change
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     const selected = output.getByLabel("Page selection", { exact: true })
-    const labels = output.locator(".page-navigation > .page-context")
+    const labels = output.locator(".inspection-heading .counter-label")
     const jump = async (position, label, count = 5) => {
       await output.getByRole("button", { name: "Go to Output page", exact: true }).click()
       const entry = output.getByRole("textbox", { name: "Go to Output page", exact: true })
@@ -1744,7 +1744,7 @@ test("Output Page keeps original PDF labels through composition and Input change
     await tab(input, "List")
     assert.deepEqual(await input.locator(".list-pdf-label").allTextContents(), ["i", "ii", long])
     await tab(input, "Page")
-    assert.equal(await input.locator(".page-navigation > .page-context").innerText(), "i")
+    assert.equal(await input.locator(".inspection-heading .counter-label").innerText(), "i")
     await input.getByLabel("Page selection", { exact: true }).fill("2,1,2,3,4")
     await input.getByLabel("Page selection", { exact: true }).press("Enter")
     await tab(output, "List")
@@ -1769,7 +1769,7 @@ test("Output Page keeps original PDF labels through composition and Input change
     await jump(1, "ii")
     await jump(2, "i")
     await jump(3, "ii")
-    await jump(4)
+    await jump(4, "3")
     await jump(5, long)
     assert.equal(await labels.getAttribute("title"), `Page Label: ${long}`)
     assert.equal(await labels.isVisible(), true)
@@ -1794,27 +1794,23 @@ test("Output Page keeps original PDF labels through composition and Input change
       const labelBounds = await labels.evaluate((element) => {
         const box = element.getBoundingClientRect()
         const frame = element.closest(".page-view")
-        const counter = frame.querySelector(".page-number-control").getBoundingClientRect()
-        const previous = frame.querySelector('[data-step="-1"]').getBoundingClientRect()
-        return { aligned: Math.abs(box.left - counter.left) < 1, separate: box.right <= previous.left + 1 }
+        const counter = frame.querySelector(".page-total").getBoundingClientRect()
+        const tools = frame.querySelector(".page-tools").getBoundingClientRect()
+        return { aligned: box.left >= counter.right, separate: box.right <= tools.left + 1 }
       })
       assert.ok(labelBounds.aligned && labelBounds.separate, JSON.stringify(labelBounds))
       const navigation = await labels.evaluate((element) => {
-        const nav = element.closest(".page-navigation")
-        const gap = parseFloat(getComputedStyle(nav.querySelector(".page-actions")).columnGap)
+        const nav = element.closest(".page-view").querySelector(".page-navigation")
         const actions = nav.querySelector(".page-actions").getBoundingClientRect()
         const previous = nav.querySelector('[data-step="-1"]').getBoundingClientRect()
         const next = nav.querySelector('[data-step="1"]').getBoundingClientRect()
         return {
           previous: actions.left - previous.right,
           next: next.left - actions.right,
-          gap,
         }
       })
       assert.ok(
-        navigation.previous >= -1 &&
-          navigation.previous <= navigation.gap + 1 &&
-          Math.abs(navigation.previous - navigation.next) < 1,
+        navigation.previous >= -1 && Math.abs(navigation.previous - navigation.next) < 1,
         JSON.stringify(navigation),
       )
       await aligned(output)
@@ -1834,19 +1830,19 @@ test("Output Page keeps original PDF labels through composition and Input change
       document.documentElement.style.fontSize = "100%"
       document.body.style.fontFamily = ""
     })
-    await jump(4)
+    await jump(4, "3")
     await selected.fill("4")
     await output.getByRole("button", { name: "Move selected pages earlier", exact: true }).click()
     assert.match(await pagePosition(output), /^3\s*\/ 5$/)
-    assert.deepEqual(await labels.allTextContents(), [], "The counter already shows the identical PDF label")
+    assert.deepEqual(await labels.allTextContents(), ["3"], "The original PDF label remains beside the counter")
     await output.getByRole("button", { name: "Move selected pages earlier", exact: true }).click()
     assert.match(await pagePosition(output), /^2\s*\/ 5$/)
-    assert.deepEqual(await labels.allTextContents(), [], "A matching physical label stays hidden after reordering")
+    assert.deepEqual(await labels.allTextContents(), ["3"], "Reordering retains the original PDF label")
     await selected.fill("1-2")
     await output.getByLabel("Output page actions", { exact: true }).click()
     await output.getByRole("button", { name: "Repeat", exact: true }).click()
     await jump(3, "ii", 7)
-    await jump(4, undefined, 7)
+    await jump(4, "3", 7)
     await output.getByLabel("Output page actions", { exact: true }).click()
     await output.getByRole("button", { name: "Before", exact: true }).click()
     await jump(3, undefined, 8)
@@ -1977,7 +1973,6 @@ test("Grid and Page switches preserve selections, zoom, and the inspected page",
     await page.keyboard.press("Control+ArrowRight")
     assert.equal(await pageFocused(), true, "Keyboard movement retains page focus")
     await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
-    await output.getByRole("button", { name: "Actions for Output page 17", exact: true }).press("Enter")
     await output.getByRole("button", { name: "Remove Output page 17", exact: true }).click()
     assert.equal(await pageFocused(), true, "Mouse removal focuses a surviving thumbnail")
   } finally {
@@ -2121,7 +2116,7 @@ test("Unused and modified Grid keys preserve pointer controls and native shortcu
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.waitForFunction(
       () =>
         document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
@@ -2459,7 +2454,7 @@ test(
         const details = output.getByLabel(`Details for Output page ${position}`, { exact: true })
         await details.click()
         assert.match(
-          await output.locator(".page-origin[open] .page-origin-info").innerText(),
+          await output.locator(".page-origin-info:popover-open").innerText(),
           new RegExp(`Large\\.pdf\\s+Original page\\s+${original}`),
         )
         await details.click()

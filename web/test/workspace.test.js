@@ -16,7 +16,7 @@ test("Parameter hover waits, cancels on leaving or Escape, and keeps click immed
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo&paint`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single&paint`)
       await page.locator('.composer[aria-busy="false"]').waitFor()
       const details = page.locator(".control .details.compact").first(),
         summary = details.locator("summary")
@@ -54,7 +54,7 @@ test("Input and Output retain independent Pages presentations through Page retur
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     const input = page.locator(".selection-panel")
     const output = page.locator(".composition-output")
     await tab(input, "List")
@@ -756,7 +756,7 @@ test("Profile details stay readable and aligned across layouts", { timeout: 1800
     try {
       page = await browser.newPage({ viewport: { width: 1440, height: 1080 }, reducedMotion: "reduce", hasTouch: true })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo&paint`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single&paint`)
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
       const chooser = input.getByRole("combobox", { name: "Style profile", exact: true })
@@ -947,7 +947,7 @@ test("Style reset clears saved overrides and retains keyboard focus", { timeout:
       reducedMotion: "reduce",
     })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     const input = page.locator(".selection-panel")
     await tab(input, "Style")
     const reset = input.getByRole("button", { name: "Reset all styles", exact: true })
@@ -991,7 +991,7 @@ test("Dialogs dismiss outside taps without native light dismissal", { timeout: 6
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     for (const [width, height] of [
       [810, 1048],
       [1080, 778],
@@ -1035,7 +1035,7 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.locator(".composer[aria-busy=false]").waitFor()
     for (const [width, text, colorScheme, font = ""] of [
       [320, "100%", "light"],
@@ -1279,7 +1279,7 @@ test("Help fits its content and keeps its navigation above scrolling panels", { 
       for (const hasTouch of [false, true]) {
         const page = await browser.newPage({ hasTouch, isMobile: hasTouch, reducedMotion: "reduce" })
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        for (const query of ["", "?demo"]) {
+        for (const query of ["", "?demo=single"]) {
           await page.goto(`${server.resolvedUrls.local[0]}${query}`)
           if (query) await page.locator(".composer[aria-busy=false]").waitFor()
           for (const [width, height, text] of [
@@ -1354,7 +1354,7 @@ test("Keyboard starts at the logo and uses thin secondary focus contours", { tim
         colorScheme,
         reducedMotion: "reduce",
       })
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await page.locator(".composer[aria-busy=false]").waitFor()
       await page.keyboard.press("Tab")
       assert.equal(await page.locator(".brand").evaluate((element) => element === document.activeElement), true)
@@ -2252,7 +2252,7 @@ test("Style selectors retain touch height and inset arrows across workspace widt
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo&paint`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single&paint`)
     const chooser = page.getByRole("combobox", { name: "Style profile", exact: true })
     await chooser.waitFor()
     for (const width of [320, 390, 744, 768, 810, 1024, 1080, 1133, 1440, 1920, 2560, 3840]) {
@@ -2344,7 +2344,7 @@ test(
       browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
       const page = await browser.newPage({ reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       const settings = page.getByRole("dialog", { name: "Settings", exact: true })
       await page.getByRole("button", { name: "Settings", exact: true }).click()
       assert.match(await settings.locator("dl").innerText(), /Version[\s\S]+Build ID/)
@@ -2491,7 +2491,7 @@ test("Demo Cover is first and its fill survives Download and reopening", { timeo
   const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     await page.getByText("Demo workspace ready.", { exact: true }).waitFor()
     const input = page.locator(".selection-panel")
     await tab(input, "Style")
@@ -3443,7 +3443,7 @@ test("Tours reveal their targets and restore pane views, preparation, and focus"
           )
       }
       if (key === "download")
-        for (const action of ["Export recipe", "Print", "View PDF"])
+        for (const action of ["Export recipe", "Print PDF", "View PDF"])
           assert.ok((await tour.innerText()).includes(action), `Tour explains ${action}`)
     }
     const open = async (name, buffer) => {
@@ -3792,7 +3792,7 @@ test("Blank-only Output offers its six-step tour without adding pages", { timeou
       if (key !== "download") await blankTour.getByRole("button", { name: "Next", exact: true }).click()
     }
     assert.match(await blankTour.locator(".tour-progress").textContent(), /\/ 5/)
-    for (const action of ["Export recipe", "Print", "View PDF"])
+    for (const action of ["Export recipe", "Print PDF", "View PDF"])
       assert.ok((await blankTour.innerText()).includes(action), `Tour explains ${action}`)
     await blankTour.getByRole("button", { name: "Finish", exact: true }).click()
     assert.equal(await blankOutput.locator(".composition-totals strong").textContent(), "1 page")

@@ -35,13 +35,14 @@ export async function aligned(pane) {
       child.checkVisibility({ visibilityProperty: true }),
     )
     const current = heading.querySelector(".page-current").getBoundingClientRect()
+    const previousControl = navigation.querySelector('[data-step="-1"]').getBoundingClientRect()
+    const nextControl = navigation.querySelector('[data-step="1"]').getBoundingClientRect()
     const previous = navigation.querySelector('[data-step="-1"] svg').getBoundingClientRect()
     const next = navigation.querySelector('[data-step="1"] svg').getBoundingClientRect()
     const frame = heading.getBoundingClientRect()
     const grip = handle?.checkVisibility() ? handle.getBoundingClientRect() : undefined
     const actions = navigation.querySelector(".page-actions")?.getBoundingClientRect()
     const leading = grip ?? heading.querySelector(".page-number-control").getBoundingClientRect()
-    const gap = parseFloat(getComputedStyle(navigation.querySelector(".page-actions")).columnGap)
     const previousGap = actions.left - previous.left - previous.width / 2 - 22
     const nextGap = next.left + next.width / 2 - actions.right - 22
     const tools = [...heading.querySelectorAll(".page-tools button")]
@@ -49,8 +50,9 @@ export async function aligned(pane) {
       .map((el) => el.getBoundingClientRect())
     const edges =
       Math.abs(current.left - frame.left - 32) < 1 &&
+      Math.abs(previousControl.left - frame.left - 32) < 1 &&
+      Math.abs(frame.right - nextControl.right - 32) < 1 &&
       previousGap >= -1 &&
-      previousGap <= gap + 1 &&
       Math.abs(previousGap - nextGap) < 1 &&
       (!fit || Math.abs(fit.getBoundingClientRect().right - frame.right + 32) < 1)
     const centered = [heading, navigation].every((row) => {

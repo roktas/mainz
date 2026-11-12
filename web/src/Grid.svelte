@@ -9,7 +9,7 @@
   import type { Snippet } from "svelte"
   import { fields, shortcut, shortcutContext } from "./keyboard.ts"
   import { fit } from "./fit.ts"
-  import { foldInto, pulseSectionHeading, unfoldFrom } from "./motion.ts"
+  import { flash, foldInto, pulseSectionHeading, unfoldFrom } from "./motion.ts"
   import { gridSections, sectionsOf, unfoldSamePage } from "./sections.ts"
   import type { Section } from "./sections.ts"
   import type { SectionPath } from "./outline.ts"
@@ -140,7 +140,7 @@
   function expand(index: number) {
     const current = pendingFolds ?? folded
     const next = new Set(current)
-    for (const entry of tree.nodes.values()) if (entry.start <= index && index < entry.end) next.delete(entry.key)
+    for (const entry of tree.nodes.values()) if (entry.start < index && index < entry.end) next.delete(entry.key)
     if (next.size !== current.size) changeFolds(next)
   }
   function rankOf(index: number) {
@@ -191,6 +191,8 @@
     await revealPage(section.start)
     const image = list?.querySelector<HTMLElement>(`.page-image[data-page="${section.start}"]`)
     image?.focus({ preventScroll: true })
+    const card = image?.closest<HTMLElement>(".composition-card")
+    if (card) flash(card)
   }
   function scrolling(element: HTMLElement) {
     scroll = element.scrollTop

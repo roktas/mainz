@@ -4,7 +4,7 @@ export const fields = "input, textarea, select, [contenteditable]:not([contented
 
 function blocked() {
   return !!document.querySelector(
-    "dialog[open], [popover]:popover-open:not(.page-peek, .header-feedback), .sequence-options[open], .input-picker[open], .document-menu[open], .page-origin[open], .quartet-panel, .control details:is([open], [data-hover-pending]), .composer[data-drag]",
+    "dialog[open], [popover]:popover-open:not(.page-peek, .header-feedback), .sequence-options[open], .input-picker[open], .document-menu[open], .quartet-panel, .control details:is([open], [data-hover-pending]), .composer[data-drag]",
   )
 }
 

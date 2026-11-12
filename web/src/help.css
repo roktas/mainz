@@ -122,6 +122,14 @@
       & h3 + .help-body {
         margin-block-start: calc(var(--gap) / 2);
       }
+      & .help-body ul {
+        list-style: disc;
+        padding-inline-start: 1.25em;
+        color: var(--muted);
+        & > li + li {
+          margin-block-start: 0.5em;
+        }
+      }
       & p {
         color: var(--muted);
       }

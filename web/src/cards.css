@@ -296,14 +296,10 @@
           min-inline-size: 0;
           grid-template-columns: repeat(2, 64px);
           justify-content: center;
-          column-gap: 6px;
+          column-gap: 0;
           margin-inline: calc(-1 * var(--card-inset));
           & .card-inline-actions {
             display: contents;
-          }
-          & .card-menu {
-            display: none;
-            grid-column: 1 / -1;
           }
           & :is(.occurrence-moves, .occurrence-copies) {
             display: grid;
@@ -316,28 +312,14 @@
               block-size: 16px;
             }
           }
-          @media (hover: none), (pointer: coarse) {
-            & .card-inline-actions {
-              display: none;
-            }
-            & .card-menu {
-              display: inline flex;
-              opacity: 0;
-              pointer-events: none;
-            }
-          }
         }
         @media (hover: none), (pointer: coarse) {
-          &:focus-within > :is(.occurrence-actions, .input-footer) button {
+          & > :is(.occurrence-actions, .input-footer) button {
             opacity: 1;
             pointer-events: auto;
           }
-          & > :is(.occurrence-actions, .input-footer) button {
-            opacity: 0;
-            pointer-events: none;
-          }
         }
-        & :is(.page-grip, .occurrence-actions button, .input-footer button, .page-origin > summary) {
+        & :is(.page-grip, .occurrence-actions button, .input-footer button, .page-origin > button) {
           position: relative;
           inline-size: 32px;
           min-inline-size: 32px;
@@ -352,7 +334,7 @@
           }
         }
         /* Keep 44 px hit areas inside the first and last card edges. */
-        & .page-label :is(.page-grip, .page-origin > summary)::after {
+        & .page-label :is(.page-grip, .page-origin > button)::after {
           inset-block-start: 0;
           inset-block-end: calc(var(--card-tool-size, 32px) - 44px);
         }
@@ -391,7 +373,7 @@
       }
     }
     .page-origin {
-      & > summary {
+      & > button {
         display: block grid;
         place-items: center;
         min-inline-size: 44px;
@@ -404,6 +386,8 @@
         }
       }
       & .page-origin-info {
+        align-self: start;
+        justify-self: start;
         position: fixed;
         z-index: 6;
         inset: auto;
@@ -414,11 +398,11 @@
           flip-block,
           flip-block flip-inline;
         margin-block-start: 4px;
-        inline-size: max-content;
+        inline-size: min(28rem, calc(100vi - 2 * var(--gutter)));
         max-inline-size: min(28rem, calc(100vi - 2 * var(--gutter)));
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        gap: 0.4em;
+        block-size: fit-content;
+        max-block-size: calc(100dvb - 2 * var(--gutter));
+        overflow: auto;
         padding: var(--gap);
         border: 1px solid var(--edge);
         border-radius: var(--radius);
@@ -435,58 +419,26 @@
 @layer views {
   @scope (.composer) {
     @container composer (width <= 55em) {
-      .composition-card {
-        & > .input-footer,
-        & > .occurrence-actions {
-          min-inline-size: 0;
-          margin-inline: calc(-1 * var(--card-inset));
-          grid-template-columns: repeat(3, 44px);
-          justify-content: center;
-          align-items: center;
-          column-gap: 0;
-          & button {
-            inline-size: 44px;
-            min-inline-size: 44px;
-            &::after {
-              inset-inline: 0;
-            }
-          }
-        }
-        & > .input-footer > button {
+      .composition-card > .input-footer {
+        min-inline-size: 0;
+        margin-inline: calc(-1 * var(--card-inset));
+        grid-template-columns: repeat(3, 44px);
+        justify-content: center;
+        align-items: center;
+        column-gap: 0;
+        & > button {
           grid-column: 2;
           grid-row: 1;
+          inline-size: 44px;
+          min-inline-size: 44px;
           opacity: 1;
           pointer-events: auto;
+          &::after {
+            inset-inline: 0;
+          }
           & > svg {
             inline-size: 16px;
             block-size: 16px;
-          }
-        }
-        & > .occurrence-actions {
-          & > .card-inline-actions {
-            display: contents;
-            & > .occurrence-moves {
-              display: none;
-            }
-            & > .occurrence-copies {
-              display: contents;
-              & > button:first-child {
-                display: none;
-              }
-              & > button:last-child {
-                grid-column: 2;
-                grid-row: 1;
-                opacity: 1;
-                pointer-events: auto;
-              }
-            }
-          }
-          & > .card-menu {
-            display: inline-flex;
-            grid-column: 3;
-            grid-row: 1;
-            opacity: 1;
-            pointer-events: auto;
           }
         }
       }
@@ -518,27 +470,11 @@
       }
 
       &:popover-open {
-        display: block grid;
+        align-self: start;
+        justify-self: start;
+        display: block;
+        block-size: fit-content;
         gap: calc(var(--gap) / 2);
-      }
-
-      & .occurrence-actions {
-        grid-template-columns: repeat(4, 44px);
-        margin: 0;
-        border: 0;
-
-        & button {
-          opacity: 1;
-          pointer-events: auto;
-          inline-size: 44px;
-          min-inline-size: 44px;
-          block-size: 44px;
-          min-block-size: 44px;
-
-          &::after {
-            content: none;
-          }
-        }
       }
 
       & .input-menu-action {
@@ -577,6 +513,28 @@
           inset: 0;
           margin: auto;
         }
+      }
+    }
+  }
+}
+
+@layer views {
+  @scope (.composer) {
+    .page-navigation .occurrence-actions,
+    .page-navigation .occurrence-moves,
+    .page-navigation .occurrence-copies {
+      display: flex;
+      gap: 0;
+    }
+    .page-navigation .occurrence-actions button {
+      padding: 0;
+      min-inline-size: 28px;
+      inline-size: clamp(28px, 6vi, 36px);
+    }
+    @media (any-pointer: coarse) {
+      .composition-card > :is(.input-footer, .occurrence-actions) button {
+        opacity: 1;
+        pointer-events: auto;
       }
     }
   }

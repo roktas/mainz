@@ -116,7 +116,9 @@ export class Interaction {
       if (target) flash(target)
       return
     }
-    if (!control || tab === "page" || event instanceof KeyboardEvent || event?.detail === 0) return
+    if (!control || tab === "page" || event instanceof KeyboardEvent) return
+    const target = control.closest<HTMLElement>(".list-row, .list-section, .composition-card")
+    if (target) flash(target)
     clearTimeout(this.returnTimeout)
     this.returning =
       pane === "Input" && this.host.source
@@ -413,7 +415,7 @@ export class Interaction {
     if (shortcut(event, context, "escape") !== "clear") return
     const dismissing =
       !!this.host.transfer.value ||
-      !!document.querySelector(".page-origin[open]") ||
+      !!document.querySelector(".page-origin > :popover-open") ||
       this.host.inputMenu?.open ||
       this.host.outputMenu?.open
     this.host.transfer.end()

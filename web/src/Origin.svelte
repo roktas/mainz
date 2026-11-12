@@ -11,7 +11,6 @@
   import { flushSync, onDestroy } from "svelte"
   import type { Snippet } from "svelte"
   import Provenance from "./Provenance.svelte"
-  import Breadcrumb from "./Breadcrumb.svelte"
   import { titleOf } from "./model.ts"
   import { titlesOf } from "./outline.ts"
   import { pageRanges } from "./pages.ts"
@@ -39,7 +38,6 @@
   const page = $derived("page" in identity ? identity.page : 0)
   const title = $derived(origin && titlesOf(origin.input).at(page, "tocTitles" in identity && identity.tocTitles))
   const name = $derived(title?.name)
-  const paths = $derived(pane === "Input" ? title?.paths : undefined)
   const label = $derived(origin?.input.labels[page])
   const source = $derived(
     pane === "Output" && mode === "list" && multiple && origin
@@ -91,16 +89,10 @@
   {#if mode !== "list" && name && opened !== id}<p class="page-name">{name}</p>{/if}
 {/snippet}
 {#snippet detailHeading()}
-  {#if paths?.length}<div class="detail-name" role="group" aria-label="Displayed section">
-      <Breadcrumb path={paths[0]} />
-    </div>
-    {#if paths.length > 1}<div class="related-sections" role="group" aria-label="Other sections on this page">
-        {#each paths.slice(1) as path}<Breadcrumb {path} />{/each}
-      </div>{/if}
-  {:else if name}<p class="detail-name">{name}</p>{/if}
+  {#if name}<p class="detail-name">{name}</p>{/if}
 {/snippet}
 
-{#if mode === "list" && details}
+{#if details}
   <span class="page-origin">
     <button
       class="icon-button"
@@ -113,7 +105,7 @@
     {@render caption()}
     <div
       {id}
-      class="card-menu-options"
+      class={mode === "list" ? "card-menu-options" : "page-origin-info"}
       popover="auto"
       onbeforetoggle={(event) => {
         if (event.newState === "open")
@@ -123,34 +115,12 @@
         else if (opened === id) opened = undefined
       }}
     >
-      {#if opened === id}
+      {#if mode !== "list" || opened === id}
         {@render detailHeading()}
         {@render detailBody()}
       {/if}
     </div>
   </span>
-{:else if details}
-  <details class="page-origin" open={opened === id}>
-    <summary
-      aria-label={`Details for ${pane} page ${number}`}
-      onclick={(event) => {
-        event.preventDefault()
-        flushSync(() => {
-          opened = opened === id ? undefined : id
-        })
-      }}>{@render numberLabel()}{@render caption()}</summary
-    >
-    <div {id} class="page-origin-info">
-      {@render detailHeading()}{@render detailBody()}
-    </div>
-  </details>
 {:else}
   <span class="page-number">{@render numberLabel()}{@render caption()}</span>
 {/if}
-
-<style>
-  .related-sections {
-    color: var(--muted);
-    font-weight: 400;
-  }
-</style>

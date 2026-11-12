@@ -125,20 +125,18 @@
         min-inline-size: 90px;
         min-block-size: 44px;
         border: 0;
-        border-block-end: 3px solid transparent;
         border-radius: 0;
         background: transparent;
         color: var(--muted);
         &[aria-selected="true"] {
           color: var(--accent);
-          border-block-end-color: var(--accent);
+          background: var(--tint);
         }
         &:disabled {
           color: color-mix(in oklch, var(--muted) 75%, var(--paper));
         }
         @media (hover: hover) and (pointer: fine) {
           &:hover:not(:disabled) {
-            background: transparent;
             box-shadow: none;
             &:not([aria-selected="true"]) {
               color: var(--ink);
@@ -146,7 +144,6 @@
           }
         }
         &:focus-visible {
-          border-block-end-color: var(--secondary);
           background: color-mix(in oklch, var(--secondary) 12%, var(--surface));
           outline: 2px solid transparent;
         }

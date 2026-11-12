@@ -46,7 +46,13 @@ export const outputCount = (page) =>
 
 export const image = (pane) => pane.locator(".page-scroll canvas")
 
-export const pagePosition = (pane) => pane.locator(".inspection-heading .page-position").innerText()
+export const pagePosition = (pane) =>
+  pane.locator(".inspection-heading .page-position").evaluate((element) =>
+    [...element.children]
+      .filter((child) => !child.classList.contains("counter-label"))
+      .map((child) => child.textContent)
+      .join(" "),
+  )
 
 export async function gridPage(pane, number) {
   const preview = pane.locator(`.composition-card:not([inert]) .page-image[data-page="${number - 1}"]`)

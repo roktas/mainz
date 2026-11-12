@@ -292,7 +292,10 @@ test("Pane headers, tabs, and selections stay on single aligned rows", { timeout
       await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
       await show("Output")
       await page.getByLabel("Output menu", { exact: true }).click()
-      assert.equal((await page.locator(".document-totals").innerText()).trim(), "10000 pages, 5000 sheets")
+      assert.equal(
+        (await page.locator(".mobile-workspace-tabs > button:last-child .composition-totals").innerText()).trim(),
+        "10000 pages, 5000 sheets",
+      )
       await page.keyboard.press("Escape")
       await rows(output)
     }
@@ -320,7 +323,7 @@ test("Page headings and navigation share stable frame edges and centerlines", { 
     const errors = []
     page.on("pageerror", (error) => errors.push(error.message))
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     for (const [width, height, colorScheme, text] of [
       [1280, 900, "light", "100%"],
       [1920, 720, "dark", "100%"],
@@ -496,7 +499,7 @@ test("Page controls retain space and alignment with wide fonts and enlarged mobi
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo`)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
     const output = page.locator(".composition-output")
     await tab(output, "Page")
     for (const font of ["DejaVu Sans", "ui-sans-serif"]) {
@@ -578,7 +581,7 @@ test(
           localStorage.setItem("mainz:onboarding", "19")
           localStorage.setItem("mainz:installation", "seen")
         })
-        await page.goto(`${server.resolvedUrls.local[0]}?demo&input=page`)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=single&input=page`)
         await page.locator(".composer[aria-busy=false]").waitFor()
         for (const name of ["Input", "Output"]) {
           const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
@@ -746,7 +749,7 @@ test(
       }
       const keyboard = await browser.newPage({ viewport: { width: 375, height: 549 }, hasTouch: true, isMobile: true })
       await keyboard.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await keyboard.goto(`${server.resolvedUrls.local[0]}?demo`)
+      await keyboard.goto(`${server.resolvedUrls.local[0]}?demo=single`)
       await keyboard.locator(".composer:not([inert])").waitFor()
       const input = keyboard.locator(".selection-panel")
       await input.getByRole("tab", { name: "Grid", exact: true }).focus()
