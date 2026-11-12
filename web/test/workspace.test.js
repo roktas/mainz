@@ -4176,6 +4176,17 @@ test("Lorem keeps Cover floating and shares its virtual Prelude through Contents
       await prelude.waitFor()
       assert.equal(await prelude.evaluate((el) => getComputedStyle(el).fontStyle), "italic")
       assert.equal(await prelude.evaluate((el) => getComputedStyle(el).fontVariantCaps), "all-small-caps")
+      const heights = await input.locator(".list-current").evaluateAll((labels) =>
+        labels.map((label) => {
+          const range = document.createRange()
+          range.selectNodeContents(label)
+          return range.getBoundingClientRect().height
+        }),
+      )
+      assert.ok(
+        heights.every((height) => Math.abs(height - heights[0]) < 1),
+        "Virtual headings retain ordinary section text height",
+      )
       assert.equal(await input.getByRole("button", { name: "Select Input page 1: Cover", exact: true }).count(), 1)
       await input.getByRole("button", { name: "Input contents", exact: true }).click()
       const contents = input.locator(".contents:popover-open")

@@ -34,8 +34,10 @@
     }
   }
   @scope (.composer, .drag-image[data-strip]) {
-    .synthetic,
-    .list-section[data-synthetic] .list-current {
+    .list-section[data-synthetic] > .list-heading {
+      font-style: italic;
+    }
+    .synthetic {
       font-style: italic;
       font-variant-caps: all-small-caps;
       font-synthesis: small-caps;
