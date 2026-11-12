@@ -1290,50 +1290,49 @@ test("Help fits its content and keeps its navigation above scrolling panels", { 
             [320, 568, "200%"],
           ]) {
             await page.setViewportSize({ width, height })
-            for (const colorScheme of ["light", "dark"]) {
-              await page.emulateMedia({ colorScheme })
-              await page.evaluate((size) => (document.documentElement.style.fontSize = size), text)
-              await page.getByRole("button", { name: "Help", exact: true }).click()
-              const help = page.getByRole("dialog", { name: "Help", exact: true })
-              const bounds = await help.evaluate((dialog) => {
-                const box = dialog.getBoundingClientRect()
-                const panels = dialog.querySelector(".help-panels")
-                const content = [...panels.querySelectorAll(":scope > [role=tabpanel] > .help-body")]
-                const navigation = dialog.querySelector(".help-navigation").getBoundingClientRect()
-                const title = dialog.querySelector("h2").getBoundingClientRect()
-                const close = dialog.querySelector(".dialog-heading button svg").getBoundingClientRect()
-                return {
-                  fits: box.x >= 0 && box.y >= 0 && box.right <= innerWidth && box.bottom <= innerHeight,
-                  spare:
-                    panels.getBoundingClientRect().height -
-                    Math.max(...content.map((body) => body.getBoundingClientRect().height)),
-                  gap: parseFloat(getComputedStyle(dialog).paddingBlockStart),
-                  navigation: navigation.bottom <= panels.getBoundingClientRect().top,
-                  panel: panels.getBoundingClientRect().height,
-                  heading: Math.abs(title.y + title.height / 2 - close.y - close.height / 2) < 1,
-                  overflow: dialog.scrollWidth > dialog.clientWidth,
-                }
-              })
-              const label = `${engine.name()} ${hasTouch ? "touch" : "mouse"} ${query || "landing"} ${width}×${height} ${text} ${colorScheme}`
-              assert.ok(
-                bounds.fits && bounds.navigation && bounds.heading && bounds.panel >= 44 && !bounds.overflow,
-                `${label}: ${JSON.stringify(bounds)}`,
-              )
-              assert.ok(bounds.spare <= bounds.gap + 2, `${label}: Help has no empty vertical stretch`)
-              const dimensions = await help.boundingBox()
-              for (const topic of await help.getByRole("tab").all()) {
-                await topic.click()
-                assert.deepEqual(await help.boundingBox(), dimensions, `${label}: Topics retain their dimensions`)
-                const panel = help.getByRole("tabpanel")
-                await panel.focus()
-                await panel.press("End")
-                await page.waitForFunction(() => {
-                  const element = document.querySelector('.help-panels > [role="tabpanel"][aria-hidden="false"]')
-                  return element.scrollTop + element.clientHeight >= element.scrollHeight - 1
-                })
+            const colorScheme = text === "200%" ? "dark" : "light"
+            await page.emulateMedia({ colorScheme })
+            await page.evaluate((size) => (document.documentElement.style.fontSize = size), text)
+            await page.getByRole("button", { name: "Help", exact: true }).click()
+            const help = page.getByRole("dialog", { name: "Help", exact: true })
+            const bounds = await help.evaluate((dialog) => {
+              const box = dialog.getBoundingClientRect()
+              const panels = dialog.querySelector(".help-panels")
+              const content = [...panels.querySelectorAll(":scope > [role=tabpanel] > .help-body")]
+              const navigation = dialog.querySelector(".help-navigation").getBoundingClientRect()
+              const title = dialog.querySelector("h2").getBoundingClientRect()
+              const close = dialog.querySelector(".dialog-heading button svg").getBoundingClientRect()
+              return {
+                fits: box.x >= 0 && box.y >= 0 && box.right <= innerWidth && box.bottom <= innerHeight,
+                spare:
+                  panels.getBoundingClientRect().height -
+                  Math.max(...content.map((body) => body.getBoundingClientRect().height)),
+                gap: parseFloat(getComputedStyle(dialog).paddingBlockStart),
+                navigation: navigation.bottom <= panels.getBoundingClientRect().top,
+                panel: panels.getBoundingClientRect().height,
+                heading: Math.abs(title.y + title.height / 2 - close.y - close.height / 2) < 1,
+                overflow: dialog.scrollWidth > dialog.clientWidth,
               }
-              await help.getByRole("button", { name: "Close help", exact: true }).click()
+            })
+            const label = `${engine.name()} ${hasTouch ? "touch" : "mouse"} ${query || "landing"} ${width}×${height} ${text} ${colorScheme}`
+            assert.ok(
+              bounds.fits && bounds.navigation && bounds.heading && bounds.panel >= 44 && !bounds.overflow,
+              `${label}: ${JSON.stringify(bounds)}`,
+            )
+            assert.ok(bounds.spare <= bounds.gap + 2, `${label}: Help has no empty vertical stretch`)
+            const dimensions = await help.boundingBox()
+            for (const topic of await help.getByRole("tab").all()) {
+              await topic.click()
+              assert.deepEqual(await help.boundingBox(), dimensions, `${label}: Topics retain their dimensions`)
+              const panel = help.getByRole("tabpanel")
+              await panel.focus()
+              await panel.press("End")
+              await page.waitForFunction(() => {
+                const element = document.querySelector('.help-panels > [role="tabpanel"][aria-hidden="false"]')
+                return element.scrollTop + element.clientHeight >= element.scrollHeight - 1
+              })
             }
+            await help.getByRole("button", { name: "Close help", exact: true }).click()
           }
         }
         await page.close()

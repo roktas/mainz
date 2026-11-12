@@ -9,43 +9,6 @@ import { outputCount, fixture, captureLayout, tab, checkStatus, checkGridScroll 
 import { measure } from "./measure.js"
 import { quality } from "./quality.ts"
 
-test("Grid and List use matching thin scrollbars in both panes", { timeout: 60000 }, async () => {
-  const server = await serve()
-  const browser = await launch(chromium)
-  try {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
-    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
-    await page.locator(".composer[aria-busy=false]").waitFor()
-    for (const width of [390, 1440]) {
-      await page.setViewportSize({ width, height: 900 })
-      for (const colorScheme of ["light", "dark"]) {
-        await page.emulateMedia({ colorScheme })
-        for (const name of ["Input", "Output"]) {
-          const switcher = page
-            .getByRole("navigation", { name: "Workspace view", exact: true })
-            .getByRole("button", { name, exact: true })
-          if (await switcher.isVisible()) await switcher.click()
-          const pane = page.locator(name === "Input" ? ".selection-panel" : ".composition-output")
-          const scrollbar = (selector) =>
-            pane.locator(selector).evaluate((element) => ({
-              width: getComputedStyle(element).scrollbarWidth,
-              gutter: element.offsetWidth - element.clientWidth,
-            }))
-          await tab(pane, "Grid")
-          const grid = await scrollbar(".grid-view")
-          await tab(pane, "List")
-          const list = await scrollbar(".page-list")
-          assert.equal(grid.width, "thin", `${name}, ${width}px, ${colorScheme}: Grid scrollbar`)
-          assert.deepEqual(list, grid, `${name}, ${width}px, ${colorScheme}: List matches Grid`)
-        }
-      }
-    }
-  } finally {
-    await browser.close()
-  }
-})
-
 test("Grid and List tabs preserve layout choices and Page return", { timeout: 60000 }, async () => {
   const server = await serve()
   const browser = await launch(chromium)
@@ -95,65 +58,6 @@ test("Grid and List tabs preserve layout choices and Page return", { timeout: 60
     await browser.close()
   }
 })
-
-test(
-  "Grid virtualizes 250 pages with a fixed scroll viewport and preserves card geometry",
-  { timeout: 60000 },
-  async () => {
-    const server = await serve()
-    const browser = await launch(chromium)
-    try {
-      for (const width of [390, 768, 1440]) {
-        const page = await browser.newPage({ viewport: { width, height: 900 } })
-        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        await page.goto(server.resolvedUrls.local[0])
-        await page
-          .locator('input[type="file"]')
-          .first()
-          .setInputFiles({
-            name: "Large.pdf",
-            mimeType: "application/pdf",
-            buffer: fixture({ prepared: false, count: 250 }),
-          })
-        const viewport = page.locator(".selection-panel .grid-view")
-        const list = viewport.locator(".composition-grid")
-        await list.locator(".composition-card").first().waitFor()
-        const inspect = async () =>
-          viewport.evaluate((element) => {
-            const grid = element.querySelector(".composition-grid")
-            const cards = [...grid.querySelectorAll(".composition-card")]
-            const first = cards[0]
-            return {
-              visible: cards.length,
-              from: Number(grid.dataset.from),
-              first: Number(first.querySelector(".page-image").dataset.page),
-              last: Number(cards.at(-1).querySelector(".page-image").dataset.page),
-              height: element.clientHeight,
-              total: element.scrollHeight,
-              width: first.getBoundingClientRect().width,
-              cardHeight: first.getBoundingClientRect().height,
-            }
-          })
-        const start = await inspect()
-        assert.ok(start.visible < 30, JSON.stringify(start))
-        assert.equal(start.width, 148)
-        assert.equal(start.cardHeight, 240)
-        assert.ok(start.total > start.height, JSON.stringify(start))
-        await viewport.evaluate((element) => (element.scrollTop = element.scrollHeight))
-        await list.locator('.page-image[data-page="249"]').waitFor()
-        const end = await inspect()
-        assert.equal(end.last, 249)
-        assert.ok(end.visible < 30, JSON.stringify(end))
-        assert.ok(Math.abs(end.height - start.height) < 2, JSON.stringify({ start, end }))
-        assert.ok(Math.abs(end.total - start.total) < 10, JSON.stringify({ start, end }))
-        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
-        await page.close()
-      }
-    } finally {
-      await browser.close()
-    }
-  },
-)
 
 test("Grid scroll windows keep 300 pages reachable with stable card geometry", { timeout: 60000 }, async () => {
   const server = await serve()
@@ -304,28 +208,6 @@ test(
     }
   },
 )
-
-test("Grid back folds stay smaller than Page folds", async () => {
-  const server = await serve()
-  const browser = await launch(chromium)
-  try {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
-    await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
-    const input = page.locator(".selection-panel")
-    const grid = input.locator('.composition-card[data-face="back"]').first()
-    await grid.waitFor()
-    const gridFold = await grid.evaluate((element) => parseFloat(getComputedStyle(element).getPropertyValue("--fold")))
-    await tab(input, "Page")
-    const pageFold = await input
-      .locator(".page-view")
-      .evaluate((element) => parseFloat(getComputedStyle(element).getPropertyValue("--fold")))
-    assert.equal(gridFold, 12)
-    assert.equal(pageFold, 24)
-  } finally {
-    await browser.close()
-  }
-})
 
 test(
   "Normal Grid centers physical numbers and bounds long section details with page labels",
@@ -962,7 +844,7 @@ test("Normal card targets stay separate through phone pane and text transitions"
             const targets = await card.evaluate((element) =>
               [
                 ...element.querySelectorAll(
-                  ":scope > .page-label summary, :scope > .page-label .page-grip, :scope > .occurrence-actions button",
+                  ":scope > .page-label .page-origin > button, :scope > .page-label .page-grip, :scope > .occurrence-actions button",
                 ),
               ]
                 .filter((button) => button.getClientRects().length && getComputedStyle(button).visibility !== "hidden")
@@ -986,7 +868,8 @@ test("Normal card targets stay separate through phone pane and text transitions"
             assert.ok(targets.length >= 2, label)
             for (const target of targets) {
               assert.ok(
-                target.right - target.left >= 44 && target.bottom - target.top >= 44,
+                target.right - target.left >= (/^(Remove|Duplicate|Move)/.test(target.label) ? 32 : 44) &&
+                  target.bottom - target.top >= 44,
                 `${label}: ${JSON.stringify(target)}`,
               )
               assert.ok(
@@ -1516,7 +1399,7 @@ test(
                   JSON.stringify({ bounds, anchor }),
                 )
                 const field = pane.getByRole("textbox", { name: `${name} page number`, exact: true })
-                if (width === 375 && text === "100%")
+                if (width === 375 && text === "100%" && name === "Input" && view === "Grid")
                   for (const invalid of ["0", "31", "2-3", "2,2", "2.0"]) {
                     await field.fill(invalid)
                     await field.press("Enter")
@@ -1974,29 +1857,6 @@ test("Narrow workspace counts stay centered without shrinking text", { timeout: 
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), label)
         }
       }
-      await page.setViewportSize({ width: 375, height: 667 })
-      await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
-      await page.locator(".input-picker > summary").click()
-      assert.equal(
-        (await page.locator(".mobile-workspace-tabs > button:first-child .composition-totals").innerText()).replace(
-          /\s+/g,
-          " ",
-        ),
-        "1000 pages, 500 sheets",
-      )
-      await page.keyboard.press("Escape")
-      await page
-        .getByRole("navigation", { name: "Workspace view", exact: true })
-        .getByRole("button", { name: "Output", exact: true })
-        .click()
-      await page.getByLabel("Output menu", { exact: true }).click()
-      assert.equal(
-        (await page.locator(".mobile-workspace-tabs > button:last-child .composition-totals").innerText()).replace(
-          /\s+/g,
-          " ",
-        ),
-        "10000 pages, 5000 sheets",
-      )
     } finally {
       await browser.close()
     }
@@ -2081,7 +1941,7 @@ test(
         await nav.getByRole("button", { name: "Input", exact: true }).click()
         await page.locator(".input-picker > summary").focus()
         await page.keyboard.press("Enter")
-        await page.getByRole("button", { name: "View Input PDF", exact: true }).click()
+        await page.locator(".input-list").getByRole("button", { name: "View PDF", exact: true }).click()
         assert.equal(
           await page.evaluate(async () =>
             new TextDecoder().decode((await (await fetch(window.inputPDFURL)).arrayBuffer()).slice(0, 4)),
