@@ -1,7 +1,11 @@
-// Mounts App and loads the application stylesheet.
+// Gates application loading on required browser features and mounts the workspace.
 
-import { mount } from "svelte"
-import App from "./App.svelte"
-import "./main.css"
-
-mount(App, { target: document.getElementById("app")! })
+if ((window as Window & { mainzSupported?: boolean }).mainzSupported) {
+  const target = document.getElementById("app")!
+  target.replaceChildren()
+  void Promise.all([import("svelte"), import("./App.svelte"), import("./main.css")]).then(
+    ([{ mount }, { default: App }]) => {
+      mount(App, { target })
+    },
+  )
+}

@@ -24,6 +24,34 @@ import {
 
 let compiled
 
+test(
+  "Unsupported browsers explain the system requirement before loading the workspace",
+  { timeout: 30000 },
+  async () => {
+    const server = await serve()
+    const browser = await launch(chromium)
+    try {
+      const context = await browser.newContext({ ...devices["iPhone 13"] })
+      await context.addInitScript(() => {
+        const supports = CSS.supports.bind(CSS)
+        CSS.supports = (...args) =>
+          args[0] === "color" && args[1] === "light-dark(white, black)" ? false : supports(...args)
+      })
+      const page = await context.newPage()
+      await page.goto(server.resolvedUrls.local[0])
+      await page
+        .getByRole("alert")
+        .getByText(/iPhone needs a newer iOS version/)
+        .waitFor()
+      assert.equal(await page.locator(".composer, .landing").count(), 0)
+      await context.close()
+    } finally {
+      await browser.close()
+      await server.close()
+    }
+  },
+)
+
 function production() {
   return (compiled ??= (async () => {
     const temporary = resolvePath("../.local/tmp/web")

@@ -64,6 +64,14 @@
           overflow-wrap: anywhere;
         }
       }
+      &[data-workspace="true"] {
+        & .install-action {
+          margin-block-start: auto;
+        }
+        & .about {
+          margin-block-start: 0;
+        }
+      }
       @media (prefers-reduced-motion: no-preference) {
         opacity: 0;
         translate: 100% 0;

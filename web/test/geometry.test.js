@@ -539,6 +539,26 @@ test("Page controls retain space and alignment with wide fonts and enlarged mobi
           `${font}, ${width}px, ${text}: the percentage remains inside the page heading`,
         )
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+        if (width === 1440 && text === "100%" && font === "ui-sans-serif") {
+          await tab(page.locator(".selection-panel"), "Page")
+          await page.locator(".selection-panel").getByLabel("Page selection", { exact: true }).fill("")
+          const actions = await page.evaluate(() => {
+            const input = document.querySelector(".selection-panel .page-navigation .page-actions button")
+            const buttons = [
+              ...document.querySelectorAll(".composition-output .page-navigation .occurrence-actions button"),
+            ]
+            const bounds = buttons.map((button) => button.getBoundingClientRect())
+            return {
+              inputWidth: input.getBoundingClientRect().width,
+              widths: bounds.map((box) => box.width),
+              icons: buttons.map((button) => button.querySelector("svg").getBoundingClientRect().width),
+              gaps: bounds.slice(1).map((box, index) => box.left - bounds[index].right),
+            }
+          })
+          assert.deepEqual(actions.widths, Array(4).fill(actions.inputWidth))
+          assert.deepEqual(actions.icons, Array(4).fill(20))
+          assert.ok(actions.gaps.every((gap) => gap >= 8))
+        }
       }
     }
   } finally {

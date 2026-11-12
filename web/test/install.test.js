@@ -17,12 +17,12 @@ test("Installation guidance stays optional and independent of the product tour",
       try {
         const page = await context.newPage()
         await page.goto(`${server.resolvedUrls.local[0]}?demo=empty`)
-        const installation = page.getByRole("dialog", { name: "Install app", exact: true })
+        const installation = page.getByRole("dialog", { name: "Install application", exact: true })
         const welcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true })
         await installation.waitFor()
         await page.locator(".composer").waitFor()
         assert.equal(await welcome.isVisible(), false)
-        assert.equal(await installation.getByRole("button", { name: "Install app", exact: true }).count(), 0)
+        assert.equal(await installation.getByRole("button", { name: "Install application", exact: true }).count(), 0)
 
         const alignment = await installation.evaluate((element) => {
           const title = element.querySelector("h2").getBoundingClientRect()
@@ -51,7 +51,7 @@ test("Installation guidance stays optional and independent of the product tour",
         } else await installation.getByRole("button", { name: "Use browser", exact: true }).click()
         assert.match(
           await page.locator(".notice").textContent(),
-          /If you change your mind, open Settings → Install app/,
+          /If you change your mind, open Settings → Install application/,
         )
         await welcome.waitFor()
         assert.equal(await installation.isVisible(), false)
@@ -72,7 +72,15 @@ test("Installation guidance stays optional and independent of the product tour",
         const settingsButton = page.getByRole("button", { name: "Settings", exact: true })
         const settings = page.getByRole("dialog", { name: "Settings", exact: true })
         await settingsButton.click()
-        await settings.getByRole("button", { name: "Install app", exact: true }).click()
+        assert.ok(
+          await settings.evaluate((drawer) => {
+            const install = drawer.querySelector(".install-action").getBoundingClientRect()
+            const about = drawer.querySelector(".about").getBoundingClientRect()
+            return Math.abs(install.bottom - about.top) < 1
+          }),
+          "Workspace installation action sits immediately above application information",
+        )
+        await settings.getByRole("button", { name: "Install application", exact: true }).click()
         await installation.waitFor()
         assert.match(await installation.textContent(), /Add to Home Screen/)
         assert.equal(await page.locator("dialog[open]").count(), 1)
@@ -96,7 +104,14 @@ test("Installation guidance stays optional and independent of the product tour",
         assert.equal(await help.getByRole("button", { name: "Start Tour", exact: true }).count(), 0)
         await help.getByRole("button", { name: "Close help", exact: true }).click()
         await settingsButton.click()
-        await settings.getByRole("button", { name: "Install app", exact: true }).click()
+        assert.ok(
+          await settings.evaluate((drawer) => {
+            const install = drawer.querySelector(".install-action").getBoundingClientRect()
+            return install.top < drawer.getBoundingClientRect().top + drawer.clientHeight / 2
+          }),
+          "Landing installation action remains near the top of Settings",
+        )
+        await settings.getByRole("button", { name: "Install application", exact: true }).click()
         await installation.waitFor()
         assert.match(await installation.textContent(), /Add to Home Screen/)
         await installation.getByRole("button", { name: "Close installation help", exact: true }).click()
@@ -120,7 +135,7 @@ test("Installation guidance stays optional and independent of the product tour",
           }
         }, storage)
         await page.goto(`${server.resolvedUrls.local[0]}?demo=empty`)
-        const installation = page.getByRole("dialog", { name: "Install app", exact: true })
+        const installation = page.getByRole("dialog", { name: "Install application", exact: true })
         const welcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true })
         if (storage === "unavailable") {
           await installation.waitFor()
@@ -133,7 +148,7 @@ test("Installation guidance stays optional and independent of the product tour",
           await page.getByRole("button", { name: "Settings", exact: true }).click()
           await page
             .getByRole("dialog", { name: "Settings", exact: true })
-            .getByRole("button", { name: "Install app", exact: true })
+            .getByRole("button", { name: "Install application", exact: true })
             .click()
           await installation.waitFor()
           assert.match(await installation.textContent(), /running in its own app window/)
@@ -182,13 +197,13 @@ test("Installation guidance stays optional and independent of the product tour",
         "iOS and Android artwork fills the central safe circle with matching margins on opaque backgrounds",
       )
       await page.locator(".composer").waitFor()
-      const installation = page.getByRole("dialog", { name: "Install app", exact: true })
+      const installation = page.getByRole("dialog", { name: "Install application", exact: true })
       assert.equal(await installation.isVisible(), false, "Desktop startup stays quiet")
       for (const outcome of ["dismissed", "accepted", "error"]) {
         await page.getByRole("button", { name: "Settings", exact: true }).click()
         await page
           .getByRole("dialog", { name: "Settings", exact: true })
-          .getByRole("button", { name: "Install app", exact: true })
+          .getByRole("button", { name: "Install application", exact: true })
           .click()
         await installation.waitFor()
 
@@ -201,7 +216,7 @@ test("Installation guidance stays optional and independent of the product tour",
           event.userChoice = Promise.resolve({ outcome: result })
           window.dispatchEvent(event)
         }, outcome)
-        await installation.getByRole("button", { name: "Install app", exact: true }).click()
+        await installation.getByRole("button", { name: "Install application", exact: true }).click()
         await page
           .locator(".header-feedback")
           .getByRole(outcome === "error" ? "alert" : "status")
@@ -217,7 +232,7 @@ test("Installation guidance stays optional and independent of the product tour",
               ? /Installation requested/
               : /continue in this browser/,
         )
-        assert.equal(await installation.getByRole("button", { name: "Install app", exact: true }).count(), 0)
+        assert.equal(await installation.getByRole("button", { name: "Install application", exact: true }).count(), 0)
         if (outcome === "accepted") {
           await page.clock.install()
           await page.clock.runFor(10001)

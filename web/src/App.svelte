@@ -831,7 +831,7 @@
         {hasProfiles}
         views={() => composer?.views() ?? { input: "grid", output: "grid" }}
         onboarding={(demo === null || demo === "empty") && !loading}
-        dismissed={() => notify("If you change your mind, open Settings → Install app for installation help.")}
+        dismissed={() => notify("If you change your mind, open Settings → Install application for installation help.")}
         change={(step) => {
           tour = step
         }}
@@ -839,7 +839,12 @@
           if (show) notify(firstAction)
           else if (notice === firstAction) notify("")
         }}
-      /><Settings bind:magnification workspace={!!active} install={() => help.showInstallation()} /><Theme />
+      /><Settings
+        bind:magnification
+        workspace={!!active || !!parts.length}
+        hasInput={!!active}
+        install={() => help.showInstallation()}
+      /><Theme />
     </div>
   </div>
 </header>

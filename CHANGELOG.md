@@ -4,6 +4,8 @@
 
 ### Added
 
+- Alt/Option shortcuts for Grid, List, Page, and the previous pane view, plus a clear upgrade message on unsupported
+  browsers.
 - Independent Input and Output view selectors in Keyboard help, with task groups, side-by-side desktop guidance, stacked
   narrow layouts, and concise Mouse action/result tables.
 - Direct start/end controls for vertical scrolling outside the Page image viewport.
@@ -53,7 +55,10 @@
 
 ### Changed
 
-- Move installation guidance to Settings → Install app, available on the landing page and in the workspace.
+- Update the web toolchain to Node.js 26 LTS and current compatible dependencies.
+- Move installation guidance to Settings → Install application, available on the landing page and immediately above
+  application details in the workspace.
+- Match Output Page footer action sizes and spacing to Input controls.
 - Single-pane workspaces combine document menus, centered Input/Output counts, and Open PDF or Download/Share in one
   compact bar. Both menus use the same three-dot icon. Counts retain their text size and show only pages when full
   totals do not fit; document menus retain the complete page/sheet summary.
@@ -133,6 +138,8 @@
 
 ### Fixed
 
+- Keep the touch lens centered on the latest finger position during a hold, and route List paging and Grid endpoints
+  through the targeted pane.
 - Retain keyboard ownership when Grid or List virtual rows are replaced during large scroll jumps, and keep enlarged
   insertion menu labels readable with wider system fonts.
 - Keep enlarged Output insertion labels within their menu, preserve Page label space, and return focus to Page tabs on

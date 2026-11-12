@@ -8,10 +8,12 @@
   let {
     magnification = $bindable(16),
     workspace,
+    hasInput,
     install,
   }: {
     magnification?: Magnification
     workspace: boolean
+    hasInput: boolean
     install: () => void
   } = $props()
   const index = $derived(magnificationLevels.indexOf(magnification))
@@ -36,6 +38,7 @@
 <dialog
   bind:this={settingsDialog}
   class="settings-drawer"
+  data-workspace={workspace}
   aria-labelledby="settings-title"
   closedby="any"
   {@attach dismiss}
@@ -46,7 +49,7 @@
       ><Icon name="close" /></button
     >
   </div>
-  {#if workspace}<fieldset class="magnification">
+  {#if hasInput}<fieldset class="magnification">
       <legend>Lens magnification</legend>
       <output aria-label="Lens magnification">{magnification}×</output>
       <button
@@ -65,10 +68,11 @@
       >
     </fieldset>{/if}
   <button
+    class="install-action"
     onclick={() => {
       settingsDialog.close()
       install()
-    }}>Install app</button
+    }}>Install application</button
   >
   <section class="about" aria-labelledby="about-title">
     <div class="dialog-heading">

@@ -69,6 +69,9 @@ type Host = {
 export class Interaction {
   usingKeyboard = $state(false)
   touchPointer = $state(false)
+  previousInputTab: Host["activeTab"] | undefined
+  previousOutputTab: Host["activeOutputTab"] | undefined
+  lastShortcutPane: "Input" | "Output" | undefined
   pointerX: number | undefined
   returning = $state<{ kind: "source"; source: string; page: number } | { kind: "output"; id: string } | undefined>()
   returnTimeout: ReturnType<typeof setTimeout> | undefined
@@ -150,6 +153,10 @@ export class Interaction {
     if (pane === "Input") this.host.inputTab(tab, event)
     else this.host.setOutputTab(tab, event)
   }
+  rememberView(pane: "Input" | "Output", tab: Host["activeTab"]) {
+    if (pane === "Input") this.previousInputTab = tab
+    else if (tab !== "style") this.previousOutputTab = tab
+  }
   shortcutPane(page = false) {
     const inputAvailable =
       !!this.host.source &&
@@ -165,7 +172,7 @@ export class Interaction {
           ? "output"
           : focused?.closest(".selection-panel")
             ? "input"
-            : this.host.activeView
+            : (this.lastShortcutPane?.toLowerCase() ?? this.host.activeView)
         : this.pointerX < innerWidth / 2
           ? "input"
           : "output"
@@ -181,6 +188,28 @@ export class Interaction {
     })
     const action = shortcut(event, context, "workspace")
     if (!action) return false
+    if (["gridView", "listView", "pageView", "previousView"].includes(action)) {
+      const pane = this.shortcutPane()
+      if (!pane) return false
+      const tab =
+        action === "previousView"
+          ? pane === "Input"
+            ? this.previousInputTab
+            : this.previousOutputTab
+          : action === "gridView"
+            ? "grid"
+            : action === "listView"
+              ? "list"
+              : "page"
+      if (!tab) return false
+      event.preventDefault()
+      this.lastShortcutPane = pane
+      if (tab === (pane === "Input" ? this.host.activeTab : this.host.activeOutputTab)) return true
+      if (pane === "Input") this.host.inputTab(tab)
+      else if (tab !== "style") this.host.setOutputTab(tab)
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+      return true
+    }
     const all = action === "all"
     const pressed = event.key.toLowerCase()
     const focused = document.activeElement
@@ -205,11 +234,15 @@ export class Interaction {
       }
     }
     if (
-      (focused?.closest(".grid-view") && ["pageup", "pagedown"].includes(pressed)) ||
-      (["pageup", "pagedown"].includes(pressed) &&
+      (focused?.closest(".grid-view") && ["pageup", "pagedown", "home", "end"].includes(pressed)) ||
+      (["pageup", "pagedown", "home", "end"].includes(pressed) &&
         document
           .getElementById(`${this.host.key}-${this.shortcutPane() === "Input" ? "source" : "output"}-panel`)
           ?.querySelector(".grid-view")) ||
+      (["pageup", "pagedown"].includes(pressed) &&
+        document
+          .getElementById(`${this.host.key}-${this.shortcutPane() === "Input" ? "source" : "output"}-panel`)
+          ?.querySelector(".page-list")) ||
       (focused?.closest(".composition-grid") &&
         ["left", "right", "up", "down", "first", "last", "next", "previous", "copy"].includes(action)) ||
       (focused?.closest(".composition-grid") && ["zoomIn", "zoomOut"].includes(action)) ||

@@ -141,6 +141,32 @@ test("Lens retains a stationary hover through raster refresh and respects dismis
   }
 })
 
+test("Touch lens opens over the latest finger position after a small hold movement", { timeout: 30000 }, async () => {
+  const server = await createServer({ plugins: [harness], server: { port: 0, host: "127.0.0.1" } })
+  const browser = await launch(chromium)
+  try {
+    await server.listen()
+    const page = await browser.newPage({ viewport: { width: 844, height: 700 }, hasTouch: true, isMobile: true })
+    await fixture(page, server.resolvedUrls.local[0])
+    const source = page.locator("#lens-source")
+    await source.dispatchEvent("touchstart", { touches: [{ identifier: 1, clientX: 90, clientY: 150 }] })
+    await source.dispatchEvent("touchmove", { touches: [{ identifier: 1, clientX: 96, clientY: 150 }] })
+    await page.locator('.lens[aria-busy="false"]').waitFor()
+    const pixels = await page.locator(".lens canvas").evaluate((canvas) => {
+      const context = canvas.getContext("2d")
+      return [75, 160].map((x) => [...context.getImageData(x, 100, 1, 1).data].slice(0, 3))
+    })
+    assert.deepEqual(pixels, [
+      [255, 0, 0],
+      [0, 0, 255],
+    ])
+    await page.close()
+  } finally {
+    await browser.close()
+    await server.close()
+  }
+})
+
 test("Lens names stay centered and truncate within short viewports and enlarged text", { timeout: 60000 }, async () => {
   const server = await createServer({ plugins: [harness], server: { port: 0, host: "127.0.0.1" } })
   try {

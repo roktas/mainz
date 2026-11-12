@@ -524,12 +524,16 @@
     .page-navigation .occurrence-moves,
     .page-navigation .occurrence-copies {
       display: flex;
-      gap: 0;
+      gap: min(var(--gap), 1vi);
     }
     .page-navigation .occurrence-actions button {
       padding: 0;
       min-inline-size: 28px;
-      inline-size: clamp(28px, 6vi, 36px);
+      inline-size: clamp(28px, 6vi, 44px);
+    }
+    .page-navigation .occurrence-actions svg {
+      inline-size: 20px;
+      block-size: 20px;
     }
     @media (any-pointer: coarse) {
       .composition-card > :is(.input-footer, .occurrence-actions) button {

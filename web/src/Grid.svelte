@@ -375,7 +375,7 @@
     }
     function navigate(event: KeyboardEvent) {
       const key = event.key.toLowerCase()
-      const paging = key === "pageup" || key === "pagedown"
+      const paging = ["pageup", "pagedown", "home", "end"].includes(key)
       if (
         !(event.target instanceof Node && view.contains(event.target)) &&
         (!paging || !active() || (event.target instanceof Element && event.target.closest(`.grid-view, ${fields}`)))
@@ -422,7 +422,13 @@
           ? Number(event.target.dataset.page)
           : -1
       let cursor =
-        event.target === element ? (boundary ? (boundary < 0 ? 0 : pages.length) : rankOf(position)) : rankOf(index)
+        event.target === element || !(event.target instanceof Node && view.contains(event.target))
+          ? boundary
+            ? boundary < 0
+              ? 0
+              : pages.length
+            : rankOf(position)
+          : rankOf(index)
       if (cursor < 0) return
       if (action === "extend") {
         if (pointerSelection === cursor) {

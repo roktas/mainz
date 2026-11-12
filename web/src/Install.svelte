@@ -137,7 +137,7 @@
   }}
 >
   <div class="dialog-heading">
-    <h2 id="installation-title">Install app</h2>
+    <h2 id="installation-title">Install application</h2>
     <button class="icon-button" aria-label="Close installation help" onclick={close}><Icon name="close" /></button>
   </div>
   {#if standalone}<p>PDF Composer is running in its own app window.</p>
@@ -151,7 +151,7 @@
   {/if}
   <div class="installation-actions">
     <button class="primary" onclick={close}>{pending ? "Use browser" : "Close"}</button>
-    {#if prompt && !standalone}<button onclick={install} disabled={requesting}>Install app</button>{/if}
+    {#if prompt && !standalone}<button onclick={install} disabled={requesting}>Install application</button>{/if}
   </div>
 </dialog>
 

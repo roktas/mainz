@@ -126,7 +126,7 @@ test("Long Page counters keep enlarged text and reachable zoom actions", { timeo
   }
 })
 
-test("Grid PageUp and PageDown navigate continuous rows without changing selection", { timeout: 60000 }, async () => {
+test("Grid and List paging and view shortcuts preserve selection", { timeout: 60000 }, async () => {
   const server = await serve()
   const browser = await launch(chromium)
   try {
@@ -167,6 +167,33 @@ test("Grid PageUp and PageDown navigate continuous rows without changing selecti
         await page.keyboard.press("Home")
         await grid.locator('.page-image[data-page="0"]').waitFor()
         assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("data-page")), "0")
+        assert.equal(await pane.getByLabel("Page selection", { exact: true }).inputValue(), "")
+        await page.evaluate(() => document.activeElement?.blur())
+        await page.keyboard.press("End")
+        assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("data-page")), "59")
+        await page.evaluate(() => document.activeElement?.blur())
+        await page.keyboard.press("Home")
+        assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("data-page")), "0")
+
+        await page.keyboard.press("Alt+2")
+        const list = pane.locator(".page-list")
+        await list.waitFor()
+        assert.equal(await pane.locator(":focus-visible").count(), 0)
+        await pane.getByRole("tab", { name: "List", exact: true }).focus()
+        await page.keyboard.press("PageDown")
+        assert.ok(Number(await page.evaluate(() => document.activeElement?.getAttribute("data-page"))) > 0)
+        await pane.getByRole("tab", { name: "List", exact: true }).focus()
+        await page.keyboard.press("PageUp")
+        assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("data-page")), "0")
+        await page.keyboard.press("Alt+3")
+        await pane.locator(".page-scroll").waitFor()
+        assert.equal(await pane.locator(":focus-visible").count(), 0)
+        await page.keyboard.press("Alt+V")
+        await list.waitFor()
+        await page.keyboard.press("Alt+V")
+        await pane.locator(".page-scroll").waitFor()
+        await page.keyboard.press("Alt+1")
+        await grid.waitFor()
         assert.equal(await pane.getByLabel("Page selection", { exact: true }).inputValue(), "")
       }
     }

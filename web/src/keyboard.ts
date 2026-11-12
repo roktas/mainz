@@ -21,6 +21,10 @@ export type ShortcutContext = {
 export type Shortcut =
   | "all"
   | "view"
+  | "gridView"
+  | "listView"
+  | "pageView"
+  | "previousView"
   | "clear"
   | "help"
   | "left"
@@ -77,7 +81,15 @@ export function shortcut(
     (modified || context.overlay)
   )
     return "suppress"
-  if (event.defaultPrevented || event.isComposing || event.altKey || context.overlay) return
+  if (event.defaultPrevented || event.isComposing || context.overlay) return
+  if (scope === "workspace" && event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+    if (context.field || context.repeat) return
+    if (event.code === "Digit1") return "gridView"
+    if (event.code === "Digit2") return "listView"
+    if (event.code === "Digit3") return "pageView"
+    if (event.code === "KeyV") return "previousView"
+  }
+  if (event.altKey) return
   if (scope === "escape") return key === "escape" && !modified && !context.repeat ? "clear" : undefined
   if (context.field) return
   if (scope === "help") return key === "?" && !event.ctrlKey && !event.metaKey && !context.repeat ? "help" : undefined

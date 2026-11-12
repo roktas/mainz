@@ -284,10 +284,13 @@ document icon size.
 The header places the Home logo at the start and Help, Settings, and theme controls at the end. It states that
 processing stays on the device. Feedback occupies the center, as defined below. Header actions use all space after the
 logo before wrapping. Help remains visible on coarse-pointer devices and on the landing page. Settings opens a right
-drawer on the landing page and in the workspace. Install app opens the installation dialog. With an open Input, lens
-controls show the magnification beside − and + buttons, aligned like the Page zoom controls. Application information
-sits at the bottom behind a thin separator. Version and Build ID values align to the end and wrap with enlarged text.
-The repository link uses an accessible icon target.
+drawer on the landing page and in the workspace. Install application opens the installation dialog. With an open Input,
+lens controls show the magnification beside − and + buttons, aligned like the Page zoom controls. Application
+information sits at the bottom behind a thin separator. Version and Build ID values align to the end and wrap with
+enlarged text. The repository link uses an accessible icon target.
+
+On the landing page, Install application stays near the top of Settings. In a workspace, it sits immediately above the
+application information separator.
 
 A single click on the logo opens Home. A double-click replays its existing entry animation. Three or more quick clicks
 open Explore the app as a normal modal dialog on every screen. Use short action labels and plain descriptions of each
@@ -586,6 +589,9 @@ uses Input Add or Output Move earlier, Move later, Remove, and Duplicate in that
 Keep visible control content at least 8 CSS px inside the folded corner's inner edge. Center the complete action group
 on the frame's true centerline.
 
+At ordinary widths, Output footer actions use the same 44 px button width and 20 px icon size as Input Add, with visible
+gaps between actions. Narrow panes can contract the button widths to 28 px while retaining full interaction targets.
+
 Page headers and footers occupy one row. Never wrap controls, counters, or text into another row. If controls do not
 fit, put excess Page actions in the existing page-actions menu. Targets remain at least 44 CSS px high and stay within
 the frame. Short labels can truncate with their full accessible name retained. Selection hides individual actions
@@ -745,7 +751,7 @@ App installation guidance uses a separate native dialog. Use browser has primary
 installation action has secondary emphasis. The title and visible close icon share a vertical centerline. Narrow layouts
 and enlarged text retain scrolling within the dialog. Installation guidance does not change workspace geometry or Grid
 capacity. [SPEC.md](SPEC.md#help-and-onboarding) owns startup eligibility, dismissal, and access through Settings →
-Install app.
+Install application.
 
 Landing PDF and Recipe actions share one row with equal widths. On phones, they fill the available content width, with
 inline frame padding capped at 2.5% of the container width. Enlarged text can stack them when space is insufficient.

@@ -300,6 +300,14 @@
 {#snippet shortcutList(mode: "grid" | "list" | "page" | "style", pane: "Input" | "Output")}
   <h4>Navigate</h4>
   <dl class="shortcut-list">
+    <div>
+      <dt><kbd class="named">Alt/⌥</kbd> + <kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd></dt>
+      <dd>Switch this pane to Grid / List / Page</dd>
+    </div>
+    <div>
+      <dt><kbd class="named">Alt/⌥</kbd> + <kbd>V</kbd></dt>
+      <dd>Return to the previous view in this pane</dd>
+    </div>
     {#if mode === "style"}
       <div>
         <dt><kbd class="named">Tab</kbd></dt>
@@ -488,13 +496,13 @@
         >
           <div class="help-body">
             <div class="keyboard-panes">
-              {#each panes as owner}
+              {#each panes as owner (owner)}
                 {#if contexts.some((item) => item.pane === owner)}
                   <section aria-label={`${owner} shortcuts`}>
                     <h3>{owner}</h3>
                     <span class="entry select">
                       <select aria-label={`${owner} shortcut view`} bind:value={modes[owner]}>
-                        {#each contexts.filter((item) => item.pane === owner) as item}
+                        {#each contexts.filter((item) => item.pane === owner) as item (item.mode)}
                           <option value={item.mode}
                             >{item.mode === "grid"
                               ? "Grid"

@@ -31,7 +31,7 @@
   let refining = $state(false)
   let opening: ReturnType<typeof setTimeout> | undefined
   let pointer: { x: number; y: number } | undefined
-  let finger: { id: number; x: number; y: number } | undefined
+  let finger: { id: number; x: number; y: number; startX: number; startY: number } | undefined
   let holding = false
   function dismiss() {
     clearTimeout(opening)
@@ -45,7 +45,7 @@
     dismiss()
     if (rendering || event.touches.length !== 1) return
     const touch = event.touches[0]
-    finger = { id: touch.identifier, x: touch.clientX, y: touch.clientY }
+    finger = { id: touch.identifier, x: touch.clientX, y: touch.clientY, startX: touch.clientX, startY: touch.clientY }
     opening = setTimeout(() => {
       opening = undefined
       if (!finger) return
@@ -58,7 +58,11 @@
     const touch = Array.from(event.touches).find((contact) => contact.identifier === finger!.id)
     if (!touch || event.touches.length !== 1) return dismiss()
     if (!holding) {
-      if (Math.hypot(touch.clientX - finger.x, touch.clientY - finger.y) > 8) dismiss()
+      if (Math.hypot(touch.clientX - finger.startX, touch.clientY - finger.startY) > 8) dismiss()
+      else {
+        finger.x = touch.clientX
+        finger.y = touch.clientY
+      }
       return
     }
     if (event.cancelable) event.preventDefault()

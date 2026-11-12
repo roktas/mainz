@@ -16,6 +16,10 @@ The application implements Grid, List, Page, Style, and authored page-name capti
 PNGs with PDF rendering as the host-decoder fallback. Page, lens, Compare, and generated PDFs use PDF content. The
 [library contract](../../lib/doc/SPEC.md#implementation-status) owns page metadata and preview validation.
 
+Before loading the workspace, the entrypoint checks required color, selector, popover, and array features. If the
+browser lacks one, it shows a platform-aware message that asks for a newer system or browser and does not start the
+workspace. The check uses features rather than an operating-system version string.
+
 ## Workspace
 
 One workspace supports several independent Inputs and one Output. The main flow is Input selection, addition to Output,
@@ -421,11 +425,16 @@ to its originating view.
 | Workspace key                 | Action                                                                                                                 |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | V or Ctrl/Command-click image | Switches Grid or List with Page, preserving selection, inspection, and zoom.                                           |
+| Alt/Option+1/2/3              | Switches the targeted pane to Grid/List/Page.                                                                          |
+| Alt/Option+V                  | Switches the targeted pane back to its previous view; repeating toggles the two views.                                 |
 | Ctrl/Command+A                | Selects every page in the target pane once, preserving the other selection, preparation configuration, and inspection. |
 | Escape                        | First dismisses an interaction or cancels a drag. Otherwise clears only the target pane's selection and configuration. |
 | Delete                        | Removes the Output selection from either pane.                                                                         |
 | Ctrl/Command+left/right       | Moves Output earlier/later in Grid or Page. In List, Ctrl/Command+up/down moves rows.                                  |
 | ?                             | Opens Help outside fields and other open dialogs or popovers.                                                          |
+
+View shortcuts change the tab without moving focus into the new view or drawing a keyboard focus contour. The next Tab
+key starts ordinary focus navigation.
 
 Without an Output selection, Delete has no action. A move uses the focused Output card or row when selection is empty.
 Input Selection stays unchanged. Escape otherwise preserves Output, inspection, zoom, and page scroll, then focuses the
@@ -452,7 +461,8 @@ scroll outside document bounds.
 Without a selection, Enter and Output + / − act on the focused page or section.
 
 Without active Grid navigation, right starts at the first mounted page and left starts at the last mounted page.
-PageUp/PageDown target the mouse-side Grid, with the visible pane as fallback. They stop at the sequence boundaries.
+PageUp/PageDown and Home/End target the mouse-side Grid, with the visible pane as fallback. List PageUp/PageDown use the
+same pane routing. These keys stop at the sequence boundaries.
 
 Plain arrows can visit selected pages. Shift steps can select or unselect. Reversing a step restores membership,
 including across gaps and after plain navigation. Unselecting an Input page removes all its prepared occurrences. Other
@@ -688,8 +698,9 @@ The lens uses opened Input appearance and completed Output styles, or opened app
 the mouse settles for 180 ms, follows movement immediately once open, and closes on leaving the image. All lenses share
 Settings' 2×–128× magnification, initially 16×. The pane's thumbnail defines reference magnification. Page and zoom
 compensate for their size difference to retain the same crop scale. The lens does not change layout or intercept mouse
-input. On touch screens, holding an image opens the lens. Moving the held finger changes the crop. Release,
-cancellation, a second finger, or scrolling dismisses it. A hold does not select, add, duplicate, or move pages.
+input. On touch screens, holding an image opens the lens at the finger's latest position, including small movements
+before it opens. Moving the held finger changes the crop. Release, cancellation, a second finger, or scrolling dismisses
+it. A hold does not select, add, duplicate, or move pages.
 
 A thumbnail raster refresh retains a pending mouse hover while the pointer remains over the image. The opening delay
 restarts when the raster is ready. Escape, leaving the image, and the other dismissal actions clear that intent.
@@ -913,8 +924,8 @@ dismisses Settings and restores focus. Theme choice persists locally with system
 
 App installation help is separate from the welcome and Product tour. The first iPhone or iPad browser visit shows a
 dismissible introduction before a pending welcome. Use browser and Close permit normal PDF work. Standalone launches
-show no recommendation. Desktop startup stays quiet. Settings → Install app opens installation guidance. Closing the
-first recommendation shows a Notice that points to that action. Dismissal keeps manual installation help available.
+show no recommendation. Desktop startup stays quiet. Settings → Install application opens installation guidance. Closing
+the first recommendation shows a Notice that points to that action. Dismissal keeps manual installation help available.
 
 Installation dismissal uses `mainz:installation` independently of `mainz:onboarding`. If storage is unavailable,
 dismissal lasts for the current page. Browser and standalone storage can differ. Installation does not replay the tour.

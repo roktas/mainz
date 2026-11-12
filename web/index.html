@@ -17,10 +17,51 @@
         /* Use the system theme when storage is unavailable. */
       }
     </script>
+    <script>
+      window.mainzSupported =
+        !!window.CSS &&
+        typeof CSS.supports === "function" &&
+        CSS.supports("color", "light-dark(white, black)") &&
+        CSS.supports("selector(:has(*))") &&
+        "showPopover" in HTMLElement.prototype &&
+        "toSorted" in Array.prototype
+    </script>
     <title>PDF Composer</title>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <section
+        id="unsupported"
+        hidden
+        role="alert"
+        style="
+          box-sizing: border-box;
+          max-width: 36rem;
+          margin: 15vh auto;
+          padding: 1.5rem;
+          font:
+            1rem/1.5 system-ui,
+            sans-serif;
+        "
+      >
+        <h1>PDF Composer needs a newer system</h1>
+        <p id="unsupported-message">This browser or operating system is too old to run PDF Composer.</p>
+        <p>
+          Update your system and browser, then reopen the application. If updates are unavailable, use a newer device.
+        </p>
+      </section>
+    </div>
+    <script>
+      if (!window.mainzSupported) {
+        document.getElementById("unsupported").hidden = false
+        const agent = navigator.userAgent
+        const ipad = /iPad/.test(agent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+        const iphone = /iPhone|iPod/.test(agent)
+        if (ipad || iphone)
+          document.getElementById("unsupported-message").textContent =
+            `This ${ipad ? "iPad" : "iPhone"} needs a newer ${ipad ? "iPadOS" : "iOS"} version to run PDF Composer.`
+      }
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -15,6 +15,7 @@
 
   let {
     pane,
+    active,
     viewport: saved = { scroll: 0 },
     count,
     labeled = false,
@@ -32,6 +33,7 @@
     children,
   }: {
     pane: "Input" | "Output"
+    active: () => boolean
     viewport?: Viewport
     count: number
     labeled?: boolean
@@ -277,6 +279,7 @@
     list = element as HTMLUListElement
     const owner = element.closest<HTMLElement>(pane === "Input" ? ".selection-panel" : ".composition-output")
     element.addEventListener("keydown", keys)
+    window.addEventListener("keydown", keys)
     let disposed = false
     let frame = 0
     let following = false
@@ -365,18 +368,28 @@
       cancelAnimationFrame(frame)
       observer.disconnect()
       element.removeEventListener("keydown", keys)
+      window.removeEventListener("keydown", keys)
     }
   }
   async function keys(event: KeyboardEvent) {
     if (!(event.target instanceof HTMLElement)) return
-    if (!event.target.matches(".list-choice, .list-heading, .page-list")) return
+    const local = list?.contains(event.target)
+    if (
+      !(local && event.target.matches(".list-choice, .list-heading, .page-list")) &&
+      !(
+        ["PageUp", "PageDown"].includes(event.key) &&
+        active() &&
+        !event.target.closest(".page-list, input, textarea, select, [contenteditable]")
+      )
+    )
+      return
     const action = shortcut(event, shortcutContext(event, { pane, view: "list" }), "list")
     if (action === "suppress") {
       event.preventDefault()
       return
     }
     if (!action || !pages.length) return
-    const element = event.currentTarget as HTMLElement
+    const element = list!
     const focused = event.target.dataset.page
     const index = Math.max(0, pages.indexOf(focused === undefined ? position : Number(focused)))
     position = pages[index]

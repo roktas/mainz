@@ -505,6 +505,7 @@
   function inputTab(mode: "grid" | "list" | "page" | "style", event?: MouseEvent | KeyboardEvent) {
     const previous = activeTab
     const changed = mode !== previous
+    if (changed) interaction.rememberView("Input", previous)
     if (changed && activeTab === "list") inputList?.remember()
     cancelMotion()
     inspectInput({
@@ -586,6 +587,7 @@
   function setOutputTab(mode: "grid" | "list" | "page", event?: MouseEvent | KeyboardEvent) {
     const previous = activeOutputTab
     const changed = mode !== previous
+    if (changed) interaction.rememberView("Output", previous)
     if (changed && activeOutputTab === "list") outputList?.remember()
     cancelMotion()
     outputTab = mode === "grid" || mode === "list" ? "pages" : mode
@@ -2008,6 +2010,7 @@
                 id={`${key}-${tab}`}
                 role="tab"
                 aria-label={viewLabels[tab]}
+                aria-keyshortcuts={`Alt+${viewTabs.indexOf(tab) + 1}`}
                 aria-selected={activeTab === tab}
                 aria-controls={`${key}-source-panel`}
                 tabindex={activeTab === tab ? 0 : -1}
@@ -2191,6 +2194,7 @@
                     bind:this={inputList}
                     bind:folds={() => inputView.folds, (folds) => inspectInput({ folds })}
                     pane="Input"
+                    active={() => interaction.shortcutPane() === "Input"}
                     labeled={source.input.labels.length > 0}
                     revision={`${inputView.grouped}:${inputView.tocTitles}`}
                     headings={inputView.grouped ? inputHeadings : undefined}
@@ -2467,6 +2471,7 @@
               id={`${key}-output-${tab}`}
               role="tab"
               aria-label={viewLabels[tab]}
+              aria-keyshortcuts={`Alt+${viewTabs.indexOf(tab) + 1}`}
               aria-selected={activeOutputTab === tab}
               aria-controls={`${key}-output-panel`}
               tabindex={activeOutputTab === tab ? 0 : -1}
@@ -2651,6 +2656,7 @@
               bind:this={outputList}
               bind:folds={outputFolds}
               pane="Output"
+              active={() => interaction.shortcutPane() === "Output"}
               count={output.pages.length}
               revision={outputListRevision}
               headings={outputGrouped ? (index) => outputHeadings(output.pages[index].content, index) : undefined}
