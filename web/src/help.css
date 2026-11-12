@@ -212,6 +212,7 @@
         text-align: start;
         & kbd.named {
           inline-size: auto;
+          padding-inline: 0.25em;
         }
         & th,
         & td {

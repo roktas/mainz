@@ -1694,7 +1694,7 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
     ]) {
       await page.setViewportSize({ width, height: 667 })
       await page.evaluate((size) => {
-        document.body.style.removeProperty("font-family")
+        document.body.style.fontFamily = size === "200%" ? "DejaVu Sans, sans-serif" : ""
         document.documentElement.style.fontSize = size
       }, text)
       await help.click()
