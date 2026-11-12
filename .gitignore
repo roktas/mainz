@@ -1,6 +1,10 @@
 /.local/
+/node_modules/
 /.playwright-cli/
 PLAN*
+/MEMO.md
+/lorem-v4.pdf
+/lorem.pdf
 TODO*
 REVIEW*
 /XRAY.md
