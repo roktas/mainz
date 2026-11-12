@@ -3382,3 +3382,60 @@ test(
     }
   },
 )
+
+test("Compact List columns preserve title space independently of Page action spacing", async () => {
+  const server = await serve()
+  for (const engine of engines) {
+    const browser = await launch(engine)
+    try {
+      const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=toc`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const output = page.locator(".composition-output")
+      for (const width of [320, 375, 393, 428, 744]) {
+        await page.setViewportSize({ width, height: 1000 })
+        await page.emulateMedia({ colorScheme: width % 2 ? "dark" : "light" })
+        await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).click()
+        await tab(output, "List")
+        const geometry = await output
+          .locator(".list-section")
+          .first()
+          .evaluate((row) => {
+            const title = row.querySelector(".list-heading").getBoundingClientRect()
+            const actions = row.querySelector(".list-actions").getBoundingClientRect()
+            const buttons = [...row.querySelectorAll(".list-actions button")].map((el) => el.getBoundingClientRect())
+            return {
+              title: title.width,
+              separate: title.right <= actions.left + 1,
+              buttons: buttons.map(({ width, height }) => ({ width, height })),
+              overlap: buttons.some((box, i) => i > 0 && box.left < buttons[i - 1].right - 1),
+            }
+          })
+        assert.ok(geometry.separate && !geometry.overlap, JSON.stringify({ width, geometry }))
+        assert.ok(
+          geometry.buttons.every((box) => box.height >= 44),
+          JSON.stringify(geometry),
+        )
+        if (width <= 428)
+          assert.ok(
+            geometry.buttons.every((box) => box.width === 32),
+            JSON.stringify(geometry),
+          )
+        if (width >= 393) assert.ok(geometry.title >= 100, JSON.stringify({ width, geometry }))
+        if (width === 428) {
+          await tab(output, "Page")
+          assert.equal(
+            await output
+              .locator(".page-navigation .occurrence-actions button")
+              .first()
+              .evaluate((el) => el.getBoundingClientRect().width),
+            44,
+          )
+        }
+      }
+    } finally {
+      await browser.close()
+    }
+  }
+})

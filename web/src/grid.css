@@ -139,9 +139,9 @@
     .page-list {
       position: relative;
       container: list / inline-size;
-      --list-action-size: 44px;
+      --list-action-size: clamp(32px, calc((100cqi - 16rem) / 5), 44px);
       --list-grip-width: calc(var(--list-action-size) + 0.25em);
-      --list-number-size: 44px;
+      --list-number-size: var(--list-action-size);
       display: grid;
       grid-template-columns: [grip] var(--list-grip-width) [number] minmax(
           var(--list-number-size),
@@ -381,6 +381,10 @@
           block-size: var(--list-action-size);
           min-block-size: var(--list-action-size);
           padding: 0;
+          @media (pointer: coarse) {
+            block-size: 44px;
+            min-block-size: 44px;
+          }
         }
         & svg {
           inline-size: 16px;
@@ -436,10 +440,6 @@
       }
     }
     @container list (width <= 22rem) {
-      .page-list {
-        --list-action-size: 32px;
-        --list-number-size: 32px;
-      }
       .page-list .list-choice,
       .page-list .list-heading .list-current {
         white-space: nowrap;
@@ -513,6 +513,7 @@
       --section-actions: 2;
       &.output-section {
         --section-actions: 5;
+        --section-actions-gap: 6px;
       }
       --section-surface: color-mix(in oklch, var(--secondary) calc(min(var(--section-depth), 3) * 8%), var(--soft));
       color: inherit;
@@ -595,7 +596,7 @@
       }
       & > .list-heading {
         grid-column: name / end;
-        margin-inline-end: calc(var(--section-actions) * var(--list-action-size));
+        margin-inline-end: calc(var(--section-actions) * var(--list-action-size) + var(--section-actions-gap, 0px));
         display: flex;
         justify-content: flex-start;
         align-items: center;

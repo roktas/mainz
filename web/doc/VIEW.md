@@ -412,7 +412,7 @@ View tabs use equal widths based on the widest tab in their row. Selected surfac
 presentation. Across phone, tablet, and desktop layouts, the first visible tab icon starts at the selection field's
 leading edge. The last visible toolbar icon ends at the field's trailing edge. Compact labeled tabs have 6–12 px gaps
 between their targets. Compact icon-only tabs center a small selected surface on the glyph and retain separate 44 px
-targets without gaps. Selection and focus do not move icons or controls.
+targets, with gaps when space permits. Selection and focus do not move icons or controls.
 
 The heading text selects or clears the complete subtree **when folded**, including pages hidden beneath it. A partly
 selected folded section appears selected and a click clears its remaining selected pages. **When unfolded**, the heading
@@ -425,8 +425,10 @@ the same inspection and return semantics as the normal List eye. Dragging either
 complete section group for transfer and shows a page stack. Pressing without movement does not transfer or fold; release
 and cancellation restore the original ribbon.
 
-All List action groups align to the end of their shared column. Extra hierarchy controls must not move the page rows'
-View glyphs away from the section rows' View glyphs.
+List action slots contract from 44 px to 32 px with the available pane width, retaining 44 px touch target height. The
+grip, page number, and action columns share those dimensions so phone layouts retain readable title space. All List
+action groups align to the end of their shared column. Extra hierarchy controls must not move the page rows' View glyphs
+away from the section rows' View glyphs.
 
 Section headings show the current title before its parents in reverse hierarchy order, on one line with ellipsis when
 needed. Parents use the same small caps, size, and weight as the current title, with muted color. Separators use a

@@ -141,6 +141,9 @@
 
 ### Fixed
 
+- Compact List identity and action columns respond to their available width, preserving title space and 44 px target
+  height independently of Page footer spacing.
+
 - Wider spacing for compact Output Page actions and icon-only view tabs when room permits.
 
 - Page navigation arrow tips align with the header controls, and labeled single-pane tabs leave more room around the
