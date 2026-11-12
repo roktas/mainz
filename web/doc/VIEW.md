@@ -398,6 +398,11 @@ text line and the Contents heading edge in both states. Use TOC titles appears b
 page's display title. When enlarged text leaves insufficient header width, move the complete Unfold all / Fold all
 control below the title and close button.
 
+List uses the pane's remaining viewport height for its native scrollport, with a minimum of one complete 44 px row plus
+its content insets. Folding sections changes the scroll extent rather than the pane height. List does not inherit Grid
+card or Page image minimum heights. Its scrollbar and final row remain above status in short landscape layouts; document
+scrolling is needed only when the fixed controls and this minimum row cannot fit.
+
 List shares Grid's section representation: a section's starting physical page is itself the heading row, not an extra
 row preceding an ordinary page row. Every physical page or Output occurrence appears once. Coincident headings share the
 outermost visible ribbon; their independent fold state remains available through the section tree and Jump. The ribbon,

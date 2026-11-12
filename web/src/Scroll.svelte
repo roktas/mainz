@@ -121,8 +121,8 @@
           height: bottom - top,
           start: element.scrollTop <= 1,
           end: maximum - element.scrollTop <= 1,
-          showStart: Math.abs(top - box.top) < 1,
-          showEnd: Math.abs(bottom - box.bottom) < 1,
+          showStart: true,
+          showEnd: true,
         })
       }
       const documentArea = next.find((area) => area.element === root)

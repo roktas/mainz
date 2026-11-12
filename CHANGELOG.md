@@ -143,6 +143,9 @@
 
 ### Fixed
 
+- List uses the remaining viewport height on short screens, keeping its native scrollbar and final row reachable through
+  section folding and orientation changes.
+
 - Scroll endpoint controls require complete visible panel rails and persistent document scrollbar gutters, avoiding
   stray markers on mobile landscape screens.
 

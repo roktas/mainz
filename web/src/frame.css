@@ -301,7 +301,15 @@
       display: grid;
       grid-template-rows: minmax(0, 1fr);
       container-type: size;
+    }
+
+    .page-content:has(.grid-view) {
       min-block-size: max(var(--grid-height), var(--grid-min-height));
+    }
+
+    .page-content:has(.page-list) {
+      /* One complete List row and its scrollport insets must fit before document scrolling is needed. */
+      min-block-size: calc(44px + var(--content-inset) + 12px);
     }
 
     .page-content:has(.page-view) {

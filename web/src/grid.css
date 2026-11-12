@@ -131,9 +131,6 @@
     }
 
     .page-content:has(> .page-list) {
-      display: grid;
-      grid-template-rows: minmax(0, 1fr);
-      min-block-size: 20rem;
       margin-inline-end: calc(-1 * max(8px, var(--list-gutter, 0px)));
     }
     .page-list {
