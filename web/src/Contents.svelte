@@ -289,7 +289,8 @@
     color: var(--accent);
   }
   .synthetic {
-    font-style: italic;
+    font-style: normal;
+    transform: skewX(-12deg);
     font-variant-caps: all-small-caps;
     font-synthesis: small-caps;
   }

@@ -4174,7 +4174,15 @@ test("Lorem keeps Cover floating and shares its virtual Prelude through Contents
       await tab(input, "List")
       const prelude = input.locator(".list-section[data-synthetic] .list-current").filter({ hasText: "Prelude" })
       await prelude.waitFor()
-      assert.equal(await prelude.evaluate((el) => getComputedStyle(el).fontStyle), "italic")
+      assert.equal(await prelude.evaluate((el) => getComputedStyle(el).fontStyle), "normal")
+      const slant = await prelude.evaluate((el) => {
+        const matrix = new DOMMatrixReadOnly(getComputedStyle(el).transform)
+        return { x: matrix.a, y: matrix.d, slant: matrix.c, tilt: matrix.b }
+      })
+      assert.ok(
+        slant.slant < 0 && slant.x === 1 && slant.y === 1 && slant.tilt === 0,
+        "Virtual headings slant without scaling or tilting their glyph baseline",
+      )
       assert.equal(await prelude.evaluate((el) => getComputedStyle(el).fontVariantCaps), "all-small-caps")
       const heights = await input.locator(".list-current").evaluateAll((labels) =>
         labels.map((label) => {

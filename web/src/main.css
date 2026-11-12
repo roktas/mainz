@@ -34,11 +34,14 @@
     }
   }
   @scope (.composer, .drag-image[data-strip]) {
-    .list-section[data-synthetic] > .list-heading {
-      font-style: italic;
+    .list-section[data-synthetic] .list-current,
+    .synthetic {
+      /* Keep regular small-cap glyph heights when the italic face has different metrics. */
+      display: inline-block;
+      font-style: normal;
+      transform: skewX(-12deg);
     }
     .synthetic {
-      font-style: italic;
       font-variant-caps: all-small-caps;
       font-synthesis: small-caps;
     }
