@@ -143,6 +143,9 @@
 
 ### Fixed
 
+- Clipped inner scroll areas show only their visible endpoint controls and avoid overlapping document controls on short
+  landscape screens.
+
 - List titles reclaim the individual editing-action slots while Selection delegates edits to its selection bar.
 
 - Compact List identity and action columns respond to their available width, preserving title space and 44 px target

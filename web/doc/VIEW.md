@@ -56,12 +56,14 @@ controls use the target sizes in [Grid and Page](#grid-and-page).
 
 Vertical scroll controls supplement native scrolling. A compact 24 px-wide track on the scrollbar axis has 44 px-high
 start/end targets. Their visible glyphs sit just above and below the scrollbar, with no hover box or tooltip. Hide the
-controls when the content fits or the scrollbar belongs to the Page image viewport. They must stay clear of page
-inspection controls and remain usable inside dialogs and popovers. Native wheel, touch, scrollbar dragging, keyboard
-scrolling, and Selection remain independent. The native thumb retains its content-based size. The compact track is an
-exception to the general 44 px target width. Grid and List retain at least an 8 px scrollbar gutter outside the
-selection-field edge, including overlay scrollbars. Compact layouts leave 24 px below the workspace before the status
-bar so the final control remains separate from footer text.
+controls when the content fits or the scrollbar belongs to the Page image viewport. A clipped inner scroll area shows
+only the destinations whose actual edges are visible; it never pins an offscreen end to the viewport. Inner controls
+take priority when their targets would overlap the document's scroll controls. They must stay clear of page inspection
+controls and remain usable inside dialogs and popovers. Native wheel, touch, scrollbar dragging, keyboard scrolling, and
+Selection remain independent. The native thumb retains its content-based size. The compact track is an exception to the
+general 44 px target width. Grid and List retain at least an 8 px scrollbar gutter outside the selection-field edge,
+including overlay scrollbars. Compact layouts leave 24 px below the workspace before the status bar so the final control
+remains separate from footer text.
 
 Controls of the same type in a visible panel, toolbar, or action group must have the same width and height unless this
 document defines an explicit exception. Type means interaction role, such as a selection row, action button, icon

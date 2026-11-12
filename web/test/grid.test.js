@@ -2141,3 +2141,65 @@ test("Input chooser number badges expose details and aligned file actions", { ti
     await browser.close()
   }
 })
+
+test("Landscape scroll endpoints follow real panel edges without overlapping document controls", async () => {
+  const server = await serve()
+  for (const engine of engines) {
+    const browser = await launch(engine)
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 852, height: 393 },
+        hasTouch: true,
+        isMobile: true,
+        reducedMotion: "reduce",
+      })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=toc`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).click()
+      const output = page.locator(".composition-output")
+      await tab(output, "List")
+      await output.getByRole("button", { name: "Unfold all Output sections", exact: true }).click()
+      const controls = output.getByRole("group", { name: "Output List scroll controls", exact: true })
+      await controls.waitFor()
+      assert.equal(
+        await controls.getByRole("button", { name: /to end$/, includeHidden: true }).isVisible(),
+        false,
+        "An offscreen panel end must not be pinned to the viewport bottom",
+      )
+      for (const fraction of [0, 0.5, 1]) {
+        await page.evaluate(
+          (value) => window.scrollTo(0, value * (document.documentElement.scrollHeight - innerHeight)),
+          fraction,
+        )
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+        const geometry = await page.evaluate(() => {
+          const buttons = [...document.querySelectorAll(".scroll-controls > button")]
+            .filter((el) => el.checkVisibility())
+            .map((el) => el.getBoundingClientRect())
+          return buttons.every((a, i) =>
+            buttons
+              .slice(i + 1)
+              .every((b) => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top),
+          )
+        })
+        assert.equal(geometry, true, `${engine.name()}: document and panel targets do not overlap at ${fraction}`)
+      }
+      await controls.getByRole("button", { name: /to end$/ }).click()
+      const extent = await output
+        .locator(".page-list")
+        .evaluate((el) => ({ position: el.scrollTop, maximum: el.scrollHeight - el.clientHeight }))
+      assert.ok(Math.abs(extent.position - extent.maximum) <= 1, JSON.stringify(extent))
+      await page.setViewportSize({ width: 393, height: 852 })
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await controls.waitFor({ state: "hidden" })
+      assert.equal(
+        await output.locator(".page-list").evaluate((el) => el.scrollHeight <= el.clientHeight),
+        true,
+        "Rotating to a fitting portrait view removes unnecessary scroll controls",
+      )
+    } finally {
+      await browser.close()
+    }
+  }
+})

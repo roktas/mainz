@@ -13,6 +13,8 @@
     height: number
     start: boolean
     end: boolean
+    showStart: boolean
+    showEnd: boolean
   }
   let areas = $state<Area[]>([])
 
@@ -113,7 +115,22 @@
           height: bottom - top,
           start: element.scrollTop <= 1,
           end: maximum - element.scrollTop <= 1,
+          showStart: Math.abs(top - box.top) < 1,
+          showEnd: Math.abs(bottom - box.bottom) < 1,
         })
+      }
+      const documentArea = next.find((area) => area.element === root)
+      if (documentArea) {
+        for (const area of next) {
+          if (area === documentArea || area.x + 24 <= documentArea.x || area.x >= documentArea.x + 24) continue
+          const starts = [
+            ...(area.showStart ? [Math.max(0, area.y - 24)] : []),
+            ...(area.showEnd ? [Math.min(innerHeight - 44, area.y + area.height - 20)] : []),
+          ]
+          // Inner scroll destinations take priority when their 44 px targets share the document rail.
+          if (starts.some((start) => start < 44 && start + 44 > 0)) documentArea.showStart = false
+          if (starts.some((start) => start < innerHeight && start + 44 > innerHeight - 44)) documentArea.showEnd = false
+        }
       }
       if (
         next.length !== areas.length ||
@@ -183,10 +200,15 @@
       type="button"
       aria-label={`Scroll ${area.name} to start`}
       disabled={area.start}
+      hidden={!area.showStart}
       onclick={() => jump(area, false)}><Icon name="first" /></button
     >
-    <button type="button" aria-label={`Scroll ${area.name} to end`} disabled={area.end} onclick={() => jump(area, true)}
-      ><Icon name="last" /></button
+    <button
+      type="button"
+      aria-label={`Scroll ${area.name} to end`}
+      disabled={area.end}
+      hidden={!area.showEnd}
+      onclick={() => jump(area, true)}><Icon name="last" /></button
     >
   </div>
 {/each}
@@ -220,6 +242,9 @@
     background: transparent;
     color: inherit;
     pointer-events: auto;
+  }
+  .scroll-controls > button[hidden] {
+    display: none;
   }
   button:first-child {
     inset-block-start: var(--start-offset);
