@@ -124,8 +124,8 @@ jobs:
         run: npm --prefix web exec -- playwright install --no-shell chromium
       - name: Install WebKit for browser regressions
         if:
-          contains(fromJSON('["alignment", "grid", "list", "preview", "composition", "page", "workspace", "feedback",
-          "export"]'), matrix.suite)
+          contains(fromJSON('["alignment", "geometry", "grid", "list", "preview", "composition", "page", "workspace",
+          "feedback", "export"]'), matrix.suite)
         run: npm --prefix web exec -- playwright install --with-deps webkit
       - name: Download WASM package
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
