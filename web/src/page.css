@@ -284,6 +284,8 @@
       }
     }
     .page-position {
+      min-inline-size: 0;
+      max-inline-size: 100%;
       display: inline-flex;
       align-items: baseline;
       gap: 0.4em;
@@ -292,6 +294,7 @@
       font-size: var(--body);
       font-variant-numeric: tabular-nums;
       & .page-current {
+        flex: none;
         position: relative;
         display: inline-block;
         justify-self: start;
@@ -560,6 +563,7 @@
 @layer components {
   @scope (#app) {
     .counter-label {
+      min-inline-size: 0;
       color: var(--secondary);
       font-size: var(--small);
       font-weight: 400;

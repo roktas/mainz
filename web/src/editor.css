@@ -123,6 +123,7 @@
       }
     }
     .style-profile > .profile-summary {
+      display: block;
       position: relative;
       inline-size: fit-content;
       max-inline-size: 100%;

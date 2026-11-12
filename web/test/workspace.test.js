@@ -714,28 +714,27 @@ test("Authored details share one panel across Style owners and omit blank guidan
       await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
       await page.setViewportSize({ width: 1440, height: 1000 })
       const blank = { description: "Short description.", details: " \n\t\u00a0\u2003\u202f\ufeff " }
-      await page
-        .locator("input[type=file]")
-        .first()
-        .setInputFiles({
-          name: "Blank-guidance.pdf",
-          mimeType: "application/pdf",
-          buffer: fixture({
-            count: 3,
-            grouped: true,
-            annotations: { group: blank, parameters: { "guides-display": blank } },
-            profileSets: [
-              {
-                ...set,
-                ...blank,
-                profiles: [
-                  { ...set.profiles[0], ...blank },
-                  { ...set.profiles[1], ...blank },
-                ],
-              },
-            ],
-          }),
-        })
+      await page.waitForFunction(() => !document.querySelector('input[aria-label="Open PDF"]').disabled)
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+      await page.getByLabel("Open PDF", { exact: true }).setInputFiles({
+        name: "Blank-guidance.pdf",
+        mimeType: "application/pdf",
+        buffer: fixture({
+          count: 3,
+          grouped: true,
+          annotations: { group: blank, parameters: { "guides-display": blank } },
+          profileSets: [
+            {
+              ...set,
+              ...blank,
+              profiles: [
+                { ...set.profiles[0], ...blank },
+                { ...set.profiles[1], ...blank },
+              ],
+            },
+          ],
+        }),
+      })
       await page.locator(".status-input").filter({ hasText: "Blank-guidance.pdf" }).waitFor({ state: "attached" })
       await tab(input, "List")
       await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
@@ -2696,7 +2695,7 @@ test("Demo Cover is first and its fill survives Download and reopening", { timeo
                 .filter((description) => description.checkVisibility())
                 .filter((description) => {
                   const range = document.createRange()
-                  range.selectNodeContents(description)
+                  range.selectNodeContents(description.querySelector("span") ?? description)
                   return range.getClientRects().length > 1
                 })
                 .map((description) => description.textContent),

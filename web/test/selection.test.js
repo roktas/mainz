@@ -243,10 +243,10 @@ test("Touch grips restrict Grid drops and keep Selection unfocused", { timeout: 
             x: bounds.x + bounds.width * (direction === "Previous" ? 0.25 : 0.75),
             y: bounds.y + bounds.height / 2,
           })
-          await output
-            .locator(".page-position")
-            .filter({ hasText: new RegExp(`^${position}\\s*/\\s*8$`) })
-            .waitFor()
+          await page.waitForFunction(
+            ({ panel, position }) => panel.querySelector(".page-current")?.textContent.trim() === String(position),
+            { panel: await output.elementHandle(), position },
+          )
           await output.locator(".page-drop-ghost canvas").waitFor()
         }
         await beginPage()
@@ -978,7 +978,7 @@ test("Output menu labels fit one line with narrow and enlarged text", { timeout:
               })
           })
           assert.deepEqual(
-            controls.slice(-3).map((button) => button.label),
+            controls.slice(-4).map((button) => button.label),
             ["Before", "After current page", "After last page", "Repeat"],
           )
           assert.ok(
@@ -1406,7 +1406,7 @@ test("Selection bars expose meaningful actions in both panes", { timeout: 60000 
     assert.equal(await outputCount(page).textContent(), "8 pages")
     assert.equal(await selected.inputValue(), "1")
     await output.getByRole("button", { name: "Clear Output selection", exact: true }).click()
-    assert.equal(await output.locator(".page-actions button").count(), 2)
+    assert.equal(await output.locator(".page-actions button").count(), 4)
     await tab(output, "Grid")
     await selected.fill("1-8")
     await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()

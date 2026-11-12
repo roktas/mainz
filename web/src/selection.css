@@ -125,7 +125,12 @@
       gap: var(--gap);
       & button {
         justify-content: start;
-        padding-inline: 0.5em;
+        padding-inline: 0.25em;
+        gap: 0.25em;
+        & svg {
+          inline-size: 18px;
+          block-size: 18px;
+        }
       }
     }
     .composer {
@@ -161,7 +166,7 @@
           overflow: auto;
           overscroll-behavior: contain;
           padding: var(--gap);
-          padding-inline: min(var(--gap), 4cqi);
+          padding-inline: min(var(--gap), 2cqi);
           border: 1px solid var(--edge);
           border-radius: var(--radius);
           background: var(--surface);

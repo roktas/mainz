@@ -220,7 +220,7 @@ test("Page and Grid share viewport bounds and preserve fitted image sizes", { ti
             const frame = view.getBoundingClientRect()
             return {
               rows: Number(grid.dataset.rows),
-              frames: [grid, view].map((element) => element.getBoundingClientRect().height),
+              frames: [grid, view].map((element) => element.closest(".page-content").getBoundingClientRect().height),
               image: [sheet.width, sheet.height],
               surround: [scroll.width, scroll.height],
               margins: [sheet.top - scroll.top, scroll.bottom - sheet.bottom],

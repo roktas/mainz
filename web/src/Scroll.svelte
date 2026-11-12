@@ -70,7 +70,7 @@
         )
           continue
         const maximum = element.scrollHeight - element.clientHeight
-        if (maximum <= 1 || (element === root && getComputedStyle(root).overflowY === "hidden")) continue
+        if (maximum <= 1 || (element === root && /^(hidden|clip)$/.test(getComputedStyle(root).overflowY))) continue
         const box =
           element === root ? { top: 0, bottom: innerHeight, right: innerWidth } : element.getBoundingClientRect()
         let top = Math.max(0, box.top),

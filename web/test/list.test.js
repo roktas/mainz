@@ -935,7 +935,7 @@ test("List section headings default to shown and toggle independently without ch
           const icon = bounds(".tabs > button:first-child svg")
           return {
             start: icon[0] - box.left,
-            end: box.right - bounds('[aria-label="Input contents"] svg')[1],
+            end: box.right - bounds(".page-destination > button svg")[1],
             tabTarget: tab.width >= 44,
           }
         })
@@ -2016,6 +2016,7 @@ test(
       await page.keyboard.press("Escape")
       await page.mouse.up()
       assert.equal(await selection.inputValue(), "1,3")
+      assert.equal(await outputCount(page).textContent(), "60 pages")
       await page.waitForFunction(() => {
         const value = document.querySelector(".composition-output .page-list").scrollTop
         if (window.stoppedListScroll === value) return true
@@ -2028,7 +2029,13 @@ test(
       assert.equal(await page.locator(".drag-image, .composer[data-drag], .list-row[data-drop]").count(), 0)
       await list.evaluate((element) => (element.scrollTop = 0))
       await rows.first().locator('[data-page="0"]').waitFor()
-      assert.deepEqual(await rows.evaluateAll((elements) => elements.map((element) => element.id)), before)
+      assert.deepEqual(
+        await rows.evaluateAll(
+          (elements, count) => elements.slice(0, count).map((element) => element.id),
+          before.length,
+        ),
+        before,
+      )
     } finally {
       await browser.close()
     }

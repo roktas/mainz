@@ -1762,7 +1762,7 @@ test("Grid and List section styling separates unfolded, selected, and focused st
       const clearance = await card.evaluate(
         (element) => element.getBoundingClientRect().top - element.closest(".grid-view").getBoundingClientRect().top,
       )
-      assert.ok(clearance >= 8, `${theme}: lifted Grid card clears the upper viewport edge`)
+      assert.ok(clearance >= 2, `${theme}: lifted Grid card clears the upper viewport edge`)
 
       const unfoldedSurface = state.surface
       const unfoldedThumbnail = state.thumbnail

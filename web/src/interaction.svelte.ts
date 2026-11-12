@@ -442,7 +442,8 @@ export class Interaction {
           this.host.repetitions !== "2" ||
           this.host.front
     const panel = document.getElementById(`${this.host.key}-${pane === "Input" ? "source" : "output"}-panel`)
-    if (!hasSelection && !panel?.querySelector(".composition-grid")?.contains(document.activeElement)) return
+    if (!hasSelection && !panel?.querySelector(".composition-grid, .page-scroll")?.contains(document.activeElement))
+      return
     if (pane === "Input") this.host.clearInput()
     else this.host.clearOutput()
     event.preventDefault()

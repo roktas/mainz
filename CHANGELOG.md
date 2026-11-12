@@ -130,6 +130,8 @@
 
 ### Fixed
 
+- Keep enlarged Output insertion labels within their menu, preserve Page label space, and return focus to Page tabs on
+  Escape with an empty selection. Hide scroll endpoints when document scrolling is clipped.
 - Align Grid, List, Page, and Style content below compact selection hints; keep individual Style fields at full width.
 - Keep large Grid and List scroll destinations reachable in WebKit without changing the native scrollbar range.
 - Keep Contents destinations visible after unfolding and align Page footer actions vertically.

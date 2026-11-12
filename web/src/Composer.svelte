@@ -1869,17 +1869,17 @@
         {#if chosen.length}<button
             disabled={!!outputSelectionError}
             onclick={() => blank(positions[0])}
-            title="Insert a blank before the first selected page"><Icon name="blank" />Before</button
+            title="Insert a blank before the first selected page">Before</button
           >{/if}
         <button
           disabled={!output.pages.length}
           onclick={() => blank(output.position + 1)}
-          title="Insert a blank after the current Output page"><Icon name="blank" />After current page</button
+          title="Insert a blank after the current Output page">After current page</button
         >
         <button
           disabled={!output.pages.length}
           onclick={() => blank(output.pages.length)}
-          title="Insert a blank after the last Output page"><Icon name="blank" />After last page</button
+          title="Insert a blank after the last Output page">After last page</button
         >
       </div>
       {#if chosen.length && adjacent}

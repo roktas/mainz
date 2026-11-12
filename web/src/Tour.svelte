@@ -168,7 +168,7 @@
       title: "Save, print, or view Output",
       text: [
         "Download or Share saves the Output PDF with its page order, copies, blanks, and styles. Original PDFs stay intact.",
-        "Print prepares the same PDF for browser printing. View PDF opens it in the browser’s PDF viewer.",
+        "Print PDF prepares the same PDF for browser printing. View PDF opens it in the browser’s PDF viewer.",
         "Export recipe saves a JSON file with your page order and styles. Open it with the source PDFs to continue later.",
         "Preparation shows progress. Cancel or an error keeps the workspace so you can adjust and retry.",
       ],
