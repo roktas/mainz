@@ -203,14 +203,19 @@
     if (card) flash(card)
   }
   function scrolling(element: HTMLElement) {
+    const focused = document.activeElement?.closest<HTMLElement>(".composition-card")
+    const owned = !!focused && element.contains(focused)
     const top = element.scrollTop
     flushSync(() => {
       scroll = top
       saved.scroll = top
     })
     element.scrollTop = top
-    const focused = document.activeElement?.closest<HTMLElement>(".composition-card")
-    if (!focused || !element.contains(focused)) return
+    if (!owned || !focused) return
+    if (!element.contains(focused)) {
+      element.querySelector<HTMLElement>(".composition-grid")?.focus({ preventScroll: true })
+      return
+    }
     const bounds = focused.getBoundingClientRect(),
       frame = element.getBoundingClientRect()
     if (bounds.bottom <= frame.top || bounds.top >= frame.bottom) element.focus({ preventScroll: true })

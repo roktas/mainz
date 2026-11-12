@@ -948,7 +948,10 @@ test("Output menu labels fit one line with narrow and enlarged text", { timeout:
         [320, "200%"],
       ]) {
         await page.setViewportSize({ width, height: 900 })
-        await page.evaluate((value) => (document.documentElement.style.fontSize = value), size)
+        await page.evaluate((value) => {
+          document.documentElement.style.fontSize = value
+          document.body.style.fontFamily = value === "200%" ? "DejaVu Sans, sans-serif" : ""
+        }, size)
         const switcher = page.getByRole("button", { name: "Output", exact: true })
         if (await switcher.isVisible()) await switcher.click()
         for (const view of ["Grid", "Page"]) {

@@ -49,11 +49,19 @@ test(
                 .map((button) => {
                   const { x, y, width: buttonWidth, height } = button.getBoundingClientRect()
                   const icon = button.querySelector("svg")
-                  const glyph = icon.getBBox()
-                  const center = new DOMPoint(glyph.x + glyph.width / 2, glyph.y + glyph.height / 2).matrixTransform(
-                    icon.getScreenCTM(),
-                  )
-                  return { x, y, width: buttonWidth, height, iconOffset: center.y - y - height / 2 }
+                  const glyph = icon?.getBBox()
+                  const center =
+                    glyph &&
+                    new DOMPoint(glyph.x + glyph.width / 2, glyph.y + glyph.height / 2).matrixTransform(
+                      icon.getScreenCTM(),
+                    )
+                  return {
+                    x,
+                    y,
+                    width: buttonWidth,
+                    height,
+                    iconOffset: center ? center.y - y - height / 2 : undefined,
+                  }
                 }),
             )
             const label = `${engine.name()}, ${width}, ${size}%, ${colorScheme}, ${selection || "empty"}`
@@ -66,7 +74,8 @@ test(
                 `${label}: equal widths`,
               )
               assert.ok(Math.abs(box.height - bounds[0].height) < 1, `${label}: equal heights`)
-              assert.ok(Math.abs(box.iconOffset) < 1, `${label}: visible icons stay vertically centered`)
+              if (box.iconOffset !== undefined)
+                assert.ok(Math.abs(box.iconOffset) < 1, `${label}: visible icons stay vertically centered`)
               if (index)
                 assert.ok(
                   Math.abs(box.y - bounds[index - 1].y - bounds[index - 1].height - gap) < 1,

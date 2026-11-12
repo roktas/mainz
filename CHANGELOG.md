@@ -130,6 +130,8 @@
 
 ### Fixed
 
+- Retain keyboard ownership when Grid or List virtual rows are replaced during large scroll jumps, and keep enlarged
+  insertion menu labels readable with wider system fonts.
 - Keep enlarged Output insertion labels within their menu, preserve Page label space, and return focus to Page tabs on
   Escape with an empty selection. Hide scroll endpoints when document scrolling is clipped.
 - Align Grid, List, Page, and Style content below compact selection hints; keep individual Style fields at full width.

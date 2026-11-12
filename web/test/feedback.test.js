@@ -173,6 +173,7 @@ test("Header messages fit representative Apple touch layouts", { timeout: 90000 
         await page.goto(`${server.resolvedUrls.local[0]}?demo=recipe-review`)
         const feedback = page.locator(".header-feedback > .feedback")
         await feedback.waitFor()
+        await feedback.getByRole("button", { name: "Review PDF", exact: true }).waitFor()
         assert.equal(await feedback.count(), 1)
         await bounds(page, feedback)
         const review = page.locator(".binding-check:popover-open")

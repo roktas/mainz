@@ -125,6 +125,7 @@
       gap: var(--gap);
       & button {
         justify-content: start;
+        font-weight: 400;
         padding-inline: 0.25em;
         gap: 0.25em;
         & svg {

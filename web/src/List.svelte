@@ -252,17 +252,22 @@
     saved.offset = row ? row.getBoundingClientRect().top - list.getBoundingClientRect().top : undefined
   }
   function scrolling(element: HTMLElement) {
+    const focused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement.closest<HTMLElement>(".list-row, .list-section")
+        : undefined
+    const owned = !!focused && element.contains(focused)
     const top = element.scrollTop
     flushSync(() => {
       scroll = top
       remember()
     })
     element.scrollTop = top
-    const focused =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement.closest<HTMLElement>(".list-row, .list-section")
-        : undefined
-    if (!focused || !element.contains(focused)) return
+    if (!owned || !focused) return
+    if (!element.contains(focused)) {
+      element.focus({ preventScroll: true })
+      return
+    }
     const bounds = focused.getBoundingClientRect(),
       frame = element.getBoundingClientRect()
     if (bounds.bottom <= frame.top || bounds.top >= frame.bottom) element.focus({ preventScroll: true })
