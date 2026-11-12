@@ -2161,11 +2161,11 @@ test("Landscape scroll endpoints follow real panel edges without overlapping doc
       await tab(output, "List")
       await output.getByRole("button", { name: "Unfold all Output sections", exact: true }).click()
       const controls = output.getByRole("group", { name: "Output List scroll controls", exact: true })
-      await controls.waitFor()
+      await controls.waitFor({ state: "hidden" })
       assert.equal(
-        await controls.getByRole("button", { name: /to end$/, includeHidden: true }).isVisible(),
-        false,
-        "An offscreen panel end must not be pinned to the viewport bottom",
+        await page.getByRole("group", { name: "Document scroll controls", exact: true }).count(),
+        0,
+        "Mobile overlay scrollbars do not acquire a synthetic document rail",
       )
       for (const fraction of [0, 0.5, 1]) {
         await page.evaluate(

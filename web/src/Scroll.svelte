@@ -86,6 +86,8 @@
           }
           if (parent.matches(":popover-open, :modal")) break
         }
+        // A clipped panel has no complete scrollbar rail to own these supplementary controls.
+        if (top > box.top + 1 || bottom < box.bottom - 1) continue
         if (bottom - top < 88 || box.right < 24 || box.right > innerWidth + 1) continue
         const pane = element.closest(".selection-panel")
           ? "Input"
@@ -102,10 +104,14 @@
               "Panel"
         const style = getComputedStyle(element)
         const scrollbar =
-          element.offsetWidth -
-          element.clientWidth -
-          parseFloat(style.borderInlineStartWidth) -
-          parseFloat(style.borderInlineEndWidth)
+          element === root
+            ? innerWidth - root.clientWidth
+            : element.offsetWidth -
+              element.clientWidth -
+              parseFloat(style.borderInlineStartWidth) -
+              parseFloat(style.borderInlineEndWidth)
+        // Overlay document scrollbars have no persistent gutter for an extra control rail.
+        if (element === root && scrollbar <= 0) continue
         next.push({
           element,
           name,

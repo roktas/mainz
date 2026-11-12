@@ -143,8 +143,8 @@
 
 ### Fixed
 
-- Clipped inner scroll areas show only their visible endpoint controls and avoid overlapping document controls on short
-  landscape screens.
+- Scroll endpoint controls require complete visible panel rails and persistent document scrollbar gutters, avoiding
+  stray markers on mobile landscape screens.
 
 - List titles reclaim the individual editing-action slots while Selection delegates edits to its selection bar.
 
