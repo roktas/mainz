@@ -531,6 +531,14 @@
       min-inline-size: 28px;
       inline-size: clamp(28px, 6vi, 44px);
     }
+    @container composer (width <= 55em) {
+      .page-navigation :is(.occurrence-actions, .occurrence-moves, .occurrence-copies) {
+        gap: clamp(0px, calc((100cqi - 280px) / 4), 16px);
+      }
+      .page-navigation .occurrence-actions button {
+        inline-size: clamp(28px, calc((100cqi - 140px) / 4), 44px);
+      }
+    }
     .page-navigation .occurrence-actions svg {
       inline-size: 20px;
       block-size: 20px;

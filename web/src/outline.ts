@@ -3,7 +3,12 @@
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { Input } from "./model.ts"
 
-export type SectionPath = { path: readonly string[]; keys: readonly string[]; starts?: readonly boolean[] }
+export type SectionPath = {
+  path: readonly string[]
+  keys: readonly string[]
+  starts?: readonly boolean[]
+  synthetic?: boolean
+}
 export type Outline = SectionPath & { title: string; depth: number; page: number; end: number }
 
 export async function readOutline(
@@ -67,6 +72,41 @@ export async function readOutline(
     }
     open.push(entry)
   }
+  return result
+}
+
+// Only uncovered edge ranges qualify; bookmark targets do not reveal a final chapter's end.
+export function frameOutline(outline: readonly Outline[], pages: readonly { name?: string }[]): Outline[] {
+  if (!outline.length) return []
+  let first = pages.length
+  let last = -1
+  for (const entry of outline) {
+    first = Math.min(first, entry.page)
+    last = Math.max(last, entry.end)
+  }
+  const start = /^(cover|front|first)$/i.test(pages[0]?.name?.trim() ?? "") ? 1 : 0
+  const end = pages.length - (/^(cover|back|last)$/i.test(pages.at(-1)?.name?.trim() ?? "") ? 2 : 1)
+  const result = [...outline]
+  if (start < first)
+    result.unshift({
+      title: "Prelude",
+      path: ["Prelude"],
+      keys: ["prelude"],
+      depth: 0,
+      page: start,
+      end: first - 1,
+      synthetic: true,
+    })
+  if (last < end)
+    result.push({
+      title: "Postlude",
+      path: ["Postlude"],
+      keys: ["postlude"],
+      depth: 0,
+      page: last + 1,
+      end,
+      synthetic: true,
+    })
   return result
 }
 

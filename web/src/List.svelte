@@ -487,6 +487,7 @@
       {@const entry = sections.nodes.get(-index - 1)!}
       <li
         class="list-section"
+        data-synthetic={entry.synthetic || undefined}
         class:output-section={pane === "Output"}
         style:--section-depth={entry.path.length - 1}
         class:selected={collapsed.has(entry.key) && selected?.(entry.start, entry.end)}

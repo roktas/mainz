@@ -5,7 +5,7 @@ import { maxInputBytes, maxPages, titleError, uid } from "./model.ts"
 import type { Input, Size } from "./model.ts"
 import type { Description } from "./styles.ts"
 import { Processor } from "./processor.ts"
-import { readOutline } from "./outline.ts"
+import { frameOutline, readOutline } from "./outline.ts"
 
 const assets = new URL(`${import.meta.env.BASE_URL}pdfjs/`, location.href).href
 let renderer: Promise<typeof import("pdfjs-dist")> | undefined
@@ -99,7 +99,12 @@ export class Opening {
         })(),
       ])
       if (!opened || this.#cancelled) throw new DOMException("Opening cancelled.", "AbortError")
-      return (this.#input = { ...opened, description: result.description, reference: result.reference })
+      return (this.#input = {
+        ...opened,
+        description: result.description,
+        reference: result.reference,
+        outline: frameOutline(opened.outline ?? [], result.description.pages),
+      })
     } catch (error) {
       this.dispose()
       throw error

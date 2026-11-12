@@ -308,9 +308,10 @@ Output offers Grid, List, and Page. Grid and List are the two direct Pages views
 accessible name. Each Input and Output retains its selected Pages layout. Focus stays on the selected tab after
 activation.
 
-Toolbars at or below 26 em use icon-only tabs. Wider panes show text. Keep at least 12 CSS px between adjacent tab
-contents when labels are visible. Tabs and Style tools must not wrap or overlap. Keep their height consistent across
-views so that the pane content frame does not move.
+Toolbars at or below 26 em use icon-only tabs. Wider panes show text. Icon-only tabs retain visible gaps when space
+permits; the smallest layouts reduce those gaps before scrolling. Keep at least 12 CSS px between adjacent tab contents
+when labels are visible. Tabs and Style tools must not wrap or overlap. Keep their height consistent across views so
+that the pane content frame does not move.
 
 Center the changed-Style dot above the tab's visible surface, including icon-only tabs. Use a 4 px dot with its center 6
 px above that surface. In single-pane layouts with labeled tabs, lower the toolbar slightly and center the dot in the
@@ -583,6 +584,9 @@ A partial final row preserves the same card widths, positions, and gaps. Grid co
 columns and row strides. Card count changes the scroll height, not card geometry. The stable scrollbar gutter must not
 reduce the thumbnail's measured width. The Grid's internal layout remains independent of Page's reference fitting.
 
+Virtual Prelude and Postlude section titles use italic small caps in List headings, section navigation, and Contents.
+Authored headings with the same names retain their ordinary presentation.
+
 ### Page alignment and controls
 
 Page headings and navigation stay outside the image viewport. The frame provides the alignment reference for both rows.
@@ -592,7 +596,9 @@ earlier, Move later, Remove, and Duplicate in that order. Zoom reset uses the en
 least 8 CSS px inside the folded corner's inner edge. Center the complete action group on the frame's true centerline.
 
 At ordinary widths, Output footer actions use the same 44 px button width and 20 px icon size as Input Add, with visible
-gaps between actions. Narrow panes can contract the button widths to 28 px while retaining full interaction targets.
+gaps between actions. Single-pane layouts use the available frame width for wider buttons and equal gaps while keeping
+the complete action group centered. Narrow panes can contract the button widths to 28 px while retaining full
+interaction targets.
 
 Page headers and footers occupy one row. Never wrap controls, counters, or text into another row. If controls do not
 fit, put excess Page actions in the existing page-actions menu. Targets remain at least 44 CSS px high and stay within

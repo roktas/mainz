@@ -219,7 +219,7 @@
           inset-block-start: calc(anchor(top) + (anchor-size(block) - var(--tab-icon-size) - 8px) / 2 - 8px);
         }
         .editing-toolbar > .tabs {
-          gap: 0;
+          gap: clamp(0px, calc((100cqi - 320px) / 4), 12px);
           margin-inline-start: calc(-2 * var(--tab-inset) - 6px);
           & > button {
             & > svg {

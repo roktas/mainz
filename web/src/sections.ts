@@ -10,6 +10,7 @@ export type Section = {
   end: number
   path: readonly string[]
   parent?: Section
+  synthetic?: boolean
   children: Section[]
 }
 
@@ -24,7 +25,7 @@ export function sectionsOf(
   if (!headings) return { roots, nodes }
   for (let page = 0; page < count; page++) {
     const present = new Set<string>()
-    for (const { path, keys, starts } of headings(page)) {
+    for (const { path, keys, starts, synthetic } of headings(page)) {
       let siblings = roots
       let parent: Section | undefined
       for (let depth = 0; depth < path.length; depth++) {
@@ -56,6 +57,7 @@ export function sectionsOf(
             start: page,
             end: page + 1,
             path: path.slice(0, depth + 1),
+            synthetic: synthetic && depth === path.length - 1,
             parent,
             children: [],
           }

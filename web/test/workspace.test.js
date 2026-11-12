@@ -4155,3 +4155,43 @@ test("Input chooser file details stay within single-pane layouts", { timeout: 60
     }
   }
 })
+
+test("Lorem keeps Cover floating and shares its virtual Prelude through Contents and Output", async () => {
+  const server = await serve()
+  for (const engine of engines) {
+    const browser = await launch(engine)
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 810, height: 1080 },
+        hasTouch: true,
+        isMobile: true,
+        reducedMotion: "reduce",
+      })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=toc`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const input = page.locator(".selection-panel")
+      await tab(input, "List")
+      const prelude = input.locator(".list-section[data-synthetic] .list-current").filter({ hasText: "Prelude" })
+      await prelude.waitFor()
+      assert.equal(await prelude.evaluate((el) => getComputedStyle(el).fontStyle), "italic")
+      assert.equal(await prelude.evaluate((el) => getComputedStyle(el).fontVariantCaps), "all-small-caps")
+      assert.equal(await input.getByRole("button", { name: "Select Input page 1: Cover", exact: true }).count(), 1)
+      await input.getByRole("button", { name: "Input contents", exact: true }).click()
+      const contents = input.locator(".contents:popover-open")
+      const destination = contents.locator(".destination").filter({ hasText: "Prelude" })
+      assert.equal(await destination.locator(".positions").textContent(), "2")
+      assert.equal(await destination.locator(".synthetic").count(), 1)
+      await destination.click()
+      await input.getByLabel("Page selection", { exact: true }).fill("1-4")
+      await input.getByLabel("Page selection", { exact: true }).press("Enter")
+      const output = page.locator(".composition-output")
+      await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).click()
+      await tab(output, "List")
+      await output.locator(".list-section[data-synthetic] .list-current").filter({ hasText: "Prelude" }).waitFor()
+      await page.close()
+    } finally {
+      await browser.close()
+    }
+  }
+})

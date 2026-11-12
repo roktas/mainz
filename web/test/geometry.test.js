@@ -1,6 +1,6 @@
 // Checks Page frames, headings, and controls across viewports.
 
-import { launch } from "./browsers.js"
+import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { serve } from "./server.ts"
@@ -882,5 +882,60 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
     }
   } finally {
     await browser?.close()
+  }
+})
+
+test("Compact Page actions and icon tabs use available space without losing their centers", async () => {
+  const server = await serve()
+  for (const engine of engines) {
+    const browser = await launch(engine)
+    try {
+      const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const output = page.locator(".composition-output")
+      for (const [width, text, theme] of [
+        [320, "100%", "light"],
+        [390, "100%", "dark"],
+        [428, "100%", "light"],
+        [744, "100%", "dark"],
+        [810, "100%", "light"],
+        [390, "200%", "dark"],
+      ]) {
+        await page.setViewportSize({ width, height: 1080 })
+        await page.emulateMedia({ colorScheme: theme })
+        await page.evaluate((size) => (document.documentElement.style.fontSize = size), text)
+        await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).click()
+        await tab(output, "Page")
+        await aligned(output)
+        const geometry = await output.locator(".page-navigation").evaluate((nav) => {
+          const actions = nav.querySelector(".occurrence-actions").getBoundingClientRect()
+          const buttons = [...nav.querySelectorAll(".occurrence-actions button")].map((el) =>
+            el.getBoundingClientRect(),
+          )
+          const previous = nav.querySelector('[data-step="-1"]').getBoundingClientRect()
+          const next = nav.querySelector('[data-step="1"]').getBoundingClientRect()
+          return {
+            gaps: buttons.slice(1).map((box, i) => box.left - buttons[i].right),
+            separate: previous.right <= actions.left && actions.right <= next.left,
+          }
+        })
+        assert.ok(geometry.separate, JSON.stringify({ width, text, geometry }))
+        if (width >= 390 && text === "100%")
+          assert.ok(
+            geometry.gaps.every((gap) => gap >= 12),
+            JSON.stringify(geometry),
+          )
+        if (width === 428) {
+          const tabs = await output
+            .locator(".tabs > button")
+            .evaluateAll((buttons) => buttons.map((el) => el.getBoundingClientRect().x))
+          assert.ok(tabs[1] - tabs[0] >= 52 && tabs[2] - tabs[1] >= 52, JSON.stringify(tabs))
+        }
+      }
+    } finally {
+      await browser.close()
+    }
   }
 })

@@ -556,6 +556,7 @@
           path: [...path, ...heading.path],
           keys: [...keys, ...heading.keys.map((node) => `${content.source}:${node}`)],
           starts: [...rootStart, ...heading.keys.map((node) => starts.get(node) === content.page)],
+          synthetic: heading.synthetic,
         }))
       : path.length
         ? [{ path, keys, starts: rootStart }]
@@ -1200,7 +1201,7 @@
               ><span class="path-level" aria-hidden="true">{depth + 1}</span><span
                 class="path-page"
                 aria-label={`Physical page ${physical}`}>{physical}</span
-              ><span>{node.path.at(-1)}</span></button
+              ><span class:synthetic={node.synthetic}>{node.path.at(-1)}</span></button
             >
           </li>
         {/each}

@@ -103,7 +103,18 @@ occurrences.
 To refresh the fixture from the Library original, make the original available at `.local/tmp/web/lorem.pdf` and run:
 
 ```sh
-python -c 'import fitz; pdf = fitz.open(".local/tmp/web/lorem.pdf"); pdf.save("web/test/fixtures/toc/lorem.pdf", garbage=4, deflate=True, clean=True)'
+python - <<'PY'
+import fitz
+import json
+
+pdf = fitz.open(".local/tmp/web/lorem.pdf")
+manifest = {"version": 1, "pages": [{"name": "Cover"}] + [{} for _ in range(len(pdf) - 1)],
+            "regions": {}, "baselines": {}, "targets": {}, "parameters": {}}
+if "mainz.json" in pdf.embfile_names():
+    pdf.embfile_del("mainz.json")
+pdf.embfile_add("mainz.json", json.dumps(manifest).encode(), filename="mainz.json", ufilename="mainz.json")
+pdf.save("web/test/fixtures/toc/lorem.pdf", garbage=4, deflate=True, clean=True)
+PY
 ```
 
 [`toc/bridge.pdf`](toc/bridge.pdf) contains Ambrose Bierce's complete _An Occurrence at Owl Creek Bridge_ (1890), with
@@ -111,10 +122,11 @@ its three original sections, in 13 pages. The text comes from
 [Project Gutenberg #375](https://www.gutenberg.org/ebooks/375), which lists the work as public domain in the USA. The
 reading PDF omits Gutenberg branding and license boilerplate.
 
-Both PDFs include printed contents, linked PDF outlines, and standard document metadata. Neither adds authored page
-names. Each PDF is smaller than the 2 MiB demo budget. [`toc/sources.json`](toc/sources.json) retains the Bierce text,
-source URLs, and source hashes. Source attribution remains in each PDF. New layout contributions to the Bierce PDF are
-dedicated to the public domain under CC0-1.0.
+Both PDFs include printed contents, linked PDF outlines, and standard document metadata. The Lorem fixture names its
+first page Cover through a metadata-only Mainz manifest; the Bierce fixture has no authored page names. Each PDF is
+smaller than the 2 MiB demo budget. [`toc/sources.json`](toc/sources.json) retains the Bierce text, source URLs, and
+source hashes. Source attribution remains in each PDF. New layout contributions to the Bierce PDF are dedicated to the
+public domain under CC0-1.0.
 
 Run the deterministic Bierce builder from the repository root:
 

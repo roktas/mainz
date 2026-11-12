@@ -123,7 +123,8 @@
             class:current={item.page <= position && item.end >= position}
             aria-current={item.key === current ? "location" : undefined}
             onclick={() => jump(item.page)}
-            ><span>{item.title}</span><span class="positions">{item.page + 1}</span></button
+            ><span class:synthetic={item.synthetic}>{item.title}</span><span class="positions">{item.page + 1}</span
+            ></button
           >
         </div>
         {#if item.children.length && !collapsed.has(item.key)}{@render tree(item.children)}{/if}
@@ -286,6 +287,11 @@
   .destination.current {
     border-inline-start-color: var(--accent);
     color: var(--accent);
+  }
+  .synthetic {
+    font-style: italic;
+    font-variant-caps: all-small-caps;
+    font-synthesis: small-caps;
   }
   .positions {
     color: var(--muted);

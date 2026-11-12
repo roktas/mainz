@@ -4,6 +4,9 @@
 
 ### Added
 
+- Virtual Prelude and Postlude groups for uncovered TOC edge pages, with named cover exceptions and italic small-cap
+  headings in List and Contents. The Lorem sample names its first page Cover.
+
 - Alt/Option shortcuts for Grid, List, Page, and the previous pane view, plus a clear upgrade message on unsupported
   browsers.
 - Independent Input and Output view selectors in Keyboard help, with task groups, side-by-side desktop guidance, stacked
@@ -137,6 +140,8 @@
 - Compact mobile Output actions, with a square Download icon button and totals beside the icons.
 
 ### Fixed
+
+- Wider spacing for compact Output Page actions and icon-only view tabs when room permits.
 
 - Page navigation arrow tips align with the header controls, and labeled single-pane tabs leave more room around the
   changed-Style indicator.

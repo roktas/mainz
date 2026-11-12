@@ -3,7 +3,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import type { PDFDocumentProxy } from "pdfjs-dist"
-import { readOutline, sectionsAt, titlesOf } from "../src/outline.ts"
+import { frameOutline, readOutline, sectionsAt, titlesOf } from "../src/outline.ts"
 import type { Outline } from "../src/outline.ts"
 
 type Node = NonNullable<Awaited<ReturnType<PDFDocumentProxy["getOutline"]>>>[number]
@@ -253,4 +253,50 @@ test("Outline traversal bounds nodes and depth and cancels awaited targets", asy
     )
     assert.deepEqual(outline, [])
   }
+})
+
+test("Virtual edge sections preserve covers, genuine headings, and internal gaps", () => {
+  const chapter: Outline = { title: "Prelude", path: ["Prelude"], keys: ["1"], depth: 0, page: 3, end: 5 }
+  const pages: { name?: string }[] = Array.from({ length: 9 }, () => ({}))
+  for (const first of ["Cover", " FRONT ", "first"])
+    for (const last of ["cover", " Back ", "LAST"]) {
+      const result = frameOutline([chapter], [{ name: first }, ...pages.slice(1, -1), { name: last }])
+      assert.deepEqual(
+        result.map(({ title, page, end, synthetic }) => [title, page, end, !!synthetic]),
+        [
+          ["Prelude", 1, 2, true],
+          ["Prelude", 3, 5, false],
+          ["Postlude", 6, 7, true],
+        ],
+      )
+      assert.notEqual(result[0].keys[0], result[1].keys[0])
+      assert.deepEqual(sectionsAt(result, 0), [])
+      assert.deepEqual(sectionsAt(result, 8), [])
+    }
+  const result = frameOutline([chapter], pages)
+  assert.deepEqual([result[0].page, result.at(-1)!.end], [0, 8])
+  assert.deepEqual(frameOutline([], pages), [])
+  assert.deepEqual(frameOutline([{ ...chapter, page: 0, end: 8 }], pages), [{ ...chapter, page: 0, end: 8 }])
+  const withGap = frameOutline(
+    [
+      { ...chapter, page: 1, end: 2 },
+      { ...chapter, keys: ["2"], page: 5, end: 8 },
+    ],
+    pages,
+  )
+  assert.deepEqual(sectionsAt(withGap, 3), [])
+  assert.equal(frameOutline([chapter], [{ name: "Cover story" }, ...pages.slice(1)])[0].page, 0)
+})
+
+test("Inferred last sections retain their full coverage without inventing a Postlude", async () => {
+  const original = await readOutline(pdf([node("Chapter", 3)], 8))
+  const outline = frameOutline(
+    original,
+    Array.from({ length: 8 }, () => ({})),
+  )
+  assert.deepEqual(
+    outline.map((entry) => entry.title),
+    ["Prelude", "Chapter"],
+  )
+  assert.equal(outline.at(-1)!.end, 7)
 })

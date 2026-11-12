@@ -130,6 +130,14 @@ attach them to unrelated sections. Input List navigation shows all matching path
 without changing selection. These titles never enter the Description, Recipe matching, or generated page-name metadata.
 Output resolves titles through each occurrence's original Input page.
 
+For Inputs with a usable outline, uncovered leading pages form a virtual Prelude section and uncovered trailing pages
+form a virtual Postlude section. Only the edge ranges qualify; internal gaps remain unchanged. The first physical page
+stays outside Prelude when its authored name is Cover, Front, or First. The last stays outside Postlude when its
+authored name is Cover, Back, or Last. These exact matches ignore case and surrounding whitespace. Empty sections are
+omitted. Existing section ranges remain unchanged: bookmark starts alone do not establish a final chapter's end. Virtual
+sections appear in Contents and share Grid/List grouping through each original Input page, including Output occurrences.
+They do not enter the PDF outline, Description, Recipe, or generated metadata.
+
 Contents offers Use TOC titles only when at least one authored page name differs from its matching section title. It is
 off by default. This per-Input preference reverses the display priority to section title, authored name, then `Page N`.
 The preference changes page display titles independently of the section hierarchy. It applies to that Input and its
