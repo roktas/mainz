@@ -420,10 +420,11 @@ text toggles only its starting page; selected descendants remain selected. Shift
 selection. Grid page images use the same rules. Clicking a section ribbon alone folds or unfolds it without changing
 selection. The Input heading carries the normal single-page Add and eye actions. Output headings and ordinary Output
 rows carry the same horizontal sequence: Move earlier, Move later, Remove, Duplicate, then eye. The four editing actions
-stay visible, including on touch and narrow panes; page names truncate to preserve the controls. The eye opens Page with
-the same inspection and return semantics as the normal List eye. Dragging either List or Grid ribbon selects the
-complete section group for transfer and shows a page stack. Pressing without movement does not transfer or fold; release
-and cancellation restore the original ribbon.
+stay visible, including on touch and narrow panes; page names truncate to preserve the controls. When Selection moves
+editing to the selection bar, the empty row action groups release their column space to page names and section titles;
+only the eye slot remains. The eye opens Page with the same inspection and return semantics as the normal List eye.
+Dragging either List or Grid ribbon selects the complete section group for transfer and shows a page stack. Pressing
+without movement does not transfer or fold; release and cancellation restore the original ribbon.
 
 List action slots contract from 44 px to 32 px with the available pane width, retaining 44 px touch target height. The
 grip, page number, and action columns share those dimensions so phone layouts retain readable title space. All List

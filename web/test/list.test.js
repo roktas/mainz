@@ -3423,6 +3423,25 @@ test("Compact List columns preserve title space independently of Page action spa
             JSON.stringify(geometry),
           )
         if (width >= 393) assert.ok(geometry.title >= 100, JSON.stringify({ width, geometry }))
+        if (width === 393) {
+          const selection = output.getByLabel("Page selection", { exact: true })
+          await selection.fill("2")
+          const selected = await output
+            .locator(".list-section")
+            .first()
+            .evaluate((row) => ({
+              title: row.querySelector(".list-heading").getBoundingClientRect().width,
+              actions: row.querySelector(".list-actions").getBoundingClientRect().width,
+            }))
+          assert.ok(selected.title >= geometry.title + 100, JSON.stringify({ geometry, selected }))
+          assert.equal(selected.actions, 32, "Selection leaves only the Page inspection slot")
+          await selection.fill("")
+          const restored = await output.locator(".list-section").first().locator(".list-heading").boundingBox()
+          assert.ok(
+            Math.abs(restored.width - geometry.title) < 1,
+            "Clearing Selection restores individual action space",
+          )
+        }
         if (width === 428) {
           await tab(output, "Page")
           assert.equal(

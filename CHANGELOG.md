@@ -141,6 +141,8 @@
 
 ### Fixed
 
+- List titles reclaim the individual editing-action slots while Selection delegates edits to its selection bar.
+
 - Compact List identity and action columns respond to their available width, preserving title space and 44 px target
   height independently of Page footer spacing.
 

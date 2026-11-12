@@ -411,6 +411,9 @@
         column-gap: 6px;
         margin: 0;
         border: 0;
+        &:empty {
+          display: none;
+        }
       }
       & :is(.occurrence-moves, .occurrence-copies) {
         display: grid;
@@ -514,6 +517,10 @@
       &.output-section {
         --section-actions: 5;
         --section-actions-gap: 6px;
+      }
+      &.output-section:has(> .list-actions > .occurrence-actions:empty) {
+        --section-actions: 1;
+        --section-actions-gap: 0px;
       }
       --section-surface: color-mix(in oklch, var(--secondary) calc(min(var(--section-depth), 3) * 8%), var(--soft));
       color: inherit;
