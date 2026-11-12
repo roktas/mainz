@@ -409,7 +409,8 @@
       grid-template-columns: 44px minmax(0, 1fr) auto minmax(0, 1fr) 44px;
       grid-template-rows: minmax(0, 1fr);
       align-items: center;
-      padding-inline: var(--controls-inset);
+      /* Chevron tips sit 19.5 px inside their 44 px targets. */
+      padding-inline: calc(var(--controls-inset) - 19.5px);
       border-block-start: 1px solid var(--border);
       & > button {
         padding-inline: 0;

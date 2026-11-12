@@ -1043,6 +1043,7 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
       [430, "100%", "light"],
       [640, "100%", "dark"],
       [768, "100%", "light"],
+      [810, "100%", "dark"],
       [1280, "100%", "dark"],
       [320, "200%", "dark"],
       [375, "200%", "light"],
@@ -1167,7 +1168,18 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
                 const bounds = button.getBoundingClientRect(),
                   surface = getComputedStyle(button, "::before"),
                   dot = toolbar.querySelector(".edit-dot").getBoundingClientRect()
+                const bar = document.querySelector(".workspace-bar")
+                const spaced =
+                  bar.checkVisibility() &&
+                  toolbar.getBoundingClientRect().width >
+                    26 * parseFloat(getComputedStyle(document.documentElement).fontSize)
                 return {
+                  gap: spaced ? bounds.top + parseFloat(surface.top) - bar.getBoundingClientRect().bottom : 0,
+                  centered: spaced
+                    ? dot.y +
+                      dot.height / 2 -
+                      (bar.getBoundingClientRect().bottom + bounds.top + parseFloat(surface.top)) / 2
+                    : 0,
                   width: dot.width,
                   height: dot.height,
                   x: dot.x + dot.width / 2 - bounds.x - parseFloat(surface.left) - parseFloat(surface.width) / 2,
@@ -1177,9 +1189,11 @@ test("Workspace tools stay on one row without moving the view tabs", async () =>
                     bounds.top -
                     parseFloat(surface.top) +
                     (surface.translate === "none" ? 0 : parseFloat(surface.height) / 2) +
-                    6,
+                    (spaced ? 10 : 6),
                 }
               })
+              assert.ok(marker.gap === 0 || marker.gap >= 20, `${label}: marker has vertical breathing room`)
+              assert.ok(Math.abs(marker.centered) < 1, `${label}: marker stays centered between panel and tab`)
               assert.ok(
                 marker.width === 4 && marker.height === 4 && Math.abs(marker.x) < 1 && Math.abs(marker.y) < 1,
                 `${label}: ${JSON.stringify(marker)}`,

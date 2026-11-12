@@ -201,6 +201,14 @@
         }
       }
     }
+    @container composer (26em < width <= 55em) {
+      .editing-toolbar {
+        padding-block-start: 8px;
+        & > .edit-dot {
+          inset-block-start: calc(anchor(top) - 8px);
+        }
+      }
+    }
     @container composer (width <= 55em) {
       .editing-toolbar > .tabs {
         gap: clamp(6px, 1.5cqi, 12px);

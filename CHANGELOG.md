@@ -138,6 +138,8 @@
 
 ### Fixed
 
+- Page navigation arrow tips align with the header controls, and labeled single-pane tabs leave more room around the
+  changed-Style indicator.
 - Keep the touch lens centered on the latest finger position during a hold, and route List paging and Grid endpoints
   through the targeted pane.
 - Retain keyboard ownership when Grid or List virtual rows are replaced during large scroll jumps, and keep enlarged

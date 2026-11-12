@@ -37,8 +37,9 @@ export async function aligned(pane) {
     const current = heading.querySelector(".page-current").getBoundingClientRect()
     const previousControl = navigation.querySelector('[data-step="-1"]').getBoundingClientRect()
     const nextControl = navigation.querySelector('[data-step="1"]').getBoundingClientRect()
-    const previous = navigation.querySelector('[data-step="-1"] svg').getBoundingClientRect()
-    const next = navigation.querySelector('[data-step="1"] svg').getBoundingClientRect()
+    // Measure the painted paths; SVG boxes include empty space around the chevrons.
+    const previous = navigation.querySelector('[data-step="-1"] svg path').getBoundingClientRect()
+    const next = navigation.querySelector('[data-step="1"] svg path').getBoundingClientRect()
     const frame = heading.getBoundingClientRect()
     const grip = handle?.checkVisibility() ? handle.getBoundingClientRect() : undefined
     const actions = navigation.querySelector(".page-actions")?.getBoundingClientRect()
@@ -50,8 +51,12 @@ export async function aligned(pane) {
       .map((el) => el.getBoundingClientRect())
     const edges =
       Math.abs(current.left - frame.left - 32) < 1 &&
-      Math.abs(previousControl.left - frame.left - 32) < 1 &&
-      Math.abs(frame.right - nextControl.right - 32) < 1 &&
+      Math.abs(previous.left - current.left) < 1 &&
+      Math.abs(frame.right - next.right - 32) < 1 &&
+      previousControl.width >= 44 &&
+      nextControl.width >= 44 &&
+      previousControl.left >= frame.left &&
+      nextControl.right <= frame.right &&
       previousGap >= -1 &&
       Math.abs(previousGap - nextGap) < 1 &&
       (!fit || Math.abs(fit.getBoundingClientRect().right - frame.right + 32) < 1)

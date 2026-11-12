@@ -313,9 +313,11 @@ contents when labels are visible. Tabs and Style tools must not wrap or overlap.
 views so that the pane content frame does not move.
 
 Center the changed-Style dot above the tab's visible surface, including icon-only tabs. Use a 4 px dot with its center 6
-px above that surface. Grid cards, List strips, the Page frame, and the Style profile divider share one content-start
-line below their field and hint. Retain the same field-to-hint spacing and body text metrics in every view. The content
-uses a compact 6 px inset within the shared hint-to-content spacing.
+px above that surface. In single-pane layouts with labeled tabs, lower the toolbar slightly and center the dot in the
+larger gap between the panel switcher and the tab surface. Icon-only toolbars retain their compact spacing. Grid cards,
+List strips, the Page frame, and the Style profile divider share one content-start line below their field and hint.
+Retain the same field-to-hint spacing and body text metrics in every view. The content uses a compact 6 px inset within
+the shared hint-to-content spacing.
 
 Go to page sits at the end of the Pages/Page toolbar. Its icon opens a compact panel centered below the trigger within
 the viewport gutters. Physical page entry uses a four-character-wide numeric-keyboard field. When page labels exist,
@@ -584,10 +586,10 @@ reduce the thumbnail's measured width. The Grid's internal layout remains indepe
 ### Page alignment and controls
 
 Page headings and navigation stay outside the image viewport. The frame provides the alignment reference for both rows.
-Page Label follows the counter in the heading; previous and next controls use the footer edges. The center of the footer
-uses Input Add or Output Move earlier, Move later, Remove, and Duplicate in that order. Zoom reset uses the end edge.
-Keep visible control content at least 8 CSS px inside the folded corner's inner edge. Center the complete action group
-on the frame's true centerline.
+Page Label follows the counter in the heading. The previous arrow's visible tip shares the counter's leading edge; the
+next arrow's visible tip shares the zoom reset's trailing edge. The center of the footer uses Input Add or Output Move
+earlier, Move later, Remove, and Duplicate in that order. Zoom reset uses the end edge. Keep visible control content at
+least 8 CSS px inside the folded corner's inner edge. Center the complete action group on the frame's true centerline.
 
 At ordinary widths, Output footer actions use the same 44 px button width and 20 px icon size as Input Add, with visible
 gaps between actions. Narrow panes can contract the button widths to 28 px while retaining full interaction targets.
