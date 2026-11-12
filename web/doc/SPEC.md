@@ -903,17 +903,18 @@ remember dismissal locally. No document information is stored. `?reset` clears o
 once, and preserves other query values and the fragment. The next successful opening shows the welcome. The installed
 offline application supports the same entrypoint. It adds no visible Settings control.
 
-Help remains available on the landing page and in the workspace on all platforms. The landing shows App help. An open
-workspace adds Keyboard and Mouse for fine-pointer input, and Touch for coarse-pointer input. Hybrid input can expose
-both sets. Keyboard describes the current pane views. Left/right, Home, and End switch available topics and move focus.
-Dismissal restores prior focus. Start Tour appears only with a workspace. Settings appears with an open Input and offers
-lens magnification, software version, Build ID, and the repository link. Escape, close, or outside click dismisses
-Settings and restores focus. Theme choice persists locally with system fallback.
+Help remains available on the landing page and in the workspace on all platforms. The landing explains that opening a
+PDF makes page controls available. An open workspace adds Keyboard and Mouse for fine-pointer input, and Touch for
+coarse-pointer input. Hybrid input can expose both sets. Keyboard describes the current pane views. Left/right, Home,
+and End switch available topics and move focus. Dismissal restores prior focus. Start Tour appears only with a
+workspace. Settings remains available on the landing page and in the workspace. It offers installation help, software
+version, Build ID, and the repository link. An open Input also adds lens magnification. Escape, close, or outside click
+dismisses Settings and restores focus. Theme choice persists locally with system fallback.
 
 App installation help is separate from the welcome and Product tour. The first iPhone or iPad browser visit shows a
 dismissible introduction before a pending welcome. Use browser and Close permit normal PDF work. Standalone launches
-show no recommendation. Desktop startup stays quiet. Help's App topic always offers installation information. Closing
-the first recommendation shows a Notice that points to Help → App. Dismissal never removes that topic.
+show no recommendation. Desktop startup stays quiet. Settings → Install app opens installation guidance. Closing the
+first recommendation shows a Notice that points to that action. Dismissal keeps manual installation help available.
 
 Installation dismissal uses `mainz:installation` independently of `mainz:onboarding`. If storage is unavailable,
 dismissal lasts for the current page. Browser and standalone storage can differ. Installation does not replay the tour.

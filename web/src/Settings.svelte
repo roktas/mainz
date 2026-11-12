@@ -1,4 +1,4 @@
-<!-- Controls lens magnification and shows application details. -->
+<!-- Controls lens magnification, opens installation guidance, and shows application details. -->
 
 <script lang="ts">
   import Icon from "./Icon.svelte"
@@ -7,8 +7,12 @@
   import type { Magnification } from "./Lens.svelte"
   let {
     magnification = $bindable(16),
+    workspace,
+    install,
   }: {
     magnification?: Magnification
+    workspace: boolean
+    install: () => void
   } = $props()
   const index = $derived(magnificationLevels.indexOf(magnification))
   let settingsDialog: HTMLDialogElement
@@ -42,24 +46,30 @@
       ><Icon name="close" /></button
     >
   </div>
-  <fieldset class="magnification">
-    <legend>Lens magnification</legend>
-    <output aria-label="Lens magnification">{magnification}×</output>
-    <button
-      class="icon-button"
-      aria-label="Decrease lens magnification"
-      title="Halve lens magnification"
-      disabled={index === 0}
-      onclick={() => (magnification = magnificationLevels[index - 1]!)}>−</button
-    >
-    <button
-      class="icon-button"
-      aria-label="Increase lens magnification"
-      title="Double lens magnification"
-      disabled={index === magnificationLevels.length - 1}
-      onclick={() => (magnification = magnificationLevels[index + 1]!)}>+</button
-    >
-  </fieldset>
+  {#if workspace}<fieldset class="magnification">
+      <legend>Lens magnification</legend>
+      <output aria-label="Lens magnification">{magnification}×</output>
+      <button
+        class="icon-button"
+        aria-label="Decrease lens magnification"
+        title="Halve lens magnification"
+        disabled={index === 0}
+        onclick={() => (magnification = magnificationLevels[index - 1]!)}>−</button
+      >
+      <button
+        class="icon-button"
+        aria-label="Increase lens magnification"
+        title="Double lens magnification"
+        disabled={index === magnificationLevels.length - 1}
+        onclick={() => (magnification = magnificationLevels[index + 1]!)}>+</button
+      >
+    </fieldset>{/if}
+  <button
+    onclick={() => {
+      settingsDialog.close()
+      install()
+    }}>Install app</button
+  >
   <section class="about" aria-labelledby="about-title">
     <div class="dialog-heading">
       <h3 id="about-title">PDF Composer</h3>

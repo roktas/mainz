@@ -284,9 +284,10 @@ document icon size.
 The header places the Home logo at the start and Help, Settings, and theme controls at the end. It states that
 processing stays on the device. Feedback occupies the center, as defined below. Header actions use all space after the
 logo before wrapping. Help remains visible on coarse-pointer devices and on the landing page. Settings opens a right
-drawer. Lens controls show the magnification beside − and + buttons, aligned like the Page zoom controls. Application
-information sits at the bottom behind a thin separator. Version and Build ID values align to the end and wrap with
-enlarged text. The repository link uses an accessible icon target.
+drawer on the landing page and in the workspace. Install app opens the installation dialog. With an open Input, lens
+controls show the magnification beside − and + buttons, aligned like the Page zoom controls. Application information
+sits at the bottom behind a thin separator. Version and Build ID values align to the end and wrap with enlarged text.
+The repository link uses an accessible icon target.
 
 A single click on the logo opens Home. A double-click replays its existing entry animation. Three or more quick clicks
 open Explore the app as a normal modal dialog on every screen. Use short action labels and plain descriptions of each
@@ -705,19 +706,25 @@ flicker on nested drag events.
 
 ## Onboarding and product tour
 
-Help uses a native modal dialog with contextual topic tabs. App remains available. A workspace adds input-specific
-Keyboard, Mouse, or Touch topics. Start Tour appears beside them only with a workspace and wraps below when space is
-limited. The topic row scrolls horizontally when its tabs do not fit. Available panels determine its size without
-stretching short content to the viewport height. Switching topics does not resize the dialog. Each panel scrolls
-independently, while its heading and navigation stay visible. At normal text size, topics fit desktop viewports from
-1440 × 900 without scrolling. Desktop width is capped at 64rem and touch layouts at 52rem. The dialog leaves at least
-one control gap at viewport edges. Padding uses one gap, with two gaps at the bottom for breathing room. Inactive panels
-retain measurement space without receiving focus.
+Help uses a native modal dialog with contextual topic tabs. The landing shows a short prompt to open a PDF, without
+topic tabs. A workspace adds input-specific Keyboard, Mouse, or Touch topics. Start Tour appears beside them only with a
+workspace and wraps below when space is limited. The topic row scrolls horizontally when its tabs do not fit. Available
+panels determine its size without stretching short content to the viewport height. Switching topics does not resize the
+dialog. Each panel scrolls independently, while its heading and navigation stay visible. At normal text size, topics fit
+desktop viewports from 1440 × 900 without scrolling. Desktop width is capped at 64rem and touch layouts at 52rem. The
+dialog leaves at least one control gap at viewport edges. Padding uses one gap, with two gaps at the bottom for
+breathing room. Inactive panels retain measurement space without receiving focus.
 
-Input and Output shortcut sections align their headings and tables. Selection Field has its own Enter row. Workspace
-keys and routing notes sit below. A secondary-colored reminder explains that shortcuts follow the current pane views.
-Narrow screens stack panes and notes. Keycaps use consistent neutral surfaces, borders, and text size. Named keys have
-enough width for their full labels. Topic selection supplies the panel title without a duplicate heading.
+Keyboard has Input and Output columns, each with its own native Grid, List, or Page selector. Applicable Input also
+offers Style. The columns stack on narrow screens. Their headings identify the selectors without an extra Context label.
+Help initially selects each pane's current view. Changing a help selector leaves the workspace and selection intact.
+Each column shows one interactive view; inactive views retain measurement space so switching does not resize the dialog.
+Each column groups shortcuts by Navigate, Select, and Edit. Shared Help, selection, and cancellation keys repeat where
+relevant in each column. Field actions belong to Edit. Put necessary conditions in the corresponding action row, without
+trailing explanation lists. Style shows its control-navigation keys. Mouse uses an Action/Result table with separate
+rows when the same gesture has different results in Grid and Page. Keycaps use consistent neutral surfaces, borders, and
+text size. Named keys have enough width for their full labels. Topic selection supplies the panel title without a
+duplicate heading.
 
 The welcome is a short native dialog. The product tour is a nonmodal popover with a compact card near the lower-right
 corner. Narrow screens use the available width above the bottom edge. Long content scrolls inside the card while heading
@@ -737,7 +744,8 @@ instruction. [SPEC.md](SPEC.md#help-and-onboarding) owns hint eligibility, dismi
 App installation guidance uses a separate native dialog. Use browser has primary emphasis. The optional native
 installation action has secondary emphasis. The title and visible close icon share a vertical centerline. Narrow layouts
 and enlarged text retain scrolling within the dialog. Installation guidance does not change workspace geometry or Grid
-capacity. [SPEC.md](SPEC.md#help-and-onboarding) owns startup eligibility, dismissal, and access through Help → App.
+capacity. [SPEC.md](SPEC.md#help-and-onboarding) owns startup eligibility, dismissal, and access through Settings →
+Install app.
 
 Landing PDF and Recipe actions share one row with equal widths. On phones, they fill the available content width, with
 inline frame padding capped at 2.5% of the container width. Enlarged text can stack them when space is insufficient.
@@ -1232,7 +1240,7 @@ form. A popover describes content that appears above other content. See the
 
 | English term                      | Turkish equivalent                      | UI element                                                                                |
 | --------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Help button / Help dialog         | Yardım düğmesi / Yardım iletişim kutusu | The ? button and the dialog with App help and input-specific workspace instructions.      |
+| Help button / Help dialog         | Yardım düğmesi / Yardım iletişim kutusu | The ? button and the dialog with input-specific workspace instructions.                   |
 | Shortcut list                     | Kısayol listesi                         | The help lists that pair keys with actions.                                               |
 | Keycap                            | Tuş gösterimi                           | A bordered key representation, such as Ctrl, Enter, or an arrow.                          |
 | Welcome dialog                    | Karşılama iletişim kutusu               | The initial three-step explanation with Take a tour and Skip.                             |

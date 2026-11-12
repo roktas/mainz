@@ -49,7 +49,10 @@ test("Installation guidance stays optional and independent of the product tour",
           await installation.evaluate((element) => element.removeAttribute("closedby"))
           await page.touchscreen.tap(2, 100)
         } else await installation.getByRole("button", { name: "Use browser", exact: true }).click()
-        assert.match(await page.locator(".notice").textContent(), /If you change your mind, open Help → App/)
+        assert.match(
+          await page.locator(".notice").textContent(),
+          /If you change your mind, open Settings → Install app/,
+        )
         await welcome.waitFor()
         assert.equal(await installation.isVisible(), false)
         assert.equal(await page.evaluate(() => localStorage.getItem("mainz:onboarding")), null)
@@ -61,13 +64,21 @@ test("Installation guidance stays optional and independent of the product tour",
         const helpButton = page.getByRole("button", { name: "Help", exact: true })
         const help = page.getByRole("dialog", { name: "Help", exact: true })
         await helpButton.click()
-        assert.deepEqual(await help.getByRole("tab").allTextContents(), ["Touch", "App"])
-        await help.getByRole("tab", { name: "App", exact: true }).click()
-        assert.match(await help.getByRole("tabpanel", { name: "App", exact: true }).textContent(), /Add to Home Screen/)
+        assert.deepEqual(await help.getByRole("tab").allTextContents(), ["Touch"])
         assert.equal(await page.locator("dialog[open]").count(), 1)
         await page.keyboard.press("Escape")
         await help.waitFor({ state: "hidden" })
         assert.equal(await helpButton.evaluate((element) => element === document.activeElement), true)
+        const settingsButton = page.getByRole("button", { name: "Settings", exact: true })
+        const settings = page.getByRole("dialog", { name: "Settings", exact: true })
+        await settingsButton.click()
+        await settings.getByRole("button", { name: "Install app", exact: true }).click()
+        await installation.waitFor()
+        assert.match(await installation.textContent(), /Add to Home Screen/)
+        assert.equal(await page.locator("dialog[open]").count(), 1)
+        await page.keyboard.press("Escape")
+        await installation.waitFor({ state: "hidden" })
+        assert.equal(await settingsButton.evaluate((element) => element === document.activeElement), true)
         assert.equal(await page.evaluate(() => localStorage.getItem("mainz:onboarding")), "19")
         await page.goto(server.resolvedUrls.local[0])
         assert.equal(
@@ -76,9 +87,19 @@ test("Installation guidance stays optional and independent of the product tour",
           "Skipping the first recommendation suppresses later startup prompts",
         )
         await helpButton.click()
-        assert.deepEqual(await help.getByRole("tab").allTextContents(), ["App"])
+        assert.equal(
+          await help
+            .getByText("Open a PDF to see its keyboard, mouse, and touch controls.", { exact: true })
+            .isVisible(),
+          true,
+        )
         assert.equal(await help.getByRole("button", { name: "Start Tour", exact: true }).count(), 0)
         await help.getByRole("button", { name: "Close help", exact: true }).click()
+        await settingsButton.click()
+        await settings.getByRole("button", { name: "Install app", exact: true }).click()
+        await installation.waitFor()
+        assert.match(await installation.textContent(), /Add to Home Screen/)
+        await installation.getByRole("button", { name: "Close installation help", exact: true }).click()
       } finally {
         await context.close()
       }
@@ -108,6 +129,16 @@ test("Installation guidance stays optional and independent of the product tour",
         await welcome.waitFor()
         assert.equal(await installation.isVisible(), false)
         await welcome.getByRole("button", { name: "Skip", exact: true }).click()
+        if (storage === "standalone") {
+          await page.getByRole("button", { name: "Settings", exact: true }).click()
+          await page
+            .getByRole("dialog", { name: "Settings", exact: true })
+            .getByRole("button", { name: "Install app", exact: true })
+            .click()
+          await installation.waitFor()
+          assert.match(await installation.textContent(), /running in its own app window/)
+          await installation.getByRole("button", { name: "Close", exact: true }).click()
+        }
       } finally {
         await context.close()
       }
@@ -151,12 +182,15 @@ test("Installation guidance stays optional and independent of the product tour",
         "iOS and Android artwork fills the central safe circle with matching margins on opaque backgrounds",
       )
       await page.locator(".composer").waitFor()
-      const installation = page.getByRole("dialog", { name: "Help", exact: true })
+      const installation = page.getByRole("dialog", { name: "Install app", exact: true })
       assert.equal(await installation.isVisible(), false, "Desktop startup stays quiet")
       for (const outcome of ["dismissed", "accepted", "error"]) {
-        await page.getByRole("button", { name: "Help", exact: true }).click()
-        assert.deepEqual(await installation.getByRole("tab").allTextContents(), ["Keyboard", "Mouse", "App"])
-        await installation.getByRole("tab", { name: "App", exact: true }).click()
+        await page.getByRole("button", { name: "Settings", exact: true }).click()
+        await page
+          .getByRole("dialog", { name: "Settings", exact: true })
+          .getByRole("button", { name: "Install app", exact: true })
+          .click()
+        await installation.waitFor()
 
         await page.evaluate((result) => {
           const event = new Event("beforeinstallprompt", { cancelable: true })
@@ -193,7 +227,7 @@ test("Installation guidance stays optional and independent of the product tour",
             .waitFor({ state: "hidden" })
           assert.ok(await installation.isVisible(), "A completed notification expires without closing the dialog")
         }
-        await installation.getByRole("button", { name: "Close help", exact: true }).click()
+        await installation.getByRole("button", { name: "Close installation help", exact: true }).click()
       }
     } finally {
       await context.close()

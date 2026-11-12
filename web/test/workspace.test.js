@@ -1378,25 +1378,26 @@ test("Help fits its content and keeps its navigation above scrolling panels", { 
             const bounds = await help.evaluate((dialog) => {
               const box = dialog.getBoundingClientRect()
               const panels = dialog.querySelector(".help-panels")
-              const content = [...panels.querySelectorAll(":scope > [role=tabpanel] > .help-body")]
-              const navigation = dialog.querySelector(".help-navigation").getBoundingClientRect()
+              const content = panels
+                ? [...panels.querySelectorAll(":scope > [role=tabpanel] > .help-body")]
+                : [dialog.querySelector(":scope > p")]
+              const frame = (panels ?? content[0]).getBoundingClientRect()
+              const navigation = dialog.querySelector(".help-navigation")?.getBoundingClientRect()
               const title = dialog.querySelector("h2").getBoundingClientRect()
               const close = dialog.querySelector(".dialog-heading button svg").getBoundingClientRect()
               return {
                 fits: box.x >= 0 && box.y >= 0 && box.right <= innerWidth && box.bottom <= innerHeight,
-                spare:
-                  panels.getBoundingClientRect().height -
-                  Math.max(...content.map((body) => body.getBoundingClientRect().height)),
+                spare: frame.height - Math.max(...content.map((body) => body.getBoundingClientRect().height)),
                 gap: parseFloat(getComputedStyle(dialog).paddingBlockStart),
-                navigation: navigation.bottom <= panels.getBoundingClientRect().top,
-                panel: panels.getBoundingClientRect().height,
+                navigation: !panels || (!!navigation && navigation.bottom <= frame.top),
+                panel: frame.height,
                 heading: Math.abs(title.y + title.height / 2 - close.y - close.height / 2) < 1,
                 overflow: dialog.scrollWidth > dialog.clientWidth,
               }
             })
             const label = `${engine.name()} ${hasTouch ? "touch" : "mouse"} ${query || "landing"} ${width}×${height} ${text} ${colorScheme}`
             assert.ok(
-              bounds.fits && bounds.navigation && bounds.heading && bounds.panel >= 44 && !bounds.overflow,
+              bounds.fits && bounds.navigation && bounds.heading && bounds.panel > 0 && !bounds.overflow,
               `${label}: ${JSON.stringify(bounds)}`,
             )
             assert.ok(bounds.spare <= bounds.gap + 2, `${label}: Help has no empty vertical stretch`)
@@ -1569,102 +1570,58 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
       const keyboardTopic = helpDialog.getByRole("tab", { name: "Keyboard", exact: true })
       await keyboardTopic.press("Control+ArrowRight")
       assert.equal(await keyboardTopic.getAttribute("aria-selected"), "true", "Modified arrows retain the Help topic")
-      assert.equal(await helpDialog.getByRole("heading", { name: `Input ${inputMode}`, exact: true }).isVisible(), true)
-      assert.equal(
-        await helpDialog.getByRole("heading", { name: `Output ${outputMode}`, exact: true }).isVisible(),
-        true,
-      )
+      const chooser = helpDialog.getByRole("combobox", { name: "Output shortcut view", exact: true })
+      assert.equal(await chooser.inputValue(), outputMode.toLowerCase())
+      const before = await helpDialog.boundingBox()
       const inputHelp = helpDialog.getByRole("region", { name: `Input ${inputMode.toLowerCase()}`, exact: true })
       const outputHelp = helpDialog.getByRole("region", { name: `Output ${outputMode.toLowerCase()}`, exact: true })
-      const shared = helpDialog.getByRole("region", { name: "Workspace shortcuts", exact: true })
-      assert.ok(await shared.getByRole("heading", { name: "Workspace", exact: true }).isVisible())
-      const hierarchy = await helpDialog.evaluate((element) => {
-        const pane = element.querySelector(".shortcut-views section")
-        const workspace = element.querySelector('[aria-label="Workspace shortcuts"]')
-        return [
-          pane.querySelector("h3").getBoundingClientRect().left,
-          workspace.querySelector("h3").getBoundingClientRect().left,
-          getComputedStyle(pane.querySelector("h3")).color,
-          getComputedStyle(workspace.querySelector("h3")).color,
-          getComputedStyle(element.querySelector('.shortcut-views section[aria-label^="Output"] h4')).color,
-        ]
-      })
-      assert.ok(Math.abs(hierarchy[0] - hierarchy[1]) < 1, "Pane and Workspace headings share the outer alignment")
-      assert.equal(hierarchy[2], hierarchy[3], "Top section headings share their secondary color")
-      assert.notEqual(hierarchy[2], hierarchy[4], "Nested headings use a distinct text color")
-      for (const [mode, pane] of [
-        [inputMode, inputHelp],
-        [outputMode, outputHelp],
-      ])
-        if (mode === "Grid") {
-          assert.match(await pane.innerText(), /←\s+\/\s+→\s+Start navigation \(no selection\)/)
-          assert.match(await pane.innerText(), /PgUp\s+\/\s+PgDn\s+Previous \/ next thumbnail group/)
-        } else if (mode === "List") {
-          assert.match(await pane.innerText(), /V\s+Switch List \/ Page/)
-          assert.match(await pane.innerText(), /Space\s+Select or unselect page and advance/)
-          assert.match(await pane.innerText(), /PgUp\s+\/\s+PgDn\s+Move one screen of rows/)
-          assert.match(await pane.innerText(), /Enter\s*\/\s*\+\s*\/\s*=/)
-          assert.match(await shared.innerText(), /extends selection to the first \/ last row/)
-          assert.match(await shared.innerText(), /extends selection by one screen of rows/)
-        } else if (mode === "Page") {
-          assert.match(await pane.innerText(), /0\s+or\s+Z\s+Reset zoom \(100%\)/)
-          assert.match(await pane.innerText(), /PgUp\s+\/\s+PgDn\s+Show previous \/ next page/)
-          assert.match(await pane.innerText(), /Home\s+\/\s+End\s+Show first \/ last page/)
-          assert.match(await pane.innerText(), /G\s+Go to page/)
-        }
-      assert.deepEqual(await helpDialog.getByRole("heading", { level: 2 }).allTextContents(), ["Help"])
-      if (inputMode !== "Style") {
-        assert.equal(await inputHelp.getByRole("heading", { name: "Selection Field", exact: true }).isVisible(), true)
-        const inputField = await inputHelp.getByRole("heading", { name: "Selection Field", exact: true }).boundingBox()
-        const outputField = await outputHelp
-          .getByRole("heading", { name: "Selection Field", exact: true })
-          .boundingBox()
-        assert.ok(
-          Math.abs(inputField.y - outputField.y) < 1,
-          "Selection Field headings share one row across visible views",
-        )
-        assert.match(
-          await inputHelp.locator(".shortcut-list").last().innerText(),
-          /Enter\s+Add prepared pages to Output/,
-        )
-      }
-      assert.equal(await outputHelp.getByRole("heading", { name: "Selection Field", exact: true }).isVisible(), true)
-      assert.match(
-        await outputHelp.locator(".shortcut-list").last().innerText(),
-        /Enter\s+Remove selected Output pages/,
-      )
-      assert.match(
-        await inputHelp.innerText(),
-        inputMode === "Style"
-          ? /move between Style controls/
-          : inputMode === "Grid" || inputMode === "List"
-            ? /Select or unselect page/
-            : /Add the current page to Output/,
-      )
-      assert.match(await outputHelp.innerText(), outputMode !== "Page" ? /Remove page/ : /Zoom in \/ out/)
-      if (inputMode === "Grid")
-        assert.match(await inputHelp.innerText(), /Shift\s+\+\s+←\s+\/\s+→\s+Select \/ unselect pages/)
-      if (outputMode === "Grid") {
-        assert.match(await outputHelp.innerText(), /Shift\s+\+\s+←\s+\/\s+→\s+Select \/ unselect pages/)
-        assert.match(await outputHelp.innerText(), /Del\s+\/\s+−\s+Remove page/)
-      }
-      assert.ok(
+      for (const [owner, mode, section] of [
+        ["Input", inputMode, inputHelp],
+        ["Output", outputMode, outputHelp],
+      ]) {
         await helpDialog
-          .getByRole("tabpanel", { name: "Keyboard", exact: true })
-          .locator(".shortcut-list dd")
-          .evaluateAll((items) =>
-            items.every(
-              (item) =>
-                Math.abs(item.getBoundingClientRect().height - parseFloat(getComputedStyle(item).lineHeight)) < 1,
-            ),
-          ),
-        "Desktop shortcut descriptions fit one line",
+          .getByRole("combobox", { name: `${owner} shortcut view`, exact: true })
+          .selectOption(mode.toLowerCase())
+        assert.equal(await section.isVisible(), true)
+        assert.equal(await helpDialog.locator(".keyboard-contexts > section:visible").count(), 2)
+        assert.deepEqual(await helpDialog.boundingBox(), before, "Context changes retain the dialog dimensions")
+        if (mode === "Style") assert.match(await section.innerText(), /Move to the next Style control/)
+        else {
+          assert.equal(await section.getByRole("heading", { name: "Edit", exact: true }).isVisible(), true)
+          assert.match(
+            await section.locator(".shortcut-list").last().innerText(),
+            owner === "Input" ? /Add prepared pages from the page field/ : /Remove selected pages from the page field/,
+          )
+          assert.match(
+            await section.innerText(),
+            mode === "Page"
+              ? /Reset zoom/
+              : mode === "List"
+                ? /Move one screen of rows/
+                : /Start at the first \/ last page/,
+          )
+        }
+      }
+      assert.equal(await input.getByRole("tab", { name: inputMode, exact: true }).getAttribute("aria-selected"), "true")
+      assert.equal(
+        await output.getByRole("tab", { name: outputMode, exact: true }).getAttribute("aria-selected"),
+        "true",
       )
       const dimensions = await helpDialog.boundingBox()
       await helpDialog.getByRole("tab", { name: "Mouse", exact: true }).click()
       assert.deepEqual(await helpDialog.boundingBox(), dimensions, "Help retains its largest tab's dimensions")
       const mouseHelp = helpDialog.getByRole("tabpanel", { name: "Mouse", exact: true })
       assert.equal(await mouseHelp.isVisible(), true)
+      const actions = mouseHelp.getByRole("table", { name: "Mouse actions", exact: true })
+      assert.deepEqual(await actions.getByRole("columnheader").allTextContents(), ["Action", "Result"])
+      assert.match(
+        await actions.getByRole("row").filter({ hasText: "Double-click an Input Grid image" }).innerText(),
+        /Add prepared pages/,
+      )
+      assert.match(
+        await actions.getByRole("row").filter({ hasText: "Double-click a Page image" }).innerText(),
+        /Zoom to 200%/,
+      )
       assert.match(await mouseHelp.innerText(), /Open Page or return to Grid or List/)
       assert.match(await mouseHelp.innerText(), /Select or unselect a page/)
       assert.match(await mouseHelp.innerText(), /Click a Page counter\s+Enter a page number/)
@@ -1684,13 +1641,11 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
       assert.equal(await help.evaluate((item) => item === document.activeElement), true)
       await page.keyboard.press("?")
       await helpDialog.waitFor()
-      for (const [mode, pane] of [
-        [inputMode, inputHelp],
-        [outputMode, outputHelp],
-      ]) {
-        assert.equal(await pane.isVisible(), true, "Both panes remain visible when Help reopens with ?")
-        if (mode !== "Style") assert.equal(await pane.locator(".shortcut-list dd").first().isVisible(), true)
-      }
+      assert.equal(
+        await helpDialog.getByRole("combobox", { name: "Output shortcut view", exact: true }).inputValue(),
+        outputMode.toLowerCase(),
+      )
+      assert.equal(await outputHelp.isVisible(), true, "Reopening Help selects the current pane context")
       await page.keyboard.press("Escape")
     }
     await tab(input, "List")
@@ -1733,7 +1688,47 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
       }
       await page.keyboard.press("Escape")
     }
-    await page.evaluate(() => document.body.style.removeProperty("font-family"))
+    for (const [width, text] of [
+      [375, "100%"],
+      [320, "200%"],
+    ]) {
+      await page.setViewportSize({ width, height: 667 })
+      await page.evaluate((size) => {
+        document.body.style.removeProperty("font-family")
+        document.documentElement.style.fontSize = size
+      }, text)
+      await help.click()
+      await helpDialog.getByRole("tab", { name: "Keyboard", exact: true }).click()
+      const before = await helpDialog.boundingBox()
+      const selectors = helpDialog.getByRole("combobox")
+      const inputBox = await selectors.nth(0).boundingBox(),
+        outputBox = await selectors.nth(1).boundingBox()
+      assert.ok(outputBox.y >= inputBox.y + inputBox.height, "Narrow shortcut panes stack")
+      for (const view of ["grid", "list", "page", "style"]) {
+        await helpDialog.getByRole("combobox", { name: "Input shortcut view", exact: true }).selectOption(view)
+        assert.deepEqual(await helpDialog.boundingBox(), before, "Enlarged context changes keep the dialog stable")
+        assert.equal(await helpDialog.locator(".keyboard-contexts > section:visible").count(), 2)
+      }
+      assert.equal(await helpDialog.evaluate((e) => e.scrollWidth <= e.clientWidth), true)
+      await helpDialog.getByRole("tab", { name: "Mouse", exact: true }).click()
+      const mouseTable = helpDialog.getByRole("table", { name: "Mouse actions", exact: true })
+      const columns = await mouseTable.evaluate((table) => {
+        const headers = [...table.querySelectorAll("th")].map((cell) => cell.getBoundingClientRect())
+        return [...table.querySelectorAll("tbody tr")].every((row) =>
+          [...row.children].every(
+            (cell, index) =>
+              Math.abs(cell.getBoundingClientRect().left - headers[index].left) < 1 &&
+              cell.scrollWidth <= cell.clientWidth + 1,
+          ),
+        )
+      })
+      assert.equal(columns, true, `${width}px, ${text}: Mouse cells align with their headers without overflow`)
+      await page.keyboard.press("Escape")
+    }
+    await page.evaluate(() => {
+      document.body.style.removeProperty("font-family")
+      document.documentElement.style.fontSize = "100%"
+    })
     await page.setViewportSize({ width: 1440, height: 1100 })
     await tab(input, "Grid")
     await input.getByRole("button", { name: "Select or drag Input page 2 to Output", exact: true }).click()

@@ -43,7 +43,7 @@
       font-size: var(--body);
       overflow: auto;
       overscroll-behavior: contain;
-      &:has(.help-panels > :only-child) {
+      &:has(> p) {
         inline-size: min(30rem, calc(100% - 2 * var(--gap)));
       }
       & > .dialog-heading {
@@ -133,13 +133,6 @@
       & p {
         color: var(--muted);
       }
-      & .help-context {
-        inline-size: 100%;
-        padding: calc(var(--gap) / 4) var(--gap);
-        border-inline-start: 3px solid var(--secondary);
-        color: var(--secondary);
-        background: color-mix(in oklch, var(--secondary) 8%, var(--paper));
-      }
       & kbd {
         display: inline flex;
         align-items: center;
@@ -159,29 +152,33 @@
           inline-size: 4.5em;
         }
       }
-      & .shortcut-views {
+      & .keyboard-panes {
+        display: grid;
         inline-size: 100%;
-        display: block grid;
         grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
         gap: var(--gutter);
-        & > div {
-          display: block grid;
+        & > section {
+          display: grid;
           align-content: start;
           gap: calc(var(--gap) / 2);
-        }
-        & > section {
           min-inline-size: 0;
-          display: block grid;
-          grid-row: span 5;
-          grid-template-rows: subgrid;
-          row-gap: calc(var(--gap) / 2);
+        }
+      }
+      & .keyboard-contexts {
+        display: grid;
+        inline-size: 100%;
+        & > section {
+          grid-area: 1 / 1;
+          min-inline-size: 0;
           & > .help-body {
-            display: block grid;
-            grid-row: span 4;
-            grid-template-rows: subgrid;
-            gap: inherit;
-            margin-block-start: 0;
+            gap: calc(var(--gap) / 4);
           }
+          &[aria-hidden="true"] {
+            visibility: hidden;
+          }
+        }
+        & .shortcut-list > div {
+          padding-block: 0;
         }
       }
       & .shortcut-list {
@@ -206,6 +203,34 @@
           flex: 1 1 10em;
           min-inline-size: 0;
           margin: 0;
+        }
+      }
+      & .mouse-actions {
+        inline-size: 100%;
+        table-layout: fixed;
+        border-collapse: collapse;
+        text-align: start;
+        & kbd.named {
+          inline-size: auto;
+        }
+        & th,
+        & td {
+          padding-block: 0.4em;
+          padding-inline: 0 var(--gap);
+          border-block-end: 1px solid var(--border);
+          vertical-align: top;
+          overflow-wrap: anywhere;
+          &:last-child {
+            padding-inline-end: 0;
+          }
+        }
+        & th {
+          color: var(--muted);
+          font-weight: 600;
+          text-align: start;
+          &:first-child {
+            inline-size: 45%;
+          }
         }
       }
     }

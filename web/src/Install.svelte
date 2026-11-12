@@ -2,7 +2,6 @@
 
 <script lang="ts">
   import { onMount } from "svelte"
-  import type { Snippet } from "svelte"
   import Icon from "./Icon.svelte"
   import { dismiss } from "./dismiss.ts"
   import Feedback from "./Feedback.svelte"
@@ -15,12 +14,10 @@
     pending = $bindable(false),
     recommend,
     dismissed,
-    children,
   }: {
     pending?: boolean
     recommend: boolean
     dismissed: () => void
-    children: Snippet<[Snippet<[boolean]>]>
   } = $props()
   let dialog: HTMLDialogElement
   let prompt = $state<Prompt>()
@@ -45,7 +42,7 @@
     pending = false
     dialog.close()
   }
-  function open() {
+  export function open() {
     previous = document.activeElement
     dialog.showModal()
   }
@@ -125,21 +122,6 @@
   text={message}
   summary={failed ? "Installation unavailable." : undefined}
 />
-{#snippet content(intro: boolean)}
-  {#if standalone}<p>PDF Composer is running in its own app window.</p>
-  {:else}
-    <p>Open PDF Composer in its own window, with more room for your pages. You can also keep using this browser.</p>
-    {#if ios}<p>In Safari, choose Share, then Add to Home Screen. Open the saved icon to use the app.</p>
-    {:else if safari}<p>If Safari offers File → Add to Dock, choose it to save the app.</p>
-    {:else if !prompt}<p>
-        This browser has not offered installation. Continue in the browser, or check its app installation menu.
-      </p>{/if}
-  {/if}
-  {#if intro || (prompt && !standalone)}<div class="installation-actions">
-      {#if intro}<button class="primary" onclick={close}>Use browser</button>{/if}
-      {#if prompt && !standalone}<button onclick={install} disabled={requesting}>Install app</button>{/if}
-    </div>{/if}
-{/snippet}
 
 <dialog
   bind:this={dialog}
@@ -158,9 +140,20 @@
     <h2 id="installation-title">Install app</h2>
     <button class="icon-button" aria-label="Close installation help" onclick={close}><Icon name="close" /></button>
   </div>
-  {@render content(true)}
+  {#if standalone}<p>PDF Composer is running in its own app window.</p>
+  {:else}
+    <p>Open PDF Composer in its own window, with more room for your pages. You can also keep using this browser.</p>
+    {#if ios}<p>In Safari, choose Share, then Add to Home Screen. Open the saved icon to use the app.</p>
+    {:else if safari}<p>If Safari offers File → Add to Dock, choose it to save the app.</p>
+    {:else if !prompt}<p>
+        This browser has not offered installation. Continue in the browser, or check its app installation menu.
+      </p>{/if}
+  {/if}
+  <div class="installation-actions">
+    <button class="primary" onclick={close}>{pending ? "Use browser" : "Close"}</button>
+    {#if prompt && !standalone}<button onclick={install} disabled={requesting}>Install app</button>{/if}
+  </div>
 </dialog>
-{@render children(content)}
 
 <style>
   .installation {

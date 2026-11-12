@@ -4,6 +4,8 @@
 
 ### Added
 
+- Independent Input and Output view selectors in Keyboard help, with task groups, side-by-side desktop guidance, stacked
+  narrow layouts, and concise Mouse action/result tables.
 - Direct start/end controls for vertical scrolling outside the Page image viewport.
 - Blank-page insertion after the current Output page, alongside After last page.
 - Compact physical and logical page-label navigation, with labeled first/last controls.
@@ -51,6 +53,7 @@
 
 ### Changed
 
+- Move installation guidance to Settings → Install app, available on the landing page and in the workspace.
 - Single-pane workspaces combine document menus, centered Input/Output counts, and Open PDF or Download/Share in one
   compact bar. Both menus use the same three-dot icon. Counts retain their text size and show only pages when full
   totals do not fit; document menus retain the complete page/sheet summary.

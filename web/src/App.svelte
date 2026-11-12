@@ -92,6 +92,7 @@
   let recipeStatus = $state("")
   let alignment = $state.raw<Alignment>()
   let composer = $state<ReturnType<typeof Composer>>(null!)
+  let help: ReturnType<typeof Help>
   let examples = $state<ReturnType<typeof Examples>>(null!)
   let inputMenu = $state<HTMLDetailsElement>(null!)
   const unsaved = $derived(output.modified || sources.some((source) => source.modified))
@@ -823,13 +824,14 @@
     <div class="header-actions">
       <span class="header-note" title="Processed on your device. No uploads."><Icon name="lock" />On your device</span
       ><Help
+        bind:this={help}
         hasInput={!!active}
         hasOutput={!!output.pages.length}
         {styleable}
         {hasProfiles}
         views={() => composer?.views() ?? { input: "grid", output: "grid" }}
         onboarding={(demo === null || demo === "empty") && !loading}
-        dismissed={() => notify("If you change your mind, open Help → App for installation help.")}
+        dismissed={() => notify("If you change your mind, open Settings → Install app for installation help.")}
         change={(step) => {
           tour = step
         }}
@@ -837,7 +839,7 @@
           if (show) notify(firstAction)
           else if (notice === firstAction) notify("")
         }}
-      />{#if active}<Settings bind:magnification />{/if}<Theme />
+      /><Settings bind:magnification workspace={!!active} install={() => help.showInstallation()} /><Theme />
     </div>
   </div>
 </header>

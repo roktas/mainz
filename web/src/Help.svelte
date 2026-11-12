@@ -1,4 +1,4 @@
-<!-- Provides contextual help and coordinates installation, onboarding, and addition guidance. -->
+<!-- Provides input-specific help, onboarding, and access to independent installation guidance. -->
 
 <script lang="ts">
   import { tick, untrack } from "svelte"
@@ -35,20 +35,33 @@
   const motion = new MediaQuery("(prefers-reduced-motion: no-preference)")
   const fine = new MediaQuery("(any-pointer: fine)")
   const coarse = new MediaQuery("(any-pointer: coarse)")
-  type Topic = "keyboard" | "mouse" | "touch" | "app"
+  type Topic = "keyboard" | "mouse" | "touch"
   const workspace = $derived(hasInput || hasOutput)
   const topics = $derived<Topic[]>([
     ...(workspace && fine.current ? (["keyboard", "mouse"] as const) : []),
     ...(workspace && coarse.current ? (["touch"] as const) : []),
-    "app",
   ])
-  const labels = { keyboard: "Keyboard", mouse: "Mouse", touch: "Touch", app: "App" }
+  const labels = { keyboard: "Keyboard", mouse: "Mouse", touch: "Touch" }
   let installationPending = $state(false)
+  let installation: ReturnType<typeof Install>
   const guidance = $derived(onboarding && !installationPending)
   let welcome: HTMLDialogElement
   let help: HTMLDialogElement
-  let modes = $state<ReturnType<typeof views>>({ input: "grid", output: "grid" })
-  let topic = $state<Topic>("app")
+  const panes = ["Input", "Output"] as const
+  let modes = $state({
+    Input: "grid" as "grid" | "list" | "page" | "style",
+    Output: "grid" as "grid" | "list" | "page",
+  })
+  const contexts = $derived([
+    ...(hasInput
+      ? (["grid", "list", "page", ...(styleable ? ["style" as const] : [])] as const).map((mode) => ({
+          pane: "Input" as const,
+          mode,
+        }))
+      : []),
+    ...(["grid", "list", "page"] as const).map((mode) => ({ pane: "Output" as const, mode })),
+  ])
+  let topic = $state<Topic>("keyboard")
   let tour: ReturnType<typeof Tour>
   let touring = $state(false)
   let helpButton: HTMLButtonElement
@@ -196,13 +209,20 @@
       : document.querySelector<HTMLButtonElement>(".settings-button, .theme")
     destination?.focus()
   }
+  export function showInstallation() {
+    if (touring) tour.close()
+    installation.open()
+  }
   function showHelp() {
     stopHint()
     if (touring) tour.close()
-    modes = views()
-    topic = topics[0]!
+    const current = views()
+    modes = { Input: current.input, Output: current.output }
+    topic = topics[0] ?? "keyboard"
     help.showModal()
-    document.getElementById(`${id}-help-${topic}`)?.focus()
+    const first = document.getElementById(`${id}-help-${topic}`)
+    if (first) first.focus()
+    else help.querySelector<HTMLButtonElement>('[aria-label="Close help"]')?.focus()
   }
   function topicKey(event: KeyboardEvent) {
     if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
@@ -214,10 +234,12 @@
         : event.key === "End"
           ? topics.at(-1)!
           : topics[(topics.indexOf(topic) + (event.key === "ArrowRight" ? 1 : -1) + topics.length) % topics.length]!
-    document.getElementById(`${id}-help-${topic}`)?.focus()
+    const first = document.getElementById(`${id}-help-${topic}`)
+    if (first) first.focus()
+    else help.querySelector<HTMLButtonElement>('[aria-label="Close help"]')?.focus()
   }
   $effect(() => {
-    if (!topics.includes(topic)) topic = topics[0]!
+    if (topics.length && !topics.includes(topic)) topic = topics[0]!
   })
   $effect(() => {
     if (hasOutput) hinted = true
@@ -275,349 +297,305 @@
   onclick={showHelp}><Icon name="help" /></button
 >
 
-{#snippet shortcutList(mode: "grid" | "list" | "page", pane: "Input" | "Output")}
+{#snippet shortcutList(mode: "grid" | "list" | "page" | "style", pane: "Input" | "Output")}
+  <h4>Navigate</h4>
   <dl class="shortcut-list">
-    {#if mode === "grid"}<div>
-        <dt><kbd>←</kbd> / <kbd>→</kbd></dt>
-        <dd>Start navigation (no selection)</dd>
-      </div>{/if}
-    <div>
-      <dt><kbd>V</kbd></dt>
-      <dd>
-        {mode === "list" ? "Switch List / Page" : mode === "page" ? "Return to Grid or List" : "Switch Grid / Page"}
-      </dd>
-    </div>
-    <div>
-      <dt>
-        <kbd>↑</kbd> <kbd>↓</kbd>{#if mode === "grid"}
-          <kbd>←</kbd> <kbd>→</kbd>{/if}
-      </dt>
-      <dd>{mode !== "page" ? "Move focus between pages" : "Scroll the image vertically"}</dd>
-    </div>
-    <div>
-      <dt><kbd>N</kbd> / <kbd>P</kbd></dt>
-      <dd>{mode !== "page" ? "Focus next / previous page" : "Show next / previous page"}</dd>
-    </div>
-    <div>
-      <dt><kbd class="named">Home</kbd> / <kbd class="named">End</kbd></dt>
-      <dd>{mode !== "page" ? "Focus first / last page" : "Show first / last page"}</dd>
-    </div>
-    <div>
-      <dt><kbd class="named">Space</kbd></dt>
-      <dd>
-        {mode !== "page"
-          ? mode === "list"
-            ? "Select or unselect page and advance"
-            : "Select or unselect page"
-          : pane === "Input"
-            ? "Add the current page to Output"
-            : "Duplicate the current page"}
-      </dd>
-    </div>
-    {#if mode !== "page"}
+    {#if mode === "style"}
+      <div>
+        <dt><kbd class="named">Tab</kbd></dt>
+        <dd>Move to the next Style control</dd>
+      </div>
+      <div>
+        <dt><kbd class="named">Shift</kbd> + <kbd class="named">Tab</kbd></dt>
+        <dd>Move to the previous Style control</dd>
+      </div>
+    {:else}
+      {#if mode === "grid"}<div>
+          <dt><kbd>←</kbd> / <kbd>→</kbd></dt>
+          <dd>Start at the first / last page (no selection)</dd>
+        </div>{/if}
+      <div>
+        <dt><kbd>V</kbd></dt>
+        <dd>
+          {mode === "list" ? "Switch List / Page" : mode === "page" ? "Return to Grid or List" : "Switch Grid / Page"}
+        </dd>
+      </div>
+      <div>
+        <dt>
+          <kbd>↑</kbd> <kbd>↓</kbd>{#if mode === "grid"}
+            <kbd>←</kbd> <kbd>→</kbd>{/if}
+        </dt>
+        <dd>{mode === "page" ? "Scroll the image vertically" : "Move focus between pages"}</dd>
+      </div>
+      <div>
+        <dt><kbd>N</kbd> / <kbd>P</kbd></dt>
+        <dd>{mode === "page" ? "Show next / previous page" : "Focus next / previous page"}</dd>
+      </div>
+      <div>
+        <dt><kbd class="named">Home</kbd> / <kbd class="named">End</kbd></dt>
+        <dd>{mode === "page" ? "Show first / last page" : "Focus first / last page"}</dd>
+      </div>
       <div>
         <dt><kbd class="named">PgUp</kbd> / <kbd class="named">PgDn</kbd></dt>
-        <dd>{mode === "list" ? "Move one screen of rows" : "Previous / next thumbnail group"}</dd>
+        <dd>
+          {mode === "list"
+            ? "Move one screen of rows"
+            : mode === "grid"
+              ? "Previous / next thumbnail group"
+              : "Show previous / next page"}
+        </dd>
       </div>
-      <div>
-        <dt>
-          <kbd class="named">Shift</kbd> + <kbd>{mode === "list" ? "↑" : "←"}</kbd> /
-          <kbd>{mode === "list" ? "↓" : "→"}</kbd>
-        </dt>
-        <dd>Select / unselect pages</dd>
-      </div>
-      <div>
-        <dt>
-          <kbd class="named">Enter</kbd>{#if pane === "Output" || mode === "list"}
-            / <kbd>+</kbd>{/if}
-          {#if mode === "list"}
-            / <kbd>=</kbd>{/if}
-        </dt>
-        <dd>{pane === "Input" ? "Add pages to Output" : "Duplicate pages"}</dd>
-      </div>
-      {#if pane === "Output"}
+      {#if mode === "page"}
         <div>
-          <dt><kbd class="named">Del</kbd> / <kbd>−</kbd></dt>
-          <dd>Remove pages</dd>
+          <dt><kbd>←</kbd> / <kbd>→</kbd></dt>
+          <dd>Change page if width fits; otherwise scroll</dd>
+        </div>
+        <div>
+          <dt><kbd>G</kbd></dt>
+          <dd>Go to page</dd>
         </div>
       {/if}
-    {:else}
-      <div>
-        <dt><kbd>←</kbd> / <kbd>→</kbd></dt>
-        <dd>Change page if width fits; otherwise scroll</dd>
-      </div>
-      <div>
-        <dt><kbd class="named">PgUp</kbd> / <kbd class="named">PgDn</kbd></dt>
-        <dd>Show previous / next page</dd>
-      </div>
-      <div>
-        <dt><kbd>G</kbd></dt>
-        <dd>Go to page</dd>
-      </div>
-      <div>
-        <dt><kbd>+</kbd> / <kbd>−</kbd></dt>
-        <dd>Zoom in / out</dd>
-      </div>
-      <div>
-        <dt><kbd>0</kbd> or <kbd>Z</kbd></dt>
-        <dd>Reset zoom (100%)</dd>
-      </div>
     {/if}
-    {#if pane === "Output"}
-      <div>
-        <dt>
-          <kbd class="named">Ctrl/⌘</kbd> + <kbd>{mode === "list" ? "↑" : "←"}</kbd> /
-          <kbd>{mode === "list" ? "↓" : "→"}</kbd>
-        </dt>
-        <dd>Move pages earlier / later</dd>
-      </div>
-    {/if}
+    <div>
+      <dt><kbd>?</kbd></dt>
+      <dd>Open Help</dd>
+    </div>
   </dl>
+  {#if mode !== "style"}
+    <h4>Select</h4>
+    <dl class="shortcut-list">
+      {#if mode !== "page"}
+        <div>
+          <dt><kbd class="named">Space</kbd></dt>
+          <dd>{mode === "list" ? "Select or unselect page and advance" : "Select or unselect page"}</dd>
+        </div>
+        <div>
+          <dt>
+            <kbd class="named">Shift</kbd> + <kbd>{mode === "list" ? "↑" : "←"}</kbd> /
+            <kbd>{mode === "list" ? "↓" : "→"}</kbd>
+          </dt>
+          <dd>Select / unselect pages</dd>
+        </div>
+        {#if mode === "list"}
+          <div>
+            <dt><kbd class="named">Shift</kbd> + <kbd class="named">Home</kbd> / <kbd class="named">End</kbd></dt>
+            <dd>Extend selection to the first / last row</dd>
+          </div>
+          <div>
+            <dt><kbd class="named">Shift</kbd> + <kbd class="named">PgUp</kbd> / <kbd class="named">PgDn</kbd></dt>
+            <dd>Extend selection by one screen of rows</dd>
+          </div>
+        {/if}
+      {/if}
+      <div>
+        <dt><kbd class="named">Ctrl/⌘</kbd> + <kbd>A</kbd></dt>
+        <dd>Select all {pane} pages (outside fields)</dd>
+      </div>
+      <div>
+        <dt><kbd class="named">Esc</kbd></dt>
+        <dd>Close, cancel, or clear {pane} selection</dd>
+      </div>
+    </dl>
+    <h4>Edit</h4>
+    <dl class="shortcut-list">
+      {#if mode === "page"}
+        <div>
+          <dt><kbd class="named">Space</kbd></dt>
+          <dd>{pane === "Input" ? "Add the current page to Output" : "Duplicate the current page"}</dd>
+        </div>
+        <div>
+          <dt><kbd>+</kbd> / <kbd>−</kbd></dt>
+          <dd>Zoom in / out</dd>
+        </div>
+        <div>
+          <dt><kbd>0</kbd> or <kbd>Z</kbd></dt>
+          <dd>Reset zoom (100%)</dd>
+        </div>
+      {:else}
+        <div>
+          <dt>
+            <kbd class="named">Enter</kbd>{#if pane === "Output" || mode === "list"}
+              / <kbd>+</kbd>{/if}{#if mode === "list"}
+              / <kbd>=</kbd>{/if}
+          </dt>
+          <dd>{pane === "Input" ? "Add pages to Output" : "Duplicate pages"}</dd>
+        </div>
+      {/if}
+      {#if pane === "Output"}
+        <div>
+          <dt>
+            <kbd class="named">Del</kbd>{#if mode !== "page"}
+              / <kbd>−</kbd>{/if}
+          </dt>
+          <dd>Remove Output selection</dd>
+        </div>
+        <div>
+          <dt>
+            <kbd class="named">Ctrl/⌘</kbd> + <kbd>{mode === "list" ? "↑" : "←"}</kbd> /
+            <kbd>{mode === "list" ? "↓" : "→"}</kbd>
+          </dt>
+          <dd>Move pages earlier / later</dd>
+        </div>
+      {/if}
+      <div>
+        <dt><kbd class="named">Enter</kbd></dt>
+        <dd>
+          {pane === "Input" ? "Add prepared pages from the page field" : "Remove selected pages from the page field"}
+        </dd>
+      </div>
+    </dl>
+  {:else}
+    <dl class="shortcut-list">
+      <div>
+        <dt><kbd class="named">Esc</kbd></dt>
+        <dd>Close an editor or menu</dd>
+      </div>
+    </dl>
+  {/if}
 {/snippet}
 
-<Install bind:pending={installationPending} recommend={onboarding} {dismissed}>
-  {#snippet children(content)}
-    <dialog bind:this={help} class="help-dialog" aria-label="Help" closedby="any" {@attach dismiss}>
-      <div class="dialog-heading">
-        <h2>Help</h2>
-        <button class="icon-button" aria-label="Close help" onclick={() => help.close()}><Icon name="close" /></button>
+<Install bind:this={installation} bind:pending={installationPending} recommend={onboarding} {dismissed} />
+<dialog bind:this={help} class="help-dialog" aria-label="Help" closedby="any" {@attach dismiss}>
+  <div class="dialog-heading">
+    <h2>Help</h2>
+    <button class="icon-button" aria-label="Close help" onclick={() => help.close()}><Icon name="close" /></button>
+  </div>
+  {#if workspace}<div class="help-navigation">
+      <div class="tabs" role="tablist" aria-label="Help topics">
+        {#each topics as name (name)}
+          <button
+            id={`${id}-help-${name}`}
+            role="tab"
+            aria-selected={topic === name}
+            aria-controls={`${id}-help-${name}-panel`}
+            tabindex={topic === name ? 0 : -1}
+            onkeydown={topicKey}
+            onclick={() => (topic = name)}>{labels[name]}</button
+          >
+        {/each}
       </div>
-      <div class="help-navigation">
-        <div class="tabs" role="tablist" aria-label="Help topics">
-          {#each topics as name (name)}
-            <button
-              id={`${id}-help-${name}`}
-              role="tab"
-              aria-selected={topic === name}
-              aria-controls={`${id}-help-${name}-panel`}
-              tabindex={topic === name ? 0 : -1}
-              onkeydown={topicKey}
-              onclick={() => (topic = name)}>{labels[name]}</button
-            >
-          {/each}
-        </div>
-        {#if workspace}<button class="primary" onclick={start}>Start Tour</button>{/if}
-      </div>
-      <div class="help-panels">
-        {#if topics.includes("keyboard")}<div
-            id={`${id}-help-keyboard-panel`}
-            role="tabpanel"
-            aria-labelledby={`${id}-help-keyboard`}
-            aria-hidden={topic !== "keyboard"}
-            inert={topic !== "keyboard"}
-            tabindex="0"
-          >
-            <div class="help-body">
-              <p class="help-context">
-                <strong>Shortcuts follow each pane’s view.</strong> Change views, then reopen Help.
-              </p>
-              <div class="shortcut-views">
-                {#if hasInput}<section aria-label={`Input ${modes.input}`}>
-                    <h3>
-                      Input {modes.input === "grid"
-                        ? "Grid"
-                        : modes.input === "list"
-                          ? "List"
-                          : modes.input === "page"
-                            ? "Page"
-                            : "Style"}
-                    </h3>
-                    <div class="help-body">
-                      {#if modes.input === "style"}
-                        <p>
-                          Use <kbd class="named">Tab</kbd> and <kbd class="named">Shift</kbd> +
-                          <kbd class="named">Tab</kbd> to move between Style controls.
-                        </p>
-                      {:else}
-                        <h4>View</h4>
-                        {@render shortcutList(modes.input, "Input")}
-                        <h4>Selection Field</h4>
-                        <dl class="shortcut-list">
-                          <div>
-                            <dt><kbd class="named">Enter</kbd></dt>
-                            <dd>Add prepared pages to Output</dd>
-                          </div>
-                        </dl>
-                      {/if}
-                    </div>
-                  </section>{/if}
-                <section aria-label={`Output ${modes.output}`}>
-                  <h3>Output {modes.output === "grid" ? "Grid" : modes.output === "list" ? "List" : "Page"}</h3>
-                  <div class="help-body">
-                    {#if hasOutput}
-                      <h4>View</h4>
-                      {@render shortcutList(modes.output, "Output")}
-                      <h4>Selection Field</h4>
-                      <dl class="shortcut-list">
-                        <div>
-                          <dt><kbd class="named">Enter</kbd></dt>
-                          <dd>Remove selected Output pages</dd>
-                        </div>
-                      </dl>
-                    {:else}
-                      <p>
-                        Add Input pages to use Output page actions.
-                        {#if modes.output === "page"}Press <kbd>V</kbd> to return to Grid or List.{/if}
-                      </p>
-                    {/if}
-                  </div>
-                </section>
-              </div>
-              <section aria-label="Workspace shortcuts">
-                <h3>Workspace</h3>
-                <div class="help-body shortcut-views">
-                  <dl class="shortcut-list">
-                    <div>
-                      <dt><kbd>?</kbd></dt>
-                      <dd>Help</dd>
-                    </div>
-                    <div>
-                      <dt><kbd class="named">Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>A</kbd></dt>
-                      <dd>Select all pages in target pane</dd>
-                    </div>
-                    <div>
-                      <dt><kbd class="named">Esc</kbd></dt>
-                      <dd>Close, cancel, or clear target selection</dd>
-                    </div>
-                    <div>
-                      <dt><kbd class="named">Del</kbd></dt>
-                      <dd>Remove Output selection</dd>
-                    </div>
-                  </dl>
-                  <ul>
-                    <li>
-                      Fields and menus keep their keys. V, Ctrl+A, Esc, and starting Grid navigation use the mouse-side
-                      pane. PgUp/PgDn change its Grid group. Page keys use its Page, or the other open Page.
-                    </li>
-                    {#if modes.input === "list" || modes.output === "list"}
-                      <li>
-                        List keys act while a row has focus. <kbd class="named">Shift</kbd> +
-                        <kbd class="named">Home</kbd> / <kbd class="named">End</kbd> extends selection to the first /
-                        last row.
-                        <kbd class="named">Shift</kbd> + <kbd class="named">PgUp</kbd> / <kbd class="named">PgDn</kbd>
-                        extends selection by one screen of rows.
-                      </li>
-                    {/if}
-                    {#if modes.input === "grid" || modes.output === "grid"}
-                      <li>
-                        Without a selection, → starts at the first page of the current group. ← starts at the last.
-                        Reversing Shift+←/→ restores the step. Navigation stops at each end.
-                      </li>
-                    {/if}
-                  </ul>
-                </div>
-              </section>
-            </div>
-          </div>{/if}
-        {#if topics.includes("mouse")}<div
-            id={`${id}-help-mouse-panel`}
-            role="tabpanel"
-            aria-labelledby={`${id}-help-mouse`}
-            aria-hidden={topic !== "mouse"}
-            inert={topic !== "mouse"}
-            tabindex="0"
-          >
-            <div class="help-body">
-              <ul>
-                <li>Grid and Input Page grips share Selection with the page fields.</li>
-                <li>Page starts enlarged when the complete page would look narrow.</li>
-                <li>
-                  The zoom reset button returns to the complete page at 100%. At 100%, it fits the page to the width.
-                </li>
-              </ul>
-              <dl class="shortcut-list">
-                <div>
-                  <dt>Click a Page counter</dt>
-                  <dd>Enter a page number</dd>
-                </div>
-                <div>
-                  <dt>Click a Grid image</dt>
-                  <dd>Select or unselect a page and continue with the keyboard</dd>
-                </div>
-                <div>
-                  <dt><kbd class="named">Ctrl</kbd> / <kbd>⌘</kbd> + click</dt>
-                  <dd>Open Page or return to Grid or List</dd>
-                </div>
-                <div>
-                  <dt>Double-click a Page image</dt>
-                  <dd>
-                    Zoom to 200% at the clicked point, or return an enlarged page to 100%. Double-clicking an Input Grid
-                    image adds the preparation, or one current page.
-                  </dd>
-                </div>
-                <div>
-                  <dt>Click a grip</dt>
-                  <dd>Select or unselect a page and continue with the keyboard</dd>
-                </div>
-                <div>
-                  <dt><kbd class="named">Shift</kbd> + click a Grid image or grip</dt>
-                  <dd>Add or remove a selection range</dd>
-                </div>
-                <div>
-                  <dt>Drag a grip or Grid image</dt>
-                  <dd>
-                    Input adds pages to Output. Output Grid and List move pages. Starting a drag preserves selection and
-                    keyboard focus.
-                  </dd>
-                </div>
-                <div>
-                  <dt>Drag a Page image</dt>
-                  <dd>Pan the image when zoom is above 100%</dd>
-                </div>
-                <div>
-                  <dt>Mouse wheel</dt>
-                  <dd>Scroll the workspace; above 100% zoom, scroll inside the Page image</dd>
-                </div>
-              </dl>
-            </div>
-          </div>{/if}
-        {#if topics.includes("touch")}<div
-            id={`${id}-help-touch-panel`}
-            role="tabpanel"
-            aria-labelledby={`${id}-help-touch`}
-            aria-hidden={topic !== "touch"}
-            inert={topic !== "touch"}
-            tabindex="0"
-          >
-            <div class="help-body">
-              <ul>
-                <li>Tap a page image or grip to select it. The page field shows the same selection.</li>
-                {#if hasInput}<li>Use the selection bar to add Input pages to Output.</li>{/if}
-                {#if hasOutput}<li>Use the selection bar to move, copy, and remove Output pages.</li>{/if}
-                <li>Page starts enlarged when the complete page would look narrow.</li>
-                <li>
-                  The zoom reset button returns to the complete page at 100%. At 100%, it fits the page to the width.
-                </li>
-                <li>
-                  Double-tap a Grid image to open Page. In Page, double-tap to zoom to 200% at that point, or return an
-                  enlarged page to 100%. Select the Grid or List tab to change the Pages layout without changing your
-                  selection.
-                </li>
-                <li>
-                  Drag pages from their grips. In Page, swipe left or right to change pages when the image fits
-                  horizontally. A wider image pans instead. Pinch to zoom, or hold to inspect with the lens.
-                </li>
-              </ul>
-            </div>
-          </div>{/if}
-        <div
-          id={`${id}-help-app-panel`}
+      {#if workspace}<button class="primary" onclick={start}>Start Tour</button>{/if}
+    </div>
+  {/if}
+  {#if workspace}<div class="help-panels">
+      {#if topics.includes("keyboard")}<div
+          id={`${id}-help-keyboard-panel`}
           role="tabpanel"
-          aria-labelledby={`${id}-help-app`}
-          aria-hidden={topic !== "app"}
-          inert={topic !== "app"}
+          aria-labelledby={`${id}-help-keyboard`}
+          aria-hidden={topic !== "keyboard"}
+          inert={topic !== "keyboard"}
           tabindex="0"
         >
           <div class="help-body">
-            <h3>App installation</h3>
-            {@render content(false)}
-            {#if !workspace}<ul><li>Choose a PDF to see help for page selection and editing.</li></ul>{/if}
+            <div class="keyboard-panes">
+              {#each panes as owner}
+                {#if contexts.some((item) => item.pane === owner)}
+                  <section aria-label={`${owner} shortcuts`}>
+                    <h3>{owner}</h3>
+                    <span class="entry select">
+                      <select aria-label={`${owner} shortcut view`} bind:value={modes[owner]}>
+                        {#each contexts.filter((item) => item.pane === owner) as item}
+                          <option value={item.mode}
+                            >{item.mode === "grid"
+                              ? "Grid"
+                              : item.mode === "list"
+                                ? "List"
+                                : item.mode === "page"
+                                  ? "Page"
+                                  : "Style"}</option
+                          >
+                        {/each}
+                      </select>
+                      <Icon name="next" />
+                    </span>
+                    <div class="keyboard-contexts">
+                      {#each contexts.filter((item) => item.pane === owner) as item (item.mode)}
+                        <section
+                          aria-label={`${item.pane} ${item.mode}`}
+                          aria-hidden={modes[owner] !== item.mode}
+                          inert={modes[owner] !== item.mode}
+                        >
+                          <div class="help-body">
+                            {#if item.pane === "Input" || hasOutput}
+                              {@render shortcutList(item.mode, item.pane)}
+                            {:else}<p>Add Input pages to use Output page actions.</p>{/if}
+                          </div>
+                        </section>
+                      {/each}
+                    </div>
+                  </section>
+                {/if}
+              {/each}
+            </div>
           </div>
-        </div>
-      </div>
-    </dialog>
-  {/snippet}
-</Install>
+        </div>{/if}
+      {#if topics.includes("mouse")}<div
+          id={`${id}-help-mouse-panel`}
+          role="tabpanel"
+          aria-labelledby={`${id}-help-mouse`}
+          aria-hidden={topic !== "mouse"}
+          inert={topic !== "mouse"}
+          tabindex="0"
+        >
+          <div class="help-body">
+            <table class="mouse-actions" aria-label="Mouse actions">
+              <thead><tr><th scope="col">Action</th><th scope="col">Result</th></tr></thead>
+              <tbody>
+                <tr><td>Click a Page counter</td><td>Enter a page number</td></tr>
+                <tr><td>Click a Grid image or grip</td><td>Select or unselect a page</td></tr>
+                <tr
+                  ><td><kbd class="named">Ctrl</kbd> / <kbd>⌘</kbd> + click an image</td><td
+                    >Open Page or return to Grid or List</td
+                  ></tr
+                >
+                <tr
+                  ><td><kbd class="named">Shift</kbd> + click a Grid image or grip</td><td
+                    >Add or remove a selection range</td
+                  ></tr
+                >
+                <tr><td>Double-click an Input Grid image</td><td>Add prepared pages, or this page, to Output</td></tr>
+                <tr><td>Double-click a Page image</td><td>Zoom to 200% at that point, or return to 100%</td></tr>
+                <tr><td>Drag an Input grip or Grid image</td><td>Add pages to Output</td></tr>
+                <tr><td>Drag an Output grip or Grid image</td><td>Move Output pages</td></tr>
+                <tr><td>Drag a Page image</td><td>Pan above 100% zoom</td></tr>
+                <tr><td>Mouse wheel</td><td>Scroll; above 100%, scroll the Page image</td></tr>
+                <tr><td>Click Reset zoom</td><td>Reset zoom to 100%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>{/if}
+      {#if topics.includes("touch")}<div
+          id={`${id}-help-touch-panel`}
+          role="tabpanel"
+          aria-labelledby={`${id}-help-touch`}
+          aria-hidden={topic !== "touch"}
+          inert={topic !== "touch"}
+          tabindex="0"
+        >
+          <div class="help-body">
+            <ul>
+              <li>Tap a page image or grip to select it. The page field shows the same selection.</li>
+              {#if hasInput}<li>Use the selection bar to add Input pages to Output.</li>{/if}
+              {#if hasOutput}<li>Use the selection bar to move, copy, and remove Output pages.</li>{/if}
+              <li>Page starts enlarged when the complete page would look narrow.</li>
+              <li>
+                The zoom reset button returns to the complete page at 100%. At 100%, it fits the page to the width.
+              </li>
+              <li>
+                Double-tap a Grid image to open Page. In Page, double-tap to zoom to 200% at that point, or return an
+                enlarged page to 100%. Select the Grid or List tab to change the Pages layout without changing your
+                selection.
+              </li>
+              <li>
+                Drag pages from their grips. In Page, swipe left or right to change pages when the image fits
+                horizontally. A wider image pans instead. Pinch to zoom, or hold to inspect with the lens.
+              </li>
+            </ul>
+          </div>
+        </div>{/if}
+    </div>
+  {:else}<p>Open a PDF to see its keyboard, mouse, and touch controls.</p>{/if}
+</dialog>
 
 <dialog
   bind:this={welcome}
