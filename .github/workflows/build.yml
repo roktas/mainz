@@ -133,7 +133,7 @@ jobs:
           name: wasm
           path: .local/var/package/wasm
       - name: Download Recipe cases
-        if: matrix.suite == 'workspace'
+        if: matrix.suite == 'workspace' || matrix.suite == 'feedback'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: recipe-cases

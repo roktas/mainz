@@ -71,5 +71,5 @@ test("CI matrices cover each browser file once and install its browser dependenc
     }
   }
   assert.match(workflow, /Install Chromium for native PDF printing\s+if: matrix.suite == 'export'/)
-  assert.match(workflow, /Download Recipe cases\s+if: matrix.suite == 'workspace'/)
+  assert.match(workflow, /Download Recipe cases\s+if: matrix.suite == 'workspace' \|\| matrix.suite == 'feedback'/)
 })

@@ -1791,12 +1791,19 @@ test("Output Page keeps original PDF labels through composition and Input change
       )
       const views = page.locator(".mobile-workspace-tabs")
       if (await views.isVisible()) await views.getByRole("button", { name: "Output", exact: true }).click()
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
       const labelBounds = await labels.evaluate((element) => {
         const box = element.getBoundingClientRect()
         const frame = element.closest(".page-view")
         const counter = frame.querySelector(".page-total").getBoundingClientRect()
         const tools = frame.querySelector(".page-tools").getBoundingClientRect()
-        return { aligned: box.left >= counter.right, separate: box.right <= tools.left + 1 }
+        return {
+          aligned: box.left >= counter.right,
+          separate: box.right <= tools.left + 1,
+          label: box.toJSON(),
+          tools: tools.toJSON(),
+          controls: frame.dataset.controls,
+        }
       })
       assert.ok(labelBounds.aligned && labelBounds.separate, JSON.stringify(labelBounds))
       const navigation = await labels.evaluate((element) => {
