@@ -136,11 +136,13 @@ namespace {
             auto location = "/sources/" + pointer(id);
             request_at(location, [&] {
                 identifier(id);
-                fields(source, {"input"}, {"profiles", "overrides"});
+                fields(source, {"input"}, {"profiles", "overrides", "title"});
                 auto input = text(source.getDictItem("input"));
                 require(inputs.contains(input), "Missing Recipe Input.");
                 used_inputs.insert(input);
             });
+            if (object(source).contains("title"))
+                request_at(location + "/title", [&] { pdf_title(source.getDictItem("title")); });
             for (const auto& key : {"profiles", "overrides"}) {
                 if (!object(source).contains(key))
                     continue;
@@ -510,9 +512,11 @@ static Resolution resolve(const std::string& recipe, const detail::Bindings& inp
         for (const auto& [id, source] : source_definitions) {
             auto input = detail::text(source.getDictItem("input"));
             auto style = styles(source, descriptions.at(input), "/sources/" + detail::pointer(id));
-            sources.addDictionaryMember(id,
-                detail::dictionary(
-                    {{"input", JSON::makeString(input)}, {"overrides", style.getDictItem("overrides")}}));
+            auto definition = detail::dictionary(
+                {{"input", JSON::makeString(input)}, {"overrides", style.getDictItem("overrides")}});
+            if (detail::object(source).contains("title"))
+                definition.addDictionaryMember("title", source.getDictItem("title"));
+            sources.addDictionaryMember(id, definition);
             intent.addDictionaryMember(id,
                 detail::dictionary(
                     {{"profiles", style.getDictItem("profiles")}, {"edits", style.getDictItem("edits")}}));

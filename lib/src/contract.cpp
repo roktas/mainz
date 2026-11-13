@@ -532,10 +532,9 @@ void profile_sets(JSON sets, const std::map<std::string, JSON>& parameters)
             "The first profile must restore original styles.");
     }
 }
-void document_metadata(JSON metadata, std::size_t pages)
+std::string pdf_title(JSON value)
 {
-    fields(metadata, {"title", "coverPage"});
-    auto title = text(metadata.getDictItem("title"));
+    auto title = text(value);
     require(!blank(title) && title.size() <= 4096, "PDF title requires 1 to 4096 bytes.");
     std::size_t position {0};
     while (position < title.size()) {
@@ -546,6 +545,12 @@ void document_metadata(JSON metadata, std::size_t pages)
                     || (code >= 0xe000 && code <= 0xfffd) || (code >= 0x10000 && code <= 0x10ffff)),
             "PDF title contains invalid XML text.");
     }
+    return title;
+}
+void document_metadata(JSON metadata, std::size_t pages)
+{
+    fields(metadata, {"title", "coverPage"});
+    pdf_title(metadata.getDictItem("title"));
     auto page = number(metadata.getDictItem("coverPage"));
     require(page >= 1 && page <= static_cast<double>(pages) && std::floor(page) == page,
         "Cover page must identify a physical Output page.");

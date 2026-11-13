@@ -3,10 +3,163 @@
 import { engines, launch } from "./browsers.js"
 import assert from "node:assert/strict"
 import test from "node:test"
-import { mkdir, writeFile } from "node:fs/promises"
+import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { chromium, webkit } from "playwright"
 import { serve } from "./server.ts"
-import { outputCount, tab, fixture, gridPage } from "./browser.js"
+import { outputAction, outputCount, tab, fixture, gridPage } from "./browser.js"
+
+test(
+  "Output source blocks follow additions, duplication, moves, and Blank ownership",
+  { timeout: 120000 },
+  async () => {
+    const server = await serve()
+    for (const engine of engines) {
+      const browser = await launch(engine)
+      try {
+        for (const width of [320, 390, 768, 1440]) {
+          const page = await browser.newPage({
+            viewport: { width, height: 1100 },
+            reducedMotion: "reduce",
+            hasTouch: width === 390,
+            colorScheme: width === 390 ? "dark" : "light",
+          })
+          page.setDefaultTimeout(10000)
+          await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+          await page.goto(server.resolvedUrls.local[0])
+          if (width === 768) await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
+          const input = page.locator(".selection-panel")
+          const output = page.locator(".composition-output")
+          const switcher = page.getByRole("navigation", { name: "Workspace view", exact: true })
+          const reveal = async (name) => {
+            const control = switcher.getByRole("button", { name, exact: true })
+            if (await control.isVisible()) await control.click()
+          }
+          const blocks = async (expected) => {
+            await page.waitForFunction((titles) => {
+              const actual = [...document.querySelectorAll(".composition-output :is(.list-disclosure, .grid-ribbon)")]
+                .map(
+                  (button) =>
+                    button.getAttribute("aria-label").match(/^(?:Fold|Unfold) Output section: (Book [AB])$/)?.[1],
+                )
+                .filter(Boolean)
+              return JSON.stringify(actual) === JSON.stringify(titles)
+            }, expected)
+          }
+          for (const [name, selection] of [
+            ["Book A", "3,5"],
+            ["Book B", "2,9"],
+          ]) {
+            await page
+              .locator('input[type=file][aria-label="Open PDF"]')
+              .first()
+              .setInputFiles({
+                name: `${name}.pdf`,
+                mimeType: "application/pdf",
+                buffer: fixture({
+                  prepared: false,
+                  count: 10,
+                  outline: [
+                    { title: "Contents", page: 0 },
+                    { title: "Early", page: 0, parent: 0 },
+                    { title: "Late", page: 5, parent: 0 },
+                  ],
+                }),
+              })
+            await page.locator(".composer[aria-busy=false]").waitFor()
+            await reveal("Input")
+            await page.locator(`.input-picker > summary[aria-label$="${name}.pdf"]`).waitFor()
+            await input.getByLabel("Page selection", { exact: true }).fill(selection)
+            await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+          }
+          await reveal("Output")
+          await tab(output, "List")
+          const unfold = output.getByRole("button", { name: "Unfold all Output sections", exact: true })
+          if (await unfold.isVisible()) await unfold.click()
+          await blocks(["Book A", "Book B"])
+          const late = output.locator('.list-section:has(.list-heading[data-page="3"])')
+          assert.deepEqual(await late.locator(".list-ancestor").allTextContents(), ["Contents"])
+          await late.getByRole("button", { name: "Details for Output page 4", exact: true }).click()
+          assert.deepEqual(
+            await page
+              .locator(".card-menu-options:popover-open .section-path .path-step > span:last-child")
+              .allTextContents(),
+            ["Book B", "Contents", "Late"],
+          )
+          await page.keyboard.press("Escape")
+          const selection = output.getByLabel("Page selection", { exact: true })
+          await selection.fill("1-2")
+          await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).press("Enter")
+          await blocks(["Book A", "Book B"])
+          assert.equal(await outputCount(page).textContent(), "6 pages")
+          await selection.fill("5")
+          await output.getByLabel("Output page actions", { exact: true }).click()
+          await output.getByRole("button", { name: "Before", exact: true }).click()
+          await blocks(["Book A", "Book B"])
+          await selection.fill("3-4")
+          const move = async (direction) => {
+            const control = output.getByRole("button", { name: `Move selected pages ${direction}`, exact: true })
+            if (!(await control.isVisible())) await output.getByLabel("Output page actions", { exact: true }).click()
+            await control.click()
+          }
+          for (let step = 0; step < 2; step++) await move("later")
+          await blocks(["Book A", "Book B", "Book A", "Book B"])
+          for (let step = 0; step < 2; step++) await move("earlier")
+          await blocks(["Book A", "Book B"])
+          await selection.fill("")
+          await tab(output, "Grid")
+          await blocks(["Book A", "Book B"])
+          await output.getByRole("button", { name: "Fold Output section: Book A", exact: true }).click()
+          assert.equal(await output.locator(".composition-card").count(), 3, "The A block includes its Blank")
+          await tab(output, "List")
+          await output.getByRole("button", { name: "Unfold Output section: Book A", exact: true }).click()
+          await reveal("Input")
+          await page.locator(".input-picker > summary:visible").click()
+          await page.locator(".input-choice-select").filter({ hasText: "Book A.pdf" }).click()
+          await input.getByLabel("Page selection", { exact: true }).fill("9")
+          await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+          await reveal("Output")
+          await blocks(["Book A", "Book B", "Book A"])
+          await selection.fill("")
+          await mkdir("../.local/tmp/web/layout/source-blocks", { recursive: true })
+          await page.screenshot({ path: `../.local/tmp/web/layout/source-blocks/${engine.name()}-${width}.png` })
+          if (engine === chromium && width === 1440) {
+            const pending = page.waitForEvent("download")
+            await (await outputAction(page, "Download")).click()
+            const download = await pending
+            const saved = await page.evaluate(
+              async (bytes) => {
+                const { openPDF } = await import("/src/pdf.ts")
+                const task = await openPDF(new Uint8Array(bytes))
+                try {
+                  const pdf = await task.promise
+                  const roots = await pdf.getOutline()
+                  return await Promise.all(
+                    roots.map(async (entry) => [entry.title, (await pdf.getPageIndex(entry.dest[0])) + 1]),
+                  )
+                } finally {
+                  await task.destroy()
+                }
+              },
+              [...(await readFile(await download.path()))],
+            )
+            assert.deepEqual(saved, [
+              ["Book A", 1],
+              ["Book B", 6],
+              ["Book A", 8],
+            ])
+          }
+          await selection.fill("6-7")
+          await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
+          await blocks([])
+          assert.equal(await outputCount(page).textContent(), "6 pages")
+          await page.close()
+        }
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
 
 test(
   "Folded sections select descendants and unfolded headings toggle only their pages",

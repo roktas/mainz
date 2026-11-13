@@ -26,6 +26,7 @@ export type Input = {
 }
 export type Source = StyleState & {
   id: string
+  title?: string
   number: number
   input: Input
   preview: Preview
@@ -50,7 +51,7 @@ export type Expanded = Page & { part: string; copy: number; padding: boolean }
 export type Plan = {
   version: 1
   metadata?: { title: string; coverPage: number }
-  sources: Record<string, { input: string; overrides: Record<string, Scalar> }>
+  sources: Record<string, { input: string; title?: string; overrides: Record<string, Scalar> }>
   parts: { pages: Content[]; copies: number; front: boolean }[]
 }
 export const maxCopies = 1000
@@ -188,7 +189,8 @@ export function plan(
   parts: readonly Part[],
   sources: readonly {
     id: string
-    input: { id: string; sizes: readonly Size[] }
+    title?: string
+    input: { id: string; name: string; title?: string; sizes: readonly Size[] }
     overrides: Record<string, Scalar>
   }[],
 ): Plan {
@@ -202,7 +204,17 @@ export function plan(
     sources: Object.fromEntries(
       sources
         .filter((source) => used.has(source.id))
-        .map((source) => [source.id, { input: source.input.id, overrides: { ...source.overrides } }]),
+        .map((source) => {
+          const title = source.title ?? (used.size > 1 ? titleOf(source.input) : undefined)
+          return [
+            source.id,
+            {
+              input: source.input.id,
+              ...(title !== undefined ? { title } : {}),
+              overrides: { ...source.overrides },
+            },
+          ]
+        }),
     ),
     parts: parts.map((part) => ({
       pages: part.pages.map((page) => structuredClone(page.content)),

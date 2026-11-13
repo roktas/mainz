@@ -3,8 +3,10 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import type { PDFDocumentProxy } from "pdfjs-dist"
-import { frameOutline, readOutline, sectionsAt, titlesOf } from "../src/outline.ts"
+import { composeOutline, frameOutline, readOutline, sectionsAt, titlesOf } from "../src/outline.ts"
 import type { Outline } from "../src/outline.ts"
+import { sectionsOf } from "../src/sections.ts"
+import type { Page } from "../src/model.ts"
 
 type Node = NonNullable<Awaited<ReturnType<PDFDocumentProxy["getOutline"]>>>[number]
 const node = (title: string, page: number | null, items: Node[] = []): Node => ({
@@ -26,6 +28,155 @@ const pdf = (nodes: Node[], numPages = 20) => ({
   getPageIndex: async () => {
     throw new Error("Unknown page reference.")
   },
+})
+
+test("Output source blocks retain local TOCs, repeated pages, and preceding Blank ownership", async () => {
+  const outline = await readOutline(pdf([node("Contents", 0, [node("Early", 0), node("Late", 5)])], 10))
+  const size = { width: 210, height: 297 }
+  const sources = [
+    { id: "a", input: { name: "a.pdf", title: "Book A", outline } },
+    { id: "b", input: { name: "Book B.pdf", outline } },
+  ]
+  const sequence: (readonly [string, number] | null)[] = [
+    null,
+    ["a", 3],
+    ["a", 5],
+    null,
+    ["b", 1],
+    ["b", 4],
+    ["b", 3],
+    ["b", 3],
+    ["a", 2],
+    ["a", 9],
+    ["b", 7],
+    ["a", 1],
+    ["a", 8],
+    null,
+  ]
+  const pages: Page[] = sequence.map((item, index) => ({
+    id: `page-${index}`,
+    content: item ? { source: item[0], page: item[1] - 1 } : { blank: size },
+  }))
+  const projected = composeOutline(pages, sources)!
+  const tree = sectionsOf(
+    pages.length,
+    (index) => sectionsAt(projected, index),
+    (index) => pages[index].id,
+  )
+  assert.deepEqual(
+    tree.roots.map(({ path, start, end }) => [path[0], start, end]),
+    [
+      ["Book A", 1, 4],
+      ["Book B", 4, 8],
+      ["Book A", 8, 10],
+      ["Book B", 10, 11],
+      ["Book A", 11, 14],
+    ],
+  )
+  assert.equal(new Set(projected.map((entry) => entry.keys.at(-1))).size, projected.length)
+  assert.deepEqual(sectionsAt(projected, 0), [])
+  assert.deepEqual(
+    tree.roots.map((root) => root.children[0].children.map(({ path, start }) => [path.at(-1), start])),
+    [
+      [["Early", 1]],
+      [["Early", 4]],
+      [
+        ["Early", 8],
+        ["Late", 9],
+      ],
+      [["Late", 10]],
+      [
+        ["Early", 11],
+        ["Late", 12],
+      ],
+    ],
+  )
+  const reversed = pages.toReversed()
+  assert.deepEqual(
+    composeOutline(reversed, sources)!
+      .filter((entry) => entry.depth === 0)
+      .map((entry) => entry.title),
+    ["Book A", "Book B", "Book A", "Book B", "Book A"],
+  )
+  assert.equal(
+    composeOutline(
+      pages.filter(({ content }) => !("source" in content) || content.source === "a"),
+      sources,
+    ),
+    undefined,
+  )
+  assert.equal(composeOutline([], sources), undefined)
+})
+
+test("Output blocks retain same-page siblings and retarget ancestors after reordering", async () => {
+  const outline = await readOutline(pdf([node("Part", 0, [node("First", 0), node("Second", 5)]), node("End", 8)], 10))
+  const input = { name: "Book.pdf", outline }
+  const sources = [
+    { id: "a", input, title: "Saved heading" },
+    { id: "b", input },
+  ]
+  const selection: [string, number][] = [
+    ["a", 7],
+    ["a", 1],
+    ["b", 9],
+    ["a", 0],
+  ]
+  const pages: Page[] = selection.map(([source, page], index) => ({
+    id: String(index),
+    content: { source, page },
+  }))
+  assert.deepEqual(
+    composeOutline(pages, sources)!.map(({ title, page, depth }) => [title, page, depth]),
+    [
+      ["Saved heading", 0, 0],
+      ["Part", 0, 1],
+      ["Second", 0, 2],
+      ["First", 1, 2],
+      ["Book", 2, 0],
+      ["End", 2, 1],
+      ["Saved heading", 3, 0],
+      ["Part", 3, 1],
+      ["First", 3, 2],
+    ],
+  )
+  const samePage = await readOutline(pdf([node("Part", 0, [node("First", 0), node("Also first", 0)])], 10))
+  const coincident = composeOutline(pages.slice(2), [{ id: "a", input: { ...input, outline: samePage } }, sources[1]])!
+  assert.deepEqual(
+    coincident.filter((entry) => entry.depth === 2).map((entry) => [entry.title, entry.page]),
+    [
+      ["First", 1],
+      ["Also first", 1],
+    ],
+  )
+})
+
+test("Output outlines support 10,000 alternating source blocks with independent local targets", () => {
+  const outline = Array.from({ length: 10000 }, (_, page) => ({
+    title: `Section ${page}`,
+    path: [`Section ${page}`],
+    keys: [String(page)],
+    depth: 0,
+    page,
+    end: page,
+  }))
+  const input = { name: "Book.pdf", outline }
+  const sources = [
+    { id: "a", input },
+    { id: "b", input },
+  ]
+  const pages = Array.from({ length: 10000 }, (_, page) => ({
+    id: String(page),
+    content: { source: page % 2 ? "a" : "b", page },
+  }))
+  const result = composeOutline(pages, sources)!
+  assert.equal(result.length, 20000)
+  assert.deepEqual(
+    result.slice(-2).map(({ title, page, end }) => [title, page, end]),
+    [
+      ["Book", 9999, 9999],
+      ["Section 9999", 9999, 9999],
+    ],
+  )
 })
 
 test("Untargeted TOC containers retain child ancestry without extending the previous chapter", async () => {

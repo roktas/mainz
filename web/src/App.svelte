@@ -350,6 +350,7 @@
       const identities = new Map<string, string>()
       for (const [id, definition] of Object.entries(resolved.plan.sources)) {
         const source = sourceFor(inputs.get(definition.input)!)
+        source.title = definition.title
         source.overrides = definition.overrides
         source.profiles = resolved.intent[id].profiles
         source.edits = resolved.intent[id].edits

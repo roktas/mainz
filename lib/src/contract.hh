@@ -59,6 +59,7 @@ void schema(JSON, const std::string& property);
 void semantics(const std::map<std::string, JSON>& parameters, const std::string& source = "manifest");
 void profile_sets(JSON, const std::map<std::string, JSON>& parameters);
 void page_metadata(JSON);
+std::string pdf_title(JSON);
 void document_metadata(JSON, std::size_t pages);
 bool annotated(JSON pages);
 void manifest(JSON, std::size_t pages);

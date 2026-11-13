@@ -1,7 +1,8 @@
-// Owns PDF section hierarchy, indexed page ranges, and authored/TOC display-title policy.
+// Owns source and composed Output outlines, section ranges, and authored/TOC display titles.
 
 import type { PDFDocumentProxy } from "pdfjs-dist"
-import type { Input } from "./model.ts"
+import { titleOf } from "./model.ts"
+import type { Input, Page } from "./model.ts"
 
 export type SectionPath = {
   path: readonly string[]
@@ -64,15 +65,96 @@ export async function readOutline(
     return []
   }
   if (cancelled()) return []
+  return ranges(result)
+}
+
+function ranges(outline: Outline[]) {
   const open: Outline[] = []
-  for (const entry of result) {
+  for (const entry of outline) {
     while (open.length && entry.depth <= open.at(-1)!.depth) {
       const previous = open.pop()!
       previous.end = Math.max(previous.page, entry.page - 1)
     }
     open.push(entry)
   }
-  return result
+  return outline
+}
+
+export function composeOutline(
+  pages: readonly Page[],
+  sources: readonly { id: string; title?: string; input: Pick<Input, "name" | "title" | "outline"> }[],
+): Outline[] | undefined {
+  const blocks: { source: string; start: number }[] = []
+  const used = new Set<string>()
+  let previous: string | undefined
+  for (const [index, { content }] of pages.entries()) {
+    if (!("source" in content) || content.source === previous) continue
+    blocks.push({ source: content.source, start: index })
+    used.add(content.source)
+    previous = content.source
+  }
+  if (used.size < 2) return
+  const catalogs = new Map<string, Map<Outline, { parent?: Outline; order: number }>>()
+  const result: Outline[] = []
+  for (const [block, { source: id, start }] of blocks.entries()) {
+    const source = sources.find((candidate) => candidate.id === id)
+    if (!source) return
+    const end = (blocks[block + 1]?.start ?? pages.length) - 1
+    const title = source.title ?? titleOf(source.input)
+    const key = pages[start].id
+    result.push({ title, path: [title], keys: [key], depth: 0, page: start, end })
+    let catalog = catalogs.get(id)
+    if (!catalog) {
+      catalog = new Map()
+      const open: Outline[] = []
+      for (const [order, entry] of (source.input.outline ?? []).entries()) {
+        while (open.length && open.at(-1)!.depth >= entry.depth) open.pop()
+        catalog.set(entry, { parent: open.at(-1), order })
+        open.push(entry)
+      }
+      catalogs.set(id, catalog)
+    }
+    type Heading = { entry: Outline; page: number; children: Heading[] }
+    const headings = new Map<Outline, Heading>()
+    const roots: Heading[] = []
+    for (let index = start; index <= end; index++) {
+      const content = pages[index].content
+      if (!("source" in content)) continue
+      for (const entry of sectionsAt(source.input.outline, content.page)) {
+        for (
+          let ancestor: Outline | undefined = entry;
+          ancestor && !headings.has(ancestor);
+          ancestor = catalog.get(ancestor)!.parent
+        )
+          headings.set(ancestor, { entry: ancestor, page: index, children: [] })
+      }
+    }
+    for (const heading of headings.values()) {
+      const ancestor = catalog.get(heading.entry)!.parent
+      const parent = ancestor && headings.get(ancestor)
+      ;(parent?.children ?? roots).push(heading)
+    }
+    const append = (siblings: Heading[], path: string[], keys: string[]) => {
+      for (const { entry, page, children } of siblings.toSorted(
+        (a, b) => a.page - b.page || catalog.get(a.entry)!.order - catalog.get(b.entry)!.order,
+      )) {
+        const nextPath = [...path, entry.title]
+        const nextKeys = [...keys, `${key}:${entry.keys.at(-1)!}`]
+        result.push({
+          title: entry.title,
+          path: nextPath,
+          keys: nextKeys,
+          depth: path.length,
+          page,
+          end,
+          synthetic: entry.synthetic,
+        })
+        append(children, nextPath, nextKeys)
+      }
+    }
+    append(roots, [title], [key])
+  }
+  return ranges(result)
 }
 
 export function edgeName(name: string | undefined, edge: "first" | "last") {

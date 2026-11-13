@@ -1236,6 +1236,167 @@ module Mainz
       assert_equal([["Book", 1, [["First", 1, []]]]], summarize.call(pdf_json(context)["outlines"]))
     end
 
+    def test_composition_groups_source_blocks_under_their_titles
+      document = HexaPDF::Document.open(@source)
+      document.outline.add_item("Book", destination: document.pages[0]) do |book|
+        book.add_item("Details", destination: document.pages[1])
+      end
+
+      document.write(@source.to_s)
+      request = {
+        "version" => 1,
+        "sources" => {
+          "a" => {"input" => "input", "title" => "First book", "overrides" => {"opacity" => 0.4}},
+          "b" => {"input" => "input", "title" => "Second book", "overrides" => {}}
+        },
+        "parts" => [
+          {"pages" => [["a", 0], ["a", 1], ["b", 0], ["b", 1]].map { |id, page| {"source" => id, "page" => page} }}
+        ]
+      }
+      summarize = -> (items) { items.map { [it["title"], it["destpageposfrom1"], summarize.call(it["kids"])] } }
+      output, = compose(request, "grouped-books.pdf")
+      assert_equal(
+        [
+          ["First book", 1, [["Book", 1, [["Details", 2, []]]]]],
+          ["Second book", 3, [["Book", 3, [["Details", 4, []]]]]]
+        ],
+        summarize.call(pdf_json(output)["outlines"])
+      )
+      request["parts"] = [{"pages" => [["b", 1], ["a", 1]].map { |id, page| {"source" => id, "page" => page} }}]
+      subset, = compose(request, "grouped-subsets.pdf")
+      expected = [
+        ["Second book", 1, [["Book", 1, [["Details", 1, []]]]]],
+        ["First book", 2, [["Book", 2, [["Details", 2, []]]]]]
+      ]
+      assert_equal(expected, summarize.call(pdf_json(subset)["outlines"]))
+      command("qpdf", "--check", subset)
+      recipe = request.merge(
+        "inputs" => {"input" => {"sha256" => Digest::SHA256.file(@source).hexdigest, "pageCount" => 2}},
+        "sources" => request["sources"].transform_values do |source|
+          source.merge("overrides" => source["overrides"].map { |id, value| {"id" => id, "value" => value} })
+        end
+      )
+      path = write("grouped-recipe.json", recipe)
+      resolved = command(@cli, "resolve", path, "--inputs", file("inputs.json"))
+      assert_equal(request["sources"], JSON.parse(resolved.stdout)["sources"])
+      replay = file("grouped-replay.pdf")
+      FileUtils.rm_f(replay)
+      command(@cli, "apply", path, "--inputs", file("inputs.json"), "--output", replay)
+      assert_equal(expected, summarize.call(pdf_json(replay)["outlines"]))
+      request["parts"] = [
+        {"pages" => [["a", 0], ["b", 0], ["a", 1]].map { |id, page| {"source" => id, "page" => page} }}
+      ]
+      interleaved, = compose(request, "interleaved-books.pdf")
+      assert_equal(
+        [
+          ["First book", 1, [["Book", 1, []]]],
+          ["Second book", 2, [["Book", 2, []]]],
+          ["First book", 3, [["Book", 3, [["Details", 3, []]]]]]
+        ],
+        summarize.call(pdf_json(interleaved)["outlines"])
+      )
+      ordinary = file("no-outline.pdf")
+      HexaPDF::Document.new.tap { it.pages.add }.write(ordinary.to_s)
+      write("inputs.json", {"input" => @source.to_s, "ordinary" => ordinary.to_s})
+      request["sources"]["b"]["input"] = "ordinary"
+      request["parts"] = [{"pages" => [{"source" => "a", "page" => 1}, {"source" => "b", "page" => 0}]}]
+      untitled, = compose(request, "unbookmarked-block.pdf")
+      assert_equal(
+        [["First book", 1, [["Book", 1, [["Details", 1, []]]]]], ["Second book", 2, []]],
+        summarize.call(pdf_json(untitled)["outlines"])
+      )
+    end
+
+    def test_composition_attaches_blanks_and_padding_to_preceding_source_blocks
+      source = file("ten-pages.pdf")
+      document = HexaPDF::Document.new
+      10.times { document.pages.add }
+      document.outline.add_item("Contents", destination: document.pages[0]) do |book|
+        book.add_item("Early", destination: document.pages[0])
+        book.add_item("Late", destination: document.pages[5])
+      end
+
+      document.write(source.to_s)
+      write("inputs.json", {"input" => source.to_s})
+      blank = {"blank" => {"width" => 210, "height" => 297}}
+      sequence = [
+        nil,
+        ["a", 3],
+        ["a", 5],
+        nil,
+        ["b", 1],
+        ["b", 4],
+        ["b", 3],
+        ["b", 3],
+        ["a", 2],
+        ["a", 9],
+        ["b", 7],
+        ["a", 1],
+        ["a", 8],
+        nil
+      ]
+      request = {
+        "version" => 1,
+        "sources" => {
+          "a" => {"input" => "input", "title" => "Book A", "overrides" => {}},
+          "b" => {"input" => "input", "title" => "Book B", "overrides" => {}}
+        },
+        "parts" => [{"pages" => sequence.map { it ? {"source" => it[0], "page" => it[1] - 1} : blank }}]
+      }
+      output, = compose(request, "source-blocks.pdf")
+      summarize = -> (items) { items.map { [it["title"], it["destpageposfrom1"], summarize.call(it["kids"])] } }
+      assert_equal(
+        [
+          ["Book A", 2, [["Contents", 2, [["Early", 2, []]]]]],
+          ["Book B", 5, [["Contents", 5, [["Early", 5, []]]]]],
+          ["Book A", 9, [["Contents", 9, [["Early", 9, []], ["Late", 10, []]]]]],
+          ["Book B", 11, [["Contents", 11, [["Late", 11, []]]]]],
+          ["Book A", 12, [["Contents", 12, [["Early", 12, []], ["Late", 13, []]]]]]
+        ],
+        summarize.call(pdf_json(output)["outlines"])
+      )
+      command("qpdf", "--check", output)
+      request["parts"] = [
+        {"pages" => [{"source" => "a", "page" => 2}], "front" => true},
+        {"pages" => [{"source" => "b", "page" => 6}], "front" => true},
+        {"pages" => [{"source" => "a", "page" => 8}], "front" => true}
+      ]
+      padded, = compose(request, "padded-source-blocks.pdf")
+      assert_equal(
+        [
+          ["Book A", 1, [["Contents", 1, [["Early", 1, []]]]]],
+          ["Book B", 3, [["Contents", 3, [["Late", 3, []]]]]],
+          ["Book A", 5, [["Contents", 5, [["Late", 5, []]]]]]
+        ],
+        summarize.call(pdf_json(padded)["outlines"])
+      )
+      assert_equal(6, describe(padded)["pageCount"])
+    end
+
+    def test_composition_and_recipe_reject_invalid_source_titles
+      ["", " ", "x" * 4097, "Invalid\u0000title"].each do |title|
+        request = plan
+        request["sources"].each_value { it["title"] = title }
+        _, failure = compose(request, "invalid-source-title.pdf", ok: false)
+        code = title.bytesize > 4096 ? "limit-exceeded" : "invalid-request"
+        assert_equal(code, JSON.parse(failure.stderr)["code"])
+        assert_match(%r{\A/sources/[^/]+/title\z}, JSON.parse(failure.stderr)["location"]) if title.bytesize <= 4096
+        recipe = request.merge(
+          "inputs" => {"input" => {}},
+          "sources" => request["sources"].transform_values { {"input" => "input", "title" => title} }
+        )
+        result = command(
+          @cli,
+          "resolve",
+          write("invalid-source-title.json", recipe),
+          "--inputs",
+          file("inputs.json"),
+          ok: false
+        )
+        assert_equal(code, JSON.parse(result.stderr)["code"])
+      end
+    end
+
     def test_composition_bounds_outline_traversal_and_retains_navigable_children
       source = file("outline-context.pdf")
       document = HexaPDF::Document.new

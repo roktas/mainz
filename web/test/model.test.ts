@@ -215,6 +215,7 @@ const sources = [
     id: "book",
     input: {
       id: "input",
+      name: "book.pdf",
       sizes: [
         { width: 210, height: 297 },
         { width: 148, height: 210 },
@@ -225,7 +226,7 @@ const sources = [
   },
   {
     id: "variant",
-    input: { id: "input", sizes: [{ width: 210, height: 297 }] },
+    input: { id: "input", name: "variant.pdf", sizes: [{ width: 210, height: 297 }] },
     overrides: { color: "#222222" },
   },
 ] satisfies Parameters<typeof plan>[1]
@@ -440,6 +441,24 @@ test("Plan includes only used Sources, full explicit overrides, and zero-based r
   for (const text of ["", "0", "-1", "1.5", "1001", "Infinity"]) assert.ok(copyError(text))
   assert.equal(copyError("4"), undefined)
   assert.throws(() => plan([part("invalid", [0], 0)], sources), /whole number/)
+})
+
+test("Multi-Input Plans carry authored or filename titles for document outline groups", () => {
+  const chunks: Part[] = [
+    part("first", [1]),
+    {
+      id: "second",
+      copies: 1,
+      front: false,
+      pages: [{ id: "second-page", content: { source: "variant", page: 0 } }],
+    },
+  ]
+  const request = plan(chunks, sources)
+  assert.equal(request.sources.book.title, "book")
+  assert.equal(request.sources.variant.title, "variant")
+  const titled = sources.map((source) => ({ ...source, input: { ...source.input, title: "Authored title" } }))
+  assert.equal(plan(chunks, titled).sources.book.title, "Authored title")
+  assert.equal(plan(chunks, [{ ...titled[0], title: "Saved heading" }, titled[1]]).sources.book.title, "Saved heading")
 })
 
 test("Download preflight counts referenced Input identities and their aggregate bytes", () => {

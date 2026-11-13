@@ -35,6 +35,7 @@ struct PlanSource {
     std::map<std::string, std::string> targets;
     std::string prefix;
     std::string input;
+    std::string title;
 };
 struct SourcePage {
     std::string source;
@@ -72,7 +73,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             auto location = "/sources/" + pointer(id);
             auto input = request_at(location, [&] {
                 identifier(id, "invalid-request");
-                fields(definition, {"input", "overrides"});
+                fields(definition, {"input", "overrides"}, {"title"});
                 auto key = text(definition.getDictItem("input"));
                 identifier(key, "invalid-request");
                 require(inputs.contains(key), "Missing Input binding.");
@@ -82,6 +83,9 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             used_inputs.insert(input);
             auto& source = sources[id];
             source.input = input;
+            if (object(definition).contains("title"))
+                source.title
+                    = request_at(location + "/title", [&] { return pdf_title(definition.getDictItem("title")); });
             source.prefix = "s" + std::to_string(sources.size() - 1) + ":";
             try {
                 const auto& binding = inputs.at(input);
@@ -495,6 +499,26 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
         std::vector<Bookmark> bookmarks;
         std::vector<std::size_t> roots;
         const auto output_pages = tree.getAllPages();
+        struct Block {
+            std::string source;
+            std::size_t start, end;
+        };
+        std::vector<Block> blocks;
+        const bool grouped = sources.size() > 1 && std::all_of(sources.begin(), sources.end(), [](const auto& entry) {
+            return !entry.second.title.empty();
+        });
+        std::string previous_source;
+        for (std::size_t index = 0; grouped && index < expanded.size(); ++index) {
+            auto content = std::get_if<SourcePage>(&expanded[index].content);
+            if (!content)
+                continue;
+            if (content->source != previous_source) {
+                if (!blocks.empty())
+                    blocks.back().end = index;
+                blocks.push_back({content->source, index, expanded.size()});
+                previous_source = content->source;
+            }
+        }
         for (auto& [id, source] : sources) {
             auto& engine = *source.engine;
             struct Heading {
@@ -519,8 +543,8 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
                 auto item = current.item;
                 if (!item.isDictionary() || (item.isIndirect() && !seen.insert(item.getObjGen()).second))
                     continue;
-                require(++budget.visits <= 65536 && current.level < 64, "Outline traversal exceeds limits.",
-                    "limit-exceeded");
+                require(++budget.visits <= 65536 && current.level + (grouped ? 1 : 0) < 64,
+                    "Outline traversal exceeds limits.", "limit-exceeded");
                 pending.push_back({item.getKey("/Next"), current.depth, current.level, current.parent});
                 auto title = item.getKey("/Title");
                 auto dest = item.getKey("/Dest");
@@ -548,8 +572,6 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
                 }
                 pending.push_back({item.getKey("/First"), depth, current.level + 1, parent});
             }
-            if (headings.empty())
-                continue;
             std::vector<std::size_t> open;
             for (std::size_t index = 0; index < headings.size(); ++index) {
                 while (!open.empty() && headings[open.back()].depth >= headings[index].depth) {
@@ -561,46 +583,76 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             }
             // Range minima find each section's first retained Output occurrence without a page/section matrix.
             auto count = engine.pages.size();
-            budget.consume(2 * count * sizeof(std::size_t));
-            std::vector<std::size_t> first(2 * count, expanded.size());
-            for (std::size_t index = 0; index < expanded.size(); ++index)
-                if (auto content = std::get_if<SourcePage>(&expanded[index].content); content && content->source == id)
-                    first[count + content->page] = std::min(first[count + content->page], index);
-            for (auto index = count; index > 1; --index)
-                first[index - 1] = std::min(first[2 * (index - 1)], first[2 * (index - 1) + 1]);
-            std::vector<std::optional<std::size_t>> retained(headings.size());
-            for (std::size_t index = 0; index < headings.size(); ++index) {
-                const auto& heading = headings[index];
-                auto target = expanded.size();
-                for (auto left = count + heading.page, right = count + heading.end + 1; left < right;
-                    left /= 2, right /= 2) {
-                    if (left % 2)
-                        target = std::min(target, first[left++]);
-                    if (right % 2)
-                        target = std::min(target, first[--right]);
+            if (!headings.empty())
+                budget.consume(2 * count * sizeof(std::size_t));
+            std::vector<std::size_t> first(headings.empty() ? 0 : 2 * count);
+            std::vector<Block> spans;
+            if (grouped) {
+                for (const auto& block : blocks)
+                    if (block.source == id)
+                        spans.push_back(block);
+            } else
+                spans.push_back({id, 0, expanded.size()});
+            for (const auto& block : spans) {
+                std::optional<std::size_t> group;
+                if (grouped) {
+                    require(++budget.visits <= 65536, "Outline traversal exceeds limits.", "limit-exceeded");
+                    auto item = output.makeIndirectObject(
+                        Object::newDictionary({{"/Title", Object::newUnicodeString(source.title)},
+                            {"/Dest",
+                                Object::newArray(
+                                    {output_pages.at(block.start).getObjectHandle(), Object::newName("/Fit")})}}));
+                    group = bookmarks.size();
+                    roots.push_back(*group);
+                    bookmarks.push_back({item, block.start, {}});
                 }
-                headings[index].target = target;
-            }
-            // Non-monotonic targets must not detach retained children from their authored ancestors.
-            for (auto index = headings.size(); index > 0; --index) {
-                const auto& heading = headings[index - 1];
-                if (heading.parent)
-                    headings[*heading.parent].target = std::min(headings[*heading.parent].target, heading.target);
-            }
-            for (std::size_t index = 0; index < headings.size(); ++index) {
-                const auto& heading = headings[index];
-                auto target = heading.target;
-                if (target == expanded.size())
+                if (headings.empty())
                     continue;
-                auto item = output.makeIndirectObject(
-                    Object::newDictionary({{"/Title", Object::newUnicodeString(heading.title.getUTF8Value())},
-                        {"/Dest",
-                            Object::newArray({output_pages.at(target).getObjectHandle(), Object::newName("/Fit")})}}));
-                auto parent = heading.parent;
-                auto& siblings = parent ? bookmarks[*retained[*parent]].children : roots;
-                siblings.push_back(bookmarks.size());
-                retained[index] = bookmarks.size();
-                bookmarks.push_back({item, target, {}});
+                std::fill(first.begin(), first.end(), expanded.size());
+                for (std::size_t index = block.start; index < block.end; ++index)
+                    if (auto content = std::get_if<SourcePage>(&expanded[index].content);
+                        content && content->source == id)
+                        first[count + content->page] = std::min(first[count + content->page], index);
+                for (auto index = count; index > 1; --index)
+                    first[index - 1] = std::min(first[2 * (index - 1)], first[2 * (index - 1) + 1]);
+                std::vector<std::optional<std::size_t>> retained(headings.size());
+                for (std::size_t index = 0; index < headings.size(); ++index) {
+                    const auto& heading = headings[index];
+                    auto target = expanded.size();
+                    for (auto left = count + heading.page, right = count + heading.end + 1; left < right;
+                        left /= 2, right /= 2) {
+                        if (left % 2)
+                            target = std::min(target, first[left++]);
+                        if (right % 2)
+                            target = std::min(target, first[--right]);
+                    }
+                    headings[index].target = target;
+                }
+                // Non-monotonic targets must not detach retained children from their authored ancestors.
+                for (auto index = headings.size(); index > 0; --index) {
+                    const auto& heading = headings[index - 1];
+                    if (heading.parent)
+                        headings[*heading.parent].target = std::min(headings[*heading.parent].target, heading.target);
+                }
+                for (std::size_t index = 0; index < headings.size(); ++index) {
+                    const auto& heading = headings[index];
+                    auto target = heading.target;
+                    if (target == expanded.size())
+                        continue;
+                    require(++budget.visits <= 65536, "Outline traversal exceeds limits.", "limit-exceeded");
+                    auto item = output.makeIndirectObject(
+                        Object::newDictionary({{"/Title", Object::newUnicodeString(heading.title.getUTF8Value())},
+                            {"/Dest",
+                                Object::newArray(
+                                    {output_pages.at(target).getObjectHandle(), Object::newName("/Fit")})}}));
+                    auto parent = heading.parent;
+                    auto& siblings = parent ? bookmarks[*retained[*parent]].children
+                        : group             ? bookmarks[*group].children
+                                            : roots;
+                    siblings.push_back(bookmarks.size());
+                    retained[index] = bookmarks.size();
+                    bookmarks.push_back({item, target, {}});
+                }
             }
         }
         if (!roots.empty()) {

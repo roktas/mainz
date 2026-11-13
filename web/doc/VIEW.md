@@ -447,6 +447,10 @@ needed. Parents use the same small caps, size, and weight as the current title, 
 larger, bold neutral `‹` with equal space on both sides. Parent text uses free space before the trailing actions.
 Selected closed sections keep all heading text readable against the primary surface.
 
+In multi-Input Output, each source block's document heading uses its first source page's existing row or card. Child
+heading breadcrumbs omit that document title and retain the source TOC ancestry. Page details retain the complete path,
+including the document heading, for navigation to that block's start.
+
 The original return-arrow Jump to section control moves from the List row action column into **page-number details** in
 both List and Grid. The details panel retains the original numbered ancestor trail, physical-page column, 16 px padding,
 44 px Close target, keyboard focus styling, and selection-preserving navigation. The arrow is available whenever the

@@ -121,7 +121,8 @@ Padding rows retain their existing product identities without invented authored 
 
 Authored page names and the embedded PDF outline have independent roles. Names identify pages for selection; the outline
 supplies section hierarchy and fallback display titles. Prepared status does not change these rules. Page names never
-create section headers. Without an outline, List remains flat even when named pages repeat.
+create section headers. An Input without an outline stays flat even when named pages repeat. Multi-Input Output also
+uses the document headings described below.
 
 By default, each page uses its authored name, then a matching TOC title, then `Page N` with its physical page number. A
 matching child takes priority over its ancestors. Ranges are inferred from subsequent section targets, so an omitted
@@ -189,8 +190,10 @@ duplicates, or removes the section as one group. Ordinary rows act on one page. 
 and Duplicate in that order. Grid uses left/right move icons. On fine pointers, both views show the eye action at rest
 and reveal other item actions on hover or keyboard focus. When a pane has a selection, its action bar owns editing and
 item edit buttons are absent. The eye opens Page without changing the pane's selection or inspection-return behavior.
-Output grouping tracks actual source section starts, so reordering or duplicating pages never creates a heading on a
-continuation page.
+For Output from one Input instance, grouping tracks actual source section starts. Reordering or duplicating pages never
+creates a heading on a continuation page. With multiple contributing Input instances, each source block receives a
+document heading and retains its own source TOC. Sections target their first retained occurrence within that block,
+including partial selections without the original heading page. Grid and List update these blocks after every edit.
 
 On first List opening, sections start closed if the expanded list exceeds the pane height; otherwise, they start open.
 Each pane retains expansion choices across view changes and resizing. The toolbar folds or unfolds all sections.
@@ -871,6 +874,14 @@ document metadata, and publication declaration remain. Unchanged saved styles re
 changes do not change this behavior. For other compositions, the PDF TOC retains real source sections that cover
 selected pages. Empty branches disappear. Each section targets its first retained Output occurrence. Siblings follow
 Output order, and Input instances remain independent. Virtual `…` headings never become PDF bookmarks or page names.
+
+When multiple Input instances contribute pages to Output, each contiguous source block receives a real PDF outline root
+on Download. A change of Input instance starts a new block, including a return to an earlier instance. Blank and Padding
+pages join the preceding block. Leading Blank and Padding pages stay outside the blocks. A block's title uses the source
+document title, or the filename without its `.pdf` suffix. Its root targets the first source page and contains only the
+TOC retained by that block. Complete Inputs, partial selections, reordering, and repetitions use the same rule. Opening
+an unused Input does not add document roots. Grid and List use these same blocks for folding, selection, and group
+edits. Recipe retains document-root titles separately from Input matching metadata, so replay keeps the chosen headings.
 
 New preparation supplies each referenced Input once. A compact modal at the header reports preparation and inspection
 while locking workspace actions. It uses the same feedback presentation as other header operations. Cancel and Escape

@@ -36,7 +36,7 @@ export type Recipe = {
       xmp?: Record<string, string>
     }
   >
-  sources: Record<string, { input: string; profiles?: Profile[]; overrides?: Override[] }>
+  sources: Record<string, { input: string; title?: string; profiles?: Profile[]; overrides?: Override[] }>
   parts: {
     pages: (Plan["parts"][number]["pages"][number] | { source: string; pages: "all" })[]
     copies?: number
@@ -135,7 +135,8 @@ export function recipe(parts: readonly Part[], sources: readonly Source[], metad
                 : { id, value },
             )
           }
-          return [source.id, { input: source.input.id, profiles, overrides }]
+          const title = request.sources[source.id].title
+          return [source.id, { input: source.input.id, ...(title !== undefined ? { title } : {}), profiles, overrides }]
         }),
     ),
     parts: request.parts,

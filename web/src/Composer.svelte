@@ -7,7 +7,7 @@
   import type { Snippet } from "svelte"
   import { copyError, parseCopies, sizeOf, titleOf, uid } from "./model.ts"
   import type { Content, Expanded, Page, Part, Source } from "./model.ts"
-  import { titlesOf } from "./outline.ts"
+  import { composeOutline, sectionsAt, titlesOf } from "./outline.ts"
   import type { Section } from "./sections.ts"
   import Contents from "./Contents.svelte"
   import * as composition from "./composition.ts"
@@ -521,12 +521,7 @@
   const outputBooks = $derived(
     new Set(output.pages.flatMap((page) => ("source" in page.content ? [page.content.source] : []))),
   )
-  const outputFirsts = $derived.by(() => {
-    const firsts = new Map<string, string>()
-    for (const page of output.pages)
-      if ("source" in page.content && !firsts.has(page.content.source)) firsts.set(page.content.source, page.id)
-    return firsts
-  })
+  const outputOutline = $derived(composeOutline(output.pages, sources))
   const outlineStarts = new WeakMap<object, Map<string, number>>()
   function displayName(origin: Source | undefined, page: number) {
     return origin ? titlesOf(origin.input).at(page, inputViews[origin.id]?.tocTitles).name : undefined
@@ -541,6 +536,7 @@
     return source ? titlesOf(source.input).at(page).headings : []
   }
   function outputHeadings(content: Content, index: number) {
+    if (outputOutline) return sectionsAt(outputOutline, index)
     if (!("source" in content)) return []
     const document = provenance(content)?.input
     if (!document) return []
@@ -550,19 +546,12 @@
       starts = new Map((document.outline ?? []).map((entry) => [entry.keys.at(-1)!, entry.page]))
       outlineStarts.set(document, starts)
     }
-    const path = outputBooks.size > 1 ? [titleOf(document)] : []
-    const keys = outputBooks.size > 1 ? [content.source] : []
-    const rootStart = outputBooks.size > 1 ? [outputFirsts.get(content.source) === output.pages[index].id] : []
-    return headings.length
-      ? headings.map((heading) => ({
-          path: [...path, ...heading.path],
-          keys: [...keys, ...heading.keys.map((node) => `${content.source}:${node}`)],
-          starts: [...rootStart, ...heading.keys.map((node) => starts.get(node) === content.page)],
-          synthetic: heading.synthetic,
-        }))
-      : path.length
-        ? [{ path, keys, starts: rootStart }]
-        : []
+    return headings.map((heading) => ({
+      path: heading.path,
+      keys: heading.keys.map((node) => `${content.source}:${node}`),
+      starts: heading.keys.map((node) => starts.get(node) === content.page),
+      synthetic: heading.synthetic,
+    }))
   }
   function transferName() {
     const value = transfer.value
@@ -1265,6 +1254,7 @@
   id: number,
 )}
   {@const name = path.join(" › ")}
+  {@const labels = pane === "Output" && outputOutline && path.length > 1 ? path.slice(1) : path}
   {@const disclosureId = `${key}-${pane}-section-${id}-disclosure`}
   {@const dragging = transfer.control?.id === disclosureId}
   {@const indices = Array.from({ length: end - first }, (_, index) => first + index)}
@@ -1330,9 +1320,9 @@
       } else output.position = first
       void interaction.toggleView(pane, event)
     }}
-    ><span class="list-current">{path.at(-1)}</span>
-    {#if path.length > 1}<span class="list-parents" aria-hidden="true">
-        {#each path.slice(0, -1).toReversed() as parent, depth (depth)}
+    ><span class="list-current">{labels.at(-1)}</span>
+    {#if labels.length > 1}<span class="list-parents" aria-hidden="true">
+        {#each labels.slice(0, -1).toReversed() as parent, depth (depth)}
           <span class="list-separator">‹</span><span class="list-ancestor">{parent}</span>
         {/each}
       </span>{/if}</button

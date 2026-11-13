@@ -905,7 +905,7 @@ instance IDs follow Section 4.1.
 | Plan           | Required `version`, `sources`, `parts`; optional `metadata`                                             |
 | `version`      | Integer `1`                                                                                             |
 | `sources`      | Input instance-ID map, empty for Blank-only Plans                                                       |
-| Input instance | Required `input` ID and complete `overrides` object                                                     |
+| Input instance | Required `input` ID and complete `overrides` object; optional `title`                                   |
 | `parts`        | Nonempty ordered Part array                                                                             |
 | Part           | Required nonempty `pages`, optional `copies` and `front`                                                |
 | `copies`       | Positive integer, default `1`                                                                           |
@@ -936,6 +936,16 @@ and page structure. Navigation, document metadata, labels, page names, attachmen
 remain. Parameter identities remain unchanged. Provenance maps those original identities to the Input instance. If the
 saved assignments are unchanged, the result retains the original bytes.
 
+An optional Input instance `title` supplies a document heading for the composed PDF outline. It follows the Output
+metadata title's text and byte rules. It does not change document metadata or page names. When at least two Input
+instances contribute pages and every instance has a title, each contiguous source block receives its own root heading. A
+change of Input instance starts a new block, including a return to an earlier instance. Blank and Padding pages join the
+preceding block. Leading Blank and Padding pages remain outside the blocks. Each heading targets its block's first
+source page and contains only the source outline retained by that block. Source pages can be partial, reordered, or
+repeated within a block. Repeated sections target their first occurrence within that block. Root headings follow Output
+order. An instance without an outline still receives its root headings. The 64-level outline limit includes the new root
+heading.
+
 Each Part repeats its complete sequence `copies` times. With `front: true`, copies start at even zero-based result
 indexes and finish complete duplex sheets. An odd preceding length adds leading Padding. Odd sequences add trailing
 Padding after every copy, including the last. Padding uses the preceding page's visible box: `CropBox` intersected with
@@ -951,8 +961,9 @@ ranges follow the next sibling or ancestor target, with the final open sections 
 Same-page siblings remain distinct. Empty sections disappear. Each retained section targets its first Output occurrence
 within that range or its descendants, even when its original heading page is absent. Ancestor context remains, and
 siblings follow their first Output position. Repeated pages use that first occurrence. Each Input instance keeps its own
-outline tree. Invalid or external targets add no heading but retain navigable children. No page name or host-only group
-creates a PDF outline entry. Outline traversal shares the 65536-visit budget and permits at most 64 levels.
+outline tree. Invalid or external targets add no heading but retain navigable children. Only an explicit Input instance
+title creates a document root. No page name or host-only group creates a PDF outline entry. Outline traversal shares the
+65536-visit budget and permits at most 64 levels.
 
 Input instances retain independent parameter, target, and baseline identities. Definitions, overrides, and presentation
 survive, with bindings covering every eligible retained occurrence. Unused targets, parameters, baselines, and empty
@@ -1083,7 +1094,7 @@ retains its separate dynamic meaning.
 | Record                  | Fields                                                                                                              |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | Input                   | Optional `sha256`, `pageCount`, `pageNamesSha256`, `publication`, `title`, `cover`, `xmp`; an empty object is valid |
-| Input instance          | Required `input`; optional `profiles`, `overrides`, both arrays                                                     |
+| Input instance          | Required `input`; optional `title`, `profiles`, `overrides`; the latter two are arrays                              |
 | Local profile choice    | Exactly `set` and `id`, containing the Input's opaque set/profile IDs                                               |
 | Semantic profile choice | Required `family` and `name`; optional Boolean `all`, default `false`                                               |
 | Local override          | Exactly parameter `id` and `value`                                                                                  |
@@ -1095,6 +1106,9 @@ those Inputs. Several Input instances can use one Input. Both kinds of ID are op
 no file-location fields. The host binds each Input ID to actual PDF bytes at execution time. A filename without its
 `.pdf` suffix is a convenient initial ID, not a required filesystem location. Displayed one-based indexes identify rows
 only; they are not stored identities or references. JSON member order does not define a host's display order.
+
+Optional Input instance `title` follows the Plan's document-heading rules. Resolution carries this processing choice
+into the Plan unchanged. It is independent of the Input matching title described below.
 
 Optional Input `title`, `cover`, and `xmp` describe the reference PDF for file matching. They do not affect resolution
 or establish PDF identity. The title is a string of at most 4096 UTF-8 bytes. `xmp` is a map of at most 32 string

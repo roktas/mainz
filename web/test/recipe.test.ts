@@ -76,6 +76,29 @@ const parts: Part[] = [
   },
 ]
 
+test("Recipe carries document outline titles independently of Input matching titles", () => {
+  const first = source()
+  first.input.title = "Authored title"
+  const second = { ...source(), id: "second", input: { ...source().input, id: "other", name: "Other book.pdf" } }
+  const chunks: Part[] = [
+    {
+      id: "books",
+      copies: 1,
+      front: false,
+      pages: [
+        { id: "a", content: { source: first.id, page: 0 } },
+        { id: "b", content: { source: second.id, page: 0 } },
+      ],
+    },
+  ]
+  const saved = recipe(chunks, [first, second])
+  assert.equal(saved.sources.source.title, "Authored title")
+  assert.equal(saved.sources.second.title, "Other book")
+  first.title = "Saved heading"
+  assert.equal(recipe(chunks, [first, second]).sources.source.title, "Saved heading")
+  assert.equal(recipe(chunks, [first, second]).inputs.book.title, "Authored title")
+})
+
 test("Recipe retains explicit profile intent, equal-valued manual edits, and baseline resets", () => {
   const original = source()
   original.profiles = { print: "fine" }

@@ -4,6 +4,10 @@
 
 ### Added
 
+- Each source block in multi-Input Output has a document heading in Grid, List, and the downloaded PDF's bookmarks.
+  Blocks retain their own TOCs through partial selections, repeats, and moves. Blank and Padding pages join the
+  preceding block. Recipe replay retains the document titles.
+
 - A Style toolbar control folds or unfolds all visible parameter groups without changing style values.
 
 - A single Output List page-actions menu on phone-width screens, keeping titles readable and the eye control separate.
