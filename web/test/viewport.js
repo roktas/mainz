@@ -54,8 +54,8 @@ const manifest = {
   desktopReferences: inventory.desktops,
   workingTreeDiffSha256: digest(execFileSync("git", ["diff", "HEAD"])),
   fixture: {
-    path: ".local/tmp/web/grid/sample.pdf",
-    sha256: digest(await readFile("../.local/tmp/web/grid/sample.pdf")),
+    path: ".local/var/fixtures/large-mouse.pdf",
+    sha256: digest(await readFile("../.local/var/fixtures/large-mouse.pdf")),
   },
   startedAt: new Date().toISOString(),
   coverage: inventory.coverage.map((row) => ({ ...row, samples: [] })),

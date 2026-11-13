@@ -21,6 +21,12 @@ separate action.
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
+## Demo files
+
+The sibling [Lorem repository](../lorem/README.md) owns reusable demo files and their production sources. Mainz keeps
+selected, versioned outputs for its demos and tests. See the [fixture guide](web/test/fixtures/README.md) for the
+catalog and refresh steps. Building or running Mainz does not require a Lorem checkout.
+
 ## Build and checks
 
 See [AGENTS.md](AGENTS.md#build-and-validation) for dependencies, setup, tests, and packaging.

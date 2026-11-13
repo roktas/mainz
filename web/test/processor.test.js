@@ -130,7 +130,7 @@ test(
             } catch (error) {
               failure = error.failure?.record?.code
             }
-            const bytes = new Uint8Array(await (await fetch("/demo.pdf")).arrayBuffer())
+            const bytes = new Uint8Array(await (await fetch("/known-ghost.pdf")).arrayBuffer())
             const input = (await processor.run(bytes, 2)).description
             const output = (
               await processor.compose(

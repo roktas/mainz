@@ -11,7 +11,7 @@ import { bounds, quality } from "./quality.ts"
 
 async function open(page, server, count = 240) {
   await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-  await page.route("**/grid.pdf", (route) =>
+  await page.route("**/large-mouse.pdf", (route) =>
     route.fulfill({ contentType: "application/pdf", body: fixture({ count }) }),
   )
   await page.goto(`${server.resolvedUrls.local[0]}?demo=grid&geometry`)

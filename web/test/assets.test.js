@@ -88,7 +88,7 @@ test("Vite verifies Mainz packages and publishes complete asset revisions", () =
     writeFileSync(join(project, "public", "processor.wasm"), "Unverified public input.")
     writeFileSync(join(project, "public", "provenance.json"), "Unverified public metadata.")
     mkdirSync(join(project, "test", "fixtures"), { recursive: true })
-    copyFileSync("test/fixtures/demo.pdf", join(project, "test", "fixtures", "demo.pdf"))
+    copyFileSync("test/fixtures/known-ghost.pdf", join(project, "test", "fixtures", "known-ghost.pdf"))
     cpSync("test/fixtures/recipe", join(project, "test", "fixtures", "recipe"), { recursive: true })
     cpSync("test/fixtures/toc", join(project, "test", "fixtures", "toc"), { recursive: true })
     mkdirSync(join(project, "node_modules"))
@@ -126,7 +126,7 @@ test("Vite verifies Mainz packages and publishes complete asset revisions", () =
       assert.equal(existsSync(assets + "/obsolete.txt"), false);
       assert.ok(existsSync(assets + "/logo.svg"));
       assert.ok(existsSync(assets + "/processor.wasm"));
-      assert.ok(existsSync(assets + "/demo.pdf"));
+      assert.ok(existsSync(assets + "/known-ghost.pdf"));
       assert.equal(readFileSync(assets + "/provenance.json", "utf8"), readFileSync(process.env.MAINZ_WASM_DIR + "/provenance.json", "utf8"));
       const manifest = JSON.parse(readFileSync(assets + "/manifest.webmanifest", "utf8"));
       assert.equal(manifest.name, "PDF Composer");

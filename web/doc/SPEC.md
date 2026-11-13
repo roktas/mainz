@@ -267,11 +267,11 @@ or dynamic Recipe lookup.
 | `?demo=empty`        | The same Input with no Selection and empty Output, including onboarding and the addition hint. |
 | `?demo=grid`         | 240-page Input and Output from 60 repetitions of the four sample pages.                        |
 | `?demo=single&paint` | Style with the Filled profile, available only in development.                                  |
-| `?demo=toc`          | The 59-page Lorem Ipsum sample with three-level Contents and arranged Output.                  |
+| `?demo=toc`          | The 42-page Lorem Ipsum sample with three-level Contents and arranged Output.                  |
 | `?demo=toc-multiple` | Lorem Ipsum and An Occurrence at Owl Creek Bridge, with pages from both Inputs in Output.      |
 
-Both TOC demos start in List with section headings. The maintained public-domain reading PDFs have real embedded
-outlines and no authored page names.
+Both TOC demos start in List with section headings. Both reading PDFs have real embedded outlines. The illustrated Lorem
+Ipsum PDF is produced with ConTeXt and names its first page Cover. The Bierce PDF has no authored page names.
 
 On every screen, three or more quick clicks or taps on the upper-left logo open the examples dialog. It lists Single
 demo, Large demo, TOC demo, TOCs demo, Recipe demo, and Empty demo, in that order. The workspace also offers Welcome
@@ -288,7 +288,8 @@ MiB. The cache accepts only catalog entries with matching byte lengths and SHA-2
 examples and remove changed or retired hashes. New downloads bypass the HTTP cache, so stale responses cannot populate a
 new catalog entry. User PDFs and generated files never enter this cache. If optional storage is unavailable, an online
 demo still opens. Core offline installation and updates do not depend on demo downloads. The
-[fixture guide](../test/fixtures/README.md) owns its contents and rebuild procedure.
+[fixture guide](../test/fixtures/README.md) lists the retained outputs and refresh steps. The sibling Lorem repository
+owns sample sources and production instructions. Mainz builds and runs from its retained copies without Lorem.
 
 Production builds prepare Grid demo in the browser from the downloaded four-page sample. After that sample is cached,
 Grid demo works offline without another PDF download. Development uses the equivalent native fixture for geometry

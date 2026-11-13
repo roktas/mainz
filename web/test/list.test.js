@@ -2016,7 +2016,7 @@ test(
         })
         page.setDefaultTimeout(10000)
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-        await page.route("**/grid.pdf", (route) =>
+        await page.route("**/large-mouse.pdf", (route) =>
           route.fulfill({ contentType: "application/pdf", body: fixture({ count: 60 }) }),
         )
         await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
@@ -2228,7 +2228,7 @@ test(
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
       page.setDefaultTimeout(10000)
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.route("**/grid.pdf", (route) =>
+      await page.route("**/large-mouse.pdf", (route) =>
         route.fulfill({ contentType: "application/pdf", body: fixture({ count: 60 }) }),
       )
       await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
@@ -2353,7 +2353,7 @@ test(
         page.setDefaultTimeout(10000)
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
         const name = "ITAL-" + "LONG-SHEET-CODE-".repeat(12)
-        await page.route("**/grid.pdf", (route) =>
+        await page.route("**/large-mouse.pdf", (route) =>
           route.fulfill({
             contentType: "application/pdf",
             body: fixture({ count: 4, metadata: [{ name: "Cover" }, { name }, {}, {}] }),

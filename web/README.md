@@ -51,9 +51,11 @@ direnv exec . bundle exec rake build:wasm package:wasm setup:web
 npm run dev
 ```
 
-Open the Vite URL and choose or drop PDFs. Add `?demo` to try four sample pages arranged as eight Output occurrences.
-See [AGENTS.md](../AGENTS.md#web) for checks, build configuration, and mockups. The
-[fixture guide](test/fixtures/README.md#grid-fixture) describes the local 240-page Grid sample.
+Open the Vite URL and choose or drop PDFs. Add `?demo` to open the examples menu, or `?demo=single` for four pages
+arranged as eight Output occurrences. See [AGENTS.md](../AGENTS.md#web) for checks, build configuration, and mockups.
+The [fixture guide](test/fixtures/README.md) lists the demo copies and the local 240-page Grid sample. The sibling
+[Lorem repository](../../lorem/README.md) owns their sources, generators, and production instructions. Refresh the
+retained outputs from Lorem; do not add demo generators to Mainz. Normal builds use the retained copies.
 
 Vite prepares complete static-asset snapshots under `.local/tmp/web/assets/`. Each directory depends on all staged file
 names and bytes, including public files, PDF.js resources, the demo, verified WASM files, and license notices.

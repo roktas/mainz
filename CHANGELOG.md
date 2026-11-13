@@ -31,7 +31,8 @@
 - List section headings are shown by default and can be hidden independently in each pane for a flat page list.
 - TOC display titles, compact Input navigation, List section headings, and source-color dots for multiple-Input Output,
   with single and multiple demos.
-- Public-domain TOC samples. All demo documents download on demand and use a separate, bounded offline cache.
+- TOC samples. All demo documents download on demand and use a separate, bounded offline cache. Demo files use unique
+  Lorem sample names. The illustrated Lorem Ipsum PDF has a maintained ConTeXt source.
 - Recipe loading from the landing page, with saved Input titles, embedded covers, XMP details, local PDF matching, and a
   separate Recipe demo. Loaded profiles, manual edits, and baseline resets remain editable and exportable.
 - Output title and cover-page choices in the existing filename editor, written to generated PDF metadata and retained

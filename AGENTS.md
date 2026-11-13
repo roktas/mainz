@@ -56,9 +56,9 @@ names. Use compounds, `-`, or `_` only for local convention. Naming difficulty s
 | `.local/tmp/`              | Disposable test output, rasters, reviews, and mockups.                            |
 | `.local/bin/`              | One-off executable scripts.                                                       |
 
-The processor imports no producer or application code. Mainz imports neither Sevgi nor Megic. Sevgi owns the generic
-Style DSL and export integration. Megic owns publication policy and parameter semantics. Keep real integration scenarios
-in those repositories.
+The processor imports no producer or app code; Mainz imports neither Sevgi nor Megic. Keep real integrations there.
+Sevgi owns the generic Style DSL and export integration; Megic owns publication policy and parameter semantics.
+`../lorem` owns demo sources and generators; follow [fixture rules](web/test/fixtures/README.md) for versioned copies.
 
 Keep inputs in Git and project output under root `.local/`. Clean `.local/tmp/`; retain measurements in `.local/var/`.
 Keep large tools and caches outside Dropbox. Follow [tool storage](web/doc/MEMO.md#tool-storage).

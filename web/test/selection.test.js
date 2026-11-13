@@ -1870,11 +1870,7 @@ test(
         true,
         "Output Page editing retains normal viewport focus",
       )
-      assert.equal(
-        await output.locator(".sequence-entry.range-highlight").count(),
-        1,
-        "Page editing highlights its updated selection controls",
-      )
+      assert.equal(await selected.inputValue(), "", "Individual Output Page duplication preserves the empty selection")
       await prepared.fill("1")
       await page.mouse.move(1432, 20)
       await output.getByRole("region", { name: "PDF viewport", exact: true }).press("Escape")

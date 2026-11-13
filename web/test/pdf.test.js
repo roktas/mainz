@@ -16,7 +16,7 @@ test("The maintained demo declares its book title and physical page names", { ti
     const record = await page.evaluate(async () => {
       const { openPDF } = await import("/src/pdf.ts")
       const { Processor } = await import("/src/processor.ts")
-      const bytes = new Uint8Array(await (await fetch("/demo.pdf")).arrayBuffer())
+      const bytes = new Uint8Array(await (await fetch("/known-ghost.pdf")).arrayBuffer())
       const processor = new Processor(),
         task = await openPDF(bytes),
         pdf = await task.promise
@@ -141,7 +141,7 @@ test(
             return reject ? Promise.reject(new Error("Image decoder unavailable")) : decode(...arguments_)
           }
         }, failure)
-        await page.route("**/grid.pdf", (route) =>
+        await page.route("**/large-mouse.pdf", (route) =>
           route.fulfill({
             contentType: "application/pdf",
             body: fixture({
@@ -429,7 +429,7 @@ test(
           const result = await page.evaluate(async () => {
             const { mount, unmount, tick, Pdf } = await import("/test/fixtures/preview.ts")
             const { openPDF, releaseRasters } = await import("/src/pdf.ts")
-            const task = await openPDF(new Uint8Array(await (await fetch("/demo.pdf")).arrayBuffer()))
+            const task = await openPDF(new Uint8Array(await (await fetch("/known-ghost.pdf")).arrayBuffer()))
             const pdf = await task.promise
             const target = document.createElement("div")
             document.body.append(target)
@@ -846,7 +846,7 @@ test("Source replacement retains opened rasters for comparison and releases them
     await page.goto(server.resolvedUrls.local[0])
     await page.evaluate(async () => {
       const { openPDF } = await import("/src/pdf.ts")
-      const task = await openPDF(new Uint8Array(await (await fetch("/demo.pdf")).arrayBuffer()))
+      const task = await openPDF(new Uint8Array(await (await fetch("/known-ghost.pdf")).arrayBuffer()))
       const prototype = Object.getPrototypeOf(await task.promise)
       const getPage = prototype.getPage
       window.previewPDFs = new Set()

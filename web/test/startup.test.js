@@ -734,7 +734,7 @@ test("PDF opening and composition work over non-secure HTTP", { timeout: 60000 }
     await page.goto(server.resolvedUrls.local[0].replace("127.0.0.1", "mainz.test") + "?demo=single")
     assert.deepEqual(await page.evaluate(() => [isSecureContext, typeof crypto.randomUUID]), [false, "undefined"])
     await page.locator(".input-current").waitFor({ state: "attached" })
-    assert.equal(await page.locator(".status-input").textContent(), "demo.pdf")
+    assert.equal(await page.locator(".status-input").textContent(), "known-ghost.pdf")
     await page.waitForFunction(
       () =>
         document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
@@ -1075,7 +1075,7 @@ test("Development assets remain available after a production build", { timeout: 
     )
     await page.reload()
     await page.locator(".input-current").waitFor({ state: "attached" })
-    assert.equal(await page.locator(".status-input").textContent(), "demo.pdf")
+    assert.equal(await page.locator(".status-input").textContent(), "known-ghost.pdf")
     await page.waitForFunction(
       () =>
         document.querySelector(".mobile-workspace-tabs > button:last-child .composition-totals strong")?.textContent ===
@@ -1136,7 +1136,7 @@ test("Demo variants open the maintained Input with populated or empty Output", a
         pages,
       )
       const input = page.locator(".selection-panel")
-      assert.equal(await page.locator(".status-input").textContent(), "demo.pdf")
+      assert.equal(await page.locator(".status-input").textContent(), "known-ghost.pdf")
       assert.equal(await input.locator(".thumbnail").count(), 4)
       assert.equal(await input.locator(".page-image[aria-pressed=true]").count(), selected)
       if (query === "=single") {
@@ -1254,7 +1254,7 @@ test("A delayed demo cannot replace local pages or report obsolete failures", { 
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
       const response = Promise.withResolvers()
       const request = Promise.withResolvers()
-      await page.route("**/demo.pdf", async (route) => {
+      await page.route("**/known-ghost.pdf", async (route) => {
         request.resolve()
         await response.promise
         await route.fulfill({ status, contentType: "application/pdf", body: fixture() })
@@ -1554,13 +1554,13 @@ test("Production demos download on demand and reuse verified files offline", { t
   const worker = await readFile(join(outDir, "sw.js"), "utf8")
   const assets = JSON.parse(worker.match(/const ASSETS = (.*);\n/)[1])
   const examples = JSON.parse(worker.match(/const EXAMPLES = (.*);\n/)[1])
-  const replacement = await readFile(join(outDir, "toc/bridge.pdf"))
-  const original = await readFile(join(outDir, "toc/lorem.pdf"))
+  const replacement = await readFile(join(outDir, "toc/light-burro.pdf"))
+  const original = await readFile(join(outDir, "toc/lorem-ipsum.pdf"))
   const replacementHash = createHash("sha256").update(replacement).digest("hex")
   const next = examples
-    .filter((asset) => asset.path !== "toc/bridge.pdf")
+    .filter((asset) => asset.path !== "toc/light-burro.pdf")
     .map((asset) =>
-      asset.path === "toc/lorem.pdf" ? { ...asset, bytes: replacement.length, sha256: replacementHash } : asset,
+      asset.path === "toc/lorem-ipsum.pdf" ? { ...asset, bytes: replacement.length, sha256: replacementHash } : asset,
     )
   const requests = []
   let changed = false
@@ -1587,7 +1587,7 @@ test("Production demos download on demand and reuse verified files offline", { t
                         .replace(/const EXAMPLES = .*;\n/, `const EXAMPLES = ${JSON.stringify(next)};\n`)
                     : worker,
                 )
-              } else if (path === "toc/lorem.pdf") {
+              } else if (path === "toc/lorem-ipsum.pdf") {
                 response.setHeader("Content-Type", "application/pdf")
                 response.setHeader("Cache-Control", "public, max-age=31536000")
                 response.end(changed ? replacement : original)
@@ -1602,12 +1602,12 @@ test("Production demos download on demand and reuse verified files offline", { t
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     const url = server.resolvedUrls.local[0]
     const paths = [
-      "demo.pdf",
-      "recipe.json",
-      "recipe/guides.pdf",
-      "recipe/crossings.pdf",
-      "toc/lorem.pdf",
-      "toc/bridge.pdf",
+      "known-ghost.pdf",
+      "legal-finch.json",
+      "recipe/brave-shark.pdf",
+      "recipe/perky-mamba.pdf",
+      "toc/lorem-ipsum.pdf",
+      "toc/light-burro.pdf",
     ]
     assert.ok(assets.every((asset) => !paths.includes(asset.path)))
     assert.equal(examples.length, 6)
@@ -1629,7 +1629,7 @@ test("Production demos download on demand and reuse verified files offline", { t
       assert.ok(
         await page
           .locator(".contents:popover-open")
-          .getByRole("button", { name: "Unfold 1. Foundations of Digital Documents", exact: true })
+          .getByRole("button", { name: "Unfold 1 Foundations of Digital Documents", exact: true })
           .isVisible(),
       )
       await page.keyboard.press("Escape")
@@ -1687,7 +1687,7 @@ test("Production demos download on demand and reuse verified files offline", { t
     assert.equal(retained.length, 4, "The changed file and the retired file are removed; four unchanged files remain")
     assert.ok(retained.every((key) => !/\/toc\//.test(key)))
     const fresh = await page.evaluate(async (base) => {
-      const bytes = await (await fetch(new URL("toc/lorem.pdf", base))).arrayBuffer()
+      const bytes = await (await fetch(new URL("toc/lorem-ipsum.pdf", base))).arrayBuffer()
       return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
         .map((byte) => byte.toString(16).padStart(2, "0"))
         .join("")
@@ -1719,7 +1719,7 @@ test("Production Grid demo repeats the bundled sample without another PDF asset"
     await examples.getByRole("link").nth(1).click()
     const input = page.locator(".selection-panel")
     await page.getByText("Grid workspace · 240 pages.", { exact: true }).waitFor()
-    assert.equal(await input.locator(".input-current").textContent(), "grid.pdf")
+    assert.equal(await input.locator(".input-current").textContent(), "large-mouse.pdf")
     assert.equal(await outputCount(page).textContent(), "240 pages")
     await tab(input, "Page")
     await input.locator(".page-scroll").press("End")
@@ -1730,7 +1730,7 @@ test("Production Grid demo repeats the bundled sample without another PDF asset"
     await page.getByText("Grid workspace · 240 pages.", { exact: true }).waitFor()
     assert.equal(await outputCount(page).textContent(), "240 pages")
     assert.ok(requests.length >= 2)
-    assert.ok(requests.every((path) => path === "/composer/demo.pdf"))
+    assert.ok(requests.every((path) => path === "/composer/known-ghost.pdf"))
     assert.equal(await page.getByRole("alert").count(), 0)
   } finally {
     await browser?.close()
@@ -1850,7 +1850,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
   })
   try {
     const worker = await readFile(join(outDir, "sw.js"), "utf8")
-    assert.deepEqual(await readFile(join(outDir, "demo.pdf")), await readFile("test/fixtures/demo.pdf"))
+    assert.deepEqual(await readFile(join(outDir, "known-ghost.pdf")), await readFile("test/fixtures/known-ghost.pdf"))
     let paused = false,
       release = "initial",
       incompatible = false,
@@ -1996,7 +1996,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     await context.setOffline(true)
     const demo = await context.newPage()
     await demo.goto(`${url}?demo=single`)
-    await demo.waitForFunction(() => document.querySelector(".status-input")?.textContent === "demo.pdf", null, {
+    await demo.waitForFunction(() => document.querySelector(".status-input")?.textContent === "known-ghost.pdf", null, {
       timeout: 60000,
     })
     await demo.waitForFunction(
@@ -2006,7 +2006,7 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     )
     assert.equal(await demo.locator(".offline-progress").count(), 0)
     assert.equal(await demo.locator(".footnote > time").textContent(), buildId)
-    assert.equal(await demo.locator(".status-input").textContent(), "demo.pdf")
+    assert.equal(await demo.locator(".status-input").textContent(), "known-ghost.pdf")
     assert.equal(await demo.locator(".composition-output .composition-totals strong").textContent(), "8 pages")
     assert.equal(await demo.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true }).count(), 0)
     await demo.locator(".selection-panel").getByRole("tab", { name: "Style", exact: true }).click()
@@ -2045,11 +2045,14 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     )
     assert.ok(cachedURLs.length > 100)
     assert.ok(cachedURLs.every((path) => path.startsWith(new URL(url).origin + "/composer/")))
-    assert.ok(!cachedURLs.includes(new URL("demo.pdf", url).href), "Demo files stay outside the installation cache")
+    assert.ok(
+      !cachedURLs.includes(new URL("known-ghost.pdf", url).href),
+      "Demo files stay outside the installation cache",
+    )
     assert.ok(
       await page.evaluate(async () =>
         (await (await caches.open((await caches.keys()).find((name) => name.endsWith(":examples")))).keys()).some(
-          (request) => new URL(request.url).pathname.endsWith("/demo.pdf"),
+          (request) => new URL(request.url).pathname.endsWith("/known-ghost.pdf"),
         ),
       ),
     )
@@ -2303,11 +2306,11 @@ test("Public TOC examples open on a fresh static-host visit without a service wo
         await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
         assert.ok(
           (await page.locator(".selection-panel .list-current").allTextContents()).includes(
-            "1. Foundations of Digital Documents",
+            "1 Foundations of Digital Documents",
           ),
         )
-        const chapter = page.locator('.selection-panel .list-section[data-index="3"]').first()
-        assert.equal(await chapter.locator(".list-number").innerText(), "4")
+        const chapter = page.locator('.selection-panel .list-section[data-index="2"]').first()
+        assert.equal(await chapter.locator(".list-number").innerText(), "3")
         assert.equal(await chapter.locator(".list-pdf-label").count(), 0)
         if ((await chapter.locator(".list-disclosure").getAttribute("aria-expanded")) === "false")
           await chapter.locator(".list-disclosure").click()
@@ -2315,7 +2318,7 @@ test("Public TOC examples open on a fresh static-host visit without a service wo
         await page.getByRole("button", { name: "Input contents", exact: true }).click()
         await page.locator(".contents:popover-open").getByRole("button", { name: "Unfold all", exact: true }).click()
         const titles = await page.locator(".contents:popover-open .destination > span:first-child").allTextContents()
-        assert.equal(titles.length, 44)
+        assert.equal(titles.length, 43)
         assert.equal(titles[0], "Cover")
         assert.equal(titles[1], "…")
         assert.equal(
@@ -2325,10 +2328,10 @@ test("Public TOC examples open on a fresh static-host visit without a service wo
             .getAttribute("aria-selected"),
           "true",
         )
-        assert.ok(titles.includes("1. Foundations of Digital Documents"))
+        assert.ok(titles.includes("1 Foundations of Digital Documents"))
         assert.ok(titles.includes("1.1 The Document Model"))
         assert.ok(titles.includes("1.1.1 Logical Structure"))
-        assert.ok(titles.includes("3.2.1 Parent and Child Entries"))
+        assert.ok(titles.includes("3.2.1 Nested Headings"))
         await page.keyboard.press("Escape")
         assert.equal(await outputCount(page).textContent(), demo === "toc" ? "9 pages" : "11 pages")
       } finally {

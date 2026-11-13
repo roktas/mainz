@@ -132,7 +132,7 @@ test("Grid and List paging and view shortcuts preserve selection", { timeout: 60
   try {
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
+    await page.route("**/large-mouse.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 60 }) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
@@ -212,7 +212,7 @@ test("Page and Grid share viewport bounds and preserve fitted image sizes", { ti
     page.on("pageerror", (error) => errors.push(error.message))
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     // Grid tests own scroll geometry; Page needs a populated shared frame.
-    await page.route("**/grid.pdf", (route) =>
+    await page.route("**/large-mouse.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 80 }) }),
     )
     const input = page.locator(".selection-panel"),
@@ -2530,7 +2530,7 @@ test(
       })
       assert.equal(await outputCount(page).textContent(), "18 pages")
 
-      const sample = await readFile("test/fixtures/demo.pdf")
+      const sample = await readFile("test/fixtures/known-ghost.pdf")
       const retained = await page.evaluate(async (bytes) => {
         const { Processor } = await import("/src/processor.ts")
         const processor = new Processor()

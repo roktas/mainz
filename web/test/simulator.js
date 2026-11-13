@@ -37,7 +37,7 @@ const catalog = JSON.parse(simctl("list", "-j", "devicetypes", "runtimes", "devi
 const groups = inventory.simulators.groups.filter((group) => !values.case || values.case.split(",").includes(group.id))
 if (!groups.length) throw new Error("No matching simulator groups.")
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex")
-const fixtureUrl = new URL("grid.pdf", values.url)
+const fixtureUrl = new URL("large-mouse.pdf", values.url)
 const fixtureResponse = await fetch(fixtureUrl)
 if (!fixtureResponse.ok) throw new Error("The maintained Grid fixture is unavailable.")
 const fixtureBytes = new Uint8Array(await fixtureResponse.arrayBuffer())

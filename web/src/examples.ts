@@ -5,7 +5,7 @@ import { uid } from "./model.ts"
 import type { Sequence } from "./pages.ts"
 import type { Output } from "./output.svelte.ts"
 import { Processor } from "./processor.ts"
-import gridPlan from "../test/fixtures/grid-plan.json"
+import gridPlan from "../test/fixtures/large-mouse.json"
 
 export const query = new URLSearchParams(location.search)
 const toc = query.get("demo") === "toc" || query.get("demo") === "toc-multiple"
@@ -47,9 +47,9 @@ export async function openExample(demo: string, host: Host) {
   try {
     host.info("Loading demo…")
     if (demo === "toc" || demo === "toc-multiple") {
-      const bytes = new Uint8Array(await (await fetchExample(`${base}toc/lorem.pdf`)).arrayBuffer())
+      const bytes = new Uint8Array(await (await fetchExample(`${base}toc/lorem-ipsum.pdf`)).arrayBuffer())
       if (!current()) return
-      const opened = await host.open(bytes, "lorem.pdf")
+      const opened = await host.open(bytes, "lorem-ipsum.pdf")
       revision = host.revision
       if (!opened || host.disposed) return
       const starts = [
@@ -68,9 +68,9 @@ export async function openExample(demo: string, host: Host) {
         page,
       }))
       if (demo === "toc-multiple") {
-        const secondaryBytes = new Uint8Array(await (await fetchExample(`${base}toc/bridge.pdf`)).arrayBuffer())
+        const secondaryBytes = new Uint8Array(await (await fetchExample(`${base}toc/light-burro.pdf`)).arrayBuffer())
         if (!current()) return
-        const secondary = await host.open(secondaryBytes, "bridge.pdf")
+        const secondary = await host.open(secondaryBytes, "light-burro.pdf")
         revision = host.revision
         if (!secondary || host.disposed) return
         if (!secondary.input.outline || secondary.input.outline.length < 2)
@@ -104,14 +104,14 @@ export async function openExample(demo: string, host: Host) {
       return
     }
     if (demo === "recipe") {
-      const bytes = await (await fetchExample(`${base}recipe.json`)).arrayBuffer()
+      const bytes = await (await fetchExample(`${base}legal-finch.json`)).arrayBuffer()
       if (!current()) return
-      await host.recipe(new File([bytes], "practice-session.json", { type: "application/json" }), {
-        recipe: `${base}recipe.json`,
+      await host.recipe(new File([bytes], "legal-finch.json", { type: "application/json" }), {
+        recipe: `${base}legal-finch.json`,
         inputs: {
-          book: `${base}demo.pdf`,
-          guides: `${base}recipe/guides.pdf`,
-          crossings: `${base}recipe/crossings.pdf`,
+          book: `${base}known-ghost.pdf`,
+          guides: `${base}recipe/brave-shark.pdf`,
+          crossings: `${base}recipe/perky-mamba.pdf`,
         },
       })
       host.info("Recipe demo ready.")
@@ -119,9 +119,9 @@ export async function openExample(demo: string, host: Host) {
     }
     const grid = demo === "grid"
     if (demo !== "single" && demo !== "empty" && !grid) throw new Error(`Unknown demo: ${demo}. Choose a local PDF.`)
-    const filename = grid ? "grid.pdf" : "demo.pdf"
+    const filename = grid ? "large-mouse.pdf" : "known-ghost.pdf"
     let bytes = new Uint8Array(
-      await (await fetchExample(`${base}${grid && import.meta.env.DEV ? filename : "demo.pdf"}`)).arrayBuffer(),
+      await (await fetchExample(`${base}${grid && import.meta.env.DEV ? filename : "known-ghost.pdf"}`)).arrayBuffer(),
     )
     if (!current()) return
     if (grid && !import.meta.env.DEV) {

@@ -144,7 +144,9 @@ and Dropbox, and the user completed an iCloud save. Android has browser regressi
 substitute for the native sharing API. No physical Android result is available.
 
 Grid browser scenarios supply their PDF through request routing. They do not require the manual
-`.local/tmp/web/grid/sample.pdf` fixture.
+`.local/var/fixtures/large-mouse.pdf` fixture. Native geometry collectors use that copy. Build `large-mouse` in the
+sibling Lorem repository and copy its PDF before collecting measurements. The
+[fixture guide](../test/fixtures/README.md) owns the refresh steps; the Lorem sample directory owns production.
 
 Before merging changes to shared layout, Grid/Page geometry, or calibration rules, run the affected full groups:
 `alignment`, `grid`, or `geometry`. Calibration-tool changes also require `viewport`. Record the commands and results in

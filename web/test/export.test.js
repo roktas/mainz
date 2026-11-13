@@ -18,7 +18,7 @@ test("Recipe details retain opaque metadata keys as literal labels", async () =>
   const browser = await launch(chromium)
   try {
     const page = await browser.newPage()
-    const recipe = JSON.parse(await readFile(new URL("./fixtures/recipe/session.json", import.meta.url), "utf8"))
+    const recipe = JSON.parse(await readFile(new URL("./fixtures/recipe/legal-finch.json", import.meta.url), "utf8"))
     for (const input of Object.values(recipe.inputs))
       input.xmp = Object.fromEntries([
         ["__proto__", "Opaque prototype"],
@@ -45,7 +45,7 @@ test(
   { timeout: 90000 },
   async () => {
     const server = await serve()
-    const recipe = JSON.parse(await readFile(new URL("./fixtures/recipe/session.json", import.meta.url), "utf8"))
+    const recipe = JSON.parse(await readFile(new URL("./fixtures/recipe/legal-finch.json", import.meta.url), "utf8"))
     for (const input of Object.values(recipe.inputs)) {
       input.xmp ??= {}
       input.xmp["dc:description"] =
@@ -274,6 +274,10 @@ test(
         ["Sample PDFs", "Choose PDFs"],
       )
       assert.equal(await panel.locator(".binding-target .load-download").count(), 0)
+      assert.equal(
+        await panel.getByRole("link", { name: "Download recipe JSON", exact: true }).getAttribute("download"),
+        "legal-finch.json",
+      )
       const aligned = await panel.evaluate((element) => {
         const options = [...element.querySelectorAll(".load-choices > :is(button,label)")].map((item) =>
           item.getBoundingClientRect(),
@@ -449,7 +453,7 @@ test(
       await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
       for (const download of [
         panel.getByRole("link", { name: "Download recipe JSON", exact: true }),
-        panel.getByRole("button", { name: "Download book.pdf", exact: true }),
+        panel.getByRole("button", { name: "Download known-ghost.pdf", exact: true }),
       ]) {
         await download.hover()
         const style = await download.evaluate((element) => {
@@ -460,12 +464,12 @@ test(
         assert.equal(style.shadow, "none")
       }
       const savedPDF = page.waitForEvent("download")
-      await panel.getByRole("button", { name: "Download book.pdf", exact: true }).click()
+      await panel.getByRole("button", { name: "Download known-ghost.pdf", exact: true }).click()
       const saved = await savedPDF
-      assert.equal(saved.suggestedFilename(), "book.pdf")
+      assert.equal(saved.suggestedFilename(), "known-ghost.pdf")
       assert.deepEqual(
         await readFile(await saved.path()),
-        await readFile(new URL("./fixtures/demo.pdf", import.meta.url)),
+        await readFile(new URL("./fixtures/known-ghost.pdf", import.meta.url)),
       )
       await panel.getByRole("button", { name: "Apply recipe", exact: true }).click()
       await panel.waitFor({ state: "hidden" })
@@ -480,10 +484,12 @@ test(
       )
       await output.getByRole("button", { name: "Details for Output page 2", exact: true }).click()
       const provenance = page.locator(".card-menu-options:popover-open .page-details")
-      await provenance.getByRole("row", { name: "Input guides.pdf", exact: true }).waitFor()
+      await provenance.getByRole("row", { name: "Input brave-shark.pdf", exact: true }).waitFor()
       assert.equal(await provenance.getByRole("row", { name: "Original page 1", exact: true }).count(), 1)
       await page.keyboard.press("Escape")
-      const reference = JSON.parse(await readFile(new URL("./fixtures/recipe/session.json", import.meta.url), "utf8"))
+      const reference = JSON.parse(
+        await readFile(new URL("./fixtures/recipe/legal-finch.json", import.meta.url), "utf8"),
+      )
       assert.deepEqual(
         (await page.locator(".input-choice-title").allTextContents()).toSorted(),
         Object.values(reference.inputs)
@@ -657,7 +663,7 @@ test("Recipe batches match named PDFs first and discard abandoned reads", { time
     const interrupted = await browser.newPage({ reducedMotion: "reduce" })
     let releaseDemo
     const waiting = new Promise((resolve) => (releaseDemo = resolve))
-    await interrupted.route("**/recipe.json", async (route) => {
+    await interrupted.route("**/legal-finch.json", async (route) => {
       await waiting
       await route.continue()
     })
@@ -675,7 +681,7 @@ test("Recipe batches match named PDFs first and discard abandoned reads", { time
     })
     const local = interrupted.getByText("This Recipe uses only blank pages and needs no PDFs.", { exact: true })
     await local.waitFor()
-    const resumed = interrupted.waitForResponse((response) => response.url().endsWith("/recipe.json"))
+    const resumed = interrupted.waitForResponse((response) => response.url().endsWith("/legal-finch.json"))
     releaseDemo()
     await resumed
     await interrupted.evaluate(() => new Promise(requestAnimationFrame))
@@ -1382,7 +1388,7 @@ test("Mobile Share preserves named PDFs and desktop Download", { timeout: 60000 
           .getByText(/Shared 8 pages/)
           .waitFor()
         const file = await page.evaluate(() => window.shared)
-        assert.match(file.name, /^demo_\d{4}-\d{4}-\d{4}-\d{4}\.pdf$/)
+        assert.match(file.name, /^known-ghost_\d{4}-\d{4}-\d{4}-\d{4}\.pdf$/)
         assert.equal(file.type, "application/pdf")
         assert.equal(file.magic, "%PDF-")
         await mkdir("../.local/tmp/web/layout/export", { recursive: true })
@@ -1391,7 +1397,7 @@ test("Mobile Share preserves named PDFs and desktop Download", { timeout: 60000 
         const pending = page.waitForEvent("download")
         await button.click()
         const download = await pending
-        assert.match(download.suggestedFilename(), /^demo_\d{4}-\d{4}-\d{4}-\d{4}\.pdf$/)
+        assert.match(download.suggestedFilename(), /^known-ghost_\d{4}-\d{4}-\d{4}-\d{4}\.pdf$/)
         assert.equal((await readFile(await download.path())).subarray(0, 5).toString(), "%PDF-")
         assert.equal(
           await page.evaluate(async (url) => (await fetch(url)).headers.get("Content-Type"), download.url()),
@@ -1877,7 +1883,7 @@ test("Recipe file details align optional author and copyright fields without col
   try {
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.goto(server.resolvedUrls.local[0])
-    const recipe = JSON.parse(await readFile(new URL("./fixtures/recipe/session.json", import.meta.url), "utf8"))
+    const recipe = JSON.parse(await readFile(new URL("./fixtures/recipe/legal-finch.json", import.meta.url), "utf8"))
     recipe.inputs.book.xmp["dc:creator"] = "Example author"
     recipe.inputs.book.xmp["dc:rights"] = "© Example rights"
     await page.locator(".landing-recipe input").setInputFiles({

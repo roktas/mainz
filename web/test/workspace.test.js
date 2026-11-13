@@ -2092,7 +2092,7 @@ test("Cancelling a paused batch inspection releases the next Source", { timeout:
     await tab(input, "Style")
     await page.evaluate(async () => {
       const { openPDF } = await import("/src/pdf.ts")
-      const task = await openPDF(new Uint8Array(await (await fetch("/demo.pdf")).arrayBuffer()))
+      const task = await openPDF(new Uint8Array(await (await fetch("/known-ghost.pdf")).arrayBuffer()))
       const pdf = await task.promise
       const prototype = Object.getPrototypeOf(await pdf.getPage(1))
       const render = prototype.render
@@ -2167,7 +2167,7 @@ test("Style and Download cancellation release preview workers and retain choices
     await tab(input, "Style")
     await page.evaluate(async () => {
       const { openPDF } = await import("/src/pdf.ts")
-      const task = await openPDF(new Uint8Array(await (await fetch("/demo.pdf")).arrayBuffer()))
+      const task = await openPDF(new Uint8Array(await (await fetch("/known-ghost.pdf")).arrayBuffer()))
       const pdf = await task.promise
       const prototype = Object.getPrototypeOf(await pdf.getPage(1))
       const render = prototype.render
@@ -2940,7 +2940,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
     await page.goto(server.resolvedUrls.local[0])
-    const sample = await readFile("test/fixtures/demo.pdf")
+    const sample = await readFile("test/fixtures/known-ghost.pdf")
     const open = async (name, buffer) => {
       await page.locator("input[type=file]").first().setInputFiles({ name, mimeType: "application/pdf", buffer })
       await page.waitForFunction((label) => document.querySelector(".status-input")?.textContent === label, name, {
@@ -2948,7 +2948,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
       })
       await page.locator(".composer:not([inert])").waitFor()
     }
-    await open("demo.pdf", sample)
+    await open("known-ghost.pdf", sample)
     const input = page.locator(".selection-panel"),
       output = page.locator(".composition-output")
     await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("2,3")
@@ -2961,7 +2961,7 @@ test("Quartets and profiles preserve PDF edits and open files without profiles",
     assert.ok(Math.abs(profileBox.y - selectionBox.y) < 1, `Profile ${profileBox.y}, Output ${selectionBox.y}`)
     assert.ok(Math.abs(profileBox.height - selectionBox.height) < 1)
     assert.ok(await input.locator(".quartet").count())
-    assert.equal(await page.locator(".status-input").textContent(), "demo.pdf")
+    assert.equal(await page.locator(".status-input").textContent(), "known-ghost.pdf")
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 1000 })
       await page.getByRole("button", { name: "Help", exact: true }).click()

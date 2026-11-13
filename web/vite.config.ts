@@ -48,12 +48,12 @@ const wasm = resolve(process.env.MAINZ_WASM_DIR ?? "../.local/var/package/wasm")
 const cache = process.platform === "darwin" ? join(homedir(), "Library/Caches/Mainz") : join(homedir(), ".cache/mainz")
 let outputDirectory = resolve("../.local/var/js/dist")
 const examples = new Map([
-  ["demo.pdf", "test/fixtures/demo.pdf"],
-  ["recipe.json", "test/fixtures/recipe/session.json"],
-  ["recipe/guides.pdf", "test/fixtures/recipe/guides.pdf"],
-  ["recipe/crossings.pdf", "test/fixtures/recipe/crossings.pdf"],
-  ["toc/lorem.pdf", "test/fixtures/toc/lorem.pdf"],
-  ["toc/bridge.pdf", "test/fixtures/toc/bridge.pdf"],
+  ["known-ghost.pdf", "test/fixtures/known-ghost.pdf"],
+  ["legal-finch.json", "test/fixtures/recipe/legal-finch.json"],
+  ["recipe/brave-shark.pdf", "test/fixtures/recipe/brave-shark.pdf"],
+  ["recipe/perky-mamba.pdf", "test/fixtures/recipe/perky-mamba.pdf"],
+  ["toc/lorem-ipsum.pdf", "test/fixtures/toc/lorem-ipsum.pdf"],
+  ["toc/light-burro.pdf", "test/fixtures/toc/light-burro.pdf"],
 ])
 
 function prepare() {
@@ -216,8 +216,8 @@ export default defineConfig({
             )
             return
           }
-          if (request.url?.split("?")[0] !== `${server.config.base}grid.pdf`) return next()
-          const file = resolve("../.local/tmp/web/grid/sample.pdf")
+          if (request.url?.split("?")[0] !== `${server.config.base}large-mouse.pdf`) return next()
+          const file = resolve("../.local/var/fixtures/large-mouse.pdf")
           if (!existsSync(file)) {
             response.statusCode = 404
             response.end("The Grid demo PDF is unavailable.")

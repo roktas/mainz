@@ -223,7 +223,7 @@ for (const hasTouch of [false, true])
         page = await browser.newPage({ hasTouch, isMobile: hasTouch, reducedMotion: "reduce" })
         page.setDefaultTimeout(45000)
         // Grid scroll boundaries belong to grid.test.js; alignment checks representative columns.
-        await page.route("**/grid.pdf", (route) =>
+        await page.route("**/large-mouse.pdf", (route) =>
           route.fulfill({ contentType: "application/pdf", body: fixture({ count: 32 }) }),
         )
         await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
@@ -325,7 +325,7 @@ test("App header uses available width before wrapping its actions", { timeout: 4
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
+    await page.route("**/large-mouse.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 240 }) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)

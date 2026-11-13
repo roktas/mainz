@@ -376,7 +376,7 @@ test(
         }
         await page.setViewportSize({ width: 1100, height: 900 })
         await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
-        assert.ok(await page.locator(".binding-result .binding-file").filter({ hasText: "book.pdf" }).isVisible())
+        assert.ok(await page.locator(".binding-result .binding-file").filter({ hasText: "review.pdf" }).isVisible())
         const approval = await inspection.evaluate((element) => {
           const panel = element.getBoundingClientRect()
           const action = element.querySelector(".binding-accept")

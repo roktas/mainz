@@ -106,7 +106,7 @@ test("Large Output edits keep Grid rendering bounded", { timeout: 60000 }, async
       if (message.type() === "warning") warnings.push(message.text())
     })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
+    await page.route("**/large-mouse.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 240 }) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)

@@ -551,7 +551,7 @@ test("List details stay anchored and row highlights remain flat", { timeout: 900
             assert.equal(await details.evaluate((element) => getComputedStyle(element).textAlign), "start")
             assert.match(
               await details.innerText(),
-              name === "Input" ? /Output\s+1× → 1/ : /demo\.pdf\s+Original page\s+1/,
+              name === "Input" ? /Output\s+1× → 1/ : /known-ghost\.pdf\s+Original page\s+1/,
             )
             await page.keyboard.press("Escape")
             assert.equal(await details.count(), 0)
@@ -597,7 +597,7 @@ test("Page metadata retains physical selection through Grid, List, and captions"
       {},
       {},
     ]
-    await page.route("**/grid.pdf", (route) =>
+    await page.route("**/large-mouse.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 6, metadata }) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
@@ -670,7 +670,7 @@ test("Metadata-only Inputs expose every page in Grid, List, and Page", { timeout
       reducedMotion: "reduce",
     })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/demo.pdf", (route) =>
+    await page.route("**/known-ghost.pdf", (route) =>
       route.fulfill({
         contentType: "application/pdf",
         body: fixture({
@@ -708,7 +708,7 @@ test("Grid headers reveal page names without changing card geometry", { timeout:
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
       await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-      await page.route("**/grid.pdf", (route) =>
+      await page.route("**/large-mouse.pdf", (route) =>
         route.fulfill({
           contentType: "application/pdf",
           body: fixture({
@@ -766,7 +766,7 @@ test("List bounds long sequences and restores the surviving Output row", { timeo
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
+    await page.route("**/large-mouse.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 240 }) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
@@ -818,7 +818,7 @@ test("List rows contain long names and actions with enlarged text", { timeout: 6
       "Details",
       "Reference",
     ]
-    await page.route("**/grid.pdf", (route) =>
+    await page.route("**/large-mouse.pdf", (route) =>
       route.fulfill({
         contentType: "application/pdf",
         body: fixture({ count: names.length, metadata: names.map((name) => ({ name })) }),
@@ -925,7 +925,7 @@ test("Normal card targets stay separate through phone pane and text transitions"
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
+    await page.route("**/large-mouse.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 32 }) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
@@ -1059,7 +1059,7 @@ test("Normal card targets route footer and grip taps across consecutive rows", {
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
+    await page.route("**/large-mouse.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 32 }) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
@@ -1169,7 +1169,7 @@ test("Workspace scrolling keeps Grid and Page controls clear of status", { timeo
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
+    await page.route("**/large-mouse.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 62 }) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid`)
@@ -1262,7 +1262,7 @@ test("Grid layout stays within bounds at responsive widths", { timeout: 120000 }
   try {
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
+    await page.route("**/large-mouse.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 80 }) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid&geometry`)
@@ -1305,7 +1305,7 @@ test("Touch Grid keeps full pages reachable across orientations", { timeout: 120
   try {
     const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
+    await page.route("**/large-mouse.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 80 }) }),
     )
     await page.goto(`${server.resolvedUrls.local[0]}?demo=grid&geometry`)
@@ -1686,11 +1686,32 @@ test("Grid unfolds coincident TOC headings without skipping intermediate pages",
   const browser = await launch(chromium)
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1050 }, reducedMotion: "reduce" })
+    page.setDefaultTimeout(5000)
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.goto(`${server.resolvedUrls.local[0]}?demo=toc`)
+    await page.goto(server.resolvedUrls.local[0])
+    await page.getByLabel("Open PDF", { exact: true }).setInputFiles({
+      name: "Coincident.pdf",
+      mimeType: "application/pdf",
+      buffer: fixture({
+        prepared: false,
+        count: 42,
+        outline: [
+          { title: "3. Navigation and Structure", page: 31 },
+          { title: "3.1 Document Contents", page: 31, parent: 0 },
+          { title: "3.1.1 Printed Contents", page: 31, parent: 1 },
+          { title: "3.1.2 Linked Destinations", page: 34, parent: 1 },
+          { title: "3.2 Outlines and Sections", page: 36, parent: 0 },
+          { title: "3.2.1 Nested Headings", page: 36, parent: 4 },
+          { title: "3.2.2 Section Boundaries", page: 38, parent: 4 },
+          { title: "4. Processing and Validation", page: 40 },
+        ],
+      }),
+    })
     await page.locator(".composer[aria-busy=false]").waitFor()
     const input = page.locator(".selection-panel")
     await tab(input, "Grid")
+    const fold = input.getByRole("button", { name: "Fold all Input sections", exact: true })
+    if (await fold.count()) await fold.click()
     await input.getByRole("button", { name: "Unfold Input section: 3. Navigation and Structure", exact: true }).click()
     const visible = await input
       .locator(".page-image")
@@ -2211,7 +2232,7 @@ test("Landscape Lists keep native scrolling reachable through folding and rotati
                       Number(row.dataset.end ?? row.querySelector("[data-page]")?.dataset.page ?? row.dataset.index) ===
                       count - 1,
                   ),
-                { el: await viewport.elementHandle(), count: name === "Input" ? 59 : 9 },
+                { el: await viewport.elementHandle(), count: name === "Input" ? 42 : 9 },
               )
               await page.evaluate(
                 () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
@@ -2227,7 +2248,7 @@ test("Landscape Lists keep native scrolling reachable through folding and rotati
                     last.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom + 1
                   )
                 },
-                { el: await viewport.elementHandle(), count: name === "Input" ? 59 : 9 },
+                { el: await viewport.elementHandle(), count: name === "Input" ? 42 : 9 },
               )
               assert.equal(
                 await page.evaluate(() => window.scrollY),

@@ -797,7 +797,7 @@ test("Page fit preserves screen size across expanded desktop viewports", { timeo
     browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
     const page = await browser.newPage({ reducedMotion: "reduce" })
     await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
-    await page.route("**/grid.pdf", (route) =>
+    await page.route("**/large-mouse.pdf", (route) =>
       route.fulfill({ contentType: "application/pdf", body: fixture({ count: 240 }) }),
     )
     const session = await page.context().newCDPSession(page)

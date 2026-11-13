@@ -209,7 +209,8 @@
         const bytes = await response.arrayBuffer()
         if (generation !== revision) return
         busy = false
-        await choose(id, new File([bytes], `${id}.pdf`, { type: "application/pdf" }))
+        const filename = decodeURIComponent(new URL(url, location.href).pathname.split("/").at(-1)!)
+        await choose(id, new File([bytes], filename, { type: "application/pdf" }))
         if (generation !== revision || failure) return
         busy = true
       }
@@ -276,7 +277,7 @@
           {#if example}<a
               class="load-download"
               href={example.recipe}
-              download="practice-session.json"
+              download={name}
               aria-label="Download recipe JSON"
               title="Download recipe JSON"><Icon name="down" /></a
             >{/if}
