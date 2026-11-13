@@ -402,7 +402,7 @@ module Mainz
       description = JSON.parse(command("describe", @output).stdout)
       width = description["parameters"].values.find { |entry| entry.dig("parameter", "key") == "guide.width" }
       assert_equal(0.12, width["parameter"]["value"])
-      refute(description.key?("publication"), "Composition must not inherit a producer's publication claim")
+      assert_equal(publication, description["publication"], "Whole-Input styling retains the publication claim")
       @output.delete
       recipe["sources"]["source"]["overrides"] = [{"id" => "width", "value" => 3}]
       failure = run_recipe(recipe, inputs: {"book" => input}, force: true, status: 1)

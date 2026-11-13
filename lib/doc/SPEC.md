@@ -284,10 +284,10 @@ manifest. Their standard properties are `dc:title`, `dc:description`, `dc:creato
 these values and their encoding. If it also writes equivalent legacy Info entries, it keeps them consistent with XMP.
 The manifest's `publication` record remains a separate processing-compatibility claim.
 
-Styling and extraction retain existing document metadata. Composition creates a new Document and does not choose or
-merge Input titles, authors, or rights declarations. The producing application can supply a title and cover page through
-the Plan's optional `metadata` field. Composition writes these choices to XMP under Section 6.3. Other publication
-metadata remains the producing application's responsibility.
+Styling, extraction, and whole-Input styling under Section 6.3 retain existing document metadata. Other composition
+creates a new Document and does not choose or merge Input titles, authors, or rights declarations. The producing
+application can supply a title and cover page through the Plan's optional `metadata` field. Composition writes these
+choices to XMP under Section 6.3. Other publication metadata remains the producing application's responsibility.
 
 #### Style families and semantic keys
 
@@ -334,8 +334,9 @@ Mainz manifest `version`, Recipe `version`, Plan `version`, and software version
 identifies how to interpret a record. A publication veto identifies a producer restriction on replay.
 
 Read, describe, style, reset, and SVG production preserve the declaration. Extraction that changes the page sequence
-removes it. No-op extraction retains the original bytes. Composition never inherits an Input's declaration. A producer
-must explicitly declare the identity and compatibility value of its final assembled output.
+removes it. No-op extraction retains the original bytes. Whole-Input styling under Section 6.3 preserves the
+declaration. Other composition never inherits it. A producer must explicitly declare the identity and compatibility
+value of its final assembled output.
 
 ### 4.3 Parameter schemas
 
@@ -926,7 +927,14 @@ Optional `metadata` contains exactly `title` and `coverPage`. The title is nonbl
 must contain valid XML 1.0 characters. `coverPage` is a one-based physical Output page number after repetition and
 Padding expansion. It must identify an existing page. Composition writes the title as XMP `dc:title` with the
 `x-default` language and the matching PDF Info `Title`. It writes the cover as `mainz:coverPage` in the namespace
-`https://github.com/roktas/mainz/ns/1.0/`. Omitting `metadata` writes neither field. Input metadata is never merged.
+`https://github.com/roktas/mainz/ns/1.0/`. Omitting `metadata` writes neither field in a new catalog. Input metadata is
+never merged.
+
+When one Input instance contributes every physical page once in its original order, omitting `metadata` selects
+whole-Input styling. The processor applies the complete overrides directly to that document and preserves its catalog
+and page structure. Navigation, document metadata, labels, page names, attachments, and the publication declaration
+remain. Parameter identities remain unchanged. Provenance maps those original identities to the Input instance. If the
+saved assignments are unchanged, the result retains the original bytes.
 
 Each Part repeats its complete sequence `copies` times. With `front: true`, copies start at even zero-based result
 indexes and finish complete duplex sheets. An odd preceding length adds leading Padding. Odd sequences add trailing
@@ -938,7 +946,13 @@ Composition retains content streams, resources, boxes, rotation, and `UserUnit`.
 page object and array position. Annotations and form fields are copied without sharing mutable annotations. Internal
 links resolve to the first retained occurrence in the same Input instance. Discarded destinations become null. Unrelated
 attachments copy once per Input, with collision-free Input prefixes for multiple Inputs. The new catalog does not merge
-document-wide outlines, actions, metadata, or logical structure.
+document-wide actions, metadata, or logical structure. It rebuilds local PDF outlines from real source sections. Section
+ranges follow the next sibling or ancestor target, with the final open sections extending to the last Input page.
+Same-page siblings remain distinct. Empty sections disappear. Each retained section targets its first Output occurrence
+within that range or its descendants, even when its original heading page is absent. Ancestor context remains, and
+siblings follow their first Output position. Repeated pages use that first occurrence. Each Input instance keeps its own
+outline tree. Invalid or external targets add no heading but retain navigable children. No page name or host-only group
+creates a PDF outline entry. Outline traversal shares the 65536-visit budget and permits at most 64 levels.
 
 Input instances retain independent parameter, target, and baseline identities. Definitions, overrides, and presentation
 survive, with bindings covering every eligible retained occurrence. Unused targets, parameters, baselines, and empty

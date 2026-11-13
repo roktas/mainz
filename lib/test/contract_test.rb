@@ -1165,6 +1165,103 @@ module Mainz
       assert_equal("limit-exceeded", JSON.parse(failure.stderr)["code"])
     end
 
+    def test_whole_input_composition_preserves_document_structure_and_styles
+      source = file("whole-input.pdf")
+      fixture(source, -> (manifest) { manifest["pages"] = [{"name" => "Cover"}, {"name" => "Details"}] })
+      document = HexaPDF::Document.open(source)
+      document.trailer[:Info] = document.add({Author: "Original author"})
+      xml = '<x:xmpmeta xmlns:x="adobe:ns:meta/">Unrelated metadata</x:xmpmeta>'
+      document.catalog[:Metadata] = document.add({Type: :Metadata, Subtype: :XML}, stream: xml)
+      document.catalog[:PageLabels] = {Nums: [0, {S: :r}]}
+      document.outline.add_item("Book", destination: document.pages[0], open: false) do |item|
+        item.add_item("Details", destination: document.pages[1])
+      end
+      document.write(source.to_s)
+      write("inputs.json", {"input" => source.to_s})
+      request = {"version" => 1, "sources" => {"source" => {"input" => "input", "overrides" => {"opacity" => 0.4}}},
+                 "parts" => [{"pages" => [0, 1].map { {"source" => "source", "page" => it} }}]}
+      output, result = compose(request, "whole-styled.pdf")
+      saved = HexaPDF::Document.open(output)
+      assert_equal(xml, saved.catalog[:Metadata].stream)
+      assert_equal("Original author", saved.trailer[:Info][:Author])
+      summarize = -> (items) { items.map { [it["title"], it["destpageposfrom1"], it["open"], summarize.call(it["kids"])] } }
+      assert_equal([["Book", 1, false, [["Details", 2, true, []]]]], summarize.call(pdf_json(output)["outlines"]))
+      assert_equal(describe(source)["pages"], describe(output)["pages"])
+      assert_equal(Preservation.read(source), Preservation.read(output))
+      assert_equal(0.4, describe(output)["parameters"]["opacity"]["parameter"]["value"])
+      assert_equal({"source" => "source", "parameter" => "opacity"}, JSON.parse(result.stdout)["parameters"]["opacity"])
+      request["sources"]["source"]["overrides"] = describe(source)["parameters"].filter_map do |id, entry|
+        parameter = entry["parameter"]
+        [id, parameter["value"]] if parameter.key?("value")
+      end.to_h
+      unchanged, = compose(request, "whole-unchanged.pdf")
+      assert_equal(source.binread, unchanged.binread)
+    end
+
+    def test_composition_prunes_and_orders_real_outline_sections
+      source = file("sections.pdf")
+      document = HexaPDF::Document.new
+      8.times { document.pages.add }
+      document.outline.add_item("Book", destination: document.pages[1]) do |book|
+        book.add_item("First", destination: document.pages[1])
+        book.add_item("Second", destination: document.pages[4]) do |section|
+          section.add_item("Detail", destination: document.pages[5])
+        end
+      end
+      document.outline.add_item("Prelude", destination: document.pages[7])
+      document.write(source.to_s)
+      write("inputs.json", {"input" => source.to_s})
+      request = {"version" => 1, "sources" => {"a" => {"input" => "input", "overrides" => {}}},
+                 "parts" => [{"pages" => [0, 6, 2, 6, 5, 7].map { {"source" => "a", "page" => it} }}]}
+      output, = compose(request, "pruned-outline.pdf")
+      summarize = -> (items) { items.map { [it["title"], it["destpageposfrom1"], summarize.call(it["kids"])] } }
+      assert_equal(
+        [["Book", 2, [["Second", 2, [["Detail", 2, []]]], ["First", 3, []]]], ["Prelude", 6, []]],
+        summarize.call(pdf_json(output)["outlines"])
+      )
+      command("qpdf", "--check", output)
+      request["sources"]["b"] = {"input" => "input", "overrides" => {}}
+      request["parts"] = [{"pages" => [["a", 6], ["b", 2], ["a", 2], ["b", 7]].map { |id, page| {"source" => id, "page" => page} }}]
+      multiple, = compose(request, "multiple-outlines.pdf")
+      assert_equal(
+        [["Book", 1, [["Second", 1, [["Detail", 1, []]]], ["First", 3, []]]],
+         ["Book", 2, [["First", 2, []]]], ["Prelude", 4, []]],
+        summarize.call(pdf_json(multiple)["outlines"])
+      )
+      document.catalog[:Outlines][:First][:Dest] = [document.pages[4], :Fit]
+      document.write(source.to_s)
+      request["sources"].delete("b")
+      request["parts"] = [{"pages" => [{"source" => "a", "page" => 2}]}]
+      context, = compose(request, "nonmonotonic-outline.pdf")
+      assert_equal([["Book", 1, [["First", 1, []]]]], summarize.call(pdf_json(context)["outlines"]))
+    end
+
+    def test_composition_bounds_outline_traversal_and_retains_navigable_children
+      source = file("outline-context.pdf")
+      document = HexaPDF::Document.new
+      3.times { document.pages.add }
+      document.catalog[:Names] = {Dests: {Names: ["local", [document.pages[1], :Fit]]}}
+      document.outline.add_item("External", action: {S: :URI, URI: "https://example.invalid"}) do |item|
+        child = item.add_item("Local", destination: "local")
+        child[:Next] = child
+      end
+      document.write(source.to_s)
+      write("inputs.json", {"input" => source.to_s})
+      request = {"version" => 1, "sources" => {"a" => {"input" => "input", "overrides" => {}}},
+                 "parts" => [{"pages" => [{"source" => "a", "page" => 1}]}]}
+      output, = compose(request, "local-outline.pdf")
+      assert_equal([["Local", 1]], pdf_json(output)["outlines"].map { [it["title"], it["destpageposfrom1"]] })
+      parent = document.catalog[:Outlines] = document.add({Type: :Outlines})
+      65.times do
+        item = document.add({Title: "Deep", Dest: [document.pages[1], :Fit], Parent: parent})
+        parent[:First] = item
+        parent = item
+      end
+      document.write(source.to_s)
+      _, failure = compose(request, "deep-outline.pdf", ok: false)
+      assert_equal("limit-exceeded", JSON.parse(failure.stderr)["code"])
+    end
+
     def test_composition_remaps_links_and_isolates_annotations
       navigation = file("navigation.pdf")
       fixture(

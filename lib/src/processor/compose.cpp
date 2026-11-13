@@ -126,16 +126,6 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
                 // Validate the completed composition once, after every Source has been assembled.
                 original.update(next);
             }
-            QPDFPageDocumentHelper(source.engine->document).pushInheritedAttributesToPage();
-            for (auto item : source.engine->document.getAllObjects()) {
-                require(++budget.visits <= 65536, "Plan traversal exceeds 65536 visits.", "limit-exceeded");
-                if (!item.isDictionary())
-                    continue;
-                if (item.hasKey("/Dest"))
-                    item.replaceKey("/Dest", destination(item.getKey("/Dest"), source.engine->document));
-                if (item.getKey("/S").isNameAndEquals("/GoTo"))
-                    item.replaceKey("/D", destination(item.getKey("/D"), source.engine->document));
-            }
         }
         if (used_inputs.size() != inputs.size())
             throw Error("invalid-request", "Unused Input binding.", "request", "/sources");
@@ -256,6 +246,52 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             title = text(metadata.getDictItem("title"));
             cover_page = static_cast<std::size_t>(number(metadata.getDictItem("coverPage")));
         });
+    if (sources.size() == 1 && metadata.isNull()) {
+        auto& [id, source] = *sources.begin();
+        auto& engine = *source.engine;
+        bool whole = expanded.size() == engine.pages.size();
+        for (std::size_t index = 0; whole && index < expanded.size(); ++index) {
+            auto content = std::get_if<SourcePage>(&expanded[index].content);
+            whole = content && content->source == id && content->page == index;
+        }
+        if (whole) {
+            auto provenance = JSON::makeArray(), parameters = JSON::makeDictionary();
+            for (std::size_t index = 0; index < expanded.size(); ++index)
+                provenance.addArrayElement(dictionary(
+                    {{"source", JSON::makeString(id)}, {"page", JSON::makeInt(static_cast<long long>(index))},
+                        {"part", JSON::makeInt(static_cast<long long>(expanded[index].part))},
+                        {"copy", JSON::makeInt(static_cast<long long>(expanded[index].copy))}}));
+            for (const auto& [parameter, record] : engine.parameters) {
+                (void)record;
+                parameters.addDictionaryMember(parameter,
+                    dictionary({{"source", JSON::makeString(id)}, {"parameter", JSON::makeString(parameter)}}));
+            }
+            auto saved = engine.changed_targets.empty() ? inputs.at(source.input).bytes : engine.save(engine.manifest);
+            auto syntax = engine.take_index();
+            source.engine.reset();
+            Engine reopened(saved, &budget, false, syntax);
+            auto description = reopened.describe();
+            auto mapping
+                = encode(dictionary({{"version", JSON::makeInt(1)}, {"pages", provenance}, {"parameters", parameters}}),
+                    json_limit, budget.remaining);
+            return Artifact {Document(std::move(saved), std::move(description), !object(reopened.manifest).empty(),
+                                 reopened.prepared(), reopened.take_index(), reopened.take_previews()),
+                std::move(mapping)};
+        }
+    }
+    for (auto& [id, source] : sources) {
+        (void)id;
+        QPDFPageDocumentHelper(source.engine->document).pushInheritedAttributesToPage();
+        for (auto item : source.engine->document.getAllObjects()) {
+            require(++budget.visits <= 65536, "Plan traversal exceeds 65536 visits.", "limit-exceeded");
+            if (!item.isDictionary())
+                continue;
+            if (item.hasKey("/Dest"))
+                item.replaceKey("/Dest", destination(item.getKey("/Dest"), source.engine->document));
+            if (item.getKey("/S").isNameAndEquals("/GoTo"))
+                item.replaceKey("/D", destination(item.getKey("/D"), source.engine->document));
+        }
+    }
     auto assemble = [&] {
         auto next = dictionary({{"version", JSON::makeInt(1)}});
         next.addDictionaryMember("pages", JSON::makeArray());
@@ -451,6 +487,150 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
         }
         if (!labels.empty())
             output.getRoot().replaceKey("/PageLabels", Object::newDictionary({{"/Nums", Object::newArray(labels)}}));
+        struct Bookmark {
+            Object item;
+            std::size_t target;
+            std::vector<std::size_t> children;
+        };
+        std::vector<Bookmark> bookmarks;
+        std::vector<std::size_t> roots;
+        const auto output_pages = tree.getAllPages();
+        for (auto& [id, source] : sources) {
+            auto& engine = *source.engine;
+            struct Heading {
+                Object title;
+                std::size_t page, end, depth, target;
+                std::optional<std::size_t> parent;
+            };
+            struct Pending {
+                Object item;
+                std::size_t depth, level;
+                std::optional<std::size_t> parent;
+            };
+            std::map<QPDFObjGen, std::size_t> page_indexes;
+            for (std::size_t index = 0; index < engine.pages.size(); ++index)
+                page_indexes.emplace(engine.pages[index].getObjectHandle().getObjGen(), index);
+            std::vector<Heading> headings;
+            std::vector<Pending> pending {{engine.document.getRoot().getKey("/Outlines").getKey("/First"), 0, 0, {}}};
+            std::set<QPDFObjGen> seen;
+            while (!pending.empty()) {
+                auto current = pending.back();
+                pending.pop_back();
+                auto item = current.item;
+                if (!item.isDictionary() || (item.isIndirect() && !seen.insert(item.getObjGen()).second))
+                    continue;
+                require(++budget.visits <= 65536 && current.level < 64, "Outline traversal exceeds limits.",
+                    "limit-exceeded");
+                pending.push_back({item.getKey("/Next"), current.depth, current.level, current.parent});
+                auto title = item.getKey("/Title");
+                auto dest = item.getKey("/Dest");
+                if (dest.isNull() && item.getKey("/A").getKey("/S").isNameAndEquals("/GoTo"))
+                    dest = item.getKey("/A").getKey("/D");
+                std::optional<std::size_t> page;
+                if (dest.isArray() && dest.getArrayNItems() > 0) {
+                    auto target = dest.getArrayItem(0);
+                    if (target.isInteger() && target.getIntValue() >= 0
+                        && static_cast<unsigned long long>(target.getIntValue()) < engine.pages.size())
+                        page = static_cast<std::size_t>(target.getIntValue());
+                    else if (target.isIndirect() && page_indexes.contains(target.getObjGen()))
+                        page = page_indexes.at(target.getObjGen());
+                }
+                auto parent = current.parent;
+                auto depth = current.depth;
+                if (page && title.isString()) {
+                    auto text = title.getUTF8Value();
+                    if (text.size() <= 4096 && text.find_first_not_of(" \t\r\n") != std::string::npos) {
+                        parent = headings.size();
+                        headings.push_back(
+                            {title, *page, engine.pages.size() - 1, depth, expanded.size(), current.parent});
+                        ++depth;
+                    }
+                }
+                pending.push_back({item.getKey("/First"), depth, current.level + 1, parent});
+            }
+            if (headings.empty())
+                continue;
+            std::vector<std::size_t> open;
+            for (std::size_t index = 0; index < headings.size(); ++index) {
+                while (!open.empty() && headings[open.back()].depth >= headings[index].depth) {
+                    auto& previous = headings[open.back()];
+                    previous.end = headings[index].page > previous.page ? headings[index].page - 1 : previous.page;
+                    open.pop_back();
+                }
+                open.push_back(index);
+            }
+            // Range minima find each section's first retained Output occurrence without a page/section matrix.
+            auto count = engine.pages.size();
+            budget.consume(2 * count * sizeof(std::size_t));
+            std::vector<std::size_t> first(2 * count, expanded.size());
+            for (std::size_t index = 0; index < expanded.size(); ++index)
+                if (auto content = std::get_if<SourcePage>(&expanded[index].content); content && content->source == id)
+                    first[count + content->page] = std::min(first[count + content->page], index);
+            for (auto index = count; index > 1; --index)
+                first[index - 1] = std::min(first[2 * (index - 1)], first[2 * (index - 1) + 1]);
+            std::vector<std::optional<std::size_t>> retained(headings.size());
+            for (std::size_t index = 0; index < headings.size(); ++index) {
+                const auto& heading = headings[index];
+                auto target = expanded.size();
+                for (auto left = count + heading.page, right = count + heading.end + 1; left < right;
+                    left /= 2, right /= 2) {
+                    if (left % 2)
+                        target = std::min(target, first[left++]);
+                    if (right % 2)
+                        target = std::min(target, first[--right]);
+                }
+                headings[index].target = target;
+            }
+            // Non-monotonic targets must not detach retained children from their authored ancestors.
+            for (auto index = headings.size(); index > 0; --index) {
+                const auto& heading = headings[index - 1];
+                if (heading.parent)
+                    headings[*heading.parent].target = std::min(headings[*heading.parent].target, heading.target);
+            }
+            for (std::size_t index = 0; index < headings.size(); ++index) {
+                const auto& heading = headings[index];
+                auto target = heading.target;
+                if (target == expanded.size())
+                    continue;
+                auto item = output.makeIndirectObject(
+                    Object::newDictionary({{"/Title", Object::newUnicodeString(heading.title.getUTF8Value())},
+                        {"/Dest",
+                            Object::newArray({output_pages.at(target).getObjectHandle(), Object::newName("/Fit")})}}));
+                auto parent = heading.parent;
+                auto& siblings = parent ? bookmarks[*retained[*parent]].children : roots;
+                siblings.push_back(bookmarks.size());
+                retained[index] = bookmarks.size();
+                bookmarks.push_back({item, target, {}});
+            }
+        }
+        if (!roots.empty()) {
+            auto root = output.makeIndirectObject(Object::newDictionary({{"/Type", Object::newName("/Outlines")}}));
+            auto connect = [&](auto&& self, std::vector<std::size_t>& siblings, Object parent) -> std::size_t {
+                std::stable_sort(siblings.begin(), siblings.end(),
+                    [&](auto left, auto right) { return bookmarks[left].target < bookmarks[right].target; });
+                std::size_t count = siblings.size();
+                for (std::size_t index = 0; index < siblings.size(); ++index) {
+                    auto& bookmark = bookmarks[siblings[index]];
+                    auto item = bookmark.item;
+                    item.replaceKey("/Parent", parent);
+                    if (index)
+                        item.replaceKey("/Prev", bookmarks[siblings[index - 1]].item);
+                    if (index + 1 < siblings.size())
+                        item.replaceKey("/Next", bookmarks[siblings[index + 1]].item);
+                    auto children = self(self, bookmark.children, item);
+                    if (children)
+                        item.replaceKey("/Count", Object::newInteger(static_cast<long long>(children)));
+                    count += children;
+                }
+                if (!siblings.empty()) {
+                    parent.replaceKey("/First", bookmarks[siblings.front()].item);
+                    parent.replaceKey("/Last", bookmarks[siblings.back()].item);
+                }
+                return count;
+            };
+            root.replaceKey("/Count", Object::newInteger(static_cast<long long>(connect(connect, roots, root))));
+            output.getRoot().replaceKey("/Outlines", root);
+        }
         prune_previews(output, managed_previews, next.getDictItem("pages"));
         for (const auto& item : output.getAllObjects()) {
             require(++budget.visits <= 65536, "Plan traversal exceeds 65536 visits.", "limit-exceeded");
