@@ -2315,8 +2315,16 @@ test("Public TOC examples open on a fresh static-host visit without a service wo
         await page.getByRole("button", { name: "Input contents", exact: true }).click()
         await page.locator(".contents:popover-open").getByRole("button", { name: "Unfold all", exact: true }).click()
         const titles = await page.locator(".contents:popover-open .destination > span:first-child").allTextContents()
-        assert.equal(titles.length, 41)
-        assert.equal(titles[0], "Prelude")
+        assert.equal(titles.length, 44)
+        assert.equal(titles[0], "Cover")
+        assert.equal(titles[1], "…")
+        assert.equal(
+          await page
+            .locator(".composition-output")
+            .getByRole("tab", { name: "Grid", exact: true })
+            .getAttribute("aria-selected"),
+          "true",
+        )
         assert.ok(titles.includes("1. Foundations of Digital Documents"))
         assert.ok(titles.includes("1.1 The Document Model"))
         assert.ok(titles.includes("1.1.1 Logical Structure"))

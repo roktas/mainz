@@ -6,8 +6,8 @@
 
 - A single Output List page-actions menu on phone-width screens, keeping titles readable and the eye control separate.
 
-- Virtual Prelude and Postlude groups for uncovered TOC edge pages, with named cover exceptions and italic small-cap
-  headings in List and Contents. The Lorem sample names its first page Cover.
+- Virtual `…` groups for uncovered TOC edge pages, with named cover exceptions and italic small-cap headings in List and
+  Contents. The Lorem sample names its first page Cover.
 
 - Alt/Option shortcuts for Grid, List, Page, and the previous pane view, plus a clear upgrade message on unsupported
   browsers.
@@ -142,6 +142,19 @@
 - Compact mobile Output actions, with a square Download icon button and totals beside the icons.
 
 ### Fixed
+
+- Contents opens virtual `…` groups into individual page destinations and includes named Cover/Back edge pages without
+  duplicating existing TOC targets. These navigation entries remain display-only.
+
+- Complete, ordered single-Input downloads preserve the source document structure while applying styles, including TOC,
+  names, labels, XMP, attachments, and publication identity. Unchanged assignments preserve the original bytes.
+- Partial and mixed compositions retain source TOC sections, prune empty branches, and retarget bookmarks in Output
+  order.
+- Output starts in Grid independently of Input, including TOC demos. Mouse Help describes results with Adds, Opens, and
+  Moves.
+- List additions carry actual page images. Addition flights and their Output glow last 900 ms.
+
+- Page-addition previews target the Output Page viewport instead of its heading in two-pane layouts.
 
 - List uses the remaining viewport height on short screens, keeping its native scrollbar and final row reachable through
   section folding and orientation changes.

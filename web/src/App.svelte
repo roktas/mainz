@@ -378,7 +378,8 @@
         })
       output.commit(next)
       output.title = resolved.plan.metadata?.title ?? ""
-      output.coverPage = resolved.plan.metadata?.coverPage ?? 1
+      output.cover = undefined
+      if (resolved.plan.metadata) output.coverPage = resolved.plan.metadata.coverPage
       activeId = sources[0]?.id ?? ""
       committed = true
       for (const source of sources) source.preview.schedule(source, counts, undefined, true)
@@ -935,6 +936,11 @@
   pages={output.pages.length}
   suggest={() => downloadName(parts, sources)}
   suggestTitle={() => output.defaultTitle}
+  reset={() => {
+    output.filename = ""
+    output.title = ""
+    output.cover = undefined
+  }}
   preview={coverPreview}
 />
 <Recipe bind:this={recorder} {output} {sources} {info} />

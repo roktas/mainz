@@ -447,7 +447,7 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
           await page
             .locator(".mobile-workspace-tabs > button:last-child")
             .evaluate((button) =>
-              button.getAnimations().some((animation) => animation.effect.getTiming().duration === 600),
+              button.getAnimations().some((animation) => animation.effect.getTiming().duration === 900),
             ),
           false,
           "Arrival or cancellation clears the Output glow",
@@ -471,7 +471,7 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
         assert.equal(await prepared.inputValue(), "")
         assert.equal(await flight.getAttribute("data-copies"), String(Math.min(added, 3)))
         assert.equal(await flight.getAttribute("aria-hidden"), "true")
-        assert.equal(await flight.evaluate((element) => element.getAnimations()[0].effect.getTiming().duration), 600)
+        assert.equal(await flight.evaluate((element) => element.getAnimations()[0].effect.getTiming().duration), 900)
         assert.equal(await flight.evaluate((element) => getComputedStyle(element).pointerEvents), "none")
         const pending = output.locator(".composition-card[data-adding]")
         if (await output.isVisible()) assert.ok(await pending.count())
@@ -515,12 +515,12 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
         const middle = await flight.boundingBox()
         if (await button.isVisible()) {
           const glow = await button.evaluate((element) => {
-            const animation = element.getAnimations().find((item) => item.effect.getTiming().duration === 600)
+            const animation = element.getAnimations().find((item) => item.effect.getTiming().duration === 900)
             if (!animation) return null
-            animation.currentTime = 300
+            animation.currentTime = 450
             return { duration: animation.effect.getTiming().duration, shadow: getComputedStyle(element).boxShadow }
           })
-          assert.equal(glow?.duration, 600, `${width} ${trigger}: Output glows during the complete flight`)
+          assert.equal(glow?.duration, 900, `${width} ${trigger}: Output glows during the complete flight`)
           assert.notEqual(glow.shadow, "none", `${width} ${trigger}: Output has a visible mid-flight glow`)
         }
         const dx = end.x + end.width / 2 - sourceX,
@@ -578,15 +578,15 @@ test("Input additions reach Output without delaying edits or taking focus", { ti
         await prepared.press("Enter")
         count++
         await flight.waitFor()
-        const heading = await output.locator("h2").boundingBox()
+        const destination = await output.locator(".page-scroll").boundingBox()
         await flight.evaluate((element) => {
           const animation = element.getAnimations()[0]
           animation.currentTime = animation.effect.getTiming().duration - 1
         })
         const landed = await flight.boundingBox()
-        assert.ok(Math.abs(landed.x + landed.width / 2 - heading.x - heading.width / 2) < 1)
-        assert.ok(Math.abs(landed.y + landed.height / 2 - heading.y - heading.height / 2) < 1)
-        assert.equal(await total(), count, "An undisplayed insertion uses the Output heading")
+        assert.ok(Math.abs(landed.x + landed.width / 2 - destination.x - destination.width / 2) < 1)
+        assert.ok(Math.abs(landed.y + landed.height / 2 - destination.y - destination.height / 2) < 1)
+        assert.equal(await total(), count, "Page additions reach the Output viewport")
         await finish()
         await output.getByRole("button", { name: "Select all", exact: true }).click()
         await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
@@ -795,8 +795,8 @@ test("Addition previews use their target image or the action area", { timeout: 9
         )
         assert.equal(
           await flight.evaluate((canvas) => canvas.getContext("2d").getImageData(0, 0, 1, 1).data[3]),
-          0,
-          "The preview does not copy another inspected page",
+          255,
+          "An unavailable on-screen image is rendered from the intended PDF page",
         )
         await flight.evaluate((element) => element.getAnimations().forEach((animation) => animation.finish()))
       }
@@ -869,7 +869,7 @@ test(
           })
           assert.equal(await flight.count(), 1, "Focus recovery does not cancel addition feedback")
           assert.equal(await total(), before + quantity, "Additions update the document before arrival")
-          assert.equal(await flight.evaluate((element) => element.getAnimations()[0].effect.getTiming().duration), 600)
+          assert.equal(await flight.evaluate((element) => element.getAnimations()[0].effect.getTiming().duration), 900)
           assert.equal(await output.locator(".composition-card[data-adding]").count(), quantity)
           if (blank)
             assert.equal(

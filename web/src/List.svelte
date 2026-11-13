@@ -488,6 +488,8 @@
       <li
         class="list-section"
         data-synthetic={entry.synthetic || undefined}
+        title={entry.synthetic ? `Pages ${entry.start + 1}–${entry.end}` : undefined}
+        aria-label={entry.synthetic ? `Pages ${entry.start + 1}–${entry.end}` : undefined}
         class:output-section={pane === "Output"}
         style:--section-depth={entry.path.length - 1}
         class:selected={collapsed.has(entry.key) && selected?.(entry.start, entry.end)}

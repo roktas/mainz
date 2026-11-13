@@ -264,9 +264,9 @@ test("Virtual edge sections preserve covers, genuine headings, and internal gaps
       assert.deepEqual(
         result.map(({ title, page, end, synthetic }) => [title, page, end, !!synthetic]),
         [
-          ["Prelude", 1, 2, true],
+          ["…", 1, 2, true],
           ["Prelude", 3, 5, false],
-          ["Postlude", 6, 7, true],
+          ["…", 6, 7, true],
         ],
       )
       assert.notEqual(result[0].keys[0], result[1].keys[0])
@@ -288,7 +288,7 @@ test("Virtual edge sections preserve covers, genuine headings, and internal gaps
   assert.equal(frameOutline([chapter], [{ name: "Cover story" }, ...pages.slice(1)])[0].page, 0)
 })
 
-test("Inferred last sections retain their full coverage without inventing a Postlude", async () => {
+test("Inferred last sections retain their full coverage without inventing a trailing group", async () => {
   const original = await readOutline(pdf([node("Chapter", 3)], 8))
   const outline = frameOutline(
     original,
@@ -296,7 +296,7 @@ test("Inferred last sections retain their full coverage without inventing a Post
   )
   assert.deepEqual(
     outline.map((entry) => entry.title),
-    ["Prelude", "Chapter"],
+    ["…", "Chapter"],
   )
   assert.equal(outline.at(-1)!.end, 7)
 })

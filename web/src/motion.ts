@@ -5,9 +5,11 @@ import { SvelteSet } from "svelte/reactivity"
 import { scale as scaleOut, slide } from "svelte/transition"
 import { quadIn, quadOut } from "svelte/easing"
 import type { Size } from "./model.ts"
+import type { PDFDocumentProxy } from "pdfjs-dist"
+import { cachedRaster, cover, thumbnail as suppliedThumbnail } from "./pdf.ts"
 import type { Edit } from "./output.svelte.ts"
 
-const additionDuration = 600
+const additionDuration = 900
 const removalDuration = 300
 const moveDuration = 500
 
@@ -223,16 +225,6 @@ function snapshot(
       )
     }
   }
-  if (sheet?.matches(".list-choice")) {
-    const style = getComputedStyle(sheet)
-    paint.scale(image.width / width, image.height / height)
-    paint.fillStyle = getComputedStyle(sheet.closest(".list-row")!).backgroundColor
-    paint.fillRect(0, 0, width, height)
-    paint.fillStyle = style.color
-    paint.font = `${style.fontSize} ${style.fontFamily}`
-    paint.textBaseline = "middle"
-    paint.fillText(sheet.textContent ?? "", 8, height / 2, width - 16)
-  }
   image.setAttribute("aria-hidden", "true")
   image.style.inlineSize = `${width}px`
   image.style.blockSize = `${height}px`
@@ -246,6 +238,7 @@ export function animateAddition(
   quantity: number,
   destination: () => HTMLElement | null,
   reveal: () => void,
+  preview?: { pdf: PDFDocumentProxy; page: number },
 ) {
   const motion = matchMedia("(prefers-reduced-motion: no-preference)")
   if (!motion.matches) return
@@ -280,7 +273,21 @@ export function animateAddition(
     reveal()
   }
   motion.addEventListener("change", stop, { once: true, signal: events.signal })
-  void tick().then(() => {
+  void (async () => {
+    if (!blank && (!(sheet instanceof HTMLCanvasElement) || !sheet.width || !sheet.height) && preview) {
+      const raster = cachedRaster(preview.pdf, preview.page) ?? (await suppliedThumbnail(preview.pdf, preview.page))
+      if (disposed) return
+      let bitmap: CanvasImageSource | undefined = raster
+      if (!raster) {
+        const source = new Image()
+        source.src = await cover(preview.pdf, preview.page + 1)
+        await source.decode()
+        bitmap = source
+      }
+      if (disposed) return
+      if (bitmap) image.getContext("2d")!.drawImage(bitmap, 0, 0, image.width, image.height)
+    }
+    await tick()
     if (disposed) return
     frame = requestAnimationFrame(() => {
       const target = destination()
@@ -335,7 +342,7 @@ export function animateAddition(
         if (!disposed) window.addEventListener("scroll", stop, { once: true, capture: true, signal: events.signal })
       })
     })
-  })
+  })().catch(stop)
   return stop
 }
 

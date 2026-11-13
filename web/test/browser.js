@@ -120,6 +120,7 @@ export function fixture({
   preview,
   outline,
   labels,
+  xmp,
 } = {}) {
   const pages = Array.from({ length: count }, (_, index) => metadata?.[index] ?? {})
   const previews = Array.isArray(preview) ? preview : preview ? [preview] : []
@@ -297,6 +298,10 @@ export function fixture({
         ${position < siblings.length - 1 ? `/Next ${root + siblings[position + 1] + 1} 0 R` : ""} >>`,
       )
     })
+  }
+  if (xmp) {
+    objects[0] = objects[0].replace("/Type /Catalog", `/Type /Catalog /Metadata ${objects.length + 1} 0 R`)
+    objects.push(stream("/Type /Metadata /Subtype /XML", xmp))
   }
   const offsets = [0]
   if (labels)

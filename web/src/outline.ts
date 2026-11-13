@@ -75,6 +75,11 @@ export async function readOutline(
   return result
 }
 
+export function edgeName(name: string | undefined, edge: "first" | "last") {
+  const pattern = edge === "first" ? /^(cover|front|first)$/i : /^(cover|back|last)$/i
+  return name && pattern.test(name.trim()) ? name : undefined
+}
+
 // Only uncovered edge ranges qualify; bookmark targets do not reveal a final chapter's end.
 export function frameOutline(outline: readonly Outline[], pages: readonly { name?: string }[]): Outline[] {
   if (!outline.length) return []
@@ -84,14 +89,14 @@ export function frameOutline(outline: readonly Outline[], pages: readonly { name
     first = Math.min(first, entry.page)
     last = Math.max(last, entry.end)
   }
-  const start = /^(cover|front|first)$/i.test(pages[0]?.name?.trim() ?? "") ? 1 : 0
-  const end = pages.length - (/^(cover|back|last)$/i.test(pages.at(-1)?.name?.trim() ?? "") ? 2 : 1)
+  const start = edgeName(pages[0]?.name, "first") ? 1 : 0
+  const end = pages.length - (edgeName(pages.at(-1)?.name, "last") ? 2 : 1)
   const result = [...outline]
   if (start < first)
     result.unshift({
-      title: "Prelude",
-      path: ["Prelude"],
-      keys: ["prelude"],
+      title: "…",
+      path: ["…"],
+      keys: ["leading"],
       depth: 0,
       page: start,
       end: first - 1,
@@ -99,9 +104,9 @@ export function frameOutline(outline: readonly Outline[], pages: readonly { name
     })
   if (last < end)
     result.push({
-      title: "Postlude",
-      path: ["Postlude"],
-      keys: ["postlude"],
+      title: "…",
+      path: ["…"],
+      keys: ["trailing"],
       depth: 0,
       page: last + 1,
       end,

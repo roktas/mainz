@@ -77,10 +77,11 @@ Grid scrolls within the fixed pane frame and keeps one readable card geometry. I
 rows for long documents. The scrollbar sits in the pane's right gutter. Wheel and touch gestures scroll the full
 sequence without pagination. The first and last physical pages remain reachable.
 
-Each Input retains its Pages layout and its Grid and List scroll positions. Output keeps independent settings. Changing
-the Pages layout preserves selection, inspected page, and Output order. List keeps expanded sections. Changing browser
-size preserves the first visible page when the number of columns changes. Page returns to the previous Pages layout and
-reveals its inspected page.
+Each Input retains its Pages layout and its Grid and List scroll positions. Output starts in Grid, including TOC demos,
+and keeps independent settings. Input view changes never change the Output view. Changing the Pages layout preserves
+selection, inspected page, and Output order. List keeps expanded sections. Changing browser size preserves the first
+visible page when the number of columns changes. Page returns to the previous Pages layout and reveals its inspected
+page.
 
 Grid and List interactions set the page that Page inspects. Output inspection follows occurrence identity through edits.
 Removal chooses the next surviving neighbor, or the previous neighbor at the end. Switching Inputs does not change
@@ -130,13 +131,13 @@ attach them to unrelated sections. Input List navigation shows all matching path
 without changing selection. These titles never enter the Description, Recipe matching, or generated page-name metadata.
 Output resolves titles through each occurrence's original Input page.
 
-For Inputs with a usable outline, uncovered leading pages form a virtual Prelude section and uncovered trailing pages
-form a virtual Postlude section. Only the edge ranges qualify; internal gaps remain unchanged. The first physical page
-stays outside Prelude when its authored name is Cover, Front, or First. The last stays outside Postlude when its
-authored name is Cover, Back, or Last. These exact matches ignore case and surrounding whitespace. Empty sections are
-omitted. Existing section ranges remain unchanged: bookmark starts alone do not establish a final chapter's end. Virtual
-sections appear in Contents and share Grid/List grouping through each original Input page, including Output occurrences.
-They do not enter the PDF outline, Description, Recipe, or generated metadata.
+For Inputs with a usable outline, uncovered leading and trailing pages form separate virtual sections titled `…`. Only
+the edge ranges qualify; internal gaps remain unchanged. The first physical page stays outside the leading group when
+its authored name is Cover, Front, or First. The last stays outside the trailing group when its authored name is Cover,
+Back, or Last. These exact matches ignore case and surrounding whitespace. Empty sections are omitted. Existing section
+ranges remain unchanged: bookmark starts alone do not establish a final chapter's end. Virtual sections appear in
+Contents and share Grid/List grouping through each original Input page, including Output occurrences. They do not enter
+the PDF outline, Description, Recipe, or generated metadata.
 
 Contents offers Use TOC titles only when at least one authored page name differs from its matching section title. It is
 off by default. This per-Input preference reverses the display priority to section title, authored name, then `Page N`.
@@ -148,18 +149,24 @@ document Title when several Inputs contribute pages.
 Vertical scrolling outside the Page image viewport offers direct start and end controls. These actions retain the
 selection and inspected page. The native scrollbar keeps its normal content-based range and remains draggable.
 
-The open-book Contents control navigates the Input outline in Grid, List, and Page without changing selection. Output
-has no Contents control. Opening Contents folds every branch and reveals the current visible ancestor. Grid and List
-share a section tree and show **one physical page item per page**: a section starting on page N uses that page's
-ordinary Grid card or List row, rather than inserting an additional row before page N. Multiple TOC entries starting on
-one page share one visible ribbon, preferring the outermost active section; the underlying section tree keeps their
-separate folds. Section ribbons fold or unfold their subtrees, without changing page selection or Output. Clicking a
-folded section's heading page selects every page in its subtree, or clears the subtree when any of those pages are
-selected. Unfolding reveals the retained selections. In an unfolded section, clicking its heading changes only its
-starting page, so the heading can be unselected while its descendants remain selected. Folding and clicking again clears
-those descendants. Shift-click keeps the ordinary page-range behavior. This applies to Grid and List, Input and Output,
-without changing the page-selection order outside the section or the Output content. Clicking a heading's page number
-opens the same provenance/details UI as an ordinary page. A press on any section ribbon displays four grip dots;
+The open-book Contents control navigates Input sections and page destinations in Grid, List, and Page without changing
+selection. Output has no Contents control. Opening Contents folds every branch and reveals the current visible ancestor.
+
+Contents adds display-only page destinations to the source outline. Each virtual `…` range opens as a branch containing
+every covered physical page. Leaf labels follow the shared page-title policy. Named first and last pages use the
+edge-name rules above and appear at the root unless the outline already targets that page. These entries never enter the
+PDF outline, page-name metadata, Recipe, or Grid/List section hierarchy.
+
+Grid and List share a section tree and show **one physical page item per page**: a section starting on page N uses that
+page's ordinary Grid card or List row, rather than inserting an additional row before page N. Multiple TOC entries
+starting on one page share one visible ribbon, preferring the outermost active section; the underlying section tree
+keeps their separate folds. Section ribbons fold or unfold their subtrees, without changing page selection or Output.
+Clicking a folded section's heading page selects every page in its subtree, or clears the subtree when any of those
+pages are selected. Unfolding reveals the retained selections. In an unfolded section, clicking its heading changes only
+its starting page, so the heading can be unselected while its descendants remain selected. Folding and clicking again
+clears those descendants. Shift-click keeps the ordinary page-range behavior. This applies to Grid and List, Input and
+Output, without changing the page-selection order outside the section or the Output content. Clicking a heading's page
+number opens the same provenance/details UI as an ordinary page. A press on any section ribbon displays four grip dots;
 dragging carries the complete section's pages, while a stationary press does not fold or select them. Input section
 drags copy to Output; Output drags move the group. Closed sections accept drops before or after the entire group.
 
@@ -841,7 +848,7 @@ Recipe does not clear the PDF unsaved warning.
 
 Download, Print, and View are disabled for empty or invalid Output and for invalid drafts affecting its content. Unused
 invalid parameters do not block them. Relevant Input processing disables these actions while the header reports
-progress. Full-document Style processing retains one completed composed PDF per Input. Other combined Outputs need their
+progress. Full-document Style processing retains one completed styled PDF per Input. Other combined Outputs need their
 own PDF preparation.
 
 Output also checks the referenced Inputs and Input instances against the Download limits: 32 of each and 128 MiB of
@@ -850,9 +857,16 @@ beside Download as soon as Output exceeds a limit. Removing the excess restores 
 authoritative.
 
 Download captures the valid Plan. If Output contains every page from one completed Input in physical order, Download
-reuses its validated and inspected composed PDF. Current styles, page quantities, title, and cover page must match. This
-path needs no new processing or inspection. Copies, Blanks, other page orders, and multiple Inputs require a new
-composition.
+reuses its validated and inspected styled PDF when document information has no explicit changes. Current styles and page
+quantities must match. This path needs no new processing or inspection. Copies, Blanks, other page orders, and multiple
+Inputs require a new composition.
+
+With one Input's complete physical sequence and unchanged document information, processing preserves the original
+document structure. Only declared styles and their associated style metadata change. The source TOC, page names, labels,
+document metadata, and publication declaration remain. Unchanged saved styles retain the original bytes. Filename
+changes do not change this behavior. For other compositions, the PDF TOC retains real source sections that cover
+selected pages. Empty branches disappear. Each section targets its first retained Output occurrence. Siblings follow
+Output order, and Input instances remain independent. Virtual `…` headings never become PDF bookmarks or page names.
 
 New preparation supplies each referenced Input once. A compact modal at the header reports preparation and inspection
 while locking workspace actions. It uses the same feedback presentation as other header operations. Cancel and Escape
@@ -882,11 +896,12 @@ filename beside its controls.
 
 The same editor contains the Output title and cover-page choice, with a preview of that page. The title defaults to the
 first contributing Input's title, or its filename stem when no authored title exists. Empty stems retain the opened
-filename. Blank-only Output uses `Blank pages`. The cover defaults to the first Output page. A selected cover follows
-its occurrence through reordering; removing it restores the first-page default. Use default resets all three file
-fields. Download remains a direct action. The editor rejects titles that cannot be written as XML text or exceed 4096
-UTF-8 bytes. Composition writes the title to XMP `dc:title` and PDF Info `Title`, and the cover to XMP
-`mainz:coverPage`, using the library's namespace. Opening this PDF later uses those fields as Input metadata.
+filename. Blank-only Output uses `Blank pages`. An unchanged complete Input retains its authored cover. Other Outputs
+default to the first page. A selected cover follows its occurrence through reordering; removing it restores the
+first-page default. Use default resets all three file fields. Download remains a direct action. The editor rejects
+titles that cannot be written as XML text or exceed 4096 UTF-8 bytes. Composition writes the title to XMP `dc:title` and
+PDF Info `Title`, and the cover to XMP `mainz:coverPage`, using the library's namespace. Opening this PDF later uses
+those fields as Input metadata.
 
 Print captures the same Plan and uses the same preparation, validation, inspection, and cancellation as Download. It
 hands the completed PDF bytes to the browser's PDF viewer, preserving the Output pages and styles. Browsers with native

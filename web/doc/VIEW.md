@@ -386,7 +386,9 @@ images. Input and Output use the same control dimensions. Preserve usable field 
 Contents uses an open-book icon distinct from List, immediately before Go to page in Input's Pages and Page toolbar. The
 Pages switch sits beside the tabs. Its tree uses indentation, fine branch lines, quiet page positions, and a thin
 current-section marker. Nodes have no individual boxes or filled cards. Full titles wrap, and navigation preserves
-selection. Output has no Contents control.
+selection. Virtual `…` branches use the same disclosure control as authored branches. Their children show page display
+titles and physical positions. Named edge pages remain root leaves. The current marker follows the visible page leaf or
+its collapsed ancestor. Output has no Contents control.
 
 Contents keeps a compact fixed heading with one Unfold all / Fold all control. Its width is 32 rem, clamped to the Input
 toolbar's usable width and viewport, and stays fixed across expansion changes. Height follows the visible tree; only its
@@ -596,8 +598,9 @@ A partial final row preserves the same card widths, positions, and gaps. Grid co
 columns and row strides. Card count changes the scroll height, not card geometry. The stable scrollbar gutter must not
 reduce the thumbnail's measured width. The Grid's internal layout remains independent of Page's reference fitting.
 
-Virtual Prelude and Postlude section titles use italic small caps in List headings, section navigation, and Contents.
-Authored headings with the same names retain their ordinary presentation.
+Virtual `…` section titles use italic small caps in List headings, section navigation, and Contents. Their tooltips and
+accessible labels identify the physical page range. Authored headings with the same names retain their ordinary
+presentation.
 
 ### Page alignment and controls
 
@@ -846,20 +849,21 @@ New footer status briefly highlights the message with a light accent tint and a 
 fades to its ordinary treatment. Repeated operations restart the feedback. Reduced motion skips this effect, which does
 not change geometry.
 
-All page additions use a 600 ms preview along a shallow curve, including copies, repetition, and Blank insertion. A
+All page additions use a 900 ms preview along a shallow curve, including copies, repetition, and Blank insertion. A
 group uses a small page stack. Input additions use the Output workspace button on single-pane layouts. Otherwise, the
-preview moves toward a new Output image in the visible Grid window, or the Output heading when no new image is displayed
-or Output is in Page. Single-pane layouts use the Output button when no new image is displayed. Preview centers follow
-the visible source image and target on both axes. Grid arrivals match the target image size across pane densities. A
-Blank uses a blank preview.
+preview moves toward a new Output image in Grid, a new List row, or the Page image viewport. The Output heading is the
+fallback when none is displayed. Single-pane layouts use the Output button when no new image is displayed. Preview
+centers follow the visible source image and target on both axes. Grid arrivals match the target image size across pane
+densities. A Blank uses a blank preview.
 
-Additions use the targeted page's rendered image and start at that image. Output copying uses the same occurrence
+Additions use the targeted page's rendered image. Grid and Page copies start at that image. List copies start at their
+row and show the actual page image, never the row title painted onto a page. Output copying uses the same occurrence
 identity for buttons, menus, and keyboard shortcuts. A group uses its first target in print order. If that image is
-unavailable, use the action area as the origin; do not substitute another page's image. This also applies when Page
-shows a different page from the prepared Input sequence or Output selection. Removal and movement retain each affected
-occurrence's own image and position.
+unavailable, render the targeted PDF page and use the action area as the origin; do not substitute another page's image.
+This also applies when Page shows a different page from the prepared Input sequence or Output selection. Removal and
+movement retain each affected occurrence's own image and position.
 
-When the preview targets the Output workspace button, that button gains a soft accent glow over the same 600 ms. The
+When the preview targets the Output workspace button, that button gains a soft accent glow over the same 900 ms. The
 glow rises and fades during the flight. Arrival or cancellation clears it without changing the button's geometry.
 
 The preview uses a rendered page when available. It does not delay the edit or change selection, scrolling, or the
@@ -1055,7 +1059,7 @@ Grid and List are part of the same tab list. The mobile view switcher uses butto
 | ----------------- | -------------------- | --------------------------------------------------------------------------------------- |
 | List view         | Liste görünümü       | The row view of Input pages or Output occurrences with page numbers and supplied names. |
 | Page name caption | Sayfa adı açıklaması | The supplied page name below the Page image frame, or in a Grid header tooltip.         |
-| Contents          | İçindekiler          | Input's embedded PDF outline navigation, opened with the open-book icon.                |
+| Contents          | İçindekiler          | Input section and page navigation, opened with the open-book icon.                      |
 | Section headings  | Bölüm başlıkları     | Page rows/cards with foldable and draggable section ribbons.                            |
 | Section path      | Bölüm yolu           | A section breadcrumb; List headers put the current title before its muted ancestors.    |
 | Jump to section   | Bölüme git           | The navigation control and numbered ancestor trail inside Grid/List page details.       |

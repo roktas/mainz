@@ -792,7 +792,14 @@
         : document
             .getElementById(`${key}-${id}`)
             ?.querySelector<HTMLElement>(".page-image :is(canvas, .composition-blank), .list-choice")
-    return image ?? panel?.querySelector<HTMLElement>(".sequence-entry")
+    const position = id ? output.positions.get(id) : undefined
+    return (
+      image ??
+      (activeOutputTab === "list" && position !== undefined
+        ? panel?.querySelector<HTMLElement>(`.list-heading[data-page="${position}"]`)
+        : undefined) ??
+      panel?.querySelector<HTMLElement>(".sequence-entry")
+    )
   }
   function animateEdit(edit: Edit, origin?: HTMLElement | null) {
     cancelMotion()
@@ -809,6 +816,14 @@
     if (added.length && !transfer.value) {
       const sheet = origin ?? additionOrigin("blank" in added[0].content ? undefined : chosen[0]?.id)
       if (sheet) {
+        const content = added[0].content
+        const contributor = "source" in content ? sources.find((item) => item.id === content.source) : undefined
+        const preview =
+          contributor && "page" in content
+            ? sheet.closest(".selection-panel")
+              ? { pdf: contributor.input.pdf, page: content.page }
+              : contributor.preview.appearance(content.page)
+            : undefined
         feedback.addition = animateAddition(
           sheet,
           sizeOf(added[0].content, sources),
@@ -816,9 +831,12 @@
           added.length,
           () => {
             const button = outputTarget
-            const image = panel?.querySelector<HTMLElement>(
-              ".composition-card[data-adding] .page-image, .list-row[data-arriving]",
-            )
+            const row = document.getElementById(`${key}-${added[0].id}`)
+            const image = row?.matches(".list-row")
+              ? row
+              : panel?.querySelector<HTMLElement>(
+                  `.composition-card[data-adding] .page-image, .inspection-target .page-scroll, .list-section[data-index="${output.positions.get(added[0].id)}"] .list-heading`,
+                )
             if (button?.offsetWidth && (origin?.closest(".selection-panel") || !image)) return button
             return image ?? document.getElementById(`${key}-output`)
           },
@@ -836,6 +854,7 @@
                     ?.focus({ preventScroll: true })
               })
           },
+          preview,
         )
       }
       if (feedback.addition && activeOutputTab !== "list") for (const page of added) pendingAddition.add(page.id)
@@ -926,7 +945,7 @@
           ? panel?.querySelector<HTMLElement>(".page-scroll canvas")
           : undefined
         : panel?.querySelector<HTMLElement>(
-            `.page-image[data-page="${first}"] canvas, .list-choice[data-page="${first}"]`,
+            `.page-image[data-page="${first}"] canvas, :is(.list-choice, .list-heading)[data-page="${first}"]`,
           )) ?? panel?.querySelector<HTMLElement>(".sequence-entry")
     const completed = commit(
       updated,
@@ -2087,6 +2106,8 @@
               outline={source.input.outline}
               source={source.id}
               position={inputPosition}
+              name={inputName}
+              pages={source.input.description.pages}
               {titleChoice}
               bind:tocTitles={() => inputView.tocTitles, (tocTitles) => inspectInput({ tocTitles })}
               navigate={async (position) => {

@@ -17,7 +17,7 @@ export const initialViews = {
       : import.meta.env.DEV && query.get("input") === "page"
         ? "page"
         : "grid",
-  output: toc ? "list" : import.meta.env.DEV && query.get("output") === "page" ? "page" : "grid",
+  output: import.meta.env.DEV && query.get("output") === "page" ? "page" : "grid",
 } as const
 
 type Preset = { recipe: string; inputs: Record<string, string>; automatic?: boolean }

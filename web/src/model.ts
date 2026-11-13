@@ -40,11 +40,7 @@ export type Preview = {
     page: number
     preview?: Description["pages"][number]["preview"]
   }
-  download: (
-    source: Source,
-    pages: readonly number[],
-    metadata: NonNullable<Plan["metadata"]>,
-  ) => ArrayBuffer | undefined
+  download: (source: Source, pages: readonly number[], metadata: Plan["metadata"]) => ArrayBuffer | undefined
   reconcile: (source: Source, counts: Usage) => void
   schedule: (source: Source, counts: Usage, text?: string, serial?: boolean) => void
   cancel: () => void

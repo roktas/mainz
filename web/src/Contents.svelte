@@ -1,20 +1,22 @@
-<!-- Presents Input PDF contents and navigates without changing page selection. -->
+<!-- Builds Input Contents navigation from authored sections, virtual ranges, and named edge pages. -->
 
 <script module lang="ts">
   import type { Outline } from "./outline.ts"
   type Entry = Outline & { key: string }
-  type Branch = Entry & { children: Branch[] }
+  type Branch = Pick<Entry, "key" | "title" | "page" | "end" | "synthetic"> & { children: Branch[] }
 </script>
 
 <script lang="ts">
   import { tick } from "svelte"
-  import { sectionsAt } from "./outline.ts"
+  import { edgeName, sectionsAt } from "./outline.ts"
   import Icon from "./Icon.svelte"
 
   let {
     outline,
     source,
     position,
+    name,
+    pages,
     navigate,
     titleChoice = false,
     tocTitles = $bindable(false),
@@ -22,6 +24,8 @@
     outline: readonly Outline[]
     source: string
     position: number
+    name: (page: number) => string | undefined
+    pages: readonly { name?: string }[]
     navigate: (position: number) => void
     titleChoice?: boolean
     tocTitles?: boolean
@@ -31,29 +35,51 @@
   let opened = $state(false)
   let collapsed = $state(new Set<string>())
   const items = $derived(outline.map((entry, index) => ({ ...entry, key: `${source}:${index}` })))
+  const edges = $derived.by((): Branch[] =>
+    [...new Set([0, pages.length - 1])].flatMap((page) => {
+      const title = edgeName(pages[page]?.name, page === 0 ? "first" : "last")
+      return title && !items.some((item) => item.page === page)
+        ? [{ key: `${source}:page:${page}`, title, page, end: page, children: [] }]
+        : []
+    }),
+  )
   const branches = $derived.by(() => {
     const roots: Branch[] = [],
       stack: Branch[] = []
     for (const item of items) {
-      const branch = { ...item, children: [] }
+      const branch: Branch = {
+        ...item,
+        children: item.synthetic
+          ? Array.from({ length: item.end - item.page + 1 }, (_, offset) => {
+              const page = item.page + offset
+              return { key: `${item.key}:page:${page}`, title: name(page) ?? item.title, page, end: page, children: [] }
+            })
+          : [],
+      }
       while (stack.length > item.depth) stack.pop()
       if (stack.length) stack.at(-1)!.children.push(branch)
       else roots.push(branch)
       stack.push(branch)
     }
-    return roots
+    return [...edges.filter((entry) => entry.page === 0), ...roots, ...edges.filter((entry) => entry.page !== 0)]
   })
   const current = $derived.by(() => {
+    const edge = edges.find((entry) => entry.page === position)
+    if (edge) return edge.key
     const leaf = sectionsAt(items, position)[0]
     if (!leaf) return
     const ancestors: Entry[] = []
     for (const item of items) {
       while (ancestors.length && ancestors.at(-1)!.depth >= item.depth) ancestors.pop()
-      if (item === leaf) return ancestors.find((entry) => collapsed.has(entry.key))?.key ?? item.key
+      if (item === leaf)
+        return (
+          ancestors.find((entry) => collapsed.has(entry.key))?.key ??
+          (item.synthetic && !collapsed.has(item.key) ? `${item.key}:page:${position}` : item.key)
+        )
       ancestors.push(item)
     }
   })
-  const parents = $derived(items.filter((item, index) => items[index + 1]?.depth > item.depth))
+  const parents = $derived(items.filter((item, index) => item.synthetic || items[index + 1]?.depth > item.depth))
   const canUnfold = $derived(parents.some((item) => collapsed.has(item.key)))
   function jump(page: number) {
     panel.hidePopover()
@@ -120,6 +146,8 @@
             >{:else}<span></span>{/if}
           <button
             class="destination"
+            title={item.synthetic ? `Pages ${item.page + 1}–${item.end + 1}` : undefined}
+            aria-label={item.synthetic ? `Pages ${item.page + 1}–${item.end + 1}` : undefined}
             class:current={item.page <= position && item.end >= position}
             aria-current={item.key === current ? "location" : undefined}
             onclick={() => jump(item.page)}

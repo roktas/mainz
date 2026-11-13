@@ -77,11 +77,24 @@ export class Output {
     )
   }
 
+  get original() {
+    const first = this.pages[0]?.content
+    const source = first && "source" in first ? this.#sources().find((item) => item.id === first.source) : undefined
+    return source &&
+      this.pages.length === source.input.description.pageCount &&
+      this.pages.every(
+        ({ content }, index) => "source" in content && content.source === source.id && content.page === index,
+      )
+      ? source
+      : undefined
+  }
+
   get coverPage() {
-    return (this.positions.get(this.cover ?? "") ?? 0) + 1
+    return this.cover === undefined ? (this.original?.input.coverPage ?? 1) : (this.positions.get(this.cover) ?? 0) + 1
   }
   set coverPage(page: number) {
-    this.cover = page === 1 ? undefined : this.pages[page - 1]?.id
+    if (page === this.coverPage) return
+    this.cover = this.pages[page - 1]?.id
   }
   get defaultTitle() {
     const content = this.pages.find((page) => "source" in page.content)?.content
@@ -90,6 +103,7 @@ export class Output {
     return input ? titleOf(input) : "Blank pages"
   }
   get metadata() {
+    if (this.original && !this.title && this.cover === undefined) return
     return { title: this.title || this.defaultTitle, coverPage: this.coverPage }
   }
 

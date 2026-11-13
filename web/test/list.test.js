@@ -861,6 +861,8 @@ test("List section headings default to shown and toggle independently without ch
       await page.getByRole("status").filter({ hasText: "TOC demo ready." }).waitFor()
       const input = page.locator(".selection-panel"),
         output = page.locator(".composition-output")
+      assert.equal(await output.getByRole("tab", { name: "Grid", exact: true }).getAttribute("aria-selected"), "true")
+      await tab(output, "List")
       for (const pane of [input, output]) {
         const toggle = pane.getByRole("button", { name: "Section headings", exact: true })
         const selection = pane.getByLabel("Page selection", { exact: true })
@@ -2965,6 +2967,117 @@ test(
 )
 
 test(
+  "Contents unfolds virtual ranges into named page destinations without changing selection",
+  { timeout: 90000 },
+  async () => {
+    const server = await serve()
+    for (const engine of engines) {
+      const browser = await launch(engine)
+      try {
+        for (const [width, colorScheme, text] of [
+          [390, "light", 100],
+          [390, "dark", 200],
+          [1440, "light", 200],
+          [1440, "dark", 100],
+        ]) {
+          const page = await browser.newPage({
+            viewport: { width, height: 1100 },
+            colorScheme,
+            hasTouch: width === 390,
+            reducedMotion: "reduce",
+          })
+          page.setDefaultTimeout(10000)
+          await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+          await page.goto(server.resolvedUrls.local[0])
+          await page.evaluate((text) => (document.documentElement.style.fontSize = `${text}%`), text)
+          await page
+            .locator("input[type=file]")
+            .first()
+            .setInputFiles({
+              name: "Virtual pages.pdf",
+              mimeType: "application/pdf",
+              buffer: fixture({
+                count: 7,
+                metadata: [{ name: "Cover" }, { name: "Editorial" }, {}, {}, {}, {}, { name: "Back" }],
+                outline: [
+                  { title: "Chapter", page: 3 },
+                  { title: "Detail", page: 4, parent: 0 },
+                ],
+              }),
+            })
+          await page.locator(".composer[aria-busy=false]").waitFor()
+          const input = page.locator(".selection-panel"),
+            contents = input.locator(".contents:popover-open")
+          await tab(input, "List")
+          await input.getByLabel("Page selection", { exact: true }).fill("5")
+          const open = () => input.getByRole("button", { name: "Input contents", exact: true }).click()
+          await open()
+          const roots = contents.locator("nav > ul > li > .branch > .destination")
+          assert.deepEqual(await roots.locator("span:first-child").allTextContents(), ["Cover", "…", "Chapter", "Back"])
+          const group = contents.locator("li:has(> .branch > .destination > .synthetic)")
+          const leaves = group.locator(":scope > ul > li > .branch > .destination")
+          const unfold = group.getByRole("button", { name: "Unfold …", exact: true })
+          assert.equal(await unfold.getAttribute("aria-expanded"), "false")
+          assert.equal(await leaves.count(), 0)
+          await unfold.press("Enter")
+          assert.deepEqual(await leaves.locator("span:first-child").allTextContents(), ["Editorial", "…"])
+          assert.deepEqual(await leaves.locator(".positions").allTextContents(), ["2", "3"])
+          await contents.getByLabel("Use TOC titles", { exact: true }).check()
+          assert.deepEqual(await leaves.locator("span:first-child").allTextContents(), ["…", "…"])
+          await contents.getByLabel("Use TOC titles", { exact: true }).uncheck()
+          await leaves.last().press("Enter")
+          await contents.waitFor({ state: "hidden" })
+          assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "5")
+          assert.equal(await outputCount(page).textContent(), "0 pages")
+          await open()
+          assert.equal(await contents.locator('[aria-current="location"] .positions').innerText(), "2")
+          await group.getByRole("button", { name: "Unfold …", exact: true }).click()
+          assert.equal(await contents.locator('[aria-current="location"] .positions').innerText(), "3")
+          assert.equal(await contents.locator('[aria-current="location"]').count(), 1)
+          await contents.getByRole("button", { name: "Unfold all", exact: true }).click()
+          assert.equal(await leaves.count(), 2)
+          await contents.getByRole("button", { name: "Fold all", exact: true }).click()
+          assert.equal(await leaves.count(), 0)
+          await roots.last().click()
+          await open()
+          assert.equal(await contents.locator('[aria-current="location"] > span:first-child').innerText(), "Back")
+          assert.equal(await contents.locator('[aria-current="location"] .positions').innerText(), "7")
+          assert.equal(await input.getByLabel("Page selection", { exact: true }).inputValue(), "5")
+          await page.keyboard.press("Escape")
+          await page
+            .locator('.composer input[type=file][aria-label="Open PDF"]')
+            .first()
+            .setInputFiles({
+              name: "Bookmarked edges.pdf",
+              mimeType: "application/pdf",
+              buffer: fixture({
+                count: 7,
+                metadata: [{ name: "Cover" }, {}, {}, {}, {}, {}, { name: "Back" }],
+                outline: [
+                  { title: "Authored front", page: 0 },
+                  { title: "Authored back", page: 6 },
+                ],
+              }),
+            })
+          await page
+            .locator('.input-picker > summary[aria-label$="Bookmarked edges.pdf"]')
+            .waitFor({ state: "attached" })
+          await page.locator(".composer[aria-busy=false]").waitFor()
+          await open()
+          assert.deepEqual(await roots.locator("span:first-child").allTextContents(), [
+            "Authored front",
+            "Authored back",
+          ])
+          await page.close()
+        }
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
+
+test(
   "Contents reveals the current leaf or its collapsed ancestor without selecting pages",
   { timeout: 60000 },
   async () => {
@@ -3026,13 +3139,71 @@ test(
   },
 )
 
+test("List section additions carry a page stack from their heading row", { timeout: 60000 }, async () => {
+  const server = await serve()
+  for (const engine of engines) {
+    const browser = await launch(engine)
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "no-preference" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(server.resolvedUrls.local[0])
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({
+          name: "Sections.pdf",
+          mimeType: "application/pdf",
+          buffer: fixture({ count: 4, outline: [{ title: "Chapter", page: 0 }] }),
+        })
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const input = page.locator(".selection-panel")
+      await tab(input, "List")
+      const disclosure = input.locator(".list-disclosure")
+      if ((await disclosure.getAttribute("aria-expanded")) === "true") await disclosure.click()
+      const output = page.locator(".composition-output")
+      await tab(output, "List")
+      await page.evaluate(() =>
+        new MutationObserver(() =>
+          document.querySelectorAll(".addition-preview").forEach((element) =>
+            element.getAnimations().forEach((animation) => {
+              animation.pause()
+              animation.currentTime = 0
+            }),
+          ),
+        ).observe(document.body, { childList: true }),
+      )
+      await input.locator(".list-section").hover()
+      const origin = await input.locator(".list-heading").boundingBox()
+      await input.getByRole("button", { name: "Add Input section pages 1–4 to Output", exact: true }).click()
+      const flight = page.locator(".addition-preview")
+      await flight.waitFor()
+      const start = await flight.boundingBox()
+      assert.ok(Math.abs(start.x + start.width / 2 - origin.x - origin.width / 2) < 1)
+      assert.ok(Math.abs(start.y + start.height / 2 - origin.y - origin.height / 2) < 1)
+      assert.equal(await flight.getAttribute("data-copies"), "3")
+      assert.equal(await flight.evaluate((canvas) => canvas.getContext("2d").getImageData(0, 0, 1, 1).data[3]), 255)
+      await flight.evaluate((element) => {
+        const animation = element.getAnimations()[0]
+        animation.currentTime = animation.effect.getTiming().duration - 1
+      })
+      const end = await flight.boundingBox(),
+        destination = await output.locator(".list-heading").boundingBox()
+      assert.ok(Math.abs(end.x + end.width / 2 - destination.x - destination.width / 2) < 1)
+      assert.ok(Math.abs(end.y + end.height / 2 - destination.y - destination.height / 2) < 1)
+      await page.close()
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
 test("Input additions fly from Grid and List to visible Output in both pane layouts", { timeout: 120000 }, async () => {
   const server = await serve()
   for (const engine of engines) {
     const browser = await launch(engine)
     try {
       for (const width of [390, 1440])
-        for (const outputView of ["Grid", "List"]) {
+        for (const outputView of ["Grid", "List", "Page"]) {
           const page = await browser.newPage({
             viewport: { width, height: 1000 },
             hasTouch: width === 390,
@@ -3071,9 +3242,9 @@ test("Input additions fly from Grid and List to visible Output in both pane layo
                   canvas
                     .getContext("2d")
                     .getImageData(0, 0, canvas.width, canvas.height)
-                    .data.some((value, index) => index % 4 === 3 && value > 0),
+                    .data.some((value, index, pixels) => index % 4 === 0 && value !== pixels[index + 1]),
                 ),
-                "List flights retain their page title",
+                "List flights contain a rendered page",
               )
             const box = await flight.boundingBox()
             assert.ok(box.width > 0 && box.y < 1000 && box.y + box.height > 0, JSON.stringify({ width, view, box }))
@@ -3083,6 +3254,19 @@ test("Input additions fly from Grid and List to visible Output in both pane layo
                 await switcher.evaluate((button) => button.getAnimations().length > 0),
                 "The visible Output button receives the flight",
               )
+            if (width === 1440 && outputView === "Page") {
+              await flight.evaluate((element) => {
+                const animation = element.getAnimations()[0]
+                animation.currentTime = animation.effect.getTiming().duration - 1
+              })
+              const landed = await flight.boundingBox()
+              const destination = await output.locator(".page-scroll").boundingBox()
+              assert.ok(
+                Math.abs(landed.x + landed.width / 2 - destination.x - destination.width / 2) < 1 &&
+                  Math.abs(landed.y + landed.height / 2 - destination.y - destination.height / 2) < 1,
+                "The copy lands in the Output page viewport",
+              )
+            }
             await flight.evaluate((element) => element.getAnimations().forEach((animation) => animation.finish()))
             await flight.waitFor({ state: "detached" })
           }

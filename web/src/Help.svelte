@@ -549,25 +549,25 @@
             <table class="mouse-actions" aria-label="Mouse actions">
               <thead><tr><th scope="col">Action</th><th scope="col">Result</th></tr></thead>
               <tbody>
-                <tr><td>Click a Page counter</td><td>Enter a page number</td></tr>
-                <tr><td>Click a Grid image or grip</td><td>Select or unselect a page</td></tr>
+                <tr><td>Click a Page counter</td><td>Opens page navigation</td></tr>
+                <tr><td>Click a Grid image or grip</td><td>Selects or unselects a page</td></tr>
                 <tr
                   ><td><kbd class="named">Ctrl</kbd> / <kbd>⌘</kbd> + click an image</td><td
-                    >Open Page or return to Grid or List</td
+                    >Opens Page or returns to Grid or List</td
                   ></tr
                 >
                 <tr
                   ><td><kbd class="named">Shift</kbd> + click a Grid image or grip</td><td
-                    >Add or remove a selection range</td
+                    >Adds or removes a selection range</td
                   ></tr
                 >
-                <tr><td>Double-click an Input Grid image</td><td>Add prepared pages, or this page, to Output</td></tr>
-                <tr><td>Double-click a Page image</td><td>Zoom to 200% at that point, or return to 100%</td></tr>
-                <tr><td>Drag an Input grip or Grid image</td><td>Add pages to Output</td></tr>
-                <tr><td>Drag an Output grip or Grid image</td><td>Move Output pages</td></tr>
-                <tr><td>Drag a Page image</td><td>Pan above 100% zoom</td></tr>
-                <tr><td>Mouse wheel</td><td>Scroll; above 100%, scroll the Page image</td></tr>
-                <tr><td>Click Reset zoom</td><td>Reset zoom to 100%</td></tr>
+                <tr><td>Double-click an Input Grid image</td><td>Adds prepared pages, or this page, to Output</td></tr>
+                <tr><td>Double-click a Page image</td><td>Zooms to 200% at that point, or returns to 100%</td></tr>
+                <tr><td>Drag an Input grip or Grid image</td><td>Adds pages to Output</td></tr>
+                <tr><td>Drag an Output grip or Grid image</td><td>Moves Output pages</td></tr>
+                <tr><td>Drag a Page image</td><td>Pans above 100% zoom</td></tr>
+                <tr><td>Mouse wheel</td><td>Scrolls the page list or the enlarged Page image</td></tr>
+                <tr><td>Click Reset zoom</td><td>Resets zoom to 100%</td></tr>
               </tbody>
             </table>
           </div>

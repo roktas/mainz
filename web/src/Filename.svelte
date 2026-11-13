@@ -11,6 +11,7 @@
     pages,
     suggest,
     suggestTitle,
+    reset,
     preview,
   }: {
     value?: string
@@ -19,6 +20,7 @@
     pages: number
     suggest: () => string
     suggestTitle: () => string
+    reset: () => void
     preview: (page: number) => Promise<string>
   } = $props()
   const key = $props.id()
@@ -154,9 +156,7 @@
       <button
         type="button"
         onclick={() => {
-          value = ""
-          title = ""
-          coverPage = 1
+          reset()
           panel.hidePopover()
         }}>Use default</button
       >

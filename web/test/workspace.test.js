@@ -1630,15 +1630,15 @@ test("Shortcut help follows the visible views, preserves focus, and starts the t
       assert.deepEqual(await actions.getByRole("columnheader").allTextContents(), ["Action", "Result"])
       assert.match(
         await actions.getByRole("row").filter({ hasText: "Double-click an Input Grid image" }).innerText(),
-        /Add prepared pages/,
+        /Adds prepared pages/,
       )
       assert.match(
         await actions.getByRole("row").filter({ hasText: "Double-click a Page image" }).innerText(),
-        /Zoom to 200%/,
+        /Zooms to 200%/,
       )
-      assert.match(await mouseHelp.innerText(), /Open Page or return to Grid or List/)
-      assert.match(await mouseHelp.innerText(), /Select or unselect a page/)
-      assert.match(await mouseHelp.innerText(), /Click a Page counter\s+Enter a page number/)
+      assert.match(await mouseHelp.innerText(), /Opens Page or returns to Grid or List/)
+      assert.match(await mouseHelp.innerText(), /Selects or unselects a page/)
+      assert.match(await mouseHelp.innerText(), /Click a Page counter\s+Opens page navigation/)
       await helpDialog.getByRole("tab", { name: "Mouse", exact: true }).press("Home")
       assert.equal(
         await helpDialog.getByRole("tab", { name: "Keyboard", exact: true }).getAttribute("aria-selected"),
@@ -1880,6 +1880,107 @@ test(
       assert.deepEqual(colors, ["#123456", "#abcdef"])
     } finally {
       await browser?.close()
+    }
+  },
+)
+
+test(
+  "Whole-Input downloads preserve navigation and metadata while subsets prune the TOC",
+  { timeout: 90000 },
+  async () => {
+    const server = await serve()
+    for (const engine of engines) {
+      const browser = await launch(engine)
+      try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        const xmp =
+          '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:mainz="https://github.com/roktas/mainz/ns/1.0/"><dc:title><rdf:Alt><rdf:li xml:lang="x-default">Original book</rdf:li></rdf:Alt></dc:title><dc:creator><rdf:Seq><rdf:li>Original author</rdf:li></rdf:Seq></dc:creator><dc:rights>Original rights</dc:rights><mainz:coverPage>3</mainz:coverPage></rdf:Description></rdf:RDF></x:xmpmeta>'
+        const original = fixture({
+          count: 4,
+          profileCount: 2,
+          xmp,
+          outline: [
+            { title: "Book", page: 1 },
+            { title: "Detail", page: 2, parent: 0 },
+          ],
+          labels: ["i", "ii", "1", "2"],
+          metadata: [{ name: "Cover" }, { name: "Opening" }, { name: "Exercise" }, {}],
+        })
+        await page
+          .locator("input[type=file]")
+          .first()
+          .setInputFiles({ name: "Original.pdf", mimeType: "application/pdf", buffer: original })
+        await page.locator(".composer[aria-busy=false]").waitFor()
+        const input = page.locator(".selection-panel"),
+          output = page.locator(".composition-output")
+        await input.getByLabel("Page selection", { exact: true }).fill("1-4")
+        await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+        const download = async () => {
+          const pending = page.waitForEvent("download")
+          await output.getByRole("button", { name: "Download", exact: true }).click()
+          return [...(await readFile(await (await pending).path()))]
+        }
+        await output.getByRole("button", { name: "Set Output filename", exact: true }).click()
+        const editor = page.locator(".filename-panel:popover-open")
+        await editor.getByRole("textbox", { name: "Filename", exact: true }).fill("Styled copy.pdf")
+        await editor.getByRole("button", { name: "Save", exact: true }).click()
+        assert.deepEqual(await download(), [...original], "A filename-only change retains the original PDF bytes")
+        await tab(input, "Style")
+        await input.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("inkjet")
+        await output.getByRole("button", { name: "Download", exact: true }).waitFor()
+        const styled = await download()
+        const inspect = async (buffer) =>
+          page.evaluate(async (bytes) => {
+            const { openPDF } = await import("/src/pdf.ts")
+            const { Processor } = await import("/src/processor.ts")
+            const task = await openPDF(Uint8Array.from(bytes)),
+              processor = new Processor()
+            try {
+              const pdf = await task.promise
+              const summarize = async (items) =>
+                Promise.all(
+                  (items ?? []).map(async (item) => ({
+                    title: item.title,
+                    page: (await pdf.getPageIndex(item.dest[0])) + 1,
+                    children: await summarize(item.items),
+                  })),
+                )
+              const result = await processor.run(Uint8Array.from(bytes), 1)
+              return {
+                outline: await summarize(await pdf.getOutline()),
+                labels: await pdf.getPageLabels(),
+                metadata: (await pdf.getMetadata()).metadata?.getRaw(),
+                names: result.description.pages.map((entry) => entry.name),
+                width: Object.values(result.description.parameters).find(
+                  (entry) => entry.parameter.schema.title === "Guide width",
+                ).parameter.value,
+              }
+            } finally {
+              processor.dispose()
+              await task.destroy()
+            }
+          }, buffer)
+        const saved = await inspect(styled)
+        assert.deepEqual(saved.outline, [
+          { title: "Book", page: 2, children: [{ title: "Detail", page: 3, children: [] }] },
+        ])
+        assert.deepEqual(saved.labels, ["i", "ii", "1", "2"])
+        assert.deepEqual(saved.names, ["Cover", "Opening", "Exercise", undefined])
+        assert.equal(saved.metadata, xmp)
+        assert.equal(saved.width, 0.04)
+        await output.getByLabel("Page selection", { exact: true }).fill("1,4")
+        await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
+        const subset = await inspect(await download())
+        assert.deepEqual(subset.outline, [
+          { title: "Book", page: 1, children: [{ title: "Detail", page: 2, children: [] }] },
+        ])
+        assert.deepEqual(subset.names, ["Opening", "Exercise"])
+        await page.close()
+      } finally {
+        await browser.close()
+      }
     }
   },
 )
@@ -4156,7 +4257,7 @@ test("Input chooser file details stay within single-pane layouts", { timeout: 60
   }
 })
 
-test("Lorem keeps Cover floating and shares its virtual Prelude through Contents and Output", async () => {
+test("Lorem keeps Cover floating and shares its virtual edge group through Contents and Output", async () => {
   const server = await serve()
   for (const engine of engines) {
     const browser = await launch(engine)
@@ -4172,10 +4273,10 @@ test("Lorem keeps Cover floating and shares its virtual Prelude through Contents
       await page.locator(".composer[aria-busy=false]").waitFor()
       const input = page.locator(".selection-panel")
       await tab(input, "List")
-      const prelude = input.locator(".list-section[data-synthetic] .list-current").filter({ hasText: "Prelude" })
-      await prelude.waitFor()
-      assert.equal(await prelude.evaluate((el) => getComputedStyle(el).fontStyle), "normal")
-      const slant = await prelude.evaluate((el) => {
+      const placeholder = input.locator(".list-section[data-synthetic] .list-current").filter({ hasText: "…" })
+      await placeholder.waitFor()
+      assert.equal(await placeholder.evaluate((el) => getComputedStyle(el).fontStyle), "normal")
+      const slant = await placeholder.evaluate((el) => {
         const matrix = new DOMMatrixReadOnly(getComputedStyle(el).transform)
         return { x: matrix.a, y: matrix.d, slant: matrix.c, tilt: matrix.b }
       })
@@ -4183,7 +4284,7 @@ test("Lorem keeps Cover floating and shares its virtual Prelude through Contents
         slant.slant < 0 && slant.x === 1 && slant.y === 1 && slant.tilt === 0,
         "Virtual headings slant without scaling or tilting their glyph baseline",
       )
-      assert.equal(await prelude.evaluate((el) => getComputedStyle(el).fontVariantCaps), "all-small-caps")
+      assert.equal(await placeholder.evaluate((el) => getComputedStyle(el).fontVariantCaps), "all-small-caps")
       const heights = await input.locator(".list-current").evaluateAll((labels) =>
         labels.map((label) => {
           const range = document.createRange()
@@ -4198,7 +4299,7 @@ test("Lorem keeps Cover floating and shares its virtual Prelude through Contents
       assert.equal(await input.getByRole("button", { name: "Select Input page 1: Cover", exact: true }).count(), 1)
       await input.getByRole("button", { name: "Input contents", exact: true }).click()
       const contents = input.locator(".contents:popover-open")
-      const destination = contents.locator(".destination").filter({ hasText: "Prelude" })
+      const destination = contents.locator(".destination").filter({ hasText: "…" })
       assert.equal(await destination.locator(".positions").textContent(), "2")
       assert.equal(await destination.locator(".synthetic").count(), 1)
       await destination.click()
@@ -4207,7 +4308,7 @@ test("Lorem keeps Cover floating and shares its virtual Prelude through Contents
       const output = page.locator(".composition-output")
       await page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }).click()
       await tab(output, "List")
-      await output.locator(".list-section[data-synthetic] .list-current").filter({ hasText: "Prelude" }).waitFor()
+      await output.locator(".list-section[data-synthetic] .list-current").filter({ hasText: "…" }).waitFor()
       await page.close()
     } finally {
       await browser.close()
