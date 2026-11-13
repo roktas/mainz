@@ -4,6 +4,8 @@
 
 ### Added
 
+- A Style toolbar control folds or unfolds all visible parameter groups without changing style values.
+
 - A single Output List page-actions menu on phone-width screens, keeping titles readable and the eye control separate.
 
 - Virtual `…` groups for uncovered TOC edge pages, with named cover exceptions and italic small-cap headings in List and

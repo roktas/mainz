@@ -542,11 +542,15 @@ Style controls appear only for parameters affecting Output pages from the active
 and drafts. A prepared Input without applicable Output has a disabled Style tab and an explanation. An ordinary PDF has
 no Style tab. Hidden or transparent prepared targets remain editable while their contract and geometry exist.
 
-Groups and parameters follow authored array order. A group's count represents distinct Style objects by exact binding
-target sets. Information panels expose baselines, page scope, Output coverage, constraints, and opaque parameter IDs.
-Pointer hover opens them after 220 ms. Leaving, scrolling, or Escape cancels a pending opening. Click or keyboard
-activation pins them immediately, and outside click or Escape dismisses them. With focus inside parameter information,
-Escape returns focus to its information button and keeps the enclosing editor open.
+Groups start open and follow authored array order with their parameters. With more than one visible group, the Style
+toolbar folds or unfolds all visible groups. Individual disclosures update the toolbar action. Fold choices belong to
+each Input and do not change styles.
+
+A group's count represents distinct Style objects by exact binding target sets. Information panels expose baselines,
+page scope, Output coverage, constraints, and opaque parameter IDs. Pointer hover opens them after 220 ms. Leaving,
+scrolling, or Escape cancels a pending opening. Click or keyboard activation pins them immediately, and outside click or
+Escape dismisses them. With focus inside parameter information, Escape returns focus to its information button and keeps
+the enclosing editor open.
 
 Related parameters combine only within their authored group and only with the same exact target set. Binding properties
 identify their roles. A complete set of several related parameters forms a Quartet at its first parameter's position. A

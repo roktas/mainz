@@ -2688,6 +2688,70 @@ test(
   },
 )
 
+test("Style toolbar folds multiple groups and follows individual disclosures", { timeout: 60000 }, async () => {
+  const server = await serve()
+  for (const engine of engines) {
+    const browser = await launch(engine)
+    try {
+      for (const width of [390, 1440]) {
+        const page = await browser.newPage({
+          viewport: { width, height: 1100 },
+          colorScheme: width === 390 ? "dark" : "light",
+          reducedMotion: "reduce",
+          hasTouch: width === 390,
+        })
+        await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+        await page.goto(server.resolvedUrls.local[0])
+        if (width === 1440) await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
+        for (const grouped of [false, true]) {
+          await page
+            .locator('input[type=file][aria-label="Open PDF"]')
+            .first()
+            .setInputFiles({
+              name: `Groups-${grouped}.pdf`,
+              mimeType: "application/pdf",
+              buffer: fixture({ grouped, count: 1 }),
+            })
+          await page.locator(".composer[aria-busy=false]").waitFor()
+          const input = page.locator(".selection-panel")
+          await input.getByLabel("Page selection", { exact: true }).fill("1")
+          await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+          await tab(input, "Style")
+          const groups = input.locator(".style-group")
+          const toggle = input.getByRole("button", { name: /^(Fold|Unfold) all Style groups$/ })
+          assert.equal(await groups.count(), grouped ? 1 : 2)
+          if (grouped) {
+            assert.equal(await toggle.count(), 0)
+            continue
+          }
+          await toggle.press("Enter")
+          await page.waitForFunction(() => !document.querySelector(".style-group[open]"))
+          assert.equal(await toggle.getAttribute("aria-label"), "Unfold all Style groups")
+          await groups.first().locator("summary").first().press("Enter")
+          await input.getByRole("button", { name: "Fold all Style groups", exact: true }).waitFor()
+          assert.equal(await input.locator(".style-group[open]").count(), 1)
+          await toggle.click()
+          await page.waitForFunction(() => !document.querySelector(".style-group[open]"))
+          await toggle.click()
+          await page.waitForFunction(() => document.querySelectorAll(".style-group[open]").length === 2)
+          assert.equal(await input.getByRole("button", { name: "Reset all styles", exact: true }).count(), 0)
+          const bounds = await toggle.boundingBox()
+          assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width)
+          await mkdir("../.local/tmp/web/layout/style-groups", { recursive: true })
+          await page.screenshot({ path: `../.local/tmp/web/layout/style-groups/${engine.name()}-${width}.png` })
+          await toggle.click()
+          await tab(input, "Grid")
+          await tab(input, "Style")
+          assert.equal(await input.locator(".style-group[open]").count(), 0)
+        }
+        await page.close()
+      }
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
 test("Demo Cover is first and its fill survives Download and reopening", { timeout: 60000 }, async () => {
   const server = await serve()
   const browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })

@@ -646,6 +646,9 @@ an accessible busy state. Rendering does not stretch unfinished canvases.
 
 ## Style presentation
 
+With more than one visible group, the Style toolbar uses the shared Fold all/Unfold all icon beside Reset styles. The
+control remains available when no styles have changed.
+
 Style labels precede their widgets. Individual widget bars and Quartet blocks use the full group width. Native group
 disclosures follow authored order. Group names use small uppercase text. Open groups use the accent color; closed groups
 use the normal text color. Their type size, weight, and spacing remain unchanged when toggled. Group names use the

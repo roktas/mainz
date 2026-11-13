@@ -1,6 +1,7 @@
 <!-- Shows the active Source's Style profiles, their guidance, and parameter groups. -->
 
 <script lang="ts">
+  import type { SvelteSet } from "svelte/reactivity"
   import { groups, matchingProfile, objects, resolve, visibleProfiles } from "./styles.ts"
   import { pageRanges } from "./pages.ts"
   import type { Entry } from "./styles.ts"
@@ -19,6 +20,7 @@
     perFile = $bindable(false),
     shared,
     reset,
+    folded,
     toolbarOnly = false,
     tour,
   }: {
@@ -30,6 +32,7 @@
     perFile?: boolean
     shared: boolean
     reset: (id?: string) => void
+    folded: SvelteSet<string>
     toolbarOnly?: boolean
     tour?: TourStep
   } = $props()
@@ -45,6 +48,8 @@
       }))
       .filter((group) => group.parameters.length),
   )
+  const keys = $derived(sections.map((group) => `${source.id}:${group.parameters[0]}`))
+  const closed = $derived(keys.every((id) => folded.has(id)))
   const changed = $derived(Object.keys(source.overrides).length > 0 || Object.keys(source.drafts).length > 0)
   function entry(id: string): Entry {
     return resolve(definition.parameters[id], source.overrides, id)
@@ -94,6 +99,19 @@
 
 {#if toolbarOnly}
   <div class="style-actions">
+    {#if keys.length > 1}<button
+        type="button"
+        class="icon-button"
+        aria-label={closed ? "Unfold all Style groups" : "Fold all Style groups"}
+        title={closed ? "Unfold all groups" : "Fold all groups"}
+        onclick={() => {
+          const unfold = closed
+          for (const id of keys) {
+            if (unfold) folded.delete(id)
+            else folded.add(id)
+          }
+        }}><Icon name={closed ? "expand" : "collapse"} /></button
+      >{/if}
     {#if changed}
       <button
         class="icon-button danger"
@@ -177,14 +195,21 @@
           </div>
         {/each}
         <div class="control-list">
-          {#each sections as group (group.parameters[0])}
+          {#each sections as group, index (group.parameters[0])}
             {@const count = new Set(
               group.parameters.map((id) =>
                 JSON.stringify(definition.parameters[id].parameter.binding.targets.toSorted()),
               ),
             ).size}
             {@const countLabel = `${count} ${count === 1 ? "Style object" : "Style objects"}`}
-            <details class="style-group" open>
+            <details
+              class="style-group"
+              open={!folded.has(keys[index])}
+              ontoggle={(event) => {
+                if (event.currentTarget.open) folded.delete(keys[index])
+                else folded.add(keys[index])
+              }}
+            >
               <summary>
                 <span>
                   <span>{group.title}</span>

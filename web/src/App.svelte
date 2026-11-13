@@ -2,6 +2,7 @@
 
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte"
+  import { SvelteSet } from "svelte/reactivity"
   import type { Snippet } from "svelte"
   import { animateRemoval } from "./motion.ts"
   import { downloadInputs, downloadName, expand, maxInputBytes, plan, sizeOf, titleOf, uid } from "./model.ts"
@@ -67,6 +68,7 @@
   let sequences = $state.raw<Record<string, Sequence>>({})
   let activeId = $state("")
   let perFileProfiles = $state(false)
+  const styleFolds = new SvelteSet<string>()
   let logoReplay = $state(0)
   let magnification = $state<Magnification>(16)
   let message = $state("")
@@ -687,6 +689,7 @@
         {controls}
         counts={counts.get(active.id) ?? new Map()}
         {toolbarOnly}
+        folded={styleFolds}
         {tour}
         style={changeStyle}
         profile={changeProfile}
