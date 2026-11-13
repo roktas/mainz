@@ -66,6 +66,7 @@
 
 ### Changed
 
+- Center Output List source markers between page numbers and titles.
 - Update the web toolchain to Node.js 26 LTS and current compatible dependencies.
 - Move installation guidance to Settings → Install application, available on the landing page and immediately above
   application details in the workspace.

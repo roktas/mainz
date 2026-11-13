@@ -204,9 +204,10 @@ Section headings are shown by default. Each pane's Section headings toggle hides
 page row, including pages in collapsed sections. Showing headings restores the retained expansion choices. This per-pane
 view choice survives view changes and does not change selections or Output.
 
-When several Inputs contribute to Output, List occurrence numbers have small source-color dots between the number and
-grip. Input's current file and chooser use the matching colors. Colors remain stable for each workspace source across
-reordering and duplication; filename and original page details provide the source identity independently of color.
+When several Inputs contribute to Output, List occurrence numbers have small source-color dots centered between the
+number and page title. Input's current file and chooser use the matching colors. Colors remain stable for each workspace
+source across reordering and duplication; filename and original page details provide the source identity independently
+of color.
 
 List mounts the visible window and a small margin, with spacers retaining the scroll range. Unmounted rows keep their
 physical positions, occurrence identities, and selections in the existing workspace owners. List offers inline edit

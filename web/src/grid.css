@@ -317,14 +317,27 @@
         color: inherit;
         transition: none;
         &:has([data-provenance]) {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr);
+          gap: 0;
+          inline-size: 100%;
           filter: none;
           text-shadow: none;
-          position: static;
+          position: relative;
+          & > strong {
+            grid-column: 2;
+          }
           & > [data-provenance] {
             position: absolute;
-            inset-inline-start: calc((100% - var(--list-grip-width)) / 4);
-            inset-block-start: 50%;
-            translate: -50% -50%;
+            grid-column: 3 / 4;
+            grid-row: 1 / 2;
+            inset-inline-start: 0;
+            inset-block: 0;
+            margin-block: auto;
+            block-size: max-content;
+            justify-content: center;
+            /* Include the number button's trailing padding and the page title's leading padding. */
+            inline-size: calc(100% + 0.75em);
           }
         }
         & strong > span:first-child {

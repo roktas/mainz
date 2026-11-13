@@ -861,6 +861,99 @@ test(
   },
 )
 
+async function markerOffsets(panel) {
+  return panel.locator(".page-list [data-provenance] i").evaluateAll((dots) =>
+    dots.map((dot) => {
+      const row = dot.closest("li")
+      const number = row.querySelector(".list-number strong > span")
+      const digits = number.getBoundingClientRect()
+      const title = row.querySelector(".list-current, .list-choice")
+      const range = document.createRange()
+      range.setStart(title.firstChild, 0)
+      range.setEnd(title.firstChild, 1)
+      const label = range.getBoundingClientRect()
+      const box = dot.getBoundingClientRect()
+      const control = row.querySelector(".page-origin > button").getBoundingClientRect()
+      return {
+        number: number.textContent,
+        x: box.x + box.width / 2 - (digits.right + label.left) / 2,
+        y: box.y + box.height / 2 - control.y - control.height / 2,
+      }
+    }),
+  )
+}
+
+test("Output source markers center between page numbers and titles", { timeout: 120000 }, async () => {
+  const server = await serve()
+  await mkdir("../.local/tmp/web/layout/source-blocks", { recursive: true })
+  for (const engine of engines) {
+    const browser = await launch(engine)
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+      await page.addInitScript(() => localStorage.setItem("mainz:onboarding", "19"))
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=toc-multiple`)
+      const output = page.locator(".composition-output")
+      await tab(output, "List")
+      await output.locator("[data-provenance] i").first().waitFor()
+      for (const width of [320, 390, 768, 1440]) {
+        await page.setViewportSize({ width, height: 1100 })
+        for (const text of ["100%", "200%"]) {
+          await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+          const switcher = page
+            .getByRole("navigation", { name: "Workspace view", exact: true })
+            .getByRole("button", { name: "Output", exact: true })
+          if (await switcher.isVisible()) await switcher.click()
+          for (const colorScheme of ["light", "dark"]) {
+            await page.emulateMedia({ colorScheme })
+            for (const folded of [true, false]) {
+              const toggle = output.getByRole("button", {
+                name: `${folded ? "Fold" : "Unfold"} all Output sections`,
+                exact: true,
+              })
+              if (await toggle.isVisible()) await toggle.click()
+              for (const selection of ["", "1"]) {
+                await output.getByLabel("Page selection", { exact: true }).fill(selection)
+                const offsets = await markerOffsets(output)
+                assert.ok(offsets.length >= 3)
+                assert.ok(
+                  offsets.every(({ x, y }) => Math.abs(x) < 1 && Math.abs(y) < 1),
+                  `${engine.name()}, ${width}px, ${text}, ${colorScheme}, folded=${folded}, selection=${selection}: ${JSON.stringify(offsets)}`,
+                )
+              }
+            }
+          }
+        }
+        await page.screenshot({ path: `../.local/tmp/web/layout/source-blocks/markers-${engine.name()}-${width}.png` })
+      }
+      let count = Number.parseInt(await outputCount(page).textContent(), 10)
+      for (const copies of [10, 10, 9, 101]) {
+        const selection = output.getByLabel("Page selection", { exact: true })
+        await selection.fill(copies === 101 ? "1" : `1-${count}`)
+        await output.getByLabel("Output page actions", { exact: true }).click()
+        await output.getByRole("textbox", { name: "Repeat selected sequence", exact: true }).fill(String(copies))
+        await output.getByRole("button", { name: "Repeat", exact: true }).click()
+        count = copies === 101 ? count + 100 : count * copies
+        assert.equal(await outputCount(page).textContent(), `${count} pages`)
+        await selection.fill("")
+        const unfold = output.getByRole("button", { name: "Unfold all Output sections", exact: true })
+        if (await unfold.isVisible()) await unfold.click()
+        await output.locator(".page-list").press("End")
+        await output.getByRole("button", { name: `Details for Output page ${count}`, exact: true }).waitFor()
+        const offsets = await markerOffsets(output)
+        assert.equal(offsets.at(-1).number, String(count))
+        assert.ok(
+          offsets.every(({ x, y }) => Math.abs(x) < 1 && Math.abs(y) < 1),
+          JSON.stringify(offsets),
+        )
+      }
+      assert.equal(count, 10000)
+      await page.close()
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
 test("Input List gives defined PDF page labels their own column before page names", { timeout: 60000 }, async () => {
   const server = await serve()
   for (const engine of engines) {
@@ -981,21 +1074,10 @@ test("Input List gives defined PDF page labels their own column before page name
             ),
           ),
         )
-        const markers = await output.locator(".list-row:has([data-provenance])").evaluateAll((rows) =>
-          rows.map((row) => {
-            const center = (selector) => {
-              const box = row.querySelector(selector).getBoundingClientRect()
-              return box.x + box.width / 2
-            }
-            return {
-              actual: center("[data-provenance]"),
-              expected: (center(".list-number") + center(".page-grip")) / 2,
-            }
-          }),
-        )
+        const markers = await markerOffsets(output)
         assert.ok(
-          markers.every(({ actual, expected }) => Math.abs(actual - expected) < 1),
-          "Source markers stay between the grip and number",
+          markers.every(({ x, y }) => Math.abs(x) < 1 && Math.abs(y) < 1),
+          `Source markers center between the number and title on both axes: ${JSON.stringify(markers)}`,
         )
       }
     } finally {

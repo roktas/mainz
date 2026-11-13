@@ -451,6 +451,9 @@ In multi-Input Output, each source block's document heading uses its first sourc
 heading breadcrumbs omit that document title and retain the source TOC ancestry. Page details retain the complete path,
 including the document heading, for navigation to that block's start.
 
+Output source markers sit halfway between the number text and the first title glyph. Their vertical centers match the
+number controls, including section headings and selected rows.
+
 The original return-arrow Jump to section control moves from the List row action column into **page-number details** in
 both List and Grid. The details panel retains the original numbered ancestor trail, physical-page column, 16 px padding,
 44 px Close target, keyboard focus styling, and selection-preserving navigation. The arrow is available whenever the
