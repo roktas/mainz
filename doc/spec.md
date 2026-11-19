@@ -42,7 +42,7 @@ It does not interpret source selectors or regenerate pages from SVG or rasters. 
 One C++20/QPDF processor serves native and WASM hosts. It imports no producer or application code. The native Imprinter
 and other producers publish the same file contract. The processor requires no producer installation.
 
-Mainz imports neither Sevgi nor Megic. Sevgi owns the generic Style DSL and its export integration. Megic owns
+Mainz imports neither Sevgi nor Megic. Sevgi owns the generic Imprint DSL and its export integration. Megic owns
 publication policy and parameter semantics. Their real integrations remain in those repositories.
 
 The file contract and CLI commands are public surfaces. Processor adapters and application widgets are internal. Version

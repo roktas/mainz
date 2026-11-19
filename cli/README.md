@@ -6,6 +6,12 @@ you specify and leave existing files intact. Processing commands report results 
 Ordinary PDFs support `describe`, `profiles`, `extract`, and `compose`. Style and reset require a PDF with editable
 paint. Verify accepts any PDF with a valid Mainz manifest, including one that declares only page metadata.
 
+## Install with Homebrew
+
+```sh
+brew install roktas/tap/mainz
+```
+
 ## Build from source
 
 Install CMake 3.25 or later, Clang 22 or later, QPDF 12.4.2, zlib, and pkg-config. Install the development libraries for
