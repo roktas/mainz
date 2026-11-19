@@ -1,0 +1,502 @@
+<!-- Windows page rows and section disclosures, and owns List scrolling and keyboard navigation. -->
+
+<script module lang="ts">
+  type Measurements = { revision: unknown; width: number; sizes: ReadonlyMap<number, number> }
+  export type Viewport = { scroll: number; measured?: Measurements; position?: number; offset?: number }
+</script>
+
+<script lang="ts">
+  import { flushSync, tick, untrack } from "svelte"
+  import type { Snippet } from "svelte"
+  import type { TransitionConfig } from "svelte/transition"
+  import { shortcut, shortcutContext } from "./keyboard.ts"
+  import { gridSections, Sections } from "./sections.ts"
+  import { flash, Folds } from "./motion.ts"
+
+  let {
+    pane,
+    active,
+    viewport: saved = { scroll: 0 },
+    sections: policy,
+    labeled = false,
+    revision,
+    identity,
+    rowId,
+    pending,
+    removal = () => ({ duration: 0 }),
+    section,
+    selected,
+    onfold,
+    skipped,
+    retained,
+    position = $bindable(0),
+    select,
+    edit,
+    children,
+  }: {
+    pane: "Input" | "Output"
+    active: () => boolean
+    viewport?: Viewport
+    sections: Sections
+    labeled?: boolean
+    revision?: unknown
+    identity?: (position: number) => string
+    rowId?: (position: number) => string
+    pending?: ReadonlySet<string>
+    removal?: (node: HTMLElement) => TransitionConfig
+    section?: Snippet<
+      [start: number, end: number, path: readonly string[], expanded: boolean, toggle: () => void, id: number]
+    >
+    selected?: (first: number, end: number) => boolean
+    onfold: (folds: ReadonlySet<string>) => void
+    skipped?: ReadonlySet<number>
+    retained?: number
+    position?: number
+    select: (position: number, range: boolean, anchor?: number, sectionEnd?: number) => void
+    edit: (action: "add" | "duplicate" | "remove", position: number, sectionEnd?: number) => boolean
+    children: Snippet<[index: number, retained?: number]>
+  } = $props()
+  let viewport = $state(0)
+  let scroll = $state(untrack(() => saved.scroll))
+  let dragged = $state<number>()
+  let seeking = $state<number>()
+  let settling = Promise.resolve()
+  let list: HTMLUListElement | undefined
+  const rowHeight = 44
+  let measured = $state.raw<Measurements | undefined>(untrack(() => saved.measured))
+  let width = $state(0)
+  const collapsed = $derived(policy.folded)
+  let outlined = $state<string>()
+  const sections = $derived(policy.tree)
+  const count = $derived(policy.count)
+  const transition = new Folds(
+    () => sections,
+    (next) => onfold(next),
+  )
+  $effect(() => {
+    if (sections.nodes.size) return () => transition.cancel()
+  })
+  function changeFolds(next: Set<string>, highlighted?: string) {
+    const previous = new Set(order)
+    const remaining = new Set(
+      visibleRows(gridSections(sections, count, next)).filter((index) => index < 0 || !skipped?.has(index)),
+    )
+    const nodes = [...sections.nodes.values()]
+    const parent = (index: number, visible: ReadonlySet<number>) => {
+      let section =
+        index < 0
+          ? sections.nodes.get(-index - 1)
+          : nodes.findLast((entry) => entry.start <= index && index < entry.end)
+      while (section && !visible.has(-section.id - 1)) section = section.parent
+      return section
+    }
+    const sectionRow = (id: number) => list?.querySelector<HTMLElement>(`.list-section[data-section="${id}"]`) ?? null
+    transition.cancel()
+
+    const origins = new Map<number, DOMRectReadOnly>()
+    for (const row of list?.querySelectorAll<HTMLElement>(":scope > .list-section") ?? []) {
+      const id = Number(row.dataset.section)
+      origins.set(id, row.getBoundingClientRect())
+    }
+
+    const departing = [
+      ...(list?.querySelectorAll<HTMLElement>(":scope > .list-row, :scope > .list-section") ?? []),
+    ].flatMap((row) => {
+      const index = row.matches(".list-section")
+        ? -Number(row.dataset.section) - 1
+        : Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
+      if (!Number.isFinite(index) || remaining.has(index)) return []
+      const section = parent(index, remaining)
+      return [{ element: row, heading: section ? sectionRow(section.id) : null }]
+    })
+    const targets = new Set(departing.flatMap(({ heading }) => (heading ? [heading] : [])))
+    transition.change(next, departing, () => {
+      outlined = highlighted && !next.has(highlighted) ? highlighted : undefined
+      if (!list) return
+      for (const heading of targets) if (list.contains(heading)) transition.pulse(heading)
+      const entries = [...list.querySelectorAll<HTMLElement>(":scope > .list-row, :scope > .list-section")].flatMap(
+        (row) => {
+          const index = row.matches(".list-section")
+            ? -Number(row.dataset.section) - 1
+            : Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
+          if (!Number.isFinite(index) || previous.has(index)) return []
+          const section = parent(index, previous)
+          return [{ element: row, heading: section ? (origins.get(section.id) ?? null) : null }]
+        },
+      )
+      transition.open(entries)
+    })
+  }
+  export function toggleSections() {
+    changeFolds((transition.pending ? new Sections(sections, count, transition.pending) : policy).toggle())
+  }
+  export function expand(index: number) {
+    const current = transition.pending ?? collapsed
+    const next = new Sections(sections, count, current).expand(index)
+    if (next.size !== current.size) changeFolds(next)
+  }
+  export async function revealSection(id: number) {
+    const target = sections.nodes.get(id)
+    if (!target || !list) return
+    const next = new Set(collapsed)
+    for (let parent = target.parent; parent; parent = parent.parent) next.delete(parent.key)
+    if (next.size !== collapsed.size) changeFolds(next)
+    const visible = (next.size === collapsed.size ? policy.visible : gridSections(sections, count, next)).headings.get(
+      target.start,
+    )
+    const heading = await seek(visible ? -visible.id - 1 : target.start, `[data-page="${target.start}"]`)
+    heading?.focus({ preventScroll: true })
+    const row = heading?.closest<HTMLElement>("li")
+    if (row) flash(row)
+  }
+  export async function revealPage(index: number) {
+    expand(index)
+    await seek(index, `[data-page="${index}"]`)
+  }
+  async function seek(index: number, selector: string) {
+    await tick()
+    seeking = index
+    await tick()
+    const rank = ranks.get(index)
+    let control: HTMLElement | undefined
+    if (rank !== undefined && list) {
+      list.scrollTop = offsets[rank]
+      scroll = list.scrollTop
+      await tick()
+      if (!list) {
+        seeking = undefined
+        return
+      }
+      control = list.querySelector<HTMLElement>(selector) ?? undefined
+      control?.scrollIntoView({ block: "nearest" })
+      scroll = list.scrollTop
+    }
+    seeking = undefined
+    return control
+  }
+
+  export function paths(page: number, ancestors: readonly string[]) {
+    return policy.paths(page, ancestors)
+  }
+  function visibleRows(visible: Sections["visible"]) {
+    return visible.pages.map((page) => {
+      const heading = visible.headings.get(page)
+      return heading ? -heading.id - 1 : page
+    })
+  }
+  const sequence = $derived(visibleRows(policy.visible))
+  const order = $derived(sequence.filter((index) => index < 0 || !skipped?.has(index)))
+  const pages = $derived(order.map((index) => (index < 0 ? sections.nodes.get(-index - 1)!.start : index)))
+  function rowRanks(rows: readonly number[]) {
+    const result = new Map<number, number>()
+    rows.forEach((index, rank) => {
+      result.set(index, rank)
+      if (index < 0) result.set(sections.nodes.get(-index - 1)!.start, rank)
+    })
+    return result
+  }
+  const sequenceRanks = $derived(rowRanks(sequence))
+  const ranks = $derived(rowRanks(order))
+  const offsets = $derived.by(() => {
+    const sizes = measured?.revision === revision && measured?.width === width ? measured.sizes : undefined
+    const result = new Float64Array(order.length + 1)
+    for (let rank = 0; rank < order.length; rank++)
+      result[rank + 1] = result[rank] + (sizes?.get(order[rank]) ?? rowHeight)
+    return result
+  })
+  function locate(offset: number) {
+    let first = 0,
+      last = order.length
+    while (first < last) {
+      const middle = Math.floor((first + last) / 2)
+      if (offsets[middle + 1] <= offset) first = middle + 1
+      else last = middle
+    }
+    return first
+  }
+  const start = $derived(
+    seeking !== undefined ? Math.max(0, (offsets[(ranks.get(seeking) ?? 0) + 1] ?? 0) - viewport) : scroll,
+  )
+  const from = $derived(Math.max(0, Math.min(Math.max(0, order.length - 1), locate(start) - 8)))
+  const to = $derived(Math.min(order.length, Math.max(from + 1, locate(start + viewport) + 9)))
+
+  const retainedIndex = $derived(dragged !== undefined && dragged < 0 ? dragged : (retained ?? dragged))
+  const pin = $derived(
+    retainedIndex !== undefined && sequenceRanks.has(retainedIndex) && !order.slice(from, to).includes(retainedIndex)
+      ? retainedIndex
+      : undefined,
+  )
+  const rows = $derived.by(() => {
+    const window = order.slice(from, to)
+    if (pin !== undefined) window.push(pin)
+    return window.toSorted((a, b) => sequenceRanks.get(a)! - sequenceRanks.get(b)!)
+  })
+  export function remember() {
+    if (!list) return
+    const row = list.querySelector<HTMLElement>(`[data-page="${position}"]`)?.closest("li")
+    saved.position = row ? position : undefined
+    saved.offset = row ? row.getBoundingClientRect().top - list.getBoundingClientRect().top : undefined
+  }
+  function scrolling(element: HTMLElement) {
+    const focused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement.closest<HTMLElement>(".list-row, .list-section")
+        : undefined
+    const owned = !!focused && element.contains(focused)
+    const top = element.scrollTop
+    flushSync(() => {
+      scroll = top
+      remember()
+    })
+    element.scrollTop = top
+    if (!owned || !focused) return
+    if (!element.contains(focused)) {
+      element.focus({ preventScroll: true })
+      return
+    }
+    const bounds = focused.getBoundingClientRect(),
+      frame = element.getBoundingClientRect()
+    if (bounds.bottom <= frame.top || bounds.top >= frame.bottom) element.focus({ preventScroll: true })
+  }
+
+  function reveal(element: HTMLElement) {
+    list = element as HTMLUListElement
+    const owner = element.closest<HTMLElement>(pane === "Input" ? ".selection-panel" : ".composition-output")
+    element.addEventListener("keydown", keys)
+    window.addEventListener("keydown", keys)
+    let disposed = false
+    let frame = 0
+    let following = false
+    let followedRevision: unknown
+    const measure = () => {
+      if (disposed) return
+      viewport = element.clientHeight
+      width = element.clientWidth
+      owner?.style.setProperty("--list-gutter", `${element.offsetWidth - element.clientWidth}px`)
+      const previous = measured?.revision === revision && measured?.width === width ? measured.sizes : undefined
+      const sizes = new Map(previous)
+      let changed = false
+      for (const row of element.querySelectorAll<HTMLElement>(
+        ".list-row:not(.removing):not([data-drop]):not([data-dragging]), .list-section:not(:has(> .list-drop-preview))",
+      )) {
+        const index = row.matches(".list-section")
+          ? -Number(row.dataset.section) - 1
+          : Number(row.querySelector<HTMLElement>("[data-page]")?.dataset.page)
+        if (!Number.isFinite(index) || !row.offsetHeight || sizes.get(index) === row.offsetHeight) continue
+        sizes.set(index, row.offsetHeight)
+        changed = true
+      }
+      if (changed) measured = { revision, width, sizes }
+    }
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(measure)
+    })
+    observer.observe(element)
+    untrack(() => {
+      measure()
+      element.scrollTop = scroll
+    })
+    $effect(() => {
+      void rows
+      void tick().then(() => {
+        if (disposed) return
+        measure()
+        observer.disconnect()
+        observer.observe(element)
+        for (const row of element.querySelectorAll(".list-row, .list-section")) observer.observe(row)
+      })
+    })
+    $effect(() => {
+      const index = position
+      untrack(() => {
+        const offset = !following && saved.position === index ? saved.offset : undefined
+        if (following && followedRevision === revision && !ranks.has(index)) expand(index)
+        following = true
+        followedRevision = revision
+        const rank = ranks.get(index)
+        if (rank === undefined) return
+        const top = offsets[rank]
+        const bottom = offsets[rank + 1]
+        seeking = top < element.scrollTop || bottom > element.scrollTop + element.clientHeight ? index : undefined
+        if (top < element.scrollTop) element.scrollTop = top
+        else if (bottom > element.scrollTop + element.clientHeight) element.scrollTop = bottom - element.clientHeight
+        scroll = element.scrollTop
+        settling = tick().then(async () => {
+          if (disposed) return
+          measure()
+          await tick()
+          if (!disposed && position === index) {
+            const row = element.querySelector<HTMLElement>(`[data-page="${position}"]`)?.closest("li")
+            if (row && offset !== undefined)
+              element.scrollTop += row.getBoundingClientRect().top - element.getBoundingClientRect().top - offset
+            row?.scrollIntoView({ block: "nearest" })
+            scroll = element.scrollTop
+            seeking = undefined
+            await tick()
+          }
+        })
+      })
+    })
+    return () => {
+      // A detached list can already report a zero DOM scroll offset here.
+      saved.scroll = untrack(() => scroll)
+      saved.measured = untrack(() => measured)
+      list = undefined
+      owner?.style.removeProperty("--list-gutter")
+      disposed = true
+      cancelAnimationFrame(frame)
+      observer.disconnect()
+      element.removeEventListener("keydown", keys)
+      window.removeEventListener("keydown", keys)
+    }
+  }
+  async function keys(event: KeyboardEvent) {
+    if (!(event.target instanceof HTMLElement)) return
+    const local = list?.contains(event.target)
+    if (
+      !(local && event.target.matches(".list-choice, .list-heading, .page-list")) &&
+      !(
+        ["PageUp", "PageDown"].includes(event.key) &&
+        active() &&
+        !event.target.closest(".page-list, input, textarea, select, [contenteditable]")
+      )
+    )
+      return
+    const action = shortcut(event, shortcutContext(event, { pane, view: "list" }), "list")
+    if (action === "suppress") {
+      event.preventDefault()
+      return
+    }
+    if (!action || !pages.length) return
+    const element = list!
+    const focused = event.target.dataset.page
+    const index = Math.max(0, pages.indexOf(focused === undefined ? position : Number(focused)))
+    position = pages[index]
+    if (action === "add" || action === "duplicate" || action === "remove") {
+      event.preventDefault()
+      if (!event.repeat) {
+        const row = order[index]
+        const focusedSection =
+          event.target.matches(".list-heading") && row < 0 ? sections.nodes.get(-row - 1) : undefined
+        edit(action, position, focusedSection?.end)
+      }
+      return
+    }
+    if (
+      ![
+        "copy",
+        "left",
+        "right",
+        "up",
+        "down",
+        "first",
+        "last",
+        "previous",
+        "next",
+        "viewportPrevious",
+        "viewportNext",
+      ].includes(action)
+    )
+      return
+    event.preventDefault()
+    if (action === "copy" && event.repeat) return
+    if (action === "copy") {
+      const row = order[index]
+      const foldedSection = row < 0 ? sections.nodes.get(-row - 1) : undefined
+      select(
+        position,
+        false,
+        undefined,
+        foldedSection && collapsed.has(foldedSection.key) ? foldedSection.end : undefined,
+      )
+    }
+    const row = element.querySelector<HTMLElement>(`[data-page="${position}"]`)?.closest("li"),
+      stride = Math.max(1, Math.floor(element.clientHeight / (row?.getBoundingClientRect().height || 44)))
+    const next =
+      action === "first"
+        ? 0
+        : action === "last"
+          ? pages.length - 1
+          : Math.max(
+              0,
+              Math.min(
+                pages.length - 1,
+                index +
+                  (action === "viewportPrevious"
+                    ? -stride
+                    : action === "viewportNext"
+                      ? stride
+                      : ["left", "up", "previous"].includes(action)
+                        ? -1
+                        : 1),
+              ),
+            )
+    const anchor = position
+    position = pages[next]
+    if (event.shiftKey && !["next", "previous"].includes(action)) select(position, true, anchor)
+    const target = position
+    await tick()
+    await settling
+    if (position === target) element.querySelector<HTMLElement>(`[data-page="${position}"]`)?.focus()
+  }
+</script>
+
+<svelte:window ondragend={() => (dragged = undefined)} />
+
+<ul
+  class="page-list"
+  class:labeled
+  aria-label={`${pane} page list`}
+  aria-keyshortcuts={`ArrowUp ArrowDown Home End PageUp PageDown N P Space Enter V Control+A Meta+A Shift+ArrowUp Shift+ArrowDown Plus${pane === "Output" ? " - Delete Control+ArrowUp Control+ArrowDown Meta+ArrowUp Meta+ArrowDown" : ""}`}
+  tabindex="-1"
+  onscroll={(event) => scrolling(event.currentTarget)}
+  ondragstartcapture={(event) => {
+    const row =
+      event.target instanceof Element ? event.target.closest<HTMLElement>(".list-row, .list-section") : undefined
+    const page = row?.matches(".list-section")
+      ? -Number(row.dataset.section) - 1
+      : Number(row?.querySelector<HTMLElement>("[data-page]")?.dataset.page)
+    dragged = Number.isFinite(page) ? page : undefined
+  }}
+  {@attach reveal}
+>
+  <li class="list-spacer" aria-hidden="true" style:block-size={`${offsets[from]}px`}></li>
+  {#each rows as index (index < 0 ? `section:${sections.nodes.get(-index - 1)!.key}` : (identity?.(index) ?? index))}
+    {#if index < 0}
+      {@const entry = sections.nodes.get(-index - 1)!}
+      <li
+        id={rowId?.(entry.start)}
+        data-adding={(identity && pending?.has(identity(entry.start))) || undefined}
+        class="list-section"
+        out:removal|global
+        data-synthetic={entry.synthetic || undefined}
+        title={entry.synthetic ? `Pages ${entry.start + 1}–${entry.end}` : undefined}
+        aria-label={entry.synthetic ? `Pages ${entry.start + 1}–${entry.end}` : undefined}
+        class:output-section={pane === "Output"}
+        style:--section-depth={entry.path.length - 1}
+        class:selected={collapsed.has(entry.key) && selected?.(entry.start, entry.end)}
+        data-selected={selected?.(entry.start, entry.end) || undefined}
+        data-section={-index - 1}
+        data-emphasized={(outlined === entry.key && !collapsed.has(entry.key)) || undefined}
+        data-index={entry.start}
+        data-end={collapsed.has(entry.key) ? entry.end - 1 : undefined}
+        data-section-end={entry.end}
+        data-dragging={dragged === index || undefined}
+        data-retained={index === pin || undefined}
+      >
+        {@render section?.(
+          entry.start,
+          entry.end,
+          entry.path,
+          !collapsed.has(entry.key),
+          () => {
+            changeFolds(new Sections(sections, count, transition.pending ?? collapsed).fold(entry.key), entry.key)
+          },
+          entry.id,
+        )}
+      </li>
+    {:else}{@render children(index, pin)}{/if}
+  {/each}
+  <li class="list-spacer" aria-hidden="true" style:block-size={`${offsets[order.length] - offsets[to]}px`}></li>
+</ul>

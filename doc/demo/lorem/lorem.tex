@@ -1,0 +1,174 @@
+% Owns the reading sample's Garamond typography, cover, text, and linked contents.
+
+\setuppapersize[A4]
+\setuplayout[topspace=22mm,backspace=30mm,width=150mm,height=248mm,header=8mm,footer=10mm]
+\setupbodyfont[ebgaramond,12pt]
+\setupinterlinespace[line=14.5pt]
+\setupwhitespace[medium]
+\setupindenting[yes,medium,next]
+\definecolor[ink][h=302A24]
+\definecolor[rubric][h=763B32]
+\setupcolors[textcolor=ink]
+\setupinteraction[state=start,title={Lorem Ipsum},subtitle={Dolor sit amet},author={Lorem Ipsum},color=ink,contrastcolor=ink]
+\placebookmarks[chapter,section,subsection][chapter]
+\setuphead[chapter][style=\tfc\sc,color=rubric,page=yes,continue=no,before={\blank[big]},after={\blank[2*big]}]
+\setuphead[section][style=\tfb\it,color=rubric,page=yes,continue=no,after={\blank[big]}]
+\setuphead[subsection][style=\tfa\sc,color=rubric,page=yes,continue=no,after={\blank[big]}]
+\setuplist[chapter][style=\sc,before={\blank[medium]},after={\blank[small]}]
+\setuplist[section][margin=5mm]
+\setuplist[subsection][margin=10mm]
+\setupcombinedlist[content][list={chapter,section,subsection},interaction=all]
+\setupheadertexts[{\tfx\sc Lorem Ipsum}][{\tfx\it\getmarking[chapter]}]
+\setuppagenumbering[location=]
+\setupfootertexts[][{\tfx\pagenumber}]
+
+\def\SampleText{\dorecurse{2}{
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\par
+
+Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.\par
+
+Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur.\par
+
+}}
+
+\starttext
+\startstandardmakeup
+  \raggedcenter
+  {\definedfont[Serif*default at 38pt]\color[rubric]{Lorem Ipsum}\par}
+  \blank[medium]
+  {\it Dolor sit amet, consectetur adipiscing elit\par}
+  \blank[big]
+  \midaligned{\externalfigure[lorem.png][height=210mm]}
+  \blank[medium]
+  {\tfx\sc Ut enim ad minim veniam\par}
+\stopstandardmakeup
+
+\setupuserpagenumber[number=2]
+\title{Lorem rerum}
+\start
+  \switchtobodyfont[10pt]
+  \setupinterlinespace[line=12pt]
+  \setupwhitespace[none]
+  \placecontent
+\stop
+\chapter{Laboris tempor sit}
+\SampleText
+
+\section{Nostrud commodo veniam}
+\SampleText
+
+\subsection{Cupidatat ipsum}
+\SampleText
+
+\subsection{Laboris minim}
+\SampleText
+
+\section{Laboris officia incididunt}
+\SampleText
+
+\subsection{Culpa dolore}
+\SampleText
+
+\subsection{Aliqua irure}
+\SampleText
+
+\section{Eiusmod dolor aliqua}
+\SampleText
+
+\subsection{Aute deserunt}
+\SampleText
+
+\subsection{Deserunt voluptate}
+\SampleText
+
+\chapter{Aliqua reprehenderit voluptate}
+\SampleText
+
+\section{Excepteur nulla fugiat}
+\SampleText
+
+\subsection{Excepteur aliqua}
+\SampleText
+
+\subsection{Dolore labore}
+\SampleText
+
+\section{Adipiscing nulla nostrud}
+\SampleText
+
+\subsection{Aute lorem}
+\SampleText
+
+\subsection{Dolor culpa}
+\SampleText
+
+\section{Aliqua exercitation dolor}
+\SampleText
+
+\subsection{Enim excepteur}
+\SampleText
+
+\subsection{Lorem exercitation}
+\SampleText
+
+\chapter{Excepteur nulla pariatur}
+\SampleText
+
+\section{Pariatur cillum sit}
+\SampleText
+
+\subsection{Laborum proident}
+\SampleText
+
+\subsection{Minim velit}
+\SampleText
+
+\section{Dolor nostrud mollit}
+\SampleText
+
+\subsection{Eiusmod culpa}
+\SampleText
+
+\subsection{Duis dolor}
+\SampleText
+
+\section{Exercitation proident occaecat}
+\SampleText
+
+\subsection{Consectetur aute}
+\SampleText
+
+\subsection{Labore consequat}
+\SampleText
+
+\chapter{Culpa exercitation mollit}
+\SampleText
+
+\section{Excepteur enim officia}
+\SampleText
+
+\subsection{Mollit culpa}
+\SampleText
+
+\subsection{Culpa fugiat}
+\SampleText
+
+\section{Dolor irure sed}
+\SampleText
+
+\subsection{Laborum fugiat}
+\SampleText
+
+\subsection{Officia aliquip}
+\SampleText
+
+\section{Velit consequat adipiscing}
+\SampleText
+
+\subsection{Pariatur aute}
+\SampleText
+
+\subsection{Laboris voluptate}
+\SampleText
+
+\stoptext

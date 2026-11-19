@@ -1,0 +1,96 @@
+# frozen_string_literal: true
+
+require "fileutils"
+require "json"
+require "open3"
+
+ROOT = File.expand_path("../..", __dir__)
+CLI = File.expand_path(ENV.fetch("MAINZ_CLI", File.join(ROOT, ".local/var/cpp/build/native/mainz")))
+MEGIC = File.expand_path(ENV.fetch("MEGIC", File.join(ROOT, "../megic")))
+
+def command(*arguments, **options)
+  out, err, status = Open3.capture3(*arguments, **options)
+  raise "#{arguments.join(" ")}:\n#{out}#{err}" unless status.success?
+
+  out
+end
+
+%w[dolor minim culpa nulla].each do |name|
+  desc("Remake #{name} using Megic's Bundler environment")
+  task(name) do
+    require "bundler"
+
+    Bundler.with_unbundled_env do
+      command(
+        "direnv",
+        "exec",
+        MEGIC,
+        "env",
+        "PATH=#{File.dirname(CLI)}:#{ENV.fetch("PATH")}",
+        "bundle",
+        "exec",
+        File.join(__dir__, name, "#{name}.rb"),
+        MEGIC,
+        CLI,
+        chdir: MEGIC
+      )
+    end
+  end
+end
+
+%w[lorem ipsum].each do |name|
+  desc("Remake #{name} using ConTeXt and EB Garamond")
+  task(name) do
+    load(File.join(__dir__, "lorem", "lorem.rb")) unless defined?(ReadingDemo)
+    ReadingDemo.build(name, CLI)
+  end
+end
+
+desc("Remake magna from the retained or remade dolor PDF")
+task(:magna) do
+  directory = File.join(ROOT, ".local/var/demo/magna")
+  FileUtils.mkdir_p(directory)
+  source = File.join(ROOT, ".local/var/demo/dolor/dolor.pdf")
+  source = File.join(ROOT, "web/test/fixtures/dolor.pdf") unless File.file?(source)
+  inputs = File.join(directory, "inputs.json")
+  File.write(inputs, JSON.generate("fixture" => source))
+  staged = File.join(directory, "composed.pdf")
+  FileUtils.rm_f(staged)
+  command(CLI, "compose", File.join(__dir__, "magna/magna.json"), "--inputs", inputs, "--output", staged)
+  command("qpdf", "--check", staged)
+  command(CLI, "verify", staged)
+  count, status = Open3.capture2("qpdf", "--show-npages", staged)
+  raise "Expected 240 pages" unless status.success? && count.to_i == 240
+
+  File.rename(staged, File.join(directory, "magna.pdf"))
+end
+
+desc("Explicitly remake all demos in dependency order")
+task(remake: %i[dolor minim culpa magna nulla lorem ipsum])
+
+desc("Install completed outputs as versioned fixtures without remaking them")
+task(:install) do
+  files = {
+    "dolor/dolor.pdf" => "web/test/fixtures/dolor.pdf",
+    "minim/minim.pdf" => "web/test/fixtures/recipe/minim.pdf",
+    "culpa/culpa.pdf" => "web/test/fixtures/recipe/culpa.pdf",
+    "nulla/nulla.json" => "web/test/fixtures/recipe/nulla.json",
+    "lorem/lorem.pdf" => "web/test/fixtures/toc/lorem.pdf",
+    "ipsum/ipsum.pdf" => "web/test/fixtures/toc/ipsum.pdf",
+    "magna/magna.pdf" => ".local/var/fixtures/magna.pdf"
+  }
+  files.each do |source, destination|
+    source = File.join(ROOT, ".local/var/demo", source)
+    next unless File.file?(source)
+
+    destination = File.join(ROOT, destination)
+    FileUtils.mkdir_p(File.dirname(destination))
+    FileUtils.cp(source, destination)
+  end
+
+  FileUtils.cp(File.join(__dir__, "magna/magna.json"), File.join(ROOT, "web/test/fixtures/magna.json"))
+end
+
+task(:default) do
+  puts("No demos remade. Use rake -f doc/demo/Rakefile -T for explicit tasks.")
+end

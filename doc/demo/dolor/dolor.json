@@ -1,0 +1,32 @@
+{
+  "targets": {
+    "watermark": { "selectors": ["#WatermarkFill"] }
+  },
+  "parameters": {
+    "watermark-fill-color": {
+      "schema": {
+        "type": "string",
+        "title": "Watermark",
+        "description": "Fill color and opacity."
+      },
+      "binding": { "targets": ["watermark"], "property": "fill-color" }
+    },
+    "watermark-fill-opacity": {
+      "schema": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "title": "Watermark fill opacity",
+        "description": "0% transparent. 100% opaque."
+      },
+      "binding": { "targets": ["watermark"], "property": "fill-opacity" }
+    }
+  },
+  "groups": [
+    {
+      "title": "Watermark",
+      "description": "A watermark on every page.",
+      "parameters": ["watermark-fill-color", "watermark-fill-opacity"]
+    }
+  ]
+}

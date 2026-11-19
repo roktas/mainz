@@ -1,0 +1,2418 @@
+// Checks named Output PDFs, native sharing and printing, and floating Style editors through the workspace.
+
+import { setup, selectPane } from "./browser.js"
+import { engines, launch } from "./browsers.js"
+import assert from "node:assert/strict"
+import test from "node:test"
+import { readFile, mkdir, writeFile, mkdtemp, rm } from "node:fs/promises"
+import { createHash } from "node:crypto"
+import { execFileSync } from "node:child_process"
+import { join, resolve as resolvePath } from "node:path"
+import { chromium, webkit } from "playwright"
+import { serve } from "./server.ts"
+import {
+  outputCount,
+  fixture,
+  tab,
+  trackWorkers,
+  outputAction,
+  captureLayout,
+  paneButton,
+  inputChooser,
+} from "./browser.js"
+
+const inventory = JSON.parse(await readFile(new URL("./dim.json", import.meta.url), "utf8"))
+
+test("Recipe details retain opaque metadata keys as literal labels", async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage()
+    const recipe = JSON.parse(await readFile(new URL("./fixtures/recipe/nulla.json", import.meta.url), "utf8"))
+    for (const input of Object.values(recipe.inputs))
+      input.xmp = Object.fromEntries([
+        ["__proto__", "Opaque prototype"],
+        ["constructor", "Opaque constructor"],
+      ])
+    await page.goto(server.resolvedUrls.local[0])
+    await page.locator(".landing-recipe input").setInputFiles({
+      name: "opaque.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(recipe)),
+    })
+    const panel = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
+    await panel.locator(".binding-meta .guidance-trigger").first().click()
+    const details = page.locator(".guidance:popover-open")
+    assert.deepEqual(await details.getByRole("rowheader").allTextContents(), ["__proto__", "constructor"])
+    assert.deepEqual(await details.getByRole("cell").allTextContents(), ["Opaque prototype", "Opaque constructor"])
+  } finally {
+    await browser.close()
+  }
+})
+
+test(
+  "Recipe matching shows long descriptions below titles in equal rows and keeps borderless actions",
+  { timeout: 90000 },
+  async () => {
+    const server = await serve()
+    const recipe = JSON.parse(await readFile(new URL("./fixtures/recipe/nulla.json", import.meta.url), "utf8"))
+    for (const input of Object.values(recipe.inputs)) {
+      input.xmp ??= {}
+      input.xmp["dc:description"] =
+        "A practical collection of prepared pages for pen movement, rhythm and deliberate letterforms"
+    }
+    const file = {
+      name: "practice-session.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(recipe)),
+    }
+    for (const engine of engines) {
+      const browser = await launch(engine)
+      try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+        await page.goto(server.resolvedUrls.local[0])
+        await page.locator(".landing-recipe input").setInputFiles(file)
+        const panel = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
+        await panel.locator(".binding-row").first().waitFor()
+        for (const width of [1440, 768, 390, 375, 320]) {
+          await page.setViewportSize({ width, height: width === 375 ? 667 : width === 768 ? 1024 : 1000 })
+          for (const text of ["100%", "200%"]) {
+            await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+            for (const colorScheme of ["light", "dark"]) {
+              await page.emulateMedia({ colorScheme })
+              await panel.locator(".binding-description").first().waitFor({ state: "attached" })
+              const layout = () =>
+                panel.evaluate((element) => {
+                  const rows = [...element.querySelectorAll(".binding-row")].map((row) => {
+                    const box = row.getBoundingClientRect()
+                    return [box.y + scrollY, box.height]
+                  })
+                  const actions = element.querySelector(".load-actions").getBoundingClientRect()
+                  return {
+                    rows,
+                    actions: actions.y + scrollY,
+                    width: element.clientWidth,
+                    content: element.scrollWidth,
+                  }
+                })
+              const before = await layout()
+              if (width === 375 && text === "100%")
+                assert.ok(
+                  before.rows[1][0] + before.rows[1][1] <= 667,
+                  `${engine.name()}: two complete Inputs fit on iPhone SE`,
+                )
+              assert.ok(before.content <= before.width + 1, `${engine.name()}, ${width}px, ${text}: no overflow`)
+              const narrow = await panel
+                .locator(".binding-source")
+                .first()
+                .evaluate((element) => getComputedStyle(element).display === "contents")
+              if (!narrow)
+                assert.ok(
+                  before.rows.every(([, height]) => Math.abs(height - before.rows[0][1]) < 1),
+                  "equal desktop Input rows",
+                )
+              const titleStyle = await panel
+                .locator(".binding-identity")
+                .first()
+                .evaluate((element) => {
+                  const title = getComputedStyle(element.querySelector("h2"))
+                  const full = getComputedStyle(element.querySelector(".binding-description"))
+                  return {
+                    size: parseFloat(full.fontSize) < parseFloat(title.fontSize),
+                    muted: full.color !== title.color,
+                  }
+                })
+              assert.ok(titleStyle.size && titleStyle.muted, "description is smaller and muted")
+              const compact = await panel.evaluate((element) => {
+                const row = element.querySelector(".binding-row")
+                if (getComputedStyle(row.querySelector(".binding-source")).display !== "contents") return
+                const box = (selector) => row.querySelector(selector).getBoundingClientRect()
+                const cover = box(".binding-cover"),
+                  target = box(".binding-target"),
+                  title = box("h2"),
+                  meta = box(".binding-meta")
+                const choices = [...element.querySelectorAll(".load-choices > :is(button,label)")].map((button) =>
+                  button.getBoundingClientRect(),
+                )
+                return {
+                  paired:
+                    Math.abs(cover.y - target.y) < 1 &&
+                    Math.abs(cover.height - target.height) < 1 &&
+                    cover.right < target.x,
+                  title: title.bottom <= cover.y,
+                  meta: Math.abs(meta.y + meta.height / 2 - title.y - title.height / 2) < 1 && meta.x > title.right,
+                  hint: getComputedStyle(row.querySelector(".binding-pick > .control-description")).display === "none",
+                  logo: getComputedStyle(element.querySelector(".load-mark")).display === "none",
+                  choices: choices.every(
+                    (button) =>
+                      Math.abs(button.width - choices[0].width) < 1 && Math.abs(button.height - choices[0].height) < 1,
+                  ),
+                }
+              })
+              if (compact)
+                assert.ok(
+                  Object.values(compact).every(Boolean),
+                  `${engine.name()}, ${width}px, ${text}: ${JSON.stringify(compact)}`,
+                )
+              assert.equal(await panel.locator(".binding-description").first().isVisible(), !compact)
+              if (compact) {
+                const title = panel.locator(".binding-heading h2 .guidance-label").first()
+                await title.click()
+                const details = page.locator(".guidance:popover-open")
+                await details.waitFor()
+                assert.match(await details.innerText(), /A practical collection/)
+                const after = await layout()
+                assert.deepEqual(after.rows, before.rows, "Reading a long title does not move Input rows")
+                await page.keyboard.press("Escape")
+              }
+
+              for (const action of [
+                panel.getByRole("button", { name: "Back", exact: true }),
+                panel.locator(".guidance-trigger").first(),
+              ]) {
+                await action.hover()
+                const style = await action.evaluate((element) => {
+                  const computed = getComputedStyle(element)
+                  return {
+                    border: computed.borderWidth,
+                    background: computed.backgroundColor,
+                    shadow: computed.boxShadow,
+                    glow: getComputedStyle(element.querySelector("svg")).filter,
+                  }
+                })
+                assert.equal(style.border, "0px")
+                assert.equal(style.background, "rgba(0, 0, 0, 0)")
+                if ((await action.getAttribute("class")) === "load-back") {
+                  assert.equal(style.shadow, "none")
+                  assert.notEqual(style.glow, "none")
+                } else assert.equal(style.shadow, "none", "Information icons have no surrounding halo")
+              }
+            }
+          }
+        }
+        await page.setViewportSize({ width: 1440, height: 1000 })
+        await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+        const header = await panel.locator(".load-heading").evaluate((element) => {
+          const back = element.querySelector(".load-back").getBoundingClientRect()
+          const name = element.querySelector(".load-name").getBoundingClientRect()
+          const mark = element.querySelector(".load-mark").getBoundingClientRect()
+          const arrow = element.querySelector(".load-back svg").getBoundingClientRect()
+          const heading = element.querySelector("h1").getBoundingClientRect()
+          const intro = element.querySelector(".load-intro").getBoundingClientRect()
+          const choices = element.querySelector(".load-choices").getBoundingClientRect()
+          const visibleTop = (selector) => {
+            const svg = element.querySelector(selector)
+            return new DOMPoint(0, svg.getBBox().y).matrixTransform(svg.getScreenCTM()).y
+          }
+          return {
+            sameRow: Math.abs(back.y + back.height / 2 - name.y - name.height / 2) < 1,
+            gap: name.x - back.right,
+            logo: mark.width,
+            top: Math.abs(visibleTop(".load-mark svg") - visibleTop(".load-back svg")),
+            above: heading.y - back.bottom,
+            below: choices.y - intro.bottom,
+            left: Math.abs(arrow.x + (arrow.width * 8.2) / 24 - heading.x),
+          }
+        })
+        assert.ok(
+          header.sameRow && header.gap >= 16 && header.logo >= 190 && header.left < 1 && header.top < 1,
+          JSON.stringify(header),
+        )
+        assert.ok(header.above >= 12 && header.above <= 20, "Recipe heading sits closer to the filename")
+        assert.ok(header.below >= 24, "Recipe supporting text leaves clear space above the PDF choices")
+        await page.emulateMedia({ reducedMotion: "no-preference" })
+        await page.getByRole("link", { name: "PDF Composer home", exact: true }).dblclick()
+        await page.waitForFunction(
+          () => document.querySelector(".load-mark")?.getAnimations()[0]?.playState === "running",
+        )
+        await page.waitForFunction(() =>
+          document
+            .querySelector(".load-mark")
+            .getAnimations()
+            .every((animation) => animation.playState === "finished"),
+        )
+        const zone = await panel.locator(".load-heading").boundingBox()
+        await page.mouse.move(zone.x + zone.width - 8, zone.y + zone.height / 2)
+        await page.waitForFunction(
+          () => parseFloat(document.querySelector(".load-mark").style.getPropertyValue("--logo-x")) > 0,
+        )
+        await page.emulateMedia({ reducedMotion: "reduce" })
+        assert.equal(
+          await panel.locator(".load-mark .logo").evaluate((element) => getComputedStyle(element).transform),
+          "none",
+        )
+        await panel.getByRole("button", { name: "Back", exact: true }).click()
+        assert.ok(await page.locator(".drop-zone").isVisible())
+        assert.equal(
+          await page.locator(".landing-recipe input").evaluate((element) => element === document.activeElement),
+          true,
+        )
+        await page
+          .locator(".landing-recipe input")
+          .setInputFiles({ name: "invalid.json", mimeType: "application/json", buffer: Buffer.from("{") })
+        await page.locator(".header-feedback").getByRole("alert").waitFor()
+        await panel.getByRole("button", { name: "Cancel", exact: true }).click()
+        assert.ok(await page.locator(".drop-zone").isVisible())
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
+
+test(
+  "Recipe demo matches its sample PDFs and Blank-only Recipes open an editable Output",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await launch(chromium)
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=recipe`)
+      const panel = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
+      await panel.locator(".binding-row").first().waitFor()
+      assert.equal(await panel.locator(".binding-row").count(), 3)
+      assert.equal(await panel.evaluate((element) => getComputedStyle(element).outlineColor), "rgba(0, 0, 0, 0)")
+      await page.keyboard.press("Tab")
+      const back = panel.getByRole("button", { name: "Back", exact: true })
+      assert.equal(
+        await back.evaluate((element) => element === document.activeElement && element.matches(":focus-visible")),
+        true,
+      )
+      assert.deepEqual(
+        (await panel.locator(".load-choices > :is(button,label)").allTextContents()).map((text) => text.trim()),
+        ["Sample PDFs", "Choose PDFs"],
+      )
+      assert.equal(await panel.locator(".binding-target .load-download").count(), 0)
+      assert.equal(
+        await panel.getByRole("link", { name: "Download recipe JSON", exact: true }).getAttribute("download"),
+        "nulla.json",
+      )
+      const aligned = await panel.evaluate((element) => {
+        const options = [...element.querySelectorAll(".load-choices > :is(button,label)")].map((item) =>
+          item.getBoundingClientRect(),
+        )
+        const rows = [...element.querySelectorAll(".binding-row")].map((row) => {
+          const cover = row.querySelector(".binding-cover").getBoundingClientRect()
+          const target = row.querySelector(".binding-target").getBoundingClientRect()
+          const pick = row.querySelector(".binding-pick").getBoundingClientRect()
+          const meta = row.querySelector(".binding-meta").getBoundingClientRect()
+          const actions = [...row.querySelector(".binding-pick").children].map((item) => item.getBoundingClientRect())
+          return {
+            height: Math.abs(cover.height - target.height),
+            center: Math.max(
+              Math.abs(pick.y + pick.height / 2 - target.y - target.height / 2),
+              Math.abs(pick.x + pick.width / 2 - target.x - target.width / 2),
+            ),
+            meta: Math.abs(meta.bottom - cover.bottom),
+            sameRow: actions.every(
+              (item) => Math.abs(item.y + item.height / 2 - actions[0].y - actions[0].height / 2) < 1,
+            ),
+          }
+        })
+        return {
+          options: options.every(
+            (item) =>
+              Math.abs(item.y - options[0].y) < 1 &&
+              Math.abs(item.height - options[0].height) < 1 &&
+              Math.abs(item.width - options[0].width) < 1,
+          ),
+          rows,
+        }
+      })
+      assert.ok(aligned.options, "local and sample choices share a row and dimensions")
+      assert.ok(
+        aligned.rows.every((row) => row.height < 1 && row.center < 1 && row.meta < 1 && row.sameRow),
+        JSON.stringify(aligned.rows),
+      )
+      const dimensions = await panel
+        .locator(".binding-empty, .load-actions > button")
+        .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()))
+      assert.ok(
+        dimensions.every(
+          (button) =>
+            Math.abs(button.width - dimensions[0].width) < 1 && Math.abs(button.height - dimensions[0].height) < 1,
+        ),
+        "PDF choices, Cancel, and Apply recipe share dimensions",
+      )
+      await panel.locator(".binding-meta .guidance-trigger").first().click()
+      const details = page.locator(".guidance:popover-open")
+      assert.deepEqual(await details.locator("th").allTextContents(), ["Title", "Producer"])
+      await page.keyboard.press("Escape")
+      await page.locator(".footnote").getByText("0 of 3 Inputs selected · 3 remaining", { exact: true }).waitFor()
+
+      for (const width of [1440, 1024, 820, 768, 390, 375, 320]) {
+        await page.setViewportSize({ width, height: width === 375 ? 667 : width === 768 ? 1024 : 1000 })
+        for (const text of ["100%", "200%"]) {
+          await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+          const bounds = await panel.evaluate((element) => ({
+            width: element.clientWidth,
+            content: element.scrollWidth,
+          }))
+          assert.ok(bounds.content <= bounds.width + 1, `${width}px, ${text}: matching stays within the landing frame`)
+          assert.equal(
+            await panel
+              .locator(".binding-empty")
+              .evaluateAll((elements) =>
+                elements.every(
+                  (element) =>
+                    element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1,
+                ),
+              ),
+            true,
+            `${width}px, ${text}: PDF choices keep all visible content inside the button`,
+          )
+          if (width === 375 && text === "100%") {
+            for (const family of ["", "DejaVu Sans, sans-serif"]) {
+              await page.evaluate((font) => (document.body.style.fontFamily = font), family)
+              const bottom = await panel
+                .locator(".binding-row")
+                .nth(1)
+                .evaluate((row) => row.getBoundingClientRect().bottom)
+              assert.ok(bottom <= 667, `Two complete Inputs fit on iPhone SE (${family || "system font"}): ${bottom}`)
+            }
+            await page.evaluate(() => (document.body.style.fontFamily = ""))
+          }
+          const choices = await panel
+            .locator(".load-choices > :is(button,label)")
+            .evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().toJSON()))
+          assert.ok(
+            choices.every(
+              (button) =>
+                Math.abs(button.width - choices[0].width) < 1 && Math.abs(button.height - choices[0].height) < 1,
+            ),
+            `${width}px, ${text}: sample and local choices keep equal dimensions`,
+          )
+        }
+      }
+      await page.setViewportSize({ width: 1440, height: 1000 })
+      await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+      await panel.getByRole("button", { name: "Sample PDFs", exact: true }).click()
+      await page
+        .locator(".footnote")
+        .getByText("3 of 3 Inputs selected · Ready to apply recipe", { exact: true })
+        .waitFor()
+      for (const width of [1440, 768, 390, 375, 320]) {
+        await page.setViewportSize({ width, height: width === 375 ? 667 : width === 768 ? 1024 : 1000 })
+        for (const text of ["100%", "200%"]) {
+          await page.evaluate((value) => (document.documentElement.style.fontSize = value), text)
+          const layout = await panel.evaluate((element) => {
+            const outer = element.getBoundingClientRect()
+            const boxes = [...element.querySelectorAll(".bound")].map((target) => {
+              const bounds = target.getBoundingClientRect()
+              const group = target.querySelector(".binding-pick")
+              const actions = group.getBoundingClientRect()
+              const result = target.querySelector(".binding-result").getBoundingClientRect()
+              const change = target.querySelector(".file-picker").getBoundingClientRect()
+              const download = target.querySelector(".load-download").getBoundingClientRect()
+              const style = getComputedStyle(target.querySelector(".file-picker"))
+              const glyph = target.querySelector(".load-download svg")
+              const ink = glyph.getBBox()
+              const edge = new DOMPoint(ink.x + ink.width, 0).matrixTransform(glyph.getScreenCTM()).x
+              const file = target.querySelector(".binding-file")
+              const filename = file.getBoundingClientRect()
+              const status = target.querySelector(".binding-status")
+              return {
+                centered:
+                  Math.abs(
+                    (Math.min(result.y, actions.y) + Math.max(result.bottom, actions.bottom)) / 2 -
+                      bounds.y -
+                      bounds.height / 2,
+                  ) < 1,
+                beside: result.right <= actions.x && Math.abs(result.y - actions.y) < 1,
+                statusUnderline:
+                  getComputedStyle(file).backgroundImage.startsWith("radial-gradient(") &&
+                  getComputedStyle(status).clipPath !== "none",
+                peers:
+                  getComputedStyle(group).flexDirection === "column"
+                    ? change.bottom <= download.top &&
+                      Math.abs(change.x + change.width / 2 - download.x - download.width / 2) < 1
+                    : Math.abs(change.y + change.height / 2 - download.y - download.height / 2) < 1,
+                single: style.flexWrap === "nowrap",
+                padding: style.paddingInlineStart === style.paddingInlineEnd,
+                inset:
+                  Math.abs(result.y + result.height / 2 - actions.y - actions.height / 2) >= 1 ||
+                  Math.abs(filename.x - bounds.x - (bounds.right - edge)) < 2,
+                fits: target.scrollWidth <= target.clientWidth + 1,
+              }
+            })
+            const actions = element.querySelector(".load-actions").getBoundingClientRect()
+            const buttons = [...element.querySelectorAll(".load-actions button")].map((button) =>
+              button.getBoundingClientRect(),
+            )
+            const first = Math.min(...buttons.map((button) => button.y))
+            const last = Math.max(...buttons.map((button) => button.bottom))
+            return {
+              boxes,
+              fits: element.scrollWidth <= element.clientWidth + 1,
+              footer: Math.abs(first - actions.y - (outer.bottom - last)) < 2,
+              buttons: [...element.querySelectorAll(".bound .file-picker, .load-actions button")].map((button) => {
+                const box = button.getBoundingClientRect()
+                return [box.width, box.height]
+              }),
+            }
+          })
+          assert.ok(
+            layout.fits &&
+              layout.footer &&
+              layout.boxes.every(
+                (box) =>
+                  box.centered &&
+                  box.peers &&
+                  box.single &&
+                  box.padding &&
+                  box.fits &&
+                  box.statusUnderline &&
+                  (width === 1440 ? box.inset : box.beside),
+              ),
+            `${width}px, ${text}: ${JSON.stringify(layout)}`,
+          )
+          if (width === 1440 && text === "100%")
+            assert.ok(
+              layout.buttons.every(
+                ([buttonWidth, height]) =>
+                  Math.abs(buttonWidth - layout.buttons[0][0]) < 1 && Math.abs(height - layout.buttons[0][1]) < 1,
+              ),
+              "Change PDF and footer actions share dimensions",
+            )
+        }
+      }
+      await page.setViewportSize({ width: 1440, height: 1000 })
+      await page.evaluate(() => (document.documentElement.style.fontSize = "100%"))
+      for (const download of [
+        panel.getByRole("link", { name: "Download recipe JSON", exact: true }),
+        panel.getByRole("button", { name: "Download dolor.pdf", exact: true }),
+      ]) {
+        await download.hover()
+        const style = await download.evaluate((element) => {
+          const computed = getComputedStyle(element)
+          return { background: computed.backgroundColor, shadow: computed.boxShadow }
+        })
+        assert.equal(style.background, "rgba(0, 0, 0, 0)")
+        assert.equal(style.shadow, "none")
+      }
+      const savedPDF = page.waitForEvent("download")
+      await panel.getByRole("button", { name: "Download dolor.pdf", exact: true }).click()
+      const saved = await savedPDF
+      assert.equal(saved.suggestedFilename(), "dolor.pdf")
+      assert.deepEqual(
+        await readFile(await saved.path()),
+        await readFile(new URL("./fixtures/dolor.pdf", import.meta.url)),
+      )
+      await panel.getByRole("button", { name: "Apply recipe", exact: true }).click()
+      await panel.waitFor({ state: "hidden" })
+      assert.equal(await outputCount(page).textContent(), "3 pages")
+      assert.equal(await page.locator(".input-picker .count").textContent(), "3")
+      const output = page.locator(".composition-output")
+      await tab(output, "List")
+      assert.deepEqual(
+        (await output.locator(".list-number .page-origin > button").allTextContents()).map((text) => text.trim()),
+        ["1", "2", "3"],
+        "Output rows show one unambiguous position",
+      )
+      await output.getByRole("button", { name: "Details for Output page 2", exact: true }).click()
+      const provenance = page.locator(".card-menu-options:popover-open .page-details")
+      await provenance.getByRole("row", { name: "Input minim.pdf", exact: true }).waitFor()
+      assert.equal(await provenance.getByRole("row", { name: "Original page 1", exact: true }).count(), 1)
+      await page.keyboard.press("Escape")
+      const reference = JSON.parse(await readFile(new URL("./fixtures/recipe/nulla.json", import.meta.url), "utf8"))
+      assert.deepEqual(
+        (await page.locator(".input-choice-title").allTextContents()).toSorted(),
+        Object.values(reference.inputs)
+          .map((input) => input.title)
+          .toSorted(),
+        "selected PDFs retain the saved XMP titles",
+      )
+      await page.locator(".input-picker > summary h2").click()
+      const menu = await page.locator(".input-list").evaluate((element) => {
+        const choices = [...element.querySelectorAll(".input-choice")].map((button) => button.getBoundingClientRect())
+        const remove = element.querySelector(".input-list-actions > .danger").getBoundingClientRect()
+        return {
+          peers: choices.every(
+            (box) => Math.abs(box.width - choices[0].width) < 1 && Math.abs(box.height - choices[0].height) < 1,
+          ),
+          aligned: Math.abs(remove.right - choices[0].right) < 1,
+          compact: remove.width <= choices[0].width && remove.height <= choices[0].height,
+        }
+      })
+      assert.ok(menu.peers && menu.aligned && menu.compact, JSON.stringify(menu))
+      await page.keyboard.press("Escape")
+      await (await outputAction(page, "Export recipe")).click()
+      const exported = page.getByRole("dialog", { name: "Export recipe", exact: true })
+      await exported.locator(".recipe-title").first().waitFor()
+      assert.deepEqual(await exported.getByRole("columnheader").allTextContents(), ["Name", "Index", "Path", "Title"])
+      assert.deepEqual(
+        (await exported.locator(".recipe-title").allTextContents()).toSorted(),
+        Object.values(reference.inputs)
+          .map((input) => input.title)
+          .toSorted(),
+      )
+      await exported.getByRole("button", { name: "Close recipe", exact: true }).click()
+      await page.close()
+      const blank = await browser.newPage({ reducedMotion: "reduce" })
+      await setup(blank)
+      await blank.goto(server.resolvedUrls.local[0])
+      await blank.locator('.landing-recipe input[type="file"]').setInputFiles({
+        name: "blank.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(
+          JSON.stringify({
+            version: 1,
+            inputs: {},
+            sources: {},
+            parts: [{ pages: [{ blank: { width: 80, height: 100 } }], copies: 2 }],
+          }),
+        ),
+      })
+      const loading = blank.getByRole("region", { name: "Choose your source PDFs", exact: true })
+      await loading.getByText("This Recipe uses only blank pages and needs no PDFs.", { exact: true }).waitFor()
+      await loading.getByRole("button", { name: "Apply recipe", exact: true }).click()
+      await loading.waitFor({ state: "hidden" })
+      assert.equal(await outputCount(blank).textContent(), "2 pages")
+      assert.ok(await blank.locator(".composer").isVisible())
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test("Recipe batches match named PDFs first and discard abandoned reads", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const record = {
+    version: 1,
+    inputs: Object.fromEntries(
+      ["book", "guides", "crossings"].map((id) => [
+        id,
+        {
+          sha256: createHash("sha256")
+            .update(fixture({ prepared: false }))
+            .digest("hex"),
+        },
+      ]),
+    ),
+    sources: { book: { input: "book" }, guides: { input: "guides" }, crossings: { input: "crossings" } },
+    parts: [
+      {
+        pages: [
+          { source: "book", page: 0 },
+          { source: "guides", page: 0 },
+          { source: "crossings", page: 0 },
+        ],
+      },
+    ],
+  }
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ reducedMotion: "reduce" })
+    await setup(page)
+    await page.goto(server.resolvedUrls.local[0])
+    const picker = page.locator(".landing-recipe input")
+    const file = { name: "bindings.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(record)) }
+    await picker.setInputFiles(file)
+    const panel = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
+    const rows = panel.locator(".binding-row")
+    await rows.first().waitFor()
+    const bytes = fixture({ prepared: false })
+    const pdf = (name) => ({ name, mimeType: "application/pdf", buffer: bytes })
+    await panel.locator(".load-choices input").setInputFiles([pdf("unmatched.pdf"), pdf("book.pdf"), pdf("guides.PDF")])
+    await panel.getByRole("button", { name: "Apply recipe", exact: true }).waitFor()
+    await page.waitForFunction(() => document.querySelectorAll(".binding-target.bound").length === 3)
+    assert.deepEqual(
+      await rows.evaluateAll((elements) =>
+        Object.fromEntries(
+          elements.map((row) => [
+            row.querySelector("code").textContent,
+            row.querySelector(".binding-file").textContent,
+          ]),
+        ),
+      ),
+      { book: "book.pdf", guides: "guides.PDF", crossings: "unmatched.pdf" },
+    )
+    await rows
+      .first()
+      .locator("input")
+      .setInputFiles({ name: "broken.pdf", mimeType: "application/pdf", buffer: Buffer.from("bad") })
+    await rows.first().getByRole("button", { name: "Input result for book", exact: true }).click()
+    await page.locator(".header-feedback").getByRole("alert").waitFor()
+    assert.ok(await panel.getByRole("button", { name: "Apply recipe", exact: true }).isDisabled())
+    await page.keyboard.press("Escape")
+    assert.equal(
+      await rows.first().locator(".binding-file").textContent(),
+      "book.pdf",
+      "Failed replacements retain the previous PDF",
+    )
+    await panel.getByRole("button", { name: "Back", exact: true }).click()
+    await picker.setInputFiles(file)
+    await rows.first().waitFor()
+    await rows.first().locator("input").setInputFiles(pdf("book.pdf"))
+    await rows.first().locator(".binding-file").waitFor()
+    await page.evaluate(() => {
+      const read = File.prototype.arrayBuffer
+      window.readFiles = []
+      File.prototype.arrayBuffer = async function () {
+        window.readFiles.push(this.name)
+        if (this.name === "Held.pdf" || this.name === "delayed.json")
+          await new Promise((resolve) => (window.releaseRead = resolve))
+        return read.call(this)
+      }
+    })
+    await panel.locator(".load-choices input").setInputFiles([pdf("Held.pdf"), pdf("Unopened.pdf")])
+    await page.waitForFunction(() => !!window.releaseRead)
+    const feedback = page.locator(".header-feedback")
+    await feedback.getByRole("status", { name: "Reading PDF", exact: true }).waitFor()
+    assert.equal(await feedback.locator(".spinner").isVisible(), true)
+    await feedback.getByRole("button", { name: "Cancel PDF reading", exact: true }).click()
+    await page.evaluate(() => window.releaseRead())
+    await page.evaluate(() => new Promise(requestAnimationFrame))
+    assert.deepEqual(await page.evaluate(() => window.readFiles), ["Held.pdf"])
+    assert.equal(await panel.locator(".bound").count(), 1)
+    assert.equal(await rows.first().locator(".binding-file").textContent(), "book.pdf")
+    await panel.getByRole("button", { name: "Back", exact: true }).click()
+    await page.evaluate(() => (window.releaseRead = undefined))
+    await picker.setInputFiles({ ...file, name: "delayed.json" })
+    await page.waitForFunction(() => !!window.releaseRead)
+    await feedback.getByRole("status", { name: "Reading recipe", exact: true }).waitFor()
+    assert.equal(await feedback.locator(".spinner").isVisible(), true)
+    await feedback.getByRole("button", { name: "Cancel recipe reading", exact: true }).click()
+    await picker.setInputFiles({
+      ...file,
+      buffer: Buffer.from(
+        JSON.stringify({
+          version: 1,
+          inputs: {},
+          sources: {},
+          parts: [{ pages: [{ blank: { width: 80, height: 100 } }] }],
+        }),
+      ),
+    })
+    await panel.getByText("This Recipe uses only blank pages and needs no PDFs.", { exact: true }).waitFor()
+    await page.evaluate(() => window.releaseRead())
+    await page.evaluate(() => new Promise(requestAnimationFrame))
+    await panel.getByRole("button", { name: "Apply recipe", exact: true }).click()
+    await panel.waitFor({ state: "hidden" })
+    assert.equal(await outputCount(page).textContent(), "1 page")
+    await page.close()
+    const interrupted = await browser.newPage({ reducedMotion: "reduce" })
+    let releaseDemo
+    const waiting = new Promise((resolve) => (releaseDemo = resolve))
+    await interrupted.route("**/nulla.json", async (route) => {
+      await waiting
+      await route.continue()
+    })
+    await interrupted.goto(`${server.resolvedUrls.local[0]}?demo=recipe`, { waitUntil: "domcontentloaded" })
+    await interrupted.locator(".landing-recipe input").setInputFiles({
+      ...file,
+      buffer: Buffer.from(
+        JSON.stringify({
+          version: 1,
+          inputs: {},
+          sources: {},
+          parts: [{ pages: [{ blank: { width: 80, height: 100 } }] }],
+        }),
+      ),
+    })
+    const local = interrupted.getByText("This Recipe uses only blank pages and needs no PDFs.", { exact: true })
+    await local.waitFor()
+    const resumed = interrupted.waitForResponse((response) => response.url().endsWith("/nulla.json"))
+    releaseDemo()
+    await resumed
+    await interrupted.evaluate(() => new Promise(requestAnimationFrame))
+    assert.ok(await local.isVisible(), "A delayed demo cannot replace a user-selected Recipe")
+  } finally {
+    await browser.close()
+  }
+})
+
+test("Opaque Input names load and export without optional cover previews", { timeout: 30000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ reducedMotion: "reduce" })
+    page.setDefaultTimeout(5000)
+    await setup(page)
+    await page.goto(server.resolvedUrls.local[0])
+    const names = ["__proto__", "constructor"]
+    const record = {
+      version: 1,
+      inputs: Object.fromEntries(
+        names.map((name) => [
+          name,
+          {
+            title: "   ",
+            sha256: createHash("sha256")
+              .update(fixture({ prepared: false }))
+              .digest("hex"),
+          },
+        ]),
+      ),
+      sources: Object.fromEntries(names.map((name) => [name, { input: name }])),
+      parts: [{ pages: names.map((source) => ({ source, page: 0 })) }],
+    }
+    await page
+      .locator(".landing-recipe input")
+      .setInputFiles({ name: "opaque.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(record)) })
+    const panel = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
+    await panel.locator(".binding-row").first().waitFor()
+    assert.deepEqual(await panel.locator(".binding-row h2").allTextContents(), names)
+    assert.equal(await panel.locator(".binding-target.bound").count(), 0)
+    assert.equal(await panel.getByRole("button", { name: /^Input result for / }).count(), 0)
+    await panel.locator(".load-choices input").setInputFiles(
+      names.map((name) => ({
+        name: `${name}.pdf`,
+        mimeType: "application/pdf",
+        buffer: fixture({ prepared: false }),
+      })),
+    )
+    await page.waitForFunction(() => document.querySelectorAll(".binding-target.bound").length === 2)
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".binding-row")].every((row) => row.dataset.state === "ready"),
+    )
+    await panel.getByRole("button", { name: "Apply recipe", exact: true }).click()
+    await panel.waitFor({ state: "hidden" })
+    assert.equal(await outputCount(page).textContent(), "2 pages")
+    await page.evaluate(() => {
+      HTMLCanvasElement.prototype.toDataURL = () => {
+        throw new Error("Cover encoding unavailable")
+      }
+    })
+    await (await outputAction(page, "Export recipe")).click()
+    const exported = page.getByRole("dialog", { name: "Export recipe", exact: true })
+    await exported.locator(".recipe-title").first().waitFor()
+    const pending = page.waitForEvent("download")
+    await exported.getByRole("button", { name: "Export", exact: true }).click()
+    const saved = JSON.parse(await readFile(await (await pending).path(), "utf8"))
+    assert.deepEqual(Object.keys(saved.inputs).toSorted(), names)
+    assert.ok(
+      Object.values(saved.inputs).every((input) => input.sha256 && input.title && !Object.hasOwn(input, "cover")),
+    )
+  } finally {
+    await browser.close()
+  }
+})
+
+test(
+  "Output file details become XMP identity when the downloaded PDF opens as a later Input",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await launch(chromium)
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+      await setup(page)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
+      await page.getByText("Demo workspace ready.", { exact: true }).waitFor()
+      await page.locator(".input-picker > summary").click()
+      await page.locator(".composer").getByRole("button", { name: "Details for Input 1", exact: true }).click()
+      assert.ok(await page.getByRole("region", { name: "Italic Strokes", exact: true }).isVisible())
+      assert.deepEqual(await page.locator(".guidance:popover-open th").allTextContents(), [
+        "Filename",
+        "Title",
+        "Producer",
+      ])
+      await page.getByRole("button", { name: "Close details", exact: true }).click()
+      await page.locator(".input-picker > summary").click()
+      await (await outputAction(page, "Set Output filename")).click()
+      const editor = page.locator(".filename-panel")
+      await editor.getByRole("textbox", { name: "Filename", exact: true }).fill("collected.pdf")
+      const title = editor.getByRole("textbox", { name: "Title", exact: true })
+      await title.fill("Bad\u0001title")
+      assert.equal(await editor.getByRole("button", { name: "Save", exact: true }).isDisabled(), true)
+      await title.fill("Collected strokes & guides")
+      const cover = editor.getByRole("spinbutton", { name: "Cover page", exact: true })
+      await cover.fill("2")
+      await cover.press("Tab")
+      await editor.locator('img[alt="Cover · page 2"]').waitFor()
+      await editor.getByRole("button", { name: "Save", exact: true }).click()
+      const pending = page.waitForEvent("download")
+      await page.getByRole("button", { name: "Download", exact: true }).click()
+      const saved = await pending
+      assert.equal(saved.suggestedFilename(), "collected.pdf")
+      const bytes = await readFile(await saved.path())
+      await page
+        .locator(".composer")
+        .locator('input[type=file][aria-label="Open PDF"]')
+        .setInputFiles({ name: "collected.pdf", mimeType: "application/pdf", buffer: bytes })
+      await page.locator(".status-input").filter({ hasText: "collected.pdf" }).waitFor({ state: "attached" })
+      await page.locator(".input-picker > summary").click()
+      await page.locator(".composer").getByRole("button", { name: "Details for Input 2", exact: true }).click()
+      const details = page.getByRole("region", { name: "Collected strokes & guides", exact: true })
+      assert.match(await details.innerText(), /Cover page\s+2/)
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+function contents(path) {
+  const objects = JSON.parse(execFileSync("qpdf", ["--json", "--json-stream-data=inline", path])).qpdf[1]
+  delete objects.trailer.value["/ID"]
+  for (const object of Object.values(objects)) {
+    if (!object.stream) continue
+    for (const key of ["/Length", "/Filter", "/DecodeParms"]) delete object.stream.dict[key]
+  }
+  return objects
+}
+
+function raster(path, number) {
+  return execFileSync("pdftoppm", ["-r", "150", "-f", String(number), "-l", String(number), "-singlefile", path], {
+    maxBuffer: 12 * 1024 * 1024,
+  })
+}
+
+test(
+  "Recipe export keeps its toolbar and panel aligned across narrow layouts and enlarged text",
+  { timeout: 90000 },
+  async () => {
+    const server = await serve()
+    const screenshots = resolvePath("../.local/tmp/web/recipe-review")
+    await mkdir(screenshots, { recursive: true })
+    for (const engine of engines) {
+      const browser = await launch(engine)
+      try {
+        for (const [width, height, text] of [
+          [1440, 1000, 1],
+          [810, 1080, 1],
+          [375, 812, 1],
+          [320, 812, 2],
+          [810, 1080, 2],
+        ]) {
+          const page = await browser.newPage({
+            viewport: { width, height },
+            hasTouch: width < 1000,
+            reducedMotion: "reduce",
+          })
+          await setup(page)
+          await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
+          await page.locator(".composer[aria-busy=false]").waitFor()
+          if (text === 2) await page.addStyleTag({ content: "html { font-size: 200%; }" })
+          const switcher = page.getByRole("button", { name: "Output", exact: true })
+          await selectPane(switcher)
+          const label = `${engine.name()}-${width}-${text}`
+          for (const colorScheme of ["light", "dark"]) {
+            await page.emulateMedia({ colorScheme })
+            const action = await outputAction(page, "Export recipe")
+            const bounds = await action.evaluate((button) => {
+              const box = button.getBoundingClientRect(),
+                icon = button.querySelector("svg").getBoundingClientRect()
+              const menu = button.closest(".document-actions")
+              const toolbar = (menu ?? button.closest(".section-heading")).getBoundingClientRect()
+              const peers = [...button.parentElement.querySelectorAll(".print-action svg, .view-action svg")].map(
+                (svg) => svg.getBoundingClientRect(),
+              )
+              return {
+                width: box.width,
+                height: box.height,
+                center: [
+                  menu ? icon.x - box.x - 8 : icon.x + icon.width / 2 - box.x - box.width / 2,
+                  icon.y + icon.height / 2 - box.y - box.height / 2,
+                ],
+                row: icon.y >= toolbar.y && icon.bottom <= toolbar.bottom,
+                peers: peers.every(
+                  (peer) =>
+                    Math.abs(peer.width - icon.width) < 1 &&
+                    Math.abs(peer.height - icon.height) < 1 &&
+                    (menu || icon.right < peer.left),
+                ),
+                overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+              }
+            })
+            assert.ok(bounds.width >= 44 && bounds.height >= 44, label)
+            assert.ok(
+              bounds.center.every((axis) => Math.abs(axis) < 1),
+              label,
+            )
+            assert.ok(bounds.row && bounds.peers && bounds.overflow <= 1, `${label}: ${JSON.stringify(bounds)}`)
+            await action.click()
+            const panel = page.getByRole("dialog", { name: "Export recipe", exact: true })
+            await panel.locator("th").nth(1).waitFor()
+            const layout = await panel.evaluate((element) => {
+              const index = element.querySelectorAll("th")[1]
+              const indexText = document.createRange()
+              indexText.selectNodeContents(index)
+              const singleLine =
+                indexText.getBoundingClientRect().height < parseFloat(getComputedStyle(index).lineHeight) * 1.5
+              const box = element.getBoundingClientRect()
+              const buttons = [...element.querySelectorAll(".recipe-actions button")].map((button) =>
+                button.getBoundingClientRect(),
+              )
+              const title = element.querySelector("h2").getBoundingClientRect()
+              const close = element.querySelector(".dialog-heading button svg").getBoundingClientRect()
+              return {
+                singleLine,
+                fits:
+                  box.x >= 0 &&
+                  box.right <= innerWidth + 1 &&
+                  box.y >= 0 &&
+                  box.bottom <= innerHeight + 1 &&
+                  element.scrollWidth <= element.clientWidth + 1,
+                peers:
+                  Math.abs(buttons[0].width - buttons[1].width) < 1 &&
+                  Math.abs(buttons[0].height - buttons[1].height) < 1,
+                gap:
+                  Math.abs(buttons[1].top - buttons[0].top) < 1
+                    ? buttons[1].left - buttons[0].right
+                    : buttons[1].top - buttons[0].bottom,
+                headingCentered: Math.abs(title.y + title.height / 2 - close.y - close.height / 2) < 1,
+              }
+            })
+            assert.ok(
+              layout.fits && layout.peers && layout.headingCentered && layout.gap >= 8 && layout.singleLine,
+              `${label}: ${JSON.stringify(layout)}`,
+            )
+            if (width === 320 && text === 2) {
+              await panel.locator(".recipe-table").focus()
+              await page.keyboard.press("ArrowRight")
+              await page.waitForFunction(() => document.querySelector(".recipe-table").scrollLeft > 0)
+            }
+            await page.screenshot({ path: join(screenshots, `${label}-${colorScheme}.png`), fullPage: true })
+            await page.keyboard.press("Escape")
+            const menu = paneButton(page, "Output")
+            const launcher = (await menu.isVisible()) ? menu : action
+            assert.equal(await launcher.evaluate((element) => element === document.activeElement), true, label)
+          }
+          await page.close()
+        }
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
+
+test(
+  "Recipe export preserves profile edits and duplicate file bindings through WASM replay",
+  { timeout: 60000 },
+  async (context) => {
+    const server = await serve()
+    const browser = await launch(chromium, { channel: "chromium" })
+    const directory = await mkdtemp(resolvePath("../.local/tmp/web/recipe-"))
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+      await setup(page)
+      await page.goto(server.resolvedUrls.local[0])
+      const first = fixture({
+        grouped: true,
+        profileCount: 2,
+        family: "fixture",
+        count: 3,
+        metadata: [{ name: "01-Fine" }, { name: "Guides" }, { name: "Guides" }],
+      })
+      const second = fixture({
+        grouped: true,
+        profileCount: 2,
+        family: "fixture",
+        count: 2,
+        metadata: [{ name: "01-Fine" }],
+      })
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({ name: "same.pdf", mimeType: "application/pdf", buffer: first })
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output")
+      await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("1,2")
+      await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+      await tab(input, "Style")
+      await input.getByRole("combobox", { name: "Style profile", exact: true }).selectOption("inkjet")
+      await input.getByRole("button", { name: "Edit Width", exact: true }).click()
+      await input.getByRole("spinbutton", { name: "Guide Width (mm)", exact: true }).fill("0.06")
+      await page
+        .locator(".composer")
+        .getByRole("button", { name: "Export recipe", exact: true })
+        .waitFor({ state: "visible" })
+      await page
+        .locator(".composer")
+        .locator('input[type=file][aria-label="Open PDF"]')
+        .setInputFiles({ name: "same.pdf", mimeType: "application/pdf", buffer: second })
+      await page.locator(".input-picker .count").filter({ hasText: /^2$/ }).waitFor()
+      await tab(input, "List")
+      await input.getByRole("button", { name: "Add Input page 1 to Output", exact: true }).press("Enter")
+      await output.getByLabel("Output page actions", { exact: true }).click()
+      await output.getByRole("button", { name: "Blank after last", exact: true }).click()
+      const exportAction = page.locator(".composer").getByRole("button", { name: "Export recipe", exact: true })
+      await exportAction.click()
+      const panel = page.getByRole("dialog", { name: "Export recipe", exact: true })
+      await panel.getByRole("table", { name: "Recipe Inputs", exact: true }).waitFor()
+      assert.equal(await panel.getByRole("button", { name: "Export", exact: true }).isDisabled(), true)
+      assert.deepEqual(await panel.getByRole("columnheader").allTextContents(), ["Name", "Index", "Path", "Title"])
+      for (const [index, id] of [
+        [1, "book"],
+        [2, "other"],
+      ]) {
+        await panel.getByRole("button", { name: `Edit Name ${index}`, exact: true }).click()
+        const field = panel.getByRole("textbox", { name: `Name ${index}`, exact: true })
+        const border = await field.evaluate((element) => {
+          const style = getComputedStyle(element)
+          return [style.borderBlockEndWidth, style.borderInlineEndWidth, style.boxShadow]
+        })
+        assert.deepEqual(border, ["0px", "0px", "none"])
+        await field.fill(`${id}.pdf`)
+        await field.press("Enter")
+        assert.equal(await panel.getByRole("button", { name: `Edit Name ${index}`, exact: true }).innerText(), id)
+      }
+      assert.deepEqual(await panel.locator(".recipe-path").allTextContents(), ["book.pdf", "other.pdf"])
+      assert.equal(await panel.locator(".recipe-path input").count(), 0)
+      await panel.getByRole("button", { name: "Edit Name 1", exact: true }).click()
+      const reverted = panel.getByRole("textbox", { name: "Name 1", exact: true })
+      await reverted.fill("temporary")
+      await reverted.press("Escape")
+      assert.equal(await panel.getByRole("button", { name: "Edit Name 1", exact: true }).innerText(), "book")
+      const pending = page.waitForEvent("download")
+      await panel.getByRole("button", { name: "Export", exact: true }).click()
+      const saved = await pending
+      assert.match(saved.suggestedFilename(), /^same_.*\.json$/)
+      const recordPath = join(directory, "recipe.json")
+      await saved.saveAs(recordPath)
+      const recipe = await readFile(recordPath, "utf8")
+      const record = JSON.parse(recipe)
+      assert.equal(record.version, 1)
+      assert.deepEqual(Object.keys(record.inputs), ["book", "other"])
+      assert.deepEqual(
+        Object.values(record.sources).map((source) => source.input),
+        ["book", "other"],
+      )
+      assert.deepEqual(
+        record.parts.flatMap((part) =>
+          part.pages.flatMap((entry) => ("source" in entry ? [[record.sources[entry.source].input, entry.page]] : [])),
+        ),
+        [
+          ["book", "01-Fine"],
+          ["book", 1],
+          ["other", "01-Fine"],
+        ],
+      )
+      assert.deepEqual(
+        Object.values(record.inputs).map((value) => value.sha256),
+        [createHash("sha256").update(first).digest("hex"), createHash("sha256").update(second).digest("hex")],
+      )
+      assert.deepEqual(
+        Object.values(record.sources).map((source) => source.profiles),
+        [[{ family: "fixture", name: "Inkjet" }], []],
+      )
+      assert.deepEqual(Object.values(record.sources)[0].overrides, [
+        { family: "fixture", key: "guides-stroke-width", value: 0.06 },
+      ])
+      await exportAction.click()
+      assert.equal(await panel.getByRole("button", { name: "Edit Name 1", exact: true }).innerText(), "book")
+      await panel.getByRole("button", { name: "Cancel", exact: true }).click()
+      const confirmation = page.waitForEvent("dialog").then(async (dialog) => {
+        assert.match(dialog.message(), /have not been downloaded/, "Recipe export retains the PDF unsaved warning")
+        await dialog.dismiss()
+      })
+      await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
+      await confirmation
+      const pdfPending = page.waitForEvent("download")
+      await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
+      const pdf = await pdfPending
+      const expected = await readFile(await pdf.path())
+      const bindings = [
+        { id: "book", bytes: [...first] },
+        { id: "other", bytes: [...second] },
+      ]
+      const resolved = await page.evaluate(
+        async ({ savedRecipe, sourceFiles }) => {
+          const { Processor } = await import("/src/processor.ts")
+          const { openPDF } = await import("/src/pdf.ts")
+          const processor = new Processor()
+          try {
+            const inputs = sourceFiles.map(({ id, bytes }) => ({ id, bytes: new Uint8Array(bytes) }))
+            const { plan, checks } = await processor.resolve(savedRecipe, inputs, 1)
+            const result = await processor.compose(plan, inputs, 2)
+            const task = await openPDF(new Uint8Array(result.bytes))
+            try {
+              const document = await task.promise
+              return { checks, count: document.numPages, bytes: [...new Uint8Array(result.bytes)] }
+            } finally {
+              await task.destroy()
+            }
+          } finally {
+            processor.dispose()
+          }
+        },
+        { savedRecipe: recipe, sourceFiles: bindings },
+      )
+      assert.equal(resolved.checks.state, "ready")
+      assert.equal(resolved.count, 4)
+      assert.deepEqual(Buffer.from(resolved.bytes), expected)
+      if (process.env.MAINZ_CLI) {
+        await context.test("Native mainz apply reproduces the browser export", async () => {
+          const result = join(directory, "native.pdf")
+          const browserPDF = join(directory, "browser.pdf")
+          const inputFile = join(directory, "bindings.json")
+          const paths = {}
+          for (const { id, bytes } of bindings) {
+            paths[id] = join(directory, id + ".pdf")
+            await writeFile(paths[id], Uint8Array.from(bytes))
+          }
+          await writeFile(inputFile, JSON.stringify(paths))
+          await writeFile(browserPDF, expected)
+          execFileSync(process.env.MAINZ_CLI, ["apply", recordPath, "--inputs", inputFile, "--output", result])
+          assert.deepEqual(contents(result), contents(browserPDF))
+          for (let number = 1; number <= 4; number++)
+            assert.ok(
+              raster(result, number).equals(raster(browserPDF, number)),
+              `Native and browser page ${number} match`,
+            )
+        })
+      }
+      await page.addInitScript(() => {
+        let rejectFirstApply = true
+        const Original = Worker
+        window.Worker = class extends Original {
+          constructor(...args) {
+            super(...args)
+            this.addEventListener("message", ({ data }) => {
+              const resolution = data?.resolution
+              if (rejectFirstApply && resolution) {
+                rejectFirstApply = false
+                resolution.plan.parts[0].pages[0].page = -1
+              }
+            })
+          }
+        }
+      })
+      await page.goto(server.resolvedUrls.local[0])
+      await page.locator('.landing-recipe input[type="file"]').setInputFiles(recordPath)
+      const loading = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
+      const rows = loading.locator(".binding-row")
+      await rows.first().waitFor()
+      assert.equal(await rows.count(), 2)
+      assert.equal(await rows.locator(".binding-cover img").count(), 2)
+      for (const [index, name, buffer] of [
+        [0, "book.pdf", first],
+        [1, "other.pdf", second],
+      ]) {
+        await rows.nth(index).locator('input[type="file"]').setInputFiles({ name, mimeType: "application/pdf", buffer })
+        await rows.nth(index).getByText("Ready", { exact: true }).waitFor()
+      }
+      const apply = loading.getByRole("button", { name: "Apply recipe", exact: true })
+      await apply.click()
+      const alert = page.locator(".header-feedback").getByRole("alert")
+      await alert.filter({ hasText: "Could not load recipe" }).waitFor()
+      assert.equal(await page.locator(".composer").count(), 0)
+      assert.equal(await rows.getByText("Ready", { exact: true }).count(), 2)
+      await apply.click()
+      await loading.waitFor({ state: "hidden" })
+      assert.equal(await outputCount(page).textContent(), "4 pages")
+      await exportAction.click()
+      await panel.getByRole("button", { name: "Export", exact: true }).waitFor({ state: "visible" })
+      const replayPending = page.waitForEvent("download")
+      await panel.getByRole("button", { name: "Export", exact: true }).click()
+      const replay = JSON.parse(await readFile(await (await replayPending).path(), "utf8"))
+      const styled = Object.values(replay.sources).find((source) => source.profiles.length)
+      assert.deepEqual(styled.profiles, [{ family: "fixture", name: "Inkjet" }])
+      assert.deepEqual(styled.overrides, [{ family: "fixture", key: "guides-stroke-width", value: 0.06 }])
+      assert.deepEqual(replay.metadata, record.metadata)
+    } finally {
+      await browser.close()
+      await rm(directory, { recursive: true, force: true })
+    }
+  },
+)
+
+test(
+  "Recipe export fits the byte limit and reopens with thousands of repeated page names",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await launch(chromium)
+    const name = "é".repeat(2048)
+    const pdf = {
+      name: "book.pdf",
+      mimeType: "application/pdf",
+      buffer: fixture({ count: 2, metadata: [{ name }, { name: "End" }] }),
+    }
+    try {
+      for (const [repeats, selector] of [
+        [3980, name],
+        [4000, 0],
+      ]) {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+        await setup(page)
+        async function openRecipe(buffer) {
+          await page.goto(server.resolvedUrls.local[0])
+          await page.locator('.landing-recipe input[type="file"]').setInputFiles({
+            name: "book.json",
+            mimeType: "application/json",
+            buffer,
+          })
+          const loading = page.getByRole("region", { name: "Choose your source PDFs", exact: true })
+          await loading.locator('.binding-row input[type="file"]').setInputFiles(pdf)
+          await loading.getByRole("button", { name: "Apply recipe", exact: true }).click()
+          await loading.waitFor({ state: "hidden" })
+          assert.equal(await outputCount(page).textContent(), `${repeats + 1} pages`)
+        }
+        try {
+          await openRecipe(
+            Buffer.from(
+              JSON.stringify({
+                version: 1,
+                inputs: { book: { sha256: createHash("sha256").update(pdf.buffer).digest("hex") } },
+                sources: { source: { input: "book" } },
+                parts: [
+                  {
+                    pages: [
+                      ...Array.from({ length: repeats }, () => ({ source: "source", page: 0 })),
+                      { source: "source", page: 1 },
+                    ],
+                  },
+                ],
+              }),
+            ),
+          )
+          await page.locator(".composer").getByRole("button", { name: "Export recipe", exact: true }).click()
+          const panel = page.getByRole("dialog", { name: "Export recipe", exact: true })
+          const pending = page.waitForEvent("download")
+          await panel.getByRole("button", { name: "Export", exact: true }).click()
+          const path = await (await pending).path()
+          const bytes = await readFile(path)
+          assert.ok(bytes.length <= 16 * 1024 * 1024)
+          const record = JSON.parse(bytes)
+          const pages = record.parts.flatMap((part) => part.pages)
+          assert.equal(pages.length, repeats + 1)
+          assert.ok(pages.slice(0, -1).every((page) => page.page === selector))
+          assert.equal(pages.at(-1).page, "End")
+
+          await openRecipe(bytes)
+        } finally {
+          await page.close()
+        }
+      }
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test(
+  "View prepares before opening the Output PDF and retains cancellation and popup recovery",
+  { timeout: 90000 },
+  async () => {
+    const server = await serve()
+    const browser = await launch(chromium, { channel: "chromium" })
+    try {
+      const page = await browser.newPage({ reducedMotion: "reduce" })
+      await setup(page)
+      await page.addInitScript(() => {
+        const Original = Worker
+        window.Worker = class extends Original {
+          postMessage(message, ...rest) {
+            if (window.holdExport && message.plan) {
+              window.resumeExport = () => super.postMessage(message, ...rest)
+              return
+            }
+            super.postMessage(message, ...rest)
+          }
+        }
+      })
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const output = page.locator(".composition-output")
+      await page.evaluate(() => (window.holdExport = true))
+      const before = await output.boundingBox()
+      await (await outputAction(page, "View PDF")).click()
+      const progress = page.locator('.header-feedback .feedback[data-kind="progress"]')
+      await progress.getByRole("button", { name: "Cancel", exact: true }).waitFor()
+      assert.equal(page.context().pages().length, 1, "No blank preparation tab")
+      assert.deepEqual(await output.boundingBox(), before)
+      const pending = page.waitForEvent("popup")
+      await page.evaluate(() => window.resumeExport())
+      await progress.waitFor({ state: "hidden" })
+      const viewer = await pending
+      await viewer.waitForLoadState()
+      assert.ok(viewer.url().startsWith("blob:"))
+      const bytes = await page.evaluate(
+        async (url) => [...new Uint8Array(await (await fetch(url)).arrayBuffer())],
+        viewer.url(),
+      )
+      assert.equal(Buffer.from(bytes).subarray(0, 5).toString(), "%PDF-")
+      const description = await page.evaluate(async (buffer) => {
+        const { Processor } = await import("/src/processor.ts")
+        const processor = new Processor()
+        try {
+          return (await processor.run(new Uint8Array(buffer), 1)).description
+        } finally {
+          processor.dispose()
+        }
+      }, bytes)
+      assert.equal(description.pageCount, 8)
+      await viewer.close()
+      await page.evaluate(() => {
+        window.holdExport = true
+        window.resumeExport = undefined
+      })
+      await (await outputAction(page, "View PDF")).click()
+      await progress.getByRole("button", { name: "Cancel", exact: true }).click()
+      assert.equal(page.context().pages().length, 1)
+      assert.match(await page.locator(".footnote").innerText(), /View cancelled/)
+      // Reject the browser popup only, then retry the already completed PDF with a fresh user gesture.
+      await page.evaluate(() => {
+        window.holdExport = false
+        window.originalOpen = window.open
+        window.open = () => null
+      })
+      await (await outputAction(page, "View PDF")).click()
+      const failure = page.getByRole("dialog", { name: "View", exact: true })
+      await failure.waitFor()
+      await failure.getByRole("button", { name: "Retry", exact: true }).waitFor()
+      assert.match(await failure.innerText(), /Allow popups/)
+      await page.evaluate(() => (window.open = window.originalOpen))
+      const retry = page.waitForEvent("popup")
+      await failure.getByRole("button", { name: "Retry", exact: true }).click()
+      await (await retry).close()
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test("iPad Chrome View opens without another confirmation or download", { timeout: 30000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium, { channel: "chromium" })
+  try {
+    const page = await browser.newPage({
+      viewport: { width: 810, height: 1080 },
+      hasTouch: true,
+      reducedMotion: "reduce",
+      userAgent:
+        "Mozilla/5.0 (iPad; CPU OS 26_6_2 like Mac OS X) AppleWebKit/605.1.15 CriOS/158.0.8127.2 Mobile Safari/604.1",
+    })
+    await setup(page)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
+    await page.locator(".composer[aria-busy=false]").waitFor()
+    await page.getByRole("button", { name: "Output", exact: true }).tap()
+    const downloads = []
+    page.on("download", (download) => downloads.push(download))
+    const pending = page.waitForEvent("popup")
+    await (await outputAction(page, "View PDF")).tap()
+    const viewer = await pending
+    await viewer.waitForLoadState()
+    assert.ok(viewer.url().startsWith("blob:"))
+    assert.equal(await page.getByRole("dialog", { name: "View", exact: true }).isVisible(), false)
+    assert.equal(downloads.length, 0)
+    await viewer.close()
+  } finally {
+    await browser.close()
+  }
+})
+
+test(
+  "Installed View and separate Print recover a completed PDF when the reserved viewer closes",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    const browser = await launch(chromium, { channel: "chromium" })
+    try {
+      const page = await browser.newPage({ reducedMotion: "reduce" })
+      await setup(page)
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, "standalone", { get: () => true })
+        Object.defineProperty(navigator, "vendor", { value: "Apple Computer, Inc." })
+        const Original = Worker
+        window.Worker = class extends Original {
+          postMessage(message, ...rest) {
+            if (window.holdExport && message.plan) {
+              window.resumeExport = () => super.postMessage(message, ...rest)
+            } else super.postMessage(message, ...rest)
+          }
+        }
+      })
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const pending = page.waitForEvent("popup")
+      await (await outputAction(page, "View PDF")).click()
+      const viewer = await pending
+      await viewer.waitForURL(/^blob:/)
+      assert.ok(viewer.url().startsWith("blob:"))
+      assert.equal(await page.getByRole("dialog", { name: "View", exact: true }).isVisible(), false)
+      assert.equal(await page.locator(".composition-output .composition-totals").innerText(), "8 pages, 4 sheets")
+      await viewer.close()
+      await page.evaluate(() => (window.holdExport = true))
+      const cancelled = page.waitForEvent("popup")
+      await (await outputAction(page, "View PDF")).click()
+      const waiting = await cancelled
+      assert.equal(waiting.url(), "about:blank")
+      const closed = waiting.waitForEvent("close")
+      await page.locator(".header-feedback").getByRole("button", { name: "Cancel", exact: true }).click()
+      await closed
+      assert.match(await page.locator(".footnote").innerText(), /View cancelled/)
+      for (const action of ["View", "Print"]) {
+        await page.evaluate(() => (window.resumeExport = undefined))
+        const reserved = page.waitForEvent("popup")
+        await (await outputAction(page, `${action} PDF`)).click()
+        const popup = await reserved
+        assert.equal(popup.url(), "about:blank")
+        await popup.close()
+        await page.waitForFunction(() => !!window.resumeExport)
+        await page.evaluate(() => {
+          window.resumeExport()
+          window.resumeExport = undefined
+        })
+        const recovery = page.getByRole("dialog", { name: action, exact: true })
+        if (action === "View") {
+          const retry = page.waitForEvent("popup")
+          await recovery.getByRole("link", { name: "Retry", exact: true }).click()
+          const ready = await retry
+          await ready.waitForURL(/^blob:/)
+          await ready.close()
+        } else {
+          await recovery.getByRole("link", { name: "Open PDF to print", exact: true }).waitFor()
+          const download = page.waitForEvent("download")
+          await recovery.getByRole("link", { name: "Download PDF", exact: true }).click()
+          assert.match((await readFile(await (await download).path())).subarray(0, 8).toString(), /^%PDF-/)
+        }
+        assert.equal(await outputCount(page).textContent(), "8 pages")
+      }
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test("Mobile Share preserves named PDFs and desktop Download", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium, { channel: "chromium" })
+  try {
+    for (const entry of [
+      {
+        agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Safari/605.1.15",
+        platform: "MacIntel",
+        touch: true,
+        api: true,
+        label: "Share",
+      },
+      {
+        agent: "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/158.0.0.0 Mobile Safari/537.36",
+        platform: "Linux armv8l",
+        touch: true,
+        api: true,
+        label: "Share",
+      },
+      { platform: "Linux x86_64", touch: false, api: true, label: "Download" },
+      {
+        agent: "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/158.0.0.0 Mobile Safari/537.36",
+        platform: "Linux armv8l",
+        touch: true,
+        api: false,
+        label: "Download",
+      },
+    ]) {
+      const page = await browser.newPage({ reducedMotion: "reduce", userAgent: entry.agent, hasTouch: entry.touch })
+      await setup(page)
+      await page.addInitScript(({ platform, api }) => {
+        Object.defineProperty(navigator, "platform", { value: platform })
+        Object.defineProperty(navigator, "canShare", { value: api ? () => true : undefined })
+        Object.defineProperty(navigator, "share", {
+          value: api
+            ? async ({ files: [file] }) => {
+                window.shared = {
+                  name: file.name,
+                  type: file.type,
+                  magic: new TextDecoder().decode((await file.arrayBuffer()).slice(0, 5)),
+                }
+              }
+            : undefined,
+        })
+      }, entry)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const button = page.locator(".composer").getByRole("button", { name: entry.label, exact: true })
+      const heading = page.locator(
+        ".composer[data-compact] > .workspace-bar, .composer:not([data-compact]) .composition-output > .section-heading",
+      )
+      for (const [width, size, theme] of entry.touch
+        ? [
+            [320, 200, "light"],
+            [390, 100, "dark"],
+            [768, 100, "light"],
+            [810, 100, "light"],
+            [1440, 100, "light"],
+          ]
+        : [[1440, 100, "light"]]) {
+        await page.setViewportSize({ width, height: 1080 })
+        await page.evaluate((value) => (document.documentElement.style.fontSize = `${value}%`), size)
+        await page.emulateMedia({ colorScheme: theme })
+        const switcher = page.getByRole("button", { name: "Output", exact: true })
+        await selectPane(switcher)
+        const box = await button.boundingBox()
+        assert.ok(box.width >= 44 && box.height >= 44 && box.x >= 0 && box.x + box.width <= width)
+        const frame = await heading.boundingBox()
+        assert.ok(box.x + box.width <= frame.x + frame.width + 1, JSON.stringify({ entry, width, size, box, frame }))
+        if (entry.label === "Share") {
+          const center = await button.locator("path").evaluate((path) => {
+            const bounds = path.getBBox()
+            const point = new DOMPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2).matrixTransform(
+              path.getScreenCTM(),
+            )
+            return { x: point.x, y: point.y }
+          })
+          assert.ok(Math.abs(center.y - box.y - box.height / 2) < 1)
+          if (await button.locator("span").isVisible()) {
+            const glyph = await button.locator("svg").boundingBox()
+            const label = await button.locator("span").boundingBox()
+            assert.ok(Math.abs((glyph.x + label.x + label.width) / 2 - box.x - box.width / 2) < 1)
+          } else assert.ok(Math.abs(center.x - box.x - box.width / 2) < 1)
+          assert.equal(
+            (await button.locator("svg").boundingBox()).width,
+            await page
+              .locator(".composer")
+              .evaluate((el) =>
+                el.hasAttribute("data-compact")
+                  ? 24
+                  : parseFloat(getComputedStyle(el).getPropertyValue("--document-icon-size")) *
+                    parseFloat(getComputedStyle(document.documentElement).fontSize),
+              ),
+          )
+          if (width === 390 || width === 320) {
+            await mkdir("../.local/tmp/web/layout/export", { recursive: true })
+            await heading.screenshot({
+              path: `../.local/tmp/web/layout/export/share-${entry.platform}-${width}-${theme}.png`,
+            })
+          }
+        }
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+      }
+      if (entry.label === "Share") {
+        await button.click()
+        await page
+          .locator(".footnote")
+          .getByText(/Shared 8 pages/)
+          .waitFor()
+        const file = await page.evaluate(() => window.shared)
+        assert.match(file.name, /^dolor_\d{4}-\d{4}-\d{4}-\d{4}\.pdf$/)
+        assert.equal(file.type, "application/pdf")
+        assert.equal(file.magic, "%PDF-")
+        await mkdir("../.local/tmp/web/layout/export", { recursive: true })
+        await heading.screenshot({ path: `../.local/tmp/web/layout/export/share-${entry.platform}.png` })
+      } else {
+        const pending = page.waitForEvent("download")
+        await button.click()
+        const download = await pending
+        assert.match(download.suggestedFilename(), /^dolor_\d{4}-\d{4}-\d{4}-\d{4}\.pdf$/)
+        assert.equal((await readFile(await download.path())).subarray(0, 5).toString(), "%PDF-")
+        assert.equal(
+          await page.evaluate(async (url) => (await fetch(url)).headers.get("Content-Type"), download.url()),
+          "application/pdf",
+        )
+        assert.equal(await page.evaluate(() => window.shared), undefined)
+      }
+      await page.close()
+    }
+  } finally {
+    await browser.close()
+  }
+})
+
+test(
+  "Share retains the prepared file for a fresh gesture, cancellation, and Download",
+  { timeout: 30000 },
+  async () => {
+    const server = await serve()
+    const browser = await launch(chromium, { channel: "chromium" })
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 810, height: 1080 },
+        hasTouch: true,
+        userAgent:
+          "Mozilla/5.0 (iPad; CPU OS 26_6_2 like Mac OS X) AppleWebKit/605.1.15 CriOS/158.0.8127.2 Mobile Safari/604.1",
+        reducedMotion: "reduce",
+      })
+      await setup(page)
+      await page.addInitScript(trackWorkers)
+      await page.addInitScript(() => {
+        window.shareNames = []
+        window.allowed = true
+        Object.defineProperty(navigator, "canShare", { value: () => window.allowed })
+        Object.defineProperty(navigator, "share", {
+          value: async ({ files: [file] }) => {
+            window.shareNames.push(file.name)
+            if (window.shareNames.length === 1) throw new DOMException("A fresh gesture is required", "NotAllowedError")
+            if (window.cancelShare) throw new DOMException("Cancelled", "AbortError")
+            await new Promise((resolve) => (window.finishShare = resolve))
+          },
+        })
+      })
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      const button = page.locator(".composer").getByRole("button", { name: "Share", exact: true })
+      await page.getByRole("button", { name: "Output", exact: true }).click()
+      const before = await page.evaluate(() => window.workers.length)
+      await button.click()
+      const ready = page.getByRole("dialog", { name: "Share", exact: true })
+      await ready.getByText("PDF ready to share", { exact: true }).waitFor()
+      assert.equal(await ready.locator('.feedback[data-kind="notice"]').count(), 1)
+      for (const width of [320, 390]) {
+        await page.setViewportSize({ width, height: 1080 })
+        await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
+        const buttons = await ready
+          .locator("button")
+          .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()))
+        for (const box of buttons) {
+          assert.ok(box.width >= 44 && box.height >= 44 && box.x >= 0 && box.x + box.width <= width)
+          assert.ok(Math.abs(box.y + box.height / 2 - buttons[0].y - buttons[0].height / 2) < 1)
+        }
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+        assert.ok((await ready.locator(".feedback-message").boundingBox()).width >= 60)
+        if (width === 320) {
+          await mkdir("../.local/tmp/web/layout/export", { recursive: true })
+          await ready.screenshot({ path: "../.local/tmp/web/layout/export/share-ready-320.png" })
+        }
+      }
+      const workers = await page.evaluate((start) => window.workers.slice(start), before)
+      assert.ok(workers.some((worker) => worker.url.includes("processor.worker")))
+      assert.ok(
+        workers.filter((worker) => worker.url.includes("processor.worker")).every((worker) => worker.terminated),
+      )
+      const prepared = await page.evaluate(() => window.workers.length)
+      await ready.getByRole("button", { name: "Share", exact: true }).click()
+      await page.waitForFunction(() => window.finishShare)
+      assert.equal(
+        await page.evaluate(() => window.workers.length),
+        prepared,
+        "Sharing the ready PDF needs no new workers",
+      )
+      const names = await page.evaluate(() => window.shareNames)
+      assert.equal(names[0], names[1])
+      await page.evaluate(() => window.finishShare())
+      await page
+        .locator(".footnote")
+        .getByText(/Shared 8 pages/)
+        .waitFor()
+      await page.evaluate(() => (window.cancelShare = true))
+      await button.click()
+      await page
+        .locator(".footnote")
+        .getByText(/Share cancelled/)
+        .waitFor()
+      assert.equal(await ready.isVisible(), false)
+      assert.match(await outputCount(page).locator("..").textContent(), /8 pages,\s*4\s+sheets/)
+      await page.evaluate(() => (window.allowed = false))
+      await button.click()
+      await ready.getByText("This PDF cannot be shared. Use Download").waitFor()
+      const pending = page.waitForEvent("download")
+      await ready.getByRole("button", { name: "Download", exact: true }).click()
+      const download = await pending
+      assert.equal((await readFile(await download.path())).subarray(0, 5).toString(), "%PDF-")
+      assert.equal(await ready.isVisible(), false)
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test("Output controls retain desktop spacing and compact menu access", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ reducedMotion: "reduce" })
+    await setup(page)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
+    await page.locator(".composer[aria-busy=false]").waitFor()
+    for (const width of [320, 375, 390, 768, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 1000 })
+      for (const size of [100, 200]) {
+        await page.evaluate((value) => (document.documentElement.style.fontSize = `${value}%`), size)
+        const print = await outputAction(page, "Print PDF")
+        const view = page.locator(".composer").getByRole("button", { name: "View PDF", exact: true })
+        const download = page.locator(".composer").getByRole("button", { name: "Download", exact: true })
+        const a = await print.boundingBox(),
+          b = await view.boundingBox(),
+          c = await download.boundingBox()
+        const compact = await page.locator(".composer").evaluate((el) => el.hasAttribute("data-compact"))
+        let filenameHeight
+        assert.equal(a.width, b.width)
+        assert.equal(a.height, b.height)
+        assert.ok(a.width >= 44 && a.height >= 44 && c.width >= 44 && c.height >= 44)
+        if (compact) {
+          assert.ok(b.y + b.height <= a.y, "View precedes Print in the document menu")
+          assert.equal(c.width, c.height)
+          assert.equal(await download.locator("span").isVisible(), false)
+          const filename = page.getByRole("textbox", { name: "Output filename", exact: true })
+          filenameHeight = (await filename.locator("..").boundingBox()).height
+          await page.keyboard.press("Escape")
+        } else {
+          const disclosure = page.locator(".output-name > svg:last-child")
+          assert.ok(await disclosure.isVisible(), "Output filename editing has a visible disclosure")
+          assert.equal(await page.locator(".output-name").getAttribute("aria-haspopup"), "dialog")
+          assert.ok(a.x + a.width < b.x && b.x + b.width < c.x)
+          assert.ok(Math.abs(a.y + a.height / 2 - c.y - c.height / 2) < 1)
+          const ink = await page
+            .locator(".composition-output .output-actions > :is(.print-action, .view-action) path")
+            .evaluateAll((paths) =>
+              paths.map((path) => {
+                const box = path.getBBox(),
+                  matrix = path.getScreenCTM()
+                return {
+                  left: new DOMPoint(box.x, box.y).matrixTransform(matrix).x,
+                  right: new DOMPoint(box.x + box.width, box.y).matrixTransform(matrix).x,
+                }
+              }),
+            )
+          assert.ok(Math.abs(ink[1].left - ink[0].right - (c.x - ink[1].right)) < 1)
+          const open = await page.locator(".input-heading > .file-picker").boundingBox()
+          assert.ok(Math.abs(open.width - c.width) < 1 && Math.abs(open.height - c.height) < 1)
+        }
+        await (await outputAction(page, "Set Output filename")).click()
+        const editor = page.locator(".filename-panel:popover-open")
+        const buttons = await editor
+          .locator(".filename-actions button")
+          .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()))
+        const bounds = await editor.boundingBox()
+        const actionBounds = await editor.locator(".filename-actions").boundingBox()
+        if (compact)
+          assert.ok(
+            Math.abs(filenameHeight - (await editor.locator(".entry").first().boundingBox()).height) < 1,
+            `${width}, ${size}%: filename fields share one height`,
+          )
+        for (const box of buttons)
+          assert.ok(box.width >= 104 && box.height >= 44 && box.x >= bounds.x && box.right <= bounds.x + bounds.width)
+        const sameRow = Math.abs(buttons[0].y - buttons[1].y) < 1
+        assert.ok(sameRow ? buttons[1].x - buttons[0].right >= 12 : buttons[1].y - buttons[0].bottom >= 12)
+        assert.ok(
+          Math.abs((buttons[0].x + buttons[1].right) / 2 - actionBounds.x - actionBounds.width / 2) < 1,
+          `${width}, ${size}%: ${JSON.stringify({ bounds, buttons })}`,
+        )
+        if (width === 375 && size === 100)
+          assert.ok(
+            buttons.every((box) => box.width < bounds.width * 0.45),
+            "Compact actions leave space at both sides",
+          )
+        await editor.getByRole("button", { name: "Close filename", exact: true }).click()
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+      }
+    }
+  } finally {
+    await browser.close()
+  }
+})
+
+test("Mobile Output keeps Download direct and document actions in its menu", { timeout: 90000 }, async () => {
+  const server = await serve()
+  const cases = inventory.cases.filter((entry) => entry.pointer === "coarse")
+  await mkdir("../.local/tmp/web/layout/export", { recursive: true })
+  for (const engine of engines) {
+    const browser = await launch(engine)
+    try {
+      const page = await browser.newPage({ hasTouch: true, isMobile: true, reducedMotion: "reduce" })
+      await setup(page)
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      for (const {
+        id,
+        viewport: [width, height],
+      } of cases) {
+        await page.setViewportSize({ width, height })
+        for (const size of [100, 200]) {
+          await page.evaluate((value) => (document.documentElement.style.fontSize = `${value}%`), size)
+          await page.emulateMedia({ colorScheme: size === 100 ? "dark" : "light" })
+          const switcher = page.getByRole("button", { name: "Output", exact: true })
+          if (!(await switcher.isVisible())) continue
+          if ((await switcher.getAttribute("aria-pressed")) === "false") await switcher.click()
+          const label = `${engine.name()}, ${id}, ${size}%`
+          await switcher.click()
+          const actions = page.locator(".document-actions > :is(button, .output-filename)")
+          const boxes = await actions.evaluateAll((elements) =>
+            elements.map((el) => el.getBoundingClientRect().toJSON()),
+          )
+          assert.equal(boxes.length, 4)
+          for (const [index, box] of boxes.entries()) {
+            assert.ok(box.width >= 44 && box.height >= 44 && box.x >= 0 && box.right <= width + 1, label)
+            assert.ok(Math.abs(box.width - boxes[0].width) < 1, label)
+            if (index > 1) assert.ok(Math.abs(box.height - boxes[1].height) < 1, label)
+            if (index) assert.ok(box.y >= boxes[index - 1].bottom, label)
+          }
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), label)
+          await page.keyboard.press("Escape")
+          if (width === 375 && height === 667)
+            await page
+              .locator(".workspace-bar")
+              .screenshot({ path: `../.local/tmp/web/layout/export/mobile-${engine.name()}-SE-${size}.png` })
+        }
+      }
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
+test("Print receives the generated Output PDF and its selected filename", { timeout: 90000 }, async () => {
+  const server = await serve()
+  for (const touch of [false, true]) {
+    const browser = await launch(chromium, { channel: "chromium" })
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 1440, height: 1000 },
+        reducedMotion: "reduce",
+        hasTouch: touch,
+      })
+      await page.addInitScript((apple) => {
+        if (location.protocol === "http:") localStorage.setItem("mainz:onboarding", "19")
+        window.printRequests = []
+        if (apple) {
+          Object.defineProperty(navigator, "vendor", { get: () => "Apple Computer, Inc." })
+          const open = window.open
+          window.open = (...args) => {
+            const viewer = open.apply(window, args)
+            if (!viewer) return viewer
+            return new Proxy(viewer, {
+              get(target, key) {
+                if (key === "print")
+                  return () => {
+                    if (window.blockPrint) throw new Error("Printing blocked")
+                    window.printRequests.push({
+                      href: target.location.href,
+                      type: target.document.contentType,
+                      title: target.document.title,
+                    })
+                  }
+                const value = Reflect.get(target, key, target)
+                return typeof value === "function" ? value.bind(target) : value
+              },
+            })
+          }
+        }
+        window.addEventListener("message", (event) => {
+          if (event.origin === location.origin && event.data?.kind === "print-test")
+            window.printRequests.push(event.data)
+        })
+        // Substitute only the operating-system print dialog, retaining the real PDF viewer and generated bytes.
+        window.print = () =>
+          parent.postMessage(
+            { kind: "print-test", href: location.href, type: document.contentType, title: document.title },
+            location.origin,
+          )
+      }, touch)
+      await page.goto(server.resolvedUrls.local[0])
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({ name: "Export.pdf", mimeType: "application/pdf", buffer: fixture({ grouped: true }) })
+      const input = page.locator(".selection-panel"),
+        output = page.locator(".composition-output")
+      await input.getByRole("textbox", { name: "Page selection", exact: true }).fill("1,2")
+      await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+      await tab(input, "Style")
+      await input.getByRole("button", { name: "Edit Stroke", exact: true }).click()
+      await input.getByRole("textbox", { name: "Guide Color", exact: true }).fill("#765432")
+      await page.getByRole("button", { name: "Cancel style processing", exact: true }).waitFor({ state: "hidden" })
+      const trigger = page.locator(".composer").getByRole("button", { name: "Set Output filename", exact: true })
+      await trigger.click()
+      const editor = page.locator(".filename-panel"),
+        field = editor.getByLabel("Filename", { exact: true })
+      assert.ok(await editor.getByRole("button", { name: "Save", exact: true }).isEnabled())
+      assert.ok((await field.boundingBox()).height >= 44)
+      await field.fill("bad/name")
+      assert.equal(await editor.getByRole("button", { name: "Save", exact: true }).isDisabled(), true)
+      const validation = page.locator(".header-feedback")
+      assert.equal(await validation.getByRole("alert").innerText(), "Check the filename")
+      await validation.getByRole("alert").getByRole("button").click()
+      assert.match(await page.locator(".message-details:popover-open").innerText(), /slashes/)
+      await page.keyboard.press("Escape")
+      await field.fill("Bad\u0085name")
+      assert.equal(await editor.getByRole("button", { name: "Save", exact: true }).isDisabled(), true)
+      await field.fill("Practice")
+      await editor.getByRole("button", { name: "Save", exact: true }).click()
+      const action = page.locator(".composer").getByRole("button", { name: "Print PDF", exact: true })
+      await action.focus()
+      const before = await output.locator(".section-heading").boundingBox()
+      await page.evaluate(() => {
+        window.transitions = []
+        window.watchPrint = true
+        // oxlint-disable-next-line unicorn/consistent-function-scoping -- Playwright serializes this page callback.
+        const sample = () => {
+          if (!window.watchPrint) return
+          const composer = document.querySelector(".composer")
+          window.transitions.push({
+            scroll: [scrollX, scrollY],
+            view: composer.dataset.view,
+            tabs: [...composer.querySelectorAll("[role=tab][aria-selected=true]")].map((element) => element.id),
+            panes: [...composer.querySelectorAll(".selection-panel, .composition-output")].map((element) =>
+              element.getBoundingClientRect().toJSON(),
+            ),
+            panel: !!document.querySelector(".print-dialog[open]"),
+          })
+          requestAnimationFrame(sample)
+        }
+        sample()
+      })
+      await action.click()
+      const print = page.getByRole("dialog", { name: "Print", exact: true })
+      await page.waitForFunction(() => window.printRequests.length > 0)
+      const request = await page.evaluate(() => window.printRequests[0])
+      assert.equal(request.type, "application/pdf")
+      assert.equal(request.title, "Practice.pdf")
+      const url = request.href
+      assert.equal(await print.isVisible(), false)
+      assert.deepEqual(await output.locator(".section-heading").boundingBox(), before)
+      assert.equal(await action.evaluate((button) => document.activeElement === button), true)
+      const transitions = await page.evaluate(() => {
+        window.watchPrint = false
+        return window.transitions
+      })
+      for (const sample of transitions) assert.deepEqual(sample, transitions[0])
+
+      const bytes = await page.evaluate(
+        async (href) => [...new Uint8Array(await (await fetch(href)).arrayBuffer())],
+        url,
+      )
+      assert.equal(Buffer.from(bytes).subarray(0, 5).toString(), "%PDF-")
+      const pending = page.waitForEvent("download")
+      await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
+      const saved = await pending
+      assert.equal(saved.suggestedFilename(), "Practice.pdf")
+      assert.ok((await readFile(await saved.path())).equals(Buffer.from(bytes)), "Downloaded bytes match the print PDF")
+      const description = await page.evaluate(async (buffer) => {
+        const { Processor } = await import("/src/processor.ts")
+        const processor = new Processor()
+        try {
+          return (await processor.run(new Uint8Array(buffer), 1)).description
+        } finally {
+          processor.dispose()
+        }
+      }, bytes)
+      assert.equal(description.pageCount, 2, "Print gets composed Output, not the seven-page Input")
+      assert.equal(description.parameters["s0:guides-stroke-color"].parameter.value, "#765432")
+      await page.evaluate(() => (window.blockPrint = true))
+      await page.addInitScript(() => {
+        window.print = () => {
+          throw new Error("Printing blocked")
+        }
+      })
+      await action.click()
+      await print.getByRole("link", { name: "Open PDF to print", exact: true }).waitFor()
+      assert.equal(await print.locator(".print-name").innerText(), "Practice.pdf")
+      await print.getByRole("button", { name: "Close Print", exact: true }).click()
+      await trigger.click()
+      assert.equal(await field.inputValue(), "Practice.pdf")
+      await editor.getByRole("button", { name: "Use default", exact: true }).click()
+      await trigger.click()
+      assert.match(await field.inputValue(), /^Export_\d{4}-\d{4}-\d{4}-\d{4}\.pdf$/)
+      await mkdir("../.local/var/printing", { recursive: true })
+      await writeFile(
+        `../.local/var/printing/chromium-${touch ? "touch" : "desktop"}.json`,
+        JSON.stringify(
+          {
+            browser: browser.version(),
+            platform: process.platform,
+            pdf: createHash("sha256").update(Buffer.from(bytes)).digest("hex"),
+            inputPages: 7,
+            outputPages: description.pageCount,
+            mode: "native-pdf-viewer",
+            systemDialog: "substituted at window.print",
+            result: "passed",
+          },
+          null,
+          2,
+        ),
+      )
+    } finally {
+      await browser.close()
+    }
+  }
+})
+
+test(
+  "Quartet editors float on desktop and keep their inline layout on narrow screens",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve()
+    for (const engine of engines) {
+      const browser = await launch(engine)
+      try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" })
+        await setup(page)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=single&paint`)
+        const input = page.locator(".selection-panel")
+        await page.locator(".composer[aria-busy=false]").waitFor()
+        await mkdir("../.local/tmp/web/layout/export", { recursive: true })
+        for (const [width, theme, size, expected] of [
+          [1440, "light", 100, true],
+          [1920, "dark", 100, true],
+          [1920, "dark", 200, true],
+          [390, "dark", 100, false],
+        ]) {
+          await page.setViewportSize({ width, height: width === 375 ? 667 : width === 768 ? 1024 : 1000 })
+          await page.emulateMedia({ colorScheme: theme })
+          await page.evaluate((textSize) => (document.documentElement.style.fontSize = `${textSize}%`), size)
+          const trigger = input.getByRole("button", { name: "Edit Stroke", exact: true }).first()
+          await trigger.scrollIntoViewIfNeeded()
+          const before = await trigger.boundingBox()
+          await trigger.click()
+          const panel = input.locator(".quartet-dock:not([hidden])")
+          await panel.waitFor()
+          const floating = await panel.evaluate((element) => element.matches(":popover-open"))
+          assert.equal(floating, expected)
+          if (floating) {
+            assert.deepEqual(await trigger.boundingBox(), before, "Opening an editor does not move its Quartet")
+            const box = await panel.boundingBox()
+            assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= width && box.y + box.height <= 1000)
+          }
+          await panel.screenshot({
+            path: `../.local/tmp/web/layout/export/quartet-${engine.name()}-${width}-${theme}-${size}.png`,
+          })
+          await panel.getByRole("textbox").first().focus()
+          await page.keyboard.press("Escape")
+          assert.equal(await panel.count(), 0)
+          assert.equal(await trigger.evaluate((button) => button === document.activeElement), true)
+        }
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
+
+test("Recipe file details align optional author and copyright fields without colons", async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ reducedMotion: "reduce" })
+    await page.goto(server.resolvedUrls.local[0])
+    const recipe = JSON.parse(await readFile(new URL("./fixtures/recipe/nulla.json", import.meta.url), "utf8"))
+    recipe.inputs.book.xmp["dc:creator"] = "Example author"
+    recipe.inputs.book.xmp["dc:rights"] = "© Example rights"
+    await page.locator(".landing-recipe input").setInputFiles({
+      name: "session.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(recipe)),
+    })
+    for (const width of [390, 1920]) {
+      await page.setViewportSize({ width, height: 960 })
+      for (const colorScheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme })
+        await page.locator(".binding-meta").first().getByRole("button").click()
+        const table = page.locator(".guidance:popover-open table")
+        assert.equal(await table.getByRole("rowheader", { name: "Author", exact: true }).count(), 1)
+        assert.equal(await table.getByRole("rowheader", { name: "Copyright", exact: true }).count(), 1)
+        assert.match(await table.innerText(), /Example author/)
+        assert.match(await table.innerText(), /© Example rights/)
+        const cells = await table.locator("tr").evaluateAll((rows) =>
+          rows.map((row) => {
+            const [field, value] = row.cells
+            const label = document.createRange()
+            label.selectNodeContents(field)
+            return { end: label.getBoundingClientRect().right, value: value.getBoundingClientRect().left }
+          }),
+        )
+        assert.ok(cells.every((cell) => Math.abs(cell.end - cells[0].end) < 1 && cell.value - cell.end >= 8))
+        assert.equal(await table.evaluate((element) => element.scrollWidth <= element.clientWidth), true)
+        await page.getByRole("button", { name: "Close details", exact: true }).click()
+      }
+    }
+  } finally {
+    await browser.close()
+  }
+})
+
+test(
+  "Downloading used Inputs retains warnings for unused style changes and invalid drafts",
+  { timeout: 60000 },
+  async () => {
+    const server = await serve(),
+      browser = await launch(chromium)
+    try {
+      for (const value of ["#884488", "invalid"]) {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+        await setup(page)
+        await page.goto(server.resolvedUrls.local[0])
+        const input = page.locator(".selection-panel"),
+          output = page.locator(".composition-output")
+        const open = async (name, buffer) => {
+          await page.locator("input[type=file]").first().setInputFiles({ name, mimeType: "application/pdf", buffer })
+          await page.waitForFunction(
+            (expected) => document.querySelector(".input-current")?.textContent === expected,
+            name,
+          )
+        }
+        await open("Unused.pdf", fixture())
+        await input.getByLabel("Page selection", { exact: true }).fill("1")
+        await input.getByLabel("Page selection", { exact: true }).press("Enter")
+        await tab(input, "Style")
+        await input.getByRole("textbox", { name: "Guide Color", exact: true }).fill(value)
+        await page.getByRole("button", { name: "Cancel style processing", exact: true }).waitFor({ state: "hidden" })
+        await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
+        await open("Used.pdf", fixture({ prepared: false }))
+        await input.getByLabel("Page selection", { exact: true }).fill("1")
+        await input.getByLabel("Page selection", { exact: true }).press("Enter")
+        const pending = page.waitForEvent("download")
+        await page.locator(".composer").getByRole("button", { name: "Download", exact: true }).click()
+        assert.equal(await (await pending).failure(), null)
+        page.once("dialog", (dialog) => dialog.dismiss())
+        const confirmation = page.waitForEvent("dialog")
+        await page.getByRole("link", { name: "PDF Composer home", exact: true }).click()
+        assert.equal((await confirmation).type(), "confirm")
+        assert.equal(await input.locator(".input-current").textContent(), "Used.pdf")
+        await page.close()
+      }
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test(
+  "iPhone Home Screen Print shares the generated PDF and retains recovery after cancellation",
+  { timeout: 60000, skip: process.env.MAINZ_SKIP_WEBKIT === "1" },
+  async () => {
+    const server = await serve()
+    const browser = await launch(webkit)
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 428, height: 926 },
+        hasTouch: true,
+        isMobile: true,
+        reducedMotion: "reduce",
+      })
+      await setup(page)
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, "userAgent", { value: "iPhone" })
+        Object.defineProperty(navigator, "standalone", { value: true })
+        Object.defineProperty(navigator, "vendor", { value: "Apple Computer, Inc." })
+        navigator.canShare = ({ files }) => files.length === 1 && files[0].type === "application/pdf"
+        navigator.share = async ({ files }) => {
+          window.shared = { name: files[0].name, bytes: [...new Uint8Array(await files[0].arrayBuffer())] }
+          if (window.shareFailure) throw new Error("Share unavailable")
+          throw new DOMException("Cancelled", "AbortError")
+        }
+      })
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
+      await page.locator(".composer[aria-busy=false]").waitFor()
+      await selectPane(page.locator(".mobile-workspace-tabs").getByRole("button", { name: "Output", exact: true }))
+      const popups = []
+      page.on("popup", (popup) => popups.push(popup))
+      await (await outputAction(page, "Print PDF")).click()
+      const dialog = page.getByRole("dialog", { name: "Print", exact: true })
+      const share = dialog.getByRole("button", { name: "Share PDF to print", exact: true })
+      await share.click()
+      await page.waitForFunction(() => window.shared)
+      await share.waitFor({ state: "visible" })
+      const shared = await page.evaluate(() => window.shared)
+      assert.match(shared.name, /\.pdf$/)
+      assert.equal(Buffer.from(shared.bytes).subarray(0, 5).toString(), "%PDF-")
+      assert.equal(popups.length, 0, "Print stays in the installed app until the system menu opens")
+      assert.equal(await dialog.isVisible(), true, "Cancellation retains the prepared PDF")
+      assert.equal(await page.locator('.header-feedback .feedback[data-kind="error"]').count(), 0)
+      await page.evaluate(() => (window.shareFailure = true))
+      await share.click()
+      await page
+        .getByText("Could not open the print menu. Open or download the PDF to print it", { exact: true })
+        .waitFor()
+      const pending = page.waitForEvent("download")
+      await dialog.getByRole("link", { name: "Download PDF", exact: true }).click()
+      const downloaded = await pending
+      assert.ok((await readFile(await downloaded.path())).equals(Buffer.from(shared.bytes)))
+      assert.equal(await outputCount(page).textContent(), "8 pages")
+    } finally {
+      await browser.close()
+    }
+  },
+)
+
+test(
+  "Output source blocks follow additions, duplication, moves, and Blank ownership",
+  { timeout: 120000 },
+  async () => {
+    const server = await serve()
+    for (const engine of engines) {
+      const browser = await launch(engine)
+      try {
+        for (const width of [320, 390, 768, 1440]) {
+          const page = await browser.newPage({
+            viewport: { width, height: 1100 },
+            reducedMotion: "reduce",
+            hasTouch: width === 390,
+            colorScheme: width === 390 ? "dark" : "light",
+          })
+          page.setDefaultTimeout(10000)
+          await setup(page)
+          await page.goto(server.resolvedUrls.local[0])
+          if (width === 768) await page.evaluate(() => (document.documentElement.style.fontSize = "200%"))
+          const input = page.locator(".selection-panel")
+          const output = page.locator(".composition-output")
+          const switcher = page.getByRole("navigation", { name: "Workspace view", exact: true })
+          const reveal = async (name) => {
+            const control = switcher.getByRole("button", { name, exact: true })
+            if (!(await control.isVisible()) || (await control.getAttribute("aria-pressed")) === "true") return
+            try {
+              await control.click()
+            } catch (error) {
+              try {
+                const state = await control.evaluate((element) => ({
+                  documentVisibility: document.visibilityState,
+                  bounds: element.getBoundingClientRect().toJSON(),
+                  display: getComputedStyle(element).display,
+                  visibility: getComputedStyle(element).visibility,
+                  inert: !!element.closest("[inert]"),
+                  compact: !!element.closest(".composer[data-compact]"),
+                  view: element.closest(".composer")?.getAttribute("data-view"),
+                  focus: document.activeElement?.getAttribute("aria-label"),
+                  scroll: [scrollX, scrollY],
+                  popovers: [...document.querySelectorAll(":popover-open")].map((panel) => panel.className),
+                }))
+                const details = { engine: engine.name(), width, action: name, ...state }
+                console.error("Workspace switch failed:", JSON.stringify(details))
+                await captureLayout(page, `source-blocks/${engine.name()}-${width}`, details)
+              } catch (capture) {
+                console.error("Could not capture the failed workspace switch:", capture)
+              }
+              throw error
+            }
+          }
+          const blocks = async (expected) => {
+            await page.waitForFunction((titles) => {
+              const actual = [...document.querySelectorAll(".composition-output :is(.list-disclosure, .grid-ribbon)")]
+                .map(
+                  (button) =>
+                    button.getAttribute("aria-label").match(/^(?:Fold|Unfold) Output section: (Book [AB])$/)?.[1],
+                )
+                .filter(Boolean)
+              return JSON.stringify(actual) === JSON.stringify(titles)
+            }, expected)
+          }
+          for (const [name, selection] of [
+            ["Book A", "3,5"],
+            ["Book B", "2,9"],
+          ]) {
+            await page
+              .locator('input[type=file][aria-label="Open PDF"]')
+              .first()
+              .setInputFiles({
+                name: `${name}.pdf`,
+                mimeType: "application/pdf",
+                buffer: fixture({
+                  prepared: false,
+                  count: 10,
+                  outline: [
+                    { title: "Contents", page: 0 },
+                    { title: "Early", page: 0, parent: 0 },
+                    { title: "Late", page: 5, parent: 0 },
+                  ],
+                }),
+              })
+            await page.locator(".composer[aria-busy=false]").waitFor()
+            await reveal("Input")
+            await page
+              .locator(".status-input")
+              .filter({ hasText: `${name}.pdf` })
+              .waitFor({ state: "attached" })
+            await input.getByLabel("Page selection", { exact: true }).fill(selection)
+            await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+          }
+          await reveal("Output")
+          await tab(output, "List")
+          const unfold = output.getByRole("button", { name: "Unfold all Output sections", exact: true })
+          if (await unfold.isVisible()) await unfold.click()
+          await blocks(["Book A", "Book B"])
+          const late = output.locator('.list-section:has(.list-heading[data-page="3"])')
+          assert.deepEqual(await late.locator(".list-ancestor").allTextContents(), ["Contents"])
+          await late.getByRole("button", { name: "Details for Output page 4", exact: true }).click()
+          assert.deepEqual(
+            await page
+              .locator(".card-menu-options:popover-open .section-path .path-step > span:last-child")
+              .allTextContents(),
+            ["Book B", "Contents", "Late"],
+          )
+          await page.keyboard.press("Escape")
+          const selection = output.getByLabel("Page selection", { exact: true })
+          await selection.fill("1-2")
+          await output.getByRole("button", { name: "Duplicate selected Output pages", exact: true }).press("Enter")
+          await blocks(["Book A", "Book B"])
+          assert.equal(await outputCount(page).textContent(), "6 pages")
+          await selection.fill("5")
+          await output.getByLabel("Output page actions", { exact: true }).click()
+          await output.getByRole("button", { name: "Before", exact: true }).click()
+          await blocks(["Book A", "Book B"])
+          await selection.fill("3-4")
+          const move = async (direction) => {
+            const control = output.getByRole("button", { name: `Move selected pages ${direction}`, exact: true })
+            if (!(await control.isVisible())) await output.getByLabel("Output page actions", { exact: true }).click()
+            await control.click()
+          }
+          for (let step = 0; step < 2; step++) await move("later")
+          await blocks(["Book A", "Book B", "Book A", "Book B"])
+          for (let step = 0; step < 2; step++) await move("earlier")
+          await blocks(["Book A", "Book B"])
+          await selection.fill("")
+          await tab(output, "Grid")
+          await blocks(["Book A", "Book B"])
+          await output.getByRole("button", { name: "Fold Output section: Book A", exact: true }).click()
+          assert.equal(await output.locator(".composition-card").count(), 3, "The A block includes its Blank")
+          await tab(output, "List")
+          await output.getByRole("button", { name: "Unfold Output section: Book A", exact: true }).click()
+          await reveal("Input")
+          await inputChooser(page).click()
+          await page.locator(".input-choice-select").filter({ hasText: "Book A.pdf" }).click()
+          await input.getByLabel("Page selection", { exact: true }).fill("9")
+          await input.getByRole("button", { name: "Add to Output", exact: true }).click()
+          await reveal("Output")
+          await blocks(["Book A", "Book B", "Book A"])
+          await selection.fill("")
+          await mkdir("../.local/tmp/web/layout/source-blocks", { recursive: true })
+          await page.screenshot({ path: `../.local/tmp/web/layout/source-blocks/${engine.name()}-${width}.png` })
+          if (engine === chromium && width === 1440) {
+            const pending = page.waitForEvent("download")
+            await (await outputAction(page, "Download")).click()
+            const download = await pending
+            const saved = await page.evaluate(
+              async (bytes) => {
+                const { openPDF } = await import("/src/pdf.ts")
+                const task = await openPDF(new Uint8Array(bytes))
+                try {
+                  const pdf = await task.promise
+                  const roots = await pdf.getOutline()
+                  return await Promise.all(
+                    roots.map(async (entry) => [entry.title, (await pdf.getPageIndex(entry.dest[0])) + 1]),
+                  )
+                } finally {
+                  await task.destroy()
+                }
+              },
+              [...(await readFile(await download.path()))],
+            )
+            assert.deepEqual(saved, [
+              ["Book A", 1],
+              ["Book B", 6],
+              ["Book A", 8],
+            ])
+          }
+          await selection.fill("6-7")
+          await output.getByRole("button", { name: "Remove selected Output pages", exact: true }).click()
+          await blocks([])
+          assert.equal(await outputCount(page).textContent(), "6 pages")
+          await page.close()
+        }
+      } finally {
+        await browser.close()
+      }
+    }
+  },
+)
+
+test("Compact and full Output filename entries reject the same raw drafts", async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, reducedMotion: "reduce" })
+    await setup(page)
+    await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
+    await page.locator('.composer[aria-busy="false"]').waitFor()
+    await (await outputAction(page, "Set Output filename")).click()
+    const editor = page.locator(".filename-panel:popover-open")
+    await editor.getByRole("textbox", { name: "Filename", exact: true }).fill("\tchanged.pdf")
+    assert.equal(await editor.getByRole("button", { name: "Save", exact: true }).isDisabled(), true)
+    await editor.getByRole("textbox", { name: "Filename", exact: true }).fill(" practice ")
+    await editor.getByRole("button", { name: "Save", exact: true }).click()
+    await page.setViewportSize({ width: 390, height: 1000 })
+    await outputAction(page, "View PDF")
+    const compact = page.getByRole("textbox", { name: "Output filename", exact: true })
+    assert.equal(await compact.inputValue(), "practice.pdf")
+    await compact.fill("\tchanged.pdf")
+    await compact.press("Tab")
+    assert.equal(await compact.inputValue(), "practice.pdf")
+    await compact.fill(" next.PDF ")
+    await compact.press("Tab")
+    assert.equal(await compact.inputValue(), "next.PDF")
+  } finally {
+    await browser.close()
+  }
+})

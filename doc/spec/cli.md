@@ -1,0 +1,200 @@
+# Mainz CLI contract
+
+`mainz` is the batch interface for PDF operations and native SVG production. This document owns command syntax, request
+files, diagnostics, cancellation, and output installation. The [PDF contract](pdf.md) owns the file format. The
+[library contract](lib.md) owns operations, Plans, Recipes, errors, and limits. [AGENTS.md](../../AGENTS.md) owns build
+and validation commands.
+
+## Commands
+
+| Command                     | Required options                                            | Optional options                                        | Success on stdout                                           |
+| --------------------------- | ----------------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------- |
+| `mainz describe input.pdf`  | None                                                        | None                                                    | Processor description                                       |
+| `mainz profiles input.pdf`  | None                                                        | None                                                    | Ordered profile-set array                                   |
+| `mainz verify input.pdf`    | None                                                        | None                                                    | `{"valid":true,"version":1}`                                |
+| `mainz style input.pdf`     | `--output edited.pdf` and one of `--overrides`, `--profile` | `--set` with `--profile`                                | `{"ok":true}`                                               |
+| `mainz reset input.pdf`     | `--output reset.pdf`                                        | `--ids parameters.json`                                 | `{"ok":true}`                                               |
+| `mainz extract input.pdf`   | `--pages pages.json --output selected.pdf`                  | None                                                    | `{"ok":true}`                                               |
+| `mainz compose plan.json`   | `--inputs inputs.json --output composed.pdf`                | None                                                    | Provenance                                                  |
+| `mainz apply recipe.json`   | `--output composed.pdf`                                     | `--inputs`, `--root`, `--force`, `--verbose`, `--jsonl` | Provenance                                                  |
+| `mainz align recipe.json`   | `--output aligned.json`                                     | `--inputs`, `--root`, `--force`, `--verbose`, `--jsonl` | Alignment result                                            |
+| `mainz imprint source.svg`  | `--declaration parameters.json --output prepared.pdf`       | `--width`, `--height`, `--dpi`, `--preview`             | `{"ok":true}`                                               |
+| `mainz resolve recipe.json` | None                                                        | `--inputs`, `--root`, `--force`, `--verbose`, `--jsonl` | Plan                                                        |
+| `mainz --help`              | None                                                        | None                                                    | Human-readable usage                                        |
+| `mainz --version`           | None                                                        | None                                                    | Software version, contract version, and dependency versions |
+
+Options follow the positional input. Recipe `--force`, `--verbose`, and `--jsonl` are valueless switches. Other options
+each take one value. Missing, unknown, or duplicate options fail with exit code 2. Commands never request interactive
+input. PDF output always requires an explicit destination. `style` and `reset` require prepared PDFs with editable
+paint. `verify` requires a Mainz manifest and also accepts page metadata without editable paint. `describe`, `profiles`,
+`extract`, and `compose` also accept ordinary PDFs. An invalid embedded contract remains an error. It does not become an
+ordinary-PDF fallback. Version output uses software `version`, integer `contract`, and dependency version fields.
+
+`verify` assesses one PDF's contract and supported contexts without changing it. It does not establish preservation
+against an earlier PDF. Independent input/output comparisons establish preservation. A processor failure produces
+`{"valid":false,"error":{...}}` on stdout as well as the error on stderr. Argument and file failures produce no
+verification result.
+
+## Requests
+
+JSON follows the shared [encoding and identifier rules](pdf.md#encoding-and-identifiers).
+
+| Request                 | Contents and effect                                                                                                         |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `style --overrides`     | Parameter-ID-to-value object. Omitted IDs retain overrides. `{}` changes nothing.                                           |
+| `style --profile`       | Exact profile ID. Replaces all overrides in its set. Omitted parameters return to their baselines.                          |
+| `reset --ids`           | Unique existing parameter IDs. Omission resets all. `[]` resets none.                                                       |
+| `extract --pages`       | Nonempty unique zero-based physical indexes in output order, for example `[0,2,3]`.                                         |
+| `compose plan.json`     | Complete version 1 [Plan](lib.md#plans-and-composition). Input instance overrides replace saved state rather than patch it. |
+| `compose --inputs`      | Input-ID-to-PDF-path object, `{}` for a Blank-only Plan.                                                                    |
+| `apply --inputs`        | Exact Recipe-Input-ID-to-PDF-path object, `{}` for a Blank-only Recipe.                                                     |
+| `imprint --declaration` | [SVG targets, scalar parameters, page annotations, and optional presentation](lib.md#svg-declarations).                     |
+| `imprint --preview`     | PNG file whose bytes become the produced page's optional thumbnail.                                                         |
+
+The positional input and `--overrides`, `--ids`, `--pages`, `--inputs`, `--declaration`, or `--preview` accept `-` for
+stdin. At most one input can use stdin.
+
+`imprint --preview image.png` reads the PNG through the ordinary input file policy. The CLI passes owned image bytes to
+the native Imprinter. The declaration contains no image filesystem path or URL. The library owns PNG structure, size
+limits, and embedded-file references under its [preview contract](pdf.md#preview-images).
+
+SVG declaration `page` can supply independent `name` and `tags`. The Imprinter writes page annotations into the emitted
+page's array entry. Document-wide title, description, author, and copyright belong in standard PDF XMP metadata supplied
+by the producing application, not a duplicate Mainz JSON record.
+
+Composition and explicit Recipe bindings supply Inputs separately from the record. Bound PDF paths cannot use stdin.
+Relative paths resolve from the current working directory, including paths inside `inputs.json`. Paths cannot contain
+null bytes. No path is resolved relative to its request file.
+
+### Profile selection
+
+`profiles` returns the description's `profileSets` array without changing its records or authored order. An ordinary PDF
+or a prepared PDF without profile sets returns `[]`. Invalid embedded contracts remain errors.
+
+`style` requires exactly one of `--overrides changes.json` and `--profile ID`. `--set ID` is permitted only with
+`--profile`. Profile and set selectors use exact, case-sensitive IDs, not display names. IDs remain opaque strings.
+Colons, slashes, spaces, and Unicode have no selector syntax. The literal `-` in either selector is an ID, not stdin.
+
+Without `--set`, the profile ID must match exactly one set in the PDF. With `--set`, the profile must belong to that
+set. Unknown or ambiguous selections fail with exit code 2. Diagnostics list the available set and profile IDs.
+Ambiguous selections require `--set`; the CLI never chooses the first match or applies all matches. An ordinary PDF
+still fails with `missing-contract` and exit code 1 when applying a profile.
+
+Profile selection resets all parameters in the selected set and applies that profile's overrides in one processor call.
+Other parameters and sets retain their saved overrides. The first profile's empty overrides restore only its set's
+baselines. The processor writes and validates the final PDF once. Profile definitions remain unchanged and no
+active-profile field is stored. An unchanged final state retains the original bytes. Output installation still requires
+a new explicit file path.
+
+### Recipe execution
+
+`apply` consumes the shared [Recipe contract](lib.md#portable-recipes). It resolves profiles, overrides, resets, and
+page selectors through the library, then executes the resulting Plan through normal composition. It never requests
+interactive input. The same portable record can originate from a web consumer or be authored for the CLI.
+
+The Recipe names logical Inputs and has no file-location fields. `--inputs bindings.json` explicitly maps every required
+Input ID to a PDF path. Missing or additional IDs fail before PDF reading. Paths follow the same rules as
+`compose --inputs`: absolute paths are permitted, relative paths resolve from the working directory, and symlinks follow
+the ordinary host file policy. The binding file, unlike the Recipe, is a local execution artifact.
+
+Without `--inputs`, automatic lookup treats each Input ID as a relative path. It appends `.pdf` only if the ID does not
+already end in that extension, matched without case. For example, `practice/italic` resolves to `practice/italic.pdf`.
+The default lookup root is the current working directory, independently of the Recipe file's location.
+`--root directory` selects another root; a relative root also resolves from the working directory.
+
+Lookup supports `/` for subdirectories. It rejects absolute paths, backslashes, colons, empty components, `.` and `..`
+components. It opens regular files without following symlinks below the chosen root or expanding shell syntax. Other
+opaque IDs remain valid in a Recipe and use explicit bindings. `--inputs` and `--root` are mutually exclusive.
+
+A Recipe can come from stdin with automatic lookup under the current directory. At most one JSON input can use stdin.
+File locations and root arguments never enter the Recipe. Each Input is read once within the aggregate byte limit.
+Resolution and composition share those same owned bytes; several Input instances can use one binding without rereading
+its file. Existing `compose` behavior stays unchanged.
+
+Input assessment follows the library's [shared rules](lib.md#input-references-and-assessment). `ready` and `update`
+execute normally. Update information appears only with `--verbose`. `review` rejects by default with exit code 1 and a
+detailed `review-required` diagnostic. `--force` accepts review for this invocation and retains its diagnostic on
+stderr. Invalid PDFs, unsupported formats, invalid choices, and producer vetoes always reject, including with force.
+Rejection installs no Output. Neither execution nor force overwrites or aligns the source Recipe.
+
+`--verbose` writes Input check records to stderr. Normal stdout remains the command's result JSON. Diagnostics retain
+logical Input IDs, JSON Pointers, explanations, and available expected/current values. A review refusal states how to
+retry with force. Existing output and Input protection applies to every command and switch.
+
+### JSONL output
+
+Recipe `apply`, `resolve`, and `align` accept `--jsonl`. This mode writes only JSON Lines to stdout: one complete JSON
+object per line. Each Input record has `type: "input"`, logical `input`, `state`, `diagnostics`, and its available
+current `reference`. It includes update information without requiring verbose mode. The final record is either
+`{ "type": "result", "operation": "apply|resolve|align", "result": ... }` or an error object with `type: "error"`. Error
+objects retain `code`, `message`, source/location fields, and available structured `details`. Reports inside errors also
+become preceding Input records. JSONL emits no duplicate stderr diagnostics. Exit status still reports success or
+failure. Successful apply records follow complete PDF installation. Failure emits no success record.
+
+### Recipe alignment
+
+`mainz align recipe.json --output aligned.json` validates the same bindings and creates an aligned Recipe under the
+library's rules. It accepts `--inputs` or `--root`, with the same force, verbosity, JSONL, bounds, and path policies. It
+does not compose a PDF. Review rejects unless forced, and actual errors or producer vetoes cannot be forced. The output
+is a separate JSON file installed through the ordinary no-clobber policy. The source Recipe and all PDFs remain
+unchanged. Success stdout is `{ "ok": true }`, or the corresponding JSONL result record.
+
+### Recipe resolution
+
+`resolve` uses the same Recipe parsing, bindings, automatic lookup, stdin policy, aggregate byte limits, and resolver as
+Recipe `apply`. It accepts `--inputs` or `--root`, never both. It rejects `--output`. Success writes only the resolved
+Plan JSON to stdout with the same Input assessment, review refusal, force, verbosity, and JSONL behavior as `apply`. No
+PDF is produced or installed. A resolved Plan does not guarantee that later composition will succeed. Resolver errors
+retain their codes and original Recipe JSON Pointers. Failure emits no partial Plan. Recipe JSON has the library's 16
+MiB limit; the resolved Plan retains its 1 MiB limit. Bound Inputs share its 128 MiB aggregate limit. Display titles,
+covers, and XMP fields do not affect CLI resolution. Optional Output metadata passes into the Plan and the PDF produced
+by `apply`. The library's editing-intent result is not part of CLI stdout.
+
+Global `--help` succeeds only as `mainz --help`, without an input or additional arguments. It writes usage to stdout and
+exits with code 0. It lists each command's required options and the Recipe and Imprint options. Invalid invocations
+return exit code 2. Only Recipe commands can route their diagnostics through `--jsonl`.
+
+## SVG viewport
+
+`imprint` accepts finite positive `--width`, `--height`, and `--dpi` values. Width and height bound the viewport in
+pixels, preserving uniform scale. Supplying both fits the drawing within both bounds. DPI defaults to 96. Physical SVG
+units resolve at 96 DPI. Invalid dimension arguments fail with exit code 2 before the CLI reads input files. The library
+[producer contract](lib.md#svg-declarations) owns selection, eligibility, and resource limits.
+
+## Results and files
+
+`compose` and `apply` write the composed Document to the output file and emit its Provenance JSON on stdout. The CLI
+does not serialize the library's Artifact return package. Recipe diagnostics use stderr and remain separate from
+Provenance, except for the explicit JSONL event stream.
+
+`description` and `details` remain plain-text JSON strings. `describe` retains them on parameter schemas, groups,
+profile sets, and profiles; `profiles` retains both set and profile annotations. Details require their owner's own
+description under the library contract. Invalid annotation dependencies use the existing structured validation errors.
+
+PDF operations and resolution use stdout JSON. Global help uses plain text. Diagnostics use stderr. Machine output
+contains no terminal controls. Document-supplied text in human-readable diagnostics escapes control characters.
+Processor errors retain the library's structured error record. Producer-specific failures can use `imprinter-error`.
+Declaration parse errors retain the library's [source and location fields](lib.md#errors-and-limits). Without `--jsonl`,
+validation failures produce no stdout result except for the `verify` wrapper. Usage and file failures use stderr. Recipe
+JSONL failures emit a final error record on stdout instead.
+
+| Exit code | Meaning                                  |
+| --------- | ---------------------------------------- |
+| 0         | Success                                  |
+| 1         | Processor or producer validation failure |
+| 2         | Host, file, argument, or stdout failure  |
+| 130       | SIGINT or SIGTERM cancellation           |
+
+PDF and aligned Recipe output require a file path. `-` is not an output destination. Existing destinations, including
+the input path, are never replaced. The CLI writes and flushes a complete mode-0600 temporary file in the destination
+directory, then installs it atomically without replacing an existing path. Installation uses a no-clobber link. An
+incomplete PDF is never installed. Atomic installation does not guarantee that the destination survives a power loss.
+The CLI flushes file contents but does not sync the parent directory.
+
+Success JSON follows PDF installation. After the CLI installs a complete destination, a stdout failure can return exit
+code 2. The caller can inspect that destination before retrying. Failed stdout writes can also leave incomplete JSON.
+
+SIGINT and SIGTERM mark the operation for cancellation. Input reading and output writing observe that state. An active
+processor or producer call can finish before cancellation is observed. Cancellation then prevents output installation
+and returns 130. Normal cleanup removes temporary files. Abrupt termination can leave a temporary file, but cannot
+install a partial destination.

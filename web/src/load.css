@@ -1,0 +1,637 @@
+/* Owns Recipe Input matching and its responsive layout. */
+
+@layer layouts {
+  @scope (#app) {
+    .load-panel {
+      --cover-width: clamp(110px, 10vi, 128px);
+      --cover-height: calc(var(--cover-width) * 1.414);
+      --binding-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      --inset: clamp(16px, 2.8vi, 40px);
+      --location-offset: max(-24px, calc(8px - var(--inset)));
+      container: matching / inline-size;
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap);
+      padding: var(--inset);
+      padding-block-end: var(--gap);
+      margin-block-start: var(--gap);
+      border: 1px dashed var(--edge);
+      border-radius: 12px;
+      font-size: var(--body);
+      &:focus-visible {
+        outline: 2px solid transparent;
+      }
+      & p,
+      & h1,
+      & h2 {
+        margin: 0;
+      }
+      & .load-heading {
+        --row-gap: 0.625rem;
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) clamp(64px, 22cqi, 280px);
+        grid-template-rows: repeat(3, max-content);
+        gap: var(--row-gap) var(--gutter);
+        align-items: start;
+      }
+      & .load-intro {
+        position: relative;
+        inset-block-start: calc((var(--location-offset) - var(--row-gap)) / 2);
+        grid-column: 1;
+        grid-row: 2;
+        min-inline-size: 0;
+        overflow-wrap: anywhere;
+      }
+      & .load-location {
+        position: relative;
+        inset-block-start: var(--location-offset);
+        grid-column: 1;
+        grid-row: 1;
+        display: flex;
+        align-items: center;
+        gap: clamp(8px, 2cqi, 32px);
+        min-inline-size: 0;
+      }
+      & .load-back {
+        flex: none;
+        inline-size: max(44px, 1.5rem);
+        min-inline-size: 44px;
+        min-block-size: max(44px, 1.5rem);
+        margin-inline-start: -0.5rem;
+        padding: 0;
+        justify-content: start;
+        & svg {
+          inline-size: 1.5rem;
+          block-size: 1.5rem;
+        }
+      }
+      & .load-name {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        min-inline-size: 0;
+        font-size: var(--small);
+        color: var(--muted);
+        flex: 0 1 auto;
+        & > svg {
+          inline-size: 1.25em;
+          block-size: 1.25em;
+        }
+        & span {
+          flex: 0 1 auto;
+          min-inline-size: 0;
+          overflow: clip;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+      & .load-mark {
+        position: absolute;
+        inset-block-start: var(--location-offset);
+        inset-inline-end: 0;
+        inline-size: auto;
+        max-inline-size: 100%;
+        block-size: calc(100% - var(--location-offset));
+        /* The logo's 2/64 viewBox inset aligns its visible top with the arrow's 6/24 inset. */
+        translate: 0 calc(max(22px, 0.75rem) - 0.375rem - 3.125%);
+      }
+      & h1 {
+        font-size: clamp(1.4rem, 1.1rem + 1cqi, 1.75rem);
+        line-height: 1.25;
+        text-wrap: pretty;
+        margin-block-end: 0.5rem;
+      }
+      & .compact {
+        display: none;
+      }
+      & .load-intro > p {
+        color: var(--muted);
+      }
+      & .load-choices {
+        grid-column: 1;
+        grid-row: 3;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+        align-items: center;
+        gap: var(--gap);
+        justify-self: start;
+        inline-size: min(100%, calc(2 * var(--action-width) + var(--gap)));
+        & > :is(button, label) {
+          block-size: 100%;
+          text-align: center;
+        }
+        & > :only-child {
+          grid-column: 1 / -1;
+        }
+      }
+      & .binding-labels {
+        display: grid;
+        grid-template-columns: var(--binding-columns);
+        gap: calc(2 * var(--gap));
+        color: var(--muted);
+        font-size: var(--small);
+      }
+      & .load-download {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+        inline-size: 44px;
+        min-inline-size: 44px;
+        min-block-size: 44px;
+        padding: 8px;
+        text-decoration: none;
+        & svg {
+          inline-size: 1.5rem;
+          block-size: 1.5rem;
+        }
+      }
+      & .recipe-bindings {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-auto-rows: 1fr;
+      }
+      & .binding-row {
+        display: grid;
+        grid-template-columns: var(--binding-columns);
+        min-inline-size: 0;
+        align-items: center;
+        gap: calc(2 * var(--gap));
+        padding-block: 1.5rem;
+        border-block-start: 1px solid var(--border);
+      }
+      & .binding-source {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: stretch;
+        gap: var(--gap);
+        min-inline-size: 0;
+      }
+      & .binding-cover {
+        flex: none;
+        align-self: start;
+        inline-size: var(--cover-width);
+        block-size: var(--cover-height);
+        aspect-ratio: 1 / 1.414;
+        display: grid;
+        place-items: center;
+        background: oklch(100% 0 none);
+        border: 1px solid var(--border);
+        & img {
+          inline-size: 100%;
+          block-size: 100%;
+          object-fit: contain;
+        }
+        & > svg {
+          inline-size: 2rem;
+          block-size: 2rem;
+          color: var(--muted);
+        }
+      }
+      & .binding-heading {
+        display: contents;
+      }
+      & .binding-identity {
+        display: flex;
+        flex-direction: column;
+        min-block-size: var(--cover-height);
+        flex: 1 1 9rem;
+        min-inline-size: 0;
+        & h2 {
+          font-size: 1.125rem;
+          text-align: start;
+          text-wrap: pretty;
+          overflow-wrap: break-word;
+        }
+        & > p {
+          color: var(--muted);
+          overflow-wrap: anywhere;
+        }
+      }
+      & .binding-description {
+        order: 1;
+        min-block-size: 2lh;
+        max-block-size: 5lh;
+        overflow: auto;
+        font-size: calc(var(--small) + 1.5px);
+        margin-block-start: 0.375rem;
+        margin-block-end: 0.5rem;
+      }
+      & .binding-meta {
+        order: 2;
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        margin-block-start: auto;
+        min-inline-size: 0;
+        min-block-size: 44px;
+        font-size: var(--small);
+        color: var(--muted);
+        & code {
+          min-inline-size: 0;
+          overflow: clip;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        }
+      }
+      & .icon-button {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--muted);
+      }
+      & button.icon-button {
+        &:active:not(:disabled) {
+          background: transparent;
+          color: var(--accent);
+        }
+        @media (hover: hover) and (pointer: fine) {
+          &:hover:not(:disabled) {
+            border-color: transparent;
+            background: transparent;
+            color: var(--accent);
+            box-shadow: none;
+            text-shadow: none;
+            & svg {
+              filter: none;
+            }
+          }
+        }
+      }
+      & .binding-target {
+        container: binding / inline-size;
+        min-block-size: var(--cover-height);
+        min-inline-size: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: clamp(12px, 1.2cqi, 20px);
+        background: var(--soft);
+        border-radius: var(--radius);
+        align-items: center;
+        &.bound {
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: start;
+          align-content: center;
+          column-gap: var(--gap);
+        }
+        & .file-picker {
+          min-inline-size: 0;
+          max-inline-size: 100%;
+          flex-wrap: wrap;
+        }
+      }
+      & .binding-result {
+        flex: 1 1 8rem;
+        min-inline-size: 0;
+        inline-size: 100%;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: var(--action-height);
+        align-content: start;
+        justify-items: stretch;
+        padding: 0 0 0 14px;
+        min-block-size: 44px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        color: inherit;
+        font: inherit;
+        text-align: start;
+        &:hover:not(:disabled) {
+          background: transparent;
+          box-shadow: none;
+        }
+      }
+      & .binding-check {
+        inline-size: min(30rem, calc(100vi - 2 * var(--gutter)));
+        max-block-size: calc(100dvb - anchor-size(--header block) - 2 * var(--gap));
+        position-try-fallbacks: flip-inline, --review-center;
+        &:popover-open {
+          display: flex;
+          flex-direction: column;
+        }
+      }
+      & .binding-details {
+        min-block-size: 0;
+        overflow: auto;
+        overscroll-behavior: contain;
+        & > .icon-button {
+          float: inline-end;
+          margin-inline-start: 0.5rem;
+        }
+        & > :is(p, ul):first-of-type {
+          padding-block-start: max(0px, calc((44px - 1lh) / 2));
+        }
+        & ul {
+          list-style: disc;
+          margin-block: 0 0.5rem;
+          padding-inline-start: 1.25rem;
+          & li + li {
+            margin-block-start: 0.5rem;
+          }
+        }
+      }
+      & .binding-row[data-state="ready"] {
+        --binding-status-color: light-dark(oklch(46% 0.14 150), oklch(76% 0.16 150));
+      }
+      & .binding-row[data-state="update"] {
+        --binding-status-color: var(--secondary);
+      }
+      & .binding-row[data-state="review"] {
+        --binding-status-color: light-dark(oklch(49% 0.12 65), oklch(80% 0.15 75));
+      }
+      & .binding-accept {
+        flex: none;
+        display: block flex;
+        inline-size: fit-content;
+        max-inline-size: 100%;
+        min-block-size: 44px;
+        margin-inline: auto;
+        margin-block-start: var(--gap);
+      }
+      & .binding-pick {
+        display: flex;
+        min-inline-size: 0;
+        max-inline-size: 100%;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem 1rem;
+        & .control-description {
+          margin-inline-end: 0.5rem;
+        }
+      }
+      & .binding-empty {
+        padding-inline: 0.5rem;
+        white-space: nowrap;
+        inline-size: var(--action-width);
+        block-size: var(--action-height);
+        @container binding (width < 10rem) {
+          inline-size: var(--action-height);
+          padding: 8px;
+          & span {
+            display: none;
+          }
+        }
+      }
+      & .bound .binding-pick {
+        flex: none;
+        flex-wrap: nowrap;
+        min-inline-size: 0;
+        max-inline-size: 100%;
+        & .file-picker {
+          flex: none;
+          flex-wrap: nowrap;
+          white-space: nowrap;
+          inline-size: var(--action-width);
+          block-size: var(--action-height);
+          padding-inline: 1rem;
+          & svg {
+            inline-size: 1.75rem;
+            block-size: 1.75rem;
+          }
+          @container binding (width < 13rem) {
+            inline-size: var(--action-height);
+            min-inline-size: 44px;
+            padding: 8px;
+            & span {
+              display: none;
+            }
+          }
+        }
+      }
+      @container matching (width <= 48em) {
+        & .load-heading {
+          --row-gap: 0.25rem;
+          grid-template-columns: minmax(0, 1fr);
+        }
+        & h1 {
+          font-size: 1.25rem;
+        }
+        & .recipe-bindings {
+          grid-auto-rows: auto;
+        }
+        & .load-mark,
+        & .binding-labels,
+        & .expanded,
+        & .binding-pick > .control-description,
+        & .binding-description {
+          display: none;
+        }
+        & .compact {
+          display: inline;
+        }
+        & .binding-heading .guidance-label {
+          white-space: normal;
+        }
+        & .load-choices {
+          grid-column: 1;
+          justify-self: stretch;
+          & > :is(button, label) {
+            min-inline-size: 0;
+            padding-inline: 8px;
+          }
+        }
+        & .binding-row {
+          --cover-width: clamp(80px, 20cqi, 110px);
+          --cover-height: calc(var(--cover-width) * 1.414);
+          grid-template-columns: var(--cover-width) minmax(0, 1fr);
+          grid-template-rows: auto minmax(var(--cover-height), auto);
+          padding-block: 0.5rem;
+          column-gap: clamp(8px, 2cqi, 12px);
+          row-gap: 0;
+          align-content: start;
+        }
+        & .binding-source,
+        & .binding-identity {
+          display: contents;
+        }
+        & .binding-heading {
+          display: flex;
+          grid-column: 1 / -1;
+          grid-row: 1;
+          align-items: center;
+          gap: 0.5rem;
+          margin-block-end: 0.25rem;
+          & h2 {
+            flex: 0 1 auto;
+            min-inline-size: 0;
+            font-size: 1rem;
+          }
+          & .binding-meta {
+            flex: 0 1 auto;
+            min-inline-size: 44px;
+            max-inline-size: 45%;
+            margin: 0;
+          }
+          & .guidance-label {
+            min-inline-size: 0;
+            min-block-size: 44px;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            box-shadow: none;
+            color: inherit;
+            font: inherit;
+            text-align: start;
+            text-decoration: underline dotted;
+            text-underline-offset: 0.2em;
+            @media (hover: hover) and (pointer: fine) {
+              &:hover {
+                color: var(--accent);
+              }
+            }
+          }
+        }
+        & .binding-cover {
+          grid-column: 1;
+          grid-row: 2;
+          align-self: stretch;
+          block-size: 100%;
+          aspect-ratio: auto;
+        }
+        & .binding-target {
+          grid-column: 2;
+          grid-row: 2;
+          padding: 8px;
+        }
+        & .binding-pick {
+          column-gap: 8px;
+        }
+        & .binding-pick .load-download {
+          min-block-size: 44px;
+          block-size: 44px;
+          & svg {
+            inline-size: 24px;
+            block-size: 24px;
+          }
+        }
+        & .bound .binding-pick .file-picker {
+          @container binding (width < 13rem) {
+            block-size: 44px;
+            min-block-size: 44px;
+            inline-size: 44px;
+            & svg {
+              inline-size: 24px;
+              block-size: 24px;
+            }
+          }
+        }
+        & .binding-result {
+          @container binding (width < 13rem) {
+            grid-template-rows: 44px;
+          }
+        }
+      }
+      & .binding-target:has(.binding-empty) {
+        border: 1px dashed var(--edge);
+      }
+      @container matching (width <= 960px) {
+        & .binding-target.bound {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) max-content;
+          column-gap: 8px;
+        }
+        & .bound .binding-result {
+          padding-inline-start: 0;
+          @container binding (width < 15rem) {
+            grid-template-rows: 44px;
+          }
+        }
+        & .bound .binding-pick {
+          gap: 4px 8px;
+          @container binding (width < 11rem) {
+            flex-direction: column;
+          }
+          & .file-picker {
+            inline-size: max-content;
+            padding-inline: 6px;
+            @container binding (width < 15rem) {
+              inline-size: 44px;
+              block-size: 44px;
+              min-block-size: 44px;
+              padding: 8px;
+              & > span {
+                display: none;
+              }
+              & svg {
+                inline-size: 24px;
+                block-size: 24px;
+              }
+            }
+          }
+        }
+      }
+      & .load-name .load-download svg {
+        inline-size: 1.25em;
+        block-size: 1.25em;
+      }
+      & .load-name .load-download {
+        font-size: inherit;
+      }
+      & :is(.load-download, .load-back) {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--muted);
+        &:active:not(:disabled) {
+          background: transparent;
+          color: var(--accent);
+          box-shadow: none;
+        }
+        @media (hover: hover) and (pointer: fine) {
+          &:hover:not(:disabled) {
+            background: transparent;
+            color: var(--accent);
+            box-shadow: none;
+            & svg {
+              filter: drop-shadow(0 0 5px color-mix(in oklch, var(--accent) 25%, transparent));
+            }
+          }
+        }
+      }
+      @media (hover: hover) and (pointer: fine) {
+        & .load-back:hover svg {
+          filter: drop-shadow(0 0 5px color-mix(in oklch, var(--accent) 55%, transparent));
+        }
+      }
+      & .binding-file {
+        align-self: center;
+        justify-self: start;
+        max-inline-size: 100%;
+        overflow: clip;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 600;
+        padding-block: 0.08em;
+        background: radial-gradient(circle closest-side, var(--binding-status-color, var(--danger)) 85%, transparent)
+          center bottom / 0.34em 0.12em repeat-x;
+        @media (forced-colors: active) {
+          text-decoration: underline dotted;
+          text-underline-offset: 0.3em;
+        }
+      }
+      & .load-actions {
+        display: flex;
+        justify-content: end;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--gap);
+        padding-block-start: var(--gap);
+        border-block-start: 1px solid var(--border);
+        & > button {
+          flex: 0 1 var(--action-width);
+          inline-size: min(100%, var(--action-width));
+          max-inline-size: 100%;
+          block-size: var(--action-height);
+        }
+      }
+    }
+  }
+}

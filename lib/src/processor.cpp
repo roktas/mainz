@@ -1,0 +1,162 @@
+#include "processor.hh"
+#include "processor/engine.hh"
+#include <new>
+#include <utility>
+
+namespace mainz {
+using namespace detail;
+Document::Document(std::string input, std::string description, bool manifest, bool prepared,
+    std::shared_ptr<const Index> index, std::shared_ptr<const Previews> previews)
+    : bytes(std::move(input))
+    , description(std::move(description))
+    , has_contract(manifest)
+    , has_paint(prepared)
+    , index(std::move(index))
+    , previews(std::move(previews))
+{
+}
+Document Document::read(std::string input)
+{
+    try {
+        Engine engine(input);
+        return Document(std::move(input), engine.describe(), !object(engine.manifest).empty(), engine.prepared(),
+            engine.take_index(), engine.take_previews());
+    } catch (const Error&) {
+        throw;
+    } catch (const std::bad_alloc&) {
+        throw Error("limit-exceeded", "Processor allocation failed.");
+    } catch (const std::exception& error) {
+        throw Error("pdf-syntax", error.what());
+    }
+}
+Document Document::change(const std::string& input, Change operation, const std::string& reset) const
+{
+    try {
+        require(has_paint, "PDF has no editable Mainz paint.", "missing-contract");
+        auto request = operation == Change::reset_all ? JSON::makeArray() : parse(input, "request");
+        auto resets = operation == Change::style ? parse(reset, "request") : request;
+        auto current = object(JSON::parse(description).getDictItem("parameters"));
+        for (auto& [id, parameter] : current) {
+            (void)id;
+            parameter = parameter.getDictItem("parameter");
+        }
+        std::set<std::string> ids;
+        bool changed = false;
+        try {
+            for (const auto& item : array(resets)) {
+                auto id = text(item);
+                require(current.contains(id), "Unknown parameter: " + id);
+                require(ids.insert(id).second, "Duplicate reset ID: " + id);
+            }
+            if (operation == Change::reset_all)
+                for (const auto& [id, parameter] : current) {
+                    (void)parameter;
+                    ids.insert(id);
+                }
+            if (operation == Change::style)
+                for (const auto& [id, item] : object(request)) {
+                    try {
+                        require(current.contains(id), "Unknown parameter: " + id);
+                        auto parameter = current.at(id);
+                        auto binding = parameter.getDictItem("binding");
+                        value(item, parameter.getDictItem("schema"), text(binding.getDictItem("property")));
+                        changed = changed || !object(parameter).contains("value")
+                            || !equal(parameter.getDictItem("value"), item);
+                        parameter.addDictionaryMember("value", item);
+                        ids.erase(id);
+                    } catch (const Error& error) {
+                        throw Error("invalid-request", error.what(), "request", "/" + pointer(id));
+                    }
+                }
+        } catch (const Error& error) {
+            if (!error.source().empty())
+                throw;
+            throw Error("invalid-request", error.what(), "request", "");
+        }
+        for (const auto& id : ids)
+            changed = changed || object(current.at(id)).contains("value");
+        if (!changed)
+            return *this;
+        Budget budget;
+        auto syntax = index;
+        auto output = [&] {
+            Engine engine(bytes, &budget, true, syntax);
+            auto next = JSON::makeDictionary();
+            for (const auto& [id, parameter] : current) {
+                if (ids.contains(id)) {
+                    auto copy = JSON::makeDictionary();
+                    for (const auto& [key, item] : object(parameter))
+                        if (key != "value")
+                            copy.addDictionaryMember(key, item);
+                    next.addDictionaryMember(id, copy);
+                } else
+                    next.addDictionaryMember(id, parameter);
+            }
+            engine.manifest.addDictionaryMember("parameters", next);
+            auto output = engine.write(engine.manifest);
+            syntax = engine.take_index();
+            return output;
+        }();
+        // Release the editing graph before allocating the independently validated output graph.
+        Engine reopened(output, &budget, false, syntax);
+        return Document(
+            std::move(output), reopened.describe(), true, true, reopened.take_index(), reopened.take_previews());
+    } catch (const Error&) {
+        throw;
+    } catch (const std::bad_alloc&) {
+        throw Error("limit-exceeded", "Processor allocation failed.");
+    } catch (const std::exception& error) {
+        throw Error("pdf-syntax", error.what());
+    }
+}
+Document Document::style(const std::string& overrides) const { return change(overrides, Change::style); }
+Document Document::style(const std::string& overrides, const std::string& reset) const
+{
+    return change(overrides, Change::style, reset);
+}
+Document Document::reset(const std::optional<std::string>& ids) const
+{
+    return change(ids.value_or("[]"), ids ? Change::reset : Change::reset_all);
+}
+Document Document::extract(const std::string& pages) const
+{
+    try {
+        Budget budget;
+        auto output = [&] {
+            Engine engine(bytes, &budget, true, index);
+            return engine.extract(parse(pages, "request"), bytes);
+        }();
+        if (output == bytes)
+            return *this;
+        Engine reopened(output, &budget, false, index);
+        return Document(std::move(output), reopened.describe(), !object(reopened.manifest).empty(), reopened.prepared(),
+            reopened.take_index(), reopened.take_previews());
+    } catch (const Error&) {
+        throw;
+    } catch (const std::bad_alloc&) {
+        throw Error("limit-exceeded", "Processor allocation failed.");
+    } catch (const std::exception& error) {
+        throw Error("pdf-syntax", error.what());
+    }
+}
+std::string Document::preview(std::size_t page) const
+{
+    try {
+        if (page >= previews->pages.size())
+            throw Error("invalid-request", "Preview page is outside the PDF.", "request", "");
+        const auto& file = previews->pages[page];
+        if (file.empty())
+            return {};
+        if (auto found = previews->images.find(file); found != previews->images.end())
+            return *found->second;
+        Engine engine(bytes, nullptr, true, index);
+        return engine.preview(page);
+    } catch (const Error&) {
+        throw;
+    } catch (const std::bad_alloc&) {
+        throw Error("limit-exceeded", "Preview allocation failed.");
+    } catch (const std::exception& error) {
+        throw Error("pdf-syntax", error.what());
+    }
+}
+}

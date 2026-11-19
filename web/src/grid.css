@@ -1,0 +1,451 @@
+/* Styles Grid frames, page captions, and view controls. */
+
+@layer views {
+  @scope (.composer) {
+    .grid-view {
+      display: block;
+      min-inline-size: 0;
+      min-block-size: 0;
+      overflow: auto;
+      padding-block: var(--content-inset) 12px;
+      scroll-padding-block: var(--content-inset) 12px;
+      scrollbar-width: thin;
+      scrollbar-gutter: stable;
+      overscroll-behavior: contain;
+      overflow-anchor: none;
+    }
+
+    .composition-grid {
+      grid-auto-rows: var(--card-height);
+      --grid-row-gap: var(--grid-gap);
+      align-content: start;
+      min-block-size: 0;
+    }
+    .page-content:has(> .grid-view) {
+      margin-inline-end: calc(-1 * max(8px, var(--grid-gutter, 0px)));
+    }
+    .grid-view {
+      padding-inline-end: max(0px, calc(8px - var(--grid-gutter, 0px)));
+    }
+
+    .page-name {
+      margin: 0;
+      padding: 0.35em 0.25em;
+      min-inline-size: 0;
+      overflow-wrap: anywhere;
+      font-size: var(--small);
+      line-height: 1.35;
+      color: var(--ink);
+      text-align: center;
+    }
+    .composition-card .page-label {
+      position: relative;
+    }
+    .composition-card:has(.page-origin:hover, .page-origin:focus-within, .page-number:hover) {
+      z-index: 2;
+    }
+    .page-origin,
+    .page-number {
+      anchor-scope: --page-name;
+      & > :is(button, summary, strong) {
+        anchor-name: --page-name;
+      }
+    }
+    :is(.page-origin, .page-number) > .page-name {
+      position: fixed;
+      z-index: 5;
+      inset: auto;
+      position-anchor: --page-name;
+      position-area: block-end span-inline-end;
+      position-try-fallbacks: flip-inline;
+      inline-size: max-content;
+      max-inline-size: calc(100vi - 2 * var(--gutter));
+      padding: 0.5em 0.75em;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 4px 12px var(--shadow);
+      text-align: start;
+      white-space: nowrap;
+      overflow: clip;
+      text-overflow: ellipsis;
+      pointer-events: none;
+      display: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      :is(.page-origin, .page-number):hover > .page-name {
+        display: block;
+        animation: caption 220ms step-end;
+      }
+    }
+    :is(.page-origin, .page-number):focus-within > .page-name {
+      display: block;
+      animation: none;
+    }
+    @keyframes caption {
+      from {
+        visibility: hidden;
+      }
+      to {
+        visibility: visible;
+      }
+    }
+    .page-view .inspection-heading {
+      overflow: visible;
+    }
+    .page-details {
+      inline-size: 100%;
+      border-collapse: collapse;
+      text-align: start;
+      & th,
+      & td {
+        padding-block: 0.3em;
+        vertical-align: top;
+        text-align: start;
+      }
+      & th {
+        padding-inline-end: 1em;
+        color: var(--muted);
+        font-weight: 400;
+        white-space: nowrap;
+      }
+      & td {
+        overflow-wrap: anywhere;
+        min-inline-size: 0;
+      }
+    }
+    .detail-name {
+      min-inline-size: 0;
+      margin: 0;
+      padding-block-end: 0.6em;
+      margin-block-end: 0.35em;
+      border-block-end: 1px solid var(--border);
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: clip;
+      text-overflow: ellipsis;
+    }
+
+    .composition-card > .occurrence-actions > .card-inline-actions button::after {
+      inset-inline: 0;
+    }
+    .composition-card {
+      --return-surface: var(--soft);
+      &.selected {
+        --return-surface: color-mix(in oklch, var(--accent) 8%, var(--soft));
+      }
+    }
+    .ribbon-symbol {
+      display: inline flex;
+    }
+    .ribbon-dots {
+      display: none;
+    }
+    .page-grip:is([data-press], .dragging, :active) {
+      & .ribbon-symbol {
+        display: none;
+      }
+      & .ribbon-dots {
+        display: inline flex;
+        align-items: center;
+        justify-content: center;
+        & svg {
+          inline-size: 16px;
+          block-size: 16px;
+          translate: 0;
+          rotate: 0deg;
+        }
+      }
+    }
+    .page-detail-navigation {
+      margin-block-start: 0.5em;
+      padding-block-start: 0.5em;
+      border-block-start: 1px solid var(--border);
+      & .section-path {
+        inline-size: 100%;
+        max-inline-size: 100%;
+        max-block-size: none;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        & > header {
+          padding-block-end: 0.3em;
+          border-block-end: 0;
+          & h3 {
+            font-size: var(--body);
+          }
+        }
+      }
+    }
+    .page-destination {
+      display: inline flex;
+      flex: none;
+      anchor-scope: --page-destination;
+      & > button {
+        anchor-name: --page-destination;
+      }
+    }
+    .page-destination-panel {
+      --destination-width: min(18rem, calc(100vi - 2 * var(--gutter)));
+      position-anchor: --page-destination;
+      position-area: block-end span-all;
+      inset: auto;
+      justify-self: anchor-center;
+      position-try-fallbacks: flip-block;
+      position-try-order: most-block-size;
+      margin: 0;
+      margin-block-start: 4px;
+      margin-inline: var(--gutter);
+      inline-size: var(--destination-width);
+      max-block-size: calc(100% - 4px - var(--gutter));
+      padding: calc(var(--gap) / 2);
+      padding-block-end: calc(var(--gap) / 2 + 4px);
+      overflow: auto;
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      color: var(--ink);
+      background: var(--surface);
+      box-shadow: 0 4px 16px var(--shadow);
+      & .page-destination-heading {
+        display: flex;
+        align-items: center;
+        & > label {
+          flex: 1;
+          margin: 0;
+        }
+      }
+      & :is(.page-destination-heading > label, .logical-heading) {
+        font-size: var(--body);
+        font-weight: 600;
+        padding-inline-start: 4px;
+      }
+      & .page-destination-row {
+        display: block grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        grid-template-rows: minmax(44px, auto) auto;
+        align-items: stretch;
+        gap: 4px;
+        & .entry {
+          grid-column: 2;
+          grid-row: 1;
+          inline-size: calc(4ch + 56px);
+          min-inline-size: 0;
+        }
+        & > button {
+          display: block grid;
+          grid-row: 1 / -1;
+          grid-template-rows: subgrid;
+          row-gap: inherit;
+          padding: 0;
+          &:first-child {
+            grid-column: 1;
+          }
+          &:last-child {
+            grid-column: 3;
+          }
+          & svg {
+            align-self: center;
+          }
+        }
+      }
+      & .control-description {
+        margin-block: 4px 0;
+        text-align: center;
+        overflow-wrap: anywhere;
+      }
+    }
+    .section-path {
+      inline-size: 32rem;
+      max-inline-size: calc(100vi - 32px);
+      max-block-size: calc(100dvb - 32px);
+      overflow: auto;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: 0 12px 40px var(--shadow);
+      & > header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-block-end: 8px;
+        border-block-end: 1px solid var(--border);
+        & > svg {
+          flex: none;
+          inline-size: 24px;
+          block-size: 24px;
+          color: var(--secondary);
+        }
+        & > h3 {
+          flex: 1;
+          margin: 0;
+          font-size: 1rem;
+          font-weight: 600;
+        }
+      }
+      & > ol {
+        list-style: none;
+        margin: 10px 0 0;
+        padding: 0;
+        & > li {
+          position: relative;
+          color: var(--muted);
+          font-size: var(--body);
+          font-weight: 600;
+          font-variant-caps: all-small-caps;
+          font-synthesis: small-caps;
+          overflow-wrap: anywhere;
+          &::before {
+            content: "";
+            position: absolute;
+            inset-inline-start: 19px;
+            inset-block: 0;
+            inline-size: 1px;
+            background: var(--border);
+          }
+          &:first-child::before {
+            inset-block-start: 50%;
+          }
+          &:last-child::before {
+            inset-block-end: 50%;
+          }
+          &[aria-current="step"] {
+            color: var(--accent);
+            & .path-level {
+              border-color: var(--accent);
+              background: var(--accent);
+              color: var(--on-accent);
+            }
+          }
+          & > button.path-step {
+            display: grid;
+            grid-template-columns: 24px 3ch minmax(0, 1fr);
+            align-items: center;
+            gap: 8px;
+            inline-size: 100%;
+            min-inline-size: 0;
+            block-size: auto;
+            min-block-size: var(--list-action-size);
+            padding: 5px 8px;
+            border: 0;
+            border-radius: var(--radius);
+            background: transparent;
+            box-shadow: none;
+            color: inherit;
+            font: inherit;
+            font-variant-caps: inherit;
+            text-align: start;
+            white-space: normal;
+            &:focus-visible {
+              outline: 2px solid var(--secondary);
+              outline-offset: 2px;
+            }
+            &:active {
+              background: var(--tint);
+              filter: none;
+            }
+            @media (hover: hover) and (pointer: fine) {
+              &:hover {
+                background: var(--soft);
+              }
+            }
+          }
+        }
+      }
+      & .path-level {
+        display: inline grid;
+        place-items: center;
+        align-self: center;
+        z-index: 1;
+        inline-size: 24px;
+        block-size: 24px;
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        background: var(--surface);
+        font-variant-caps: normal;
+        font-size: 12px;
+      }
+      & .path-page {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+        font-variant-caps: normal;
+        text-align: center;
+      }
+    }
+    .composition-card[data-returning] {
+      background: color-mix(in oklch, var(--secondary) 30%, var(--return-surface));
+      @media (prefers-reduced-motion: no-preference) {
+        animation: view-return 1200ms var(--ease-out) forwards;
+      }
+      @media (forced-colors: active) {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+      }
+    }
+    @keyframes view-return {
+      0%,
+      30% {
+        background: color-mix(in oklch, var(--secondary) 30%, var(--return-surface));
+      }
+      to {
+        background: var(--return-surface);
+      }
+    }
+    :is(.composition-card, .page-view)::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      border-radius: inherit;
+      background: var(--secondary);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    [data-face="back"]::after {
+      clip-path: polygon(0 0, calc(100% - var(--fold)) 0, 100% var(--fold), 100% 100%, 0 100%);
+    }
+
+    .grid-pdf-label {
+      position: absolute;
+      inset-inline-start: 8px;
+      inset-block-end: 0;
+      max-inline-size: calc(50% - 24px);
+      block-size: calc(var(--card-tools-height) / 2);
+      display: block;
+      align-content: center;
+      overflow: clip;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: var(--small);
+      color: var(--muted);
+      pointer-events: none;
+    }
+  }
+}
+
+@layer views {
+  @scope (.composer) {
+    .page-destination-panel .entry input {
+      inline-size: calc(4ch + 0.6em);
+      padding-inline: 0.3em;
+      text-align: center;
+      color: var(--muted);
+    }
+    .page-destination-panel .logical-heading {
+      display: block;
+      margin-block: 1em 0.5em;
+      padding-block-start: 1em;
+      border-block-start: 1px solid var(--border);
+    }
+    .page-destination-row small {
+      font-size: var(--small);
+      font-weight: 400;
+      color: var(--muted);
+      max-inline-size: 7ch;
+      overflow-wrap: anywhere;
+    }
+  }
+}

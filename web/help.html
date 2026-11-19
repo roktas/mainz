@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#800080" />
+    <base href="%BASE_URL%" />
+    <script>
+      // Static hosts can serve directory indexes without redirecting to a trailing slash.
+      const root = location.pathname.match(/^(.*\/)help(?:\/[^/]+)?\/?$/)
+      if (root) document.querySelector("base").href = root[1]
+    </script>
+    <link rel="icon" type="image/svg+xml" href="logo.svg" />
+    <title>Screencasts · PDF Composer</title>
+    <script>
+      try {
+        const theme = localStorage.getItem("mainz:theme")
+        if (["light", "dark"].includes(theme)) document.documentElement.dataset.theme = theme
+      } catch {
+        /* Use the system theme when storage is unavailable. */
+      }
+    </script>
+  </head>
+  <body id="app">
+    <header class="masthead">
+      <div class="header-inner">
+        <a class="brand" href="./" aria-label="PDF Composer home"></a>
+        <div class="header-actions">
+          <a class="icon-button screencast-back" href="help/" aria-label="All screencasts" hidden>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M19 12H5m5-5-5 5 5 5" />
+            </svg>
+          </a>
+        </div>
+      </div>
+    </header>
+    <main class="screencasts">
+      <h1>Screencasts</h1>
+      <nav aria-label="Screencasts"></nav>
+    </main>
+    <script type="module" src="/src/screencasts.ts"></script>
+  </body>
+</html>

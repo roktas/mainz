@@ -1,0 +1,255 @@
+<!-- Renders PDF preview rasters and supplies each image's hover lens. -->
+
+<script module lang="ts">
+  function scaleFor(size: { width: number; height: number }, requested: number) {
+    const limit = 16 * 1024 * 1024
+    let scale = Math.min(requested, Math.sqrt(limit / size.width / size.height))
+    const width = Math.ceil(size.width * scale),
+      height = Math.ceil(size.height * scale)
+    if (width * height > limit)
+      scale = (Math.floor(limit / Math.min(width, height)) - 0.5) / Math.max(size.width, size.height)
+    return scale
+  }
+  let measurements: (() => void)[] = []
+  function measure<T>(read: () => T): Promise<T> {
+    return new Promise((resolve, reject) => {
+      measurements.push(() => {
+        try {
+          resolve(read())
+        } catch (reason) {
+          reject(reason)
+        }
+      })
+      if (measurements.length === 1)
+        requestAnimationFrame(() => {
+          const batch = measurements
+          measurements = []
+          // Finish geometry reads before resolving promises that paint canvases.
+          for (const pending of batch) pending()
+        })
+    })
+  }
+</script>
+
+<script lang="ts">
+  import { onDestroy } from "svelte"
+  import { cachedRaster, cacheRaster, loadRenderer, thumbnail as suppliedThumbnail } from "./pdf.ts"
+  import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist"
+  import type { Description } from "./styles.ts"
+  import Lens from "./Lens.svelte"
+  import type { Magnification } from "./Lens.svelte"
+  let {
+    pdf,
+    page,
+    pageNumber,
+    name,
+    thumbnail = false,
+    preview,
+    zoom = 100,
+    thumbnailWidth = 0,
+    magnification = 16,
+    error,
+  }: {
+    pdf: PDFDocumentProxy
+    page: number
+    pageNumber?: number
+    name?: string
+    thumbnail?: boolean
+    preview?: Description["pages"][number]["preview"]
+    zoom?: number
+    thumbnailWidth?: number
+    magnification?: Magnification
+    error: (message: string) => void
+  } = $props()
+  let canvas = $state<HTMLCanvasElement>()
+  let rendering = $state(true)
+  let painted = $state(false)
+  let failure = $state("")
+  let lensScale = $state(1)
+  let previous: { pdf: PDFDocumentProxy; page: number } | undefined
+  const renderedPDF = $derived(pdf)
+  const renderedPage = $derived(page)
+  const renderedThumbnail = $derived(thumbnail)
+  const renderedZoom = $derived(zoom)
+  const renderedThumbnailWidth = $derived(thumbnailWidth)
+  const renderedPreview = $derived(preview)
+
+  function render(target: HTMLCanvasElement) {
+    const document = renderedPDF,
+      number = renderedPage,
+      small = renderedThumbnail,
+      level = renderedZoom,
+      reference = renderedThumbnailWidth,
+      descriptor = renderedPreview,
+      rasterPage = small && descriptor ? `image:${number}` : number
+    const parent = target.parentElement!
+    const retained = previous?.pdf === document && previous.page === number && target.width > 0
+    painted = retained
+    if (!retained) {
+      const raster = small ? cachedRaster(document, rasterPage) : undefined
+      target.width = raster?.width ?? 0
+      target.height = raster?.height ?? 0
+      if (raster) {
+        target.style.inlineSize = target.style.blockSize = "auto"
+        target.getContext("2d")!.drawImage(raster, 0, 0)
+        previous = { pdf: document, page: number }
+        painted = true
+      }
+    }
+    rendering = true
+    let disposed = false
+    let frame: number
+    let generation = 0
+    let completed: { fit: number; scale: number } | undefined
+    let active: RenderTask | undefined
+    async function draw() {
+      if (!parent.clientWidth || (!small && !reference)) {
+        rendering = false
+        return
+      }
+      const current = ++generation
+      active?.cancel()
+      let sheet: PDFPageProxy | undefined
+      let task: RenderTask | undefined
+      let transient: HTMLCanvasElement | undefined
+      let sample: HTMLCanvasElement | undefined
+      try {
+        const { AnnotationMode } = await loadRenderer()
+        if (disposed || current !== generation) return
+        sheet = await document.getPage(number + 1)
+        if (disposed || current !== generation) return
+        const size = sheet.getViewport({ scale: 1 })
+        if (!small) parent.style.setProperty("--ratio", String(size.width / size.height))
+        const bounds = await measure(() => {
+          // A pane can become hidden while PDF.js loads; wait for its next visible resize.
+          if (!parent.clientWidth) return
+          if (!small) return { width: target.getBoundingClientRect().width, height: Infinity }
+          const style = getComputedStyle(parent)
+          const availableWidth = Math.max(
+            1,
+            parent.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd),
+          )
+          const availableHeight = Math.max(
+            1,
+            parent.clientHeight - parseFloat(style.paddingBlockStart) - parseFloat(style.paddingBlockEnd),
+          )
+          return { width: availableWidth, height: availableHeight }
+        })
+        if (!bounds || disposed || current !== generation) return
+        const { width, height } = bounds
+        const fit = Math.min(width / size.width, height / size.height) * (small ? level / 100 : 1)
+        lensScale = (small ? Math.min(width / size.width, height / size.height) : reference / size.width) / fit
+        const scale = scaleFor(size, fit * Math.min(devicePixelRatio, 2))
+        // Existing high-density rasters need no extra sampling or temporary canvas.
+        const sampling = small ? scaleFor(size, Math.max(scale, fit * Math.min(devicePixelRatio, 1) * 2)) : scale
+        const viewport = sheet.getViewport({ scale: sampling })
+        if (small) {
+          target.style.inlineSize = `${size.width * fit}px`
+          target.style.blockSize = `${size.height * fit}px`
+        }
+        if (completed?.fit === fit && completed.scale === scale) return
+        completed = undefined
+        rendering = true
+        failure = ""
+        let raster = cachedRaster(document, rasterPage, scale, sampling)
+        if (!raster && small && descriptor) {
+          const image = await suppliedThumbnail(document, number)
+          if (disposed || current !== generation) return
+          if (image?.width) {
+            raster = parent.ownerDocument.createElement("canvas")
+            transient = raster
+            raster.width = Math.ceil(size.width * scale)
+            raster.height = Math.ceil(size.height * scale)
+            const context = raster.getContext("2d")!
+            const imageScale = Math.min(raster.width / image.width, raster.height / image.height)
+            const imageWidth = image.width * imageScale,
+              imageHeight = image.height * imageScale
+            context.fillStyle = "white"
+            context.fillRect(0, 0, raster.width, raster.height)
+            context.drawImage(
+              image,
+              (raster.width - imageWidth) / 2,
+              (raster.height - imageHeight) / 2,
+              imageWidth,
+              imageHeight,
+            )
+            if (cacheRaster(document, rasterPage, scale, raster, sampling)) transient = undefined
+          }
+        }
+        if (!raster) {
+          raster = parent.ownerDocument.createElement("canvas")
+          transient = raster
+          raster.width = Math.ceil(viewport.width)
+          raster.height = Math.ceil(viewport.height)
+          task = sheet.render({ canvas: raster, viewport, annotationMode: AnnotationMode.DISABLE })
+          active = task
+          await task.promise
+          if (disposed || current !== generation) return
+          if (sampling > scale) {
+            sample = raster
+            raster = parent.ownerDocument.createElement("canvas")
+            transient = raster
+            raster.width = Math.ceil(size.width * scale)
+            raster.height = Math.ceil(size.height * scale)
+            const context = raster.getContext("2d")!
+            context.imageSmoothingEnabled = true
+            context.imageSmoothingQuality = "high"
+            context.drawImage(sample, 0, 0, raster.width, raster.height)
+          }
+          if (cacheRaster(document, rasterPage, scale, raster, sampling)) transient = undefined
+        }
+        target.width = raster.width
+        target.height = raster.height
+        target.getContext("2d")!.drawImage(raster, 0, 0)
+        completed = { fit, scale }
+        previous = { pdf: document, page: number }
+        painted = true
+      } catch (reason) {
+        if (disposed || current !== generation) return
+        failure = reason instanceof Error ? reason.message : "PDF rendering failed."
+        error(`Page ${pageNumber ?? number + 1}: ${failure}`)
+      } finally {
+        if (sample) sample.width = sample.height = 0
+        if (transient) transient.width = transient.height = 0
+        if (active === task) active = undefined
+        sheet?.cleanup()
+        if (!disposed && current === generation) rendering = false
+      }
+    }
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => void draw())
+    })
+    observer.observe(parent)
+    const viewport = parent.closest<HTMLElement>(".page-scroll")
+    if (viewport) observer.observe(viewport)
+    return () => {
+      disposed = true
+      observer.disconnect()
+      cancelAnimationFrame(frame)
+      active?.cancel()
+    }
+  }
+  onDestroy(() => {
+    if (canvas) canvas.width = canvas.height = 0
+  })
+</script>
+
+<div
+  class={thumbnail ? "thumbnail" : "pdf-viewport"}
+  aria-busy={rendering}
+  data-error={!!failure || undefined}
+  title={failure || undefined}
+>
+  <!-- Prevent inherited button tooltips from covering the hover lens. -->
+  <canvas
+    bind:this={canvas}
+    {@attach render}
+    width="0"
+    height="0"
+    aria-label={`PDF page ${pageNumber ?? page + 1}${failure ? ": could not render" : ""}`}
+    title=""
+  ></canvas>
+  {#if !failure && rendering && !painted}<span class="spinner render-status" aria-hidden="true"></span>{/if}
+</div>
+<Lens {pdf} page={page + 1} {pageNumber} {name} {canvas} {rendering} {magnification} ratio={lensScale} />

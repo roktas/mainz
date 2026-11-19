@@ -1,0 +1,2002 @@
+# frozen_string_literal: true
+
+require "minitest/autorun"
+
+require_relative "fixtures"
+
+load(File.expand_path("../../Rakefile", __dir__)) unless defined?(Mainz::Preservation)
+
+module Mainz
+  class ContractTest < Minitest::Test
+    include Fixtures
+
+    def setup
+      @directory = Mainz.workspace("tmp/test/lib")
+      @cli = File.expand_path(ENV.fetch("MAINZ_CLI"))
+      @source = file("prepared.pdf")
+      @original = fixture(@source)
+      write("inputs.json", {"input" => @source.to_s})
+      write("plan.json", plan)
+    end
+
+    def teardown
+      write("inputs.json", {"input" => @source.to_s})
+      write("plan.json", plan)
+    end
+
+    def test_shared_input_byte_limit_counts_bindings_once
+      source = large_input_fixture
+      request = {
+        "version" => 1,
+        "sources" => {"a" => {"input" => "book", "overrides" => {}}, "b" => {"input" => "book", "overrides" => {}}},
+        "parts" => [{"pages" => [{"source" => "a", "page" => 0}, {"source" => "b", "page" => 1}]}]
+      }
+      write("inputs.json", {"book" => source.to_s})
+      output, = compose(request, "large-shared.pdf")
+      assert_equal(2, describe(output)["pageCount"])
+      recipe = request.merge(
+        "inputs" => {"book" => {"sha256" => Digest::SHA256.file(source).hexdigest}},
+        "sources" => {"a" => {"input" => "book"}, "b" => {"input" => "book"}}
+      )
+      recipe_output = file("large-recipe.pdf")
+      FileUtils.rm_f(recipe_output)
+      command(
+        @cli,
+        "apply",
+        write("large-recipe.json", recipe),
+        "--inputs",
+        file("inputs.json"),
+        "--output",
+        recipe_output
+      )
+      assert_equal(output.binread, recipe_output.binread)
+      request["sources"]["b"]["input"] = "other"
+      write("inputs.json", {"book" => source.to_s, "other" => source.to_s})
+      _, failure = compose(request, "large-distinct.pdf", ok: false)
+      assert_equal("limit-exceeded", JSON.parse(failure.stderr)["code"])
+    end
+
+    def test_description_exposes_baselines_and_plain_text
+      description = describe(@source)
+      assert_equal(@original["groups"], description["groups"])
+      assert_equal(2, description["pageCount"])
+      assert_equal({"kind" => "mixed"}, description["parameters"]["opacity"]["baseline"])
+      assert_equal({"kind" => "uniform", "value" => "none"}, description["parameters"]["guide-display"]["baseline"])
+      assert_equal({"kind" => "uniform", "value" => "#333333"}, description["parameters"]["color"]["baseline"])
+      assert_equal({"kind" => "mixed"}, description["parameters"]["width"]["baseline"])
+      assert_equal(
+        @original["parameters"]["opacity"]["schema"]["description"],
+        description["parameters"]["opacity"]["parameter"]["schema"]["description"]
+      )
+      command(@cli, "verify", "-", input: @source.binread)
+      active = file("active-content.pdf")
+      fixture(
+        active,
+        pdf_objects: -> (objects, _) {
+          objects[0] = objects[0].sub(
+            "/Names",
+            "/OpenAction << /S /JavaScript /JS (globalThis.mainzPdfScriptExecuted = true; fetch\\('https://example.invalid/pdf-script'\\);) >> /Names"
+          )
+          objects[2] = objects[2].sub(
+            "/Resources",
+            "/Annots [<< /Type /Annot /Subtype /Link /Rect [0 0 100 100] /A << /S /URI /URI (https://example.invalid/pdf-link) >> >>] /Resources"
+          )
+        }
+      )
+      command(@cli, "verify", active)
+      fixture(
+        file("opaque-id.pdf"),
+        -> (manifest) {
+          parameter = manifest["parameters"].delete("opacity")
+          parameter["schema"]["title"] = "Opacity"
+          manifest["parameters"]["__proto__"] = parameter
+          manifest["groups"][0]["parameters"][0] = "__proto__"
+        }
+      )
+      command(@cli, "verify", file("opaque-id.pdf"))
+    end
+
+    def test_page_annotations_survive_page_operations
+      source = file("annotated.pdf")
+      pages = [
+        {"name" => "Practice", "tags" => ["Guides", "guides"]},
+        {"name" => "Practice", "tags" => []}
+      ]
+      fixture(source, -> (manifest) { manifest["pages"] = pages })
+      command(@cli, "verify", source)
+      assert_equal(pages, describe(source)["pages"])
+      edited = operation(source, "annotated-edited.pdf", {"opacity" => 0.65})
+      assert_equal(pages, describe(edited)["pages"])
+      selected = extract(edited, "annotated-reversed.pdf", [1, 0])
+      assert_equal(pages.reverse, describe(selected)["pages"])
+      assert_equal([1], describe(selected)["parameters"]["opacity"]["pages"])
+      assert_equal(Preservation.read(source).reverse, Preservation.read(selected))
+      write("inputs.json", {"input" => source.to_s})
+      composed, = compose(
+        {
+          "version" => 1,
+          "sources" => {"original" => {"input" => "input", "overrides" => {}}},
+          "parts" => [
+            {"pages" => [1, 0].map { {"source" => "original", "page" => it} }, "copies" => 2},
+            {"pages" => [{"blank" => {"width" => 100, "height" => 100}}]}
+          ]
+        },
+        "annotated-composed.pdf"
+      )
+      assert_equal(pages.reverse * 2 + [{}], describe(composed)["pages"].map { it.except("label") })
+    end
+
+    def test_metadata_only_supports_page_operations
+      source = file("metadata-only.pdf")
+      annotation = {"name" => "Reference", "tags" => ["notes"]}
+      fixture(
+        source,
+        -> (manifest) {
+          manifest["pages"] = [{}, annotation]
+          %w[regions baselines targets parameters].each { manifest[it] = {} }
+          manifest.delete("groups")
+        }
+      )
+      assert(JSON.parse(command(@cli, "verify", source).stdout)["valid"])
+      assert_equal({}, describe(source)["parameters"])
+      request = write("metadata-overrides.json", {})
+      failure = command(
+        @cli,
+        "style",
+        source,
+        "--overrides",
+        request,
+        "--output",
+        file("metadata-styled.pdf"),
+        ok: false
+      )
+      assert_equal("missing-contract", JSON.parse(failure.stderr)["code"])
+      failure = command(
+        @cli,
+        "style",
+        source,
+        "--profile",
+        "original",
+        "--output",
+        file("metadata-profile.pdf"),
+        ok: false
+      )
+      error = JSON.parse(failure.stderr)
+      assert_equal("missing-contract", error["code"])
+      assert_equal("PDF has no editable Mainz paint.", error["message"])
+      selected = extract(source, "metadata-retained.pdf", [1])
+      assert_equal([annotation], describe(selected)["pages"])
+      command(@cli, "verify", selected)
+      ordinary = extract(source, "metadata-removed.pdf", [0])
+      assert_equal("missing-contract", failure_code(ordinary))
+      assert_equal([{}], describe(ordinary)["pages"])
+      assert_equal([page_snapshot(source, 1)], [page_snapshot(selected, 0)])
+    end
+
+    def test_page_metadata_rejects_invalid_values
+      invalids = [
+        [],
+        [{}],
+        [{}, {}, {}],
+        [nil, {}],
+        [{"name" => ""}, {}],
+        [{"name" => "\u00a0"}, {}],
+        [{"name" => "bad\nname"}, {}],
+        [{"tags" => ["detail", "detail"]}, {}],
+        [{"tags" => [" "]}, {}],
+        [{"tags" => [1]}, {}],
+        [{"unknown" => true}, {}]
+      ]
+      invalids.each_with_index do |pages, index|
+        source = file("invalid-pages-#{index}.pdf")
+        fixture(source, -> (manifest) { manifest["pages"] = pages })
+        assert_equal("invalid-contract", failure_code(source), pages.inspect)
+      end
+
+      [-1, 0.5, 2, nil, "0"].each_with_index do |page, index|
+        source = file("invalid-region-page-#{index}.pdf")
+        fixture(source, -> (manifest) { manifest["regions"]["rows"]["page"] = page })
+        assert_equal("invalid-contract", failure_code(source))
+      end
+    end
+
+    def test_document_xmp_survives_style_and_extraction_without_composition_inheritance
+      source = file("xmp.pdf")
+      fixture(source)
+      xml = "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">Practice</rdf:li></rdf:Alt></dc:title></rdf:Description></rdf:RDF></x:xmpmeta>"
+      document = HexaPDF::Document.open(source)
+      document.catalog[:Metadata] = document.add({Type: :Metadata, Subtype: :XML}, stream: xml)
+      document.write(source.to_s, update_fields: false)
+      changed = operation(source, "xmp-styled.pdf", {"opacity" => 0.4})
+      selected = extract(changed, "xmp-selected.pdf", [0])
+      [changed, selected].each { |path| assert_equal(xml, HexaPDF::Document.open(path).catalog[:Metadata].stream) }
+      write("inputs.json", {"input" => source.to_s})
+      result, = compose(
+        {
+          "version" => 1,
+          "sources" => {"source" => {"input" => "input", "overrides" => {}}},
+          "parts" => [{"pages" => [{"source" => "source", "page" => 0}]}]
+        },
+        "xmp-composed.pdf"
+      )
+      assert_nil(HexaPDF::Document.open(result).catalog[:Metadata])
+    end
+
+    def test_composition_writes_explicit_output_title_and_cover_page
+      request = plan
+      request["metadata"] = {"title" => "Ink & <Paper> Çalışma\rPart 2", "coverPage" => 2}
+      result, = compose(request, "identified.pdf")
+      saved = HexaPDF::Document.open(result)
+      assert_equal("Ink & <Paper> Çalışma\rPart 2", saved.trailer[:Info][:Title])
+      xml = saved.catalog[:Metadata].stream.force_encoding(Encoding::UTF_8)
+      assert_includes(xml, "Ink &amp; &lt;Paper&gt; Çalışma&#13;Part 2")
+      assert_includes(xml, "<mainz:coverPage>2</mainz:coverPage>")
+      assert_equal(10, describe(result)["pageCount"])
+      [0, 11, 1.5].each do |page|
+        request["metadata"]["coverPage"] = page
+        _, failure = compose(request, "invalid-title.pdf", ok: false)
+        assert_equal("/metadata", JSON.parse(failure.stderr)["location"])
+      end
+
+      request["metadata"] = {"title" => "bad\u0001text", "coverPage" => 1}
+      _, failure = compose(request, "invalid-title.pdf", ok: false)
+      assert_equal("invalid-request", JSON.parse(failure.stderr)["code"])
+    end
+
+    def test_previews_survive_shared_pages_and_independent_sources
+      source = file("preview.pdf")
+      preview_fixture(source)
+      assert_equal({"file" => "page.png", "width" => 1, "height" => 1}, describe(source)["pages"][0]["preview"])
+      assert_equal(preview_png, command("qpdf", "--show-attachment=page.png", source).stdout)
+      unchanged = operation(source, "preview-unchanged.pdf", {"opacity" => 0.15})
+      assert_equal(source.binread, unchanged.binread)
+      changed = operation(source, "preview-changed.pdf", {"opacity" => 0.4})
+      refute(describe(changed)["pages"][0].key?("preview"))
+      assert(describe(changed)["pages"][1].key?("preview"))
+      assert_equal(preview_png, command("qpdf", "--show-attachment=page.png", changed).stdout)
+      discarded = extract(changed, "preview-discarded.pdf", [0])
+      refute_includes(command("qpdf", "--list-attachments", discarded).stdout, "page.png")
+      retained = extract(source, "preview-retained.pdf", [1])
+      assert_equal({}, describe(retained)["parameters"])
+      assert_equal(preview_png, command("qpdf", "--show-attachment=page.png", retained).stdout)
+      command(@cli, "verify", retained)
+      write("inputs.json", {"input" => source.to_s})
+      request = {
+        "version" => 1,
+        "sources" => {
+          "changed" => {"input" => "input", "overrides" => {}},
+          "saved" => {"input" => "input", "overrides" => {"opacity" => 0.15}}
+        },
+        "parts" => [{"pages" => %w[changed saved].map { {"source" => it, "page" => 0} }}]
+      }
+      composed, = compose(request, "preview-composed.pdf")
+      pages = describe(composed)["pages"]
+      refute(pages[0].key?("preview"))
+      assert_equal("page.png", pages[1]["preview"]["file"])
+      request["sources"]["saved"]["input"] = "other"
+      write("inputs.json", {"input" => source.to_s, "other" => source.to_s})
+      composed, = compose(request, "preview-multiple-inputs.pdf")
+      image = describe(composed)["pages"][1]["preview"]["file"]
+      assert_equal("i1:page.png", image)
+      assert_equal(preview_png, command("qpdf", "--show-attachment=#{image}", composed).stdout)
+    end
+
+    def test_preview_payloads_above_retention_limit_remain_valid
+      source = large_preview_fixture
+      assert_equal({"file" => "page.png", "width" => 1, "height" => 1}, describe(source)["pages"][0]["preview"])
+    end
+
+    def test_preview_invalidation_follows_parameter_scope
+      source = scoped_preview_fixture
+      assert_equal([0], describe(source)["parameters"]["opacity"]["pages"])
+      edited = operation(source, "preview-scope-edited.pdf", {"opacity" => 0.4})
+      assert_equal([false, true], describe(edited)["pages"].map { it.key?("preview") })
+      reset = operation(source, "preview-scope-reset.pdf", ["opacity"], reset: true)
+      assert_equal([false, true], describe(reset)["pages"].map { it.key?("preview") })
+      write("inputs.json", {"input" => source.to_s})
+      composed, = compose(
+        {
+          "version" => 1,
+          "sources" => {"source" => {"input" => "input", "overrides" => {}}},
+          "parts" => [{"pages" => [0, 1].map { {"source" => "source", "page" => it} }}]
+        },
+        "preview-scope-composed.pdf"
+      )
+      assert_equal([false, true], describe(composed)["pages"].map { it.key?("preview") })
+    end
+
+    def test_preview_cleanup_preserves_other_pdf_references
+      source = file("preview-associated.pdf")
+      preview_fixture(source) do |document|
+        document.catalog[:AF] = [document.catalog[:Names][:EmbeddedFiles].each_entry.to_h.fetch("page.png")]
+      end
+
+      changed = operation(source, "preview-associated-changed.pdf", {"opacity" => 0.4})
+      discarded = extract(changed, "preview-associated-retained.pdf", [0])
+      refute(describe(discarded)["pages"][0].key?("preview"))
+      assert_equal(preview_png, command("qpdf", "--show-attachment=page.png", discarded).stdout)
+    end
+
+    def test_preview_cleanup_handles_dense_shared_graphs
+      source, changed = dense_preview_fixture
+      discarded = extract(changed, "preview-dense-extracted.pdf", [0])
+      refute(describe(discarded)["pages"][0].key?("preview"))
+      assert_equal(130_000, HexaPDF::Document.open(discarded.to_s).catalog[:Dense].length)
+      assert_equal(preview_png, command("qpdf", "--show-attachment=page.png", discarded).stdout)
+      assert_equal(Preservation.read(source), Preservation.read(changed))
+    end
+
+    def test_preview_cleanup_rejects_excessive_reference_fanout
+      changed = fanout_preview_fixture
+      original = changed.binread
+      output = file("preview-fanout-extracted.pdf")
+      FileUtils.rm_f(output)
+      failure = command(@cli, "extract", changed, "--pages", write("request.json", [0]), "--output", output, ok: false)
+      assert_equal("limit-exceeded", JSON.parse(failure.stderr)["code"])
+      refute_path_exists(output)
+      assert_equal(original, changed.binread)
+    end
+
+    def test_preview_references_validate_attachment_identity
+      [
+        -> (document) { document.catalog[:Names][:EmbeddedFiles].each_entry.to_h.fetch("page.png")[:UF] = "other.png" },
+        -> (document) {
+          document.catalog[:Names][:EmbeddedFiles].each_entry.to_h.fetch("page.png")[:EF][:F][:Subtype] = :Image
+        },
+        -> (document) { document.catalog[:Names][:EmbeddedFiles].each_entry.to_h.fetch("page.png")[:EF][:UF] = nil }
+      ].each_with_index do |mutation, index|
+        source = file("preview-invalid-reference-#{index}.pdf")
+        preview_fixture(source, &mutation)
+        assert_equal("invalid-contract", failure_code(source))
+      end
+
+      source = file("preview-missing-reference.pdf")
+      fixture(source, -> (manifest) { manifest["pages"][0] = {"preview" => "missing.png"} })
+      assert_equal("invalid-contract", failure_code(source))
+    end
+
+    def test_optional_display_preserves_original_visibility
+      source, original = fixed_visibility_fixture
+      command(@cli, "verify", source)
+      parameters = describe(source).fetch("parameters")
+      assert_equal(original.fetch("parameters").keys.sort, parameters.keys.sort)
+      changes = {"width" => 0.2, "guide-fill" => 0.4, "fill-color" => "#00FF00"}
+      edited = operation(source, "fixed-visibility-edited.pdf", changes)
+      manifest, records = snapshot(edited)
+      assert_equal(original.fetch("baselines"), manifest.fetch("baselines"))
+      hidden = records.find { |baseline, _, _| baseline == "hidden" }[2]
+      assert_equal(0, hidden.fetch("/CA"))
+      assert_equal(0, hidden.fetch("/ca"))
+      changes.each do |id, value|
+        assert_equal(value, describe(edited).fetch("parameters").fetch(id).fetch("parameter").fetch("value"))
+      end
+
+      restored = operation(edited, "fixed-visibility-reset.pdf", reset: true)
+      extracted = extract(source, "fixed-visibility-extracted.pdf", [0])
+      write("inputs.json", {"input" => source.to_s})
+      composed, = compose(plan, "fixed-visibility-composed.pdf")
+      [edited, restored, extracted, composed].each do |path|
+        command(@cli, "verify", path)
+        summary = describe(path)
+        refute(
+          summary.fetch("parameters").values.any? { |entry| entry["parameter"]["binding"]["property"] == "display" }
+        )
+        retained = JSON.parse(command("qpdf", "--show-attachment=mainz.json", path).stdout)
+        assert_includes(retained.fetch("baselines").values.map { |baseline| baseline.fetch("display") }, "none")
+      end
+
+      write("fixed-visibility-description.json", describe(source))
+    end
+
+    def test_shared_baselines_keep_occurrence_specific_widths
+      source = file("shared-baseline.pdf")
+      fixture(
+        source,
+        -> (manifest) {
+          manifest["regions"]["rows"]["records"][1]["baseline"] = "dark"
+          manifest["baselines"].delete("dim")
+        }
+      )
+      description = describe(source)
+      assert_equal({"kind" => "mixed"}, description["parameters"]["width"]["baseline"])
+      assert_equal({"kind" => "uniform", "value" => 1}, description["parameters"]["opacity"]["baseline"])
+      edited = operation(source, "shared-baseline-edited.pdf", {"width" => 0.2})
+      widths = snapshot(edited)[1].filter_map { |baseline, scope, _|
+        scope[/q\s+([^ ]+) w/, 1].to_f if baseline == "dark"
+      }
+      assert_equal(2, widths.length)
+      widths.zip([0.28346456692913385, 0.14173228346456693]).each { |actual, expected|
+        assert_in_delta(expected, actual, 1e-15)
+      }
+    end
+
+    def test_styling_and_reset_preserve_immutable_baselines
+      edited, records, = snapshot(styled)
+      records.each do |baseline, scope, state|
+        if %w[dark dim].include?(baseline)
+          expected = baseline == "dark" ? 0.28346456692913385 : 0.14173228346456693
+          assert_in_delta(expected, scope[/q\s+([^ ]+) w/, 1].to_f, 1e-15)
+          assert_equal(0.65, state["/CA"])
+          assert_includes(scope, "10.12345678901234567890123456789")
+        elsif baseline == "hidden"
+          assert_includes(scope, "B* Q")
+          assert_equal(0.4, state["/ca"])
+        elsif baseline == "filled"
+          assert_includes(scope, "f* Q")
+          assert_equal(0.2, state["/ca"])
+        end
+      end
+
+      assert_equal(@original["baselines"], edited["baselines"])
+      assert_equal(@original["parameters"]["opacity"]["schema"], edited["parameters"]["opacity"]["schema"])
+      hidden = operation(styled, "hidden.pdf", {"display" => "none", "guide-display" => "none"})
+      while_hidden = operation(hidden, "while-hidden.pdf", {"opacity" => 0.4, "guide-fill" => 0.7})
+      snapshot(while_hidden)[1].each do |baseline, _, state|
+        next if baseline == "filled"
+
+        assert_equal(0, state["/CA"])
+        assert_equal(0, state["/ca"])
+      end
+
+      shown = operation(while_hidden, "shown.pdf", {"display" => "inline", "guide-display" => "inline"})
+      paint = snapshot(shown)[1]
+      assert_equal(
+        [0.4, 0.4],
+        paint.filter_map { |baseline, _, state| state["/CA"] if %w[dark dim].include?(baseline) }
+      )
+      assert_equal(0.7, paint.find { |baseline, _, _| baseline == "hidden" }[2]["/ca"])
+      selective = operation(shown, "selective.pdf", ["opacity"], reset: true)
+      assert_equal(
+        [1, 0.25],
+        snapshot(selective)[1].filter_map { |baseline, _, state| state["/CA"] if %w[dark dim].include?(baseline) }
+      )
+      reset = operation(selective, "reset.pdf", reset: true)
+      manifest, paint, = snapshot(reset)
+      assert(manifest["parameters"].values.none? { |parameter| parameter.key?("value") })
+      paint.each { |_, scope, _| assert_includes(scope, "+.2000000000000000000 w") }
+      guide = paint.find { |baseline, _, _| baseline == "hidden" }
+      assert_equal(0, guide[2]["/CA"])
+      assert(guide[1].strip.end_with?("S Q"))
+    end
+
+    def test_large_legal_manifests_remain_editable
+      source = file("large-manifest.pdf")
+      fixture(
+        source,
+        -> (manifest) { manifest["groups"] = Array.new(251) { {"title" => "x" * 4096, "parameters" => []} } }
+      )
+      edited = operation(source, "large-manifest-edited.pdf", {"opacity" => 0.65})
+      assert_equal(251, describe(edited)["groups"].length)
+    end
+
+    def test_dense_descriptions_remain_editable
+      source = dense_manifest_fixture
+      edited = operation(source, "dense-manifest-edited.pdf", {"opacity" => 0.65})
+      assert_equal(17_000, describe(edited)["groups"].length)
+      assert_equal(0.65, describe(edited)["parameters"]["opacity"]["parameter"]["value"])
+    end
+
+    def test_baseline_summaries_retain_numeric_precision
+      source = precise_baselines_fixture
+      parameters = describe(source)["parameters"]
+      assert_equal({"kind" => "uniform", "value" => 0.123456789}, parameters["opacity"]["baseline"])
+      assert_equal("uniform", parameters["guide-width"]["baseline"]["kind"])
+      assert_in_delta(7.055555555555555e-8, parameters["guide-width"]["baseline"]["value"], 1e-22)
+
+      fixture(
+        file("precise-mixed.pdf"),
+        -> (manifest) {
+          manifest["baselines"]["dark"]["strokeOpacity"] = "0.123456781"
+          manifest["baselines"]["dim"]["strokeOpacity"] = "0.123456789"
+        }
+      )
+      assert_equal({"kind" => "mixed"}, describe(file("precise-mixed.pdf"))["parameters"]["opacity"]["baseline"])
+    end
+
+    def test_unrepresentable_baselines_do_not_become_scalar_values
+      color = file("unrepresentable-color.pdf")
+      fixture(
+        color,
+        -> (manifest) {
+          %w[dark dim].each do |id|
+            manifest["baselines"][id]["stroke"] = {"operator" => "G", "operands" => ["0.5"]}
+          end
+        },
+        pdf_objects: replace_object(6, "0.2 G", "0.5 G")
+      )
+      assert_equal("unrepresentable", describe(color)["parameters"]["color"]["baseline"]["kind"])
+
+      width = file("unrepresentable-width.pdf")
+      token = "1" + "0" * 308
+      fixture(
+        width,
+        -> (manifest) {
+          manifest["baselines"]["hidden"]["width"] = token
+          parameter(manifest, "guide-width", "guides", "stroke-width")
+        },
+        pdf_objects: replace_object(4, "/GuidePaint BDC q +.2000000000000000000 w", "/GuidePaint BDC q #{token} w")
+      )
+      assert_equal("unrepresentable", describe(width)["parameters"]["guide-width"]["baseline"]["kind"])
+    end
+
+    def test_noops_and_repeated_choices_preserve_bytes
+      initial = snapshot(@source)
+      empty = operation(@source, "empty.pdf", {})
+      empty_reset = operation(@source, "empty-reset.pdf", [], reset: true)
+      assert_equal(@source.binread, empty.binread)
+      assert_equal(@source.binread, empty_reset.binread)
+      pristine = operation(@source, "pristine-reset.pdf", reset: true)
+      assert_equal(pristine.binread, operation(pristine, "pristine-reset-again.pdf", reset: true).binread)
+      assert_equal(styled.binread, operation(styled, "unchanged-choice.pdf", {"opacity" => 0.65}).binread)
+      assert_equal(styled.binread, operation(styled, "unused-reset.pdf", ["display"], reset: true).binread)
+      choice = operation(@source, "equal-choice.pdf", {"color" => "#333333"})
+      assert_equal("#333333", snapshot(choice)[0]["parameters"]["color"]["value"])
+      reset = operation(choice, "equal-choice-reset.pdf", ["color"], reset: true)
+      refute(snapshot(reset)[0]["parameters"]["color"].key?("value"))
+      assert_equal(styled.binread, operation(@source, "deterministic.pdf", CHOICES).binread)
+      assert_equal(page_two(initial), page_two(snapshot(styled)))
+      reset = operation(styled, "style-reset.pdf", ["width", "color"], reset: true)
+      operation(reset, "styled.pdf", {"color" => "#ABCDEF", "opacity" => 0.5})
+    end
+
+    def test_invalid_style_requests_preserve_existing_output
+      protected = file("protected.pdf")
+      protected.binwrite("existing output")
+      [
+        "null",
+        "[]",
+        "{\"opacity\":null}",
+        "{\"unknown\":0.2}",
+        "{\"opacity\":2}",
+        "{\"opacity\":0.2,\"opaci\\u0074y\":0.4}",
+        "{\"color\":\"red\"}",
+        "{\"width\":0}",
+        "{\"opacity\":1e999}",
+        "{\"opacity\":\"\\ud800\"}",
+        "\uFEFF{}"
+      ].each do |request|
+        file("invalid.json").write(request)
+        failure = command(@cli, "style", @source, "--overrides", file("invalid.json"), "--output", protected, ok: false)
+        error = JSON.parse(failure.stderr)
+        assert_equal("invalid-request", error["code"])
+        assert_equal("request", error["source"])
+        assert_equal("existing output", protected.binread)
+      end
+
+      file("invalid.json").write("[\"opacity\",\"opacity\"]")
+      command(@cli, "reset", @source, "--ids", file("invalid.json"), "--output", protected, ok: false)
+      assert_empty(@directory.glob(".mainz-*"))
+    end
+
+    def test_error_context_does_not_use_request_string_limits
+      id = "x" * 4096
+      request = write("long-unknown-id.json", {id => 0.2})
+      failure = command(@cli, "style", @source, "--overrides", request, "--output", file("long-id.pdf"), ok: false)
+      error = JSON.parse(failure.stderr)
+      assert_equal("invalid-request", error["code"])
+      assert_equal("request", error["source"])
+      assert_equal("/#{id}", error["location"])
+
+      source = file("long-unknown-field.pdf")
+      fixture(source, -> (manifest) { manifest[id] = true })
+      failure = command(@cli, "verify", source, ok: false)
+      error = JSON.parse(failure.stderr)
+      assert_equal("invalid-contract", error["code"])
+      assert_equal("manifest", error["source"])
+    end
+
+    def test_invalid_manifests_and_numeric_tokens_are_rejected
+      mutations = [
+        -> (m) { m["extra"] = true },
+        -> (m) { m["parameters"]["opacity"]["value"] = nil },
+        -> (m) { m["parameters"]["width"]["schema"]["minimum"] = "zero" },
+        -> (m) { m["parameters"]["width"]["schema"].merge!("minimum" => 2, "exclusiveMaximum" => 2) },
+        -> (m) { m["parameters"]["width"]["schema"]["enum"] = [1, 1.0] },
+        -> (m) { m["parameters"]["display"]["schema"]["enum"] = ["inline"] },
+        -> (m) { m["parameters"].reject! { |_, parameter| parameter["binding"]["targets"] == ["filled"] } },
+        -> (m) { m["parameters"]["opacity"]["schema"]["default"] = 0.25 },
+        -> (m) { m["regions"]["rows"]["records"].reverse! },
+        -> (m) { m["regions"]["rows"]["records"][1]["path"][1]["occurrence"] = 0 },
+        -> (m) { m["targets"]["guides"] << "rows" },
+        -> (m) { m["baselines"]["dark"]["width"] = "1e-2" },
+        -> (m) { m["groups"][0]["parameters"] << "opacity" },
+        -> (m) { m["groups"][0]["description"] = false }
+      ]
+      ["+-0.2", "+", ".", "nan", "inf", "0.2e0", "0.2\n", " 0.2", "9" * 4000].each do |encoded|
+        mutations << -> (m) { m["baselines"]["dark"]["width"] = encoded }
+      end
+
+      mutations.each_with_index do |mutation, index|
+        source = file("invalid-#{index}.pdf")
+        fixture(source, mutation)
+        failure = command(@cli, "verify", source, ok: false)
+        assert_equal(false, JSON.parse(failure.stdout)["valid"])
+        assert_equal("invalid-contract", JSON.parse(failure.stderr)["code"])
+      end
+
+      [".2", "+0.2", "000.200", "0.200", "0.2" + "0" * 200].each do |encoded|
+        fixture(file("numeric.pdf"), -> (m) { m["baselines"]["dark"]["width"] = encoded })
+        command(@cli, "verify", file("numeric.pdf"))
+      end
+    end
+
+    def test_opaque_ids_survive_document_operations
+      source, suffix, opacity = opaque_fixture
+      assert_equal(2, describe(source)["pages"].length)
+      edited = operation(source, "opaque-edited.pdf", {opacity => 0.65})
+      assert_equal(0.65, describe(edited)["parameters"].fetch(opacity)["parameter"]["value"])
+      selected = extract(edited, "opaque-extracted.pdf", [0])
+      restored = operation(selected, "opaque-reset.pdf", [opacity], reset: true)
+      refute(describe(restored)["parameters"].fetch(opacity)["parameter"].key?("value"))
+
+      input = "input#{suffix}"
+      scope = "source#{suffix}"
+      write("inputs.json", {input => source.to_s})
+      composed, result = compose(
+        {
+          "version" => 1,
+          "sources" => {scope => {"input" => input, "overrides" => {opacity => 0.4}}},
+          "parts" => [{"pages" => [{"source" => scope, "page" => 0}]}]
+        },
+        "opaque-composed.pdf"
+      )
+      parameter = JSON.parse(result.stdout)["parameters"].find { |_, entry| entry["parameter"] == opacity }
+      assert_equal(scope, parameter.last["source"])
+      assert_equal(0.4, describe(composed)["parameters"].fetch(parameter.first)["parameter"]["value"])
+    end
+
+    def test_enums_retain_choices_with_a_nonempty_intersection
+      source = file("enum-intersection.pdf")
+      fixture(source, -> (m) { m["parameters"]["opacity"]["schema"].merge!("enum" => [0.15, 0.9], "maximum" => 0.5) })
+      command(@cli, "verify", source)
+      fixture(source, -> (m) { m["parameters"]["opacity"]["schema"].merge!("enum" => [0.8, 0.9], "maximum" => 0.5) })
+      command(@cli, "verify", source, ok: false)
+      colors = ["#333333", *4000.times.map { |index| format("#%06X", index) }]
+      fixture(file("enumerated.pdf"), -> (m) { m["parameters"]["color"]["schema"]["enum"] = colors })
+      assert_equal(colors, describe(file("enumerated.pdf"))["parameters"]["color"]["parameter"]["schema"]["enum"])
+      fixture(file("enumerated.pdf"), -> (m) { m["parameters"]["color"]["schema"]["enum"] = [*colors, colors.last] })
+      assert_equal("invalid-contract", failure_code(file("enumerated.pdf")))
+    end
+
+    def test_color_baselines_use_a_valid_schema_spelling
+      source = file("color-enum.pdf")
+      fixture(
+        source,
+        -> (manifest) {
+          %w[dark dim].each do |id|
+            manifest["baselines"][id]["stroke"] = {"operator" => "RG", "operands" => %w[1 0 0]}
+          end
+
+          manifest["parameters"]["color"]["schema"].merge!("enum" => ["#ff0000"], "default" => "#ff0000")
+        },
+        pdf_objects: replace_object(6, "0.2 G", "1 0 0 RG")
+      )
+      assert_equal({"kind" => "uniform", "value" => "#ff0000"}, describe(source)["parameters"]["color"]["baseline"])
+    end
+
+    def test_escaped_names_and_inline_images_remain_editable
+      source = file("escaped-names.pdf")
+      fixture(source, pdf_objects: replace_object(5, "/Shape Do", "/Sh#61pe Do"))
+      command(@cli, "verify", operation(source, "escaped-names-edited.pdf", {"color" => "#555555"}))
+      inline = file("inline-image.pdf")
+      fixture(
+        inline,
+        pdf_objects: replace_object(4, "\nendstream", "\nq BI /W 1 /H 1 /BPC 8 /CS /G ID 0 EI Q\nendstream")
+      )
+      command(@cli, "verify", inline)
+      edited = operation(inline, "inline-image-edited.pdf", {"color" => "#555555"})
+      command(@cli, "verify", edited)
+      assert_equal(Preservation.read(inline), Preservation.read(edited))
+      ["[1 2", "[1 >>", "12"].each do |tail|
+        fixture(file("invalid-content.pdf"), pdf_objects: replace_object(4, "\nendstream", "\n#{tail}\nendstream"))
+        assert_equal("pdf-syntax", failure_code(file("invalid-content.pdf")))
+      end
+    end
+
+    def test_vector_tokens_preserve_offsets_and_numeric_spelling
+      ["vector", "fallback"].each do |variant|
+        source = file("#{variant}.pdf")
+        fixture(
+          source,
+          pdf_objects: -> (objects, _) {
+            prefix = variant == "fallback" ? "% # QPDF lexer\r\n" : "% Vector lexer\r\n"
+            objects[6] = objects[6].sub("\nstream\n", "\nstream\n#{prefix}q[1 +02.00] .5 d\n")
+            objects[6] = objects[6].sub("\nendstream", "\nQ\nendstream")
+          }
+        )
+        edited = operation(source, "#{variant}-edited.pdf", {"color" => "#123456", "width" => 0.25})
+        assert_equal(Preservation.read(source), Preservation.read(edited))
+        assert_equal("#123456", describe(edited)["parameters"]["color"]["parameter"]["value"])
+        command(@cli, "verify", edited)
+      end
+    end
+
+    def test_context_and_resource_mismatches_are_rejected
+      source = different_alpha_fixture
+      assert_equal("invalid-contract", failure_code(source))
+      cases = [
+        [
+          "unsupported-context",
+          replace_object(5, "/BBox", "/Group << /S /Transparency /CS /DeviceRGB /I false >> /BBox")
+        ],
+        [
+          "unsupported-context",
+          replace_object(5, "/BBox", "/Group << /S /Transparency /CS /DeviceRGB /I true /K true >> /BBox")
+        ],
+        [
+          "unsupported-context",
+          replace_object(6, "/Resources <<", "/Resources << /ColorSpace << /DefaultGray /DeviceRGB >>")
+        ],
+        ["unsupported-context", replace_object(5, "/Shape Do", "q 2 0 0 1 0 0 cm /Shape Do Q")],
+        ["invalid-contract", replace_object(5, "/Shape 7 0 R", "/Shape 6 0 R")],
+        ["invalid-contract", replace_object(8, "/F (mainz.json)", "/F (wrong.json)")],
+        ["unsupported-context", replace_object(0, "/Names", "/Perms << /DocMDP 9 0 R >> /Names")]
+      ]
+      cases.each_with_index do |(code, mutation), index|
+        source = file("unsupported-#{index}.pdf")
+        fixture(source, pdf_objects: mutation)
+        assert_equal(code, failure_code(source))
+      end
+
+      encrypted = file("encrypted.pdf")
+      FileUtils.rm_f(encrypted)
+      command("qpdf", "--encrypt", "", "owner", "256", "--", @source, encrypted)
+      assert_equal("unsupported-context", failure_code(encrypted))
+    end
+
+    def test_latent_fills_require_closed_nonoverlapping_subpaths
+      rectangle = "10 100 40 40 re 20 110 20 20 re"
+      [
+        replace_object(4, "\nendstream", "\n#{rectangle} f\nendstream"),
+        replace_object(4, rectangle, "10 100 m 50 100 l"),
+        replace_object(4, rectangle, "10 100 40 40 re 20 110 m 30 110 l")
+      ].each do |mutation|
+        fixture(file("invalid-fill.pdf"), pdf_objects: mutation)
+        assert_equal("invalid-contract", failure_code(file("invalid-fill.pdf")))
+      end
+
+      [" 10 100 m", " 10 100 m 20 110 m"].each do |suffix|
+        moves_fixture(rectangle, suffix)
+        command(@cli, "verify", file("empty-moves.pdf"))
+        command(@cli, "verify", operation(file("empty-moves.pdf"), "empty-moves-edited.pdf", {"guide-fill" => 0.6}))
+      end
+
+      fixture(
+        file("duplicate-empty-moves.pdf"),
+        pdf_objects: -> (objects, stream) {
+          replace_object(4, rectangle, rectangle + " 10 100 m").call(objects, stream)
+          replace_object(4, "\nendstream", "\n#{rectangle} f\nendstream").call(objects, stream)
+        }
+      )
+      assert_equal("invalid-contract", failure_code(file("duplicate-empty-moves.pdf")))
+      fixture(
+        file("implicit-after-empty.pdf"),
+        -> (m) { m["baselines"]["hidden"]["paint"] = "s" },
+        pdf_objects: replace_object(4, rectangle + " S", "10 100 m 20 110 l 30 110 m s")
+      )
+      assert_equal("invalid-contract", failure_code(file("implicit-after-empty.pdf")))
+    end
+
+    def test_duplicate_fills_ignore_numeric_spelling
+      source = duplicate_fill_fixture
+      assert_equal("invalid-contract", failure_code(source))
+      fixture(
+        file("distinct-fill-spelling.pdf"),
+        pdf_objects: replace_object(
+          4,
+          "\nendstream",
+          "\n10.000000000000000000000001 100 40 40 re 20 110 20 20 re f\nendstream"
+        )
+      )
+      command(@cli, "verify", file("distinct-fill-spelling.pdf"))
+    end
+
+    def test_decoded_content_and_manifest_limits_are_enforced
+      fixture(
+        file("decode-limit.pdf"),
+        pdf_objects: -> (objects, stream) {
+          objects[4] = stream.call("/Filter /FlateDecode", Zlib::Deflate.deflate(" " * (32 * 1024 * 1024 + 1)))
+        }
+      )
+      assert_equal("limit-exceeded", failure_code(file("decode-limit.pdf")))
+      fixture(file("book-json.pdf"), pdf_objects: padded_manifest(8 * 1024 * 1024 + 1))
+      command(@cli, "verify", file("book-json.pdf"))
+      fixture(file("manifest-limit.pdf"), pdf_objects: padded_manifest(16 * 1024 * 1024 + 1))
+      assert_equal("limit-exceeded", failure_code(file("manifest-limit.pdf")))
+    end
+
+    def test_repeated_edits_bound_object_growth
+      current = styled
+      sizes = 12.times.map do |index|
+        current = operation(current, "repeat-#{index}.pdf", {"opacity" => index.odd? ? 0.3 : 0.7})
+        snapshot(current)[2].length
+      end
+
+      assert_operator(sizes.max - sizes.min, :<=, 2)
+    end
+
+    def test_styling_preserves_content_and_reset_appearance
+      reset = operation(styled, "reset.pdf", reset: true)
+      baseline = file("baseline.pdf")
+      fixture(baseline, authored_baseline: true)
+      expected = Preservation.read(@source)
+      assert_equal(expected, Preservation.read(styled))
+      assert_equal(expected, Preservation.read(reset))
+      assert_equal(
+        [1, 0.25],
+        snapshot(reset)[1].filter_map { |id, _, state| state["/CA"] if %w[dark dim].include?(id) }
+      )
+      [150, 300].each do |dpi|
+        [@source, styled, reset, baseline].each { |candidate| raster(candidate, dpi) }
+        assert_raster("prepared-#{dpi}-2.png", "edited-#{dpi}-2.png")
+        assert_raster("prepared-#{dpi}-2.png", "reset-#{dpi}-2.png")
+        assert_raster("baseline-#{dpi}-1.png", "reset-#{dpi}-1.png")
+      end
+    end
+
+    def test_extraction_preserves_content_and_rebuilds_the_contract
+      one = extract(styled, "extracted.pdf", [0])
+      pristine = extract(@source, "extracted-pristine.pdf", [0])
+      command(@cli, "verify", one)
+      assert_equal(1, describe(one)["pageCount"])
+      expected_manifest = snapshot(styled)[0]
+      expected_manifest["pages"] = [expected_manifest["pages"][0]]
+      assert_equal(expected_manifest, snapshot(one)[0])
+      assert_equal(page_snapshot(styled, 0), page_snapshot(one, 0))
+      one_reset = operation(one, "extracted-reset.pdf", reset: true)
+      reset = operation(styled, "reset.pdf", reset: true)
+      assert_equal(snapshot(reset)[1].map(&:last), snapshot(one_reset)[1].map(&:last))
+      expected = Preservation.read(pristine)
+      assert_equal(expected, Preservation.read(one))
+      assert_equal(expected, Preservation.read(one_reset))
+      assert_equal(@source.binread, extract(@source, "extracted-all.pdf", [0, 1]).binread)
+      reverse = extract(@source, "extracted-reverse.pdf", [1, 0])
+      assert_equal([1], describe(reverse)["parameters"]["opacity"]["pages"])
+      assert_equal(page_snapshot(@source, 1), page_snapshot(reverse, 0))
+      assert_equal(page_snapshot(@source, 0), page_snapshot(reverse, 1))
+      cover = extract(@source, "extracted-ordinary.pdf", [1])
+      command("qpdf", "--check", cover)
+      assert_equal(page_snapshot(@source, 1), page_snapshot(cover, 0))
+      assert_equal("missing-contract", failure_code(cover))
+      refute_includes(command("qpdf", "--list-attachments", cover).stdout, "mainz.json")
+      assert_equal("Unrelated attachment.\n", command("qpdf", "--show-attachment=notes.txt", cover).stdout)
+      assert_equal({"version" => 1, "pageCount" => 1, "pages" => [{}], "parameters" => {}}, describe(cover))
+      assert_equal(cover.binread, extract(cover, "ordinary-all.pdf", [0]).binread)
+      ordinary_request = write("ordinary-request.json", {})
+      [["style", ["--overrides", ordinary_request]], ["reset", []]].each do |operation, options|
+        failure = command(@cli, operation, cover, *options, "--output", file("ordinary-style.pdf"), ok: false)
+        assert_equal("missing-contract", JSON.parse(failure.stderr)["code"])
+      end
+
+      ordinary = file("ordinary.pdf")
+      command("qpdf", @source, "--remove-attachment=mainz.json", "--", ordinary)
+      assert_equal(2, describe(ordinary)["pageCount"])
+      reverse = extract(ordinary, "ordinary-reverse.pdf", [1, 0])
+      assert_equal(page_snapshot(ordinary, 1), page_snapshot(reverse, 0))
+      assert_equal(page_snapshot(ordinary, 0), page_snapshot(reverse, 1))
+      assert_equal("Unrelated attachment.\n", command("qpdf", "--show-attachment=notes.txt", reverse).stdout)
+      ordinary_one = extract(reverse, "ordinary-one.pdf", [1])
+      assert_equal(page_snapshot(ordinary, 0), page_snapshot(ordinary_one, 0))
+      assert_empty(describe(ordinary_one)["parameters"])
+      fixture(file("extraction-associated.pdf"), pdf_objects: replace_object(0, "/Names", "/AF [9 0 R 13 0 R] /Names"))
+      associated = extract(file("extraction-associated.pdf"), "extracted-associated.pdf", [1])
+      pdf = pdf_json(associated)
+      objects = pdf["qpdf"][1]
+      root = resolve(objects["trailer"]["value"]["/Root"], objects)
+      assert_equal(1, root["/AF"].length)
+      assert_equal("u:notes.txt", resolve(root["/AF"][0], objects)["/F"])
+      fixture(file("baseline.pdf"), authored_baseline: true)
+      [150, 300].each do |dpi|
+        [styled, @source, file("baseline.pdf"), one, cover, one_reset].each { |candidate| raster(candidate, dpi) }
+        assert_raster("edited-#{dpi}-1.png", "extracted-#{dpi}-1.png")
+        assert_raster("prepared-#{dpi}-2.png", "extracted-ordinary-#{dpi}-1.png")
+        assert_raster("baseline-#{dpi}-1.png", "extracted-reset-#{dpi}-1.png")
+      end
+    end
+
+    def test_extraction_prunes_navigation_and_retains_form_fields
+      source = file("extraction-navigation.pdf")
+      fixture(source, pdf_objects: method(:page_navigation))
+      [[[0], "selected"], [[1], "ordinary"], [[1, 0], "reverse"]].each do |selection, name|
+        destination = extract(source, "extracted-navigation-#{name}.pdf", selection)
+        pdf = pdf_json(destination)
+        objects = pdf["qpdf"][1]
+        root = resolve(objects["trailer"]["value"]["/Root"], objects)
+        fields = root["/AcroForm"]["/Fields"].map { |item| resolve(item, objects)["/T"] }
+        assert_equal(
+          %w[u:Keep u:Remove].each_with_index.filter_map { |title, index| title if selection.include?(index) },
+          fields
+        )
+        destinations = root["/Names"]["/Dests"]["/Names"].each_slice(2).to_h
+        %w[u:keep u:remove].each_with_index do |key, index|
+          if selection.include?(index)
+            assert_equal(pdf["pages"][selection.index(index)]["object"], destinations[key][0])
+          else
+            assert_nil(resolve(destinations[key][0], objects))
+          end
+        end
+
+        assert_equal(destinations["u:keep"][0], root["/OpenAction"][0])
+      end
+
+      source = file("nested-fields.pdf")
+      fixture(source, pdf_objects: method(:nested_fields))
+      [[0], [1], [1, 0]].each do |selection|
+        destination = extract(source, "extracted-nested-fields.pdf", selection)
+        pdf = pdf_json(destination)
+        objects = pdf["qpdf"][1]
+        form = resolve(objects["trailer"]["value"]["/Root"], objects)["/AcroForm"]
+        parent = resolve(form["/Fields"][0], objects)
+        assert_equal("u:Group", parent["/T"])
+        assert_equal("/Tx", parent["/FT"])
+        expected = %w[u:Keep u:Remove].each_with_index.filter_map { |title, index| title if selection.include?(index) }
+        assert_equal(expected, parent["/Kids"].map { |child| resolve(child, objects)["/T"] })
+        expected = [[1, "u:Remove"], [0, "u:Keep"]].filter_map { |index, title| title if selection.include?(index) }
+        assert_equal(expected, form["/CO"].map { |field| resolve(field, objects)["/T"] })
+        pdf["pages"].each do |page|
+          widget = resolve(resolve(page["object"], objects)["/Annots"][0], objects)
+          assert_equal(page["object"], widget["/P"])
+        end
+
+        command("qpdf", "--check", destination)
+      end
+    end
+
+    def test_extraction_prunes_bindings_and_keeps_page_labels
+      source, manifest = labeled_fixture
+      command(@cli, "verify", source)
+      assert_equal("Practice-i", describe(source)["pages"][0]["label"])
+      pruned = extract(source, "extracted-pruned.pdf", [0])
+      assert_equal("Practice-i", describe(pruned)["pages"][0]["label"])
+      actual = snapshot(pruned)[0]
+      assert_equal(%w[filled rows], actual["regions"].keys.sort)
+      assert_equal(%w[dark dim filled], actual["baselines"].keys.sort)
+      assert_equal(["rows"], actual["targets"]["pattern"])
+      assert_equal((manifest["parameters"].keys - %w[guide-fill guide-color]).sort, actual["parameters"].keys.sort)
+      assert_equal(manifest["parameters"]["opacity"], actual["parameters"]["opacity"])
+      assert_equal([manifest["groups"].first], actual["groups"])
+      assert_equal(page_snapshot(source, 0), page_snapshot(pruned, 0))
+      notes = extract(source, "extracted-notes.pdf", [1])
+      assert_equal([{"label" => "Practice-7"}], describe(notes)["pages"])
+      assert_equal(page_snapshot(source, 1), page_snapshot(notes, 0))
+      command(@cli, "verify", operation(notes, "extracted-notes-reset.pdf", reset: true))
+    end
+
+    def test_page_selection_prunes_targets_without_eligible_bindings
+      [false, true].each do |keep_fill|
+        name = keep_fill ? "fill-mixed" : "fill-only"
+        source = file("#{name}.pdf")
+        fills_fixture(source, keep_fill)
+        command(@cli, "verify", source)
+        write("inputs.json", {"input" => source.to_s})
+        [0, 1].each do |index|
+          extracted = extract(source, "#{name}-extracted-#{index}.pdf", [index])
+          composed, = compose(
+            {
+              "version" => 1,
+              "sources" => {"original" => {"input" => "input", "overrides" => {}}},
+              "parts" => [{"pages" => [{"source" => "original", "page" => index}]}]
+            },
+            "#{name}-composed-#{index}.pdf"
+          )
+          properties = keep_fill ? ["fill-color"] : []
+          properties = ["fill-opacity"] if index == 1
+          [extracted, composed].each do |path|
+            command("qpdf", "--check", path)
+            actual = describe(path).fetch("parameters").values.map { it["parameter"]["binding"]["property"] }
+            assert_equal(properties, actual)
+            assert_equal(page_snapshot(source, index), page_snapshot(path, 0))
+          end
+        end
+      end
+    end
+
+    def test_invalid_page_selections_preserve_existing_output
+      protected = file("protected.pdf")
+      protected.binwrite("existing output")
+      [
+        ["[]", ""],
+        ["{}", ""],
+        ["[0,0]", "/1"],
+        ["[-1]", "/0"],
+        ["[2]", "/0"],
+        ["[0.5]", "/0"],
+        ["[\"0\"]", "/0"],
+        ["[null]", "/0"]
+      ].each do |request, location|
+        file("invalid.json").write(request)
+        failure = command(@cli, "extract", @source, "--pages", file("invalid.json"), "--output", protected, ok: false)
+        record = JSON.parse(failure.stderr)
+        assert_equal("invalid-request", record["code"])
+        assert_equal("request", record["source"])
+        assert_equal(location, record["location"])
+        assert_equal("existing output", protected.binread)
+      end
+
+      assert_equal(@source.binread, extract(@source, "extracted-all.pdf", [0, 1]).binread)
+    end
+
+    def test_composition_isolates_source_styles_and_tracks_padding
+      composed, result = compose(plan)
+      provenance = JSON.parse(result.stdout)
+      assert_equal(10, provenance["pages"].length)
+      assert_equal(
+        {"part" => 1, "copy" => 0, "blank" => {"width" => 127, "height" => 127}, "padding" => true},
+        provenance["pages"][1]
+      )
+      assert_equal(
+        {"part" => 1, "copy" => 0, "blank" => {"width" => 210, "height" => 297}, "padding" => true},
+        provenance["pages"][5]
+      )
+      assert(provenance["pages"][9]["padding"])
+      assert_equal(1, provenance["pages"][9]["copy"])
+      command("qpdf", "--check", composed)
+      description = describe(composed)
+      assert_equal(10, description["pageCount"])
+      assert_equal(
+        [@original["groups"][0]["description"]] * 2,
+        description["groups"].map { |group| group["description"] }
+      )
+      identities = provenance["parameters"].to_h { |id, value| [[value["source"], value["parameter"]], id] }
+      refute(description["parameters"][identities[["baseline", "opacity"]]]["parameter"].key?("value"))
+      assert_equal(0.65, description["parameters"][identities[["edited", "opacity"]]]["parameter"]["value"])
+      assert_equal(2, description["parameters"][identities[["baseline", "opacity"]]]["pages"].length)
+      assert_equal(page_snapshot(@source, 1), page_snapshot(composed, 0))
+      assert_equal(page_snapshot(composed, 2), page_snapshot(composed, 6))
+      assert_equal(page_snapshot(composed, 3), page_snapshot(composed, 7))
+      reset = operation(composed, "composed-reset.pdf", reset: true)
+      [150, 300].each do |dpi|
+        command("pdftoppm", "-f", 3, "-l", 8, "-r", dpi, "-png", reset, file("composed-reset-#{dpi}"))
+        [4, 7, 8].each { |page|
+          assert_raster("composed-reset-#{dpi}-03.png", format("composed-reset-%d-%02d.png", dpi, page))
+        }
+      end
+
+      assert_equal("Unrelated attachment.\n", command("qpdf", "--show-attachment=notes.txt", composed).stdout)
+      file("composition-provenance.json").binwrite(result.stdout)
+    end
+
+    def test_composition_indexes_reordered_repeated_regions
+      source = file("extraction-pages.pdf")
+      fixture(source, method(:across_pages), pdf_objects: method(:across_page_objects))
+      write("inputs.json", {"input" => source.to_s})
+      output, result = compose(
+        {
+          "version" => 1,
+          "sources" => {"book" => {"input" => "input", "overrides" => {}}},
+          "parts" => [{"pages" => [1, 0, 1].map { |page| {"source" => "book", "page" => page} }, "copies" => 2}]
+        },
+        "indexed.pdf"
+      )
+      assert_equal([1, 0, 1, 1, 0, 1], JSON.parse(result.stdout)["pages"].map { |page| page["page"] })
+      wire = JSON.parse(command("qpdf", "--show-attachment=mainz.json", output).stdout)
+      assert_equal(%w[p0:guides p1:rows p2:guides p3:guides p4:rows p5:guides], wire["targets"]["s0:pattern"])
+      assert_equal(%w[p1:filled p4:filled], wire["targets"]["s0:filled"])
+      description = describe(output)
+      assert_equal([0, 1, 2, 3, 4, 5], description["parameters"]["s0:width"]["pages"])
+      assert_equal([0, 2, 3, 5], description["parameters"]["s0:guide-color"]["pages"])
+      reset = operation(output, "indexed-reset.pdf", reset: true)
+      original = Mainz::Preservation.read(source)
+      restored = Mainz::Preservation.read(reset)
+      [1, 0, 1, 1, 0, 1].each_with_index do |physical, index|
+        assert_equal(original[physical], restored[index])
+      end
+    end
+
+    def test_composition_keeps_page_geometry_and_sizes_padding
+      source = file("extraction-pages.pdf")
+      fixture(source, method(:across_pages), pdf_objects: method(:across_page_objects))
+      write("inputs.json", {"input" => source.to_s})
+      cropped, result = compose(
+        {
+          "version" => 1,
+          "sources" => {"crop" => {"input" => "input", "overrides" => {}}},
+          "parts" => [{"pages" => [{"source" => "crop", "page" => 0}], "front" => true}]
+        },
+        "composed-crop.pdf"
+      )
+      padding = JSON.parse(result.stdout)["pages"][1]["blank"]
+      assert_in_delta(320 * 2 * 25.4 / 72, padding["width"], 1e-9)
+      assert_in_delta(340 * 2 * 25.4 / 72, padding["height"], 1e-9)
+      original = page_snapshot(source, 0)
+      copied = page_snapshot(cropped, 0)
+      %w[/MediaBox /CropBox /TrimBox /Rotate /UserUnit].each { |key| assert_equal(original[key], copied[key]) }
+      page_snapshot(cropped, 1)["/MediaBox"].zip([0, 0, 640, 680]).each { |actual, expected|
+        assert_in_delta(expected, actual, 1e-9)
+      }
+    end
+
+    def test_composition_rejects_invalid_plans_and_identifiers
+      invalids = [
+        plan.merge("version" => 2),
+        plan.merge("extra" => true),
+        plan.merge("parts" => [{"pages" => [{"source" => "baseline", "page" => 99}]}]),
+        plan.merge("parts" => [{"pages" => [{"source" => "baseline", "page" => 0}], "copies" => 1001}]),
+        plan.merge(
+          "sources" => plan["sources"].merge("edited" => {"input" => "input", "overrides" => {"opacity" => 2}})
+        ),
+        {"version" => 1, "sources" => {}, "parts" => [{"pages" => [{"blank" => {"width" => 0, "height" => 10}}]}]}
+      ]
+      invalids.each do |invalid|
+        _, failure = compose(invalid, "composition-failure.pdf", ok: false)
+        error = JSON.parse(failure.stderr)
+        assert_includes(%w[invalid-request unsupported-version], error["code"])
+        assert_equal("request", error["source"])
+      end
+
+      ["", "bad\nID", "bad\u007FID", "bad\u0085ID", "bad\u009FID"].each do |id|
+        invalid = {
+          "version" => 1,
+          "sources" => {id => {"input" => "input", "overrides" => {}}},
+          "parts" => [{"pages" => [{"source" => id, "page" => 0}]}]
+        }
+        _, failure = compose(invalid, "invalid-source-id.pdf", ok: false)
+        assert_equal("invalid-request", JSON.parse(failure.stderr)["code"])
+        write("inputs.json", {id => @source.to_s})
+        invalid["sources"] = {"source" => {"input" => id, "overrides" => {}}}
+        invalid["parts"] = [{"pages" => [{"source" => "source", "page" => 0}]}]
+        _, failure = compose(invalid, "invalid-input-id.pdf", ok: false)
+        assert_equal("invalid-request", JSON.parse(failure.stderr)["code"])
+        write("inputs.json", {"input" => @source.to_s})
+      end
+    end
+
+    def test_blank_composition_obeys_geometry_and_page_limits
+      blank = {
+        "version" => 1,
+        "sources" => {},
+        "parts" => [{"pages" => [{"blank" => {"width" => 210, "height" => 297}}], "copies" => 3, "front" => true}]
+      }
+      write("inputs.json", {})
+      output, result = compose(blank, "composed-blanks.pdf")
+      assert_equal(6, JSON.parse(result.stdout)["pages"].length)
+      assert_empty(describe(output)["parameters"])
+      _, failure = compose(
+        blank.merge("parts" => [{"pages" => [{"blank" => {"width" => 0, "height" => 10}}]}]),
+        "bad-blank.pdf",
+        ok: false
+      )
+      assert_equal("/parts/0/pages/0", JSON.parse(failure.stderr)["location"])
+      _, failure = compose(
+        blank.merge("parts" => [{"pages" => [{"blank" => {"width" => 1, "height" => 1}}] * 11, "copies" => 1000}]),
+        "oversized-plan.pdf",
+        ok: false
+      )
+      assert_equal("limit-exceeded", JSON.parse(failure.stderr)["code"])
+    end
+
+    def test_whole_input_composition_preserves_document_structure_and_styles
+      source = file("whole-input.pdf")
+      fixture(source, -> (manifest) { manifest["pages"] = [{"name" => "Cover"}, {"name" => "Details"}] })
+      document = HexaPDF::Document.open(source)
+      document.trailer[:Info] = document.add({Author: "Original author"})
+      xml = '<x:xmpmeta xmlns:x="adobe:ns:meta/">Unrelated metadata</x:xmpmeta>'
+      document.catalog[:Metadata] = document.add({Type: :Metadata, Subtype: :XML}, stream: xml)
+      document.catalog[:PageLabels] = {Nums: [0, {S: :r}]}
+      document.outline.add_item("Book", destination: document.pages[0], open: false) do |item|
+        item.add_item("Details", destination: document.pages[1])
+      end
+      document.write(source.to_s)
+      write("inputs.json", {"input" => source.to_s})
+      request = {"version" => 1, "sources" => {"source" => {"input" => "input", "overrides" => {"opacity" => 0.4}}},
+                 "parts" => [{"pages" => [0, 1].map { {"source" => "source", "page" => it} }}]}
+      output, result = compose(request, "whole-styled.pdf")
+      saved = HexaPDF::Document.open(output)
+      assert_equal(xml, saved.catalog[:Metadata].stream)
+      assert_equal("Original author", saved.trailer[:Info][:Author])
+      summarize = -> (items) { items.map { [it["title"], it["destpageposfrom1"], it["open"], summarize.call(it["kids"])] } }
+      assert_equal([["Book", 1, false, [["Details", 2, true, []]]]], summarize.call(pdf_json(output)["outlines"]))
+      assert_equal(describe(source)["pages"], describe(output)["pages"])
+      assert_equal(Preservation.read(source), Preservation.read(output))
+      assert_equal(0.4, describe(output)["parameters"]["opacity"]["parameter"]["value"])
+      assert_equal({"source" => "source", "parameter" => "opacity"}, JSON.parse(result.stdout)["parameters"]["opacity"])
+      request["sources"]["source"]["overrides"] = describe(source)["parameters"].filter_map do |id, entry|
+        parameter = entry["parameter"]
+        [id, parameter["value"]] if parameter.key?("value")
+      end.to_h
+      unchanged, = compose(request, "whole-unchanged.pdf")
+      assert_equal(source.binread, unchanged.binread)
+    end
+
+    def test_composition_prunes_and_orders_real_outline_sections
+      source = section_fixture
+      document = HexaPDF::Document.open(source)
+      write("inputs.json", {"input" => source.to_s})
+      request = {"version" => 1, "sources" => {"a" => {"input" => "input", "overrides" => {}}},
+                 "parts" => [{"pages" => [0, 6, 2, 6, 5, 7].map { {"source" => "a", "page" => it} }}]}
+      output, = compose(request, "pruned-outline.pdf")
+      summarize = -> (items) { items.map { [it["title"], it["destpageposfrom1"], summarize.call(it["kids"])] } }
+      assert_equal(
+        [["Book", 2, [["Second", 2, [["Detail", 2, []]]], ["First", 3, []]]], ["Prelude", 6, []]],
+        summarize.call(pdf_json(output)["outlines"])
+      )
+      command("qpdf", "--check", output)
+      request["sources"]["b"] = {"input" => "input", "overrides" => {}}
+      request["parts"] = [{"pages" => [["a", 6], ["b", 2], ["a", 2], ["b", 7]].map { |id, page| {"source" => id, "page" => page} }}]
+      multiple, = compose(request, "multiple-outlines.pdf")
+      assert_equal(
+        [["Book", 1, [["Second", 1, [["Detail", 1, []]]], ["First", 3, []]]],
+         ["Book", 2, [["First", 2, []]]], ["Prelude", 4, []]],
+        summarize.call(pdf_json(multiple)["outlines"])
+      )
+      document.catalog[:Outlines][:First][:Dest] = [document.pages[4], :Fit]
+      document.write(source.to_s)
+      request["sources"].delete("b")
+      request["parts"] = [{"pages" => [{"source" => "a", "page" => 2}]}]
+      context, = compose(request, "nonmonotonic-outline.pdf")
+      assert_equal([["Book", 1, [["First", 1, []]]]], summarize.call(pdf_json(context)["outlines"]))
+    end
+
+    def test_composition_groups_source_blocks_under_their_titles
+      document = HexaPDF::Document.open(@source)
+      document.outline.add_item("Book", destination: document.pages[0]) do |book|
+        book.add_item("Details", destination: document.pages[1])
+      end
+
+      document.write(@source.to_s)
+      request = {
+        "version" => 1,
+        "sources" => {
+          "a" => {"input" => "input", "title" => "First book", "overrides" => {"opacity" => 0.4}},
+          "b" => {"input" => "input", "title" => "Second book", "overrides" => {}}
+        },
+        "parts" => [
+          {"pages" => [["a", 0], ["a", 1], ["b", 0], ["b", 1]].map { |id, page| {"source" => id, "page" => page} }}
+        ]
+      }
+      summarize = -> (items) { items.map { [it["title"], it["destpageposfrom1"], summarize.call(it["kids"])] } }
+      output, = compose(request, "grouped-books.pdf")
+      assert_equal(
+        [
+          ["First book", 1, [["Book", 1, [["Details", 2, []]]]]],
+          ["Second book", 3, [["Book", 3, [["Details", 4, []]]]]]
+        ],
+        summarize.call(pdf_json(output)["outlines"])
+      )
+      request["parts"] = [{"pages" => [["b", 1], ["a", 1]].map { |id, page| {"source" => id, "page" => page} }}]
+      subset, = compose(request, "grouped-subsets.pdf")
+      expected = [
+        ["Second book", 1, [["Book", 1, [["Details", 1, []]]]]],
+        ["First book", 2, [["Book", 2, [["Details", 2, []]]]]]
+      ]
+      assert_equal(expected, summarize.call(pdf_json(subset)["outlines"]))
+      command("qpdf", "--check", subset)
+      recipe = request.merge(
+        "inputs" => {"input" => {"sha256" => Digest::SHA256.file(@source).hexdigest, "pageCount" => 2}},
+        "sources" => request["sources"].transform_values do |source|
+          source.merge("overrides" => source["overrides"].map { |id, value| {"id" => id, "value" => value} })
+        end
+      )
+      path = write("grouped-recipe.json", recipe)
+      resolved = command(@cli, "resolve", path, "--inputs", file("inputs.json"))
+      assert_equal(request["sources"], JSON.parse(resolved.stdout)["sources"])
+      replay = file("grouped-replay.pdf")
+      FileUtils.rm_f(replay)
+      command(@cli, "apply", path, "--inputs", file("inputs.json"), "--output", replay)
+      assert_equal(expected, summarize.call(pdf_json(replay)["outlines"]))
+      request["parts"] = [
+        {"pages" => [["a", 0], ["b", 0], ["a", 1]].map { |id, page| {"source" => id, "page" => page} }}
+      ]
+      interleaved, = compose(request, "interleaved-books.pdf")
+      assert_equal(
+        [
+          ["First book", 1, [["Book", 1, []]]],
+          ["Second book", 2, [["Book", 2, []]]],
+          ["First book", 3, [["Book", 3, [["Details", 3, []]]]]]
+        ],
+        summarize.call(pdf_json(interleaved)["outlines"])
+      )
+      ordinary = file("no-outline.pdf")
+      HexaPDF::Document.new.tap { it.pages.add }.write(ordinary.to_s)
+      write("inputs.json", {"input" => @source.to_s, "ordinary" => ordinary.to_s})
+      request["sources"]["b"]["input"] = "ordinary"
+      request["parts"] = [{"pages" => [{"source" => "a", "page" => 1}, {"source" => "b", "page" => 0}]}]
+      untitled, = compose(request, "unbookmarked-block.pdf")
+      assert_equal(
+        [["First book", 1, [["Book", 1, [["Details", 1, []]]]]], ["Second book", 2, []]],
+        summarize.call(pdf_json(untitled)["outlines"])
+      )
+    end
+
+    def test_composition_attaches_blanks_and_padding_to_preceding_source_blocks
+      source = file("ten-pages.pdf")
+      document = HexaPDF::Document.new
+      10.times { document.pages.add }
+      document.outline.add_item("Contents", destination: document.pages[0]) do |book|
+        book.add_item("Early", destination: document.pages[0])
+        book.add_item("Late", destination: document.pages[5])
+      end
+
+      document.write(source.to_s)
+      write("inputs.json", {"input" => source.to_s})
+      blank = {"blank" => {"width" => 210, "height" => 297}}
+      sequence = [
+        nil,
+        ["a", 3],
+        ["a", 5],
+        nil,
+        ["b", 1],
+        ["b", 4],
+        ["b", 3],
+        ["b", 3],
+        ["a", 2],
+        ["a", 9],
+        ["b", 7],
+        ["a", 1],
+        ["a", 8],
+        nil
+      ]
+      request = {
+        "version" => 1,
+        "sources" => {
+          "a" => {"input" => "input", "title" => "Book A", "overrides" => {}},
+          "b" => {"input" => "input", "title" => "Book B", "overrides" => {}}
+        },
+        "parts" => [{"pages" => sequence.map { it ? {"source" => it[0], "page" => it[1] - 1} : blank }}]
+      }
+      output, = compose(request, "source-blocks.pdf")
+      summarize = -> (items) { items.map { [it["title"], it["destpageposfrom1"], summarize.call(it["kids"])] } }
+      assert_equal(
+        [
+          ["Book A", 2, [["Contents", 2, [["Early", 2, []]]]]],
+          ["Book B", 5, [["Contents", 5, [["Early", 5, []]]]]],
+          ["Book A", 9, [["Contents", 9, [["Early", 9, []], ["Late", 10, []]]]]],
+          ["Book B", 11, [["Contents", 11, [["Late", 11, []]]]]],
+          ["Book A", 12, [["Contents", 12, [["Early", 12, []], ["Late", 13, []]]]]]
+        ],
+        summarize.call(pdf_json(output)["outlines"])
+      )
+      command("qpdf", "--check", output)
+      request["parts"] = [
+        {"pages" => [{"source" => "a", "page" => 2}], "front" => true},
+        {"pages" => [{"source" => "b", "page" => 6}], "front" => true},
+        {"pages" => [{"source" => "a", "page" => 8}], "front" => true}
+      ]
+      padded, = compose(request, "padded-source-blocks.pdf")
+      assert_equal(
+        [
+          ["Book A", 1, [["Contents", 1, [["Early", 1, []]]]]],
+          ["Book B", 3, [["Contents", 3, [["Late", 3, []]]]]],
+          ["Book A", 5, [["Contents", 5, [["Late", 5, []]]]]]
+        ],
+        summarize.call(pdf_json(padded)["outlines"])
+      )
+      assert_equal(6, describe(padded)["pageCount"])
+    end
+
+    def test_composition_and_recipe_reject_invalid_source_titles
+      ["", " ", "x" * 4097, "Invalid\u0000title"].each do |title|
+        request = plan
+        request["sources"].each_value { it["title"] = title }
+        _, failure = compose(request, "invalid-source-title.pdf", ok: false)
+        code = title.bytesize > 4096 ? "limit-exceeded" : "invalid-request"
+        assert_equal(code, JSON.parse(failure.stderr)["code"])
+        assert_match(%r{\A/sources/[^/]+/title\z}, JSON.parse(failure.stderr)["location"]) if title.bytesize <= 4096
+        recipe = request.merge(
+          "inputs" => {"input" => {}},
+          "sources" => request["sources"].transform_values { {"input" => "input", "title" => title} }
+        )
+        result = command(
+          @cli,
+          "resolve",
+          write("invalid-source-title.json", recipe),
+          "--inputs",
+          file("inputs.json"),
+          ok: false
+        )
+        assert_equal(code, JSON.parse(result.stderr)["code"])
+      end
+    end
+
+    def test_composition_outline_titles_use_utf8_byte_limits
+      cases = JSON.parse(Mainz::ROOT.join("lib/test/fixtures/outlines.json").read)
+      cases.each_with_index do |item, index|
+        title = item.fetch("text") * item.fetch("repeat")
+        document = HexaPDF::Document.new
+        2.times { document.pages.add }
+        document.outline.add_item(title, destination: document.pages[0]) do |parent|
+          parent.add_item("Child", destination: document.pages[0])
+        end
+        source = file("title-#{index}.pdf")
+        document.write(source.to_s)
+        write("inputs.json", {"input" => source.to_s})
+        request = {"version" => 1, "sources" => {"a" => {"input" => "input", "overrides" => {}}},
+                   "parts" => [{"pages" => [{"source" => "a", "page" => 0}]}]}
+        output, = compose(request, "title-result-#{index}.pdf")
+        outlines = pdf_json(output)["outlines"]
+        assert_equal(item.fetch("retained") ? title : "Child", outlines.first.fetch("title"))
+        assert_equal(item.fetch("retained") ? ["Child"] : [], outlines.first.fetch("kids", []).map { it.fetch("title") })
+      end
+    end
+
+    def test_composition_bounds_outline_traversal_and_retains_navigable_children
+      source = file("outline-context.pdf")
+      document = HexaPDF::Document.new
+      3.times { document.pages.add }
+      document.catalog[:Names] = {Dests: {Names: ["local", [document.pages[1], :Fit]]}}
+      document.outline.add_item("External", action: {S: :URI, URI: "https://example.invalid"}) do |item|
+        child = item.add_item("Local", destination: "local")
+        child[:Next] = child
+      end
+      document.write(source.to_s)
+      write("inputs.json", {"input" => source.to_s})
+      request = {"version" => 1, "sources" => {"a" => {"input" => "input", "overrides" => {}}},
+                 "parts" => [{"pages" => [{"source" => "a", "page" => 1}]}]}
+      output, = compose(request, "local-outline.pdf")
+      assert_equal([["Local", 1]], pdf_json(output)["outlines"].map { [it["title"], it["destpageposfrom1"]] })
+      parent = document.catalog[:Outlines] = document.add({Type: :Outlines})
+      65.times do
+        item = document.add({Title: "Deep", Dest: [document.pages[1], :Fit], Parent: parent})
+        parent[:First] = item
+        parent = item
+      end
+      document.write(source.to_s)
+      _, failure = compose(request, "deep-outline.pdf", ok: false)
+      assert_equal("limit-exceeded", JSON.parse(failure.stderr)["code"])
+    end
+
+    def test_composition_remaps_links_and_isolates_annotations
+      navigation = file("navigation.pdf")
+      fixture(
+        navigation,
+        pdf_objects: -> (objects, _) {
+          objects[0] = objects[0].sub("/Type /Catalog", "/Type /Catalog /Dests << /home [3 0 R /Fit] >>")
+          objects[2] = objects[2].sub("/Type /Page", "/Type /Page /Annots [15 0 R 16 0 R]")
+          objects.concat(
+            [
+              "<< /Type /Annot /Subtype /Link /Rect [0 0 10 10] /Dest /home >>",
+              "<< /Type /Annot /Subtype /Link /Rect [20 0 30 10] /Dest [4 0 R /Fit] >>"
+            ]
+          )
+        }
+      )
+      ordinary = file("ordinary.pdf")
+      command("qpdf", @source, "--remove-attachment=mainz.json", "--", ordinary)
+      write("inputs.json", {"one" => navigation.to_s, "two" => ordinary.to_s})
+      request = {
+        "version" => 1,
+        "sources" => {
+          "a" => {"input" => "one", "overrides" => {"opacity" => 0.15}},
+          "b" => {"input" => "two", "overrides" => {}}
+        },
+        "parts" => [
+          {"pages" => [{"source" => "a", "page" => 0}, {"source" => "a", "page" => 0}, {"source" => "b", "page" => 1}]}
+        ]
+      }
+      output, = compose(request, "composed-navigation.pdf")
+      command("qpdf", "--check", output)
+      pdf = pdf_json(output)
+      objects = pdf["qpdf"][1]
+      pages = pdf["pages"].first(2).map { |page| resolve(page["object"], objects) }
+      refute_equal(pages[0]["/Annots"], pages[1]["/Annots"])
+      pages.each do |page|
+        retained, removed = page["/Annots"].map { |annotation| resolve(annotation, objects)["/Dest"] }
+        assert_equal(pdf["pages"][0]["object"], retained[0])
+        assert_nil(resolve(removed[0], objects))
+      end
+
+      %w[i0:notes.txt i1:notes.txt].each do |name|
+        assert_equal("Unrelated attachment.\n", command("qpdf", "--show-attachment=#{name}", output).stdout)
+      end
+    end
+
+    def test_shared_records_isolate_styles_and_retain_baselines
+      source = shared_fixture
+      command(@cli, "verify", source)
+      before = snapshot(source)[0]
+      edited = operation(source, "shared-edited.pdf", {"color" => "#123456"})
+      after, paint, = snapshot(edited)
+      assert_equal(before["baselines"], after["baselines"])
+      assert_equal(before["regions"]["other-rows"], after["regions"]["other-rows"])
+      refute_equal(before["regions"]["rows"]["records"], after["regions"]["rows"]["records"])
+      paint.each { |id, scope, _| assert_includes(scope, "0.2 G") if id.start_with?("other-") }
+      chained = operation(edited, "shared-changed.pdf", {"other-opacity" => 0.4})
+      chained = operation(chained, "shared-chained.pdf", ["color"], reset: true)
+      assert_equal(Preservation.read(source), Preservation.read(chained))
+      snapshot(chained)[1].each do |id, scope, state|
+        assert_includes(scope, "0.2 G")
+        assert_equal(0.4, state["/CA"]) if id.start_with?("other-")
+      end
+
+      reset = operation(edited, "shared-reset.pdf", reset: true)
+      assert_equal(
+        [0.7, 0.9],
+        snapshot(reset)[1].filter_map { |id, _, state| state["/CA"] if id.start_with?("other-") }.sort
+      )
+      fixture(
+        file("shared-target.pdf"),
+        -> (manifest) {
+          shared_regions(manifest)
+          manifest["targets"]["pattern"].concat(manifest["targets"].delete("other"))
+          %w[other-opacity other-display].each { |id| manifest["parameters"].delete(id) }
+        },
+        pdf_objects: method(:shared_objects)
+      )
+      reset = operation(file("shared-target.pdf"), "shared-target-reset.pdf", reset: true)
+      assert_equal(
+        [0.25, 0.7, 0.9, 1],
+        snapshot(reset)[1]
+          .filter_map { |id, _, state| state["/CA"] if %w[dark dim other-dark other-dim].include?(id) }
+          .sort
+      )
+      extracted = extract(edited, "shared-extracted.pdf", [0])
+      assert_equal(before["baselines"], snapshot(extracted)[0]["baselines"])
+      wire = JSON.parse(command("qpdf", "--show-attachment=mainz.json", extracted).stdout)
+      assert_equal(wire["regions"].values.map { |region| region["recordSet"] }.uniq.sort, wire["recordSets"].keys.sort)
+      write("inputs.json", {"input" => source.to_s})
+      request = {
+        "version" => 1,
+        "sources" => %w[a b].to_h { |id|
+          [id, {"input" => "input", "overrides" => {"opacity" => 0.15, "other-opacity" => 0.15}}]
+        },
+        "parts" => [{"pages" => %w[a b].map { |id| {"source" => id, "page" => 0} }}]
+      }
+      composed, = compose(request, "shared-composed.pdf")
+      wire = JSON.parse(command("qpdf", "--show-attachment=mainz.json", composed).stdout)
+      assert_equal(2 * before["baselines"].length, wire["baselines"].length)
+      assert_equal(3, wire["recordSets"].length)
+      command(@cli, "verify", operation(composed, "shared-composed-reset.pdf", reset: true))
+    end
+
+    def test_alpha_resources_validate_each_paint_scope
+      source = file("scope-alpha.pdf")
+      [1, 0.25].each do |alpha|
+        alpha_fixture(source, alpha)
+        if alpha == 1
+          command(@cli, "verify", source)
+        else
+          assert_equal("invalid-contract", failure_code(source))
+        end
+      end
+    end
+
+    def test_unused_resource_maps_require_dictionaries
+      [[5, "ExtGState"], [6, "XObject"]].each do |index, key|
+        source = file("invalid-resources.pdf")
+        resources_fixture(source, index, key)
+        assert_equal("invalid-contract", failure_code(source))
+      end
+    end
+
+    def test_matching_styles_remain_independent_after_edits
+      source = file("matching-styles.pdf")
+      fixture(source, method(:shared_regions), pdf_objects: method(:shared_objects))
+      uniform = operation(source, "matching-styles-uniform.pdf", {"opacity" => 0.4, "other-opacity" => 0.4})
+      changed = operation(uniform, "matching-styles-changed.pdf", {"opacity" => 0.6})
+      assert_equal(Preservation.read(source), Preservation.read(changed))
+      snapshot(changed)[1].each do |id, _, state|
+        next unless %w[dark dim other-dark other-dim].include?(id)
+
+        assert_equal(id.start_with?("other-") ? 0.4 : 0.6, state["/CA"])
+      end
+    end
+
+    def test_bindings_require_eligible_records_in_every_target
+      source = file("eligible-targets.pdf")
+      fixture(source, method(:across_pages), pdf_objects: method(:across_page_objects))
+      command(@cli, "verify", source)
+      source = file("ineligible-targets.pdf")
+      ineligible_fixture(source)
+      assert_equal("invalid-contract", failure_code(source))
+    end
+
+    def test_shared_record_tables_require_complete_valid_bindings
+      mutations = [
+        -> (m) { m["regions"]["rows"]["recordSet"] = "missing" },
+        -> (m) { m["recordSets"]["row"] = [] },
+        -> (m) { m["recordSets"]["unused"] = m["recordSets"]["row"] },
+        -> (m) { m["regions"]["rows"]["baselineRefs"].delete("first") },
+        -> (m) { m["regions"]["rows"]["baselineRefs"]["unused"] = "dark" },
+        -> (m) { m["regions"]["rows"]["baselineRefs"]["first"] = "missing" },
+        -> (m) { m["regions"]["rows"]["records"] = m["recordSets"]["row"] },
+        -> (m) { m["regions"]["other-rows"]["baselineRefs"]["first"] = "filled" }
+      ]
+      mutations.each do |mutation|
+        fixture(
+          file("invalid-shared.pdf"),
+          -> (m) {
+            shared_regions(m)
+            mutation.call(m)
+          },
+          pdf_objects: method(:shared_objects)
+        )
+        assert_equal("invalid-contract", failure_code(file("invalid-shared.pdf")))
+      end
+
+      [nil, {}].each do |table|
+        fixture(file("invalid-shared.pdf"), -> (m) { m["recordSets"] = table })
+        assert_equal("invalid-contract", failure_code(file("invalid-shared.pdf")))
+      end
+    end
+
+    def test_shared_record_expansion_obeys_record_and_text_limits
+      expanded_fixture
+      assert_equal("limit-exceeded", failure_code(file("expanded-limit.pdf")))
+      expanded_text_fixture
+      assert_equal("limit-exceeded", failure_code(file("expanded-text-limit.pdf")))
+    end
+
+    def test_publication_claims_do_not_follow_changed_page_sequences
+      publication = {"id" => "fixture/book", "compat" => 1}
+      source = file("publication.pdf")
+      fixture(source, -> (manifest) { manifest["publication"] = publication })
+      assert_equal(publication, describe(source)["publication"])
+      unchanged = extract(source, "publication-unchanged.pdf", [0, 1])
+      assert_equal(source.binread, unchanged.binread)
+      assert_equal(publication, describe(unchanged)["publication"])
+      reversed = extract(source, "publication-reversed.pdf", [1, 0])
+      refute(describe(reversed).key?("publication"))
+      pruned = extract(source, "publication-pruned.pdf", [0])
+      refute(describe(pruned).key?("publication"))
+      [0, -1, 1.5, "1"].each do |compat|
+        fixture(source, -> (manifest) { manifest["publication"] = publication.merge("compat" => compat) })
+        assert_equal("invalid-contract", failure_code(source))
+      end
+    end
+
+    def test_profiles_survive_styling_extraction_and_composition
+      source, manifest = profiles_fixture
+      description = command(@cli, "describe", source).stdout
+      file("profiles-description.json").binwrite(description)
+      assert_equal(manifest["profileSets"], JSON.parse(description)["profileSets"])
+      changed = operation(source, "profiles-edited.pdf", manifest["profileSets"][0]["profiles"][1]["overrides"])
+      assert_equal(manifest["profileSets"], snapshot(changed)[0]["profileSets"])
+      restored = operation(changed, "profiles-reset.pdf", reset: true)
+      assert_equal(manifest["profileSets"], snapshot(restored)[0]["profileSets"])
+      pruned = extract(source, "profiles-extracted.pdf", [0])
+      [source, changed, restored, pruned].each do |candidate|
+        summary = describe(candidate)
+        assert_equal(manifest["parameters"]["width"]["schema"], summary["parameters"]["width"]["parameter"]["schema"])
+        assert_equal(
+          {"family" => "fixture", "key" => "width"},
+          summary["parameters"]["width"]["parameter"].slice("family", "key")
+        )
+        assert_equal(manifest["groups"][0].except("parameters"), summary["groups"][0].except("parameters"))
+      end
+
+      profile = snapshot(pruned)[0]["profileSets"][0]
+      assert_equal(["width"], profile["parameters"])
+      assert_equal({"width" => 0.15}, profile["profiles"][1]["overrides"])
+      write("inputs.json", {"input" => source.to_s})
+      request = {
+        "version" => 1,
+        "sources" => %w[a b].to_h { |id| [id, {"input" => "input", "overrides" => {}}] },
+        "parts" => [
+          {
+            "pages" => [
+              {"source" => "a", "page" => 0},
+              {"source" => "a", "page" => 1},
+              {"source" => "a", "page" => 0},
+              {"source" => "b", "page" => 1}
+            ]
+          }
+        ]
+      }
+      output, result = compose(request, "profiles-composed.pdf")
+      sets = snapshot(output)[0]["profileSets"]
+      assert_equal(2, sets.length)
+      assert_equal(2, sets.map { |item| item["id"] }.uniq.length)
+      assert_empty(sets[0]["parameters"] & sets[1]["parameters"])
+      mapping = JSON.parse(result.stdout)["parameters"]
+      summary = describe(output)
+      mapping.each do |id, original|
+        next unless original["parameter"] == "width"
+
+        assert_equal(manifest["parameters"]["width"]["schema"], summary["parameters"][id]["parameter"]["schema"])
+        assert_equal(
+          {"family" => "fixture", "key" => "width"},
+          summary["parameters"][id]["parameter"].slice("family", "key")
+        )
+      end
+
+      assert_equal(
+        [%w[guide-color guide-fill width]] * 2,
+        sets.map { |item| item["parameters"].map { |id| mapping[id]["parameter"] }.sort }
+      )
+      [profile, *sets].each do |set|
+        assert_equal(
+          manifest["profileSets"][0].except("id", "parameters", "profiles"),
+          set.except("id", "parameters", "profiles")
+        )
+        assert_equal(
+          manifest["profileSets"][0]["profiles"].map { |choice| choice.except("overrides") },
+          set["profiles"].map { |choice| choice.except("overrides") }
+        )
+      end
+
+      foreign = file("foreign-family.pdf")
+      fixture(
+        foreign,
+        -> (data) {
+          profile_fixture(data)
+          data["parameters"].each_value { |parameter| parameter["family"] = "foreign" }
+          data["profileSets"][0]["family"] = "foreign"
+        },
+        pdf_objects: method(:across_page_objects)
+      )
+      write("inputs.json", {"input" => source.to_s, "foreign" => foreign.to_s})
+      request["sources"]["b"] = {"input" => "foreign", "overrides" => {"width" => 0.25}}
+      mixed, provenance = compose(request, "mixed-families.pdf")
+      description = describe(mixed)
+      assert_equal(%w[fixture foreign], description["profileSets"].map { |set| set["family"] })
+      JSON.parse(provenance.stdout)["parameters"].each do |id, original|
+        next unless original == {"source" => "b", "parameter" => "width"}
+
+        assert_equal("foreign", description["parameters"][id]["parameter"]["family"])
+        assert_equal("width", description["parameters"][id]["parameter"]["key"])
+        assert_equal(0.25, description["parameters"][id]["parameter"]["value"])
+      end
+    end
+
+    def test_profiles_require_valid_scopes_and_original_first_choice
+      mutations = [
+        -> (s) { s[0]["extra"] = true },
+        -> (s) { s[0]["parameters"] = ["unknown"] },
+        -> (s) { s << JSON.parse(JSON.generate(s[0])) },
+        -> (s) { s[0]["profiles"][0]["overrides"] = {"width" => 0.1} },
+        -> (s) { s[0]["profiles"][1]["overrides"] = {"guide-fill" => 1.1} },
+        -> (s) { s[0]["profiles"][1]["overrides"] = {"opacity" => 0.1} },
+        -> (s) { s[0]["profiles"][1]["id"] = "generic" },
+        -> (s) { s[0]["profiles"][1]["name"] = "" },
+        -> (s) { s[0]["profiles"][1]["description"] = false },
+        -> (s) { s[0]["family"] = " " },
+        -> (s) { s[0]["family"] = 1 },
+        -> (s) { s[0]["profiles"][1]["name"] = s[0]["profiles"][0]["name"] },
+        -> (s) { s[0]["profiles"] *= 17 }
+      ]
+      mutations.each do |mutation|
+        fixture(
+          file("invalid-profiles.pdf"),
+          -> (manifest) {
+            profile_fixture(manifest)
+            mutation.call(manifest["profileSets"])
+          },
+          pdf_objects: method(:across_page_objects)
+        )
+        assert_equal("invalid-contract", failure_code(file("invalid-profiles.pdf")))
+      end
+    end
+
+    def test_semantic_keys_require_complete_consistent_metadata
+      mutations = [
+        -> (p) { p["width"].delete("family") },
+        -> (p) { p["width"].delete("key") },
+        -> (p) { p["width"]["family"] = "\u00a0" },
+        -> (p) { p["width"]["key"] = " " },
+        -> (p) { p["width"]["key"] = 1 },
+        -> (p) { p["width"]["family"] = "bad\nfamily" },
+        -> (p) { p["guide-color"]["key"] = "width" }
+      ]
+      mutations.each do |mutation|
+        fixture(
+          file("invalid-semantics.pdf"),
+          -> (manifest) {
+            profile_fixture(manifest)
+            mutation.call(manifest["parameters"])
+          },
+          pdf_objects: method(:across_page_objects)
+        )
+        assert_equal("invalid-contract", failure_code(file("invalid-semantics.pdf")))
+      end
+    end
+
+    def test_profile_details_obey_json_string_limits
+      source = file("profile-details.pdf")
+      [2048, 2049].each do |length|
+        manifest = fixture(
+          source,
+          -> (data) {
+            profile_fixture(data)
+            data["profileSets"][0]["profiles"][0]["details"] = "ğ" * length
+          },
+          pdf_objects: method(:across_page_objects)
+        )
+        if length == 2048
+          assert_equal(manifest["profileSets"], describe(source)["profileSets"])
+        else
+          assert_equal("limit-exceeded", failure_code(source))
+        end
+      end
+    end
+
+    def test_details_require_descriptions_on_every_annotation_owner
+      owners = [
+        -> (data) { data["parameters"]["width"]["schema"] },
+        -> (data) { data["groups"][0] },
+        -> (data) { data["profileSets"][0] },
+        -> (data) { data["profileSets"][0]["profiles"][1] }
+      ]
+      owners.each do |owner|
+        [nil, false, 1, [], {}].each do |invalid|
+          fixture(
+            file("invalid-annotations.pdf"),
+            -> (data) {
+              profile_fixture(data)
+              owner.call(data)["details"] = invalid
+            },
+            pdf_objects: method(:across_page_objects)
+          )
+          assert_equal("invalid-contract", failure_code(file("invalid-annotations.pdf")))
+        end
+
+        [:missing, "", " \t\n", "\u00a0\u2003\u202f\ufeff"].each do |description|
+          fixture(
+            file("invalid-annotations.pdf"),
+            -> (data) {
+              profile_fixture(data)
+              annotation = owner.call(data)
+              annotation["details"] = "Longer guidance."
+              if description == :missing
+                annotation.delete("description")
+              else
+                annotation["description"] = description
+              end
+            },
+            pdf_objects: method(:across_page_objects)
+          )
+          assert_equal("invalid-contract", failure_code(file("invalid-annotations.pdf")))
+        end
+      end
+    end
+
+    private
+
+    def nested_fields(objects, _stream)
+      objects[0] = objects[0].sub("/Names", "/AcroForm << /Fields [15 0 R] /CO [17 0 R 16 0 R] >> /Names")
+      objects[2] = objects[2].sub("/Parent", "/Annots [16 0 R] /Parent")
+      objects[3] = objects[3].sub("/Parent", "/Annots [17 0 R] /Parent")
+      objects.concat(
+        [
+          "<< /T (Group) /FT /Tx /Kids [16 0 R 17 0 R] >>",
+          "<< /Type /Annot /Subtype /Widget /T (Keep) /Parent 15 0 R /Rect [0 0 10 10] /P 3 0 R >>",
+          "<< /Type /Annot /Subtype /Widget /T (Remove) /Parent 15 0 R /Rect [0 0 10 10] /P 4 0 R >>"
+        ]
+      )
+    end
+
+    def page_navigation(objects, _stream)
+      objects[0] = objects[0].sub(
+        "/Names <<",
+        "/OpenAction [3 0 R /Fit] /AcroForm << /Fields [15 0 R 16 0 R] >> /Names << /Dests << /Names [(keep) [3 0 R /Fit] (remove) [4 0 R /Fit]] >>"
+      )
+      objects[2] = objects[2].sub("/Parent", "/Annots [15 0 R] /Parent")
+      objects[3] = objects[3].sub("/Parent", "/Annots [16 0 R] /Parent")
+      objects.concat(
+        [
+          "<< /Type /Annot /Subtype /Widget /FT /Tx /T (Keep) /Rect [0 0 10 10] /P 3 0 R >>",
+          "<< /Type /Annot /Subtype /Widget /FT /Tx /T (Remove) /Rect [0 0 10 10] /P 4 0 R >>"
+        ]
+      )
+    end
+
+    def command(*arguments, ok: true, input: nil)
+      result = Mainz.capture(*arguments, input: input)
+      assert_equal(ok, result.status.success?, "#{arguments.inspect}: #{result.stdout}#{result.stderr}")
+      result
+    end
+
+    def failure_code(path) = JSON.parse(command(@cli, "verify", path, ok: false).stderr)["code"]
+    def pdf_json(path) = JSON.parse(command("qpdf", "--json", "--json-stream-data=inline", path).stdout)
+
+    def assert_raster(expected, actual)
+      assert_equal(
+        Digest::SHA256.file(file(expected)).hexdigest,
+        Digest::SHA256.file(file(actual)).hexdigest,
+        "#{expected} != #{actual}"
+      )
+    end
+
+    def page_snapshot(path, index)
+      pdf = pdf_json(path)
+      objects = pdf["qpdf"][1]
+      normalize = -> (value) {
+        case value
+        when String
+          if value.end_with?(" R")
+            item = objects.fetch("obj:#{value}")
+            if item.key?("stream")
+              stream = item["stream"]
+              {
+                "data" => stream["data"],
+                "dict" => normalize.call(
+                  stream["dict"].reject { |key, _| %w[/Length /Filter /DecodeParms].include?(key) }
+                )
+              }
+            else
+              normalize.call(item["value"])
+            end
+          else
+            value
+          end
+
+        when Hash
+          value.reject { |key, _| key == "/Parent" }.transform_values { |item| normalize.call(item) }
+        when Array
+          value.map { |item| normalize.call(item) }
+        else
+          value
+        end
+      }
+      page = resolve(pdf["pages"][index]["object"], objects)
+      effective = page.reject { |key, _| key == "/Parent" }
+      while page.key?("/Parent")
+        page = resolve(page["/Parent"], objects)
+        %w[/MediaBox /CropBox /Resources /Rotate].each { |key|
+          effective[key] = page[key] if !effective.key?(key) && page.key?(key)
+        }
+      end
+
+      normalize.call(effective)
+    end
+
+    def page_two(snapshot)
+      _, _, objects, pdf = snapshot
+      page = resolve(pdf["pages"][1]["object"], objects)
+      row = resolve(page["/Resources"]["/XObject"]["/Row"], objects)
+      shape = resolve(row["dict"]["/Resources"]["/XObject"]["/Shape"], objects)
+      [Base64.decode64(shape["data"]), shape["dict"]["/Resources"]]
+    end
+
+    def raster(path, dpi)
+      command("pdftoppm", "-r", dpi, "-png", path, file("#{path.basename(".pdf")}-#{dpi}"))
+    end
+
+    def resolve(value, objects)
+      return value unless value.is_a?(String) && value.end_with?(" R")
+
+      node = objects.fetch("obj:#{value}")
+      node.key?("value") ? node["value"] : node["stream"]
+    end
+
+    def snapshot(path)
+      command("qpdf", "--check", path)
+      pdf = pdf_json(path)
+      objects = pdf["qpdf"][1]
+      decode = -> (reference) { Base64.decode64(resolve(reference, objects)["data"]).force_encoding(Encoding::UTF_8) }
+      catalog = resolve(objects["trailer"]["value"]["/Root"], objects)
+      attachments = {}
+      visit = -> (tree) {
+        tree = resolve(tree, objects)
+        tree.fetch("/Names", []).each_slice(2) do |name, specification|
+          specification = resolve(specification, objects)
+          attachments[name.delete_prefix("u:")] = decode.call(resolve(specification["/EF"], objects)["/F"])
+        end
+
+        tree.fetch("/Kids", []).each { |kid| visit.call(kid) }
+      }
+      visit.call(resolve(catalog["/Names"], objects)["/EmbeddedFiles"])
+      manifest = JSON.parse(attachments.fetch("mainz.json"))
+      manifest["regions"].each_value do |region|
+        next unless region.key?("recordSet")
+
+        references = region.delete("baselineRefs")
+        region["records"] = manifest["recordSets"][region.delete("recordSet")].map do |record|
+          record.merge("baseline" => references[record["baseline"]])
+        end
+      end
+
+      manifest.delete("recordSets")
+      page = resolve(pdf["pages"][0]["object"], objects)
+      content = pdf["pages"][0]["contents"].map { |reference| decode.call(reference) }.join("\n")
+      records = manifest["regions"].values.flat_map do |region|
+        region["records"].map do |record|
+          resources = resolve(page["/Resources"], objects)
+          data = content
+          record["path"].each do |step|
+            form = resolve(resolve(resources["/XObject"], objects)["/#{step["resource"]}"], objects)
+            data = Base64.decode64(form["data"])
+            resources = resolve(form["dict"]["/Resources"], objects)
+          end
+
+          scope = data[%r{/Figure /#{Regexp.escape(record["marker"])} BDC(.*?)EMC}m, 1]
+          alpha = scope[%r{/([A-Za-z0-9.-]+) gs}, 1]
+          state = resolve(resolve(resources["/ExtGState"], objects)["/#{alpha}"], objects)
+          [record["baseline"], scope, state]
+        end
+      end
+
+      assert_equal("Unrelated attachment.\n", attachments["notes.txt"])
+      [manifest, records, objects, pdf]
+    end
+  end
+end

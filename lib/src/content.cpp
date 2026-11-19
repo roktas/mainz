@@ -1,0 +1,248 @@
+#include "content.hh"
+#include <qpdf/BufferInputSource.hh>
+
+namespace mainz::detail {
+using Token = QPDFTokenizer::Token;
+class Tokens {
+public:
+    explicit Tokens(const std::string& bytes)
+    {
+        content.bytes = std::make_unique<std::string>(bytes);
+        data = *content.bytes;
+    }
+    Content content;
+    void handleToken(const Token& token, std::size_t start, std::size_t end)
+    {
+        auto type = token.getType();
+        append(type, start, end, type == QPDFTokenizer::tt_name ? token.getValue() : "");
+    }
+    bool scan()
+    {
+        // Strings, dictionaries, escaped names, and inline images stay with QPDF's complete lexer.
+        if (data.find_first_of("()<>{}#") != data.npos)
+            return false;
+        static const std::set<std::string_view> operators {"q", "Q", "cm", "w", "G", "RG", "g", "rg", "gs", "m", "l",
+            "c", "v", "y", "h", "re", "S", "s", "f", "f*", "B", "B*", "b", "b*", "n", "W", "W*", "Do", "BMC", "BDC",
+            "EMC", "J", "j", "M", "d"};
+        auto space = [](char c) { return c == '\0' || c == '\t' || c == '\n' || c == '\f' || c == '\r' || c == ' '; };
+        auto digit = [](char c) { return c >= '0' && c <= '9'; };
+        std::size_t position = 0;
+        while (position < data.size()) {
+            if (space(data[position])) {
+                ++position;
+                continue;
+            }
+            if (data[position] == '%') {
+                position = data.find_first_of("\r\n", position);
+                if (position == data.npos)
+                    break;
+                continue;
+            }
+            auto start = position++;
+            if (data[start] == '[' || data[start] == ']') {
+                append(data[start] == '[' ? QPDFTokenizer::tt_array_open : QPDFTokenizer::tt_array_close, start,
+                    position, {});
+                continue;
+            }
+            bool named = data[start] == '/';
+            while (position < data.size() && !space(data[position]) && data[position] != '/' && data[position] != '%'
+                && data[position] != '[' && data[position] != ']')
+                ++position;
+            auto raw = data.substr(start, position - start);
+            auto type = QPDFTokenizer::tt_name;
+            if (!named) {
+                std::size_t n = raw.front() == '+' || raw.front() == '-' ? 1 : 0;
+                auto first = n;
+                while (n < raw.size() && digit(raw[n]))
+                    ++n;
+                auto digits = n - first;
+                type = QPDFTokenizer::tt_integer;
+                if (n < raw.size() && raw[n] == '.') {
+                    type = QPDFTokenizer::tt_real;
+                    first = ++n;
+                    while (n < raw.size() && digit(raw[n]))
+                        ++n;
+                    digits += n - first;
+                }
+                if (!digits || n != raw.size()) {
+                    if (!operators.contains(raw))
+                        return false;
+                    type = QPDFTokenizer::tt_word;
+                }
+            }
+            append(type, start, position, named ? raw : std::string_view {});
+        }
+        return true;
+    }
+    void append(QPDFTokenizer::token_type_e type, std::size_t start, std::size_t end, std::string_view decoded)
+    {
+        require(type != QPDFTokenizer::tt_bad, "Invalid content token.", "pdf-syntax");
+        if (type == QPDFTokenizer::tt_eof)
+            return;
+        if (type == QPDFTokenizer::tt_space || type == QPDFTokenizer::tt_comment)
+            return;
+        if (content.operands.size() == first)
+            begin = start;
+        if (type == QPDFTokenizer::tt_inline_image) {
+            require(content.operands.size() == first && nesting.empty(), "Malformed inline image.", "pdf-syntax");
+            require(content.operations.size() < 1000000, "Content operations exceed 1000000.", "limit-exceeded");
+            starts.push_back(first);
+            content.operations.push_back({"inline-image", {}, start, end});
+            return;
+        }
+        if (type == QPDFTokenizer::tt_array_open || type == QPDFTokenizer::tt_dict_open) {
+            require(nesting.size() < 32, "Operand nesting exceeds 32.", "limit-exceeded");
+            nesting.push_back(type);
+        } else if (type == QPDFTokenizer::tt_array_close || type == QPDFTokenizer::tt_dict_close) {
+            require(!nesting.empty()
+                    && ((type == QPDFTokenizer::tt_array_close && nesting.back() == QPDFTokenizer::tt_array_open)
+                        || (type == QPDFTokenizer::tt_dict_close && nesting.back() == QPDFTokenizer::tt_dict_open)),
+                "Unbalanced content operand.", "pdf-syntax");
+            nesting.pop_back();
+        }
+        if (type == QPDFTokenizer::tt_word && nesting.empty()) {
+            require(content.operations.size() < 1000000, "Content operations exceed 1000000.", "limit-exceeded");
+            starts.push_back(first);
+            content.operations.push_back({data.substr(start, end - start), {}, begin, end});
+            first = content.operands.size();
+        } else {
+            require(content.operands.size() - first < 50000, "Content operands exceed 50000.", "limit-exceeded");
+            auto raw = data.substr(start, end - start);
+            auto name = type == QPDFTokenizer::tt_name ? &*content.names.emplace(decoded).first : nullptr;
+            content.operands.push_back({type, raw, name});
+        }
+    }
+    void handleEOF()
+    {
+        require(content.operands.size() == first && nesting.empty(), "Trailing content operands.", "pdf-syntax");
+        content.operations.shrink_to_fit();
+        content.operands.shrink_to_fit();
+        for (std::size_t i = 0; i < content.operations.size(); ++i) {
+            auto end = i + 1 < starts.size() ? starts[i + 1] : content.operands.size();
+            content.operations[i].operands
+                = std::span<const Operand>(content.operands).subspan(starts[i], end - starts[i]);
+        }
+    }
+
+private:
+    std::string_view data;
+    std::size_t begin {0}, first {0};
+    std::vector<std::size_t> starts;
+    std::vector<QPDFTokenizer::token_type_e> nesting;
+};
+std::string name(const Operation& op, std::size_t i)
+{
+    require(
+        i < op.operands.size() && op.operands[i].type == QPDFTokenizer::tt_name, "Expected a PDF name.", "pdf-syntax");
+    return *op.operands[i].name;
+}
+double operand(const Operation& op, std::size_t i)
+{
+    require(i < op.operands.size()
+            && (op.operands[i].type == QPDFTokenizer::tt_integer || op.operands[i].type == QPDFTokenizer::tt_real),
+        "Expected a PDF number.", "pdf-syntax");
+    return pdf_number(op.operands[i].raw);
+}
+void count(const Operation& op, std::size_t n)
+{
+    if (op.operands.size() != n)
+        throw Error("pdf-syntax", "Invalid operand count for " + std::string(op.op));
+}
+Content tokenize(const std::string& data)
+{
+    Tokens tokens(data);
+    if (!tokens.scan()) {
+        tokens = Tokens(data);
+        Buffer buffer(*tokens.content.bytes);
+        BufferInputSource input("Mainz content", &buffer);
+        QPDFTokenizer tokenizer;
+        tokenizer.allowEOF();
+        while (true) {
+            auto token = tokenizer.readToken(input, "", true);
+            if (token.getType() == QPDFTokenizer::tt_eof)
+                break;
+            tokens.handleToken(
+                token, static_cast<std::size_t>(input.getLastOffset()), static_cast<std::size_t>(input.tell()));
+            if (token.isWord("ID")) {
+                char space {};
+                input.read(&space, 1);
+                tokenizer.expectInlineImage(input);
+            }
+        }
+    }
+    tokens.handleEOF();
+    auto& content = tokens.content;
+    std::vector<std::size_t> marked;
+    for (std::size_t i = 0; i < content.operations.size(); ++i) {
+        const auto& op = content.operations[i];
+        if (op.op == "BMC" || op.op == "BDC") {
+            count(op, op.op == "BMC" ? 1 : 2);
+            name(op, 0);
+            require(marked.size() < 64, "Marked content exceeds depth 64.", "limit-exceeded");
+            marked.push_back(i);
+        } else if (op.op == "EMC") {
+            count(op, 0);
+            require(!marked.empty(), "Marked content underflow.", "pdf-syntax");
+            content.ends[marked.back()] = i;
+            marked.pop_back();
+        }
+    }
+    require(marked.empty(), "Unclosed marked content.", "pdf-syntax");
+    return std::move(content);
+}
+bool path_op(std::string_view op)
+{
+    return op == "m" || op == "l" || op == "c" || op == "v" || op == "y" || op == "h" || op == "re";
+}
+bool paint_op(std::string_view op)
+{
+    return op == "S" || op == "s" || op == "f" || op == "f*" || op == "B" || op == "B*" || op == "b" || op == "b*";
+}
+bool empty_move(const std::vector<Operation>& ops, std::size_t index, std::size_t end)
+{
+    return ops[index].op == "m" && (index + 1 == end || ops[index + 1].op == "m" || ops[index + 1].op == "re");
+}
+// Compare decimal coordinates exactly, without rounding the protected path tokens.
+static void append_number(std::string& output, std::string_view raw)
+{
+    bool negative = raw.starts_with('-');
+    if (negative || raw.starts_with('+'))
+        raw.remove_prefix(1);
+    auto point = raw.find('.');
+    auto integer = raw.substr(0, point);
+    auto fraction = point == raw.npos ? std::string_view {} : raw.substr(point + 1);
+    auto first = integer.find_first_not_of('0');
+    integer.remove_prefix(first == integer.npos ? integer.size() : first);
+    auto last = fraction.find_last_not_of('0');
+    fraction = fraction.substr(0, last == fraction.npos ? 0 : last + 1);
+    if (negative && (!integer.empty() || !fraction.empty()))
+        output += '-';
+    output.append(integer.empty() ? "0" : integer);
+    if (!fraction.empty()) {
+        output += '.';
+        output.append(fraction);
+    }
+}
+std::string geometry(const std::vector<Operation>& ops, std::size_t start, std::size_t end, const Matrix& matrix)
+{
+    std::string result;
+    for (auto n : matrix) {
+        append_number(result, decimal(n));
+        result += ' ';
+    }
+    for (std::size_t i = start; i < end; ++i) {
+        if (empty_move(ops, i, end))
+            continue;
+        for (const auto& token : ops[i].operands) {
+            if (token.type == QPDFTokenizer::tt_integer || token.type == QPDFTokenizer::tt_real)
+                append_number(result, token.raw);
+            else
+                result += token.raw;
+            result += ' ';
+        }
+        result += ops[i].op;
+        result += ' ';
+    }
+    return result;
+}
+}

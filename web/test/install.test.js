@@ -1,0 +1,268 @@
+// Checks optional installation guidance, startup sequencing, and browser install outcomes.
+
+import { launch } from "./browsers.js"
+import assert from "node:assert/strict"
+import test from "node:test"
+import { serve } from "./server.ts"
+import { chromium, devices } from "playwright"
+
+test("Installation guidance stays optional and independent of the product tour", { timeout: 120000 }, async () => {
+  const server = await serve()
+  let browser
+
+  try {
+    browser = await launch(chromium, { channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
+    for (const colorScheme of ["light", "dark"]) {
+      const context = await browser.newContext({ ...devices["iPhone 13"], colorScheme, reducedMotion: "reduce" })
+      try {
+        const page = await context.newPage()
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=empty`)
+        const installation = page.getByRole("dialog", { name: "Install application", exact: true })
+        const welcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true })
+        await installation.waitFor()
+        await page.locator(".composer").waitFor()
+        assert.equal(await welcome.isVisible(), false)
+        assert.equal(await installation.getByRole("button", { name: "Install application", exact: true }).count(), 0)
+
+        const alignment = await installation.evaluate((element) => {
+          const title = element.querySelector("h2").getBoundingClientRect()
+          const icon = element.querySelector(".icon-button svg").getBoundingClientRect()
+          return {
+            offset: Math.abs(title.y + title.height / 2 - icon.y - icon.height / 2),
+            fits: element.scrollWidth <= element.clientWidth,
+          }
+        })
+        assert.ok(alignment.offset < 1 && alignment.fits)
+        await page.setViewportSize({ width: 320, height: 667 })
+        await page.evaluate(() => {
+          document.documentElement.style.fontSize = "200%"
+          document.body.style.fontFamily = '"DejaVu Sans", sans-serif'
+        })
+        assert.equal(await installation.evaluate((element) => element.scrollWidth <= element.clientWidth), true)
+        const continuation = await installation
+          .getByRole("button", { name: "Use browser", exact: true })
+          .evaluate((button) => {
+            const text = document.createRange()
+            text.selectNodeContents(button)
+            return { lines: text.getClientRects().length, fits: button.scrollWidth <= button.clientWidth + 1 }
+          })
+        assert.ok(continuation.lines === 1 && continuation.fits, JSON.stringify(continuation))
+
+        if (colorScheme === "dark") {
+          await installation.evaluate((element) => element.removeAttribute("closedby"))
+          await page.touchscreen.tap(2, 100)
+        } else await installation.getByRole("button", { name: "Use browser", exact: true }).click()
+        const notice = page.locator(".header-feedback").getByText("Install in Settings", { exact: true })
+        assert.ok(
+          await notice.evaluate((element) => {
+            const frame = element.closest(".header-feedback").getBoundingClientRect()
+            const range = document.createRange()
+            range.selectNodeContents(element)
+            const text = range.getBoundingClientRect()
+            return (
+              text.left >= frame.left &&
+              text.right <= frame.right &&
+              text.top >= frame.top &&
+              text.bottom <= frame.bottom
+            )
+          }),
+          "The installation reminder fits the header at 320 px and 200% text",
+        )
+        await welcome.waitFor()
+        assert.equal(await installation.isVisible(), false)
+        assert.equal(await page.evaluate(() => localStorage.getItem("mainz:onboarding")), null)
+        await welcome.getByRole("button", { name: "Skip", exact: true }).click()
+        await page.reload()
+        await page.locator(".composer").waitFor()
+        assert.equal(await installation.isVisible(), false)
+        assert.equal(await welcome.isVisible(), false)
+        const helpButton = page.getByRole("button", { name: "Help", exact: true })
+        const help = page.getByRole("dialog", { name: "Help", exact: true })
+        await helpButton.click()
+        assert.deepEqual(await help.getByRole("tab").allTextContents(), ["Touch"])
+        assert.equal(await page.locator("dialog[open]").count(), 1)
+        await page.keyboard.press("Escape")
+        await help.waitFor({ state: "hidden" })
+        assert.equal(await helpButton.evaluate((element) => element === document.activeElement), true)
+        const settingsButton = page.getByRole("button", { name: "Settings", exact: true })
+        const settings = page.getByRole("dialog", { name: "Settings", exact: true })
+        await settingsButton.click()
+        assert.ok(
+          await settings.evaluate((drawer) => {
+            const install = drawer.querySelector(".install-action").getBoundingClientRect()
+            const about = drawer.querySelector(".about").getBoundingClientRect()
+            return Math.abs(install.bottom - about.top) < 1
+          }),
+          "Workspace installation action sits immediately above application information",
+        )
+        await settings.getByRole("button", { name: "Install application", exact: true }).click()
+        await installation.waitFor()
+        assert.match(await installation.textContent(), /Add to Home Screen/)
+        assert.equal(await page.locator("dialog[open]").count(), 1)
+        await page.keyboard.press("Escape")
+        await installation.waitFor({ state: "hidden" })
+        assert.equal(await settingsButton.evaluate((element) => element === document.activeElement), true)
+        assert.equal(await page.evaluate(() => localStorage.getItem("mainz:onboarding")), "19")
+        await page.goto(server.resolvedUrls.local[0])
+        assert.equal(
+          await installation.isVisible(),
+          false,
+          "Skipping the first recommendation suppresses later startup prompts",
+        )
+        await helpButton.click()
+        assert.equal(
+          await help
+            .getByText("Open a PDF to see its keyboard, mouse, and touch controls.", { exact: true })
+            .isVisible(),
+          true,
+        )
+        assert.equal(await help.getByRole("button", { name: "Start Tour", exact: true }).count(), 0)
+        await help.getByRole("button", { name: "Close help", exact: true }).click()
+        await settingsButton.click()
+        assert.ok(
+          await settings.evaluate((drawer) => {
+            const install = drawer.querySelector(".install-action").getBoundingClientRect()
+            return install.top < drawer.getBoundingClientRect().top + drawer.clientHeight / 2
+          }),
+          "Landing installation action remains near the top of Settings",
+        )
+        await settings.getByRole("button", { name: "Install application", exact: true }).click()
+        await installation.waitFor()
+        assert.match(await installation.textContent(), /Add to Home Screen/)
+        await installation.getByRole("button", { name: "Close installation help", exact: true }).click()
+      } finally {
+        await context.close()
+      }
+    }
+    for (const storage of ["standalone", "unavailable"]) {
+      const context = await browser.newContext({ ...devices["iPhone 13"], reducedMotion: "reduce" })
+      try {
+        const page = await context.newPage()
+        await page.addInitScript((mode) => {
+          if (mode === "standalone") Object.defineProperty(navigator, "standalone", { value: true })
+          else {
+            Storage.prototype.getItem = () => {
+              throw new DOMException("Storage unavailable", "SecurityError")
+            }
+            Storage.prototype.setItem = () => {
+              throw new DOMException("Storage unavailable", "SecurityError")
+            }
+          }
+        }, storage)
+        await page.goto(`${server.resolvedUrls.local[0]}?demo=empty`)
+        const installation = page.getByRole("dialog", { name: "Install application", exact: true })
+        const welcome = page.getByRole("dialog", { name: "Welcome to PDF Composer", exact: true })
+        if (storage === "unavailable") {
+          await installation.waitFor()
+          await installation.getByRole("button", { name: "Close installation help", exact: true }).click()
+        }
+        await welcome.waitFor()
+        assert.equal(await installation.isVisible(), false)
+        await welcome.getByRole("button", { name: "Skip", exact: true }).click()
+        if (storage === "standalone") {
+          await page.getByRole("button", { name: "Settings", exact: true }).click()
+          await page
+            .getByRole("dialog", { name: "Settings", exact: true })
+            .getByRole("button", { name: "Install application", exact: true })
+            .click()
+          await installation.waitFor()
+          assert.match(await installation.textContent(), /running in its own app window/)
+          await installation.getByRole("button", { name: "Close", exact: true }).click()
+        }
+      } finally {
+        await context.close()
+      }
+    }
+    const context = await browser.newContext({ reducedMotion: "reduce" })
+    try {
+      const page = await context.newPage()
+      await page.goto(`${server.resolvedUrls.local[0]}?demo=single`)
+      const icons = await page.evaluate(async () => {
+        const manifest = await (await fetch("manifest.webmanifest")).json()
+        const asset = manifest.icons.find((item) => item.purpose.split(" ").includes("maskable"))
+        if (!asset) return []
+        return Promise.all(
+          ["apple-touch-icon.png", "icon-192.png", asset.src].map(async (src) => {
+            const image = new Image()
+            image.src = src
+            await image.decode()
+            const canvas = document.createElement("canvas")
+            canvas.width = canvas.height = image.naturalWidth
+            const pixels = canvas.getContext("2d")
+            pixels.drawImage(image, 0, 0)
+            const { data } = pixels.getImageData(0, 0, canvas.width, canvas.height)
+            let radius = 0
+            for (let y = 0; y < canvas.height; y++)
+              for (let x = 0; x < canvas.width; x++) {
+                const offset = 4 * (y * canvas.width + x)
+                if (data[offset + 3] !== 255) throw new Error("The maskable background must be opaque")
+                if (data[offset] < 247 || data[offset + 1] < 247 || data[offset + 2] < 247)
+                  radius = Math.max(radius, Math.hypot(x + 0.5 - canvas.width / 2, y + 0.5 - canvas.height / 2))
+              }
+            return { size: canvas.width, radius: radius / canvas.width }
+          }),
+        )
+      })
+      assert.deepEqual(
+        icons.map((icon) => icon.size),
+        [180, 192, 512],
+      )
+      assert.ok(
+        icons.every((icon) => icon.radius >= 0.38 && icon.radius <= 0.4),
+        "iOS and Android artwork fills the central safe circle with matching margins on opaque backgrounds",
+      )
+      await page.locator(".composer").waitFor()
+      const installation = page.getByRole("dialog", { name: "Install application", exact: true })
+      assert.equal(await installation.isVisible(), false, "Desktop startup stays quiet")
+      for (const outcome of ["dismissed", "accepted", "error"]) {
+        await page.getByRole("button", { name: "Settings", exact: true }).click()
+        await page
+          .getByRole("dialog", { name: "Settings", exact: true })
+          .getByRole("button", { name: "Install application", exact: true })
+          .click()
+        await installation.waitFor()
+
+        await page.evaluate((result) => {
+          const event = new Event("beforeinstallprompt", { cancelable: true })
+          event.prompt = async () => {
+            if (!navigator.userActivation.isActive) throw new Error("A user gesture is required")
+            if (result === "error") throw new Error("Installation unavailable")
+          }
+          event.userChoice = Promise.resolve({ outcome: result })
+          window.dispatchEvent(event)
+        }, outcome)
+        await installation.getByRole("button", { name: "Install application", exact: true }).click()
+        await page
+          .locator(".header-feedback")
+          .getByRole(outcome === "error" ? "alert" : "status")
+          .waitFor()
+        assert.match(
+          await page
+            .locator(".header-feedback")
+            .getByRole(outcome === "error" ? "alert" : "status")
+            .textContent(),
+          outcome === "error"
+            ? /Installation unavailable/
+            : outcome === "accepted"
+              ? /Installation requested/
+              : /continue in this browser/,
+        )
+        assert.equal(await installation.getByRole("button", { name: "Install application", exact: true }).count(), 0)
+        if (outcome === "accepted") {
+          await page.clock.install()
+          await page.clock.runFor(10001)
+          await page
+            .locator(".header-feedback [role=status]")
+            .filter({ hasText: "Installation requested" })
+            .waitFor({ state: "hidden" })
+          assert.ok(await installation.isVisible(), "A completed notification expires without closing the dialog")
+        }
+        await installation.getByRole("button", { name: "Close installation help", exact: true }).click()
+      }
+    } finally {
+      await context.close()
+    }
+  } finally {
+    await browser?.close()
+  }
+})
