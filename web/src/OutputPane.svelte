@@ -34,7 +34,7 @@
   import Ribbon from "./Ribbon.svelte"
   import SectionPath from "./SectionPath.svelte"
   import SectionRow from "./SectionRow.svelte"
-  import PageTools from "./PageTools.svelte"
+  import PageControls from "./PageControls.svelte"
   import Toolbar from "./Toolbar.svelte"
   import Summary from "./Summary.svelte"
   import Grip from "./Grip.svelte"
@@ -297,7 +297,7 @@
       {@render outputOrigin(inspected, output.position, output.pages.length)}
     {/if}
   </span>
-  <PageTools
+  <PageControls
     pane="Output"
     zoom={view.zoom}
     comparing={editing.comparing}
@@ -346,7 +346,7 @@
     <div class="menu-options">
       <div class="selected-actions">
         {#if view.active === "page"}
-          <PageTools
+          <PageControls
             pane="Output"
             menu
             zoom={view.zoom}

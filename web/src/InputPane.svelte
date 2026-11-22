@@ -32,7 +32,7 @@
   import Ribbon from "./Ribbon.svelte"
   import SectionPath from "./SectionPath.svelte"
   import SectionRow from "./SectionRow.svelte"
-  import PageTools from "./PageTools.svelte"
+  import PageControls from "./PageControls.svelte"
   import Toolbar from "./Toolbar.svelte"
   import Summary from "./Summary.svelte"
   import Grip from "./Grip.svelte"
@@ -125,7 +125,7 @@
     onpointerdown={(event) => transfer.press(event, editing.inputPayload(view.current.position))}
     ondragend={() => transfer.end()}><Icon name="reorder" /></button
   >
-  <PageTools
+  <PageControls
     pane="Input"
     zoom={view.current.zoom}
     onZoomBy={(offset) => interaction.zoomBy("Input", offset)}
@@ -212,7 +212,7 @@
     <summary aria-label="Input page actions" title="Input page actions"><Icon name="more" /></summary>
     <div class="menu-options">
       {#if view.active === "page" && !controlCapabilities[view.controls].zoom}
-        <PageTools
+        <PageControls
           pane="Input"
           menu
           zoom={view.current.zoom}
