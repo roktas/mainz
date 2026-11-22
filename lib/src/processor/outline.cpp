@@ -140,11 +140,15 @@ void compose_outlines(QPDF& output, const std::vector<OutlineInput>& sources, Bu
             if (headings.empty())
                 continue;
             std::map<std::size_t, std::size_t> touched;
+            std::vector<bool> visited(count, false);
             const auto begin = std::lower_bound(
                 source.retained.begin(), source.retained.end(), std::pair {block.start, std::size_t {0}});
             for (auto occurrence = begin; occurrence != source.retained.end() && occurrence->first < block.end;
                 ++occurrence) {
                 const auto [position, page] = *occurrence;
+                if (visited[page])
+                    continue;
+                visited[page] = true;
                 for (auto node = count + page; node; node /= 2)
                     for (auto index : sections[node]) {
                         std::optional<std::size_t> ancestor = index;

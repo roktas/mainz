@@ -27,6 +27,15 @@ static Object destination(Object value, QPDF& document)
     }
     return value;
 }
+struct ComposedRegion {
+    std::string id;
+    std::string target;
+    JSON marker;
+    std::string record_set;
+    JSON baseline_refs;
+    std::size_t record_count {0};
+    std::size_t fixed_locator_bytes {0};
+};
 struct PlanSource {
     std::unique_ptr<Engine> engine;
     const Document* validated {nullptr};
@@ -34,7 +43,7 @@ struct PlanSource {
     std::unique_ptr<QPDFPageLabelDocumentHelper> labels;
     JSON manifest = JSON::makeDictionary();
     std::map<std::size_t, JSON> pages;
-    std::map<std::size_t, std::vector<std::pair<std::string, JSON>>> regions;
+    std::map<std::size_t, std::vector<ComposedRegion>> regions;
     std::map<std::string, std::string> targets;
     std::string prefix;
     std::string input;
@@ -318,6 +327,9 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
         auto profile_sets = JSON::makeArray();
         auto provenance = JSON::makeArray();
         auto parameter_map = JSON::makeDictionary();
+        auto record_sets = JSON::makeDictionary();
+        std::map<std::string, std::string> known_sets;
+        std::size_t template_bytes {0};
         for (auto& [id, source] : sources) {
             if (object(source.engine->manifest).empty())
                 continue;
@@ -334,16 +346,54 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             auto authored_pages = array(source.manifest.getDictItem("pages"));
             for (const auto& [physical, retained] : selected)
                 source.pages.emplace(physical, authored_pages.at(retained));
-            for (const auto& [id, region] : object(source.manifest.getDictItem("regions"))) {
-                auto retained = static_cast<std::size_t>(number(region.getDictItem("page")));
-                source.regions[original_pages.at(retained)].emplace_back(id, region);
-            }
             for (const auto& [baseline, record] : object(source.manifest.getDictItem("baselines")))
                 next.getDictItem("baselines").addDictionaryMember(source.prefix + baseline, record);
             for (const auto& [target, regions] : object(source.manifest.getDictItem("targets"))) {
                 for (const auto& region : array(regions))
                     source.targets.emplace(text(region), target);
                 next.getDictItem("targets").addDictionaryMember(source.prefix + target, JSON::makeArray());
+            }
+            for (const auto& [region_id, region] : object(source.manifest.getDictItem("regions"))) {
+                auto retained = static_cast<std::size_t>(number(region.getDictItem("page")));
+                auto target_id = source.prefix + source.targets.at(region_id);
+                std::map<std::string, std::string> slots;
+                auto records = JSON::makeArray(), refs = JSON::makeDictionary();
+                std::size_t record_count {0}, fixed_bytes {0};
+                for (const auto& record : locators(source.manifest, region)) {
+                    auto baseline = source.prefix + baseline_ref(region, record);
+                    auto [slot, fresh] = slots.try_emplace(baseline, "b" + std::to_string(slots.size()));
+                    if (fresh)
+                        refs.addDictionaryMember(slot->second, JSON::makeString(baseline));
+                    auto locator = copy_object(record);
+                    locator.addDictionaryMember("baseline", JSON::makeString(slot->second));
+                    records.addArrayElement(locator);
+                    ++record_count;
+                    auto add_bytes = [&](std::size_t n) {
+                        require(n <= locator_limit - fixed_bytes, "Cumulative locator text exceeds 128 MiB.",
+                            "limit-exceeded");
+                        fixed_bytes += n;
+                    };
+                    add_bytes(target_id.size());
+                    add_bytes(text(record.getDictItem("marker")).size());
+                    add_bytes(text(record.getDictItem("fill")).size());
+                    add_bytes(baseline.size());
+                    for (const auto& step : array(record.getDictItem("path")))
+                        add_bytes(text(step.getDictItem("resource")).size());
+                }
+                auto encoded = encode(records, manifest_limit, budget.remaining);
+                std::string set_id;
+                if (auto found = known_sets.find(encoded); found != known_sets.end())
+                    set_id = found->second;
+                else {
+                    require(encoded.size() <= manifest_limit - template_bytes, "Record sets exceed 16 MiB.",
+                        "limit-exceeded");
+                    template_bytes += encoded.size();
+                    set_id = "r" + std::to_string(known_sets.size());
+                    known_sets.emplace(std::move(encoded), set_id);
+                    record_sets.addDictionaryMember(set_id, records);
+                }
+                source.regions[original_pages.at(retained)].push_back({region_id, std::move(target_id),
+                    region.getDictItem("marker"), std::move(set_id), refs, record_count, fixed_bytes});
             }
             for (const auto& [parameter, record] : object(source.manifest.getDictItem("parameters"))) {
                 auto updated = copy_object(record);
@@ -397,6 +447,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             QPDFEmbeddedFileDocumentHelper original_files(source.engine->document);
             for (const auto& [name, spec] : original_files.getEmbeddedFiles()) {
                 (void)spec;
+                require(++budget.visits <= 65536, "Attachment traversal exceeds limit.", "limit-exceeded");
                 if (name != "mainz.json")
                     reserved_names.insert(prefix + name);
             }
@@ -407,6 +458,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
                 continue;
             QPDFEmbeddedFileDocumentHelper original_files(source.engine->document);
             for (const auto& [name, spec] : original_files.getEmbeddedFiles()) {
+                require(++budget.visits <= 65536, "Attachment traversal exceeds limit.", "limit-exceeded");
                 if (name == "mainz.json")
                     continue;
                 auto key = attachment_prefixes.at(source.input) + name;
@@ -431,6 +483,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             }
         }
         std::vector<Object> labels;
+        std::size_t composed_records {0};
         for (std::size_t index = 0; index < expanded.size(); ++index) {
             const auto& page = expanded[index];
             auto annotation = JSON::makeDictionary();
@@ -482,22 +535,25 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
                     if (auto preview = annotation.getDictItem("preview"); !preview.isNull())
                         annotation.addDictionaryMember(
                             "preview", JSON::makeString(attachment_names.at(source.input).at(text(preview))));
-                    for (const auto& [id, region] : source.regions[content.page]) {
+                    for (const auto& entry : source.regions[content.page]) {
                         auto region_id = page_id + ":";
-                        region_id += id;
-                        auto locators_copy = JSON::makeArray(), refs = JSON::makeDictionary();
-                        for (const auto& record : locators(source.manifest, region)) {
-                            locators_copy.addArrayElement(record);
-                            refs.addDictionaryMember(text(record.getDictItem("baseline")),
-                                JSON::makeString(source.prefix + baseline_ref(region, record)));
+                        region_id += entry.id;
+                        require(entry.record_count <= 500000 - composed_records, "Paint records exceed 500000.",
+                            "limit-exceeded");
+                        composed_records += entry.record_count;
+                        require(entry.fixed_locator_bytes <= budget.locator_remaining,
+                            "Cumulative locator text exceeds 128 MiB.", "limit-exceeded");
+                        budget.locator_remaining -= entry.fixed_locator_bytes;
+                        if (entry.record_count > 0) {
+                            require(region_id.size() <= budget.locator_remaining / entry.record_count,
+                                "Cumulative locator text exceeds 128 MiB.", "limit-exceeded");
+                            budget.locator_remaining -= entry.record_count * region_id.size();
                         }
-                        auto updated = dictionary(
-                            {{"page", region.getDictItem("page")}, {"marker", region.getDictItem("marker")},
-                                {"records", locators_copy}, {"baselineRefs", refs}});
-                        updated.addDictionaryMember("page", JSON::makeInt(static_cast<long long>(index)));
+                        auto updated = dictionary({{"page", JSON::makeInt(static_cast<long long>(index))},
+                            {"marker", entry.marker}, {"recordSet", JSON::makeString(entry.record_set)},
+                            {"baselineRefs", entry.baseline_refs}});
                         next.getDictItem("regions").addDictionaryMember(region_id, updated);
-                        member(next.getDictItem("targets"), source.prefix + source.targets.at(id))
-                            .addArrayElement(JSON::makeString(region_id));
+                        member(next.getDictItem("targets"), entry.target).addArrayElement(JSON::makeString(region_id));
                     }
                 }
             }
@@ -532,11 +588,13 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             }
         }
         if (!object(next.getDictItem("regions")).empty() || annotated(next.getDictItem("pages"))) {
+            if (!object(record_sets).empty())
+                next.addDictionaryMember("recordSets", record_sets);
             if (!array(groups).empty())
                 next.addDictionaryMember("groups", groups);
             if (!array(profile_sets).empty())
                 next.addDictionaryMember("profileSets", profile_sets);
-            auto stream = output.newStream(encode(share_records(next), manifest_limit, budget.remaining));
+            auto stream = output.newStream(encode(next, manifest_limit, budget.remaining));
             stream.getDict().replaceKey("/Type", Object::newName("/EmbeddedFile"));
             stream.getDict().replaceKey("/Subtype", Object::newName("/application/json"));
             auto spec

@@ -2,26 +2,85 @@
 #include "pipeline.hh"
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <exception>
+#include <mutex>
 #include <qpdf/QPDFAcroFormDocumentHelper.hh>
 #include <qpdf/QPDFEFStreamObjectHelper.hh>
 #include <qpdf/QPDFEmbeddedFileDocumentHelper.hh>
 #include <qpdf/QPDFFileSpecObjectHelper.hh>
+#include <qpdf/QPDFLogger.hh>
 #include <qpdf/QPDFPageDocumentHelper.hh>
 #include <qpdf/QPDFPageLabelDocumentHelper.hh>
 #include <qpdf/QPDFWriter.hh>
+#include <qpdf/global.hh>
 #include <utility>
 #include <zlib.h>
 
 namespace mainz::detail {
+static void configure_qpdf_limits()
+{
+    static std::once_flag configured;
+    std::call_once(configured, [] {
+        auto logger = QPDFLogger::defaultLogger();
+        logger->setWarn(logger->discard());
+        logger->setError(logger->discard());
+        qpdf::global::limits::flate_max_memory(static_cast<std::uint32_t>(pdf_limit));
+        qpdf::global::limits::png_max_memory(static_cast<std::uint32_t>(stream_limit));
+        qpdf::global::limits::tiff_max_memory(static_cast<std::uint32_t>(stream_limit));
+        qpdf::global::limits::run_length_max_memory(static_cast<std::uint32_t>(pdf_limit));
+        qpdf::global::limits::dct_max_memory(static_cast<std::uint32_t>(pdf_limit));
+        qpdf::global::limits::max_stream_filters(8);
+    });
+}
+bool qpdf_limit_message(std::string_view message)
+{
+    return message.find("memory limit exceeded") != std::string_view::npos
+        || message.find("exceeds PL_Flate memory limit") != std::string_view::npos
+        || message.find("too many filters") != std::string_view::npos;
+}
+static bool decode_parms_exceed_limit(Object parms)
+{
+    auto check_dict = [](Object dict) {
+        if (!dict.isDictionary())
+            return false;
+        for (const auto& key : {"/Columns", "/Colors", "/BitsPerComponent"}) {
+            auto value = dict.getKey(key);
+            if (value.isInteger()) {
+                auto n = value.getIntValue();
+                if (n > 0 && static_cast<unsigned long long>(n) > stream_limit / 2)
+                    return true;
+            }
+        }
+        return false;
+    };
+    if (parms.isDictionary())
+        return check_dict(parms);
+    if (parms.isArray())
+        for (const auto& item : parms.getArrayAsVector())
+            if (check_dict(item))
+                return true;
+    return false;
+}
 std::string decode(Object stream, Budget& budget, std::size_t limit)
 {
+    const auto limit_errors = qpdf::global::limit_errors();
     Buffer output(limit, budget.remaining);
-    bool decoded = stream.isStream() && stream.pipeStreamData(&output, nullptr, 0, qpdf_dl_generalized);
+    bool filtered = false;
+    bool decoded = stream.isStream() && stream.pipeStreamData(&output, &filtered, 0, qpdf_dl_generalized);
     // QPDF converts pipeline exceptions into a failed decode. Preserve the original limit/allocation error.
     if (output.failure)
         std::rethrow_exception(output.failure);
-    require(decoded, "Cannot decode PDF stream.", "pdf-syntax");
+    if (!decoded || !filtered) {
+        if (qpdf::global::limit_errors() > limit_errors
+            || (stream.isStream() && decode_parms_exceed_limit(stream.getDict().getKey("/DecodeParms"))))
+            throw Error("limit-exceeded", "PDF stream filter exceeds limit.");
+        if (auto* owner = stream.getOwningQPDF())
+            for (const auto& warning : owner->getWarnings())
+                if (qpdf_limit_message(warning.what()))
+                    throw Error("limit-exceeded", warning.what());
+        throw Error("pdf-syntax", "Cannot decode PDF stream.");
+    }
     return std::move(output.bytes);
 }
 void compress(Object stream, const std::string& data, Budget& budget)
@@ -73,7 +132,7 @@ JSON mapped_profiles(JSON sets, const std::map<std::string, std::string>& parame
     return result;
 }
 // Baseline identities remain local to each region; only locator syntax is shared.
-JSON share_records(JSON root)
+JSON share_records(JSON root, Budget& budget)
 {
     auto result = JSON::makeDictionary();
     for (const auto& [key, value] : object(root))
@@ -94,7 +153,7 @@ JSON share_records(JSON root)
             locator.addDictionaryMember("baseline", JSON::makeString(slot->second));
             records.addArrayElement(locator);
         }
-        auto encoded = encode(records, manifest_limit);
+        auto encoded = encode(records, manifest_limit, budget.remaining);
         auto found = known.find(encoded);
         std::string set_id;
         if (found == known.end()) {
@@ -125,6 +184,9 @@ void Engine::attachments(Object tree, std::set<QPDFObjGen>& seen, std::set<std::
     require(entries.isNull() || kids.isNull(), "Name tree node has Names and Kids.");
     if (!entries.isNull()) {
         require(entries.isArray() && entries.getArrayNItems() % 2 == 0, "Invalid attachment name array.");
+        const auto count = static_cast<std::size_t>(entries.getArrayNItems() / 2);
+        require(count <= 65536 - budget.visits, "Attachment traversal exceeds limit.", "limit-exceeded");
+        budget.visits += count;
         for (int i = 0; i < entries.getArrayNItems(); i += 2) {
             auto key = entries.getArrayItem(i);
             require(key.isString(), "Invalid attachment name.");
@@ -153,15 +215,60 @@ Engine::Engine(const std::string& input, Budget* shared_budget, bool validated, 
     , previous(std::move(previous))
 {
     require(input.size() <= pdf_limit, "Input PDF exceeds 128 MiB.", "limit-exceeded");
+    configure_qpdf_limits();
+    const auto limit_errors = qpdf::global::limit_errors();
     document.setSuppressWarnings(true);
     document.setAttemptRecovery(false);
-    document.processMemoryFile("Mainz input", input.data(), input.size());
+    try {
+        document.processMemoryFile("Mainz input", input.data(), input.size());
+    } catch (const std::exception& error) {
+        if (qpdf::global::limit_errors() > limit_errors || qpdf_limit_message(error.what()))
+            throw Error("limit-exceeded", error.what());
+        throw;
+    }
     require(!document.isEncrypted(), "Encrypted PDFs are unsupported.", "unsupported-context");
-    for (const auto& item : document.getAllObjects()) {
-        if (item.isDictionary())
-            require(!item.getKey("/Type").isNameAndEquals("/Sig") && !item.getKey("/FT").isNameAndEquals("/Sig")
-                    && !item.hasKey("/ByteRange"),
-                "Signed PDFs are unsupported.", "unsupported-context");
+    auto reject_signatures = [&](Object root_object) {
+        std::vector<std::pair<Object, std::size_t>> stack;
+        stack.emplace_back(root_object, 0);
+        while (!stack.empty()) {
+            auto [current, depth] = stack.back();
+            stack.pop_back();
+            if (current.isDictionary()) {
+                require(!current.getKey("/Type").isNameAndEquals("/Sig")
+                        && !current.getKey("/Type").isNameAndEquals("/DocTimeStamp")
+                        && !current.getKey("/FT").isNameAndEquals("/Sig") && !current.hasKey("/ByteRange"),
+                    "Signed PDFs are unsupported.", "unsupported-context");
+                for (const auto& [key, value] : current.getDictAsMap()) {
+                    (void)key;
+                    if (!value.isIndirect() && (value.isDictionary() || value.isArray())) {
+                        require(depth < 64, "Direct object nesting exceeds limit.", "limit-exceeded");
+                        stack.emplace_back(value, depth + 1);
+                    }
+                }
+            } else if (current.isArray()) {
+                for (const auto& item : current.getArrayAsVector()) {
+                    if (!item.isIndirect() && (item.isDictionary() || item.isArray())) {
+                        require(depth < 64, "Direct object nesting exceeds limit.", "limit-exceeded");
+                        stack.emplace_back(item, depth + 1);
+                    }
+                }
+            }
+        }
+    };
+    try {
+        for (const auto& item : document.getAllObjects())
+            if (item.isDictionary() || item.isArray())
+                reject_signatures(item);
+    } catch (const Error&) {
+        throw;
+    } catch (const std::exception& error) {
+        if (qpdf::global::limit_errors() > limit_errors || qpdf_limit_message(error.what()))
+            throw Error("limit-exceeded", error.what());
+        throw;
+    }
+    if (auto acro = document.getRoot().getKeyIfDict("/AcroForm"); acro.isDictionary()) {
+        auto flags = acro.getKey("/SigFlags");
+        require(!flags.isInteger() || flags.getIntValue() == 0, "Signed PDFs are unsupported.", "unsupported-context");
     }
     require(document.getRoot().getKey("/Perms").isNull(), "Certification and usage-rights signatures are unsupported.",
         "unsupported-context");
@@ -283,23 +390,34 @@ Engine::Engine(const std::string& input, Budget* shared_budget, bool validated, 
 static std::string label(Object record)
 {
     auto prefix = record.getKey("/P");
-    std::string result = prefix.isString() ? prefix.getUTF8Value() : "";
+    std::string result;
+    if (prefix.isString()) {
+        auto raw = prefix.getUTF8Value();
+        require(raw.size() <= 4096, "Page label exceeds 4096 bytes.", "limit-exceeded");
+        result = std::move(raw);
+    }
     auto style = record.getKey("/S");
     auto start = record.getKey("/St");
     auto n = start.isInteger() ? start.getIntValue() : 1;
     require(n > 0 && n <= 1000000, "Page-label number exceeds limit.", "limit-exceeded");
-    if (style.isNameAndEquals("/D"))
-        return result + std::to_string(n);
-    if (style.isNameAndEquals("/A") || style.isNameAndEquals("/a"))
+    if (style.isNameAndEquals("/D")) {
+        auto digits = std::to_string(n);
+        require(digits.size() <= 4096 - result.size(), "Page label exceeds 4096 bytes.", "limit-exceeded");
+        return result + digits;
+    }
+    if (style.isNameAndEquals("/A") || style.isNameAndEquals("/a")) {
+        const auto repeat = static_cast<std::size_t>((n - 1) / 26 + 1);
+        require(repeat <= 4096 - result.size(), "Page label exceeds 4096 bytes.", "limit-exceeded");
         return result
-            + std::string(static_cast<std::size_t>((n - 1) / 26 + 1),
-                static_cast<char>((style.isNameAndEquals("/A") ? 'A' : 'a') + (n - 1) % 26));
+            + std::string(repeat, static_cast<char>((style.isNameAndEquals("/A") ? 'A' : 'a') + (n - 1) % 26));
+    }
     if (style.isNameAndEquals("/R") || style.isNameAndEquals("/r")) {
         const auto prefix_size = result.size();
         for (const auto& [amount, digits] :
             std::vector<std::pair<int, std::string>> {{1000, "M"}, {900, "CM"}, {500, "D"}, {400, "CD"}, {100, "C"},
                 {90, "XC"}, {50, "L"}, {40, "XL"}, {10, "X"}, {9, "IX"}, {5, "V"}, {4, "IV"}, {1, "I"}})
             while (n >= amount) {
+                require(digits.size() <= 4096 - result.size(), "Page label exceeds 4096 bytes.", "limit-exceeded");
                 result += digits;
                 n -= amount;
             }
@@ -317,13 +435,18 @@ std::string Engine::describe()
     auto described_pages = JSON::makeArray();
     auto metadata = object(manifest).empty() ? std::vector<JSON> {} : array(manifest.getDictItem("pages"));
     QPDFPageLabelDocumentHelper labels(document);
+    std::size_t label_bytes = 0;
     for (std::size_t index = 0; index < pages.size(); ++index) {
         auto page = metadata.empty() ? JSON::makeDictionary() : copy_object(metadata.at(index));
         if (auto preview = page.getDictItem("preview"); !preview.isNull())
             page.addDictionaryMember("preview", image(text(preview)));
-        if (labels.hasPageLabels())
-            page.addDictionaryMember(
-                "label", JSON::makeString(label(labels.getLabelForPage(static_cast<long long>(index)))));
+        if (labels.hasPageLabels()) {
+            auto text_label = label(labels.getLabelForPage(static_cast<long long>(index)));
+            require(text_label.size() <= manifest_limit - label_bytes, "Page labels exceed 16 MiB.", "limit-exceeded");
+            label_bytes += text_label.size();
+            budget.consume(text_label.size());
+            page.addDictionaryMember("label", JSON::makeString(text_label));
+        }
         described_pages.addArrayElement(page);
     }
     auto described_parameters = JSON::makeDictionary();
@@ -550,7 +673,7 @@ std::string Engine::save(std::optional<JSON> next)
 {
     prune_previews(document, managed_previews, next ? next->getDictItem("pages") : JSON::makeArray());
     if (next)
-        compress(payload, encode(share_records(*next), manifest_limit, budget.remaining), budget);
+        compress(payload, encode(share_records(*next, budget), manifest_limit, budget.remaining), budget);
     Buffer output(pdf_limit, budget.remaining);
     QPDFWriter writer(document);
     writer.setOutputPipeline(&output);

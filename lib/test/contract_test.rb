@@ -1839,6 +1839,96 @@ module Mainz
       end
     end
 
+    def test_rejects_png_predictor_bomb_and_inline_signatures_and_oversized_labels
+      # CRIT-01: PNG predictor column bombs must be rejected before unbounded allocation.
+      [2_147_483_647, 20_000_000].each_with_index do |columns, index|
+        predictor = file("predictor-bomb-#{index}.pdf")
+        fixture(
+          predictor,
+          pdf_objects: -> (objects, _stream) {
+            compressed = Zlib::Deflate.deflate("\x00\x00")
+            objects[4] = "<< /Filter /FlateDecode /DecodeParms << /Predictor 12 /Columns #{columns} >> /Length #{compressed.bytesize} >>\nstream\n#{compressed}\nendstream"
+          }
+        )
+        assert_equal("limit-exceeded", failure_code(predictor))
+      end
+
+      # HIGH-04: Direct inline signature dictionaries and AcroForm SigFlags must be rejected.
+      inline_sig = file("inline-signature.pdf")
+      fixture(
+        inline_sig,
+        pdf_objects: -> (objects, _stream) {
+          objects[0] = objects[0].sub(
+            "/Names",
+            "/AcroForm << /Fields [ << /FT /Sig /T (S) /V << /Type /Sig /ByteRange [0 1 2 3] /Contents <00> >> >> ] >> /Names"
+          )
+        }
+      )
+      assert_equal("unsupported-context", failure_code(inline_sig))
+
+      sig_flags = file("sig-flags.pdf")
+      fixture(
+        sig_flags,
+        pdf_objects: -> (objects, _stream) {
+          objects[0] = objects[0].sub("/Names", "/AcroForm << /SigFlags 3 /Fields [] >> /Names")
+        }
+      )
+      assert_equal("unsupported-context", failure_code(sig_flags))
+
+      # HIGH-05: Oversized /PageLabels prefix and huge /A expansion must fail before unbounded retention.
+      huge_prefix = file("huge-label-prefix.pdf")
+      doc = HexaPDF::Document.new
+      doc.pages.add
+      doc.catalog[:PageLabels] = {Nums: [0, {P: "x" * 5000, S: :D}]}
+      doc.write(huge_prefix.to_s)
+      assert_equal("limit-exceeded", failure_code(huge_prefix))
+
+      huge_alpha = file("huge-label-alpha.pdf")
+      doc = HexaPDF::Document.new
+      doc.pages.add
+      doc.catalog[:PageLabels] = {Nums: [0, {S: :A, St: 1_000_000}]}
+      doc.write(huge_alpha.to_s)
+      assert_equal("limit-exceeded", failure_code(huge_alpha))
+    end
+
+    def test_compose_enforces_record_limit_on_repeated_pages
+      # CRIT-02: Repeating a prepared page must enforce the 500,000 paint-record ceiling before building JSON.
+      source = file("many-records.pdf")
+      record_count = 505
+      fixture(
+        source,
+        -> (data) {
+          base_record = data["regions"]["filled"]["records"][0]
+          data["regions"]["filled"]["records"] = Array.new(record_count) do |index|
+            base_record.merge("marker" => "Fill#{index}")
+          end
+        },
+        content: <<~PDF,
+          /Span BMC
+          /Figure /Rows BDC q /Row Do Q EMC
+          /Figure /Guides BDC /Figure /GuidePaint BDC q +.2000000000000000000 w 0.2 G 0 g /Hidden gs
+          10 100 40 40 re 20 110 20 20 re S Q EMC EMC
+          /Figure /Fills BDC
+          #{Array.new(record_count) { |index| "/Figure /Fill#{index} BDC q +.2000000000000000000 w 0.2 G 0 g /Filled gs 140 100 20 20 re 145 105 10 10 re f* Q EMC" }.join("\n")}
+          EMC
+          EMC
+        PDF
+        pdf_objects: -> (objects, _stream) {
+          extra = Array.new(record_count) { |index| "/Fill#{index} <<>>" }.join(" ")
+          objects[2] = objects[2].sub("/FillPaint <<>>", "/FillPaint <<>> #{extra}")
+        }
+      )
+      assert_equal(true, command(@cli, "verify", source).status.success?)
+      write("inputs.json", {"book" => source.to_s})
+      plan = {
+        "version" => 1,
+        "sources" => {"a" => {"input" => "book", "overrides" => {}}},
+        "parts" => [{"pages" => [{"source" => "a", "page" => 0}], "copies" => 1000}]
+      }
+      _, result = compose(plan, "too-many-records.pdf", ok: false)
+      assert_equal("limit-exceeded", JSON.parse(result.stderr)["code"])
+    end
+
     private
 
     def nested_fields(objects, _stream)

@@ -14,6 +14,7 @@
 #include <string_view>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -74,11 +75,12 @@ struct Style {
     std::string width, stroke_op, fill_op, paint, stroke_alpha, fill_alpha;
     std::vector<std::string> stroke, fill;
 };
+bool qpdf_limit_message(std::string_view);
 std::string decode(Object, Budget&, std::size_t limit = stream_limit);
 void compress(Object, const std::string&, Budget&);
 JSON copy_object(JSON);
 JSON mapped_profiles(JSON, const std::map<std::string, std::string>&, const std::string& prefix = {});
-JSON share_records(JSON);
+JSON share_records(JSON, Budget&);
 void prune_previews(QPDF&, const std::set<std::string>& managed, JSON pages);
 class Engine {
 public:
@@ -115,7 +117,7 @@ private:
     std::map<std::string, std::map<std::string, std::string>> bindings;
     std::map<std::string, std::map<std::string, JSON>> choices, original_choices;
     std::set<QPDFObjGen> ancestors;
-    std::vector<std::pair<std::string, bool>> paths;
+    std::unordered_set<std::string> fills, latent_paths;
     std::set<std::size_t> latent_pages, changed_pages;
     std::set<std::string> changed_targets;
     std::map<std::string, std::set<std::vector<Step>>> changed_paths;
@@ -135,8 +137,10 @@ private:
     std::string owner(const std::string&, Object, State, std::size_t page, std::string region,
         const std::vector<Step>& path, double unit, bool editing, std::size_t depth);
     const Style& paint_style(const Record&, bool editing);
+    void record_path(const std::vector<Operation>&, std::size_t start, std::size_t end, const Matrix&, bool latent);
     std::string inspect(Record&, const std::vector<Operation>&, std::size_t begin, std::size_t end, Object,
-        const State&, std::map<std::string, std::pair<double, double>>&, std::vector<Replacement>&, bool);
+        const State&, std::map<std::string, std::pair<double, double>>&, std::map<std::string, std::string>&,
+        std::size_t&, std::vector<Replacement>&, bool);
     std::optional<JSON> baseline(const Record&, const std::string&);
     JSON summary(const std::string&, JSON);
     JSON retained(const std::map<std::size_t, std::size_t>& indexes);

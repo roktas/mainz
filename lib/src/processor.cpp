@@ -26,7 +26,7 @@ Document Document::read(std::string input)
     } catch (const std::bad_alloc&) {
         throw Error("limit-exceeded", "Processor allocation failed.");
     } catch (const std::exception& error) {
-        throw Error("pdf-syntax", error.what());
+        throw Error(qpdf_limit_message(error.what()) ? "limit-exceeded" : "pdf-syntax", error.what());
     }
 }
 Document Document::change(const std::string& input, Change operation, const std::string& reset) const
@@ -106,7 +106,7 @@ Document Document::change(const std::string& input, Change operation, const std:
     } catch (const std::bad_alloc&) {
         throw Error("limit-exceeded", "Processor allocation failed.");
     } catch (const std::exception& error) {
-        throw Error("pdf-syntax", error.what());
+        throw Error(qpdf_limit_message(error.what()) ? "limit-exceeded" : "pdf-syntax", error.what());
     }
 }
 Document Document::style(const std::string& overrides) const { return change(overrides, Change::style); }
@@ -136,7 +136,7 @@ Document Document::extract(const std::string& pages) const
     } catch (const std::bad_alloc&) {
         throw Error("limit-exceeded", "Processor allocation failed.");
     } catch (const std::exception& error) {
-        throw Error("pdf-syntax", error.what());
+        throw Error(qpdf_limit_message(error.what()) ? "limit-exceeded" : "pdf-syntax", error.what());
     }
 }
 std::string Document::preview(std::size_t page) const
@@ -156,7 +156,7 @@ std::string Document::preview(std::size_t page) const
     } catch (const std::bad_alloc&) {
         throw Error("limit-exceeded", "Preview allocation failed.");
     } catch (const std::exception& error) {
-        throw Error("pdf-syntax", error.what());
+        throw Error(qpdf_limit_message(error.what()) ? "limit-exceeded" : "pdf-syntax", error.what());
     }
 }
 }

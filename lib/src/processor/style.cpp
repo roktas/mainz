@@ -111,9 +111,18 @@ const Style& Engine::paint_style(const Record& record, bool editing)
             selected.erase(property);
     return styles.emplace(std::move(key), style(record, selected)).first->second;
 }
+void Engine::record_path(
+    const std::vector<Operation>& ops, std::size_t start, std::size_t end, const Matrix& matrix, bool latent)
+{
+    auto digest = sha256(geometry(ops, start, end, matrix));
+    auto& bucket = latent ? latent_paths : fills;
+    if (bucket.emplace(std::move(digest)).second)
+        budget.consume(64);
+}
 std::string Engine::inspect(Record& record, const std::vector<Operation>& ops, std::size_t begin, std::size_t end,
     Object resources, const State& state, std::map<std::string, std::pair<double, double>>& alphas,
-    std::vector<Replacement>& replacements, bool editing)
+    std::map<std::string, std::string>& alpha_keys, std::size_t& next_alpha, std::vector<Replacement>& replacements,
+    bool editing)
 {
     require(state.supported(), "Unsupported editable painting context.", "unsupported-context");
     require(state.colors_supported, "Default color-space replacement is unsupported.", "unsupported-context");
@@ -160,7 +169,7 @@ std::string Engine::inspect(Record& record, const std::vector<Operation>& ops, s
         require(
             std::all_of(closed.begin(), closed.end(), [](bool v) { return v; }), "Open subpath cannot acquire fill.");
     if (!editing && record.fill != "none" && latent_pages.contains(record.page))
-        paths.emplace_back(geometry(ops, begin + 6, end - 2, state.matrix), record.fill == "latent");
+        record_path(ops, begin + 6, end - 2, state.matrix, record.fill == "latent");
     const auto& expected = paint_style(record, false);
     count(ops[begin + 3], expected.stroke.size());
     count(ops[begin + 4], expected.fill.size());
@@ -207,15 +216,24 @@ std::string Engine::inspect(Record& record, const std::vector<Operation>& ops, s
         replacement_alpha.replaceKey("/Type", Object::newName("/ExtGState"));
         replacement_alpha.replaceKey("/CA", Object::newReal(next.stroke_alpha));
         replacement_alpha.replaceKey("/ca", Object::newReal(next.fill_alpha));
-        for (std::size_t i = 0;; ++i) {
-            key = "/MainzAlpha" + std::to_string(i);
-            if (!states.hasKey(key)) {
-                states.replaceKey(key, replacement_alpha);
-                break;
+        auto signature = replacement_alpha.unparseResolved();
+        if (alpha_keys.empty() && next_alpha == 0) {
+            for (const auto& existing_key : states.getKeys()) {
+                if (!existing_key.starts_with("/MainzAlpha"))
+                    continue;
+                auto existing = states.getKey(existing_key);
+                if (existing.isDictionary())
+                    alpha_keys.try_emplace(existing.unparseResolved(), existing_key);
             }
-            auto existing = states.getKey(key);
-            if (existing.isDictionary() && existing.unparseResolved() == replacement_alpha.unparseResolved())
-                break;
+        }
+        if (auto found = alpha_keys.find(signature); found != alpha_keys.end())
+            key = found->second;
+        else {
+            while (states.hasKey("/MainzAlpha" + std::to_string(next_alpha)))
+                ++next_alpha;
+            key = "/MainzAlpha" + std::to_string(next_alpha++);
+            states.replaceKey(key, replacement_alpha);
+            alpha_keys.emplace(std::move(signature), key);
         }
     }
     std::string prefix = next.width + " w ";
@@ -318,6 +336,8 @@ std::string Engine::owner(const std::string& data, Object resources, State state
     state.colors_supported
         = colors.isNull() || (colors.isDictionary() && !colors.hasKey("/DefaultGray") && !colors.hasKey("/DefaultRGB"));
     std::map<std::string, std::pair<double, double>> alphas;
+    std::map<std::string, std::string> alpha_keys;
+    std::size_t next_alpha {0}, next_form {0};
     std::vector<State> stack;
     std::map<std::string, std::size_t> invocations, rewritten_invocations;
     std::vector<Replacement> replacements;
@@ -351,7 +371,8 @@ std::string Engine::owner(const std::string& data, Object resources, State state
                     record_order[region].push_back(r);
                     used_states.insert(editing && !changed_targets.contains(records[r].target)
                             ? name(ops[i + 5], 0)
-                            : inspect(records[r], ops, i, ends.at(i), resources, state, alphas, replacements, editing));
+                            : inspect(records[r], ops, i, ends.at(i), resources, state, alphas, alpha_keys, next_alpha,
+                                  replacements, editing));
                     replaced_states.insert(name(ops[i + 5], 0));
                     i = ends.at(i);
                     continue;
@@ -446,11 +467,9 @@ std::string Engine::owner(const std::string& data, Object resources, State state
                     ancestors.erase(form.getObjGen());
                     if (editing && rewritten != decoded) {
                         auto copy = styled_form(form, rewritten, child_resources);
-                        for (std::size_t j = 0;; ++j) {
-                            next_key = "/MainzForm" + std::to_string(j);
-                            if (!xobjects.hasKey(next_key))
-                                break;
-                        }
+                        while (xobjects.hasKey("/MainzForm" + std::to_string(next_form)))
+                            ++next_form;
+                        next_key = "/MainzForm" + std::to_string(next_form++);
                         xobjects.replaceKey(next_key, copy);
                         replacements.push_back({op.begin, op.end, next_key + " Do"});
                         replaced_forms.insert(key);
@@ -493,7 +512,7 @@ std::string Engine::owner(const std::string& data, Object resources, State state
             pending_clip = true;
         if (paint_op(op.op) || op.op == "n") {
             if (!editing && pending_path && op.op != "n" && op.op != "S" && op.op != "s" && latent_pages.contains(page))
-                paths.emplace_back(geometry(ops, path_start, i, state.matrix), false);
+                record_path(ops, path_start, i, state.matrix, false);
             pending_path = pending_clip = false;
         }
     }
@@ -529,13 +548,15 @@ void Engine::traverse(bool editing)
     styles.clear();
     regions_found.clear();
     record_order.clear();
-    paths.clear();
+    fills.clear();
+    latent_paths.clear();
     for (auto& record : records)
         record.found = 0;
     for (std::size_t p = 0; p < pages.size(); ++p) {
         if (editing && !changed_pages.contains(p))
             continue;
-        paths.clear();
+        fills.clear();
+        latent_paths.clear();
         auto page = pages[p];
         auto owner_object = page.getObjectHandle();
         auto unit_object = owner_object.getKey("/UserUnit");
@@ -556,12 +577,8 @@ void Engine::traverse(bool editing)
         State state;
         state.groups = group_supported(owner_object);
         auto rewritten = owner(data, resources, state, p, "", {}, unit, editing, 0);
-        std::unordered_set<std::string_view> fills;
-        for (const auto& [geometry, latent] : paths)
-            if (!latent)
-                fills.insert(geometry);
-        for (const auto& [geometry, latent] : paths)
-            require(!latent || !fills.contains(geometry), "Latent stroke duplicates a separate fill.");
+        for (const auto& digest : latent_paths)
+            require(!fills.contains(digest), "Latent stroke duplicates a separate fill.");
         if (editing && rewritten != data) {
             owner_object.replaceKey("/Resources", resources);
             auto stream = document.newStream();
