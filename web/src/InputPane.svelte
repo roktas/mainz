@@ -35,6 +35,7 @@
   import PageTools from "./PageTools.svelte"
   import Toolbar from "./Toolbar.svelte"
   import Summary from "./Summary.svelte"
+  import Grip from "./Grip.svelte"
 
   let {
     key,
@@ -576,30 +577,19 @@
                           start={editing.start}
                           {fold}
                         />
-                      {:else}<button
-                          class="page-grip"
-                          aria-label={`Select or drag Input page ${page + 1} to Output`}
-                          aria-pressed={inputSelected.has(page)}
-                          title="Select or unselect this page."
-                          draggable="true"
-                          onmousedown={retainFocus}
-                          onclick={(event) => {
-                            if (event instanceof PointerEvent && event.pointerType === "touch") return
-                            editing.toggle(page, event.shiftKey)
+                      {:else}<Grip
+                          pane="Input"
+                          number={page + 1}
+                          selected={inputSelected.has(page)}
+                          payload={editing.inputPayload(page)}
+                          {transfer}
+                          start={editing.start}
+                          onToggle={(shiftKey, control) => {
+                            editing.toggle(page, shiftKey)
                             view.set({ position: page })
-                            interaction.focusPage(event.currentTarget)
+                            interaction.focusPage(control)
                           }}
-                          onpointerup={(event) => {
-                            if (event.pointerType !== "touch" || !event.isPrimary || transfer.touching) return
-                            transfer.suppressClick()
-                            editing.toggle(page, event.shiftKey)
-                            view.set({ position: page })
-                            interaction.focusPage(event.currentTarget)
-                          }}
-                          ondragstart={(event) => editing.start(event, editing.inputPayload(page))}
-                          onpointerdown={(event) => transfer.press(event, editing.inputPayload(page))}
-                          ondragend={() => transfer.end()}><Icon name="reorder" /></button
-                        >{/if}
+                        />{/if}
                       <button
                         class="icon-button grid-inspect"
                         type="button"

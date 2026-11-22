@@ -1,14 +1,13 @@
 <!-- Renders the Output pane and owns its view navigation and edit focus. -->
 
 <script lang="ts">
-  import { tick } from "svelte"
   import { MediaQuery } from "svelte/reactivity"
   import type { Snippet } from "svelte"
   import { sizeOf } from "./model.ts"
   import type { Content, Expanded, Source } from "./model.ts"
   import { animateOrder, inert } from "./motion.ts"
   import type { Interaction } from "./interaction.svelte.ts"
-  import type { Output, Edit } from "./output.svelte.ts"
+  import type { Output } from "./output.svelte.ts"
   import type { OutputView, InputViews } from "./pane.svelte.ts"
   import type { Transfer } from "./transfer.svelte.ts"
   import type { Editing } from "./editing.svelte.ts"
@@ -38,6 +37,8 @@
   import PageTools from "./PageTools.svelte"
   import Toolbar from "./Toolbar.svelte"
   import Summary from "./Summary.svelte"
+  import Grip from "./Grip.svelte"
+  import OccurrenceActions from "./OccurrenceActions.svelte"
 
   let {
     key,
@@ -168,75 +169,6 @@
     const { index, sectionEnd } = row.dataset
     return { first: Number(index), end: sectionEnd === undefined ? undefined : Number(sectionEnd) }
   }
-
-  export function captureEditFocus(selecting: boolean) {
-    const focused = document.activeElement as HTMLElement | null
-    const card = focused?.closest<HTMLElement>(".output-pages .composition-card, .composition-output .page-list > li")
-    const grid = focused?.matches(".output-pages")
-    const pageAction = focused?.closest(".composition-output .page-actions")
-    const selectionAction = focused?.closest(".composition-output .sequence-entry") ?? grid
-    const menu = focused?.closest<HTMLDetailsElement>(".sequence-options[open]")
-    const index = card ? Number(card.dataset.index) : -1
-    const inspect = output.pages[index]?.id
-    const focusSelection = selecting && !!(card || grid)
-    return {
-      inspect,
-      focusSelection,
-      restore: (edit: Edit) => {
-        const expanded = edit.pages
-        const selection = edit.selected
-        const destination = card || focusSelection ? edit.position : undefined
-        if (destination !== undefined) view.offset = destination
-        if (transfer.touching) return
-        if (menu) menu.querySelector("summary")?.focus()
-        else if (selectionAction)
-          void tick().then(() => {
-            if (interaction.touchPointer && expanded.length) {
-              view.focusSelection(interaction.touchPointer)
-              return
-            }
-            if (grid && selecting && destination !== undefined && destination >= 0) {
-              ;(pendingAddition.has(selection.at(-1)!)
-                ? focused
-                : document.getElementById(`${key}-${selection.at(-1)}`)?.querySelector<HTMLElement>(".page-image")
-              )?.focus({ preventScroll: true })
-              return
-            }
-            if (!selection.length || !focused?.isConnected || focused.matches(":disabled")) {
-              if (expanded.length) view.focusSelection(interaction.touchPointer)
-              else document.getElementById(`${key}-output-${view.active}`)?.focus({ preventScroll: true })
-            } else focused.focus({ preventScroll: true })
-          })
-        else if (card || pageAction)
-          void tick().then(() => {
-            if (
-              !selecting &&
-              focused?.matches(".page-image, .list-choice, .list-heading") &&
-              focused?.isConnected &&
-              !focused.matches(":disabled") &&
-              (!card || expanded.some((page) => `${key}-${page.id}` === card.id))
-            ) {
-              focused.focus()
-              return
-            }
-            const page = output.pages[destination ?? Math.min(index, output.pages.length - 1)]
-            const neighbor =
-              page &&
-              (document.getElementById(`${key}-${page.id}`) ??
-                view.panel?.querySelector<HTMLElement>(`.list-section[data-index="${destination}"]`))
-            const viewport =
-              !card && output.pages.length ? view.panel?.querySelector<HTMLElement>(".page-scroll") : undefined
-            ;(
-              (page && pendingAddition.has(page.id)
-                ? view.panel?.querySelector<HTMLElement>(".composition-grid, .page-list")
-                : neighbor?.querySelector<HTMLButtonElement>(".page-image, .list-choice, .list-heading")) ??
-              viewport ??
-              document.getElementById(`${key}-output-${view.active}`)
-            )?.focus({ preventScroll: !!pageAction || pendingAddition.size > 0 })
-          })
-      },
-    }
-  }
 </script>
 
 {#snippet dropPreview(after: boolean)}
@@ -329,107 +261,34 @@
       start={editing.start}
       {fold}
     />
-  {:else}<button
-      class="page-grip"
-      aria-label={`Select or drag Output page ${index + 1}`}
-      aria-pressed={selectedIds.has(page.id)}
-      title="Select or unselect this page."
-      draggable="true"
-      onmousedown={retainFocus}
-      onclick={(event) => {
-        if (event instanceof PointerEvent && event.pointerType === "touch") return
-        editing.selectOutput(page.id, event.shiftKey)
-        interaction.focusPage(event.currentTarget)
+  {:else}<Grip
+      pane="Output"
+      number={index + 1}
+      selected={selectedIds.has(page.id)}
+      payload={{ kind: "output", ids: [page.id] }}
+      {transfer}
+      start={editing.start}
+      onToggle={(shiftKey, control) => {
+        editing.selectOutput(page.id, shiftKey)
+        interaction.focusPage(control)
       }}
-      onpointerup={(event) => {
-        if (event.pointerType !== "touch" || !event.isPrimary || transfer.touching) return
-        transfer.suppressClick()
-        editing.selectOutput(page.id, event.shiftKey)
-        interaction.focusPage(event.currentTarget)
-      }}
-      ondragstart={(event) => editing.start(event, { kind: "output", ids: [page.id] })}
-      onpointerdown={(event) => transfer.press(event, { kind: "output", ids: [page.id] })}
-      ondragend={() => transfer.end()}
-    >
-      <Icon name="reorder" />
-    </button>{/if}
+    />{/if}
   <Face index={transfer.number(index) - 1} />
 {/snippet}
 
 {#snippet occurrenceActions(page: Expanded, index: number, controls: boolean, end = index + 1)}
-  {@const target = { kind: "individual" as const, first: index, end }}
-  {@const enabled = !!editing.outputTargets(target).length}
-  {@const group = end > index + 1}
-  {@const targetLabel = group ? `Output section pages ${index + 1}–${end}` : `Output page ${index + 1}`}
-  {#snippet move(offset: -1 | 1, menu = false)}
-    <button
-      class="icon-button move"
-      aria-label={`Move ${targetLabel} ${offset < 0 ? "earlier" : "later"}`}
-      title={`Move ${group ? "section" : "page"} ${offset < 0 ? "earlier" : "later"}`}
-      disabled={!enabled || (offset < 0 ? index === 0 : end === output.pages.length)}
-      onclick={(event) => {
-        event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
-        editing.commandOutput(offset < 0 ? "earlier" : "later", target)
-      }}
-      ><Icon
-        name={view.active === "list" ? (offset < 0 ? "move-up" : "move-down") : offset < 0 ? "earlier" : "later"}
-      />{#if menu}<span>{offset < 0 ? "Move earlier" : "Move later"}</span>{/if}</button
-    >
-  {/snippet}
-  {#snippet copies(menu = false)}
-    <button
-      class="icon-button"
-      aria-label={`Remove ${targetLabel}`}
-      title={group ? "Remove section" : "Remove this page"}
-      disabled={!enabled}
-      onclick={(event) => {
-        event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
-        editing.commandOutput("remove", target)
-      }}
-      ><Icon name="remove" />{#if menu}<span>Remove</span>{/if}</button
-    ><button
-      class="icon-button"
-      aria-label={`Duplicate ${targetLabel}`}
-      title={group ? "Add one adjacent copy of section" : "Add one adjacent copy"}
-      disabled={!enabled}
-      onclick={(event) => {
-        event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
-        editing.commandOutput("duplicate", target)
-      }}
-      ><Icon name="add" />{#if menu}<span>Duplicate</span>{/if}</button
-    >
-  {/snippet}
-  {#snippet pairs()}
-    <div class="occurrence-moves" role="group" aria-label={`Move ${targetLabel}`}>
-      {@render move(-1)}{@render move(1)}
-    </div>
-    <div class="occurrence-copies" role="group" aria-label={`Remove or duplicate ${targetLabel}`}>
-      {@render copies()}
-    </div>
-  {/snippet}
-  <div class="occurrence-actions">
-    {#if controls && enabled}
-      {#if view.active === "list" && narrow.current}
-        {@const menuId = `${key}-${page.id}-actions`}
-        <button
-          class="list-edit-trigger icon-button"
-          aria-label={`Actions for ${targetLabel}`}
-          title="Page actions"
-          popovertarget={menuId}><Icon name="more" /></button
-        >
-        <div
-          id={menuId}
-          class="list-edit-options"
-          role="group"
-          popover="auto"
-          aria-label={`Actions for ${targetLabel}`}
-        >
-          {@render move(-1, true)}{@render move(1, true)}{@render copies(true)}
-        </div>
-      {:else if view.active === "grid"}<span class="card-inline-actions">{@render pairs()}</span>
-      {:else}{@render pairs()}{/if}
-    {/if}
-  </div>
+  <OccurrenceActions
+    {key}
+    {page}
+    {index}
+    {end}
+    total={output.pages.length}
+    active={view.active}
+    narrow={narrow.current}
+    {controls}
+    enabled={!!editing.outputTargets({ kind: "individual", first: index, end }).length}
+    onEdit={(action, target) => editing.commandOutput(action, target)}
+  />
 {/snippet}
 
 {#snippet outputPageHeading(fitWidth: () => void)}

@@ -6,7 +6,7 @@
   import type { Snippet } from "svelte"
   import { animateRemoval } from "./motion.ts"
   import { downloadInputs, downloadName, plan, sizeOf, titleOf } from "./model.ts"
-  import type { Input, Source } from "./model.ts"
+  import type { Source } from "./model.ts"
   import type { Inspection } from "./Page.svelte"
   import type { Magnification } from "./Lens.svelte"
   import {
@@ -48,7 +48,7 @@
   import Align from "./Align.svelte"
   import Offline from "./Offline.svelte"
   import Style from "./Style.svelte"
-  import Guidance from "./Guidance.svelte"
+  import Sources from "./Sources.svelte"
   import type Composer from "./Composer.svelte"
   import Help from "./Help.svelte"
   import type { TourStep } from "./Tour.svelte"
@@ -386,10 +386,6 @@
     const appearance = source.preview.appearance(content.page)
     return cover(appearance.pdf, appearance.page + 1)
   }
-  function inputDetails(input: Input) {
-    if (!input.xmp && (!input.title || input.title === input.name)) return undefined
-    return { Filename: input.name, ...(input.title ? { "dc:title": input.title } : {}), ...input.xmp }
-  }
   function logo(event: MouseEvent) {
     if (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
     event.preventDefault()
@@ -524,46 +520,15 @@
 {/snippet}
 
 {#snippet inputChoices(close: () => void, compact = false)}
-  {#each sources as source (source.id)}
-    {@const details = inputDetails(source.input)}
-    <div class="input-choice" data-active={source.id === activeId || undefined}>
-      <Guidance
-        label={String(source.number)}
-        ariaLabel={`Details for Input ${source.number}`}
-        title={source.input.title || source.input.name}
-        fields={details && Object.keys(details).length ? details : { Filename: source.input.name }}
-      />
-      <button
-        class="input-choice-select"
-        aria-pressed={source.id === activeId}
-        data-source={source.id}
-        onclick={() => {
-          inputs.activeId = source.id
-          close()
-        }}
-        ><span>{source.input.name}</span>{#if source.input.title && source.input.title !== source.input.name}<span
-            class="input-choice-title"
-            title={source.input.title}>{source.input.title}</span
-          >{/if}{#if source.id === activeId}<span aria-hidden="true">✓</span>{/if}</button
-      >
-    </div>
-  {/each}
-  {#if compact}<hr />
-    <div class="file-actions">
-      <button
-        class="icon-button view-action"
-        aria-label="View PDF"
-        onclick={() => {
-          close()
-          viewInputPDF()
-        }}><Icon name="eye" /><span>View PDF</span></button
-      >
-    </div>{/if}
-  <div class="input-list-actions">
-    <button class="danger" aria-label="Remove Input" title="Remove Input" onclick={() => removeSource(close)}
-      ><Icon name="trash" /><span>Remove Input</span></button
-    >
-  </div>
+  <Sources
+    {sources}
+    {activeId}
+    {compact}
+    {close}
+    onSelect={(id) => (inputs.activeId = id)}
+    onView={viewInputPDF}
+    onRemove={removeSource}
+  />
 {/snippet}
 
 <svelte:document

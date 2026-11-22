@@ -199,7 +199,7 @@
     },
   })
 
-  const editing = new Editing({
+  const editing: Editing = new Editing({
     get key() {
       return key
     },
@@ -223,7 +223,14 @@
     get outputTarget() {
       return outputTarget
     },
-    captureEditFocus: (selecting) => outputPane?.captureEditFocus(selecting),
+    captureEditFocus: (selecting) =>
+      outputView.captureEditFocus(
+        key,
+        selecting,
+        () => interaction.touchPointer,
+        () => transfer.touching,
+        editing.feedback.pending,
+      ),
     choose: (id, next) => choose(id, next),
     change: (text) => change(text),
     error: (message) => error(message),

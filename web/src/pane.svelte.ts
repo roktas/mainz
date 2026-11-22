@@ -8,7 +8,7 @@ import type { Viewport as ListViewport } from "./List.svelte"
 import type Page from "./Page.svelte"
 import type { Controls, Region } from "./Page.svelte"
 import type { Source } from "./model.ts"
-import type { Output } from "./output.svelte.ts"
+import type { Edit, Output } from "./output.svelte.ts"
 import type { TourStep } from "./Tour.svelte"
 import { flash } from "./motion.ts"
 
@@ -243,5 +243,79 @@ export class OutputView extends Pane {
   setZoom(zoom: number) {
     this.zoom = zoom
     this.pageInitialized = true
+  }
+  captureEditFocus(
+    key: string,
+    selecting: boolean,
+    touchPointer: () => boolean,
+    touching: () => boolean,
+    pendingAddition: ReadonlySet<string>,
+  ) {
+    const focused = document.activeElement as HTMLElement | null
+    const card = focused?.closest<HTMLElement>(".output-pages .composition-card, .composition-output .page-list > li")
+    const grid = focused?.matches(".output-pages")
+    const pageAction = focused?.closest(".composition-output .page-actions")
+    const selectionAction = focused?.closest(".composition-output .sequence-entry") ?? grid
+    const menu = focused?.closest<HTMLDetailsElement>(".sequence-options[open]")
+    const index = card ? Number(card.dataset.index) : -1
+    const inspect = this.output.pages[index]?.id
+    const focusSelection = selecting && !!(card || grid)
+    return {
+      inspect,
+      focusSelection,
+      restore: (edit: Edit) => {
+        const expanded = edit.pages
+        const selection = edit.selected
+        const destination = card || focusSelection ? edit.position : undefined
+        if (destination !== undefined) this.offset = destination
+        if (touching()) return
+        if (menu) menu.querySelector("summary")?.focus()
+        else if (selectionAction)
+          void tick().then(() => {
+            if (touchPointer() && expanded.length) {
+              this.focusSelection(touchPointer())
+              return
+            }
+            if (grid && selecting && destination !== undefined && destination >= 0) {
+              ;(pendingAddition.has(selection.at(-1)!)
+                ? focused
+                : document.getElementById(`${key}-${selection.at(-1)}`)?.querySelector<HTMLElement>(".page-image")
+              )?.focus({ preventScroll: true })
+              return
+            }
+            if (!selection.length || !focused?.isConnected || focused.matches(":disabled")) {
+              if (expanded.length) this.focusSelection(touchPointer())
+              else document.getElementById(`${key}-output-${this.active}`)?.focus({ preventScroll: true })
+            } else focused.focus({ preventScroll: true })
+          })
+        else if (card || pageAction)
+          void tick().then(() => {
+            if (
+              !selecting &&
+              focused?.matches(".page-image, .list-choice, .list-heading") &&
+              focused?.isConnected &&
+              !focused.matches(":disabled") &&
+              (!card || expanded.some((page) => `${key}-${page.id}` === card.id))
+            ) {
+              focused.focus()
+              return
+            }
+            const page = this.output.pages[destination ?? Math.min(index, this.output.pages.length - 1)]
+            const neighbor =
+              page &&
+              (document.getElementById(`${key}-${page.id}`) ??
+                this.panel?.querySelector<HTMLElement>(`.list-section[data-index="${destination}"]`))
+            const viewport =
+              !card && this.output.pages.length ? this.panel?.querySelector<HTMLElement>(".page-scroll") : undefined
+            ;(
+              (page && pendingAddition.has(page.id)
+                ? this.panel?.querySelector<HTMLElement>(".composition-grid, .page-list")
+                : neighbor?.querySelector<HTMLButtonElement>(".page-image, .list-choice, .list-heading")) ??
+              viewport ??
+              document.getElementById(`${key}-output-${this.active}`)
+            )?.focus({ preventScroll: !!pageAction || pendingAddition.size > 0 })
+          })
+      },
+    }
   }
 }
