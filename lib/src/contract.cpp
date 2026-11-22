@@ -162,6 +162,8 @@ double pdf_number(std::string_view string)
 std::string decimal(double n)
 {
     require(std::isfinite(n), "Unrepresentable style number.", "unsupported-context");
+    if (n == 0)
+        n = 0;
     std::array<char, 32> buffer {};
     auto [end, error] = std::to_chars(buffer.data(), buffer.data() + buffer.size(), n);
     require(error == std::errc {}, "Cannot serialize style number.");
@@ -498,8 +500,7 @@ void profile_sets(JSON sets, const std::map<std::string, JSON>& parameters)
         auto id = text(set.getDictItem("id"));
         identifier(id);
         require(set_ids.insert(id).second, "Duplicate profile set ID.");
-        require(
-            text(set.getDictItem("name")).find_first_not_of(" \t\r\n") != std::string::npos, "Empty profile set name.");
+        require(!blank(text(set.getDictItem("name"))), "Empty profile set name.");
         annotations(set, present);
         std::set<std::string> scope;
         for (const auto& parameter : ids(set.getDictItem("parameters"))) {
@@ -515,8 +516,7 @@ void profile_sets(JSON sets, const std::map<std::string, JSON>& parameters)
             auto identity = text(profile.getDictItem("id"));
             identifier(identity);
             require(profile_ids.insert(identity).second, "Duplicate profile ID.");
-            require(text(profile.getDictItem("name")).find_first_not_of(" \t\r\n") != std::string::npos,
-                "Empty profile name.");
+            require(!blank(text(profile.getDictItem("name"))), "Empty profile name.");
             if (present.contains("family"))
                 require(profile_names.insert(text(profile.getDictItem("name"))).second,
                     "Duplicate profile name in a Style family.");

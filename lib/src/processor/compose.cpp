@@ -19,13 +19,55 @@ static Object destination(Object value, QPDF& document)
 {
     if (value.isName() || value.isString()) {
         auto name = value.isName() ? value.getName().substr(1) : value.getUTF8Value();
-        auto found = document.getRoot().getKey("/Dests").getKey("/" + name);
-        auto tree = document.getRoot().getKey("/Names").getKey("/Dests");
+        auto found = document.getRoot().getKeyIfDict("/Dests").getKeyIfDict("/" + name);
+        auto tree = document.getRoot().getKeyIfDict("/Names").getKeyIfDict("/Dests");
         if (found.isNull() && tree.isDictionary())
             QPDFNameTreeObjectHelper(tree, document, false).findObject(name, found);
         value = found.isDictionary() ? found.getKey("/D") : found;
     }
     return value;
+}
+template <class Function> static void visit_dictionaries(QPDF& document, Budget& budget, Function&& visitor)
+{
+    for (const auto& root_item : document.getAllObjects()) {
+        require(++budget.visits <= 65536, "Plan traversal exceeds 65536 visits.", "limit-exceeded");
+        if (!root_item.isDictionary() && !root_item.isArray())
+            continue;
+        std::vector<std::pair<Object, std::size_t>> stack;
+        stack.emplace_back(root_item, 0);
+        while (!stack.empty()) {
+            auto [current, depth] = stack.back();
+            stack.pop_back();
+            if (current.isDictionary()) {
+                visitor(current);
+                for (const auto& [key, child] : current.getDictAsMap()) {
+                    if (key == "/Resources" || key == "/Font")
+                        continue;
+                    if (!child.isIndirect() && (child.isDictionary() || child.isArray())) {
+                        require(depth < 64, "Direct object nesting exceeds limit.", "limit-exceeded");
+                        stack.emplace_back(child, depth + 1);
+                    }
+                }
+            } else if (current.isArray()) {
+                for (const auto& child : current.getArrayAsVector()) {
+                    if (!child.isIndirect() && (child.isDictionary() || child.isArray())) {
+                        require(depth < 64, "Direct object nesting exceeds limit.", "limit-exceeded");
+                        stack.emplace_back(child, depth + 1);
+                    }
+                }
+            }
+        }
+    }
+}
+static std::string bounded_id(std::string candidate, std::set<std::string>& used, std::string_view fallback_prefix)
+{
+    if (candidate.size() <= 4096 && used.insert(candidate).second)
+        return candidate;
+    for (std::size_t n = 0;; ++n) {
+        auto id = std::string(fallback_prefix) + std::to_string(n);
+        if (used.insert(id).second)
+            return id;
+    }
 }
 struct ComposedRegion {
     std::string id;
@@ -301,22 +343,19 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             }();
             auto mapping
                 = encode(dictionary({{"version", JSON::makeInt(1)}, {"pages", provenance}, {"parameters", parameters}}),
-                    json_limit, budget.remaining);
+                    manifest_limit, budget.remaining);
             return Artifact {std::move(completed), std::move(mapping)};
         }
     }
     for (auto& [id, source] : sources) {
         (void)id;
         QPDFPageDocumentHelper(source.engine->document).pushInheritedAttributesToPage();
-        for (auto item : source.engine->document.getAllObjects()) {
-            require(++budget.visits <= 65536, "Plan traversal exceeds 65536 visits.", "limit-exceeded");
-            if (!item.isDictionary())
-                continue;
+        visit_dictionaries(source.engine->document, budget, [&](Object item) {
             if (item.hasKey("/Dest"))
                 item.replaceKey("/Dest", destination(item.getKey("/Dest"), source.engine->document));
             if (item.getKey("/S").isNameAndEquals("/GoTo"))
                 item.replaceKey("/D", destination(item.getKey("/D"), source.engine->document));
-        }
+        });
     }
     auto assemble = [&] {
         auto next = dictionary({{"version", JSON::makeInt(1)}});
@@ -329,6 +368,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
         auto parameter_map = JSON::makeDictionary();
         auto record_sets = JSON::makeDictionary();
         std::map<std::string, std::string> known_sets;
+        std::set<std::string> used_baselines, used_targets, used_parameters, used_profile_sets, used_regions;
         std::size_t template_bytes {0};
         for (auto& [id, source] : sources) {
             if (object(source.engine->manifest).empty())
@@ -346,21 +386,27 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             auto authored_pages = array(source.manifest.getDictItem("pages"));
             for (const auto& [physical, retained] : selected)
                 source.pages.emplace(physical, authored_pages.at(retained));
-            for (const auto& [baseline, record] : object(source.manifest.getDictItem("baselines")))
-                next.getDictItem("baselines").addDictionaryMember(source.prefix + baseline, record);
+            std::map<std::string, std::string> baseline_ids, target_ids, parameter_ids;
+            for (const auto& [baseline, record] : object(source.manifest.getDictItem("baselines"))) {
+                auto mapped = bounded_id(source.prefix + baseline, used_baselines, source.prefix + "b");
+                baseline_ids.emplace(baseline, mapped);
+                next.getDictItem("baselines").addDictionaryMember(mapped, record);
+            }
             for (const auto& [target, regions] : object(source.manifest.getDictItem("targets"))) {
+                auto mapped = bounded_id(source.prefix + target, used_targets, source.prefix + "t");
+                target_ids.emplace(target, mapped);
                 for (const auto& region : array(regions))
                     source.targets.emplace(text(region), target);
-                next.getDictItem("targets").addDictionaryMember(source.prefix + target, JSON::makeArray());
+                next.getDictItem("targets").addDictionaryMember(mapped, JSON::makeArray());
             }
             for (const auto& [region_id, region] : object(source.manifest.getDictItem("regions"))) {
                 auto retained = static_cast<std::size_t>(number(region.getDictItem("page")));
-                auto target_id = source.prefix + source.targets.at(region_id);
+                auto target_id = target_ids.at(source.targets.at(region_id));
                 std::map<std::string, std::string> slots;
                 auto records = JSON::makeArray(), refs = JSON::makeDictionary();
                 std::size_t record_count {0}, fixed_bytes {0};
                 for (const auto& record : locators(source.manifest, region)) {
-                    auto baseline = source.prefix + baseline_ref(region, record);
+                    auto baseline = baseline_ids.at(baseline_ref(region, record));
                     auto [slot, fresh] = slots.try_emplace(baseline, "b" + std::to_string(slots.size()));
                     if (fresh)
                         refs.addDictionaryMember(slot->second, JSON::makeString(baseline));
@@ -396,32 +442,32 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
                     region.getDictItem("marker"), std::move(set_id), refs, record_count, fixed_bytes});
             }
             for (const auto& [parameter, record] : object(source.manifest.getDictItem("parameters"))) {
+                auto mapped = bounded_id(source.prefix + parameter, used_parameters, source.prefix + "p");
+                parameter_ids.emplace(parameter, mapped);
                 auto updated = copy_object(record);
                 auto binding = copy_object(record.getDictItem("binding"));
                 auto targets = JSON::makeArray();
                 for (const auto& target : array(binding.getDictItem("targets")))
-                    targets.addArrayElement(JSON::makeString(source.prefix + text(target)));
+                    targets.addArrayElement(JSON::makeString(target_ids.at(text(target))));
                 binding.addDictionaryMember("targets", targets);
                 updated.addDictionaryMember("binding", binding);
-                next.getDictItem("parameters").addDictionaryMember(source.prefix + parameter, updated);
-                parameter_map.addDictionaryMember(source.prefix + parameter,
-                    dictionary({{"source", JSON::makeString(id)}, {"parameter", JSON::makeString(parameter)}}));
+                next.getDictItem("parameters").addDictionaryMember(mapped, updated);
+                parameter_map.addDictionaryMember(
+                    mapped, dictionary({{"source", JSON::makeString(id)}, {"parameter", JSON::makeString(parameter)}}));
             }
             if (object(source.manifest).contains("profileSets")) {
-                std::map<std::string, std::string> identities;
-                for (const auto& [parameter, record] : object(source.manifest.getDictItem("parameters"))) {
-                    (void)record;
-                    identities.emplace(parameter, source.prefix + parameter);
-                }
-                for (const auto& set :
-                    array(mapped_profiles(source.manifest.getDictItem("profileSets"), identities, source.prefix)))
+                for (auto set :
+                    array(mapped_profiles(source.manifest.getDictItem("profileSets"), parameter_ids, source.prefix))) {
+                    auto mapped = bounded_id(text(set.getDictItem("id")), used_profile_sets, source.prefix + "ps");
+                    set.addDictionaryMember("id", JSON::makeString(mapped));
                     profile_sets.addArrayElement(set);
+                }
             }
             if (object(source.manifest).contains("groups"))
                 for (const auto& group : array(source.manifest.getDictItem("groups"))) {
                     auto ids = JSON::makeArray();
                     for (const auto& parameter : array(group.getDictItem("parameters")))
-                        ids.addArrayElement(JSON::makeString(source.prefix + text(parameter)));
+                        ids.addArrayElement(JSON::makeString(parameter_ids.at(text(parameter))));
                     auto updated = copy_object(group);
                     updated.addDictionaryMember("parameters", ids);
                     groups.addArrayElement(updated);
@@ -519,7 +565,8 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
                     source.labels = std::make_unique<QPDFPageLabelDocumentHelper>(engine.document);
                 }
                 forms.fixCopiedAnnotations(copied, original, *source.forms);
-                if (source.labels->hasPageLabels())
+                if (source.labels->hasPageLabels()
+                    && source.labels->getLabelForPage(static_cast<long long>(content.page)).isDictionary())
                     source.labels->getLabelsForPageRange(static_cast<long long>(content.page),
                         static_cast<long long>(content.page), static_cast<long long>(index), labels);
                 else {
@@ -536,8 +583,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
                         annotation.addDictionaryMember(
                             "preview", JSON::makeString(attachment_names.at(source.input).at(text(preview))));
                     for (const auto& entry : source.regions[content.page]) {
-                        auto region_id = page_id + ":";
-                        region_id += entry.id;
+                        auto region_id = bounded_id(page_id + ":" + entry.id, used_regions, page_id + ":r");
                         require(entry.record_count <= 500000 - composed_records, "Paint records exceed 500000.",
                             "limit-exceeded");
                         composed_records += entry.record_count;
@@ -573,10 +619,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
                 navigation[catalogs.at(page->source)].retained.emplace_back(index, page->page);
         compose_outlines(output, navigation, budget);
         prune_previews(output, managed_previews, next.getDictItem("pages"));
-        for (const auto& item : output.getAllObjects()) {
-            require(++budget.visits <= 65536, "Plan traversal exceeds 65536 visits.", "limit-exceeded");
-            if (!item.isDictionary())
-                continue;
+        visit_dictionaries(output, budget, [&](Object item) {
             auto value = item.hasKey("/Dest")                ? item.getKey("/Dest")
                 : item.getKey("/S").isNameAndEquals("/GoTo") ? item.getKey("/D")
                                                              : Object::newNull();
@@ -586,7 +629,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
                     && !inserted_pages.contains(page.getObjGen()))
                     value.setArrayItem(0, Object::newNull());
             }
-        }
+        });
         if (!object(next.getDictItem("regions")).empty() || annotated(next.getDictItem("pages"))) {
             if (!object(record_sets).empty())
                 next.addDictionaryMember("recordSets", record_sets);
@@ -646,7 +689,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
         auto description = reopened.describe();
         auto mapping
             = encode(dictionary({{"version", JSON::makeInt(1)}, {"pages", provenance}, {"parameters", parameter_map}}),
-                json_limit, budget.remaining);
+                manifest_limit, budget.remaining);
         return Artifact {Document(std::move(saved.bytes), std::move(description), !object(reopened.manifest).empty(),
                              reopened.prepared(), reopened.take_index(), reopened.take_previews()),
             std::move(mapping)};
@@ -666,7 +709,7 @@ Artifact compose(const std::string& plan, const std::map<std::string, std::strin
     } catch (const std::bad_alloc&) {
         throw Error("limit-exceeded", "Artifact allocation failed.");
     } catch (const std::exception& error) {
-        throw Error("pdf-syntax", error.what());
+        throw Error(qpdf_limit_message(error.what()) ? "limit-exceeded" : "pdf-syntax", error.what());
     }
 }
 Artifact compose_validated(const std::string& plan, const std::map<std::string, Document>& inputs)
@@ -678,7 +721,7 @@ Artifact compose_validated(const std::string& plan, const std::map<std::string, 
     } catch (const std::bad_alloc&) {
         throw Error("limit-exceeded", "Artifact allocation failed.");
     } catch (const std::exception& error) {
-        throw Error("pdf-syntax", error.what());
+        throw Error(qpdf_limit_message(error.what()) ? "limit-exceeded" : "pdf-syntax", error.what());
     }
 }
 }

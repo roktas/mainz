@@ -343,11 +343,15 @@ std::string Engine::owner(const std::string& data, Object resources, State state
     std::vector<Replacement> replacements;
     std::set<std::string> replaced_states, replaced_forms;
     std::set<std::string> used_states, used_forms;
+    std::vector<std::size_t> oc_ends;
+    bool inherited_unvisited_form = false;
     std::size_t region_end = std::numeric_limits<std::size_t>::max(), region_depth = 0;
     bool pending_clip = false, pending_path = false, text_object = false;
     std::size_t path_start = 0;
     for (std::size_t i = 0; i < ops.size(); ++i) {
         const auto& op = ops[i];
+        if ((op.op == "BMC" || op.op == "BDC") && name(op, 0) == "/OC")
+            oc_ends.push_back(ends.at(i));
         if (op.op == "BDC" && name(op, 0) == "/Figure" && op.operands[1].type == QPDFTokenizer::tt_name) {
             auto key = name(op, 1);
             auto region_key = std::make_pair(page, key.substr(1));
@@ -369,16 +373,20 @@ std::string Engine::owner(const std::string& data, Object resources, State state
                     marker(resources, key);
                     records[r].unit = unit;
                     record_order[region].push_back(r);
+                    auto effective = state;
+                    effective.optional_content = effective.optional_content || !oc_ends.empty();
                     used_states.insert(editing && !changed_targets.contains(records[r].target)
                             ? name(ops[i + 5], 0)
-                            : inspect(records[r], ops, i, ends.at(i), resources, state, alphas, alpha_keys, next_alpha,
-                                  replacements, editing));
+                            : inspect(records[r], ops, i, ends.at(i), resources, effective, alphas, alpha_keys,
+                                  next_alpha, replacements, editing));
                     replaced_states.insert(name(ops[i + 5], 0));
                     i = ends.at(i);
                     continue;
                 }
             }
         }
+        while (!oc_ends.empty() && i == oc_ends.back())
+            oc_ends.pop_back();
         if (i == region_end) {
             require(stack.size() == region_depth && !pending_path && !text_object,
                 "Region does not contain complete graphics objects.");
@@ -422,6 +430,11 @@ std::string Engine::owner(const std::string& data, Object resources, State state
                 require(fill.isBool(), "Invalid fill overprint.");
                 state.fill_overprint = fill.getBoolValue();
             }
+            auto shape = alpha.getKey("/AIS");
+            if (!shape.isNull()) {
+                require(shape.isBool(), "Invalid alpha-is-shape setting.");
+                state.alpha_shape = shape.getBoolValue();
+            }
         } else if (op.op == "Do") {
             count(op, 1);
             auto key = name(op, 0);
@@ -446,6 +459,7 @@ std::string Engine::owner(const std::string& data, Object resources, State state
                     child_resources = checked_resources(child_resources, editing);
                     auto child_state = state;
                     child_state.groups = state.groups && group_supported(dict);
+                    child_state.optional_content = state.optional_content || !oc_ends.empty() || dict.hasKey("/OC");
                     auto defaults = resources.getKey("/ColorSpace");
                     if (!defaults.isNull() && defaults.isDictionary()
                         && (defaults.hasKey("/DefaultGray") || defaults.hasKey("/DefaultRGB")))
@@ -491,8 +505,11 @@ std::string Engine::owner(const std::string& data, Object resources, State state
                         record.locator = copy_object(record.locator);
                         record.locator.addDictionaryMember("path", next_path);
                     }
-            } else
+            } else {
+                if (editing && form.getDict().getKey("/Resources").isNull())
+                    inherited_unvisited_form = true;
                 ++rewritten_invocations[key];
+            }
             used_forms.insert(next_key);
         } else if (op.op == "BT") {
             count(op, 0);
@@ -535,12 +552,14 @@ std::string Engine::owner(const std::string& data, Object resources, State state
     require(data.size() - position <= stream_limit - result.size(), "Edited stream exceeds 32 MiB.", "limit-exceeded");
     result.append(data, position, data.size() - position);
     budget.consume(result.size());
-    for (const auto& key : replaced_states)
-        if (key.starts_with("/MainzAlpha") && !used_states.contains(key))
-            resources.getKey("/ExtGState").removeKey(key);
-    for (const auto& key : replaced_forms)
-        if (key.starts_with("/MainzForm") && !used_forms.contains(key))
-            resources.getKey("/XObject").removeKey(key);
+    if (!inherited_unvisited_form) {
+        for (const auto& key : replaced_states)
+            if (key.starts_with("/MainzAlpha") && !used_states.contains(key))
+                resources.getKey("/ExtGState").removeKey(key);
+        for (const auto& key : replaced_forms)
+            if (key.starts_with("/MainzForm") && !used_forms.contains(key))
+                resources.getKey("/XObject").removeKey(key);
+    }
     return result;
 }
 void Engine::traverse(bool editing)

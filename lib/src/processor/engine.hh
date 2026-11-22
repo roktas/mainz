@@ -49,8 +49,12 @@ struct Previews {
 struct State {
     Matrix matrix {identity};
     bool normal {true}, mask {false}, stroke_overprint {false}, fill_overprint {false}, groups {true};
+    bool alpha_shape {false}, optional_content {false};
     bool colors_supported {true};
-    bool supported() const { return normal && !mask && !stroke_overprint && !fill_overprint && groups; }
+    bool supported() const
+    {
+        return normal && !mask && !stroke_overprint && !fill_overprint && !alpha_shape && !optional_content && groups;
+    }
 };
 struct Step {
     std::string resource;

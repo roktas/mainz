@@ -441,11 +441,15 @@ std::string Engine::describe()
         if (auto preview = page.getDictItem("preview"); !preview.isNull())
             page.addDictionaryMember("preview", image(text(preview)));
         if (labels.hasPageLabels()) {
-            auto text_label = label(labels.getLabelForPage(static_cast<long long>(index)));
-            require(text_label.size() <= manifest_limit - label_bytes, "Page labels exceed 16 MiB.", "limit-exceeded");
-            label_bytes += text_label.size();
-            budget.consume(text_label.size());
-            page.addDictionaryMember("label", JSON::makeString(text_label));
+            auto entry = labels.getLabelForPage(static_cast<long long>(index));
+            if (entry.isDictionary()) {
+                auto text_label = label(entry);
+                require(
+                    text_label.size() <= manifest_limit - label_bytes, "Page labels exceed 16 MiB.", "limit-exceeded");
+                label_bytes += text_label.size();
+                budget.consume(text_label.size());
+                page.addDictionaryMember("label", JSON::makeString(text_label));
+            }
         }
         described_pages.addArrayElement(page);
     }
@@ -468,7 +472,7 @@ std::string Engine::describe()
     for (const auto& field : {"groups", "profileSets", "publication"})
         if (object(manifest).contains(field))
             result.addDictionaryMember(field, manifest.getDictItem(field));
-    return encode(result, json_limit, budget.remaining);
+    return encode(result, manifest_limit, budget.remaining);
 }
 JSON Engine::retained(const std::map<std::size_t, std::size_t>& indexes)
 {
@@ -485,12 +489,12 @@ JSON Engine::retained(const std::map<std::size_t, std::size_t>& indexes)
         kept_pages.addArrayElement(page);
     std::set<std::string> region_ids, baseline_ids, target_ids, parameter_ids;
     auto kept_parameters = JSON::makeDictionary();
-    for (auto [id, parameter] : parameters) {
+    for (const auto& [id, original_parameter] : parameters) {
         std::set<std::string> eligible;
         for (const auto& index : parameter_records.at(id))
             if (indexes.contains(records.at(index).page))
                 eligible.insert(records.at(index).target);
-        auto binding = parameter.getDictItem("binding");
+        auto binding = copy_object(original_parameter.getDictItem("binding"));
         auto targets = JSON::makeArray();
         for (const auto& target : array(binding.getDictItem("targets")))
             if (eligible.contains(text(target))) {
@@ -499,6 +503,7 @@ JSON Engine::retained(const std::map<std::size_t, std::size_t>& indexes)
             }
         if (array(targets).empty())
             continue;
+        auto parameter = copy_object(original_parameter);
         binding.addDictionaryMember("targets", targets);
         parameter.addDictionaryMember("binding", binding);
         kept_parameters.addDictionaryMember(id, parameter);
@@ -539,12 +544,13 @@ JSON Engine::retained(const std::map<std::size_t, std::size_t>& indexes)
     next.addDictionaryMember("parameters", kept_parameters);
     if (!parameter_ids.empty() && object(manifest).contains("groups")) {
         auto groups = JSON::makeArray();
-        for (auto group : array(manifest.getDictItem("groups"))) {
+        for (const auto& original_group : array(manifest.getDictItem("groups"))) {
             auto ids = JSON::makeArray();
-            for (const auto& id : array(group.getDictItem("parameters")))
+            for (const auto& id : array(original_group.getDictItem("parameters")))
                 if (parameter_ids.contains(text(id)))
                     ids.addArrayElement(id);
             if (!array(ids).empty()) {
+                auto group = copy_object(original_group);
                 group.addDictionaryMember("parameters", ids);
                 groups.addArrayElement(group);
             }
@@ -609,10 +615,12 @@ std::string Engine::extract(JSON request, const std::string& input)
     auto root = document.getRoot();
     if (!new_labels.empty())
         root.replaceKey("/PageLabels", Object::newDictionary({{"/Nums", Object::newArray(new_labels)}}));
-    if (forms.hasAcroForm()) {
+    if (auto acro = root.getKeyIfDict("/AcroForm"); acro.isDictionary()) {
         std::set<QPDFObjGen> fields;
         auto retain_field = [&](auto&& self, Object field, std::size_t depth) -> bool {
             require(depth <= 32 && ++budget.visits <= 65536, "Field traversal exceeds limit.", "limit-exceeded");
+            if (!field.isDictionary())
+                return false;
             auto kids = field.getKey("/Kids");
             if (kids.isArray()) {
                 std::vector<Object> kept;
@@ -628,15 +636,15 @@ std::string Engine::extract(JSON request, const std::string& input)
             return true;
         };
         std::vector<Object> kept_fields;
-        for (const auto& field : root.getKey("/AcroForm").getKey("/Fields").getArrayAsVector())
-            if (retain_field(retain_field, field, 0))
-                kept_fields.push_back(field);
+        if (auto field_list = acro.getKey("/Fields"); field_list.isArray())
+            for (const auto& field : field_list.getArrayAsVector())
+                if (retain_field(retain_field, field, 0))
+                    kept_fields.push_back(field);
         if (kept_fields.empty())
             root.removeKey("/AcroForm");
         else {
-            auto form = root.getKey("/AcroForm");
-            form.replaceKey("/Fields", Object::newArray(kept_fields));
-            auto order = form.getKey("/CO");
+            acro.replaceKey("/Fields", Object::newArray(kept_fields));
+            auto order = acro.getKey("/CO");
             if (order.isArray()) {
                 const auto count = static_cast<std::size_t>(order.getArrayNItems());
                 require(count <= 65536 - budget.visits, "Field traversal exceeds limit.", "limit-exceeded");
@@ -645,7 +653,7 @@ std::string Engine::extract(JSON request, const std::string& input)
                 for (const auto& field : order.getArrayAsVector())
                     if (fields.contains(field.getObjGen()))
                         kept.push_back(field);
-                form.replaceKey("/CO", Object::newArray(kept));
+                acro.replaceKey("/CO", Object::newArray(kept));
             }
         }
     }
@@ -654,19 +662,21 @@ std::string Engine::extract(JSON request, const std::string& input)
     if (!object(next.getDictItem("regions")).empty() || annotated(next.getDictItem("pages")))
         return save(next);
     QPDFEmbeddedFileDocumentHelper files(document);
-    auto spec = files.getEmbeddedFile("mainz.json")->getObjectHandle();
-    auto associated = root.getKey("/AF");
-    if (associated.isArray()) {
-        std::vector<Object> kept;
-        for (const auto& file : associated.getArrayAsVector())
-            if (!file.isSameObjectAs(spec))
-                kept.push_back(file);
-        if (kept.empty())
-            root.removeKey("/AF");
-        else
-            root.replaceKey("/AF", Object::newArray(kept));
+    if (auto embedded = files.getEmbeddedFile("mainz.json")) {
+        auto spec = embedded->getObjectHandle();
+        auto associated = root.getKey("/AF");
+        if (associated.isArray()) {
+            std::vector<Object> kept;
+            for (const auto& file : associated.getArrayAsVector())
+                if (!file.isSameObjectAs(spec))
+                    kept.push_back(file);
+            if (kept.empty())
+                root.removeKey("/AF");
+            else
+                root.replaceKey("/AF", Object::newArray(kept));
+        }
+        files.removeEmbeddedFile("mainz.json");
     }
-    files.removeEmbeddedFile("mainz.json");
     return save(std::nullopt);
 }
 std::string Engine::save(std::optional<JSON> next)

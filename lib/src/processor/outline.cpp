@@ -53,7 +53,9 @@ void compose_outlines(QPDF& output, const std::vector<OutlineInput>& sources, Bu
         for (std::size_t index = 0; index < source.pages.size(); ++index)
             page_indexes.emplace(source.pages[index].getObjectHandle().getObjGen(), index);
         std::vector<Heading> headings;
-        std::vector<Pending> pending {{source.document.getRoot().getKey("/Outlines").getKey("/First"), 0, 0, {}}};
+        std::vector<Pending> pending;
+        if (auto outlines = source.document.getRoot().getKeyIfDict("/Outlines"); outlines.isDictionary())
+            pending.push_back({outlines.getKey("/First"), 0, 0, {}});
         std::set<QPDFObjGen> seen;
         while (!pending.empty()) {
             auto current = pending.back();
@@ -66,8 +68,10 @@ void compose_outlines(QPDF& output, const std::vector<OutlineInput>& sources, Bu
             pending.push_back({item.getKey("/Next"), current.depth, current.level, current.parent});
             auto title = item.getKey("/Title");
             auto dest = item.getKey("/Dest");
-            if (dest.isNull() && item.getKey("/A").getKey("/S").isNameAndEquals("/GoTo"))
-                dest = item.getKey("/A").getKey("/D");
+            if (dest.isNull())
+                if (auto action = item.getKeyIfDict("/A");
+                    action.isDictionary() && action.getKey("/S").isNameAndEquals("/GoTo"))
+                    dest = action.getKey("/D");
             std::optional<std::size_t> page;
             if (dest.isArray() && dest.getArrayNItems() > 0) {
                 auto target = dest.getArrayItem(0);
@@ -81,7 +85,15 @@ void compose_outlines(QPDF& output, const std::vector<OutlineInput>& sources, Bu
             auto depth = current.depth;
             if (page && title.isString()) {
                 auto text = title.getUTF8Value();
-                if (text.size() <= 4096 && text.find_first_not_of(" \t\r\n") != std::string::npos) {
+                bool usable = false;
+                if (text.size() <= 4096) {
+                    try {
+                        usable = !blank(text);
+                    } catch (const Error&) {
+                        usable = false;
+                    }
+                }
+                if (usable) {
                     parent = headings.size();
                     headings.push_back({title, *page, source.pages.size() - 1, depth, current.parent});
                     ++depth;

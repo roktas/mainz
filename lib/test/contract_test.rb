@@ -1840,7 +1840,6 @@ module Mainz
     end
 
     def test_rejects_png_predictor_bomb_and_inline_signatures_and_oversized_labels
-      # CRIT-01: PNG predictor column bombs must be rejected before unbounded allocation.
       [2_147_483_647, 20_000_000].each_with_index do |columns, index|
         predictor = file("predictor-bomb-#{index}.pdf")
         fixture(
@@ -1853,7 +1852,6 @@ module Mainz
         assert_equal("limit-exceeded", failure_code(predictor))
       end
 
-      # HIGH-04: Direct inline signature dictionaries and AcroForm SigFlags must be rejected.
       inline_sig = file("inline-signature.pdf")
       fixture(
         inline_sig,
@@ -1875,7 +1873,6 @@ module Mainz
       )
       assert_equal("unsupported-context", failure_code(sig_flags))
 
-      # HIGH-05: Oversized /PageLabels prefix and huge /A expansion must fail before unbounded retention.
       huge_prefix = file("huge-label-prefix.pdf")
       doc = HexaPDF::Document.new
       doc.pages.add
@@ -1892,7 +1889,6 @@ module Mainz
     end
 
     def test_compose_enforces_record_limit_on_repeated_pages
-      # CRIT-02: Repeating a prepared page must enforce the 500,000 paint-record ceiling before building JSON.
       source = file("many-records.pdf")
       record_count = 505
       fixture(
@@ -1927,6 +1923,141 @@ module Mainz
       }
       _, result = compose(plan, "too-many-records.pdf", ok: false)
       assert_equal("limit-exceeded", JSON.parse(result.stderr)["code"])
+    end
+
+    def test_tagged_bdc_inline_goto_oc_ais_partial_labels_and_long_remapped_ids
+      tagged = file("tagged-bdc.pdf")
+      fixture(
+        tagged,
+        content: <<~PDF
+          /Artifact << /Type /Pagination >> BDC
+          /Span << /MCID 0 /Lang (en) >> BDC
+          /Figure /Rows BDC q /Row Do Q EMC
+          /Figure /Guides BDC /Figure /GuidePaint BDC q +.2000000000000000000 w 0.2 G 0 g /Hidden gs
+          10 100 40 40 re 20 110 20 20 re S Q EMC EMC
+          /Figure /Fills BDC /Figure /FillPaint BDC q +.2000000000000000000 w 0.2 G 0 g /Filled gs
+          140 100 20 20 re 145 105 10 10 re f* Q EMC EMC
+          EMC
+          EMC
+        PDF
+      )
+      assert_equal(true, command(@cli, "verify", tagged).status.success?)
+
+      oc_pdf = file("oc-editable.pdf")
+      fixture(
+        oc_pdf,
+        content: <<~PDF
+          /OC /Layer1 BDC
+          /Figure /Rows BDC q /Row Do Q EMC
+          /Figure /Guides BDC /Figure /GuidePaint BDC q +.2000000000000000000 w 0.2 G 0 g /Hidden gs
+          10 100 40 40 re 20 110 20 20 re S Q EMC EMC
+          /Figure /Fills BDC /Figure /FillPaint BDC q +.2000000000000000000 w 0.2 G 0 g /Filled gs
+          140 100 20 20 re 145 105 10 10 re f* Q EMC EMC
+          EMC
+        PDF
+      )
+      assert_equal("unsupported-context", failure_code(oc_pdf))
+
+      ais_pdf = file("ais-editable.pdf")
+      fixture(
+        ais_pdf,
+        content: <<~PDF,
+          q /ShapeAlpha gs
+          /Figure /Rows BDC q /Row Do Q EMC
+          /Figure /Guides BDC /Figure /GuidePaint BDC q +.2000000000000000000 w 0.2 G 0 g /Hidden gs
+          10 100 40 40 re 20 110 20 20 re S Q EMC EMC
+          /Figure /Fills BDC /Figure /FillPaint BDC q +.2000000000000000000 w 0.2 G 0 g /Filled gs
+          140 100 20 20 re 145 105 10 10 re f* Q EMC EMC
+          Q
+        PDF
+        pdf_objects: -> (objects, _stream) {
+          objects[2] = objects[2].sub("/Hidden <<", "/ShapeAlpha << /Type /ExtGState /AIS true >> /Hidden <<")
+        }
+      )
+      assert_equal("unsupported-context", failure_code(ais_pdf))
+
+      inline_goto = file("inline-goto.pdf")
+      doc = HexaPDF::Document.new
+      p0 = doc.pages.add
+      p1 = doc.pages.add
+      doc.catalog[:Names] = {Dests: {Names: ["target0", [p0, :Fit], "target1", [p1, :Fit]]}}
+      doc.outline.add_item("Ch 1", destination: nil)
+      doc.catalog[:Outlines][:First][:A] = {S: :GoTo, D: "target0"}
+      p0[:Annots] = [
+        {Type: :Annot, Subtype: :Link, Rect: [0, 0, 10, 10], A: {S: :GoTo, D: "target0"}},
+        {Type: :Annot, Subtype: :Link, Rect: [10, 0, 20, 10], A: {S: :GoTo, D: "target1"}}
+      ]
+      doc.write(inline_goto.to_s)
+      write("inputs.json", {"book" => inline_goto.to_s})
+      plan = {
+        "version" => 1,
+        "sources" => {"a" => {"input" => "book", "overrides" => {}}},
+        "parts" => [{"pages" => [{"source" => "a", "page" => 0}]}]
+      }
+      composed, _ = compose(plan, "inline-goto-composed.pdf")
+      out = HexaPDF::Document.open(composed)
+      assert_equal("Ch 1", out.catalog[:Outlines][:First][:Title])
+      annots = out.pages[0][:Annots]
+      assert_equal(out.pages[0], annots[0][:A][:D][0])
+      assert_nil(annots[1][:A][:D][0])
+
+      partial = file("partial-labels.pdf")
+      doc = HexaPDF::Document.new
+      2.times { doc.pages.add }
+      doc.catalog[:PageLabels] = {Nums: [1, {S: :D, St: 10}]}
+      doc.write(partial.to_s)
+      described = JSON.parse(command(@cli, "describe", partial).stdout)
+      refute(described["pages"][0].key?("label"))
+      assert_equal("10", described["pages"][1]["label"])
+
+      acro = file("acro-no-fields.pdf")
+      doc = HexaPDF::Document.new
+      2.times { doc.pages.add }
+      doc.catalog[:AcroForm] = {NeedAppearances: true}
+      doc.write(acro.to_s)
+      extracted = file("acro-extracted.pdf")
+      write("pages.json", [0])
+      assert_equal(true, command(@cli, "extract", acro, "--pages", file("pages.json"), "--output", extracted).status.success?)
+
+      long_id = "a" * 4096
+      long_pdf = file("long-ids.pdf")
+      fixture(
+        long_pdf,
+        -> (data) {
+          data["parameters"][long_id] = data["parameters"].delete("opacity")
+          data["groups"][0]["parameters"].map! { |id| id == "opacity" ? long_id : id }
+          data["regions"][long_id] = data["regions"].delete("filled")
+          data["targets"]["filled"] = [long_id]
+        }
+      )
+      assert_equal(true, command(@cli, "verify", long_pdf).status.success?)
+      write("inputs.json", {"book" => long_pdf.to_s})
+      plan = {
+        "version" => 1,
+        "sources" => {"a" => {"input" => "book", "overrides" => {}}, "b" => {"input" => "book", "overrides" => {}}},
+        "parts" => [{"pages" => [{"source" => "a", "page" => 0}, {"source" => "b", "page" => 0}]}]
+      }
+      composed_long, _ = compose(plan, "long-ids-composed.pdf")
+      assert_equal(true, command(@cli, "verify", composed_long).status.success?)
+
+      styled_zero = file("styled-neg-zero.pdf")
+      write("neg-zero.json", {"opacity" => -0.0})
+      assert_equal(
+        true,
+        command(@cli, "style", tagged, "--overrides", file("neg-zero.json"), "--output", styled_zero).status.success?
+      )
+      refute_includes(pdf_json(styled_zero).to_s, "-0")
+
+      unicode_blank = file("unicode-blank-profile.pdf")
+      fixture(
+        unicode_blank,
+        -> (data) {
+          profile_fixture(data)
+          data["profileSets"][0]["name"] = "\u00a0\u3000"
+        },
+        pdf_objects: method(:across_page_objects)
+      )
+      assert_equal("invalid-contract", failure_code(unicode_blank))
     end
 
     private

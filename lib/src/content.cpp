@@ -176,8 +176,31 @@ Content tokenize(const std::string& data)
     for (std::size_t i = 0; i < content.operations.size(); ++i) {
         const auto& op = content.operations[i];
         if (op.op == "BMC" || op.op == "BDC") {
-            count(op, op.op == "BMC" ? 1 : 2);
-            name(op, 0);
+            if (op.op == "BMC") {
+                count(op, 1);
+                name(op, 0);
+            } else {
+                require(op.operands.size() >= 2, "Invalid operand count for BDC", "pdf-syntax");
+                name(op, 0);
+                if (op.operands[1].type == QPDFTokenizer::tt_name)
+                    count(op, 2);
+                else {
+                    require(
+                        op.operands[1].type == QPDFTokenizer::tt_dict_open, "Invalid BDC properties.", "pdf-syntax");
+                    std::size_t depth = 0;
+                    for (std::size_t j = 1; j < op.operands.size(); ++j) {
+                        if (op.operands[j].type == QPDFTokenizer::tt_dict_open)
+                            ++depth;
+                        else if (op.operands[j].type == QPDFTokenizer::tt_dict_close) {
+                            require(depth > 0, "Invalid BDC properties.", "pdf-syntax");
+                            --depth;
+                            require(depth > 0 || j + 1 == op.operands.size(), "Invalid operand count for BDC",
+                                "pdf-syntax");
+                        }
+                    }
+                    require(depth == 0, "Invalid BDC properties.", "pdf-syntax");
+                }
+            }
             require(marked.size() < 64, "Marked content exceeds depth 64.", "limit-exceeded");
             marked.push_back(i);
         } else if (op.op == "EMC") {
