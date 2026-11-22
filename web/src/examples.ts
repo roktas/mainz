@@ -27,7 +27,7 @@ type Host = {
   output: Output
   open: (bytes: Uint8Array, name: string) => Promise<Source | undefined>
   choose: (id: string, sequence: Sequence) => void
-  recipe: (file: File, preset: Preset) => Promise<void>
+  recipe: (file: File, preset: Preset) => Promise<boolean>
   profile: (set: string, profile: string) => void
   compose: (plan: Plan, bytes: Uint8Array) => Promise<Uint8Array | undefined>
   info: (text: string) => void
@@ -106,7 +106,7 @@ export async function openExample(demo: string, host: Host) {
     if (demo === "recipe") {
       const bytes = await (await fetchExample(`${base}nulla.json`)).arrayBuffer()
       if (!current()) return
-      await host.recipe(new File([bytes], "nulla.json", { type: "application/json" }), {
+      const ready = await host.recipe(new File([bytes], "nulla.json", { type: "application/json" }), {
         recipe: `${base}nulla.json`,
         inputs: {
           book: `${base}dolor.pdf`,
@@ -114,7 +114,7 @@ export async function openExample(demo: string, host: Host) {
           crossings: `${base}recipe/culpa.pdf`,
         },
       })
-      host.info("Recipe demo ready.")
+      if (ready && current()) host.info("Recipe demo ready.")
       return
     }
     const grid = demo === "grid"

@@ -186,7 +186,7 @@ export class Interaction {
             : action === "listView"
               ? "list"
               : "page"
-      if (!tab) return false
+      if (!tab || (pane === "Input" && tab === "style" && !this.host.input.hasStyle)) return false
       event.preventDefault()
       this.lastShortcutPane = pane
       if (tab === (pane === "Input" ? this.host.input.active : this.host.outputView.active)) return true

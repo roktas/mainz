@@ -165,3 +165,101 @@ test("Offline installation retries transient downloads and stops on permanent fa
     })
   }
 })
+
+test("Offline worker isolates demo cache, rejects tampered payloads, handles fragments, and prunes retired entries", async () => {
+  const scope = "https://example.test/composer/"
+  const demoBytes = new TextEncoder().encode("%PDF-1.7 demo")
+  const demoUrl = `${scope}dolor.pdf`
+  const demoHash = createHash("sha256").update(demoBytes).digest("hex")
+  const stores = new Map<string, Map<string, Response>>()
+  const openStore = (name: string) => {
+    let store = stores.get(name)
+    if (!store) stores.set(name, (store = new Map()))
+    return store
+  }
+  let fetchBody: Uint8Array<ArrayBuffer> = demoBytes
+  const listeners = new Map<string, (event: unknown) => void>()
+  runInNewContext(source, {
+    VERSION: "v2",
+    ASSETS: [],
+    EXAMPLES: [{ path: "dolor.pdf", sha256: demoHash, bytes: demoBytes.byteLength }],
+    URL,
+    Request,
+    Response,
+    ArrayBuffer,
+    Uint8Array,
+    crypto: {
+      subtle: { digest: (...args: Parameters<typeof webcrypto.subtle.digest>) => webcrypto.subtle.digest(...args) },
+    },
+    self: {
+      location: { origin: "https://example.test" },
+      registration: { scope },
+      clients: { claim: async () => {}, matchAll: async () => [] },
+      skipWaiting: async () => {},
+      addEventListener: (event: string, listener: (event: unknown) => void) => listeners.set(event, listener),
+    },
+    caches: {
+      keys: async () => [...stores.keys()],
+      open: async (name: string) => {
+        const store = openStore(name)
+        return {
+          put: async (url: string, response: Response) => {
+            store.set(url, response)
+          },
+          keys: async () => [...store.keys()].map((url) => ({ url })),
+          delete: async (request: { url: string } | string) =>
+            store.delete(typeof request === "string" ? request : request.url),
+        }
+      },
+      match: async (url: string, options?: { cacheName?: string }) =>
+        options?.cacheName ? stores.get(options.cacheName)?.get(url) : undefined,
+      delete: async (name: string) => stores.delete(name),
+    },
+    fetch: async () => new Response(fetchBody),
+  })
+
+  const exampleStore = openStore(`mainz:${scope}:examples`)
+  // Non-catalog URL (such as a user PDF) and tampered payload are rejected by remember-example.
+  const waits: Promise<void>[] = []
+  listeners.get("message")!({
+    data: { type: "remember-example", url: `${scope}user.pdf`, bytes: demoBytes.buffer.slice(0) },
+    waitUntil: (promise: Promise<void>) => waits.push(promise),
+  })
+  const tampered = new TextEncoder().encode("%PDF-1.7 evil")
+  listeners.get("message")!({
+    data: { type: "remember-example", url: demoUrl, bytes: tampered.buffer.slice(0) },
+    waitUntil: (promise: Promise<void>) => waits.push(promise),
+  })
+  await Promise.all(waits)
+  assert.equal(exampleStore.size, 0)
+
+  // Tampered network response for a demo returns 503 and is not cached.
+  fetchBody = tampered
+  let reply: Promise<Response> | undefined
+  listeners.get("fetch")!({
+    request: new Request(`${demoUrl}#page=2`),
+    respondWith: (promise: Promise<Response>) => (reply = promise),
+  })
+  assert.equal((await reply!).status, 503)
+  assert.equal(exampleStore.size, 0)
+
+  // Valid demo response with URL fragment succeeds and caches under normalized URL + hash.
+  fetchBody = demoBytes
+  reply = undefined
+  listeners.get("fetch")!({
+    request: new Request(`${demoUrl}#page=2`),
+    respondWith: (promise: Promise<Response>) => (reply = promise),
+  })
+  assert.equal((await reply!).status, 200)
+  assert.equal(exampleStore.has(`${demoUrl}?sha256=${demoHash}`), true)
+
+  // Activation prunes retired caches and stale demo revisions while keeping current verified demo.
+  openStore(`mainz:${scope}:v1`)
+  exampleStore.set(`${demoUrl}?sha256=stale`, new Response("old"))
+  let activated: Promise<void> | undefined
+  listeners.get("activate")!({ waitUntil: (promise: Promise<void>) => (activated = promise) })
+  await activated
+  assert.equal(stores.has(`mainz:${scope}:v1`), false)
+  assert.equal(exampleStore.has(`${demoUrl}?sha256=stale`), false)
+  assert.equal(exampleStore.has(`${demoUrl}?sha256=${demoHash}`), true)
+})

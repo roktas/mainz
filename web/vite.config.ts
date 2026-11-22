@@ -257,25 +257,32 @@ export default defineConfig({
       name: "mainz-assets",
       transformIndexHtml: {
         order: "post",
-        handler(_html, context) {
-          if (!context.bundle || !context.path.endsWith("/index.html")) return
-          const entry = Object.values(context.bundle).find(
-            (file) => file.type === "chunk" && file.isEntry && file.facadeModuleId === context.filename,
-          )
-          if (!entry || entry.type !== "chunk") return
-          const files = new Set(entry.dynamicImports)
-          for (const name of files) {
-            const chunk = context.bundle[name]
-            if (chunk?.type === "chunk") {
-              for (const dependency of chunk.imports) files.add(dependency)
-              for (const stylesheet of chunk.viteMetadata?.importedCss ?? []) files.add(stylesheet)
-            }
-          }
-          return [
-            {
-              tag: "script",
-              injectTo: "head",
-              children: `if (window.mainzSupported) {
+        handler(html, context) {
+          if (!context.bundle) return
+          const tags: {
+            tag: string
+            attrs?: Record<string, string>
+            children?: string
+            injectTo: "head" | "head-prepend"
+          }[] = []
+          const scriptHashes = new Set<string>()
+          const hashScript = (code: string) => `'sha256-${createHash("sha256").update(code, "utf8").digest("base64")}'`
+          for (const match of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi))
+            if (match[1]) scriptHashes.add(hashScript(match[1]))
+          if (context.path.endsWith("/index.html")) {
+            const entry = Object.values(context.bundle).find(
+              (file) => file.type === "chunk" && file.isEntry && file.facadeModuleId === context.filename,
+            )
+            if (entry && entry.type === "chunk") {
+              const files = new Set(entry.dynamicImports)
+              for (const name of files) {
+                const chunk = context.bundle[name]
+                if (chunk?.type === "chunk") {
+                  for (const dependency of chunk.imports) files.add(dependency)
+                  for (const stylesheet of chunk.viteMetadata?.importedCss ?? []) files.add(stylesheet)
+                }
+              }
+              const preload = `if (window.mainzSupported) {
               const entry = document.querySelector('script[type="module"][src$="${entry.fileName}"]')
               for (const file of ${JSON.stringify([...files].filter((file) => file !== entry.fileName && !entry.imports.includes(file)))}) {
                 const link = document.createElement("link")
@@ -285,9 +292,31 @@ export default defineConfig({
                 link.href = new URL("../" + file, entry.src).href
                 document.head.append(link)
               }
-            }`,
-            },
-          ]
+            }`
+              scriptHashes.add(hashScript(preload))
+              tags.push({ tag: "script", injectTo: "head", children: preload })
+            }
+          }
+          const policy = [
+            "default-src 'self'",
+            `script-src 'self' 'wasm-unsafe-eval' ${[...scriptHashes].join(" ")}`.trim(),
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' blob: data:",
+            "media-src 'self'",
+            "font-src 'self' data:",
+            "connect-src 'self' blob: data:",
+            "worker-src 'self' blob:",
+            "frame-src 'self' blob:",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+          ].join("; ")
+          tags.push({
+            tag: "meta",
+            attrs: { "http-equiv": "Content-Security-Policy", content: policy },
+            injectTo: "head-prepend",
+          })
+          return tags
         },
       },
       configResolved(config) {
@@ -306,7 +335,8 @@ export default defineConfig({
             (path) =>
               statSync(resolve(outputDirectory, path)).isFile() &&
               path !== "sw.js" &&
-              !/^help\/.*\.(?:webm|mp4|webp|png)$/.test(path),
+              path !== "CNAME" &&
+              !/^help(?:\/|\.html$)/.test(path),
           )
           .toSorted()
         const { code: source } = await transformWithOxc(

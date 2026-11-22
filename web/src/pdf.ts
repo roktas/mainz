@@ -55,6 +55,7 @@ export class Opening {
   assessment: InputCheck | undefined
   #processor: Processor | undefined = new Processor()
   #task: PDFDocumentLoadingTask | undefined
+  #pdf: PDFDocumentProxy | undefined
   #input: Input | undefined
   #cancelled = false
 
@@ -80,6 +81,11 @@ export class Opening {
           }
           this.#task = task
           const pdf = await task.promise
+          if (this.#cancelled) {
+            releaseRasters(pdf)
+            return
+          }
+          this.#pdf = pdf
           const dimensions = await inspectPDF(pdf, () => this.#cancelled)
           if (!dimensions) return
           const input: Input = {
@@ -122,6 +128,7 @@ export class Opening {
     if (!input || !task || !processor) throw new Error("The PDF is unavailable. Choose it again.")
     documents.add(input.pdf, task, { bytes: input.bytes, description: input.description })
     this.#input = undefined
+    this.#pdf = undefined
     this.#task = undefined
     this.#processor = undefined
     return processor
@@ -129,6 +136,10 @@ export class Opening {
 
   dispose() {
     this.#cancelled = true
+    if (this.#pdf) {
+      releaseRasters(this.#pdf)
+      this.#pdf = undefined
+    }
     this.#input = undefined
     this.#processor?.dispose()
     this.#processor = undefined
@@ -206,7 +217,13 @@ export function thumbnail(pdf: PDFDocumentProxy, page: number): Promise<HTMLCanv
     if (images.get(pdf) !== source) return
     imageDocument = pdf
     try {
-      const bytes = await imageProcessor.preview(source.bytes, page)
+      let bytes: ArrayBuffer
+      try {
+        bytes = await imageProcessor.preview(source.bytes, page)
+      } catch {
+        if (images.get(pdf) === source) source.unavailable.add(key)
+        return
+      }
       if (images.get(pdf) !== source || !bytes.byteLength) return
       let bitmap: ImageBitmap
       try {

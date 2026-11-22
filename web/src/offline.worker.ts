@@ -26,13 +26,13 @@ async function remember(url: string, response: Response) {
   }
 }
 
-async function example(request: Request) {
-  const cached = await caches.match(exampleKeys.get(request.url)!, { cacheName: exampleCache, ignoreVary: true })
+async function example(request: Request, url: string) {
+  const cached = await caches.match(exampleKeys.get(url)!, { cacheName: exampleCache, ignoreVary: true })
   if (cached) return cached
   try {
     const response = await fetch(new Request(request, { cache: "reload" }))
     if (!response.ok) return response
-    await remember(request.url, response.clone())
+    await remember(url, response.clone())
     return response
   } catch {
     return new Response("Connect to download this demo before using it offline.", { status: 503 })
@@ -138,7 +138,7 @@ worker.addEventListener("fetch", (event) => {
   url.hash = ""
   if (url.origin !== worker.location.origin) return
   if (examples.has(url.href)) {
-    event.respondWith(example(event.request))
+    event.respondWith(example(event.request, url.href))
     return
   }
   const navigation = event.request.mode === "navigate" && entries.includes(`${url.origin}${url.pathname}`)

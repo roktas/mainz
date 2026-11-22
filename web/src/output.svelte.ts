@@ -162,6 +162,7 @@ export class Output {
     this.#selection = selection
     this.#anchor = anchor && positions.has(anchor) ? anchor : undefined
     this.#inspected = inspected
+    if (this.cover !== undefined && !positions.has(this.cover)) this.cover = undefined
     return edit
   }
 }

@@ -707,7 +707,7 @@
         {#key messageRevision}<span class="status-message">{footerStatus}</span>{/key}
       </p>{/if}
     <Offline
-      busy={sources.length > 0 || parts.length > 0 || loading}
+      busy={sources.length > 0 || parts.length > 0 || loading || matching || demoLoading}
       bind:updating
       bind:status={offlineStatus}
       {notify}

@@ -10,7 +10,7 @@
     "format": "npm --prefix .. run format --",
     "format:check": "npm --prefix .. run format:check --",
     "lint": "npm --prefix .. run lint --",
-    "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc --project tsconfig.worker.json",
+    "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc --project tsconfig.worker.json && tsc --project tsconfig.node.json",
     "test": "node --test test/*.test.ts",
     "test:browser": "node test/run.ts",
     "build": "npm run check && vite build",

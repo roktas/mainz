@@ -107,7 +107,7 @@
     busy = true
     active = true
     await tick()
-    if (generation !== revision) return
+    if (generation !== revision) return false
     if (document.documentElement.dataset.keyboard === "true")
       panel.querySelector<HTMLButtonElement>(".load-back")?.focus({ preventScroll: true })
     else panel.focus({ preventScroll: true })
@@ -116,7 +116,7 @@
     try {
       if (file.size > maxRecipeBytes) throw new Error("Choose a Recipe smaller than 16 MiB.")
       const record = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await file.arrayBuffer())
-      if (generation !== revision) return
+      if (generation !== revision) return false
       text = record
       const definitions = await worker.inspect(text, generation)
       if (generation === revision) inputs = definitions
@@ -130,6 +130,7 @@
       }
     }
     if (preset?.automatic && generation === revision && inputs) await samples()
+    return generation === revision && !failure && !!inputs
   }
   function diagnostic(reason: unknown) {
     const record = (reason as { failure?: { record?: { message: string; location?: string } } })?.failure?.record

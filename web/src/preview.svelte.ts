@@ -91,11 +91,12 @@ export class Preview {
     const previous = this.#counts
     this.#counts = counts
     const rendered = this.#render()
-    if (
-      this.status === "pending" ||
-      (needsRender(source, counts, rendered) && !needsRender(source, previous, rendered))
-    )
-      this.schedule(source, counts)
+    const needed = needsRender(source, counts, rendered)
+    if (this.status === "error" && !needed) {
+      this.#work = { kind: "idle" }
+      return
+    }
+    if (this.status === "pending" || (needed && !needsRender(source, previous, rendered))) this.schedule(source, counts)
   }
 
   schedule(source: Source, counts: Usage, batch = false) {

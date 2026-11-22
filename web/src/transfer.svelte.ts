@@ -393,7 +393,10 @@ export class Transfer {
       rowGap: parseFloat(style.rowGap),
     }
     const projection = grid.dataset.projection!
-    const { pages, ends } = JSON.parse(projection) as { pages: number[]; ends: Record<number, number> }
+    const { pages, ends } =
+      this.grid?.projection === projection
+        ? this.grid
+        : (JSON.parse(projection) as { pages: number[]; ends: Record<number, number> })
     const horizontal = Math.max(0, x - bounds.left - layout.columnGap)
     const column = Math.max(0, Math.min(layout.columns - 1, Math.floor(horizontal / (layout.width + layout.columnGap))))
     const row = Math.max(

@@ -4,12 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
+    <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#800080" />
     <base href="%BASE_URL%" />
     <script>
       // Static hosts can serve directory indexes without redirecting to a trailing slash.
       const root = location.pathname.match(/^(.*\/)help(?:\/[^/]+)?\/?$/)
-      if (root) document.querySelector("base").href = root[1]
+      if (root) document.querySelector("base").href = new URL(root[1].replace(/^\/+/, "/"), location.origin).href
     </script>
     <link rel="icon" type="image/svg+xml" href="logo.svg" />
     <title>Screencasts · PDF Composer</title>

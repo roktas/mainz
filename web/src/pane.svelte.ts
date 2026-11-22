@@ -44,11 +44,16 @@ abstract class Pane {
     const position = this.position
     if (tab === "grid") await this.grid?.revealPage(position)
     if (tab !== this.active || owner !== this.owner || position !== this.position) return
-    const control = this.panel?.querySelector<HTMLElement>(
+    const selector =
       tab === "page"
         ? ".page-scroll"
-        : `${tab === "list" ? ":is(.list-choice, .list-heading)" : ".page-image"}[data-page="${position}"]`,
-    )
+        : `${tab === "list" ? ":is(.list-choice, .list-heading)" : ".page-image"}[data-page="${position}"]`
+    let control = this.panel?.querySelector<HTMLElement>(selector)
+    if (tab === "list" && !control) {
+      await this.list?.revealPage(position)
+      if (tab !== this.active || owner !== this.owner || position !== this.position) return
+      control = this.panel?.querySelector<HTMLElement>(selector)
+    }
     control?.scrollIntoView({ block: "nearest" })
     if (event) control?.focus({ preventScroll: true })
     if (control && (jump || (tab !== "page" && !(event instanceof KeyboardEvent)))) {
@@ -72,6 +77,7 @@ type Settings = {
   tocTitles: boolean
   tab: "pages" | "page" | "style"
   pagesMode: "grid" | "list"
+  previous?: InputTab
   position: number
   zoom: number
   pageInitialized?: boolean
@@ -85,7 +91,6 @@ export class InputViews extends Pane {
   #settings = $state.raw<Record<string, Settings>>({})
   #grids = new Map<string, GridViewport>()
   #lists = new Map<string, ListViewport>()
-  previous?: InputTab
   current = $derived.by(() => this.#settings[this.owner ?? ""] ?? this.#initial)
   constructor(
     initial: InputTab,
@@ -123,6 +128,12 @@ export class InputViews extends Pane {
   }
   get hasStyle() {
     return this.styleable()
+  }
+  get previous(): InputTab | undefined {
+    return this.current.previous
+  }
+  set previous(value: InputTab | undefined) {
+    this.set({ previous: value })
   }
   get active(): InputTab {
     const step = this.tour()
