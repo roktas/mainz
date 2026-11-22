@@ -38,7 +38,7 @@
   import Toolbar from "./Toolbar.svelte"
   import Summary from "./Summary.svelte"
   import Grip from "./Grip.svelte"
-  import OccurrenceActions from "./OccurrenceActions.svelte"
+  import Occurrence from "./Occurrence.svelte"
 
   let {
     key,
@@ -277,7 +277,7 @@
 {/snippet}
 
 {#snippet occurrenceActions(page: Expanded, index: number, controls: boolean, end = index + 1)}
-  <OccurrenceActions
+  <Occurrence
     {key}
     {page}
     {index}
