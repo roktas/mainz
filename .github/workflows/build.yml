@@ -18,7 +18,7 @@ permissions:
 
 concurrency:
   group: mainz-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -41,6 +41,7 @@ jobs:
     env:
       BUNDLE_PATH: ${{ github.workspace }}/.local/var/ruby
       BUNDLE_APP_CONFIG: ${{ github.workspace }}/.local/var/ruby
+      BUNDLE_FROZEN: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -107,6 +108,7 @@ jobs:
     env:
       BUNDLE_PATH: ${{ github.workspace }}/.local/var/ruby
       BUNDLE_APP_CONFIG: ${{ github.workspace }}/.local/var/ruby
+      BUNDLE_FROZEN: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -164,6 +166,9 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [build, sanitize, frontend, browser]
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:

@@ -11,7 +11,7 @@
     "check": "npm --prefix web run check --",
     "format": "web/node_modules/.bin/oxfmt .",
     "format:check": "web/node_modules/.bin/oxfmt --check .",
-    "lint": "web/node_modules/.bin/oxlint web",
+    "lint": "web/node_modules/.bin/oxlint web lib/test doc/help",
     "test": "npm --prefix web test --",
     "test:minimal": "npm run format:check && npm run lint && npm run check && npm test && npm run test:browser -- minimal",
     "test:standard": "npm run format:check && npm run lint && npm test && npm run build && npm run test:browser -- standard",

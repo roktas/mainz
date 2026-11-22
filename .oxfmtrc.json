@@ -4,5 +4,5 @@
   "semi": false,
   "proseWrap": "always",
   "svelte": true,
-  "ignorePatterns": ["**/.local", "**/..."]
+  "ignorePatterns": ["**/.local", "**/node_modules"]
 }

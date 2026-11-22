@@ -11,6 +11,7 @@
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
         "MAINZ_LINT": "ON",
+        "MAINZ_WERROR": "ON",
         "BUILD_TESTING": "ON"
       }
     },
@@ -29,6 +30,7 @@
         "CMAKE_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
         "MAINZ_QPDF_SOURCE": "${sourceDir}/.local/src/qpdf",
         "MAINZ_LINT": "OFF",
+        "MAINZ_WERROR": "ON",
         "BUILD_TESTING": "ON",
         "CMAKE_CXX_FLAGS": "-fwasm-exceptions --use-port=zlib --use-port=libjpeg",
         "CMAKE_C_FLAGS": "-sSUPPORT_LONGJMP=wasm --use-port=zlib --use-port=libjpeg",

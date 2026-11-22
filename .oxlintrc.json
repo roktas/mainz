@@ -13,6 +13,12 @@
       "env": {
         "svelte": true
       }
+    },
+    {
+      "files": ["lib/test/**/*.mjs", "doc/help/**/*.mjs"],
+      "env": {
+        "node": true
+      }
     }
   ]
 }

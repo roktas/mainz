@@ -18,6 +18,8 @@ jobs:
     env:
       BUNDLE_PATH: ${{ github.workspace }}/.local/var/ruby
       BUNDLE_APP_CONFIG: ${{ github.workspace }}/.local/var/ruby
+      BUNDLE_FROZEN: "true"
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
       MAINZ_QPDF_SOURCE: ${{ github.workspace }}/.local/src/qpdf
       EMSDK: ${{ github.workspace }}/.local/var/cpp/emsdk
       CMAKE_C_COMPILER_LAUNCHER: ccache
