@@ -2016,6 +2016,7 @@ module Mainz
       doc.catalog[:AcroForm] = {NeedAppearances: true}
       doc.write(acro.to_s)
       extracted = file("acro-extracted.pdf")
+      FileUtils.rm_f(extracted)
       write("pages.json", [0])
       assert_equal(true, command(@cli, "extract", acro, "--pages", file("pages.json"), "--output", extracted).status.success?)
 
@@ -2041,6 +2042,7 @@ module Mainz
       assert_equal(true, command(@cli, "verify", composed_long).status.success?)
 
       styled_zero = file("styled-neg-zero.pdf")
+      FileUtils.rm_f(styled_zero)
       write("neg-zero.json", {"opacity" => -0.0})
       assert_equal(
         true,

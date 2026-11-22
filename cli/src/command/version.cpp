@@ -10,9 +10,12 @@
 namespace mainz::cli {
 void version()
 {
-    std::cout << "{\"version\":\"" << MAINZ_VERSION << "\",\"contract\":1,\"qpdf\":\"" << QPDF::QPDFVersion()
-              << "\",\"cairo\":\"" << cairo_version_string() << "\",\"librsvg\":\"" << rsvg_major_version << '.'
-              << rsvg_minor_version << '.' << rsvg_micro_version << "\",\"libxml\":\"" << xmlParserVersion
-              << "\",\"pango\":\"" << pango_version_string() << "\",\"fontconfig\":" << FcGetVersion() << "}\n";
+    auto rsvg = std::to_string(rsvg_major_version) + '.' + std::to_string(rsvg_minor_version) + '.'
+        + std::to_string(rsvg_micro_version);
+    auto info = detail::dictionary({{"version", JSON::makeString(MAINZ_VERSION)}, {"contract", JSON::makeInt(1)},
+        {"qpdf", JSON::makeString(QPDF::QPDFVersion())}, {"cairo", JSON::makeString(cairo_version_string())},
+        {"librsvg", JSON::makeString(rsvg)}, {"libxml", JSON::makeString(xmlParserVersion)},
+        {"pango", JSON::makeString(pango_version_string())}, {"fontconfig", JSON::makeInt(FcGetVersion())}});
+    std::cout << detail::encode(info, json_limit) << '\n';
 }
 }

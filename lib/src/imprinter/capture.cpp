@@ -340,7 +340,9 @@ namespace {
                         child_path.addArrayElement(step);
                     child_path.addArrayElement(dictionary(
                         {{"resource", JSON::makeString(resource.substr(1))}, {"occurrence", JSON::makeInt(0)}}));
-                    this->form(isolated, state, child_path, bounds, active);
+                    auto next_active = active;
+                    next_active.insert(child.getObjGen());
+                    this->form(isolated, state, child_path, bounds, std::move(next_active));
                     edits.push_back({op.begin, op.end, "\n" + resource + " Do\n"});
                 } else {
                     require(op.op != "BT", "Text in editable source is unsupported.", "unsupported-context");

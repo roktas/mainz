@@ -7,8 +7,8 @@ namespace mainz {
 using namespace detail;
 Document::Document(std::string input, std::string description, bool manifest, bool prepared,
     std::shared_ptr<const Index> index, std::shared_ptr<const Previews> previews)
-    : bytes(std::move(input))
-    , description(std::move(description))
+    : bytes(std::make_shared<const std::string>(std::move(input)))
+    , description(std::make_shared<const std::string>(std::move(description)))
     , has_contract(manifest)
     , has_paint(prepared)
     , index(std::move(index))
@@ -35,7 +35,7 @@ Document Document::change(const std::string& input, Change operation, const std:
         require(has_paint, "PDF has no editable Mainz paint.", "missing-contract");
         auto request = operation == Change::reset_all ? JSON::makeArray() : parse(input, "request");
         auto resets = operation == Change::style ? parse(reset, "request") : request;
-        auto current = object(JSON::parse(description).getDictItem("parameters"));
+        auto current = object(JSON::parse(*description).getDictItem("parameters"));
         for (auto& [id, parameter] : current) {
             (void)id;
             parameter = parameter.getDictItem("parameter");
@@ -80,7 +80,7 @@ Document Document::change(const std::string& input, Change operation, const std:
         Budget budget;
         auto syntax = index;
         auto output = [&] {
-            Engine engine(bytes, &budget, true, syntax);
+            Engine engine(*bytes, &budget, true, syntax);
             auto next = JSON::makeDictionary();
             for (const auto& [id, parameter] : current) {
                 if (ids.contains(id)) {
@@ -123,10 +123,10 @@ Document Document::extract(const std::string& pages) const
     try {
         Budget budget;
         auto output = [&] {
-            Engine engine(bytes, &budget, true, index);
-            return engine.extract(parse(pages, "request"), bytes);
+            Engine engine(*bytes, &budget, true, index);
+            return engine.extract(parse(pages, "request"), *bytes);
         }();
-        if (output == bytes)
+        if (output == *bytes)
             return *this;
         Engine reopened(output, &budget, false, index);
         return Document(std::move(output), reopened.describe(), !object(reopened.manifest).empty(), reopened.prepared(),
@@ -149,7 +149,7 @@ std::string Document::preview(std::size_t page) const
             return {};
         if (auto found = previews->images.find(file); found != previews->images.end())
             return *found->second;
-        Engine engine(bytes, nullptr, true, index);
+        Engine engine(*bytes, nullptr, true, index);
         return engine.preview(page);
     } catch (const Error&) {
         throw;

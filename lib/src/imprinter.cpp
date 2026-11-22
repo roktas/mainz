@@ -166,47 +166,52 @@ Document imprint(const std::string& svg, const std::string& bytes, const Imprint
         std::string content;
         std::size_t runs = 0, rendered = 0;
         imprinter::CaptureBudget budget;
-        imprinter::render(svg, source.getDictItem("targets"), options, [&](std::string pdf, const std::string& target) {
-            require(pdf.size() <= pdf_limit - rendered && runs < 65536, "Rendered source exceeds its limit.",
-                "limit-exceeded");
-            rendered += pdf.size();
-            QPDF layer;
-            layer.setSuppressWarnings(true);
-            layer.setAttemptRecovery(false);
-            layer.setImmediateCopyFrom(true);
-            layer.processMemoryFile("Cairo SVG layer", pdf.data(), pdf.size());
-            auto pages = QPDFPageDocumentHelper(layer).getAllPages();
-            require(pages.size() == 1, "Rendered layer must have one page.", "imprinter-error");
-            if (runs == 0)
-                page.replaceKey("/MediaBox", pages[0].getMediaBox().shallowCopy());
-            auto form = document.copyForeignObject(pages[0].getFormXObjectForPage());
-            // Cairo's synthetic page group is not an authored compositing boundary between source runs.
-            auto group = form.getDict().getKey("/Group");
-            require(group.isNull()
-                    || (group.isDictionary() && group.getKey("/S").isNameAndEquals("/Transparency")
-                        && group.getKey("/CS").isNameAndEquals("/DeviceRGB") && group.getKey("/I").isBool()
-                        && group.getKey("/I").getBoolValue() && !group.hasKey("/K")),
-                "Unexpected Cairo page compositing context.", "unsupported-context");
-            form.getDict().removeKey("/Group");
-            auto resource = "L" + std::to_string(runs), region = "R" + std::to_string(runs++);
-            objects.replaceKey("/" + resource, form);
-            if (!target.empty()) {
-                auto records = JSON::makeArray();
-                root.getDictItem("regions").addDictionaryMember(region,
-                    dictionary(
-                        {{"page", JSON::makeInt(0)}, {"marker", JSON::makeString(region)}, {"records", records}}));
-                member(targets, target).addArrayElement(JSON::makeString(region));
-                properties.replaceKey("/" + region, Object::newDictionary());
-                imprinter::annotate(document, form, root, member(source.getDictItem("targets"), target), target, region,
-                    resource, budget);
-                require(!array(records).empty(), "Selected element has no editable paths.", "imprinter-error");
-                content += "/Figure /" + region + " BDC\n";
-            }
-            content += "q /" + resource + " Do Q\n";
-            if (!target.empty())
-                content += "EMC\n";
-            require(layer.getWarnings().empty(), "Rendered PDF contains warnings.", "pdf-syntax");
-        });
+        auto [width, height] = imprinter::render(
+            svg, source.getDictItem("targets"), options, [&](std::string pdf, const std::string& target) {
+                require(pdf.size() <= pdf_limit - rendered && runs < 65536, "Rendered source exceeds its limit.",
+                    "limit-exceeded");
+                rendered += pdf.size();
+                QPDF layer;
+                layer.setSuppressWarnings(true);
+                layer.setAttemptRecovery(false);
+                layer.setImmediateCopyFrom(true);
+                layer.processMemoryFile("Cairo SVG layer", pdf.data(), pdf.size());
+                auto pages = QPDFPageDocumentHelper(layer).getAllPages();
+                require(pages.size() == 1, "Rendered layer must have one page.", "imprinter-error");
+                if (runs == 0)
+                    page.replaceKey("/MediaBox", pages[0].getMediaBox().shallowCopy());
+                auto form = document.copyForeignObject(pages[0].getFormXObjectForPage());
+                // Cairo's synthetic page group is not an authored compositing boundary between source runs.
+                auto group = form.getDict().getKey("/Group");
+                require(group.isNull()
+                        || (group.isDictionary() && group.getKey("/S").isNameAndEquals("/Transparency")
+                            && group.getKey("/CS").isNameAndEquals("/DeviceRGB") && group.getKey("/I").isBool()
+                            && group.getKey("/I").getBoolValue() && !group.hasKey("/K")),
+                    "Unexpected Cairo page compositing context.", "unsupported-context");
+                form.getDict().removeKey("/Group");
+                auto resource = "L" + std::to_string(runs), region = "R" + std::to_string(runs++);
+                objects.replaceKey("/" + resource, form);
+                if (!target.empty()) {
+                    auto records = JSON::makeArray();
+                    root.getDictItem("regions").addDictionaryMember(region,
+                        dictionary(
+                            {{"page", JSON::makeInt(0)}, {"marker", JSON::makeString(region)}, {"records", records}}));
+                    member(targets, target).addArrayElement(JSON::makeString(region));
+                    properties.replaceKey("/" + region, Object::newDictionary());
+                    imprinter::annotate(document, form, root, member(source.getDictItem("targets"), target), target,
+                        region, resource, budget);
+                    require(!array(records).empty(), "Selected element has no editable paths.", "imprinter-error");
+                    content += "/Figure /" + region + " BDC\n";
+                }
+                content += "q /" + resource + " Do Q\n";
+                if (!target.empty())
+                    content += "EMC\n";
+                require(layer.getWarnings().empty(), "Rendered PDF contains warnings.", "pdf-syntax");
+            });
+        if (!page.hasKey("/MediaBox"))
+            page.replaceKey("/MediaBox",
+                Object::newArray({Object::newInteger(0), Object::newInteger(0), Object::newReal(decimal(width)),
+                    Object::newReal(decimal(height))}));
         page.replaceKey("/Contents", document.newStream(content));
         QPDFPageDocumentHelper(document).addPage(QPDFPageObjectHelper(document.makeIndirectObject(page)), false);
         if (!object(parameters).empty() || annotated(root.getDictItem("pages")))

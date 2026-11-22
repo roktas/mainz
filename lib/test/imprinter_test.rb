@@ -632,6 +632,35 @@ module Mainz
       ]
     end
 
+    def test_rejects_xml_stylesheet_and_xinclude_and_emits_mediabox_for_empty_svg
+      stylesheet_svg = @directory.join("xml-stylesheet.svg")
+      stylesheet_svg.write(
+        "<?xml version=\"1.0\"?>\n" \
+        "<?xml-stylesheet type=\"text/css\" href=\"data:text/css,g{opacity:0.5;mix-blend-mode:multiply}\"?>\n" \
+        + svg("<g id=\"outer\"><g id=\"inner\"><rect x=\"10\" y=\"10\" width=\"40\" height=\"40\" fill=\"#222\"/></g></g>")
+      )
+      decl = write("decl-pi.json", declaration({"inner" => "#inner"}))
+      result = command(@cli, "imprint", stylesheet_svg, "--declaration", decl, "--output", @directory.join("pi.pdf"), ok: false)
+      assert_equal("imprinter-error", JSON.parse(result.stderr)["code"])
+
+      [
+        svg("<xi:include xmlns:xi=\"http://www.w3.org/2001/XInclude\" href=\"data:text/xml,%3Cstyle%20xmlns=%22http://www.w3.org/2000/svg%22%3Eg{opacity:0.5}%3C/style%3E\"/><g id=\"inner\"><rect x=\"10\" y=\"10\" width=\"40\" height=\"40\" fill=\"#222\"/></g>"),
+        svg("<defs><xi:include xmlns:xi=\"http://www.w3.org/2001/XInclude\" href=\"data:text/xml,%3Cstyle%20xmlns=%22http://www.w3.org/2000/svg%22%3Eg{opacity:0.5}%3C/style%3E\"/></defs><g id=\"inner\"><rect x=\"10\" y=\"10\" width=\"40\" height=\"40\" fill=\"#222\"/></g>")
+      ].each_with_index do |markup, index|
+        xi_svg = @directory.join("xinclude-#{index}.svg")
+        xi_svg.write(markup)
+        result = command(@cli, "imprint", xi_svg, "--declaration", decl, "--output", @directory.join("xi-#{index}.pdf"), ok: false)
+        assert_equal("imprinter-error", JSON.parse(result.stderr)["code"])
+      end
+
+      empty_svg = @directory.join("empty-meta.svg")
+      empty_svg.write(svg("<defs/>", width: 160, height: 120))
+      meta_decl = write("meta-only.json", {"targets" => {}, "parameters" => {}, "page" => {"name" => "Cover"}})
+      emitted = pdf("imprint", "empty-meta.pdf", empty_svg, "--declaration", meta_decl)
+      doc = HexaPDF::Document.open(emitted)
+      assert_equal([0, 0, 120, 90], doc.pages[0][:MediaBox].map(&:to_f))
+    end
+
     def declaration(targets, fill: true)
       properties = %w[display stroke-opacity stroke-color stroke-width]
       properties += %w[fill-color fill-opacity] if fill

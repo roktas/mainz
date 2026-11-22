@@ -2,6 +2,7 @@
 
 require "minitest/autorun"
 require "base64"
+require "stringio"
 require "zlib"
 require "timeout"
 
@@ -665,6 +666,64 @@ module Mainz
       pdf = @directory.join("#{name}.pdf")
       command("imprint", svg, "--declaration", write("#{name}.json", declaration), "--output", pdf)
       pdf
+    end
+
+    def test_recipe_preserves_contract_errors_checks_publication_veto_and_validates_cover_and_root
+      broken = @directory.join("broken-manifest.pdf")
+      doc = HexaPDF::Document.new
+      doc.pages.add
+      doc.files.add(StringIO.new('{"version":1,"pages":[]}'), name: "mainz.json", mime_type: "application/json")
+      doc.write(broken.to_s)
+      invalid_recipe = record.merge("inputs" => {"book" => {}})
+      result = run_recipe(invalid_recipe, status: 1, inputs: {"book" => broken})
+      assert_equal("invalid-contract", JSON.parse(result.stderr)["code"])
+
+      # Publication mismatch must veto even when sha256 matches.
+      published = prepare("published-veto", "width", 0.12, publication: {"id" => "fixture/book", "compat" => 1})
+      veto_recipe = record
+      veto_recipe["inputs"]["book"] = {
+        "sha256" => Digest::SHA256.file(published).hexdigest,
+        "publication" => {"id" => "other-pub", "compat" => 1}
+      }
+      veto_result = run_recipe(veto_recipe, status: 1, inputs: {"book" => published}, force: true)
+      diagnostics = JSON.parse(veto_result.stderr)["details"]["inputs"][0]["diagnostics"]
+      assert_equal("input-incompatible", diagnostics[0]["code"])
+
+      # Float-encoded integer compat (1.0) must match integer compat (1).
+      raw_compat = JSON.generate(
+        {
+          "version" => 1,
+          "inputs" => {"book" => {"publication" => {"id" => "fixture/book", "compat" => 1.0}}},
+          "sources" => {"source" => {"input" => "book"}},
+          "parts" => [{"pages" => [{"source" => "source", "page" => 0}]}]
+        }
+      )
+      compat_recipe = @directory.join("compat-float.json").tap { it.write(raw_compat) }
+      compat_bindings = write("compat-inputs.json", {"book" => published.to_s})
+      compat_result = command("resolve", compat_recipe, "--inputs", compat_bindings, "--force")
+      assert_equal(true, compat_result.status.success?)
+
+      # Truncated 24-byte cover PNG must be rejected.
+      truncated_png = "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01".b
+      bad_cover = record
+      bad_cover["inputs"]["book"]["cover"] = "data:image/png;base64,#{[truncated_png].pack("m0")}"
+      bad_cover_result = run_recipe(bad_cover, status: 1)
+      assert_equal("invalid-request", JSON.parse(bad_cover_result.stderr)["code"])
+
+      # Empty XMP field name returns invalid-request rather than limit-exceeded.
+      bad_xmp = record
+      bad_xmp["inputs"]["book"]["xmp"] = {"" => "value"}
+      bad_xmp_result = run_recipe(bad_xmp, status: 1)
+      assert_equal("invalid-request", JSON.parse(bad_xmp_result.stderr)["code"])
+
+      # Blank-only recipe still validates explicit --root directory.
+      blank_only = {
+        "version" => 1,
+        "inputs" => {},
+        "sources" => {},
+        "parts" => [{"pages" => [{"blank" => {"width" => 100, "height" => 100}}]}]
+      }
+      command("resolve", write("blank-only.json", blank_only), "--root", @directory.join("missing-root").to_s, status: 2)
     end
 
     def record

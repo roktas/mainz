@@ -15,14 +15,24 @@ std::optional<mainz::Document> last_input;
 std::uint32_t handle {0};
 std::string result;
 std::string provenance;
+bool result_in_completed {false};
 std::map<std::string, std::string> inputs;
 int status {0};
 const char* emergency {nullptr};
 
+void release(std::string& buffer) noexcept
+{
+    if (buffer.capacity() > 65536)
+        std::string().swap(buffer);
+    else
+        buffer.clear();
+}
+
 template <class Function> void boundary(Function operation, bool retain_completed = false) noexcept
 {
-    result.clear();
-    provenance.clear();
+    release(result);
+    release(provenance);
+    result_in_completed = false;
     status = 0;
     emergency = nullptr;
     if (!retain_completed)
@@ -31,11 +41,13 @@ template <class Function> void boundary(Function operation, bool retain_complete
         try {
             operation();
         } catch (const mainz::Error& error) {
+            result_in_completed = false;
             completed.reset();
             last_input.reset();
             result = error.json();
             status = 1;
         } catch (const std::exception& error) {
+            result_in_completed = false;
             completed.reset();
             last_input.reset();
             auto record = JSON::makeDictionary();
@@ -44,6 +56,7 @@ template <class Function> void boundary(Function operation, bool retain_complete
             status = 2;
         }
     } catch (...) {
+        result_in_completed = false;
         completed.reset();
         last_input.reset();
         // Error serialization can also fail when memory is exhausted.
@@ -67,8 +80,8 @@ std::string bytes(const char* data, std::size_t size, std::size_t limit)
 }
 void save(mainz::Document output)
 {
-    result = output.pdf();
     completed = std::move(output);
+    result_in_completed = true;
 }
 }
 
@@ -201,8 +214,18 @@ void mainz_close(std::uint32_t id)
         },
         true);
 }
-const char* mainz_result() { return emergency ? emergency : result.data(); }
-std::size_t mainz_size() { return emergency ? std::char_traits<char>::length(emergency) : result.size(); }
+const char* mainz_result()
+{
+    if (emergency)
+        return emergency;
+    return result_in_completed && completed ? completed->pdf().data() : result.data();
+}
+std::size_t mainz_size()
+{
+    if (emergency)
+        return std::char_traits<char>::length(emergency);
+    return result_in_completed && completed ? completed->pdf().size() : result.size();
+}
 const char* mainz_provenance() { return provenance.data(); }
 std::size_t mainz_provenance_size() { return provenance.size(); }
 int mainz_status() { return status; }

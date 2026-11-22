@@ -40,8 +40,8 @@ private:
 class Document {
 public:
     static Document read(std::string bytes);
-    const std::string& pdf() const { return bytes; }
-    const std::string& describe() const { return description; }
+    const std::string& pdf() const { return *bytes; }
+    const std::string& describe() const { return *description; }
     bool prepared() const { return has_paint; }
     bool has_manifest() const { return has_contract; }
     Document style(const std::string& overrides) const;
@@ -56,8 +56,8 @@ private:
     Document(std::string bytes, std::string description, bool manifest, bool prepared,
         std::shared_ptr<const detail::Index> index, std::shared_ptr<const detail::Previews> previews);
     Document change(const std::string& request, Change, const std::string& reset = "[]") const;
-    std::string bytes;
-    std::string description;
+    std::shared_ptr<const std::string> bytes;
+    std::shared_ptr<const std::string> description;
     bool has_contract, has_paint;
     std::shared_ptr<const detail::Index> index;
     std::shared_ptr<const detail::Previews> previews;

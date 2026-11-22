@@ -9,6 +9,7 @@
 #include <libxml/parser.h>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <regex>
 #include <set>
 #include <sstream>
@@ -24,7 +25,7 @@ namespace {
     using Context = std::unique_ptr<cairo_t, decltype(&cairo_destroy)>;
     std::string attribute(xmlNode* node, const char* name)
     {
-        XmlText bytes(xmlGetProp(node, BAD_CAST name), xmlFree);
+        XmlText bytes(xmlGetNoNsProp(node, BAD_CAST name), xmlFree);
         return bytes ? reinterpret_cast<const char*>(bytes.get()) : "";
     }
     bool named(xmlNode* node, const char* name) { return xmlStrEqual(node->name, BAD_CAST name); }
@@ -202,10 +203,14 @@ namespace {
             static const std::regex declarations("<!DOCTYPE|<!ENTITY", std::regex::icase);
             require(!std::regex_search(bytes, declarations), "SVG declarations and entities are unsupported.",
                 "imprinter-error");
+            static std::once_flag xml_initialized;
+            std::call_once(xml_initialized, [] { xmlInitParser(); });
             document.reset(xmlReadMemory(bytes.data(), static_cast<int>(bytes.size()), nullptr, nullptr,
                 XML_PARSE_NONET + XML_PARSE_NOERROR + XML_PARSE_NOWARNING));
             require(document != nullptr && document->intSubset == nullptr && document->extSubset == nullptr,
                 "Invalid SVG XML.", "imprinter-error");
+            for (auto node = document->children; node; node = node->next)
+                require(node->type != XML_PI_NODE, "SVG processing instructions are unsupported.", "imprinter-error");
             root = xmlDocGetRootElement(document.get());
             require(root && named(root, "svg"), "Expected an SVG root.", "imprinter-error");
             visit(root, 0);
@@ -346,8 +351,12 @@ namespace {
         }
         void visit(xmlNode* node, std::size_t depth)
         {
+            require(node->type != XML_PI_NODE, "SVG processing instructions are unsupported.", "imprinter-error");
             if (node->type != XML_ELEMENT_NODE)
                 return;
+            require(!(node->ns && node->ns->href
+                        && xmlStrEqual(node->ns->href, BAD_CAST "http://www.w3.org/2001/XInclude")),
+                "SVG XInclude elements are unsupported.", "imprinter-error");
             require(depth < 64 && ++nodes <= 1000000, "SVG tree exceeds its limit.", "limit-exceeded");
             require(!xmlHasProp(node, BAD_CAST "mask") && !xmlHasProp(node, BAD_CAST "filter")
                     && !xmlHasProp(node, BAD_CAST "opacity") && !compositing(attribute(node, "style")),
@@ -394,7 +403,7 @@ namespace {
         }
     };
 }
-void render(const std::string& bytes, JSON targets, const ImprintOptions& options,
+std::pair<double, double> render(const std::string& bytes, JSON targets, const ImprintOptions& options,
     const std::function<void(std::string, const std::string&)>& consume)
 {
     Source source(bytes);
@@ -402,5 +411,6 @@ void render(const std::string& bytes, JSON targets, const ImprintOptions& option
     source.select(targets, viewport);
     for (const auto& run : source.runs)
         consume(source.paint(run, viewport), run.target);
+    return {viewport.width, viewport.height};
 }
 }

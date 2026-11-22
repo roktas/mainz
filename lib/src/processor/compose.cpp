@@ -144,7 +144,7 @@ Artifact Engine::compose(JSON plan, const Bindings& inputs, const Document* prev
             try {
                 const auto& binding = inputs.at(input);
                 source.validated = binding.document;
-                if (!source.validated && previous && previous->bytes == binding.bytes)
+                if (!source.validated && previous && previous->pdf() == binding.bytes)
                     source.validated = previous;
                 source.engine = std::make_unique<Engine>(binding.bytes, &budget, source.validated != nullptr,
                     source.validated ? source.validated->index : std::shared_ptr<const Index> {});

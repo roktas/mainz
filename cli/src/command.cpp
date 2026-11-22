@@ -54,8 +54,10 @@ namespace {
         explicit Descriptor(int value)
             : value(value)
         {
-            if (value < 0)
+            if (value < 0) {
+                check_interrupt();
                 throw std::runtime_error("Cannot open recipe root or Input without following symlinks.");
+            }
         }
         Descriptor(const Descriptor&) = delete;
         Descriptor& operator=(const Descriptor&) = delete;
@@ -126,20 +128,29 @@ std::string read_at(const std::string& root, const std::string& file, std::size_
     check_interrupt();
     return result;
 }
+void check_directory(const std::string& root)
+{
+    if (root.empty() || root.find('\0') != root.npos)
+        throw std::runtime_error("Recipe root must be an existing directory.");
+    Descriptor directory(open(root.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC));
+}
 // POSIX no-clobber installation: the result appears only after a complete write.
 class Output {
 public:
     explicit Output(const std::string& destination)
         : destination(destination)
     {
+        check_interrupt();
         auto path = std::filesystem::path(destination);
         auto parent = path.parent_path();
         if (parent.empty())
             parent = ".";
         temporary = (parent / ".mainz-XXXXXX").string();
         descriptor = mkstemp(temporary.data());
-        if (descriptor < 0)
+        if (descriptor < 0) {
+            check_interrupt();
             throw std::runtime_error("Cannot create output temporary file.");
+        }
     }
     Output(const Output&) = delete;
     Output& operator=(const Output&) = delete;
@@ -162,14 +173,21 @@ public:
                 throw std::runtime_error("Cannot write output.");
             position += static_cast<std::size_t>(n);
         }
-        if (fsync(descriptor) != 0)
-            throw std::runtime_error("Cannot flush output.");
+        while (fsync(descriptor) != 0) {
+            check_interrupt();
+            if (errno != EINTR)
+                throw std::runtime_error("Cannot flush output.");
+        }
         auto file = std::exchange(descriptor, -1);
-        if (close(file) != 0)
+        if (close(file) != 0) {
+            check_interrupt();
             throw std::runtime_error("Cannot close output.");
+        }
         check_interrupt();
-        if (link(temporary.c_str(), destination.c_str()) != 0)
+        if (link(temporary.c_str(), destination.c_str()) != 0) {
+            check_interrupt();
             throw std::runtime_error(errno == EEXIST ? "Output already exists." : "Cannot install output.");
+        }
         if (unlink(temporary.c_str()) == 0)
             temporary.clear();
     }

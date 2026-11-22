@@ -107,8 +107,9 @@ else()
   list(APPEND mainz_targets imprinter mainz)
   if(MAINZ_LINT)
     find_program(CLANG_FORMAT_EXECUTABLE clang-format REQUIRED)
-    set(format_sources ${mainz_sources} lib/src/processor.hh lib/src/contract.hh lib/src/content.hh lib/src/pipeline.hh
-      lib/src/imprinter.hh lib/src/recipe.hh lib/src/imprinter/internal.hh lib/src/processor/engine.hh cli/src/command.hh)
+    set(format_sources ${mainz_sources} lib/test/wasm_test.cpp lib/src/processor.hh lib/src/contract.hh lib/src/content.hh
+      lib/src/pipeline.hh lib/src/imprinter.hh lib/src/recipe.hh lib/src/imprinter/internal.hh
+      lib/src/processor/engine.hh cli/src/command.hh)
     add_custom_target(format
       COMMAND ${CLANG_FORMAT_EXECUTABLE} -i ${format_sources}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -136,6 +137,14 @@ if(BUILD_TESTING)
     set(test_environment "MAINZ_CLI=$<TARGET_FILE:mainz>")
     if(MAINZ_SANITIZE)
       string(APPEND test_environment ";UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1")
+    endif()
+    add_executable(wasm_test lib/test/wasm_test.cpp $<TARGET_OBJECTS:wasm_boundary>)
+    target_compile_features(wasm_test PRIVATE cxx_std_20)
+    target_link_libraries(wasm_test PRIVATE processor qpdf::libqpdf)
+    list(APPEND mainz_targets wasm_test)
+    add_test(NAME wasm COMMAND wasm_test)
+    if(MAINZ_SANITIZE)
+      set_tests_properties(wasm PROPERTIES ENVIRONMENT "UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1")
     endif()
   endif()
   foreach(name IN LISTS test_names)

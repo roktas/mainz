@@ -5,6 +5,7 @@
 #include <new>
 #include <optional>
 #include <utility>
+#include <zlib.h>
 
 namespace mainz {
 namespace {
@@ -30,12 +31,12 @@ namespace {
             bits += 6;
             if (bits >= 8) {
                 bits -= 8;
-                if (header.size() < 24)
+                if (header.size() < 33)
                     header.push_back(static_cast<char>((accumulator >> bits) & 255U));
             }
         }
         require(bits == padding * 2 && (accumulator & ((1U << bits) - 1)) == 0, "Invalid cover base64 padding.");
-        require(header.size() == 24 && header.substr(0, 8) == std::string("\x89PNG\r\n\x1a\n", 8)
+        require(header.size() == 33 && header.substr(0, 8) == std::string("\x89PNG\r\n\x1a\n", 8)
                 && header.substr(8, 8) == std::string("\0\0\0\x0dIHDR", 8),
             "Invalid cover PNG header.");
         auto dimension = [&](std::size_t offset) {
@@ -46,6 +47,21 @@ namespace {
         };
         require(dimension(16) > 0 && dimension(16) <= 512 && dimension(20) > 0 && dimension(20) <= 512,
             "Cover dimensions must be from 1 to 512 pixels.", "limit-exceeded");
+        const auto bit_depth = static_cast<unsigned char>(header[24]);
+        const auto color_type = static_cast<unsigned char>(header[25]);
+        const auto compression = static_cast<unsigned char>(header[26]);
+        const auto filter = static_cast<unsigned char>(header[27]);
+        const auto interlace = static_cast<unsigned char>(header[28]);
+        bool valid_color = false;
+        if (color_type == 0)
+            valid_color = bit_depth == 1 || bit_depth == 2 || bit_depth == 4 || bit_depth == 8 || bit_depth == 16;
+        else if (color_type == 2 || color_type == 4 || color_type == 6)
+            valid_color = bit_depth == 8 || bit_depth == 16;
+        else if (color_type == 3)
+            valid_color = bit_depth == 1 || bit_depth == 2 || bit_depth == 4 || bit_depth == 8;
+        const auto actual_crc = crc32(0, reinterpret_cast<const Bytef*>(header.data() + 12), static_cast<uInt>(17));
+        require(valid_color && compression == 0 && filter == 0 && interlace <= 1 && actual_crc == dimension(29),
+            "Invalid cover PNG header.");
     }
 
     std::size_t integer(JSON item, std::size_t maximum)
@@ -116,9 +132,11 @@ namespace {
                 if (present.contains("xmp")) {
                     auto metadata = object(definition.getDictItem("xmp"));
                     require(metadata.size() <= 32, "Input XMP exceeds 32 fields.", "limit-exceeded");
-                    for (const auto& [key, value] : metadata)
-                        require(!key.empty() && key.size() <= 128 && text(value).size() <= 4096,
+                    for (const auto& [key, value] : metadata) {
+                        require(!key.empty(), "Empty Input XMP field name.");
+                        require(key.size() <= 128 && text(value).size() <= 4096,
                             "Input XMP field exceeds its byte limit.", "limit-exceeded");
+                    }
                 }
                 if (present.contains("publication"))
                     publication(definition.getDictItem("publication"));
@@ -395,17 +413,21 @@ namespace {
             diagnostics.addArrayElement(JSON::parse(error.json()));
             return result();
         }
-        if (equal(definition.getDictItem("sha256"), current.getDictItem("sha256")))
-            return result();
         auto before = definition.getDictItem("publication");
         auto after = current.getDictItem("publication");
-        if (!before.isNull() && !after.isNull() && !equal(before, after)) {
+        auto same_publication = [](JSON a, JSON b) {
+            return equal(a.getDictItem("id"), b.getDictItem("id"))
+                && equal(a.getDictItem("compat"), b.getDictItem("compat"));
+        };
+        if (!before.isNull() && !after.isNull() && !same_publication(before, after)) {
             state = "error";
             diagnostics.addArrayElement(diagnostic("input-incompatible",
                 "The publication identity or compat value vetoes this Recipe. Force cannot override this restriction.",
                 location + "/publication", before, after));
             return result();
         }
+        if (equal(definition.getDictItem("sha256"), current.getDictItem("sha256")))
+            return result();
         if (!before.isNull() && after.isNull())
             diagnostics.addArrayElement(
                 diagnostic("publication-missing", "The recorded publication declaration is missing from this PDF.",
@@ -482,6 +504,7 @@ std::string check_recipe_input(const std::string& recipe, const std::string& id,
 {
     try {
         auto root = read_recipe(recipe);
+        detail::request_at("/inputs", [&] { detail::identifier(id, "invalid-request"); });
         detail::request_at("/inputs/" + detail::pointer(id),
             [&] { detail::require(detail::object(root.getDictItem("inputs")).contains(id), "Unknown Recipe Input."); });
         std::map<std::string, JSON> resolved;
@@ -526,10 +549,11 @@ static Resolution resolve(const std::string& recipe, const detail::Bindings& inp
                 if (binding.document)
                     assess(*binding.document);
                 else
-                    assess(detail::request_at(location, [&] { return Document::read(binding.bytes); }));
+                    assess(Document::read(binding.bytes));
             } catch (const Error& error) {
+                auto reported = error.source().empty() ? Error(error.code(), error.what(), "request", location) : error;
                 auto diagnostics = JSON::makeArray();
-                diagnostics.addArrayElement(JSON::parse(error.json()));
+                diagnostics.addArrayElement(JSON::parse(reported.json()));
                 checks.addArrayElement(detail::dictionary({{"input", JSON::makeString(id)},
                     {"state", JSON::makeString("error")}, {"diagnostics", diagnostics}}));
             }

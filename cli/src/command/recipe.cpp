@@ -12,7 +12,7 @@ void recipe_checks(JSON report, bool jsonl, bool verbose)
         for (const auto& [key, value] : detail::object(input))
             event.addDictionaryMember(key, value);
         event.addDictionaryMember("type", JSON::makeString("input"));
-        (jsonl ? std::cout : std::cerr) << detail::encode(event, recipe_limit) << '\n';
+        (jsonl ? std::cout : std::cerr) << detail::encode(event, pipeline_limit) << '\n';
     }
 }
 static void recipe(const Arguments& args, const std::string& operation)
@@ -38,6 +38,8 @@ static void recipe(const Arguments& args, const std::string& operation)
         });
     }
     auto root = args.options.contains("--root") ? args.options.at("--root") : ".";
+    if (args.options.contains("--root"))
+        check_directory(root);
     std::map<std::string, Document> inputs;
     std::size_t remaining = pdf_limit;
     for (const auto& [id, definition] : definitions) {
@@ -46,8 +48,7 @@ static void recipe(const Arguments& args, const std::string& operation)
         try {
             auto bytes = mapped ? read(file, remaining) : read_at(root, file, remaining);
             remaining -= bytes.size();
-            auto document = detail::request_at(
-                "/inputs/" + detail::pointer(id), [&] { return Document::read(std::move(bytes)); });
+            auto document = Document::read(std::move(bytes));
             inputs.emplace(id, std::move(document));
         } catch (const Interrupt&) {
             throw;

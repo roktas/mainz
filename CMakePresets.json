@@ -54,13 +54,13 @@
     {
       "name": "native",
       "configurePreset": "native",
-      "filter": { "include": { "name": "^(contract|imprinter|cli|inspector|package)$" } },
+      "filter": { "include": { "name": "^(contract|imprinter|cli|inspector|package|wasm)$" } },
       "output": { "outputOnFailure": true }
     },
     {
       "name": "sanitize",
       "configurePreset": "sanitize",
-      "filter": { "include": { "name": "^(contract|imprinter|cli|inspector|package)$" } },
+      "filter": { "include": { "name": "^(contract|imprinter|cli|inspector|package|wasm)$" } },
       "output": { "outputOnFailure": true }
     },
     {
