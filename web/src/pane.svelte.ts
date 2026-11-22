@@ -17,6 +17,25 @@ export const viewLabels = { grid: "Grid", list: "List", page: "Page" }
 export type Tab = (typeof viewTabs)[number]
 export type InputTab = Tab | "style"
 
+export function observeSummary(element: HTMLElement) {
+  const counts = element.querySelector<HTMLElement>(".composition-totals")!
+  let frame = 0
+  const observer = new ResizeObserver(() => {
+    cancelAnimationFrame(frame)
+    frame = requestAnimationFrame(() => {
+      const overflow = counts.scrollWidth > element.clientWidth + 1
+      element.toggleAttribute("data-overflow", overflow)
+      if (!overflow) document.getElementById(element.dataset.details ?? "")?.hidePopover()
+    })
+  })
+  observer.observe(element)
+  observer.observe(counts)
+  return () => {
+    cancelAnimationFrame(frame)
+    observer.disconnect()
+  }
+}
+
 abstract class Pane {
   panel = $state<HTMLElement>()
   grid = $state<ReturnType<typeof Grid>>()
@@ -33,6 +52,13 @@ abstract class Pane {
   }
   protected get owner(): string | undefined {
     return undefined
+  }
+  protected abstract jumpTo(position: number): void
+  async goTo(position: number, event: MouseEvent) {
+    this.jumpTo(position)
+    await tick()
+    await this.sectionView?.revealPage(position)
+    await this.reveal(event, true)
   }
   async reveal(event?: MouseEvent | KeyboardEvent, jump = false): Promise<number | undefined> {
     const tab = this.active,
@@ -123,6 +149,9 @@ export class InputViews extends Pane {
   protected get owner() {
     return this.source()?.id
   }
+  protected jumpTo(position: number) {
+    this.set({ position, offset: position, alignment: undefined })
+  }
   get position() {
     return this.current.position
   }
@@ -194,6 +223,10 @@ export class OutputView extends Pane {
   }
   get position() {
     return this.output.position
+  }
+  protected jumpTo(position: number) {
+    this.output.position = position
+    this.offset = position
   }
   get active(): Tab {
     const step = this.tour()

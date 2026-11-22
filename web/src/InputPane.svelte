@@ -1,26 +1,22 @@
 <!-- Renders the Input pane and owns its Grid, List, Page, and Style presentation. -->
 
 <script lang="ts">
-  import { tick } from "svelte"
   import type { Snippet } from "svelte"
   import type { Source } from "./model.ts"
   import type { Interaction } from "./interaction.svelte.ts"
   import type { Output } from "./output.svelte.ts"
   import type { InputViews } from "./pane.svelte.ts"
-  import type { Sequence } from "./pages.ts"
-  import type { Payload, Transfer } from "./transfer.svelte.ts"
+  import type { Transfer } from "./transfer.svelte.ts"
+  import type { Editing } from "./editing.svelte.ts"
   import type { Magnification } from "./Lens.svelte"
   import type { TourStep } from "./Tour.svelte"
-  import { viewLabels, viewTabs } from "./pane.svelte.ts"
   import { destinations } from "./composition.ts"
   import { titlesOf } from "./outline.ts"
   import { sectionsOf, Sections } from "./sections.ts"
-  import type { Highlight, PaneSnippets } from "./Composer.svelte"
   import { retainFocus } from "./drag.ts"
   import Feedback from "./Feedback.svelte"
   import Icon from "./Icon.svelte"
   import Contents from "./Contents.svelte"
-  import Jump from "./Jump.svelte"
   import Selection from "./Selection.svelte"
   import Origin from "./Origin.svelte"
   import Grid from "./Grid.svelte"
@@ -32,23 +28,14 @@
   import type { Peeks } from "./Peek.svelte"
   import Pdf from "./Pdf.svelte"
   import Repetition from "./Repetition.svelte"
+  import Face from "./Face.svelte"
+  import Ribbon from "./Ribbon.svelte"
+  import SectionPath from "./SectionPath.svelte"
+  import SectionRow from "./SectionRow.svelte"
+  import PageTools from "./PageTools.svelte"
+  import Toolbar from "./Toolbar.svelte"
+  import Summary from "./Summary.svelte"
 
-  type Actions = {
-    numbers: (text: string) => void
-    set: (patch: Partial<Sequence>) => void
-    all: () => void
-    clear: () => void
-    selectedSection: (first: number, end: number) => boolean
-    toggle: (page: number, range: boolean, anchor?: number) => void
-    select: (page: number, event: MouseEvent, end?: number) => void
-    selectRow: (page: number, event: MouseEvent) => (() => void) | undefined
-    doubleClick: (page: number, event: MouseEvent) => void
-    section: (first: number, end: number) => void
-    focused: (page?: number, end?: number) => boolean
-    individual: (page: number, end: number) => boolean
-    add: () => boolean
-    payload: (page?: number) => Payload
-  }
   let {
     key,
     compact,
@@ -58,24 +45,15 @@
     input,
     viewInputPDF,
     view,
-    draft,
-    invalid,
-    selectionError,
-    selected: inputSelected,
     output,
-    insertion,
-    actions: commands,
+    editing,
     interaction,
     transfer,
-    start,
     tour,
     opening,
     magnification,
     error,
     peeks,
-    highlight,
-    originOpen = $bindable<string>(),
-    snippets,
   }: {
     key: string
     compact: boolean
@@ -85,37 +63,20 @@
     input: Snippet<[heading: string]>
     viewInputPDF: () => void
     view: InputViews
-    draft: Sequence
-    invalid: boolean
-    selectionError?: string
-    selected: ReadonlySet<number>
     output: Output
-    insertion?: number
-    actions: Actions
+    editing: Editing
     interaction: Interaction
     transfer: Transfer
-    start: (event: DragEvent | PointerEvent, payload: Payload) => void
     tour?: TourStep
     opening: boolean
     magnification: Magnification
     error: (message: string) => void
     peeks: Peeks
-    highlight?: Highlight
-    originOpen?: string
-    snippets: PaneSnippets
   } = $props()
-  const {
-    summary,
-    pageFace,
-    pageTools,
-    zoomControls,
-    zoomReset,
-    gridRibbon,
-    sectionRow,
-    sectionJump,
-    counts: inputSummary,
-  } = $derived(snippets)
-  const count = $derived(source?.input.pdf.numPages ?? 0)
+
+  const count = $derived(editing.count)
+  const draft = $derived(editing.draft)
+  const inputSelected = $derived(editing.inputSelected)
   const inputPosition = $derived(view.position)
   const hasStyles = $derived(!!source && Object.keys(source.input.description.parameters).length > 0)
   const titleChoice = $derived(source ? titlesOf(source.input).choice : false)
@@ -126,7 +87,7 @@
   const inputSections = $derived(new Sections(tree, count, folds))
   const inputSectionState = $derived(view.sectionView ? inputSections.state() : "none")
   const allInput = $derived(
-    !invalid && draft.pages.length === count && draft.pages.every((page, index) => page === index),
+    !editing.invalid && draft.pages.length === count && draft.pages.every((page, index) => page === index),
   )
   const inputInspection: Inspection | undefined = $derived(
     source
@@ -142,12 +103,6 @@
   function inputName(page: number) {
     return source ? titlesOf(source.input).at(page, view.current.tocTitles).name : undefined
   }
-  async function goTo(position: number, event: MouseEvent) {
-    view.set({ position, offset: position, alignment: undefined })
-    await tick()
-    await view.sectionView?.revealPage(position)
-    await view.reveal(event, true)
-  }
 </script>
 
 {#snippet inputPageHeading(fitWidth: () => void)}
@@ -162,15 +117,21 @@
     draggable="true"
     onmousedown={retainFocus}
     onclick={(event) => {
-      commands.toggle(inputPosition, event.shiftKey)
+      editing.toggle(inputPosition, event.shiftKey)
       interaction.focusPage(event.currentTarget)
     }}
-    ondragstart={(event) => start(event, commands.payload(view.current.position))}
-    onpointerdown={(event) => transfer.press(event, commands.payload(view.current.position))}
+    ondragstart={(event) => editing.start(event, editing.inputPayload(view.current.position))}
+    onpointerdown={(event) => transfer.press(event, editing.inputPayload(view.current.position))}
     ondragend={() => transfer.end()}><Icon name="reorder" /></button
   >
-  {@render pageTools("Input", fitWidth)}
-  {@render pageFace(view.current.position)}
+  <PageTools
+    pane="Input"
+    zoom={view.current.zoom}
+    onZoomBy={(offset) => interaction.zoomBy("Input", offset)}
+    onResetZoom={() => interaction.setZoom("Input", 100)}
+    onFitWidth={fitWidth}
+  />
+  <Face index={view.current.position} />
 {/snippet}
 
 {#snippet inputPageActions(page: number = inputPosition, end = page + 1)}
@@ -182,7 +143,7 @@
     title={end > page + 1 ? "Add section to Output" : "Add one copy"}
     onclick={(event) => {
       event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover()
-      if (commands.individual(page, end)) {
+      if (editing.commandInput(editing.inputRange(page, end), undefined, false)) {
         view.set({ position: page })
         interaction.focusPage(event.currentTarget)
       }
@@ -198,7 +159,7 @@
       count={total}
       identity={{ source, page, tocTitles: view.current.tocTitles, destinations: outputPositions.get(page) }}
       mode={view.active === "list" ? "list" : "normal"}
-      bind:opened={originOpen}
+      bind:opened={editing.originOpen}
     >
       {#snippet navigation()}
         {#if view.current.grouped && view.sectionView}
@@ -206,7 +167,17 @@
             .at(page)
             .headings.map(({ keys }) => view.sectionView?.paths(page, keys) ?? [])}
           {#if paths.some((path) => path.length)}
-            <div class="page-detail-navigation">{@render sectionJump("Input", paths, detail + "-jump")}</div>
+            <div class="page-detail-navigation">
+              <SectionPath
+                id={`${detail}-jump`}
+                pane="Input"
+                {paths}
+                jump={(sectionId) => {
+                  editing.originOpen = undefined
+                  void view.sectionView?.revealSection(sectionId)
+                }}
+              />
+            </div>
           {/if}
         {/if}
       {/snippet}
@@ -222,7 +193,7 @@
         number={page + 1}
         name={inputName(page)}
         size={source.input.sizes[page]}
-        enabled={!transfer.value && !originOpen}
+        enabled={!transfer.value && !editing.originOpen}
         owner={peeks}
         open={(event) => {
           view.set({ position: page })
@@ -240,17 +211,20 @@
     <summary aria-label="Input page actions" title="Input page actions"><Icon name="more" /></summary>
     <div class="menu-options">
       {#if view.active === "page" && !controlCapabilities[view.controls].zoom}
-        {@render zoomControls("Input", true)}
-        {#if !controlCapabilities[view.controls].fit}{@render zoomReset(
-            "Input",
-            () => view.page?.fitWidth(),
-            true,
-          )}{/if}
+        <PageTools
+          pane="Input"
+          menu
+          zoom={view.current.zoom}
+          showFit={!controlCapabilities[view.controls].fit}
+          onZoomBy={(offset) => interaction.zoomBy("Input", offset)}
+          onResetZoom={() => interaction.setZoom("Input", 100)}
+          onFitWidth={() => view.page?.fitWidth()}
+        />
       {/if}
       <Repetition
         pane="Input"
-        bind:value={() => draft.repeat, (repeat) => commands.set({ repeat })}
-        bind:front={() => draft.front, (front) => commands.set({ front })}
+        bind:value={() => draft.repeat, (repeat) => editing.set({ repeat })}
+        bind:front={() => draft.front, (front) => editing.set({ front })}
       />
     </div>
   </details>
@@ -269,15 +243,7 @@
       <div class="section-heading input-heading" data-tour-target="input" data-tour-active={tour === "input"}>
         {@render input(`${key}-selection`)}
         <div class="input-preview-tools output-actions">
-          <div class="input-state output-state" data-details={`${key}-input-summary`} {@attach summary}>
-            <span class="composition-totals">{@render inputSummary()}</span>
-            <button
-              class="icon-button"
-              popovertarget={`${key}-input-summary`}
-              aria-label="Input details"
-              title="Input details"><Icon name="info" /></button
-            >
-          </div>
+          <Summary id={`${key}-input-summary`} pane="Input" pages={count} className="input-state" />
           <button
             class="icon-button view-action"
             aria-label="View Input PDF"
@@ -286,27 +252,33 @@
           >
         </div>
       </div>
-      <div id={`${key}-input-summary`} class="output-details" popover="auto" role="note" aria-label="Input details">
-        {@render inputSummary()}
-      </div>
     {/if}
 
-    <div class="editing-toolbar source-tabs" style:anchor-name="--input-pane">
-      <div class="tabs" role="tablist" aria-label="Input workspace">
-        {#each viewTabs as tab (tab)}<button
-            id={`${key}-${tab}`}
-            role="tab"
-            aria-label={viewLabels[tab]}
-            aria-keyshortcuts={`Alt+${viewTabs.indexOf(tab) + 1}`}
-            aria-selected={view.active === tab}
-            aria-controls={`${key}-source-panel`}
-            tabindex={view.active === tab ? 0 : -1}
-            onkeydown={(event) => interaction.tabKey(event)}
-            onclick={() => interaction.inputTab(tab)}
-            title={`${viewLabels[tab]} view`}
-            data-tour-tab={`input-${tab}`}
-            data-tour-active={tour === `input-${tab}`}><Icon name={tab} /><span>{viewLabels[tab]}</span></button
-          >{/each}
+    <Toolbar
+      {key}
+      pane="Input"
+      active={view.active}
+      panelId={`${key}-source-panel`}
+      className="source-tabs"
+      anchorName="--input-pane"
+      {tour}
+      sectionState={inputSectionState}
+      hasSections={!!source.input.outline?.length}
+      grouped={view.current.grouped}
+      showJump={view.active !== "style"}
+      {count}
+      position={inputPosition}
+      labels={source.input.labels}
+      onTab={(tab) => interaction.inputTab(tab)}
+      onTabKey={(event) => interaction.tabKey(event)}
+      onToggleSections={() => view.sectionView?.toggleSections()}
+      onToggleGrouped={() => {
+        view.set({ grouped: !view.current.grouped })
+        void view.reveal()
+      }}
+      onJump={(position, event) => void view.goTo(position, event)}
+    >
+      {#snippet extraTab()}
         {#if hasStyles}<button
             id={`${key}-style`}
             role="tab"
@@ -328,50 +300,25 @@
             data-tour-active={tour === "style"}
             ><Icon name={styleable ? "style" : "style-off"} /><span>Style</span></button
           >{/if}
-      </div>
-
-      {#if view.sectionView && inputSectionState !== "none"}<button
-          type="button"
-          class="icon-button"
-          aria-label={inputSectionState === "closed" ? "Unfold all Input sections" : "Fold all Input sections"}
-          title={inputSectionState === "closed" ? "Unfold all sections" : "Fold all sections"}
-          onclick={() => view.sectionView?.toggleSections()}
-          ><Icon name={inputSectionState === "closed" ? "expand" : "collapse"} /></button
-        >{/if}
-      {#if (view.active === "list" || view.active === "grid") && source.input.outline?.length}<button
-          type="button"
-          class="icon-button"
-          aria-label="Section headings"
-          aria-pressed={view.current.grouped}
-          title={view.current.grouped ? "Hide section headings" : "Show section headings"}
-          onclick={() => {
-            view.set({ grouped: !view.current.grouped })
-            void view.reveal()
-          }}><Icon name="sections" /></button
-        >{/if}
-      {#if view.active === "style" && styling}{@render styling(true)}{/if}
-      {#if source.input.outline?.length}<Contents
-          outline={source.input.outline}
-          source={source.id}
-          position={inputPosition}
-          name={inputName}
-          pages={source.input.description.pages}
-          {titleChoice}
-          bind:tocTitles={() => view.current.tocTitles, (tocTitles) => view.set({ tocTitles })}
-          navigate={async (position) => {
-            view.set({ position, offset: position })
-            if (view.active === "list") await view.list?.revealPage(position)
-            void view.reveal(undefined, true)
-          }}
-        />{/if}
-      {#if view.active !== "style"}<Jump
-          pane="Input"
-          labels={source.input.labels}
-          {count}
-          position={inputPosition}
-          navigate={(position, event) => void goTo(position, event)}
-        />{/if}
-    </div>
+      {/snippet}
+      {#snippet extraTools()}
+        {#if view.active === "style" && styling}{@render styling(true)}{/if}
+        {#if source.input.outline?.length}<Contents
+            outline={source.input.outline}
+            source={source.id}
+            position={inputPosition}
+            name={inputName}
+            pages={source.input.description.pages}
+            {titleChoice}
+            bind:tocTitles={() => view.current.tocTitles, (tocTitles) => view.set({ tocTitles })}
+            navigate={async (position) => {
+              view.set({ position, offset: position })
+              if (view.active === "list") await view.list?.revealPage(position)
+              void view.reveal(undefined, true)
+            }}
+          />{/if}
+      {/snippet}
+    </Toolbar>
 
     <div
       class="input-panel"
@@ -391,10 +338,10 @@
           id={`${key}-input-selection`}
           pane="Input"
           value={draft.text}
-          {invalid}
-          error={selectionError}
-          change={commands.numbers}
-          submit={() => commands.add()}
+          invalid={editing.invalid}
+          error={editing.selectionError}
+          change={editing.numbers}
+          submit={() => editing.commandInput()}
           menu={inputTools}
         >
           {#snippet actions()}
@@ -404,7 +351,7 @@
                 title="Select all · Ctrl+A / ⌘A"
                 aria-keyshortcuts="Control+A Meta+A"
                 onclick={(event) => {
-                  commands.all()
+                  editing.selectAll("Input")
                   interaction.focusAfterSelection("Input", event)
                 }}><Icon name="select" /></button
               >{/if}
@@ -413,20 +360,20 @@
                 aria-label="Clear page sequence"
                 title="Clear"
                 onclick={(event) => {
-                  commands.clear()
+                  editing.clearInput()
                   interaction.focusAfterSelection("Input", event)
                 }}><Icon name="close" /></button
               >{/if}
             {#if draft.pages.length}<button
                 class="step transfer primary"
                 aria-label="Add to Output"
-                title={`Add to Output${insertion === undefined ? " at the end" : ` after page ${insertion}`}.`}
+                title={`Add to Output${editing.insertion === undefined ? " at the end" : ` after page ${editing.insertion}`}.`}
                 draggable="true"
-                disabled={!!selectionError}
-                ondragstart={(event) => start(event, commands.payload())}
-                onpointerdown={(event) => transfer.press(event, commands.payload())}
+                disabled={!!editing.selectionError}
+                ondragstart={(event) => editing.start(event, editing.inputPayload())}
+                onpointerdown={(event) => transfer.press(event, editing.inputPayload())}
                 ondragend={() => transfer.end()}
-                onclick={() => commands.add()}><Icon name="add" /></button
+                onclick={() => editing.commandInput()}><Icon name="add" /></button
               >{/if}
           {/snippet}
           {#snippet hint()}
@@ -435,9 +382,9 @@
               > ·
             {/if}
             {draft.pages.length
-              ? insertion === undefined
+              ? editing.insertion === undefined
                 ? "Append to Output."
-                : `Add after Output ${insertion}.`
+                : `Add after Output ${editing.insertion}.`
               : "Select pages or type numbers."}
             {#if draft.repeat !== "1" || draft.front}
               Repeat ×{draft.repeat}{draft.front ? " · Front aligned" : ""}.{/if}
@@ -482,19 +429,45 @@
                 active={() => interaction.shortcutPane() === "Input"}
                 labeled={source.input.labels.length > 0}
                 revision={`${view.current.grouped}:${view.current.tocTitles}`}
-                selected={(first, end) => commands.selectedSection(first, end)}
+                selected={(first, end) => editing.selectedSection("Input", first, end)}
                 bind:position={() => inputPosition, (position) => view.set({ position })}
                 select={(page, range, anchor, sectionEnd) =>
-                  sectionEnd === undefined ? commands.toggle(page, range, anchor) : commands.section(page, sectionEnd)}
-                edit={(action, page, end) => action === "add" && commands.focused(page, end)}
+                  sectionEnd === undefined
+                    ? editing.toggle(page, range, anchor)
+                    : editing.selectSection("Input", page, sectionEnd)}
+                edit={(action, page, end) => action === "add" && editing.commandInput(editing.focusedInput(page, end))}
               >
                 {#snippet section(start, end, path, expanded, toggle, id)}
-                  {#snippet origin()}{@render inputOrigin(start, `${key}-list-input-${start}`)}{/snippet}
-                  {#snippet actionsForRow()}
-                    {#if !draft.pages.length}{@render inputPageActions(start, end)}{/if}
-                    {@render inputPeek(start)}
-                  {/snippet}
-                  {@render sectionRow("Input", start, end, path, expanded, toggle, id, origin, actionsForRow)}
+                  <SectionRow
+                    {key}
+                    pane="Input"
+                    first={start}
+                    {end}
+                    {path}
+                    {expanded}
+                    selected={expanded ? inputSelected.has(start) : editing.selectedSection("Input", start, end)}
+                    pdfLabel={source.input.labels[start]}
+                    {id}
+                    payload={editing.inputPayload(start, end)}
+                    {transfer}
+                    touch={interaction.touchPointer}
+                    start={editing.start}
+                    {toggle}
+                    select={(event) => {
+                      editing.selectInput(start, event, expanded ? undefined : end)
+                      return () => editing.restoreInput(start)
+                    }}
+                    open={(event) => {
+                      view.set({ position: start })
+                      void interaction.toggleView("Input", event)
+                    }}
+                  >
+                    {#snippet origin()}{@render inputOrigin(start, `${key}-list-input-${start}`)}{/snippet}
+                    {#snippet actions()}
+                      {#if !draft.pages.length}{@render inputPageActions(start, end)}{/if}
+                      {@render inputPeek(start)}
+                    {/snippet}
+                  </SectionRow>
                 {/snippet}
                 {#snippet children(page, retained)}
                   <li
@@ -526,11 +499,11 @@
                       selected={inputSelected.has(page)}
                       touch={interaction.touchPointer}
                       {transfer}
-                      payload={commands.payload(page)}
-                      {start}
+                      payload={editing.inputPayload(page)}
+                      start={editing.start}
                       inspect={() => view.set({ position: page })}
-                      toggle={(range) => commands.toggle(page, range)}
-                      select={(event) => commands.selectRow(page, event)}
+                      toggle={(range) => editing.toggle(page, range)}
+                      select={(event) => editing.selectInputRow(page, event)}
                       open={(event) => void interaction.toggleView("Input", event)}
                     >
                       {#snippet origin()}{@render inputOrigin(page, `${key}-list-input-${page}`)}{/snippet}
@@ -552,8 +525,8 @@
               bind:offset={() => view.current.offset, (offset) => view.set({ offset })}
               bind:keyboard={() => interaction.usingKeyboard, (keyboard) => (interaction.usingKeyboard = keyboard)}
               selected={(position) => inputSelected.has(position)}
-              toggle={(page) => commands.toggle(page, false)}
-              edit={(action, page, end) => action === "add" && commands.focused(page, end)}
+              toggle={(page) => editing.toggle(page, false)}
+              edit={(action, page, end) => action === "add" && editing.commandInput(editing.focusedInput(page, end))}
             >
               {#snippet children(pages, headings, fold, folded)}
                 {#each pages as page, index (page)}
@@ -567,7 +540,7 @@
                       {
                         selected:
                           section && folded.has(section.key)
-                            ? commands.selectedSection(section.start, section.end)
+                            ? editing.selectedSection("Input", section.start, section.end)
                             : inputSelected.has(page),
                         "grid-section-card": !!section,
                         "grid-section-open": !!section && !folded.has(section.key),
@@ -577,10 +550,10 @@
                       interaction.returning.source === source.id &&
                       interaction.returning.page === page) ||
                       undefined}
-                    class:range-highlight={highlight?.kind === "source" &&
-                      highlight.source === source.id &&
-                      page >= highlight.first &&
-                      page <= highlight.last}
+                    class:range-highlight={editing.highlight?.kind === "source" &&
+                      editing.highlight.source === source.id &&
+                      page >= editing.highlight.first &&
+                      page <= editing.highlight.last}
                     data-tour-target={first ? "first-page" : undefined}
                     data-face={page % 2 === 0 ? "front" : "back"}
                     data-dragging={transfer.value?.kind === "source" &&
@@ -593,7 +566,16 @@
                     <div class="page-label">
                       {@render inputOrigin(page, detail)}
                       {#if section}
-                        {@render gridRibbon("Input", section, folded.has(section.key), fold)}
+                        <Ribbon
+                          {key}
+                          pane="Input"
+                          {section}
+                          folded={folded.has(section.key)}
+                          payload={editing.inputPayload(section.start, section.end)}
+                          {transfer}
+                          start={editing.start}
+                          {fold}
+                        />
                       {:else}<button
                           class="page-grip"
                           aria-label={`Select or drag Input page ${page + 1} to Output`}
@@ -603,19 +585,19 @@
                           onmousedown={retainFocus}
                           onclick={(event) => {
                             if (event instanceof PointerEvent && event.pointerType === "touch") return
-                            commands.toggle(page, event.shiftKey)
+                            editing.toggle(page, event.shiftKey)
                             view.set({ position: page })
                             interaction.focusPage(event.currentTarget)
                           }}
                           onpointerup={(event) => {
                             if (event.pointerType !== "touch" || !event.isPrimary || transfer.touching) return
                             transfer.suppressClick()
-                            commands.toggle(page, event.shiftKey)
+                            editing.toggle(page, event.shiftKey)
                             view.set({ position: page })
                             interaction.focusPage(event.currentTarget)
                           }}
-                          ondragstart={(event) => start(event, commands.payload(page))}
-                          onpointerdown={(event) => transfer.press(event, commands.payload(page))}
+                          ondragstart={(event) => editing.start(event, editing.inputPayload(page))}
+                          onpointerdown={(event) => transfer.press(event, editing.inputPayload(page))}
                           ondragend={() => transfer.end()}><Icon name="reorder" /></button
                         >{/if}
                       <button
@@ -636,7 +618,7 @@
                         ? `Select Input section ${section.path.join(" › ")}: pages ${section.start + 1}–${section.end}`
                         : `Select Input page ${page + 1}`}
                       aria-pressed={section && folded.has(section.key)
-                        ? commands.selectedSection(section.start, section.end)
+                        ? editing.selectedSection("Input", section.start, section.end)
                         : inputSelected.has(page)}
                       aria-describedby={destinations.length ? detail : undefined}
                       title={section && folded.has(section.key)
@@ -646,9 +628,9 @@
                       draggable="true"
                       onmousedown={retainFocus}
                       onclick={(event) =>
-                        commands.select(page, event, section && folded.has(section.key) ? section.end : undefined)}
-                      ondblclick={(event) => commands.doubleClick(page, event)}
-                      ondragstart={(event) => start(event, commands.payload(page))}
+                        editing.selectInput(page, event, section && folded.has(section.key) ? section.end : undefined)}
+                      ondblclick={(event) => editing.doubleClickInput(page, event)}
+                      ondragstart={(event) => editing.start(event, editing.inputPayload(page))}
                       ondragend={() => transfer.end()}
                     >
                       <Pdf
@@ -669,7 +651,7 @@
                         >{/if}
                       {#if !draft.pages.length}{@render inputPageActions(page, section?.end)}{/if}
                     </div>
-                    {@render pageFace(page)}
+                    <Face index={page} />
                   </li>
                 {/each}
               {/snippet}
