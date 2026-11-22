@@ -183,8 +183,8 @@
     if (text && source && source.id !== activeId) message += ` (${source.input.name})`
     return ++messageRevision
   }
-  function notify(text: string) {
-    header.notify(text)
+  function notify(text: string, details?: string) {
+    header.notify(text, details)
   }
   function error(text: string | string[]) {
     failure = text
@@ -583,12 +583,17 @@
         {hasProfiles}
         views={() => composer?.views() ?? { input: "grid", output: "grid" }}
         onboarding={(demo === null || demo === "empty") && !loading}
-        dismissed={() => notify("Install in Settings.")}
+        dismissed={() =>
+          notify(
+            "Install in Settings.",
+            "Open Settings and choose Install application whenever you want to install PDF Composer.",
+          )}
         change={(step) => {
           tour = step
         }}
         hint={(show) => {
-          if (show) notify(firstAction)
+          if (show)
+            notify(firstAction, "Select pages in Input, then choose + or drag them into Output to build your PDF.")
           else if (notice === firstAction) notify("")
         }}
       /><Settings

@@ -18,7 +18,7 @@
     notify,
   }: {
     value?: Alignment
-    notify: (text: string) => void
+    notify: (text: string, details?: string) => void
   } = $props()
   const key = $props.id()
   let draft = $state("")
@@ -90,7 +90,12 @@
         if (value !== captured || generation !== revision) return
       } else download.save(blob, name)
       value = undefined
-      notify(overwrite ? "Recipe overwritten." : "Updated recipe exported.")
+      notify(
+        overwrite ? "Recipe overwritten." : "Updated recipe exported.",
+        overwrite
+          ? "The selected recipe file now uses the updated PDF references."
+          : "A recipe copy with the updated PDF references has been downloaded.",
+      )
     } catch (reason) {
       await stream?.abort().catch(() => undefined)
       if (overwrite && !destination && reason instanceof DOMException && reason.name === "AbortError") return

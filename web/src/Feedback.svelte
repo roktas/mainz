@@ -7,6 +7,7 @@
   export type Report = {
     kind: "notice" | "progress" | "error"
     text?: string
+    summary?: string
     details?: string | string[]
     actions?: Snippet
     children?: Snippet
@@ -49,11 +50,18 @@
   const progressPunctuation = /(?:…|\.+)$/
   const progressText = $derived(kind === "progress" ? (text || summary)?.replace(progressPunctuation, "") : undefined)
   const label = $derived((summary || text)?.replace(kind === "progress" ? progressPunctuation : /(?<!\.)\.$/, ""))
-  const explanation = $derived(details || (summary && summary !== text ? (progressText ?? text) : undefined))
+  const explanation = $derived(
+    details ||
+      (summary && summary !== text
+        ? (progressText ?? text)
+        : menu && kind !== "progress" && actions
+          ? text
+          : undefined),
+  )
   const expandable = $derived(!visualOnly && (!!explanation || (menu && kind !== "progress" && !!actions)))
   const publish = useFeedback()
   $effect(() => {
-    const report = { kind, text: label, details: explanation, actions, children }
+    const report = { kind, text, summary, details, actions, children }
     // Registration updates the header owner without tracking its report list.
     if (header && active && (text || children)) return untrack(() => publish(report))
   })

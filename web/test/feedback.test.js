@@ -526,6 +526,10 @@ test(
         await notice.waitFor()
         await matrix(page, notice, "notice", () => page.clock.runFor(50))
         await notice.getByRole("status").getByRole("button").click()
+        assert.match(
+          await notice.locator(".message-details:popover-open p").innerText(),
+          /Open Settings and choose Install application/,
+        )
         await notice.getByRole("button", { name: "Dismiss notification", exact: true }).focus()
         await notice.getByRole("button", { name: "Dismiss notification", exact: true }).click()
         await page.locator(".header-actions .help-button:focus").waitFor()

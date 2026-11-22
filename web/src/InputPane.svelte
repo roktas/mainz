@@ -396,7 +396,12 @@
         </Selection>
         <div class="page-content">
           {#if transfer.warning && transfer.touching && transfer.value?.kind === "source" && interaction.activeView === "input"}
-            <Feedback header kind="notice" text="Move to Output." />
+            <Feedback
+              header
+              kind="notice"
+              text="Move to Output."
+              details="Drag onto the Output tab to place the selected pages in Output."
+            />
           {/if}
           {#if view.active === "page"}
             {#key source.id}<PageView

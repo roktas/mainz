@@ -2188,6 +2188,12 @@ test("Offline assets, scoped startup, and updates preserve a compatible workspac
     transient = false
     const installed = page.getByText("PDF Composer is ready for offline use", { exact: true })
     await installed.waitFor()
+    await installed.click()
+    assert.match(
+      await page.locator(".message-details:popover-open p").innerText(),
+      /Application files are saved on this device/,
+    )
+    await page.keyboard.press("Escape")
     assert.equal(await page.getByRole("banner").getByRole("status").count(), 1)
     const installedBox = await installed.boundingBox(),
       landingBox = await page.locator(".drop-zone").boundingBox()

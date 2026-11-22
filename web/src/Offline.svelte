@@ -12,16 +12,23 @@
     busy: boolean
     updating?: boolean
     status?: string
-    notify: (text: string) => void
+    notify: (text: string, details?: string) => void
     error: (text: string) => void
   } = $props()
   let waiting = $state<ServiceWorker>()
   const updateReady = $derived(busy ? "Update ready. Download and close your PDF." : "Update ready.")
+  const updateDetails = $derived(
+    busy
+      ? "A new application version is ready. Download your PDF and close it, then choose Update application."
+      : "A new application version is ready. Choose Update application in the footer to reload.",
+  )
+  const offlineReadyDetails =
+    "Application files are saved on this device. You can use PDF Composer without an internet connection."
   const installFailed = "Offline setup failed. Reload this page in a moment. If it keeps failing, report it."
-  function report(text: string, kind: "info" | "notice" | "error" = "info") {
+  function report(text: string, kind: "info" | "notice" | "error" = "info", details?: string) {
     notify("")
     status = kind === "info" ? text : ""
-    if (kind === "notice") notify(text)
+    if (kind === "notice") notify(text, details)
     if (kind === "error") error(text)
   }
   const changed = () => {
@@ -52,7 +59,11 @@
           if (!worker) return
           if (["installed", "activating", "activated"].includes(worker.state)) {
             waiting = value.active && value.waiting === worker ? worker : undefined
-            report(waiting ? updateReady : "PDF Composer is ready for offline use.", "notice")
+            report(
+              waiting ? updateReady : "PDF Composer is ready for offline use.",
+              "notice",
+              waiting ? updateDetails : offlineReadyDetails,
+            )
           } else if (worker.state === "redundant") report(installFailed, "error")
           else return
           stopWatching()
@@ -69,6 +80,7 @@
         report(
           waiting ? updateReady : value.active ? "" : "Installing offline application…",
           waiting ? "notice" : "info",
+          waiting ? updateDetails : undefined,
         )
         value.addEventListener("updatefound", observe)
         disconnect = () => {

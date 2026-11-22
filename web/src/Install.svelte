@@ -26,6 +26,7 @@
   let standalone = $state(false)
   let requesting = $state(false)
   let message = $state("")
+  let details = $state("")
   let failed = $state(false)
   let previous: Element | null = null
 
@@ -58,10 +59,15 @@
         choice.outcome === "accepted"
           ? "Installation requested. You can continue in this browser."
           : "You can continue in this browser."
+      details =
+        choice.outcome === "accepted"
+          ? "Your browser will finish installing PDF Composer in the background."
+          : "You can install PDF Composer later from Settings."
       remember()
     } catch {
       failed = true
       message = "Installation is unavailable. You can continue in this browser."
+      details = ""
     } finally {
       prompt = undefined
       requesting = false
@@ -73,6 +79,7 @@
   }
   function installed() {
     message = "App installed."
+    details = "PDF Composer is installed on this device and can open from your apps."
     prompt = undefined
     remember()
     pending = false
@@ -120,6 +127,7 @@
   header
   kind={failed ? "error" : "notice"}
   text={message}
+  details={failed ? undefined : details || undefined}
   summary={failed ? "Installation unavailable." : undefined}
 />
 

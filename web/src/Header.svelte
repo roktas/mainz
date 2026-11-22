@@ -41,10 +41,16 @@
   } = $props()
   const timers = new Set<ReturnType<typeof setTimeout>>()
   let noticeTimer: ReturnType<typeof setTimeout> | undefined
-  export function notify(text: string) {
+  let noticeDetails = $state("")
+  export function notify(text: string, details = "") {
     clearTimeout(noticeTimer)
     notice = text
-    if (text) noticeTimer = setTimeout(() => (notice = ""), 10000)
+    noticeDetails = text ? details : ""
+    if (text)
+      noticeTimer = setTimeout(() => {
+        notice = ""
+        noticeDetails = ""
+      }, 10000)
   }
   let reports = $state.raw<Report[]>([])
   const activeReport = $derived(
@@ -186,9 +192,7 @@
         kind="notice"
         class="notice"
         text={notice}
-        details={notice.startsWith("Update ready")
-          ? "A new application version is ready. Download your PDF and close it, then choose Update application."
-          : undefined}
+        details={noticeDetails || undefined}
       >
         {#snippet actions()}<button type="button" aria-label="Dismiss notification" onclick={() => notify("")}
             >Dismiss</button
