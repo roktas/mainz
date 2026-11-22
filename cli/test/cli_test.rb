@@ -215,6 +215,23 @@ module Mainz
       assert_empty(@directory.glob(".mainz-*"))
     end
 
+    def test_output_uses_private_permissions_and_rejects_dangling_symlinks
+      output = @directory.join("private.pdf")
+      result = command("reset", @prepared, "--output", output)
+      assert_equal({"ok" => true}, JSON.parse(result.stdout))
+      assert_equal(0o600, File.stat(output).mode & 0o777)
+
+      target = @directory.join("missing-target.pdf")
+      dangling = @directory.join("dangling.pdf")
+      File.symlink(target.to_s, dangling.to_s)
+      failure = command("reset", @prepared, "--output", dangling, status: 2)
+      refute_empty(failure.stderr)
+      assert_empty(failure.stdout)
+      refute_path_exists(target)
+      assert(File.symlink?(dangling))
+      assert_empty(@directory.glob(".mainz-*"))
+    end
+
     def test_interruptions_preserve_existing_output
       operations.each do |command, _input, options|
         %w[INT TERM].each do |signal|

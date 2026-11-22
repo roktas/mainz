@@ -55,5 +55,26 @@ module Mainz
         assert_equal("License.\n", entries["mainz-linux-x86_64/notices/license with spaces.txt"][1])
       end
     end
+
+    def test_archive_is_deterministic_and_preserves_existing_destination_on_failure
+      Dir.mktmpdir("archive-atomic-", Mainz.workspace("tmp/test/package").to_s) do |temporary|
+        directory = Pathname(temporary).join("mainz-linux-x86_64")
+        directory.join("notices").mkpath
+        directory.join("b.txt").write("second\n")
+        directory.join("a.txt").write("first\n")
+        first = Pathname(temporary).join("first.tar.gz")
+        second = Pathname(temporary).join("second.tar.gz")
+        Package.archive(directory, first)
+        sleep(1.1)
+        Package.archive(directory, second)
+        assert_equal(first.binread, second.binread)
+
+        original = first.binread
+        File.symlink("a.txt", directory.join("unsupported"))
+        assert_raises(RuntimeError) { Package.archive(directory, first) }
+        assert_equal(original, first.binread)
+        assert_empty(Pathname(temporary).glob(".first.tar.gz.*"))
+      end
+    end
   end
 end

@@ -239,6 +239,14 @@ module Mainz
       recipe["sources"]["source"]["input"] = "linked/book"
       command("apply", write("recipe.json", recipe), "--root", @directory, "--output", @output, status: 2)
       refute_path_exists(@output)
+      fifo = @directory.join("stream.pdf")
+      File.mkfifo(fifo.to_s)
+      recipe["inputs"] = {"stream" => {}}
+      recipe["sources"]["source"]["input"] = "stream"
+      Timeout.timeout(5) do
+        command("apply", write("recipe.json", recipe), "--root", @directory, "--output", @output, status: 2)
+      end
+      refute_path_exists(@output)
     end
 
     def test_cancellation_during_recipe_binding_preserves_files

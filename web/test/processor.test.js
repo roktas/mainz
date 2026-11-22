@@ -725,3 +725,66 @@ test(
     }
   },
 )
+
+test("Processor recovers from uncaught worker error and messageerror events", { timeout: 60000 }, async () => {
+  const server = await serve()
+  const browser = await launch(chromium)
+  try {
+    const page = await browser.newPage()
+    await page.addInitScript(() => {
+      window.workerEvents = []
+      const Original = Worker
+      window.Worker = class extends Original {
+        constructor(url, options) {
+          super(url, options)
+          window.lastWorker = this
+        }
+        postMessage(message, transfers) {
+          const eventName = window.workerEvents.shift()
+          if (eventName) {
+            queueMicrotask(() => {
+              this.dispatchEvent(
+                eventName === "error"
+                  ? new ErrorEvent("error", { message: "Simulated crash", cancelable: true })
+                  : new MessageEvent("messageerror"),
+              )
+            })
+            return
+          }
+          return super.postMessage(message, transfers)
+        }
+      }
+    })
+    await page.goto(server.resolvedUrls.local[0])
+    const result = await page.evaluate(
+      async (bytes) => {
+        const { Processor } = await import("/src/processor.ts")
+        const processor = new Processor()
+        const input = new Uint8Array(bytes)
+        try {
+          window.workerEvents.push("error", "messageerror")
+          const errors = []
+          for (const revision of [1, 2]) {
+            try {
+              await processor.run(input, revision)
+            } catch (error) {
+              errors.push(error.message)
+            }
+          }
+          const recovered = await processor.run(input, 3)
+          return { errors, pageCount: recovered.description.pageCount }
+        } finally {
+          processor.dispose()
+        }
+      },
+      [...fixture({ prepared: false, count: 2 })],
+    )
+    assert.deepEqual(result.errors, [
+      "PDF processing failed. Reload PDF Composer and try again.",
+      "PDF processing returned an unreadable result. Try the action again.",
+    ])
+    assert.equal(result.pageCount, 2)
+  } finally {
+    await browser.close()
+  }
+})

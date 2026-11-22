@@ -2062,6 +2062,38 @@ module Mainz
       assert_equal("invalid-contract", failure_code(unicode_blank))
     end
 
+    def test_malformed_pdf_structures_fail_with_pdf_syntax
+      truncated = file("truncated.pdf")
+      truncated.binwrite("%PDF-1.7\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
+      assert_equal("pdf-syntax", failure_code(truncated))
+
+      corrupt_xref = file("corrupt-xref.pdf")
+      corrupt_xref.binwrite(
+        "%PDF-1.7\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\nxref\n0 2\nnot-a-valid-xref-entry\ntrailer\n<< /Size 2 /Root 1 0 R >>\nstartxref\n56\n%%EOF\n"
+      )
+      assert_equal("pdf-syntax", failure_code(corrupt_xref))
+
+      cyclic = file("cyclic-pages.pdf")
+      fixture(
+        cyclic,
+        pdf_objects: -> (objects, _stream) {
+          objects[1] = "<< /Type /Pages /Kids [2 0 R] /Count 1 >>"
+          objects[2] = "<< /Type /Pages /Parent 2 0 R /Kids [2 0 R] /Count 1 >>"
+        }
+      )
+      assert_equal("pdf-syntax", failure_code(cyclic))
+
+      bad_flate = file("bad-flate.pdf")
+      garbage = "not valid zlib data at all"
+      fixture(
+        bad_flate,
+        pdf_objects: -> (objects, _stream) {
+          objects[4] = "<< /Filter /FlateDecode /Length #{garbage.bytesize} >>\nstream\n#{garbage}\nendstream"
+        }
+      )
+      assert_equal("pdf-syntax", failure_code(bad_flate))
+    end
+
     private
 
     def nested_fields(objects, _stream)

@@ -205,23 +205,38 @@ module Mainz
     end
 
     def archive(directory, destination)
-      Zlib::GzipWriter.open(destination.to_s) do |gzip|
-        Gem::Package::TarWriter.new(gzip) do |tar|
-          Find.find(directory.to_s) do |path|
-            name = Pathname(path).relative_path_from(directory.parent).to_s
-            stat = File.lstat(path)
-            mode = stat.mode & 0o7777
-            if stat.directory?
-              tar.mkdir(name, mode)
-            elsif stat.file?
-              tar.add_file_simple(name, mode, stat.size) do |entry|
-                File.open(path, "rb") { |file| IO.copy_stream(file, entry) }
+      destination.parent.mkpath
+      temporary = destination.parent.join(".#{destination.basename}.#{Process.pid}.#{object_id}.tmp")
+      previous_epoch = ENV["SOURCE_DATE_EPOCH"]
+      ENV["SOURCE_DATE_EPOCH"] = "0" if previous_epoch.nil?
+      begin
+        File.open(temporary.to_s, File::WRONLY | File::CREAT | File::EXCL | File::BINARY, 0o644) do |io|
+          Zlib::GzipWriter.wrap(io) do |gzip|
+            gzip.mtime = 0
+            Gem::Package::TarWriter.new(gzip) do |tar|
+              Find.find(directory.to_s).to_a.sort.each do |path|
+                name = Pathname(path).relative_path_from(directory.parent).to_s
+                stat = File.lstat(path)
+                mode = stat.mode & 0o7777
+                if stat.directory?
+                  tar.mkdir(name, mode)
+                elsif stat.file?
+                  tar.add_file_simple(name, mode, stat.size) do |entry|
+                    File.open(path, "rb") { |file| IO.copy_stream(file, entry) }
+                  end
+                else
+                  raise "Unsupported package member: #{path}"
+                end
               end
-            else
-              raise "Unsupported package member: #{path}"
             end
           end
         end
+        File.rename(temporary.to_s, destination.to_s)
+      rescue StandardError
+        FileUtils.rm_f(temporary)
+        raise
+      ensure
+        ENV["SOURCE_DATE_EPOCH"] = previous_epoch
       end
 
       destination
@@ -317,7 +332,7 @@ module Mainz
           platform: Mainz.run("uname", "-srm").strip,
           dependencies: dependencies,
           directDependencies: direct,
-          svgRuntimeVersions: %w[cairo librsvg-2.0 libxml-2.0].to_h { |name|
+          svgRuntimeVersions: %w[cairo librsvg-2.0 libxml-2.0 pangocairo fontconfig].to_h { |name|
             [name, Mainz.run("pkg-config", "--modversion", name).strip]
           },
           prefixes: prefixes.transform_values(&:to_s),
