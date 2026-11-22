@@ -428,8 +428,11 @@
           }
         }
         &:focus-visible {
-          border-color: var(--danger);
+          border-color: var(--secondary);
           outline: 2px solid transparent;
+        }
+        &.danger:focus-visible {
+          border-color: var(--danger);
         }
       }
     }

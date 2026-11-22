@@ -611,6 +611,16 @@ test(
         await page.locator(".composer[aria-busy=false]").waitFor()
         const input = page.locator(".selection-panel"),
           output = page.locator(".composition-output")
+        await output.getByRole("button", { name: "Set Output filename", exact: true }).click()
+        const emptyEditor = page.getByRole("dialog", { name: "Output filename", exact: true })
+        assert.equal(await emptyEditor.locator(".file-cover").count(), 0)
+        await emptyEditor.getByRole("textbox", { name: "Filename", exact: true }).fill("Early name.pdf")
+        await emptyEditor.getByRole("button", { name: "Save", exact: true }).click()
+        assert.equal(
+          await page.locator(".filename-panel:popover-open").count(),
+          0,
+          "Filename saves while Output is empty",
+        )
         await input.getByLabel("Page selection", { exact: true }).fill("1-4")
         await input.getByRole("button", { name: "Add to Output", exact: true }).click()
         const download = async () => {
@@ -999,9 +1009,9 @@ test(
         "Pointer opening does not outline Close",
       )
       assert.equal(
-        await settings.evaluate((dialog) => dialog.contains(document.activeElement)),
+        await settings.evaluate((dialog) => document.activeElement === dialog),
         true,
-        "Focus stays in Settings",
+        "Pointer opening focuses Settings drawer",
       )
       const decrease = settings.getByRole("button", { name: "Decrease lens magnification", exact: true })
       const increase = settings.getByRole("button", { name: "Increase lens magnification", exact: true })

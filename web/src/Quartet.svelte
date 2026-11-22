@@ -55,6 +55,8 @@
   let root: HTMLElement
   let panel = $state<HTMLDivElement>()
   let trigger: HTMLButtonElement | undefined
+  let anchored: HTMLButtonElement | undefined
+  let switching = false
   const floating = new MediaQuery("(width > 55rem) and (hover: hover) and (pointer: fine)")
   let active = $state<Setting["key"] | null>(null)
   const selected = $derived(components.find((part) => part.key === active))
@@ -63,8 +65,18 @@
     active = active === key ? null : key
   }
   $effect(() => {
-    if (floating.current && selected && panel && trigger) panel.showPopover({ source: trigger })
-    else if (panel?.matches(":popover-open")) panel.hidePopover()
+    if (floating.current && selected && panel && trigger) {
+      if (panel.matches(":popover-open") && anchored !== trigger) {
+        switching = true
+        panel.hidePopover()
+        switching = false
+      }
+      anchored = trigger
+      panel.showPopover({ source: trigger })
+    } else if (panel?.matches(":popover-open")) {
+      anchored = undefined
+      panel.hidePopover()
+    }
   })
   function summary(id: string): Summary {
     const initial = entry(id)
@@ -279,7 +291,10 @@
         role={floating.current ? "dialog" : undefined}
         aria-label={floating.current ? `${selected?.label ?? "Style"} editor` : undefined}
         ontoggle={(event) => {
-          if (event.newState === "closed" && floating.current) active = null
+          if (!switching && event.newState === "closed" && floating.current) {
+            anchored = undefined
+            active = null
+          }
         }}
       >
         {#if selected}{@render editor(selected)}{/if}

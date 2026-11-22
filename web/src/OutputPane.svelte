@@ -382,10 +382,11 @@
   {@const target = { kind: "individual" as const, first: index, end }}
   {@const enabled = !!commands.targets(target).length}
   {@const group = end > index + 1}
+  {@const targetLabel = group ? `Output section pages ${index + 1}–${end}` : `Output page ${index + 1}`}
   {#snippet move(offset: -1 | 1, menu = false)}
     <button
       class="icon-button move"
-      aria-label={`Move Output ${group ? `section pages ${index + 1}–${end}` : `page ${index + 1}`} ${offset < 0 ? "earlier" : "later"}`}
+      aria-label={`Move ${targetLabel} ${offset < 0 ? "earlier" : "later"}`}
       title={`Move ${group ? "section" : "page"} ${offset < 0 ? "earlier" : "later"}`}
       disabled={!enabled || (offset < 0 ? index === 0 : end === output.pages.length)}
       onclick={(event) => {
@@ -400,7 +401,7 @@
   {#snippet copies(menu = false)}
     <button
       class="icon-button"
-      aria-label={`Remove Output ${group ? `section pages ${index + 1}–${end}` : `page ${index + 1}`}`}
+      aria-label={`Remove ${targetLabel}`}
       title={group ? "Remove section" : "Remove this page"}
       disabled={!enabled}
       onclick={(event) => {
@@ -410,7 +411,7 @@
       ><Icon name="remove" />{#if menu}<span>Remove</span>{/if}</button
     ><button
       class="icon-button"
-      aria-label={`Duplicate Output ${group ? `section pages ${index + 1}–${end}` : `page ${index + 1}`}`}
+      aria-label={`Duplicate ${targetLabel}`}
       title={group ? "Add one adjacent copy of section" : "Add one adjacent copy"}
       disabled={!enabled}
       onclick={(event) => {
@@ -421,10 +422,10 @@
     >
   {/snippet}
   {#snippet pairs()}
-    <div class="occurrence-moves" role="group" aria-label={`Move Output page ${index + 1}`}>
+    <div class="occurrence-moves" role="group" aria-label={`Move ${targetLabel}`}>
       {@render move(-1)}{@render move(1)}
     </div>
-    <div class="occurrence-copies" role="group" aria-label={`Remove or duplicate Output page ${index + 1}`}>
+    <div class="occurrence-copies" role="group" aria-label={`Remove or duplicate ${targetLabel}`}>
       {@render copies()}
     </div>
   {/snippet}
@@ -434,11 +435,17 @@
         {@const menuId = `${key}-${page.id}-actions`}
         <button
           class="list-edit-trigger icon-button"
-          aria-label={`Actions for Output page ${index + 1}`}
+          aria-label={`Actions for ${targetLabel}`}
           title="Page actions"
           popovertarget={menuId}><Icon name="more" /></button
         >
-        <div id={menuId} class="list-edit-options" popover="auto" aria-label={`Actions for Output page ${index + 1}`}>
+        <div
+          id={menuId}
+          class="list-edit-options"
+          role="group"
+          popover="auto"
+          aria-label={`Actions for ${targetLabel}`}
+        >
           {@render move(-1, true)}{@render move(1, true)}{@render copies(true)}
         </div>
       {:else if view.active === "grid"}<span class="card-inline-actions">{@render pairs()}</span>

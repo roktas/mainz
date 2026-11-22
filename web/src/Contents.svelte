@@ -103,6 +103,7 @@
   {id}
   bind:this={panel}
   class="contents"
+  role="dialog"
   popover="auto"
   aria-label="Input contents"
   onbeforetoggle={(event) => {

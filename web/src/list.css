@@ -312,6 +312,9 @@
       }
       & .list-inline-actions {
         display: block;
+        &:empty {
+          display: none;
+        }
       }
       & .list-pdf-label {
         grid-column: label;

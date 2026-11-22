@@ -81,30 +81,43 @@
     opening = undefined
     hovering = false
   }
+  $effect(() => {
+    if (!hovering && !pinned && opening === undefined) return
+    const controller = new AbortController()
+    const { signal } = controller
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Escape") {
+          pinned = false
+          leave()
+        }
+      },
+      { signal },
+    )
+    window.addEventListener(
+      "scroll",
+      (event) => {
+        if (!details?.contains(event.target as Node)) leave()
+      },
+      { capture: true, signal },
+    )
+    window.addEventListener("resize", leave, { signal })
+    window.addEventListener("blur", leave, { signal })
+    document.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (!details?.contains(event.target as Node)) {
+          pinned = false
+          leave()
+        }
+      },
+      { signal },
+    )
+    return () => controller.abort()
+  })
   onDestroy(() => clearTimeout(opening))
 </script>
-
-<svelte:window
-  onkeydown={(event) => {
-    if (event.key === "Escape") {
-      pinned = false
-      leave()
-    }
-  }}
-  onscrollcapture={(event) => {
-    if (!details?.contains(event.target as Node)) leave()
-  }}
-  onresize={leave}
-  onblur={leave}
-/>
-<svelte:document
-  onpointerdown={(event) => {
-    if (!details?.contains(event.target as Node)) {
-      pinned = false
-      leave()
-    }
-  }}
-/>
 
 {#snippet information()}
   <!-- Escape closes information before its enclosing editor. -->
@@ -176,9 +189,15 @@
 <article class={["control", { compact }]} aria-labelledby={`${key}-title`}>
   <div class="control-label">
     <div>
-      {#if property === "display"}<span id={`${key}-title`} aria-label={title}>{caption ?? title}</span>
-      {:else}<label id={`${key}-title`} for={`${key}-input`} aria-label={`${title}${unit ? ` (${unit})` : ""}`}
-          >{caption ?? title}{unit ? ` (${unit})` : ""}</label
+      {#if property === "display"}<span id={`${key}-title`}
+          >{#if caption && caption !== title}<span class="visually-hidden">{title}</span><span aria-hidden="true"
+              >{caption}</span
+            >{:else}{title}{/if}</span
+        >
+      {:else}<label id={`${key}-title`} for={`${key}-input`}
+          >{#if caption && caption !== title}<span class="visually-hidden">{title}{unit ? ` (${unit})` : ""}</span><span
+              aria-hidden="true">{caption}{unit ? ` (${unit})` : ""}</span
+            >{:else}{title}{unit ? ` (${unit})` : ""}{/if}</label
         >{/if}
       {#if schema.description}<span id={`${key}-description`} class="control-description">
           {schema.description}

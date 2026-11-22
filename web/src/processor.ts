@@ -115,8 +115,11 @@ export class Processor {
         const active = this.active
         this.active = undefined
         if ("failure" in reply) {
+          this.buffer = undefined
+          this.previewInput = undefined
           active.reject(new OperationError(reply.failure))
-          this.dispose()
+          if (idle.size > 0) this.dispose()
+          else idle.add(this)
           return
         }
         this.buffer = active.buffer

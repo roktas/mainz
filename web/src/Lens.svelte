@@ -29,6 +29,7 @@
   } = $props()
   let point = $state<{ x: number; y: number; left: number; top: number; size: number }>()
   let refining = $state(false)
+  let watching = $state(false)
   let opening: ReturnType<typeof setTimeout> | undefined
   let pointer: { x: number; y: number } | undefined
   let finger: { id: number; x: number; y: number; startX: number; startY: number } | undefined
@@ -40,12 +41,14 @@
     pointer = undefined
     finger = undefined
     holding = false
+    watching = false
   }
   function touchStart(event: TouchEvent) {
     dismiss()
     if (rendering || event.touches.length !== 1) return
     const touch = event.touches[0]
     finger = { id: touch.identifier, x: touch.clientX, y: touch.clientY, startX: touch.clientX, startY: touch.clientY }
+    watching = true
     opening = setTimeout(() => {
       opening = undefined
       if (!finger) return
@@ -97,7 +100,6 @@
     target.addEventListener("touchmove", touchMove, { passive: false })
     target.addEventListener("touchend", touchEnd, { passive: false })
     target.addEventListener("touchcancel", touchEnd)
-    document.addEventListener("scroll", dismiss, true)
     return () => {
       target.removeEventListener("pointermove", inspect)
       target.removeEventListener("pointerleave", leave)
@@ -107,15 +109,38 @@
       target.removeEventListener("touchmove", touchMove)
       target.removeEventListener("touchend", touchEnd)
       target.removeEventListener("touchcancel", touchEnd)
-      document.removeEventListener("scroll", dismiss, true)
       dismiss()
     }
   }
+  $effect(() => {
+    if (!point && !watching) return
+    const controller = new AbortController()
+    const { signal } = controller
+    window.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (finger && !event.isPrimary) dismiss()
+      },
+      { signal },
+    )
+    window.addEventListener("blur", dismiss, { signal })
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Escape") dismiss()
+      },
+      { signal },
+    )
+    window.addEventListener("resize", dismiss, { signal })
+    document.addEventListener("scroll", dismiss, { capture: true, signal })
+    return () => controller.abort()
+  })
   $effect(() => {
     if (rendering) {
       const waiting = pointer
       dismiss()
       pointer = waiting
+      watching = !!waiting
     } else if (pointer && canvas?.matches(":hover")) hover()
   })
   function refine(target: HTMLCanvasElement) {
@@ -127,6 +152,7 @@
     const density = Math.min(devicePixelRatio, 2),
       bounds = target.getBoundingClientRect(),
       original = image.getBoundingClientRect()
+    if (!bounds.width || !bounds.height || !original.width || !original.height) return
     const width = Math.ceil(bounds.width * density),
       height = Math.ceil(bounds.height * density)
     if (target.width !== width) target.width = width
@@ -234,12 +260,14 @@
     )
       return
     pointer = { x: event.clientX, y: event.clientY }
+    watching = true
     if (rendering) return
     if (point) return show(event.clientX, event.clientY)
     hover()
   }
   function hover() {
     clearTimeout(opening)
+    watching = true
     opening = setTimeout(() => {
       opening = undefined
       if (pointer) show(pointer.x, pointer.y)
@@ -249,6 +277,7 @@
     if (!canvas || !pdf || rendering) return
     const bounds = canvas.getBoundingClientRect(),
       width = Math.max(0, Math.min(320, innerWidth - 24, innerHeight - 24))
+    if (!bounds.width || !bounds.height) return
     point = {
       x: Math.max(0, Math.min(1, (x - bounds.left) / bounds.width)),
       y: Math.max(0, Math.min(1, (y - bounds.top) / bounds.height)),
@@ -266,16 +295,6 @@
   }
 </script>
 
-<svelte:window
-  onpointerdown={(event) => {
-    if (finger && !event.isPrimary) dismiss()
-  }}
-  onblur={dismiss}
-  onkeydown={(event) => {
-    if (event.key === "Escape") dismiss()
-  }}
-  onresize={dismiss}
-/>
 <span hidden {@attach observe}></span>
 
 {#if point}

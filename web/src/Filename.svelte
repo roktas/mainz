@@ -33,16 +33,17 @@
   let coverDraft = $state<number | undefined>(1)
   let picture = $state("")
   let revision = 0
-  const identityError = $derived(
-    titleError(titleDraft) ||
-      (!Number.isSafeInteger(coverDraft) || coverDraft! < 1 || coverDraft! > pages
-        ? `Choose a cover page from 1 to ${pages}.`
-        : ""),
+  const titleIssue = $derived(titleError(titleDraft))
+  const coverIssue = $derived(
+    pages > 0 && (!Number.isSafeInteger(coverDraft) || coverDraft! < 1 || coverDraft! > pages)
+      ? `Choose a cover page from 1 to ${pages}.`
+      : "",
   )
+  const identityError = $derived(titleIssue || coverIssue)
   async function renderCover() {
     const generation = ++revision
     picture = ""
-    if (identityError) return
+    if (!pages || coverIssue) return
     try {
       const png = await preview(coverDraft!)
       if (generation === revision) picture = png
@@ -66,7 +67,7 @@
     const text = draft.trim()
     value = text === suggested ? "" : filename(text, ".pdf")
     title = titleDraft.trim() === suggestedTitle ? "" : titleDraft.trim()
-    coverPage = coverDraft!
+    if (pages > 0 && coverDraft !== undefined) coverPage = coverDraft
     panel.hidePopover()
   }
 </script>
@@ -74,6 +75,7 @@
 <div
   bind:this={panel}
   class="filename-panel"
+  role="dialog"
   popover="auto"
   aria-labelledby={`${key}-title`}
   ontoggle={(event) => (opened = event.newState === "open")}
@@ -104,39 +106,41 @@
     </div>
     <Feedback header active={opened} kind="error" text={error} summary="Check the filename." id={`${key}-error`} />
     <label for={`${key}-document-title`}>Title</label>
-    <div class="entry">
+    <div class={["entry", { invalid: !!titleIssue }]}>
       <input
         id={`${key}-document-title`}
         type="text"
         bind:value={titleDraft}
         required
-        aria-invalid={!!titleError(titleDraft)}
-        aria-describedby={`${key}-identity-error`}
+        aria-invalid={!!titleIssue}
+        aria-describedby={identityError ? `${key}-identity-error` : undefined}
       />
     </div>
-    <div class="file-cover">
-      <div class="file-cover-image">
-        {#if picture}<img src={picture} alt={`Cover · page ${coverDraft}`} />{/if}
-      </div>
-      <div class="file-cover-field">
-        <label for={`${key}-cover`}>Cover page</label>
-        <div class="entry">
-          <input
-            id={`${key}-cover`}
-            type="number"
-            min="1"
-            max={pages}
-            step="1"
-            bind:value={coverDraft}
-            aria-invalid={!!identityError && !titleError(titleDraft)}
-            aria-describedby={`${key}-identity-error`}
-            onchange={() => void renderCover()}
-            required
-          />
+    {#if pages > 0}
+      <div class="file-cover">
+        <div class="file-cover-image">
+          {#if picture}<img src={picture} alt={`Cover · page ${coverDraft}`} />{/if}
         </div>
-        <p class="control-description">The first page is the default cover.</p>
+        <div class="file-cover-field">
+          <label for={`${key}-cover`}>Cover page</label>
+          <div class={["entry", { invalid: !!coverIssue }]}>
+            <input
+              id={`${key}-cover`}
+              type="number"
+              min="1"
+              max={pages}
+              step="1"
+              bind:value={coverDraft}
+              aria-invalid={!!coverIssue}
+              aria-describedby={identityError ? `${key}-identity-error` : undefined}
+              onchange={() => void renderCover()}
+              required
+            />
+          </div>
+          <p class="control-description">The first page is the default cover.</p>
+        </div>
       </div>
-    </div>
+    {/if}
     <Feedback
       header
       active={opened}

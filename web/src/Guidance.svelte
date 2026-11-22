@@ -44,17 +44,18 @@
   >
   <!-- Text clicks must not activate an enclosing disclosure; Close keeps its native action. -->
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_click_events_have_key_events -->
-  <span
+  <svelte:element
+    this={fields ? "div" : "span"}
     role="region"
     id={`${key}-details`}
     class="guidance"
     popover="auto"
     tabindex="-1"
     aria-labelledby={`${key}-title`}
-    onclick={(event) => {
+    onclick={(event: MouseEvent) => {
       if (!(event.target as Element).closest("button")) event.preventDefault()
     }}
-    ontoggle={(event) => {
+    ontoggle={(event: ToggleEvent & { currentTarget: HTMLElement }) => {
       if (event.newState === "open") {
         event.currentTarget.scrollTop = 0
         // The opening event can arrive after focus has entered a control.
@@ -84,5 +85,5 @@
         </tbody>
       </table>
     {:else}<span class="guidance-text">{details}</span>{/if}
-  </span>
+  </svelte:element>
 {/if}

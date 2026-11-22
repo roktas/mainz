@@ -269,6 +269,17 @@ test("List strips stay flat and follow their original grab point", { timeout: 30
   try {
     const { page, input } = await lists(browser, server.resolvedUrls.local[0], { reducedMotion: "no-preference" })
     const selection = input.getByRole("textbox", { name: "Page selection", exact: true })
+    await selection.fill("1")
+    assert.equal(
+      await input.locator('.list-row:has(.list-choice[data-page="1"]) button[aria-label^="Add Input"]').count(),
+      0,
+      "Unselected Input rows hide individual add buttons while a selection is active",
+    )
+    assert.equal(
+      await input.locator(".page-list > .scroll-controls").count(),
+      0,
+      "Scroll controls stay outside list containers",
+    )
     await selection.fill("")
     const grip = input.locator('.list-row:has(.list-choice[data-page="1"]) .page-grip'),
       bounds = await grip.boundingBox(),

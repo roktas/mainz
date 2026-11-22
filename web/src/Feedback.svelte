@@ -102,6 +102,7 @@
     {#if expandable}<div
         id={`${key}-details`}
         class="message-details"
+        role="region"
         popover="auto"
         aria-label={explanation ? "Message details" : "Message actions"}
       >

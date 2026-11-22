@@ -24,18 +24,19 @@
       behavior: "instant",
     })
   }
+  // Viewport pan and touch gestures must not capture scroll-control activation.
+  function stopScrollControlEvent(event: Event) {
+    if (event.type === "pointerdown") event.preventDefault()
+    event.stopPropagation()
+  }
   function present(element: HTMLElement, owner: HTMLElement) {
-    owner.append(element)
+    const host = owner.closest<HTMLElement>("dialog:modal") ?? document.getElementById("app")!
+    host.append(element)
     element.showPopover()
-    // Viewport pan and touch gestures must not capture scroll-control activation.
-    const stop = (event: Event) => {
-      if (event.type === "pointerdown") event.preventDefault()
-      event.stopPropagation()
-    }
     const events = ["pointerdown", "touchstart", "touchend", "dblclick"]
-    for (const name of events) element.addEventListener(name, stop)
+    for (const name of events) element.addEventListener(name, stopScrollControlEvent)
     return () => {
-      for (const name of events) element.removeEventListener(name, stop)
+      for (const name of events) element.removeEventListener(name, stopScrollControlEvent)
       element.remove()
     }
   }

@@ -38,6 +38,7 @@
 <dialog
   bind:this={settingsDialog}
   class="settings-drawer"
+  tabindex="-1"
   data-workspace={workspace}
   aria-labelledby="settings-title"
   closedby="any"

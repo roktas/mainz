@@ -534,7 +534,7 @@
                       open={(event) => void interaction.toggleView("Input", event)}
                     >
                       {#snippet origin()}{@render inputOrigin(page, `${key}-list-input-${page}`)}{/snippet}
-                      {#snippet actions()}{@render inputPageActions(page)}{/snippet}
+                      {#snippet actions()}{#if !draft.pages.length}{@render inputPageActions(page)}{/if}{/snippet}
                       {#snippet preview()}{@render inputPeek(page)}{/snippet}
                     </Row>
                   </li>
