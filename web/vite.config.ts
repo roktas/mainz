@@ -1,0 +1,381 @@
+import { defineConfig, transformWithOxc } from "vite"
+import { svelte } from "@sveltejs/vite-plugin-svelte"
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs"
+import { createHash } from "node:crypto"
+import { execFileSync } from "node:child_process"
+import { dirname, join, resolve } from "node:path"
+import { homedir } from "node:os"
+
+const version = readFileSync(resolve("../VERSION"), "utf8").trim()
+const now = new Date()
+const builtAt = now.toISOString()
+const clock = Object.fromEntries(
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Istanbul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    fractionalSecondDigits: 2,
+    hourCycle: "h23",
+  })
+    .formatToParts(now)
+    .map(({ type, value }) => [type, value]),
+)
+const buildId = `${clock.year}-${clock.month}${clock.day}-${clock.hour}${clock.minute}-${clock.second}${clock.fractionalSecond}`
+let revision = ""
+try {
+  revision = execFileSync("git", ["rev-parse", "--short=7", "HEAD"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  }).trim()
+} catch {
+  /* Source archives can build without Git metadata. */
+}
+const wasm = resolve(process.env.MAINZ_WASM_DIR ?? "../.local/var/package/wasm")
+const cache = process.platform === "darwin" ? join(homedir(), "Library/Caches/Mainz") : join(homedir(), ".cache/mainz")
+let outputDirectory = resolve("../.local/var/js/dist")
+const examples = new Map([
+  ["dolor.pdf", "test/fixtures/dolor.pdf"],
+  ["nulla.json", "test/fixtures/recipe/nulla.json"],
+  ["recipe/minim.pdf", "test/fixtures/recipe/minim.pdf"],
+  ["recipe/culpa.pdf", "test/fixtures/recipe/culpa.pdf"],
+  ["toc/lorem.pdf", "test/fixtures/toc/lorem.pdf"],
+  ["toc/ipsum.pdf", "test/fixtures/toc/ipsum.pdf"],
+])
+const screencasts: { id: string }[] = JSON.parse(readFileSync("public/help/catalog.json", "utf8"))
+
+function prepare() {
+  if (!existsSync(`${wasm}/provenance.json`))
+    throw new Error(`Mainz WASM package is required at ${wasm}. Build roktas/mainz or set MAINZ_WASM_DIR.`)
+  const provenanceBytes = readFileSync(`${wasm}/provenance.json`)
+  const provenance = JSON.parse(provenanceBytes.toString("utf8"))
+  const files = new Map<string, Buffer>()
+  for (const name of ["processor.mjs", "processor.wasm"]) {
+    const bytes = readFileSync(`${wasm}/${name}`)
+    if (createHash("sha256").update(bytes).digest("hex") !== provenance.files?.[name])
+      throw new Error(`Mainz package digest mismatch: ${name}`)
+    files.set(name, bytes)
+  }
+  for (const name of ["mainz.txt", "qpdf.txt", "qpdf-notice.txt", "emscripten.txt", "zlib.txt", "jpeg.txt"])
+    if (!existsSync(`${wasm}/notices/${name}`) || !statSync(`${wasm}/notices/${name}`).isFile())
+      throw new Error(`Mainz package license notice is required: ${name}`)
+  const loader = files.get("processor.mjs")!.toString("utf8")
+  for (const name of [
+    "_mainz_input",
+    "_mainz_clear_inputs",
+    "_mainz_compose",
+    "_mainz_recipe_inputs",
+    "_mainz_resolve_recipe",
+    "_mainz_provenance",
+    "_mainz_provenance_size",
+    "_mainz_read",
+    "_mainz_describe",
+    "_mainz_reset",
+    "_mainz_extract",
+    "_mainz_close",
+    "_mainz_result",
+    "_mainz_size",
+    "_mainz_status",
+    "_mainz_reference",
+    "_mainz_check_recipe_input",
+    "_mainz_style",
+    "_mainz_fingerprint",
+    "_mainz_preview",
+  ])
+    if (!new RegExp(`\\b${name}\\b`).test(loader))
+      throw new Error(`Mainz WASM package is missing ${name}. Rebuild the package.`)
+  const contents = new Map<string, Buffer>()
+  function collect(source: string, destination: string) {
+    if (statSync(source).isDirectory()) {
+      for (const name of readdirSync(source)) collect(join(source, name), join(destination, name))
+    } else contents.set(destination, readFileSync(source))
+  }
+  collect("public", "")
+  for (const [path, source] of examples) collect(source, path)
+  collect("node_modules/pdfjs-dist/build/pdf.worker.mjs", "pdfjs/pdf.worker.mjs")
+  for (const name of ["cmaps", "standard_fonts", "iccs", "wasm"])
+    collect(`node_modules/pdfjs-dist/${name}`, `pdfjs/${name}`)
+  for (const [name, bytes] of files) contents.set(name, bytes)
+  contents.set("provenance.json", provenanceBytes)
+  collect(`${wasm}/notices`, "notices")
+  collect("node_modules/pdfjs-dist/LICENSE", "pdfjs/LICENSE")
+  collect("node_modules/svelte/LICENSE.md", "notices/svelte.txt")
+  contents.set(
+    "manifest.webmanifest",
+    Buffer.from(
+      JSON.stringify({
+        name: "PDF Composer",
+        short_name: "PDF Composer",
+        description: "Select, copy, and arrange PDF pages. Style prepared PDFs on your device.",
+        start_url: "./",
+        scope: "./",
+        display: "standalone",
+        theme_color: "#800080",
+        background_color: "#ffffff",
+        icons: [
+          { src: "icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+        ],
+      }),
+    ),
+  )
+  const hash = createHash("sha256")
+  for (const name of [...contents.keys()].toSorted()) {
+    const bytes = contents.get(name)!
+    hash.update(JSON.stringify([name, bytes.length])).update(bytes)
+  }
+  const assets = resolve("../.local/tmp/web/assets", hash.digest("hex").slice(0, 16))
+  if (!existsSync(assets)) {
+    mkdirSync(dirname(assets), { recursive: true })
+    const staging = mkdtempSync(join(dirname(assets), "stage-"))
+    try {
+      for (const [name, bytes] of contents) {
+        const target = resolve(staging, name)
+        mkdirSync(dirname(target), { recursive: true })
+        writeFileSync(target, bytes)
+      }
+      try {
+        // Publish a complete snapshot; another process may have published the same bytes first.
+        renameSync(staging, assets)
+      } catch (error) {
+        if (!["EEXIST", "ENOTEMPTY"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error
+      }
+    } finally {
+      rmSync(staging, { recursive: true, force: true })
+    }
+  }
+  for (const path of (readdirSync(assets, { recursive: true }) as string[]).toSorted((a, b) => b.length - a.length)) {
+    const file = resolve(assets, path)
+    if (statSync(file).isDirectory()) {
+      if (!readdirSync(file).length) rmSync(file, { recursive: true })
+    } else if (!contents.has(path)) rmSync(file)
+  }
+  return assets
+}
+function hashScript(code: string) {
+  return `'sha256-${createHash("sha256").update(code, "utf8").digest("base64")}'`
+}
+const assets = prepare()
+
+export default defineConfig({
+  base: "./",
+  build: {
+    outDir: outputDirectory,
+    emptyOutDir: true,
+    cssTarget: ["chrome125", "safari17.5", "firefox128"],
+    rolldownOptions: { input: ["index.html", "help.html"] },
+  },
+  cacheDir: join(cache, "vite", createHash("sha256").update(resolve(".")).digest("hex").slice(0, 16)),
+  publicDir: assets,
+  define: {
+    "import.meta.env.VERSION": JSON.stringify(version),
+    "import.meta.env.BUILD_ID": JSON.stringify(buildId),
+    "import.meta.env.BUILD_TIME": JSON.stringify(builtAt),
+    "import.meta.env.BUILD_REVISION": JSON.stringify(revision),
+  },
+  plugins: [
+    svelte(),
+    {
+      name: "screencast-pages",
+      configureServer(server) {
+        server.middlewares.use((request, response, next) => {
+          const path = request.url?.split("?")[0]
+          const prefix = `${server.config.base}help`
+          if (path !== prefix && !path?.startsWith(`${prefix}/`)) return next()
+          const name = path.slice(prefix.length).replace(/^\//, "").replace(/\/$/, "")
+          if (name && !screencasts.some((screencast) => screencast.id === name)) return next()
+          if (!path.endsWith("/")) {
+            response.writeHead(308, {
+              Location: `${path}/${request.url?.includes("?") ? request.url.slice(request.url.indexOf("?")) : ""}`,
+            })
+            response.end()
+            return
+          }
+          void server.transformIndexHtml("/help.html", readFileSync("help.html", "utf8"), request.url).then((html) => {
+            response.setHeader("Content-Type", "text/html")
+            response.end(html)
+          }, next)
+        })
+      },
+    },
+    {
+      name: "grid-fixture",
+      transformIndexHtml(html, context) {
+        return context.server &&
+          new URL(context.originalUrl ?? context.path, "http://localhost").searchParams.has("geometry")
+          ? html.replace('manifest.webmanifest"', 'manifest.webmanifest?geometry"')
+          : html
+      },
+      configureServer(server) {
+        server.middlewares.use((request, response, next) => {
+          const pathname = request.url?.split("?")[0]
+          const prefix = `${server.config.base}checks/`
+          if (pathname?.startsWith(prefix)) {
+            const name = pathname.slice(prefix.length)
+            if (!/^[a-z]+\.(json|pdf)$/.test(name)) {
+              response.statusCode = 404
+              response.end("Unknown Recipe fixture.")
+              return
+            }
+            const file = resolve("../.local/var/fixtures/recipe", name)
+            if (!existsSync(file)) {
+              response.statusCode = 404
+              response.end("Build the Recipe fixtures with bundle exec rake fixtures:recipe.")
+              return
+            }
+            response.setHeader("Content-Type", name.endsWith(".pdf") ? "application/pdf" : "application/json")
+            response.setHeader("Cache-Control", "no-store")
+            response.end(readFileSync(file))
+            return
+          }
+          if (request.url === `${server.config.base}manifest.webmanifest?geometry`) {
+            const manifest = JSON.parse(readFileSync(join(assets, "manifest.webmanifest"), "utf8"))
+            response.setHeader("Content-Type", "application/manifest+json")
+            response.setHeader("Cache-Control", "no-store")
+            response.end(
+              JSON.stringify({
+                ...manifest,
+                id: "./?geometry",
+                name: "Mainz geometry",
+                short_name: "Mainz geometry",
+                start_url: "./?demo=grid&geometry",
+              }),
+            )
+            return
+          }
+          if (request.url?.split("?")[0] !== `${server.config.base}magna.pdf`) return next()
+          const file = resolve("../.local/var/fixtures/magna.pdf")
+          if (!existsSync(file)) {
+            response.statusCode = 404
+            response.end("The Grid demo PDF is unavailable.")
+            return
+          }
+          response.setHeader("Content-Type", "application/pdf")
+          response.setHeader("Cache-Control", "no-store")
+          response.end(readFileSync(file))
+        })
+      },
+    },
+    {
+      name: "mainz-assets",
+      transformIndexHtml: {
+        order: "post",
+        handler(html, context) {
+          if (!context.bundle) return
+          const tags: {
+            tag: string
+            attrs?: Record<string, string>
+            children?: string
+            injectTo: "head" | "head-prepend"
+          }[] = []
+          const scriptHashes = new Set<string>()
+          for (const match of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi))
+            if (match[1]) scriptHashes.add(hashScript(match[1]))
+          if (context.path.endsWith("/index.html")) {
+            const entry = Object.values(context.bundle).find(
+              (file) => file.type === "chunk" && file.isEntry && file.facadeModuleId === context.filename,
+            )
+            if (entry && entry.type === "chunk") {
+              const files = new Set(entry.dynamicImports)
+              for (const name of files) {
+                const chunk = context.bundle[name]
+                if (chunk?.type === "chunk") {
+                  for (const dependency of chunk.imports) files.add(dependency)
+                  for (const stylesheet of chunk.viteMetadata?.importedCss ?? []) files.add(stylesheet)
+                }
+              }
+              const preload = `if (window.mainzSupported) {
+              const entry = document.querySelector('script[type="module"][src$="${entry.fileName}"]')
+              for (const file of ${JSON.stringify([...files].filter((file) => file !== entry.fileName && !entry.imports.includes(file)))}) {
+                const link = document.createElement("link")
+                link.rel = file.endsWith(".css") ? "preload" : "modulepreload"
+                if (file.endsWith(".css")) link.as = "style"
+                link.crossOrigin = ""
+                link.href = new URL("../" + file, entry.src).href
+                document.head.append(link)
+              }
+            }`
+              scriptHashes.add(hashScript(preload))
+              tags.push({ tag: "script", injectTo: "head", children: preload })
+            }
+          }
+          const policy = [
+            "default-src 'self'",
+            `script-src 'self' 'wasm-unsafe-eval' ${[...scriptHashes].join(" ")}`.trim(),
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' blob: data:",
+            "media-src 'self'",
+            "font-src 'self' data:",
+            "connect-src 'self' blob: data:",
+            "worker-src 'self' blob:",
+            "frame-src 'self' blob:",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+          ].join("; ")
+          tags.push({
+            tag: "meta",
+            attrs: { "http-equiv": "Content-Security-Policy", content: policy },
+            injectTo: "head-prepend",
+          })
+          return tags
+        },
+      },
+      configResolved(config) {
+        outputDirectory = resolve(config.build.outDir)
+      },
+      async closeBundle() {
+        const html = readFileSync(resolve(outputDirectory, "help.html"), "utf8")
+        for (const id of ["", ...screencasts.map((screencast) => screencast.id)]) {
+          const directory = resolve(outputDirectory, "help", id)
+          mkdirSync(directory, { recursive: true })
+          writeFileSync(resolve(directory, "index.html"), html)
+          if (id) writeFileSync(resolve(outputDirectory, "help", `${id}.html`), html)
+        }
+        const files = (readdirSync(outputDirectory, { recursive: true }) as string[])
+          .filter(
+            (path) =>
+              statSync(resolve(outputDirectory, path)).isFile() &&
+              path !== "sw.js" &&
+              path !== "CNAME" &&
+              path !== "icon.svg" &&
+              !/^help(?:\/|\.html$)/.test(path),
+          )
+          .toSorted()
+        const { code: source } = await transformWithOxc(
+          readFileSync("src/offline.worker.ts", "utf8"),
+          "src/offline.worker.ts",
+        )
+        const hash = createHash("sha256").update(source)
+        const list = files.map((path) => {
+          const bytes = readFileSync(resolve(outputDirectory, path))
+          hash.update(path).update(bytes)
+          return { path, sha256: createHash("sha256").update(bytes).digest("hex"), bytes: bytes.length }
+        })
+        const optional = list.filter((file) => examples.has(file.path))
+        if (
+          optional.some((file) => file.bytes > (file.path.endsWith(".pdf") ? 2 * 1024 * 1024 : 1024 * 1024)) ||
+          optional.reduce((total, file) => total + file.bytes, 0) > 4 * 1024 * 1024
+        )
+          throw new Error("Demo assets exceed their PDF (2 MiB), Recipe (1 MiB), or total (4 MiB) budget.")
+        writeFileSync(
+          resolve(outputDirectory, "sw.js"),
+          `const VERSION = '${hash.digest("hex")}';\nconst ASSETS = ${JSON.stringify(list.filter((file) => !examples.has(file.path)))};\nconst EXAMPLES = ${JSON.stringify(optional)};\n${source}`,
+        )
+      },
+    },
+  ],
+})

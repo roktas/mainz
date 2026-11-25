@@ -1,0 +1,604 @@
+/* Sets shared Grid/Page frame dimensions, column capacity, and alignment with the workspace. */
+
+@layer views {
+  @scope (#app) {
+    :scope:has(> main > .composer[data-compact]) {
+      .header-inner {
+        min-block-size: calc(56px + env(safe-area-inset-top, 0px));
+      }
+      .brand .logo {
+        inline-size: 44px;
+        block-size: 44px;
+      }
+      .header-actions {
+        gap: 4px;
+        & > :is(button, .theme) {
+          inline-size: 44px;
+          min-inline-size: 44px;
+          block-size: 44px;
+          min-block-size: 44px;
+          padding: 0;
+          & svg {
+            inline-size: 24px;
+            block-size: 24px;
+          }
+        }
+      }
+      main {
+        padding-block: 8px;
+        padding-block-end: 24px;
+      }
+      .footnote {
+        padding-block: 8px;
+        padding-block-end: calc(8px + env(safe-area-inset-bottom, 0px));
+      }
+    }
+  }
+  @scope (.composer) {
+    :scope {
+      --page-fit-reserve: 44px;
+      --fit-height: max(860px, 33.59375vi);
+      --frame-heading-height: 45px;
+      --content-inset: 6px;
+    }
+    /* Defaults work without a device match; calibrations below only change card geometry. */
+    :is(.selection-panel, .composition-output) {
+      --grid-height: 15rem;
+      --grid-width: 9.25rem;
+      /* Separate the 5 px target outsets with a subpixel guard for touch hit testing. */
+      --grid-gap: max(9px, 0.5rem, calc(0.85 * var(--thumbnail-padding)));
+      --grid-min-row-gap: 10.5px;
+      --grid-row-gap: max(var(--grid-min-row-gap), var(--grid-gap));
+      --thumbnail-padding: 0.875rem;
+      --card-tools-height: 4.25rem;
+      --grid-min-width: 136px;
+      --grid-min-height: calc(
+        max(8rem, sqrt(2) * (var(--grid-min-width) - 2px - 4 * var(--thumbnail-padding))) + var(--card-tools-height) +
+          2 * var(--thumbnail-padding)
+      );
+
+      @media (hover: hover) and (pointer: fine) {
+        /* The lower card can lift another 2 px toward the upper footer. */
+        --grid-gap: max(12px, 0.5rem, calc(0.85 * var(--thumbnail-padding)));
+      }
+
+      .composition-grid,
+      .page-reference {
+        --card-height: max(var(--grid-height), var(--grid-min-height));
+        grid-template-columns: repeat(auto-fill, min(100%, max(var(--grid-width), var(--grid-min-width))));
+        gap: var(--grid-gap);
+        row-gap: var(--grid-row-gap);
+        padding-inline: var(--grid-gap);
+        justify-content: space-evenly;
+      }
+    }
+    .editing-toolbar {
+      position: relative;
+      --tab-icon-size: calc(1.5 * var(--body));
+      --tab-inset: calc(var(--tab-icon-size) * 3 / 24);
+      --toolbar-action-size: max(44px, calc(var(--icon-size) + 16px));
+      min-block-size: 46px;
+      align-items: center;
+
+      & > .tabs {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 1fr;
+        inline-size: max-content;
+        flex: 0 1 auto;
+        min-inline-size: 0;
+        max-inline-size: 100%;
+        margin-inline-start: calc(-1 * (var(--tab-inset) + 6px));
+        padding-inline-start: 6px;
+        margin-inline-end: auto;
+        overflow: auto;
+        scrollbar-width: none;
+        & > button {
+          flex: none;
+          position: relative;
+          isolation: isolate;
+          justify-content: start;
+          min-inline-size: 44px;
+          padding-inline: var(--tab-inset) 0.75em;
+          border: 0;
+          border-radius: 6px;
+          background: transparent;
+          &::before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            inset-block: 4px;
+            inset-inline: calc(var(--tab-inset) - 6px) calc(0.75em - 6px);
+            border-radius: 6px;
+          }
+          & > svg {
+            --icon-inset: calc(var(--tab-icon-size) * 2 / 24);
+            inline-size: var(--tab-icon-size);
+            block-size: var(--tab-icon-size);
+            translate: calc(-1 * var(--icon-inset)) 0;
+          }
+          &[aria-label="Grid"] > svg {
+            --icon-inset: calc(var(--tab-icon-size) * 3 / 24);
+          }
+          &[aria-label="List"] > svg {
+            --icon-inset: calc(var(--tab-icon-size) * 4 / 24);
+          }
+          &[aria-label="Page"] > svg {
+            --icon-inset: calc(var(--tab-icon-size) * 5 / 24);
+          }
+          &[data-modified]::after {
+            content: "";
+            position: absolute;
+            inset-inline: var(--tab-inset) 0.75em;
+            inset-block-end: 5px;
+            border-block-end: 2px solid var(--secondary);
+            pointer-events: none;
+          }
+          &[aria-selected="true"]::before {
+            background: var(--tint);
+            @media (forced-colors: active) {
+              outline: 1px solid Highlight;
+              outline-offset: -1px;
+            }
+          }
+          &:focus-visible {
+            background: transparent;
+            html[data-keyboard="true"] &::before {
+              outline: 2px solid var(--secondary);
+              outline-offset: -2px;
+            }
+          }
+        }
+      }
+      & > .page-destination {
+        inline-size: var(--toolbar-action-size);
+        margin-inline-end: calc(var(--icon-size) * 9 / 24 - var(--toolbar-action-size) / 2);
+        & > button {
+          inline-size: 100%;
+        }
+      }
+      & > .style-actions {
+        --toolbar-action-size: max(44px, calc(var(--icon-size) + 18px));
+        flex: none;
+        margin-inline-start: 0;
+        /* The reset arc ends at x=20.8019 in its 24-unit viewBox. */
+        margin-inline-end: calc(var(--icon-size) * 8.8019 / 24 - var(--toolbar-action-size) / 2);
+        &:empty {
+          display: none;
+        }
+      }
+      & > button[aria-label="Input contents"] {
+        margin-inline-end: 0;
+      }
+    }
+    @container toolbar (width <= 26em) {
+      .editing-toolbar > .tabs > button {
+        min-inline-size: max(44px, calc(var(--tab-icon-size) + 2 * var(--tab-inset)));
+        padding-inline-end: 0;
+        &[data-modified]::after {
+          inset-inline-end: 4px;
+        }
+        &::before {
+          inset-inline-end: 4px;
+        }
+      }
+    }
+    @container composer (width <= 55em) {
+      .editing-toolbar > .tabs {
+        gap: clamp(6px, 1.5cqi, 12px);
+      }
+      @container toolbar (width <= 26em) {
+        .editing-toolbar > .tabs {
+          gap: clamp(0px, calc((100cqi - 320px) / 4), 12px);
+          margin-inline-start: calc(-2 * var(--tab-inset) - 6px);
+          & > button {
+            & > svg {
+              translate: none;
+            }
+            &::before {
+              inset-inline-start: calc(var(--tab-inset) - 4px);
+              inset-inline-end: auto;
+              inset-block-start: 50%;
+              inset-block-end: auto;
+              inline-size: calc(var(--tab-icon-size) + 8px);
+              block-size: calc(var(--tab-icon-size) + 8px);
+              translate: 0 -50%;
+            }
+          }
+        }
+      }
+    }
+    @container composer (width > 55em) {
+      .page-content:has(.grid-view, .page-list, .page-view) {
+        min-block-size: 0;
+      }
+      .composition-panels {
+        row-gap: 0;
+        column-gap: 0;
+
+        & :is(.selection-panel, .composition-output) {
+          display: grid;
+          grid-row: 1 / span 4;
+          grid-template-rows: subgrid;
+          row-gap: 0;
+          container-type: normal;
+        }
+
+        & :is(.input-panel, .output-panel) {
+          display: grid;
+          grid-row: 3 / span 2;
+          grid-template-rows: subgrid;
+          row-gap: 0;
+        }
+
+        & .section-heading {
+          grid-row: 1;
+          align-self: stretch;
+        }
+
+        & :is(.source-tabs, .output-tabs) {
+          grid-row: 2;
+        }
+
+        & .page-content {
+          align-self: start;
+          min-inline-size: 0;
+          container-type: inline-size;
+
+          &:has(.grid-view, .page-list, .page-view) {
+            align-self: stretch;
+          }
+        }
+      }
+      .grid-view,
+      .page-view {
+        min-block-size: 100%;
+      }
+    }
+    :scope {
+      min-block-size: 0;
+    }
+
+    .composition-panels {
+      min-block-size: 0;
+      grid-template-rows: auto auto auto minmax(0, 1fr);
+    }
+
+    .page-content:has(.grid-view, .page-list, .page-view) {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+      container-type: size;
+    }
+
+    .page-content:has(.grid-view) {
+      min-block-size: max(var(--grid-height), var(--grid-min-height));
+    }
+
+    .page-content:has(.page-list) {
+      /* One complete List row and its scrollport insets must fit before document scrolling is needed. */
+      min-block-size: calc(44px + var(--content-inset) + 12px);
+    }
+
+    .page-content:has(.page-view) {
+      min-block-size: calc(320px + var(--page-heading-height, var(--frame-heading-height)) + 46px);
+      padding-block-start: var(--content-inset);
+    }
+
+    .inspection-target:has(.page-view) {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    :scope :is(.grid-view, .page-view) {
+      block-size: 100%;
+      min-block-size: 0;
+    }
+
+    @container composer (width > 55em) {
+      /* Style retains the hidden Grid's minimum row in the shared track. */
+      .selection-panel:has(.workspace-content)::after {
+        content: "";
+        grid-column: 1;
+        grid-row: 4;
+        min-block-size: max(var(--grid-height), var(--grid-min-height));
+        pointer-events: none;
+        visibility: hidden;
+      }
+
+      .input-panel:has(.workspace-content) {
+        display: block flow;
+        grid-column: 1;
+        /* The form's intrinsic height must not enlarge the shared frame budget. */
+        container-type: size;
+        min-block-size: 0;
+
+        .page-content,
+        .workspace-content,
+        .source-layout,
+        .source-tools {
+          block-size: 100%;
+          min-block-size: 0;
+        }
+
+        .source-tools {
+          display: block flex;
+          flex-direction: column;
+        }
+
+        .style-profile {
+          flex: none;
+        }
+
+        .control-list {
+          flex: 1;
+          align-content: start;
+          min-block-size: 0;
+          overflow: auto;
+          overscroll-behavior: contain;
+          scrollbar-width: thin;
+          scrollbar-gutter: stable;
+          padding-inline-end: var(--gap);
+          margin-inline-end: calc(-1 * var(--gap));
+        }
+      }
+    }
+
+    @container composer (width <= 55em) {
+      .editing-toolbar {
+        min-block-size: 44px;
+      }
+      .composition-panels {
+        display: flex;
+        flex-direction: column;
+      }
+
+      :scope[data-view="input"] .selection-panel,
+      :scope[data-view="output"] .composition-output {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+      }
+
+      .input-panel,
+      .output-panel {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+      }
+
+      .page-content {
+        flex: 1;
+      }
+    }
+  }
+
+  /* Fit readable portrait columns before leaving space unused below a fixed-width row. */
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) {
+    @scope (.composer) {
+      :is(.selection-panel, .composition-output) {
+        --grid-width: clamp(7rem, calc((100cqi - 2.125rem) / 3), 8.375rem);
+        --grid-height: clamp(13rem, calc(13rem + var(--grid-width) - 7.25rem), 14.125rem);
+        --thumbnail-padding: clamp(0.375rem, calc(0.375rem + (var(--grid-width) - 7.25rem) / 9), 0.5rem);
+      }
+      /* Below three readable columns, retain larger two-column previews. */
+      @container composer (width < 23rem) {
+        :is(.selection-panel, .composition-output) {
+          --grid-width: clamp(7.75rem, calc((100cqi - max(27px, 1.6875rem)) / 2), 9.25rem);
+          --grid-height: calc(14rem + 2 * (var(--grid-width) - 7.75rem) / 3);
+          --thumbnail-padding: calc(0.5rem + (var(--grid-width) - 7.75rem) / 12);
+        }
+      }
+      @media (width < 600px) {
+        :is(.selection-panel, .composition-output) {
+          :is(.composition-grid, .page-reference) {
+            --grid-fit: portrait;
+          }
+          .page-reference {
+            block-size: calc(100cqb - var(--page-fit-reserve) - 8px);
+          }
+        }
+      }
+    }
+  }
+
+  /* Calibration rows change card geometry, never the available viewport budget. */
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (1000px <= width < 1080px) and (450px <= height < 650px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-width: 8.375rem;
+          --grid-height: 14.5rem;
+          --thumbnail-padding: 0.625rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (860px <= width < 900px) and (1280px <= height < 1320px) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-width: 8.375rem;
+          --grid-height: 13.5625rem;
+          --thumbnail-padding: 0.65625rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (667px <= width < 1000px) and (250px <= height < 500px) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-width: clamp(8.375rem, calc((100cqi - 6 * var(--grid-gap) - 1px) / 5), 8.875rem);
+          --grid-height: 14.5rem;
+          --thumbnail-padding: 0.625rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (1800px <= width < 2000px) and (950px <= height < 1000px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-height: 14rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (2200px <= width < 2560px) and (1100px <= height < 1420px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-width: clamp(8rem, calc((100cqi - 5 * var(--grid-gap) - 1px) / 4), 8.375rem);
+          --grid-height: 14.75rem;
+          --thumbnail-padding: 0.75rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (2960px <= width < 3200px) and (1500px <= height < 1750px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-width: clamp(8.375rem, calc((100cqi - 6 * var(--grid-gap) - 1px) / 5), 9.375rem);
+          --grid-height: 14.6875rem;
+          --thumbnail-padding: 0.71875rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (3840px <= width < 4160px) and (2050px <= height < 2250px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-width: clamp(8.375rem, calc((100cqi - 8 * var(--grid-gap) - 1px) / 7), 8.75rem);
+          --grid-height: 14.5625rem;
+          --thumbnail-padding: 0.65625rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (740px <= width < 750px) and (1047px <= height < 1090px) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-width: 8.5625rem;
+          --grid-height: 14.125rem;
+          --thumbnail-padding: 0.5625rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (805px <= width < 835px) and (980px <= height < 1220px) {
+    @scope (.composer) {
+      @container composer (width <= 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-width: 8.875rem;
+          --grid-height: 14.4375rem;
+          --thumbnail-padding: 0.59375rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: portrait) and (1000px <= width < 1050px) and (1200px <= height < 1400px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-width: 8.875rem;
+          --grid-height: 14.4375rem;
+          --thumbnail-padding: 0.59375rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (2560px <= width < 2880px) and (1280px <= height < 1420px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          /* Keep the calibrated wide-screen thumbnail dimensions. */
+          --grid-height: 15rem;
+          --grid-width: 9.375rem;
+          --grid-gap: 14px;
+          --thumbnail-padding: 16px;
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (2560px <= width < 2880px) and (1420px <= height < 1800px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          /* Keep the calibrated wide-screen thumbnail dimensions. */
+          --grid-height: 15rem;
+          --grid-width: 9.375rem;
+          --grid-gap: 14px;
+          --thumbnail-padding: 14px;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (1080px <= width < 1133px) and (700px <= height < 900px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-height: 14.625rem;
+          --grid-width: 8.5rem;
+          --grid-gap: 12px;
+          --thumbnail-padding: 11px;
+        }
+      }
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (1360px <= width < 1380px) and (980px <= height < 1060px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          --grid-width: 9.5rem;
+          --grid-height: 14.75rem;
+          --thumbnail-padding: 0.75rem;
+        }
+      }
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) and (3840px <= width < 4160px) and (1900px <= height < 2050px) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.selection-panel, .composition-output) {
+          --thumbnail-padding: 0.90625rem;
+          --grid-width: clamp(8.375rem, calc((100cqi - 8 * var(--grid-gap) - 1px) / 7), 8.75rem);
+          --grid-height: 15rem;
+        }
+      }
+    }
+  }
+
+  /* Fit desktop cards from the measured frame before dropping complete rows or columns. */
+  @media (hover: hover) and (pointer: fine) {
+    @scope (.composer) {
+      @container composer (width > 55em) {
+        :is(.composition-grid, .page-reference) {
+          --grid-fit: 1;
+          --card-height: var(--grid-height);
+          grid-template-columns: repeat(
+            var(--grid-fit-columns, auto-fill),
+            min(100%, max(var(--grid-width), var(--grid-min-width)))
+          );
+          grid-auto-rows: var(--card-height);
+        }
+      }
+    }
+  }
+}

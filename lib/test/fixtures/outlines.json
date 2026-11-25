@@ -1,0 +1,37 @@
+[
+  {
+    "text": "x",
+    "repeat": 4096,
+    "retained": true
+  },
+  {
+    "text": "x",
+    "repeat": 4097,
+    "retained": false
+  },
+  {
+    "text": "ş",
+    "repeat": 2048,
+    "retained": true
+  },
+  {
+    "text": "ş",
+    "repeat": 2049,
+    "retained": false
+  },
+  {
+    "text": "ş",
+    "repeat": 3000,
+    "retained": false
+  },
+  {
+    "text": "😀",
+    "repeat": 1024,
+    "retained": true
+  },
+  {
+    "text": "😀",
+    "repeat": 1025,
+    "retained": false
+  }
+]

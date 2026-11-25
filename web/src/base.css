@@ -1,0 +1,333 @@
+/* Sets theme tokens, document defaults, and native control behavior. */
+
+@property --grid-gutter {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --list-gutter {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --grid-fit-columns {
+  syntax: "*";
+  inherits: false;
+}
+
+@layer tokens {
+  :root {
+    color-scheme: light dark;
+    --paper: light-dark(oklch(100% 0 none), oklch(17.76% 0 none));
+    --surface: light-dark(oklch(100% 0 none), oklch(25.2% 0 none));
+    --soft: light-dark(oklch(98.51% 0 none), oklch(21.7787% 0 none));
+    --ink: light-dark(oklch(21.7787% 0 none), oklch(92.1906% 0 none));
+    --muted: light-dark(oklch(46.4002% 0 none), oklch(71.5474% 0 none));
+    --info: var(--muted);
+    --border: light-dark(oklch(92.1906% 0 none), oklch(32.1093% 0 none));
+    --edge: light-dark(oklch(63.3429% 0 none), oklch(65.0041% 0 none));
+    --divider: light-dark(var(--border), color-mix(in oklch, var(--border) 65%, var(--edge)));
+    --page-surround: color-mix(in oklch, var(--border) 90%, var(--muted));
+    --accent-light: oklch(42.0914% 0.193453 328.3634);
+    --accent-dark: oklch(83.6851% 0.064657 70.6014);
+    --accent: light-dark(var(--accent-light), var(--accent-dark));
+    --secondary: light-dark(oklch(51.077905% 0.067592 242.365855), oklch(77.509101% 0.04764 237.42351));
+    --keyboard-focus: light-dark(oklch(0% 0 none), oklch(100% 0 none));
+    --tint: light-dark(oklch(94.4501% 0.030653 325.817), oklch(26.9988% 0.016373 67.0387));
+    --on-accent: light-dark(oklch(100% 0 none), oklch(17.76% 0 none));
+    --hover: light-dark(oklch(34.3158% 0.157716 328.3634), oklch(88.9958% 0.049265 71.1138));
+    --danger-fill: oklch(50.0336% 0.182051 29.5127);
+    --danger: light-dark(var(--danger-fill), oklch(71.1607% 0.181221 22.8389));
+    --shadow: light-dark(oklch(0% 0 none / 0.05), oklch(0% 0 none / 0.3));
+    --gap: clamp(0.75rem, 0.6rem + 0.4vi, 1rem);
+    --page-inset: clamp(0px, calc((100% - 264px) / 2), calc(1.5 * var(--gap)));
+    --gutter: clamp(1rem, 0.6rem + 1.6vi, 1.75rem);
+    --radius: 4px;
+    --icon-size: 1.125rem;
+    --action-width: 9.5rem;
+    --action-height: max(46px, calc(2.75rem + 2px));
+    --small: clamp(0.6875rem, 0.66rem + 0.06vi, 0.75rem);
+    --body: clamp(0.8125rem, 0.78rem + 0.08vi, 0.875rem);
+    --heading: clamp(1rem, 0.93rem + 0.14vi, 1.125rem);
+    --logo-horizontal-opacity: 0.35;
+    @media (prefers-color-scheme: dark) {
+      --logo-horizontal-opacity: 0.2;
+    }
+    --ease-out: ease-out;
+    --ease-in-out: ease-in-out;
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-synthesis: none;
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--paper);
+    accent-color: var(--accent);
+    font-size: 100%;
+    &[data-theme="light"] {
+      color-scheme: light;
+      --logo-horizontal-opacity: 0.35;
+    }
+    &[data-theme="dark"] {
+      color-scheme: dark;
+      --logo-horizontal-opacity: 0.2;
+    }
+  }
+}
+
+@layer base {
+  @font-face {
+    font-family: "EB Garamond";
+    src: url("/fonts/eb-garamond.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  .visually-hidden {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: clip;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  html {
+    scrollbar-gutter: stable;
+    -webkit-tap-highlight-color: transparent;
+    &:has(dialog:modal) {
+      overflow: hidden;
+    }
+  }
+  body {
+    margin: 0;
+    overflow-wrap: break-word;
+  }
+  button,
+  input,
+  select,
+  summary {
+    font: inherit;
+  }
+  button,
+  .file-picker,
+  a.primary {
+    appearance: none;
+    min-inline-size: 104px;
+    min-block-size: 46px;
+    border: 1px solid var(--edge);
+    border-radius: var(--radius);
+    padding: clamp(0.5rem, 0.44rem + 0.2vi, 0.75rem) clamp(0.75rem, 0.6rem + 0.4vi, 1.125rem);
+    color: var(--ink);
+    background: var(--surface);
+    font-size: var(--body);
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    @media (hover: hover) and (pointer: fine) {
+      &:hover:not(:disabled):not(:has(input:disabled)) {
+        background: var(--tint);
+        border-color: var(--accent);
+        &:not(.page-image) {
+          box-shadow: 0 0 12px color-mix(in oklch, var(--accent) 30%, transparent);
+        }
+      }
+    }
+    &:active:not(:disabled):not(:has(input:disabled)) {
+      filter: brightness(1.5);
+      transition-duration: 0s;
+      @media (hover: hover) and (pointer: fine) {
+        &:not(.page-image) {
+          box-shadow: 0 0 14px color-mix(in oklch, var(--accent) 45%, transparent);
+        }
+      }
+    }
+    &:disabled {
+      color: var(--muted);
+      background: var(--soft);
+      border-color: var(--border);
+      cursor: default;
+    }
+    &.primary {
+      background: var(--accent);
+      color: var(--on-accent);
+      border-color: var(--accent);
+      @media (hover: hover) and (pointer: fine) {
+        &:hover:not(:disabled):not(:has(input:disabled)) {
+          background: var(--hover);
+          border-color: var(--hover);
+        }
+      }
+      &:disabled {
+        background: var(--soft);
+        color: var(--muted);
+        border-color: var(--border);
+      }
+    }
+  }
+  a {
+    color: var(--accent);
+    text-decoration: none;
+    &:active {
+      color: var(--secondary);
+    }
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        color: var(--hover);
+      }
+    }
+  }
+  input,
+  select {
+    max-inline-size: 100%;
+    color: var(--ink);
+    background: var(--surface);
+  }
+  input::placeholder {
+    color: var(--muted);
+    opacity: 1;
+  }
+  input[type="number"] {
+    appearance: textfield;
+  }
+  input::-webkit-inner-spin-button,
+  input::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+  input[type="checkbox"] {
+    inline-size: 1rem;
+    block-size: 1rem;
+    margin: 0;
+    flex: none;
+  }
+  select {
+    appearance: none;
+    min-block-size: 44px;
+    border: 1px solid var(--edge);
+    border-radius: var(--radius);
+    padding-block: 10px;
+    padding-inline: var(--gap) calc(2 * var(--gap) + var(--icon-size));
+    font-size: var(--body);
+  }
+  :focus-visible {
+    outline: 1px solid var(--secondary);
+    outline-offset: 2px;
+  }
+  :is(button, a.primary):focus-visible {
+    outline-offset: -1px;
+  }
+  :is(button, a).primary:not(:disabled):focus-visible {
+    outline: 2px solid var(--on-accent);
+    outline-offset: -3px;
+  }
+  h1,
+  h2,
+  h3,
+  p,
+  figure {
+    margin: 0;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  h2,
+  h3 {
+    font-size: var(--heading);
+    font-weight: 650;
+  }
+  svg {
+    inline-size: var(--icon-size);
+    block-size: var(--icon-size);
+    flex: none;
+  }
+  ol,
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  summary {
+    cursor: pointer;
+    min-block-size: 44px;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        color: var(--accent);
+      }
+    }
+  }
+  /* Top-layer panels must remain visible when their header launcher is hidden. */
+  :popover-open,
+  dialog:modal {
+    visibility: visible;
+  }
+  [popover]:not(.header-feedback, .scroll-controls, .page-flight),
+  .sequence-options > .menu-options {
+    border: 1px solid var(--edge);
+    border-radius: var(--radius);
+    color: var(--ink);
+    background: var(--surface);
+    box-shadow: 0 4px 16px var(--shadow);
+  }
+  dialog {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: var(--gutter);
+    max-inline-size: calc(100% - 2 * var(--gap));
+    max-block-size: calc(100dvb - 2 * var(--gap));
+    overscroll-behavior: contain;
+    color: var(--ink);
+    background: var(--surface);
+    &::backdrop {
+      background: oklch(0% 0 none / 0.45);
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    button,
+    .file-picker,
+    summary {
+      transition:
+        background-color 120ms var(--ease-out),
+        color 120ms var(--ease-out),
+        border-color 120ms var(--ease-out),
+        filter 120ms var(--ease-out),
+        box-shadow 120ms var(--ease-out);
+    }
+    dialog[open],
+    .input-picker[open] .input-list,
+    .source-layout {
+      animation: enter 150ms var(--ease-out);
+    }
+  }
+  @keyframes enter {
+    from {
+      opacity: 0;
+      translate: 0 0.25rem;
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+}
+
+@layer views {
+  @scope (html[data-keyboard="false"]) {
+    :focus-visible:not(input, select, textarea, [contenteditable]) {
+      outline: 2px solid transparent;
+    }
+  }
+}

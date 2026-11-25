@@ -1,0 +1,191 @@
+<!-- Keeps optional app installation guidance separate from the product tour. -->
+
+<script lang="ts">
+  import { onMount } from "svelte"
+  import Dialog from "./Dialog.svelte"
+  import { isAppleTouch } from "./platform.ts"
+  import Feedback from "./Feedback.svelte"
+
+  type Prompt = Event & {
+    prompt: () => Promise<void>
+    userChoice: Promise<{ outcome: "accepted" | "dismissed" }>
+  }
+  let {
+    pending = $bindable(false),
+    recommend,
+    dismissed,
+  }: {
+    pending?: boolean
+    recommend: boolean
+    dismissed: () => void
+  } = $props()
+  let dialog = $state<HTMLDialogElement>()
+  let prompt = $state<Prompt>()
+  let ios = $state(false)
+  let safari = $state(false)
+  let standalone = $state(false)
+  let requesting = $state(false)
+  let message = $state("")
+  let details = $state("")
+  let failed = $state(false)
+  let previous: Element | null = null
+
+  function remember() {
+    try {
+      localStorage.setItem("mainz:installation", "seen")
+    } catch {
+      /* Dismissal lasts for this page when storage is unavailable. */
+    }
+  }
+  function close() {
+    if (dialog?.open) dialog.close()
+    else {
+      remember()
+      if (pending) dismissed()
+      pending = false
+    }
+  }
+  export function open() {
+    previous = document.activeElement
+    dialog?.showModal()
+  }
+  async function install() {
+    const request = prompt
+    if (!request || requesting) return
+    requesting = true
+    failed = false
+    message = ""
+    details = ""
+    try {
+      await request.prompt()
+      const choice = await request.userChoice
+      message =
+        choice.outcome === "accepted"
+          ? "Installation requested. You can continue in this browser."
+          : "You can continue in this browser."
+      details =
+        choice.outcome === "accepted"
+          ? "Your browser will finish installing PDF Composer in the background."
+          : "You can install PDF Composer later from Settings."
+      remember()
+    } catch {
+      failed = true
+      message = "Installation is unavailable. You can continue in this browser."
+      details = ""
+    } finally {
+      prompt = undefined
+      requesting = false
+    }
+  }
+  function offered(event: Event) {
+    event.preventDefault()
+    prompt = event as Prompt
+  }
+  function installed() {
+    message = "App installed."
+    details = "PDF Composer is installed on this device and can open from your apps."
+    prompt = undefined
+    remember()
+    pending = false
+    if (dialog?.open) close()
+  }
+  onMount(() => {
+    ios = isAppleTouch()
+    safari =
+      !ios &&
+      /Macintosh/.test(navigator.userAgent) &&
+      Number(navigator.userAgent.match(/Version\/(\d+).*Safari/)?.[1]) >= 17
+    const mode = matchMedia("(display-mode: standalone)")
+    const update = () => {
+      standalone = mode.matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
+      if (standalone && dialog?.open) {
+        pending = false
+        close()
+      }
+    }
+    update()
+    let seen = false
+    try {
+      seen = localStorage.getItem("mainz:installation") === "seen"
+    } catch {
+      /* First-visit guidance remains dismissible without persistent storage. */
+    }
+    if (recommend && ios && !standalone && !seen) {
+      pending = true
+      open()
+    }
+    window.addEventListener("beforeinstallprompt", offered)
+    window.addEventListener("appinstalled", installed)
+    mode.addEventListener("change", update)
+    return () => {
+      window.removeEventListener("beforeinstallprompt", offered)
+      window.removeEventListener("appinstalled", installed)
+      mode.removeEventListener("change", update)
+    }
+  })
+</script>
+
+<Feedback
+  header
+  kind={failed ? "error" : "notice"}
+  text={message}
+  details={failed ? undefined : details || undefined}
+  summary={failed ? "Installation unavailable." : undefined}
+  onDismiss={() => {
+    message = ""
+    details = ""
+  }}
+/>
+
+<Dialog
+  bind:dialog
+  class="installation"
+  title="Install application"
+  closeLabel="Close installation help"
+  onclose={() => {
+    remember()
+    if (pending) dismissed()
+    pending = false
+    if (previous instanceof HTMLElement && previous.isConnected) previous.focus({ preventScroll: true })
+  }}
+>
+  {#if standalone}<p>PDF Composer is running in its own app window.</p>
+  {:else}
+    <p>Open PDF Composer in its own window, with more room for your pages. You can also keep using this browser.</p>
+    {#if ios}<p>In Safari, choose Share, then Add to Home Screen. Open the saved icon to use the app.</p>
+    {:else if safari}<p>If Safari offers File → Add to Dock, choose it to save the app.</p>
+    {:else if !prompt}<p>
+        This browser has not offered installation. Continue in the browser, or check its app installation menu.
+      </p>{/if}
+  {/if}
+  <div class="installation-actions">
+    <button class="primary" onclick={close}>{pending ? "Use browser" : "Close"}</button>
+    {#if prompt && !standalone}<button onclick={install} disabled={requesting}>Install application</button>{/if}
+  </div>
+</Dialog>
+
+<style>
+  :global(dialog.installation) {
+    inline-size: min(30rem, calc(100vi - 2 * var(--gap)));
+  }
+  :global(dialog.installation .dialog-heading) {
+    align-items: center;
+  }
+  :global(dialog.installation .dialog-heading h2) {
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+  p + p {
+    margin-block-start: var(--gap);
+  }
+  .installation-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap);
+    margin-block-start: var(--gap);
+    & button {
+      min-inline-size: 0;
+      max-inline-size: 100%;
+    }
+  }
+</style>

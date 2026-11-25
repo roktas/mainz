@@ -1,0 +1,344 @@
+<!-- Adds direct scroll destinations beside overflowing application panels. -->
+
+<script lang="ts">
+  import { onMount } from "svelte"
+  import Icon from "./Icon.svelte"
+
+  type Area = {
+    element: HTMLElement
+    name: string
+    x: number
+    track: number
+    y: number
+    height: number
+    endOffset: number
+    start: boolean
+    end: boolean
+    showStart: boolean
+    showEnd: boolean
+  }
+  let areas = $state.raw<Area[]>([])
+
+  function jump(area: Area, end: boolean) {
+    area.element.scrollTo({
+      top: end ? area.element.scrollHeight - area.element.clientHeight : 0,
+      behavior: "instant",
+    })
+  }
+  // Keep keyboard focus on the viewport during mouse clicks and prevent double-click bubbling.
+  function stopScrollControlEvent(event: Event) {
+    if (event instanceof PointerEvent && event.type === "pointerdown") {
+      if (event.pointerType === "mouse") event.preventDefault()
+      return
+    }
+    event.stopPropagation()
+  }
+  function portal(element: HTMLElement) {
+    document.body.append(element)
+    return () => element.remove()
+  }
+  const presenters = new WeakMap<HTMLElement, (element: HTMLElement) => () => void>()
+  function present(element: HTMLElement, owner: HTMLElement) {
+    const host = owner.closest<HTMLElement>("dialog:modal") ?? document.body
+    host.append(element)
+    element.showPopover()
+    const events = ["pointerdown", "dblclick"]
+    for (const name of events) element.addEventListener(name, stopScrollControlEvent)
+    return () => {
+      for (const name of events) element.removeEventListener(name, stopScrollControlEvent)
+      element.remove()
+    }
+  }
+  function attachControl(owner: HTMLElement) {
+    const target = owner === document.scrollingElement ? document.body : owner
+    let attach = presenters.get(target)
+    if (!attach) {
+      attach = (element: HTMLElement) => present(element, target)
+      presenters.set(target, attach)
+    }
+    return attach
+  }
+  const skipSelectors = ".scroll-controls, .page-scroll, .list-row, .list-section, .composition-card, .lens, .page-peek"
+  const containerTags = new Set(["DIV", "SECTION", "ASIDE", "NAV", "UL", "OL", "P", "DIALOG"])
+  function isScrollControlNode(node: Node) {
+    return node instanceof Element && !!node.closest(".scroll-controls")
+  }
+  onMount(() => {
+    const candidates = new Set<HTMLElement>()
+    const pending = new Set<Element>()
+    let frame = 0
+    const root = document.scrollingElement as HTMLElement
+    const app = document.getElementById("app")!
+    function collect(parent: Element) {
+      if (parent.closest(skipSelectors)) return
+      const stack: Element[] = [parent]
+      while (stack.length) {
+        const element = stack.pop()!
+        if (!(element instanceof HTMLElement) || element.matches(skipSelectors)) continue
+        if (
+          !candidates.has(element) &&
+          (element === root || containerTags.has(element.tagName)) &&
+          (element === root || /^(auto|scroll)$/.test(getComputedStyle(element).overflowY))
+        ) {
+          candidates.add(element)
+          resize.observe(element)
+        }
+        for (let child = element.firstElementChild; child; child = child.nextElementSibling)
+          if (child.tagName !== "svg") stack.push(child)
+      }
+    }
+    function update() {
+      frame = 0
+      if (pending.size) {
+        for (const node of pending) if (node.isConnected) collect(node)
+        pending.clear()
+      }
+      const modal = [...document.querySelectorAll("dialog:modal")].at(-1)
+      const rootOverflow = getComputedStyle(root).overflowY
+      const next: Area[] = []
+      for (const element of candidates) {
+        if (!element.isConnected) {
+          candidates.delete(element)
+          resize.unobserve(element)
+          continue
+        }
+        if (
+          !element.checkVisibility({ visibilityProperty: true }) ||
+          element.closest("[inert]") ||
+          (modal && !modal.contains(element))
+        )
+          continue
+        const maximum = element.scrollHeight - element.clientHeight
+        if (maximum <= 1 || (element === root && /^(hidden|clip)$/.test(rootOverflow))) continue
+        const box =
+          element === root ? { top: 0, bottom: innerHeight, right: innerWidth } : element.getBoundingClientRect()
+        let top = Math.max(0, box.top),
+          bottom = Math.min(innerHeight, box.bottom)
+        for (let parent = element.parentElement; parent && parent !== root; parent = parent.parentElement) {
+          if (element.matches(":popover-open, :modal")) break
+          if (/^(auto|scroll|hidden|clip)$/.test(getComputedStyle(parent).overflowY)) {
+            const bounds = parent.getBoundingClientRect()
+            top = Math.max(top, bounds.top)
+            bottom = Math.min(bottom, bounds.bottom)
+          }
+          if (parent.matches(":popover-open, :modal")) break
+        }
+        // A clipped panel has no complete scrollbar rail to own these supplementary controls.
+        if (top > box.top + 1 || bottom < box.bottom - 1) continue
+        if (bottom - top < 88 || box.right < 24 || box.right > innerWidth + 1) continue
+        const pane = element.closest(".selection-panel")
+          ? "Input"
+          : element.closest(".composition-output")
+            ? "Output"
+            : ""
+        const view = element.matches(".grid-view") ? "Grid" : element.matches(".page-list") ? "List" : ""
+        const name = view
+          ? `${pane} ${view}`
+          : element === root
+            ? "Document"
+            : element.getAttribute("aria-label") ||
+              element.closest("[aria-label]")?.getAttribute("aria-label") ||
+              "Panel"
+        const style = getComputedStyle(element)
+        const scrollbar =
+          element === root
+            ? innerWidth - root.clientWidth
+            : element.offsetWidth -
+              element.clientWidth -
+              parseFloat(style.borderInlineStartWidth) -
+              parseFloat(style.borderInlineEndWidth)
+        // Overlay document scrollbars have no persistent gutter for an extra control rail.
+        if (element === root && scrollbar <= 0) continue
+        next.push({
+          element,
+          name,
+          x: element === root ? innerWidth - 24 : box.right - 8,
+          track: box.right - parseFloat(style.borderInlineEndWidth) - Math.max(6, scrollbar) / 2,
+          y: top,
+          height: bottom - top,
+          endOffset: Math.max(-24, bottom - innerHeight),
+          start: element.scrollTop <= 1,
+          end: maximum - element.scrollTop <= 1,
+          showStart: true,
+          showEnd: true,
+        })
+      }
+      const documentArea = next.find((area) => area.element === root)
+      if (documentArea) {
+        for (const area of next) {
+          if (area === documentArea || area.x + 24 <= documentArea.x || area.x >= documentArea.x + 24) continue
+          const starts = [
+            ...(area.showStart ? [Math.max(0, area.y - 24)] : []),
+            ...(area.showEnd ? [Math.min(innerHeight - 44, area.y + area.height - 20)] : []),
+          ]
+          // Inner scroll destinations take priority when their 44 px targets share the document rail.
+          if (starts.some((start) => start < 44 && start + 44 > 0)) documentArea.showStart = false
+          if (starts.some((start) => start < innerHeight && start + 44 > innerHeight - 44)) documentArea.showEnd = false
+        }
+      }
+      if (
+        next.length !== areas.length ||
+        next.some((area, index) =>
+          Object.entries(area).some(([key, value]) => areas[index]?.[key as keyof Area] !== value),
+        )
+      )
+        areas = next
+    }
+    function schedule() {
+      if (!frame) frame = requestAnimationFrame(update)
+    }
+    const resize = new ResizeObserver(schedule)
+    const mutations = new MutationObserver((records) => {
+      let changed = false
+      for (const record of records) {
+        if (isScrollControlNode(record.target)) continue
+        if (record.type === "childList" && [...record.addedNodes, ...record.removedNodes].every(isScrollControlNode))
+          continue
+        changed = true
+        for (const node of record.addedNodes)
+          if (node instanceof Element && !isScrollControlNode(node) && !node.closest(skipSelectors)) pending.add(node)
+      }
+      if (changed) schedule()
+    })
+    const resized = () => {
+      cancelAnimationFrame(frame)
+      frame = 0
+      pending.clear()
+      collect(app)
+      update()
+    }
+    collect(root)
+    mutations.observe(app, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["open", "hidden", "class", "aria-hidden", "data-view"],
+    })
+    document.addEventListener("scroll", schedule, true)
+    document.addEventListener("toggle", schedule, true)
+    window.addEventListener("resize", resized)
+    schedule()
+    return () => {
+      cancelAnimationFrame(frame)
+      resize.disconnect()
+      mutations.disconnect()
+      document.removeEventListener("scroll", schedule, true)
+      document.removeEventListener("toggle", schedule, true)
+      window.removeEventListener("resize", resized)
+    }
+  })
+</script>
+
+<div hidden {@attach portal}>
+  {#each areas as area (area.element)}
+    {@const owner = area.element}
+    <div
+      class="scroll-controls"
+      popover="manual"
+      role="group"
+      aria-label={`${area.name} scroll controls`}
+      style:inset-inline-start={`${area.x}px`}
+      style:inset-block-start={`${area.y}px`}
+      style:block-size={`${area.height}px`}
+      style:--track-center={`${area.track - area.x}px`}
+      style:--start-offset={`${Math.max(-24, -area.y)}px`}
+      style:--end-offset={`${area.endOffset}px`}
+      {@attach attachControl(owner)}
+    >
+      <button
+        type="button"
+        aria-label={`Scroll ${area.name} to start`}
+        disabled={area.start}
+        hidden={!area.showStart}
+        onclick={() => jump(area, false)}><Icon name="first" /></button
+      >
+      <button
+        type="button"
+        aria-label={`Scroll ${area.name} to end`}
+        disabled={area.end}
+        hidden={!area.showEnd}
+        onclick={() => jump(area, true)}><Icon name="last" /></button
+      >
+    </div>
+  {/each}
+</div>
+
+<style>
+  @layer components {
+    .scroll-controls {
+      position: fixed;
+      inset: auto;
+      inline-size: 24px;
+      max-block-size: none;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      pointer-events: none;
+      overflow: visible;
+    }
+    .scroll-controls:popover-open {
+      display: block;
+    }
+    .scroll-controls > button {
+      position: absolute;
+      inset-inline: 0;
+      inline-size: 24px;
+      min-inline-size: 24px;
+      block-size: 44px;
+      min-block-size: 44px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      pointer-events: auto;
+    }
+    .scroll-controls > button[hidden] {
+      display: none;
+    }
+    button:first-child {
+      inset-block-start: var(--start-offset);
+    }
+    button:last-child {
+      inset-block-end: var(--end-offset);
+    }
+    button :global(svg) {
+      position: absolute;
+      inset-inline-start: calc(var(--track-center) - 8px);
+      inline-size: 16px;
+      block-size: 16px;
+      stroke-width: 1.8;
+      rotate: 90deg;
+    }
+    button:first-child,
+    button:last-child {
+      color: var(--accent);
+    }
+    button:first-child :global(svg) {
+      inset-block-start: 2px;
+    }
+    button:last-child :global(svg) {
+      inset-block-end: 2px;
+    }
+    button:disabled {
+      opacity: 0.65;
+      pointer-events: none;
+    }
+    button:focus-visible {
+      outline: 2px solid var(--secondary);
+      outline-offset: -2px;
+    }
+    .scroll-controls > button:active:not(:disabled) {
+      background: transparent;
+      box-shadow: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .scroll-controls > button:hover:not(:disabled) {
+        background: transparent;
+        box-shadow: none;
+        color: var(--accent);
+      }
+    }
+  }
+</style>

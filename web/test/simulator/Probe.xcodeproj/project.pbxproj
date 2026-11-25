@@ -1,0 +1,15 @@
+// !$*UTF8*$!
+{ archiveVersion = 1; classes = {}; objectVersion = 56;
+objects = {
+A00000000000000000000001 = { isa = PBXProject; buildConfigurationList = A00000000000000000000002; compatibilityVersion = "Xcode 14.0"; mainGroup = A00000000000000000000003; projectDirPath = ""; targets = (A00000000000000000000004); };
+A00000000000000000000002 = { isa = XCConfigurationList; buildConfigurations = (A00000000000000000000005); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug; };
+A00000000000000000000003 = { isa = PBXGroup; children = (A00000000000000000000006,A00000000000000000000007); sourceTree = "<group>"; };
+A00000000000000000000004 = { isa = PBXNativeTarget; buildConfigurationList = A00000000000000000000008; buildPhases = (A00000000000000000000009); buildRules = (); dependencies = (); name = Probe; productName = Probe; productReference = A00000000000000000000007; productType = "com.apple.product-type.bundle.ui-testing"; };
+A00000000000000000000005 = { isa = XCBuildConfiguration; buildSettings = { SDKROOT = iphonesimulator; IPHONEOS_DEPLOYMENT_TARGET = 27.0; CODE_SIGNING_ALLOWED = NO; SWIFT_VERSION = 6.0; }; name = Debug; };
+A00000000000000000000006 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Probe.swift; sourceTree = "<group>"; };
+A00000000000000000000007 = { isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = Probe.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+A00000000000000000000008 = { isa = XCConfigurationList; buildConfigurations = (A0000000000000000000000A); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug; };
+A00000000000000000000009 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A0000000000000000000000B); runOnlyForDeploymentPostprocessing = 0; };
+A0000000000000000000000A = { isa = XCBuildConfiguration; buildSettings = { PRODUCT_BUNDLE_IDENTIFIER = org.mainz.Probe; PRODUCT_NAME = "$(TARGET_NAME)"; GENERATE_INFOPLIST_FILE = YES; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+A0000000000000000000000B = { isa = PBXBuildFile; fileRef = A00000000000000000000006; };
+}; rootObject = A00000000000000000000001; }

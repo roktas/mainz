@@ -1,0 +1,122 @@
+#include "engine.hh"
+#include <qpdf/QPDFEmbeddedFileDocumentHelper.hh>
+#include <qpdf/QPDFFileSpecObjectHelper.hh>
+#include <qpdf/QPDFNameTreeObjectHelper.hh>
+
+namespace mainz::detail {
+JSON Engine::image(const std::string& file)
+{
+    if (auto found = images.find(file); found != images.end())
+        return found->second;
+    auto stream = files.at(file).getKey("/EF").getKey("/F");
+    auto bytes = decode(stream, budget, pdf_limit);
+    auto descriptor = png_metadata(bytes);
+    if (bytes.size() <= manifest_limit - previews.bytes) {
+        previews.bytes += bytes.size();
+        previews.images.emplace(file, std::make_shared<const std::string>(std::move(bytes)));
+    }
+    descriptor.addDictionaryMember("file", JSON::makeString(file));
+    images.emplace(file, descriptor);
+    return descriptor;
+}
+void Engine::load_previews(bool validate)
+{
+    auto entries = array(manifest.getDictItem("pages"));
+    for (std::size_t page = 0; page < entries.size(); ++page) {
+        auto preview = entries[page].getDictItem("preview");
+        if (preview.isNull())
+            continue;
+        try {
+            auto file = text(preview);
+            previews.pages[page] = file;
+            require(file != "mainz.json" && files.contains(file), "Missing preview PNG attachment.");
+            auto spec = files.at(file);
+            require(spec.getKey("/F").isString() && spec.getKey("/UF").isString()
+                    && spec.getKey("/F").getUTF8Value() == file && spec.getKey("/UF").getUTF8Value() == file,
+                "Preview Filespec names do not match.");
+            auto ef = spec.getKey("/EF");
+            require(ef.isDictionary(), "Preview attachment has no embedded payload.");
+            auto stream = ef.getKey("/F"), unicode_stream = ef.getKey("/UF");
+            require(stream.isStream() && unicode_stream.isStream() && stream.isSameObjectAs(unicode_stream),
+                "Preview attachment payload references differ.");
+            require(stream.getDict().getKey("/Subtype").isNameAndEquals("/image/png"),
+                "Preview attachment must use image/png.");
+            if (managed_previews.insert(file).second && validate)
+                image(file);
+        } catch (const Error& error) {
+            throw Error(error.code(), error.what(), "manifest", "/pages/" + std::to_string(page) + "/preview");
+        }
+    }
+}
+std::string Engine::preview(std::size_t page)
+{
+    if (page >= pages.size())
+        throw Error("invalid-request", "Preview page is outside the PDF.", "request", "");
+    if (empty_object(manifest))
+        return {};
+    auto value = array(manifest.getDictItem("pages")).at(page).getDictItem("preview");
+    if (value.isNull())
+        return {};
+    return decode(files.at(text(value)).getKey("/EF").getKey("/F"), budget, pdf_limit);
+}
+void prune_previews(QPDF& document, const std::set<std::string>& managed, JSON pages)
+{
+    if (managed.empty())
+        return;
+    std::set<std::string> used;
+    for (const auto& page : array(pages))
+        if (auto preview = page.getDictItem("preview"); !preview.isNull())
+            used.insert(text(preview));
+    QPDFEmbeddedFileDocumentHelper files(document);
+    QPDFNameTreeObjectHelper tree(document.getRoot().getKey("/Names").getKey("/EmbeddedFiles"), document, false);
+    std::map<std::string, Object> removed;
+    for (const auto& file : managed)
+        if (!used.contains(file))
+            if (auto spec = files.getEmbeddedFile(file)) {
+                removed.emplace(file, spec->getObjectHandle());
+                // The file helper also destroys the Filespec, including surviving references outside this tree.
+                tree.find(file).remove();
+            }
+    if (removed.empty())
+        return;
+    constexpr std::size_t reference_limit = std::size_t {4} * 1024 * 1024;
+    std::size_t remaining = reference_limit;
+    std::set<QPDFObjGen> seen;
+    std::set<std::string> named;
+    std::vector<Object> pending;
+    auto visit = [&](Object object) {
+        require(remaining > 0, "Preview references exceed limit.", "limit-exceeded");
+        --remaining;
+        if (object.isIndirect() && !seen.insert(object.getObjGen()).second)
+            return;
+        if (object.isString()) {
+            auto name = object.getUTF8Value();
+            if (removed.contains(name))
+                named.insert(std::move(name));
+        } else if (object.isDictionary() || object.isArray() || object.isStream())
+            pending.push_back(object);
+    };
+    visit(document.getTrailer());
+    while (!pending.empty()) {
+        auto object = pending.back();
+        pending.pop_back();
+        if (object.isStream())
+            object = object.getDict();
+        if (object.isDictionary()) {
+            auto keys = object.getKeys();
+            require(keys.size() <= remaining, "Preview references exceed limit.", "limit-exceeded");
+            for (const auto& key : keys)
+                visit(object.getKey(key));
+        } else if (object.isArray()) {
+            auto count = object.getArrayNItems();
+            require(static_cast<std::size_t>(count) <= remaining, "Preview references exceed limit.", "limit-exceeded");
+            for (int index = 0; index < count; ++index)
+                visit(object.getArrayItem(index));
+        }
+    }
+    for (const auto& [file, spec] : removed)
+        if (named.contains(file) || seen.contains(spec.getObjGen())
+            || seen.contains(spec.getKey("/EF").getKey("/F").getObjGen()))
+            files.replaceEmbeddedFile(file, QPDFFileSpecObjectHelper(spec));
+}
+}

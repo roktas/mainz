@@ -1,0 +1,288 @@
+/* Styles modal dialogs and popovers for filename, recipe, export, print, and examples. */
+
+@layer components {
+  @scope (#app) {
+    .print-frame {
+      position: fixed;
+      inset-block-start: 0;
+      inset-inline-start: 0;
+      inline-size: 1px;
+      block-size: 1px;
+      border: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .output-dialog {
+      position-anchor: --header;
+      inset-block-start: max(calc(2.5rem + env(safe-area-inset-top, 0px)), anchor(center));
+      inset-block-end: auto;
+      inset-inline: var(--gutter);
+      inline-size: fit-content;
+      max-inline-size: min(36rem, calc(100% - 2 * var(--gutter)));
+      margin-block: 0;
+      margin-inline: auto;
+      padding: calc(var(--gap) / 2);
+      border: 0;
+      border-radius: 0;
+      background: var(--paper);
+      transform: translateY(-50%);
+      &::backdrop {
+        background: color-mix(in oklch, var(--paper) 65%, transparent);
+      }
+      &.print-dialog {
+        inset-block-start: max(8px, env(safe-area-inset-top, 0px));
+        transform: none;
+        inline-size: min(36rem, calc(100% - 2 * var(--gutter)));
+        padding: var(--gap);
+        font-size: var(--body);
+        & h2 {
+          margin: 0;
+          font-size: var(--heading);
+        }
+        & .print-name {
+          overflow-wrap: anywhere;
+          color: var(--muted);
+        }
+        & .print-actions {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+          gap: calc(var(--gap) / 2);
+          & :is(a, button) {
+            display: block flex;
+            align-items: center;
+            justify-content: center;
+            min-block-size: 46px;
+          }
+        }
+      }
+    }
+    .export-dialog .feedback-actions {
+      & svg {
+        display: none;
+      }
+      & :is(button, a) {
+        white-space: nowrap;
+      }
+      @media (width <= 30em) {
+        & svg {
+          display: block;
+        }
+        & span {
+          display: none;
+        }
+        & > :is(button, a):not(.icon-button) {
+          padding-inline: 0.25em;
+        }
+      }
+    }
+    .export-dialog .feedback:has(.feedback-actions > :nth-child(3)) {
+      @media (width <= 30em) {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: clamp(4px, 1cqi, 8px);
+        & .feedback-actions {
+          gap: clamp(4px, 1cqi, 8px);
+        }
+      }
+    }
+    .examples {
+      inline-size: min(28rem, calc(100% - 2 * var(--gap)));
+      padding: var(--gap);
+      font-size: var(--body);
+      overflow: auto;
+      overscroll-behavior: contain;
+      & > .dialog-heading {
+        align-items: center;
+      }
+      & nav {
+        display: block grid;
+        gap: calc(var(--gap) / 2);
+      }
+      & a {
+        display: block grid;
+        gap: 0.25em;
+        min-block-size: 44px;
+        padding: var(--gap);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--ink);
+        text-decoration: none;
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            border-color: var(--accent);
+            background: var(--tint);
+          }
+        }
+        &:active {
+          background: var(--tint);
+        }
+      }
+      & span {
+        color: var(--muted);
+        font-size: var(--small);
+      }
+    }
+  }
+}
+
+@layer layouts {
+  @scope (#app) {
+    .filename-panel {
+      margin: auto;
+      inset: 0;
+      inline-size: min(30rem, calc(100vi - 2 * var(--gutter)));
+      max-block-size: calc(100dvb - 2 * var(--gutter));
+      padding: var(--gap);
+      font-size: var(--body);
+      overflow: auto;
+      & form {
+        display: grid;
+        gap: calc(var(--gap) / 2);
+      }
+      & h3,
+      & p {
+        margin: 0;
+      }
+      & input {
+        inline-size: 100%;
+        min-inline-size: 0;
+      }
+      & .filename-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: var(--gap);
+        & > button {
+          flex: 0 1 8em;
+        }
+      }
+      & .file-cover {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--gap);
+        margin-block: calc(var(--gap) / 2);
+      }
+      & .file-cover-image {
+        flex: none;
+        inline-size: 6rem;
+        aspect-ratio: 1 / 1.414;
+        display: grid;
+        place-items: center;
+        background: oklch(100% 0 none);
+        border: 1px solid var(--border);
+        & img {
+          inline-size: 100%;
+          block-size: 100%;
+          object-fit: contain;
+        }
+      }
+      & .file-cover-field {
+        flex: 1 1 10rem;
+        display: grid;
+        gap: calc(var(--gap) / 2);
+        & .entry {
+          inline-size: clamp(3em, calc(50% - 3rem - 0.75 * var(--gap)), 100%);
+        }
+      }
+    }
+    .recipe-panel {
+      inline-size: min(34rem, calc(100vi - 2 * var(--gutter)));
+      max-block-size: calc(100dvb - 2 * var(--gutter));
+      padding: var(--gap);
+      font-size: var(--body);
+      overflow: auto;
+      overscroll-behavior: contain;
+      & form {
+        display: block grid;
+        gap: var(--gap);
+      }
+      & h2,
+      & p {
+        margin: 0;
+      }
+      & h2 {
+        font-size: var(--heading);
+      }
+      & .dialog-heading {
+        align-items: center;
+        margin-block-end: 0;
+      }
+      & .recipe-table {
+        min-inline-size: 0;
+        overflow: auto;
+        overscroll-behavior-inline: contain;
+      }
+      & .recipe-inputs {
+        inline-size: 100%;
+        min-inline-size: 26rem;
+        table-layout: fixed;
+        border-collapse: collapse;
+        & col:first-child {
+          inline-size: 29%;
+        }
+        & col:nth-child(2) {
+          inline-size: calc(5ch + var(--gap));
+        }
+        & col:nth-child(3) {
+          inline-size: 19%;
+        }
+        & th,
+        & td {
+          text-align: start;
+          vertical-align: middle;
+          padding: calc(var(--gap) / 2);
+          border-block-end: 1px solid var(--border);
+          overflow-wrap: anywhere;
+        }
+        & th {
+          color: var(--muted);
+          font-size: var(--small);
+          font-weight: 700;
+        }
+        & .recipe-index {
+          font-variant-numeric: tabular-nums;
+        }
+        & .recipe-path {
+          color: var(--muted);
+          font-size: var(--small);
+          overflow: clip;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        & .recipe-title {
+          font-size: var(--small);
+        }
+        & input,
+        & .recipe-name {
+          inline-size: 100%;
+          min-inline-size: 0;
+          min-block-size: 44px;
+          padding: calc(var(--gap) / 2);
+          font: inherit;
+        }
+        & input {
+          appearance: none;
+          border: 0;
+          border-radius: var(--radius);
+          background: var(--surface);
+          color: var(--accent);
+          box-shadow: none;
+        }
+        & .recipe-name {
+          display: block flow;
+          text-align: start;
+          color: var(--accent);
+          background: color-mix(in oklch, var(--accent) 7%, var(--surface));
+          border: 1px solid transparent;
+          text-decoration: underline dotted;
+          text-underline-offset: 0.2em;
+        }
+      }
+      & .recipe-actions {
+        display: block grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--action-width)), 1fr));
+        gap: var(--gap);
+      }
+    }
+  }
+}

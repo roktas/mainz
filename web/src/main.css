@@ -1,0 +1,374 @@
+/* Orders CSS layers and styles the application frame, header, footer, and feedback. */
+
+@layer tokens, base, components, layouts, views;
+
+@import "./page.css";
+@import "./workspace.css";
+@import "./dialogs.css";
+@import "./load.css";
+@import "./frame.css";
+@import "./grid.css";
+@import "./list.css";
+@import "./help.css";
+@import "./quartet.css";
+@import "./editor.css";
+@import "./landing.css";
+
+@import "./shell.css";
+@import "./cards.css";
+@import "./selection.css";
+@import "./transfer.css";
+@import "./settings.css";
+@import "./controls.css";
+
+@layer components {
+  @scope (.composer, .drag-image[data-strip]) {
+    .list-section[data-synthetic] .list-current,
+    .synthetic {
+      /* Keep regular small-cap glyph heights when the italic face has different metrics. */
+      display: inline-block;
+      font-style: normal;
+      transform: skewX(-12deg);
+    }
+    .synthetic {
+      font-variant-caps: all-small-caps;
+      font-synthesis: small-caps;
+    }
+    .list-choice {
+      white-space: normal;
+    }
+    :is(.page-name, .detail-name, .list-choice, .lens-name, .page-peek > p, .drop-name, .drag-title) {
+      font-variant-caps: all-small-caps;
+      font-synthesis: small-caps;
+    }
+  }
+  @scope (.feedback) {
+    :scope {
+      min-inline-size: 0;
+      inline-size: fit-content;
+      max-inline-size: 100%;
+      display: block grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.5em;
+      color: light-dark(oklch(0% 0 none), oklch(100% 0 none));
+      font-size: var(--body);
+      font-weight: 700;
+      text-align: center;
+      &[data-kind="error"] {
+        color: var(--danger);
+      }
+      &:not(:has(> .feedback-actions)) {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      &[data-kind="progress"] > .feedback-message {
+        display: block flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5em;
+        & > .spinner {
+          flex: none;
+        }
+        & > p {
+          min-inline-size: 0;
+        }
+      }
+    }
+    .feedback-message {
+      min-inline-size: 0;
+      overflow-wrap: anywhere;
+      text-align: start;
+      & > p {
+        overflow: auto;
+        scrollbar-width: none;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+    .feedback-actions {
+      display: block grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75em;
+      min-inline-size: 0;
+      & > :is(button, a) {
+        min-inline-size: 44px;
+        max-inline-size: 100%;
+        &:not(.icon-button) {
+          padding-inline: 0.75em;
+        }
+      }
+    }
+    .feedback-actions > .icon-button {
+      color: inherit;
+      &:active {
+        background: color-mix(in oklch, currentColor 12%, transparent);
+      }
+    }
+    .feedback-action {
+      min-inline-size: 44px;
+      min-block-size: 44px;
+      padding-block: 0;
+      padding-inline: 0.25em;
+      border: 0;
+      background: transparent;
+      border-radius: 0;
+      box-shadow: none;
+      font: inherit;
+      color: inherit;
+      text-decoration: underline dotted;
+      text-underline-offset: 0.2em;
+      @media (hover: hover) and (pointer: fine) {
+        &:hover:not(:disabled) {
+          background: transparent;
+          box-shadow: none;
+          color: var(--accent);
+          text-shadow: 0 0 0.5em color-mix(in oklch, var(--accent) 60%, transparent);
+        }
+      }
+      &:active:not(:disabled) {
+        background: transparent;
+        box-shadow: none;
+        color: var(--accent);
+      }
+      &:focus-visible {
+        outline: 1px solid var(--secondary);
+        outline-offset: -1px;
+      }
+    }
+    .message-details {
+      position-anchor: --header;
+      inset-block-start: calc(anchor(end) + var(--gap));
+      inset-block-end: auto;
+      inset-inline: var(--gutter);
+      inline-size: min(32rem, calc(100vi - 2 * var(--gutter)));
+      max-block-size: min(24rem, 60dvb, calc(100dvb - anchor-size(--header block) - 2 * var(--gap)));
+      margin-block: 0;
+      margin-inline: auto;
+      padding: var(--gap);
+      overflow: auto;
+      overscroll-behavior: contain;
+      font-weight: 400;
+      text-align: start;
+      & > button {
+        float: inline-end;
+      }
+      & > p {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        padding-inline-end: 44px;
+      }
+      &:has(> p) > button {
+        position: absolute;
+        inset-block-start: max(0px, calc(var(--gap) + (1lh - 44px) / 2));
+        inset-inline-end: calc(var(--gap) / 2);
+      }
+      & > ul {
+        clear: both;
+        max-block-size: min(16rem, 40dvb);
+        overflow: auto;
+        overscroll-behavior: contain;
+        overflow-wrap: anywhere;
+        padding-inline-start: 1.25em;
+        & li + li {
+          margin-block-start: 0.75em;
+        }
+      }
+      & > .feedback-actions {
+        clear: both;
+        grid-auto-flow: row;
+        grid-auto-columns: auto;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--action-width)), 1fr));
+        grid-auto-rows: auto;
+        justify-items: center;
+        inline-size: min(100%, calc(2 * var(--action-width) + 1.5 * var(--gap)));
+        gap: var(--gap);
+        column-gap: calc(1.5 * var(--gap));
+        margin-block-start: var(--gap);
+        margin-inline: auto;
+        & > form {
+          grid-column: 1 / -1;
+          display: block grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--action-width)), 1fr));
+          gap: var(--gap);
+          column-gap: inherit;
+          inline-size: 100%;
+          & > :is(button, .entry) {
+            inline-size: 100%;
+            min-inline-size: 0;
+            block-size: var(--action-height);
+            min-block-size: var(--action-height);
+          }
+          & > .entry {
+            border: 0;
+            border-block-end: 1px solid var(--edge);
+            border-radius: 0;
+            background: color-mix(in oklch, var(--secondary) 10%, var(--surface));
+            &.invalid {
+              border-block-end-color: var(--danger);
+            }
+            &:has(input:focus-visible) {
+              border-block-end-color: var(--secondary);
+            }
+          }
+          & > button.secondary {
+            color: var(--on-accent);
+            background: var(--secondary);
+            border-color: var(--secondary);
+            &:disabled {
+              color: var(--muted);
+              background: var(--soft);
+              border-color: var(--border);
+            }
+            &:focus-visible {
+              outline-color: var(--on-accent);
+            }
+            @media (hover: hover) and (pointer: fine) {
+              &:hover:not(:disabled) {
+                background: color-mix(in oklch, var(--secondary) 85%, var(--ink));
+                border-color: var(--secondary);
+              }
+            }
+          }
+        }
+        & > :is(button, a) {
+          inline-size: min(100%, var(--action-width));
+          min-block-size: var(--action-height);
+          align-self: stretch;
+        }
+      }
+    }
+    svg {
+      inline-size: 1em;
+      block-size: 1em;
+      justify-self: center;
+    }
+  }
+  @scope (#app) {
+    main {
+      &:has(.composer) {
+        display: flex;
+        flex-direction: column;
+        padding-inline-start: max(min(var(--gutter), max(0px, (100% - 266px) / 2)), env(safe-area-inset-left, 0px));
+        padding-inline-end: max(min(var(--gutter), max(0px, (100% - 266px) / 2)), env(safe-area-inset-right, 0px));
+      }
+      &:has(> .workspace-progress) {
+        display: flex;
+        flex-direction: column;
+      }
+      & > .workspace-progress {
+        margin: auto;
+        & .spinner {
+          font-size: 2rem;
+        }
+      }
+    }
+    .masthead {
+      &:has(.header-inner[data-feedback]) {
+        position: sticky;
+        inset-block-start: 0;
+        z-index: 30;
+        background: var(--paper);
+      }
+    }
+    .header-feedback {
+      position: fixed;
+      position-anchor: --header;
+      inset-block-start: anchor(start);
+      inset-block-end: auto;
+      inset-inline: 0;
+      block-size: calc(anchor-size(block) - 1px);
+      margin-block: 0;
+      border: 0;
+      margin-inline: auto;
+      padding-block: 0;
+      padding-inline: calc(var(--gap) / 2);
+      background: transparent;
+      display: block grid;
+      grid-auto-rows: max-content;
+      align-content: safe center;
+      justify-items: center;
+      justify-self: center;
+      inline-size: min(100%, 32rem);
+      min-inline-size: 0;
+      overflow: clip;
+    }
+    @container app-header (width <= 55rem) {
+      .header-inner[data-feedback] > :is(.brand, .header-actions) {
+        visibility: hidden;
+      }
+    }
+    @container app-header (width > 55rem) {
+      .header-inner[data-feedback] {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 32rem) minmax(0, 1fr);
+        padding-block-end: 0;
+        & .header-actions {
+          grid-column: 3;
+        }
+        & .header-note {
+          display: none;
+        }
+      }
+    }
+    .masthead:has(~ main .composer) {
+      padding-inline-start: max(min(var(--gutter), max(0px, (100% - 266px) / 2)), env(safe-area-inset-left, 0px));
+      padding-inline-end: max(min(var(--gutter), max(0px, (100% - 266px) / 2)), env(safe-area-inset-right, 0px));
+    }
+    .masthead:has(~ main .composer) .header-inner {
+      border-image: linear-gradient(var(--border), var(--border)) 0 0 1 / 0 0 1px / 0 calc(var(--gutter) / 2);
+    }
+    main:has(.composer) + .footnote {
+      inline-size: calc(100% - 2 * min(var(--gutter), max(0px, (100% - 266px) / 2)));
+      border-block-start: 1px solid var(--border);
+      border-image: linear-gradient(var(--border), var(--border)) 1 0 0 / 1px 0 0 / 0 calc(var(--gutter) / 2);
+    }
+    main:has(.load-panel) + .footnote {
+      position: static;
+    }
+    main:not(:has(.composer)) + .footnote {
+      row-gap: var(--gap);
+      & > time {
+        flex-basis: 100%;
+        text-align: center;
+        white-space: normal;
+      }
+    }
+  }
+}
+@layer layouts {
+  @position-try --popover-center {
+    position-area: none;
+    inset-block: var(--gutter);
+    inset-inline: var(--gutter);
+    margin: auto;
+  }
+  @position-try --review-center {
+    position-area: none;
+    inset-block: calc(anchor-size(--header block) + var(--gap)) var(--gap);
+    inset-inline: var(--gutter);
+    margin: auto;
+  }
+  @scope (#app) {
+    @media (width <= 30em) {
+      main:has(
+        .composer[data-view="input"] .selection-panel .grid-view,
+        .composer[data-view="output"] .composition-output .grid-view
+      ) {
+        /* Keep the frame stable when the panel contents change. */
+        padding-block-end: 0;
+      }
+
+      main:has(.composer) + .footnote {
+        padding-block: var(--gap);
+        padding-block-end: calc(var(--gap) + env(safe-area-inset-bottom, 0px));
+        font-size: var(--body);
+        & > .status-input,
+        & > time {
+          display: none;
+        }
+      }
+    }
+  }
+}

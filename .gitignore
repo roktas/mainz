@@ -1,0 +1,9 @@
+.local/
+.playwright-cli/
+MEMO*
+NOTE*
+PLAN*
+TODO*
+VIEW*
+XRAY*
+node_modules

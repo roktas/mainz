@@ -1,0 +1,12 @@
+[
+  {
+    "id": "booklet",
+    "title": "Prepare a styled booklet",
+    "description": "Build a four-page practice booklet and preview darker fills and thicker outlines for print."
+  },
+  {
+    "id": "recipe",
+    "title": "Save and reuse a booklet recipe",
+    "description": "Save the booklet as a Recipe and reuse its pages and styles with the source PDF."
+  }
+]

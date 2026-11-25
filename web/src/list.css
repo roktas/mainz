@@ -1,0 +1,622 @@
+/* Owns List layout, section headings, actions, and row states. */
+
+@layer views {
+  @scope (.composer) {
+    .page-list .card-menu-options .page-context {
+      display: block;
+      margin-block-start: 0.35em;
+    }
+    .page-content:has(> .page-list) {
+      margin-inline-end: calc(-1 * max(8px, var(--list-gutter, 0px)));
+    }
+    .page-list {
+      position: relative;
+      container: list / inline-size;
+      --list-action-size: clamp(32px, calc((100cqi - 16rem) / 5), 44px);
+      --list-grip-width: calc(var(--list-action-size) + 0.25em);
+      --list-number-size: var(--list-action-size);
+      display: grid;
+      grid-template-columns: [grip] var(--list-grip-width) [number] minmax(
+          var(--list-number-size),
+          max-content
+        ) [label] var(--list-label-width, 0px) [name] minmax(0, 1fr) [actions] max-content [end];
+      grid-auto-rows: max-content;
+      align-content: start;
+      min-block-size: 0;
+      overflow: auto;
+      scrollbar-width: thin;
+      scrollbar-gutter: stable;
+      overscroll-behavior: contain;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      padding-block: var(--content-inset) 12px;
+      padding-inline-end: max(0px, calc(8px - var(--list-gutter, 0px)));
+      color: color-mix(in oklch, var(--ink) 80%, var(--paper));
+      &.labeled {
+        --list-label-width: 4ch;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        --list-action-size: 32px;
+        --list-number-size: 28px;
+      }
+      & > li {
+        position: relative;
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+        align-items: center;
+        min-block-size: 44px;
+        border-block-end: 1px solid var(--border);
+        .composer[data-keyboard="true"] &:has(:focus-visible) {
+          outline: 1px solid var(--keyboard-focus);
+          outline-offset: -1px;
+          @media (forced-colors: active) {
+            outline-color: Highlight;
+          }
+        }
+        &
+          :is(
+            .list-choice,
+            .list-heading,
+            .list-disclosure,
+            .page-grip,
+            .page-origin > button,
+            .list-actions button
+          ):focus-visible {
+          outline: 1px solid transparent;
+        }
+        &[data-dragging] {
+          opacity: 0.6;
+        }
+        & > :not(.list-drop-preview) {
+          grid-row: 1;
+        }
+        &[data-drop="before"] > :not(.list-drop-preview),
+        &:has(> .list-drop-preview[data-drop="before"]) > :not(.list-drop-preview) {
+          grid-row: 2;
+        }
+        & .list-drop-preview {
+          font-size: var(--body);
+          font-weight: 600;
+          line-height: 1.5;
+          block-size: var(--drop-height);
+          display: grid;
+          grid-column: 1 / -1;
+          grid-row: 1;
+          grid-template-columns: subgrid;
+          align-items: center;
+          background: color-mix(in oklch, var(--accent) 8%, var(--paper));
+          color: var(--ink);
+          opacity: 0.45;
+          pointer-events: none;
+          & .drop-number {
+            grid-column: number;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+          }
+          & .drop-name {
+            grid-column: name;
+            min-inline-size: 0;
+            padding-inline: 0.5em;
+            overflow: clip;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+          }
+          & > span:last-child:not(.drop-name) {
+            grid-column: actions;
+            padding-inline: 14px;
+          }
+        }
+        & > .list-drop-preview[data-drop="after"] {
+          grid-row: 2;
+        }
+        &.removing {
+          min-block-size: 0;
+          overflow: clip;
+          pointer-events: none;
+        }
+        &[data-drop]::after {
+          content: "";
+          position: absolute;
+          inset-inline: 0;
+          inset-block-start: 0;
+          border-block-start: 2px solid var(--accent);
+          pointer-events: none;
+        }
+        &[data-drop="after"]::after {
+          inset-block-start: auto;
+          inset-block-end: 0;
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          &[data-arriving] {
+            animation: row-enter 220ms var(--ease-out);
+          }
+        }
+        &.selected {
+          background: var(--accent);
+          color: var(--on-accent);
+          & :is(.list-choice, .page-grip, .page-origin > button, [aria-pressed="true"]) {
+            color: inherit;
+            transition: none;
+          }
+          & .list-pdf-label {
+            color: inherit;
+          }
+          & .page-origin > button {
+            --list-detail-line: currentColor;
+          }
+          & .list-choice:active {
+            background: transparent;
+          }
+          @media (forced-colors: active) {
+            background: Highlight;
+            color: HighlightText;
+          }
+        }
+      }
+      & > .list-spacer {
+        min-block-size: 0;
+        border: 0;
+        pointer-events: none;
+      }
+      & .list-number {
+        grid-column: number;
+        position: relative;
+        max-inline-size: 8ch;
+        font-size: var(--body);
+        font-variant-numeric: tabular-nums;
+        text-align: center;
+        overflow-wrap: anywhere;
+      }
+      & > li > .page-grip {
+        grid-column: grip;
+        justify-self: center;
+        inline-size: var(--list-action-size);
+        min-inline-size: var(--list-action-size);
+        block-size: 44px;
+        padding: 0;
+        color: inherit;
+        cursor: grab;
+        &:active {
+          cursor: grabbing;
+        }
+        & svg {
+          inline-size: 16px;
+          block-size: 16px;
+        }
+      }
+      & .page-origin > button {
+        inline-size: max-content;
+        min-inline-size: var(--list-number-size);
+        padding-inline: 0.25em;
+        color: inherit;
+        transition: none;
+        &:has([data-provenance]) {
+          --list-number-shift: 0px;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr);
+          gap: 0;
+          inline-size: 100%;
+          min-inline-size: calc(var(--list-number-size) + 1em - var(--list-number-shift));
+          padding-inline-end: calc(0.25em + var(--list-number-shift));
+          filter: none;
+          text-shadow: none;
+          position: relative;
+          & > strong {
+            grid-column: 2;
+          }
+          & > [data-provenance] {
+            position: absolute;
+            grid-column: 3 / 4;
+            grid-row: 1 / 2;
+            inset-inline-start: 0;
+            inset-block: 0;
+            margin-block: auto;
+            block-size: max-content;
+            justify-content: center;
+            /* Include the number button's trailing padding and the page title's leading padding. */
+            inline-size: calc(100% + 0.75em + var(--list-number-shift));
+          }
+          &::after {
+            content: "";
+            position: absolute;
+            grid-column: 2 / 4;
+            grid-row: 1 / 2;
+            inset-inline: 0 calc(-0.25em - var(--list-number-shift));
+            inset-block-start: calc(50% + 0.65em);
+            border-block-end: 1px dotted var(--list-detail-line, var(--muted));
+            pointer-events: none;
+          }
+          & strong > span:first-child {
+            text-decoration: none;
+          }
+          @media (hover: hover) and (pointer: fine) {
+            --list-number-shift: 0.25em;
+          }
+          @media (hover: none) and (pointer: coarse) {
+            @container list (width > 30rem) {
+              /* Bring the group toward the ribbon without tightening the marker gap. */
+              --list-number-shift: 0.85em;
+            }
+          }
+        }
+        & strong > span:first-child {
+          text-decoration: underline dotted var(--list-detail-line, var(--muted));
+          text-underline-offset: 0.2em;
+        }
+      }
+      & .card-menu-options[popover] {
+        inline-size: max-content;
+        max-inline-size: min(22rem, calc(100vi - 2 * var(--gutter)));
+        text-align: start;
+        font-size: var(--small);
+      }
+      & .list-choice {
+        flex: 1;
+        display: block;
+        min-block-size: 44px;
+        min-inline-size: 0;
+        padding: 0.5em;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        color: inherit;
+        text-align: start;
+        overflow-wrap: anywhere;
+        transition: none;
+        &:active {
+          background: transparent;
+          filter: none;
+        }
+      }
+      & .list-label {
+        grid-column: name;
+        display: flex;
+        align-items: center;
+        min-inline-size: 0;
+      }
+      & .list-actions {
+        grid-column: actions;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        min-inline-size: var(--list-action-size);
+        touch-action: manipulation;
+        & button {
+          &:not(:disabled) {
+            color: inherit;
+          }
+          inline-size: var(--list-action-size);
+          min-inline-size: var(--list-action-size);
+          block-size: var(--list-action-size);
+          min-block-size: var(--list-action-size);
+          padding: 0;
+          @media (pointer: coarse) {
+            block-size: 44px;
+            min-block-size: 44px;
+          }
+        }
+        & svg {
+          inline-size: 16px;
+          block-size: 16px;
+        }
+      }
+      & .list-inline-actions {
+        display: block;
+        &:empty {
+          display: none;
+        }
+      }
+      & .list-pdf-label {
+        grid-column: label;
+        min-inline-size: 0;
+        padding-inline: 0.125em;
+        color: var(--muted);
+        font-size: var(--body);
+        font-variant-numeric: tabular-nums;
+        text-align: center;
+        overflow: clip;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      & .occurrence-actions {
+        grid-template-columns: repeat(2, calc(2 * var(--list-action-size)));
+        column-gap: 6px;
+        margin: 0;
+        border: 0;
+        &:empty {
+          display: none;
+        }
+      }
+      & .occurrence-actions:has(> .list-edit-trigger) {
+        grid-template-columns: var(--list-action-size);
+        column-gap: 0;
+      }
+      & .list-edit-options {
+        position-area: block-end span-inline-start;
+        position-try-fallbacks: flip-block, flip-inline;
+        margin-block-start: 4px;
+        padding: 4px;
+        inline-size: max-content;
+        max-inline-size: calc(100vi - 2 * var(--gutter));
+        max-block-size: calc(100dvb - 2 * var(--gutter));
+        overflow: auto;
+        &:popover-open {
+          display: grid;
+        }
+        & > button {
+          display: grid;
+          grid-template-columns: var(--icon-size) minmax(0, 1fr);
+          align-items: center;
+          gap: 0.75em;
+          justify-content: start;
+          inline-size: 100%;
+          min-inline-size: 0;
+          block-size: auto;
+          min-block-size: 44px;
+          padding-inline: 12px;
+          text-align: start;
+          font-size: var(--body);
+        }
+      }
+      & :is(.occurrence-moves, .occurrence-copies) {
+        display: grid;
+        grid-template-columns: repeat(2, var(--list-action-size));
+      }
+      @media (hover: hover) and (pointer: fine) {
+        & > li .list-actions > :not(.list-peek) {
+          opacity: 0;
+          pointer-events: none;
+        }
+        & > li:is(:hover, :focus-within) .list-actions > :not(.list-peek) {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        & .list-inline-actions button:hover:not(:disabled) {
+          color: var(--accent);
+          background: transparent;
+          box-shadow: none;
+        }
+      }
+      & .list-actions > [aria-pressed="true"] {
+        color: var(--accent);
+      }
+    }
+    @container list (width <= 22rem) {
+      .page-list .list-choice,
+      .page-list .list-heading .list-current {
+        white-space: nowrap;
+        overflow: clip;
+        text-overflow: ellipsis;
+      }
+    }
+    @keyframes row-enter {
+      from {
+        opacity: 0;
+        translate: -12px 0;
+      }
+      to {
+        opacity: 1;
+        translate: 0 0;
+      }
+    }
+    .page-list > .list-section {
+      --section-surface: color-mix(in oklch, var(--secondary) calc(min(var(--section-depth), 3) * 8%), var(--soft));
+      color: inherit;
+      background: var(--section-surface);
+      &:not(.selected)[data-emphasized] {
+        outline: 2px solid var(--secondary);
+        outline-offset: -2px;
+        border-radius: var(--radius);
+        &[data-selected] {
+          outline-color: var(--accent);
+        }
+        .composer[data-keyboard="true"] &:has(:focus-visible) {
+          outline-color: var(--keyboard-focus);
+        }
+      }
+      &[data-selected]:not(.selected) {
+        background: color-mix(in oklch, var(--accent) 22%, var(--section-surface));
+        & :is(.list-parents, .list-pdf-label) {
+          color: var(--ink);
+        }
+      }
+      &.selected {
+        color: var(--on-accent);
+        background: var(--accent);
+        & > .list-disclosure,
+        & > .list-actions {
+          color: inherit;
+        }
+        & .list-actions button:disabled {
+          color: color-mix(in oklch, var(--on-accent) 60%, transparent);
+        }
+        @media (hover: hover) and (pointer: fine) {
+          & > .list-disclosure:hover {
+            color: inherit;
+          }
+        }
+      }
+      & > .list-disclosure {
+        grid-column: grip;
+        justify-self: center;
+        align-self: stretch;
+        inline-size: var(--list-grip-width);
+        min-inline-size: var(--list-grip-width);
+        block-size: auto;
+        min-block-size: 44px;
+        padding: 0;
+        padding-inline: 6px 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        color: var(--secondary);
+        background: transparent;
+        &[aria-expanded="true"] {
+          color: var(--edge);
+        }
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            background: transparent;
+            box-shadow: none;
+          }
+          &[aria-expanded="false"]:hover:not(:disabled) {
+            color: var(--secondary);
+          }
+          &[aria-expanded="true"]:hover:not(:disabled) {
+            color: var(--edge);
+          }
+        }
+        & svg {
+          inline-size: calc(min(1.25em, var(--list-number-size)) * 1.2);
+          block-size: calc(min(1.25em, var(--list-number-size)) * 1.2);
+        }
+        &[aria-expanded="true"]:not(.dragging) .ribbon-symbol svg {
+          rotate: 90deg;
+        }
+        &:active {
+          filter: brightness(1.15);
+        }
+      }
+      & > .list-actions {
+        grid-column: actions;
+        color: var(--secondary);
+      }
+      & > .list-heading {
+        grid-column: name;
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        align-content: center;
+        gap: 0.55em;
+        min-inline-size: 0;
+        min-block-size: 44px;
+        padding: 0.5em;
+        border: 0;
+        border-radius: 0;
+        color: inherit;
+        background: transparent;
+        box-shadow: none;
+        font-size: var(--body);
+        font-weight: 600;
+        font-variant-caps: all-small-caps;
+        font-synthesis: small-caps;
+        text-align: start;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        & .list-current {
+          min-inline-size: 0;
+          overflow: clip;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        &:has(.list-parents) .list-current {
+          flex: 0 1 auto;
+          max-inline-size: 70%;
+        }
+        & .list-parents {
+          display: flex;
+          align-items: center;
+          gap: 0.55em;
+          flex: 1 1 0;
+          min-inline-size: 0;
+          overflow: clip;
+          color: var(--muted);
+        }
+        & .list-separator {
+          flex: none;
+          color: var(--edge);
+          font-size: 1.3em;
+          font-weight: 700;
+          line-height: 1;
+        }
+        & .list-ancestor {
+          min-inline-size: 0;
+          overflow: clip;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        &:active {
+          background: color-mix(in oklch, currentColor 8%, transparent);
+          filter: none;
+        }
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            color: inherit;
+            background: transparent;
+            box-shadow: none;
+          }
+        }
+      }
+      &.selected :is(.list-parents, .list-separator) {
+        color: inherit;
+      }
+    }
+    .page-list > li {
+      --return-surface: var(--paper);
+      &.selected {
+        --return-surface: var(--accent);
+      }
+    }
+    .page-list > li[data-returning] {
+      background: color-mix(in oklch, var(--secondary) 30%, var(--return-surface));
+      @media (prefers-reduced-motion: no-preference) {
+        animation: view-return 1200ms var(--ease-out) forwards;
+      }
+      @media (forced-colors: active) {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+      }
+    }
+    .list-peek {
+      display: inline flex;
+      anchor-scope: --peek;
+      & > button {
+        anchor-name: --peek;
+      }
+      & .page-peek {
+        margin: 0;
+        position-anchor: --peek;
+        position-area: inline-end center;
+        position-try-fallbacks:
+          flip-inline,
+          flip-block,
+          flip-inline flip-block;
+        inline-size: min(28rem, calc((80dvb - 3rem) * var(--ratio)), calc(100vi - 24px));
+        max-block-size: calc(100dvb - 24px);
+        padding: 0;
+        box-shadow: 0 8px 32px var(--shadow);
+        pointer-events: none;
+        & .peek-image {
+          aspect-ratio: var(--ratio);
+        }
+        & .thumbnail {
+          inline-size: 100%;
+          block-size: 100%;
+          padding: 0;
+        }
+        & .composition-blank {
+          inline-size: 100%;
+          block-size: 100%;
+        }
+        & p {
+          margin: 0;
+          padding: 0.5em 0.75em;
+          font-size: var(--small);
+          text-align: center;
+          white-space: nowrap;
+          overflow: clip;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+    @media (any-pointer: coarse) {
+      .page-list > li .list-actions > :not(.list-peek) {
+        opacity: 1;
+        pointer-events: auto;
+      }
+    }
+  }
+}

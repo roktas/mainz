@@ -1,0 +1,277 @@
+/* Orders CSS layers and styles shared application chrome across the workspace and screencasts. */
+
+@layer tokens, base, components, layouts, views;
+
+@import "./base.css";
+
+@layer components {
+  @keyframes logo-enter {
+    from {
+      transform: perspective(800px) rotateY(-35deg) rotateZ(70deg) translateX(-20%);
+      opacity: 0;
+    }
+    65% {
+      transform: perspective(800px) rotateY(-8deg) rotateZ(8deg) translateX(3%);
+      opacity: 1;
+    }
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
+  .spinner {
+    display: block;
+    justify-self: center;
+    color: var(--accent);
+    inline-size: 1em;
+    block-size: 1em;
+    border: 2px solid currentColor;
+    border-inline-end-color: transparent;
+    border-radius: 50%;
+    @media (prefers-reduced-motion: no-preference) {
+      animation: spin 800ms linear infinite;
+    }
+  }
+  @keyframes spin {
+    to {
+      rotate: 1turn;
+    }
+  }
+  @scope (#app) {
+    :scope {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto 1fr auto;
+      min-block-size: 100dvb;
+    }
+    .masthead,
+    main {
+      inline-size: min(100%, 1380px);
+      margin-inline: auto;
+      padding-inline-start: max(var(--gutter), env(safe-area-inset-left, 0px));
+      padding-inline-end: max(var(--gutter), env(safe-area-inset-right, 0px));
+    }
+    main {
+      container-type: inline-size;
+      padding-block-start: var(--gutter);
+      padding-block-end: var(--gutter);
+    }
+    .header-inner {
+      anchor-name: --header;
+      position: relative;
+      min-block-size: calc(72px + env(safe-area-inset-top, 0px));
+      padding-block-start: env(safe-area-inset-top, 0px);
+      display: block grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      align-content: center;
+      gap: var(--gap);
+      border-block-end: 1px solid var(--border);
+      & .brand {
+        grid-column: 1;
+        grid-row: 1;
+        justify-self: start;
+      }
+      & .header-actions {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
+      }
+    }
+    .masthead {
+      container: app-header / inline-size;
+    }
+    .header-actions {
+      display: block flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: end;
+      max-inline-size: 100%;
+      gap: var(--gap);
+      margin-inline-start: auto;
+      & > :is(.icon-button, .theme) svg {
+        inline-size: 1.375rem;
+        block-size: 1.375rem;
+      }
+      & > .help-button svg {
+        inline-size: 1.625rem;
+        block-size: 1.625rem;
+      }
+    }
+    .brand {
+      touch-action: manipulation;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.65em;
+      min-block-size: 44px;
+      color: var(--ink);
+      text-decoration: none;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .brand[data-replay] .logo {
+        animation: logo-enter 1500ms var(--ease-out) both;
+      }
+    }
+    .brand .logo {
+      flex: none;
+      inline-size: 3.25rem;
+      block-size: 3.25rem;
+      padding: 0.25rem;
+      stroke-width: 3.2;
+    }
+    .logo {
+      display: block flow;
+      inline-size: 100%;
+      block-size: 100%;
+      color: var(--accent);
+      & [id$="-SCUH"] {
+        opacity: var(--logo-horizontal-opacity);
+      }
+    }
+    .header-note {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5em;
+      color: var(--muted);
+      font-size: var(--small);
+    }
+    .theme {
+      min-inline-size: 44px;
+      min-block-size: 44px;
+      padding: 10px;
+      border: 0;
+      color: var(--accent);
+      background: transparent;
+      & .light-icon {
+        display: none;
+      }
+    }
+    .footnote {
+      position: sticky;
+      inset-block-end: 0;
+      inline-size: calc(100% - 2 * var(--gutter));
+      max-inline-size: calc(1380px - 2 * var(--gutter));
+      z-index: 2;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5em;
+      margin-block: 0;
+      margin-inline: auto;
+      padding-block: var(--gap);
+      padding-block-end: calc(var(--gap) + env(safe-area-inset-bottom, 0px));
+      padding-inline-start: max(0px, calc(env(safe-area-inset-left, 0px) - var(--gutter)));
+      padding-inline-end: max(0px, calc(env(safe-area-inset-right, 0px) - var(--gutter)));
+      background: var(--paper);
+      color: var(--info);
+      font-size: var(--small);
+      & > .status-input {
+        flex: 0 1 12em;
+        min-inline-size: 0;
+        max-inline-size: 100%;
+        overflow: clip;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            color: var(--accent);
+          }
+        }
+      }
+      & > .status-messages {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        justify-items: center;
+        gap: 0.5em;
+        flex: 1 1 18em;
+        min-inline-size: 0;
+        text-align: center;
+        & .status-message {
+          display: inline flow-root;
+          border-radius: var(--radius);
+          @media (prefers-reduced-motion: no-preference) {
+            animation: status-flash 1500ms var(--ease-out);
+          }
+        }
+      }
+      & > time {
+        margin-inline-start: auto;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            color: var(--accent);
+          }
+        }
+      }
+    }
+    @keyframes status-flash {
+      from,
+      35% {
+        color: var(--accent);
+        background-color: color-mix(in oklch, var(--accent) 12%, var(--paper));
+        box-shadow: 0 0 12px 0.35em color-mix(in oklch, var(--accent) 20%, transparent);
+      }
+      to {
+        color: var(--info);
+        background-color: transparent;
+        box-shadow: 0 0 12px 0.35em transparent;
+      }
+    }
+  }
+  @scope (html[data-theme="dark"] #app) {
+    .theme .light-icon {
+      display: block;
+    }
+    .theme .dark-icon {
+      display: none;
+    }
+  }
+  @media (prefers-color-scheme: dark) {
+    @scope (html:not([data-theme="light"]) #app) {
+      .theme .light-icon {
+        display: block;
+      }
+      .theme .dark-icon {
+        display: none;
+      }
+    }
+  }
+}
+
+@layer layouts {
+  @scope (#app) {
+    @media (width <= 30em) {
+      .header-inner {
+        gap: 0.25rem;
+      }
+      .header-actions {
+        gap: 0.25rem;
+      }
+      .header-note {
+        display: none;
+      }
+    }
+  }
+}
+
+@layer views {
+  @scope (#app) {
+    /* Keep descendant mutations from rebuilding a relational scope across the workspace. */
+    :scope:has(> main > .composer, > main.screencasts) {
+      block-size: 100dvb;
+      min-block-size: min-content;
+      grid-template-rows: auto minmax(min-content, 1fr) auto;
+
+      .masthead,
+      main {
+        inline-size: min(100%, max(1232px, 57.5vi));
+      }
+
+      .footnote {
+        max-inline-size: calc(max(1232px, 57.5vi) - 2 * var(--gutter));
+        position: static;
+      }
+    }
+  }
+}

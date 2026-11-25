@@ -1,0 +1,46 @@
+{
+  "inputs": {
+    "book": {},
+    "crossings": {},
+    "guides": {}
+  },
+  "metadata": {
+    "coverPage": 1,
+    "title": "Practice session"
+  },
+  "parts": [
+    {
+      "copies": 1,
+      "front": false,
+      "pages": [
+        {
+          "page": 0,
+          "source": "book"
+        },
+        {
+          "page": 0,
+          "source": "guides"
+        },
+        {
+          "page": 0,
+          "source": "crossings"
+        }
+      ]
+    }
+  ],
+  "sources": {
+    "book": {
+      "input": "book",
+      "overrides": []
+    },
+    "crossings": {
+      "input": "crossings",
+      "overrides": []
+    },
+    "guides": {
+      "input": "guides",
+      "overrides": []
+    }
+  },
+  "version": 1
+}

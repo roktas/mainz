@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="148mm" height="210mm" viewBox="0 0 148 210">
+  <rect width="148" height="210" fill="white"/>
+  <g id="Guides" fill="none" stroke="#48647b" stroke-width="0.4">
+    <path d="M18 50H130M18 70H130M18 90H130M18 110H130M18 130H130M18 150H130"/>
+  </g>
+</svg>

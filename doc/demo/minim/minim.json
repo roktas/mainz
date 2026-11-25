@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "sources": {
+    "sample": {
+      "input": "sample",
+      "overrides": {}
+    }
+  },
+  "parts": [
+    {
+      "pages": [
+        {
+          "source": "sample",
+          "page": 1
+        },
+        {
+          "source": "sample",
+          "page": 2
+        },
+        {
+          "source": "sample",
+          "page": 3
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "title": "Guide sheets",
+    "coverPage": 1
+  }
+}

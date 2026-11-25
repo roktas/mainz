@@ -1,0 +1,171 @@
+# frozen_string_literal: true
+
+require "minitest/autorun"
+
+load(File.expand_path("../../Rakefile", __dir__)) unless defined?(Mainz::ROOT)
+
+module Mainz
+  class ParityTest < Minitest::Test
+    def test_web_recipe_reproduces_native_and_wasm_output
+      @directory = Mainz.workspace("tmp/test/lib")
+      cli = File.expand_path(ENV.fetch("MAINZ_CLI"))
+      wasm = File.expand_path(ENV.fetch("MAINZ_WASM", ROOT.join(".local/var/cpp/build/wasm/processor.mjs").to_s))
+      %w[
+        recipe-native.pdf
+        recipe-direct.pdf
+        recipe-wasm.pdf
+      ]
+        .each do |name|
+          FileUtils.rm_f(file(name))
+        end
+
+      %w[ready update review count unnamed].each { |id| %w[native wasm].each { |mode| FileUtils.rm_f(file("recipe-#{id}-#{mode}.pdf")) } }
+      result = command(ROOT.join("lib/test/recipe.mjs"), cli, wasm, file("prepared.pdf"), @directory)
+      assert_equal({"pages" => 8, "independentSources" => 3, "checks" => 9}, JSON.parse(result))
+      assert_equal(contents(file("recipe-direct.pdf")), contents(file("recipe-wasm.pdf")))
+      %w[ready update review count unnamed].each do |id|
+        assert_equal(contents(file("recipe-#{id}-native.pdf")), contents(file("recipe-#{id}-wasm.pdf")), id)
+      end
+      [150, 300].each do |dpi|
+        %w[native wasm].each do |mode|
+          command("pdftoppm", "-r", dpi, "-png", file("recipe-review-#{mode}.pdf"), file("recipe-review-#{mode}-#{dpi}"))
+        end
+        (1..3).each { |page| assert_equal(file("recipe-review-native-#{dpi}-#{page}.png").binread, file("recipe-review-wasm-#{dpi}-#{page}.png").binread) }
+      end
+    end
+
+    def test_wasm_matches_native_state_content_and_appearance
+      @directory = Mainz.workspace("tmp/test/lib")
+      native = File.expand_path(ENV.fetch("MAINZ_CLI"))
+      wasm = File.expand_path(ENV.fetch("MAINZ_WASM", ROOT.join(".local/var/cpp/build/wasm/processor.mjs").to_s))
+      FileUtils.rm_f(Dir.glob(@directory.join("wasm*").to_s) + Dir.glob(@directory.join("navigation-*-wasm.pdf").to_s))
+      file("description.json").binwrite(command(native, "describe", file("prepared.pdf")))
+      file("composition-description.json").binwrite(command(native, "describe", file("composed.pdf")))
+      command(ROOT.join("lib/test/wasm.mjs"), wasm, file("prepared.pdf"), file("description.json"), file("wasm.pdf"))
+      JSON.parse(file("navigation-cases.json").read).reject { it["error"] }.each do |entry|
+        name = entry.fetch("name")
+        native_path = file("navigation-#{name}-native.pdf")
+        wasm_path = file("navigation-#{name}-wasm.pdf")
+        command("qpdf", "--check", wasm_path)
+        assert_equal(contents(native_path), contents(wasm_path), "navigation #{name}: hierarchy, targets, and links")
+      end
+      check_outlines = lambda do |items|
+        items.each do |item|
+          refute_nil(item["destpageposfrom1"], "outline item #{item["title"].inspect} missing destination page")
+          check_outlines.call(item.fetch("kids", []))
+        end
+      end
+      blocks_outlines = JSON.parse(command("qpdf", "--json", file("navigation-blocks-wasm.pdf"))).fetch("outlines", [])
+      refute_empty(blocks_outlines)
+      check_outlines.call(blocks_outlines)
+      navigation = JSON.parse(command("qpdf", "--json", file("navigation-pruned-wasm.pdf")))
+      summarize = -> (items) { items.map { [it["title"], it["destpageposfrom1"], summarize.call(it["kids"])] } }
+      assert_equal([["Book", 1, [["Second", 1, [["Detail", 1, []]]], ["First", 2, []]]], ["Prelude", 5, []]], summarize.call(navigation["outlines"]))
+      objects = navigation["qpdf"][1]
+      annotations = [0, 2].map do |index|
+        page = objects["obj:#{navigation["pages"][index]["object"]}"]["value"]
+        page["/Annots"]
+      end
+      refute_equal(annotations[0], annotations[1], "Repeated pages own separate annotations")
+      annotations.each do |references|
+        retained, discarded = references.map { objects["obj:#{it}"]["value"]["/Dest"] }
+        assert_equal(navigation["pages"][1]["object"], retained[0])
+        target = discarded[0]
+        target = objects["obj:#{target}"]["value"] if objects.key?("obj:#{target}")
+        assert_nil(target)
+      end
+      command("qpdf", "--check", file("wasm.pdf"))
+      assert_equal(contents(file("edited.pdf")), contents(file("wasm.pdf")))
+      %w[pristine ordinary reverse].each do |name|
+        command("qpdf", "--check", file("wasm-extracted-#{name}.pdf"))
+        assert_equal(contents(file("extracted-#{name}.pdf")), contents(file("wasm-extracted-#{name}.pdf")))
+      end
+
+      %w[ordinary-reverse composed composed-reset shared-edited shared-chained fixed-visibility-edited large-shared preview-dense-extracted].each do |name|
+        assert_equal(contents(file("#{name}.pdf")), contents(file("wasm-#{name}.pdf")), name)
+      end
+
+      %w[fill-only fill-mixed].each do |name|
+        %w[extracted composed].each do |operation|
+          [0, 1].each do |index|
+            path = "#{name}-#{operation}-#{index}.pdf"
+            assert_equal(contents(file(path)), contents(file("wasm-#{path}")), path)
+          end
+        end
+      end
+
+      command("qpdf", "--check", file("wasm-composed.pdf"))
+      command("qpdf", "--check", file("wasm-styled.pdf"))
+      assert_equal(Preservation.read(file("styled.pdf")), Preservation.read(file("wasm-styled.pdf")))
+      assert_equal(
+        JSON.parse(command(native, "describe", file("styled.pdf"))),
+        JSON.parse(command(native, "describe", file("wasm-styled.pdf")))
+      )
+      [150, 300].each do |dpi|
+        command("pdftoppm", "-r", dpi, "-png", file("wasm.pdf"), file("wasm-#{dpi}"))
+        [1, 2].each do |page|
+          assert_equal(
+            Digest::SHA256.file(file("edited-#{dpi}-#{page}.png")).hexdigest,
+            Digest::SHA256.file(file("wasm-#{dpi}-#{page}.png")).hexdigest
+          )
+        end
+
+        %w[styled wasm-styled].each do |name|
+          command("pdftoppm", "-r", dpi, "-png", file("#{name}.pdf"), file("#{name}-#{dpi}"))
+        end
+
+        [1, 2].each do |page|
+          assert_equal(
+            Digest::SHA256.file(file("styled-#{dpi}-#{page}.png")).hexdigest,
+            Digest::SHA256.file(file("wasm-styled-#{dpi}-#{page}.png")).hexdigest
+          )
+        end
+      end
+    end
+
+    private
+
+    def command(*arguments)
+      result = Mainz.capture(*arguments)
+      assert(result.status.success?, "#{arguments.inspect}: #{result.stdout}#{result.stderr}")
+      result.stdout
+    end
+
+    def contents(path)
+      pdf = JSON.parse(command("qpdf", "--json", "--json-stream-data=inline", path))
+      objects = pdf["qpdf"][1]
+      normalize = -> (value, parents = []) {
+        if value.is_a?(String) && value.end_with?(" R") && objects.key?("obj:#{value}")
+          if parents.include?(value)
+            {"cycle" => true}
+          else
+            node = objects["obj:#{value}"]
+            if node.key?("value")
+              normalize.call(node["value"], parents + [value])
+            else
+              stream = node["stream"]
+              {
+                "data" => stream["data"],
+                "dict" => normalize.call(
+                  stream["dict"].reject do |key, _|
+                    %w[/Length /Filter /DecodeParms].include?(key)
+                  end,
+                  parents + [value]
+                )
+              }
+            end
+          end
+        elsif value.is_a?(Hash)
+          value.transform_values { |item| normalize.call(item, parents) }
+        elsif value.is_a?(Array)
+          value.map { |item| normalize.call(item, parents) }
+        else
+          value
+        end
+      }
+      normalize.call(objects["trailer"]["value"]["/Root"])
+    end
+
+    def file(name) = @directory.join(name)
+  end
+end

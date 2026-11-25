@@ -1,0 +1,308 @@
+<!-- Owns lens magnification levels and bounded PDF crops for mouse and touch. -->
+
+<script module lang="ts">
+  export const magnificationLevels = [2, 4, 8, 16, 32, 64, 128] as const
+  export type Magnification = (typeof magnificationLevels)[number]
+  const finePointer = typeof matchMedia === "function" ? matchMedia("(hover: hover) and (pointer: fine)") : undefined
+</script>
+
+<script lang="ts">
+  import { loadRenderer } from "./pdf.ts"
+  import type { PDFDocumentProxy } from "pdfjs-dist"
+  let {
+    pdf,
+    page,
+    pageNumber,
+    name,
+    canvas,
+    rendering,
+    magnification = 16,
+    ratio = 1,
+  }: {
+    pdf?: PDFDocumentProxy
+    page: number
+    pageNumber?: number
+    name?: string
+    canvas?: HTMLCanvasElement
+    rendering: boolean
+    magnification?: Magnification
+    ratio?: number
+  } = $props()
+  let point = $state<{ x: number; y: number; left: number; top: number; size: number }>()
+  let refining = $state(false)
+  let watching = $state(false)
+  let opening: ReturnType<typeof setTimeout> | undefined
+  let pointer: { x: number; y: number } | undefined
+  let finger: { id: number; x: number; y: number; startX: number; startY: number } | undefined
+  let holding = false
+  function dismiss() {
+    clearTimeout(opening)
+    opening = undefined
+    point = undefined
+    pointer = undefined
+    finger = undefined
+    holding = false
+    watching = false
+  }
+  function touchStart(event: TouchEvent) {
+    dismiss()
+    if (rendering || event.touches.length !== 1) return
+    const touch = event.touches[0]
+    finger = { id: touch.identifier, x: touch.clientX, y: touch.clientY, startX: touch.clientX, startY: touch.clientY }
+    watching = true
+    opening = setTimeout(() => {
+      opening = undefined
+      if (!finger) return
+      holding = true
+      show(finger.x, finger.y, true)
+    }, 280)
+  }
+  function touchMove(event: TouchEvent) {
+    if (!finger) return
+    const touch = Array.from(event.touches).find((contact) => contact.identifier === finger!.id)
+    if (!touch || event.touches.length !== 1) return dismiss()
+    if (!holding) {
+      if (Math.hypot(touch.clientX - finger.startX, touch.clientY - finger.startY) > 10) dismiss()
+      else {
+        finger.x = touch.clientX
+        finger.y = touch.clientY
+      }
+      return
+    }
+    if (event.cancelable) event.preventDefault()
+    show(touch.clientX, touch.clientY, true)
+  }
+  function touchEnd(event: TouchEvent) {
+    if (holding && event.type === "touchend") {
+      if (event.cancelable) event.preventDefault()
+      event.stopPropagation()
+    }
+    dismiss()
+  }
+  function leave(event: PointerEvent) {
+    if (event.pointerType === "mouse") dismiss()
+  }
+  function float(element: HTMLElement) {
+    document.getElementById("app")!.append(element)
+    return () => element.remove()
+  }
+  function observe() {
+    const target = canvas
+    if (!target || !pdf || page < 1) {
+      dismiss()
+      return
+    }
+    dismiss()
+    target.addEventListener("pointermove", inspect)
+    target.addEventListener("pointerleave", leave)
+    target.addEventListener("pointerdown", dismiss)
+    target.addEventListener("wheel", dismiss)
+    target.addEventListener("touchstart", touchStart, { passive: true })
+    target.addEventListener("touchmove", touchMove, { passive: false })
+    target.addEventListener("touchend", touchEnd, { passive: false })
+    target.addEventListener("touchcancel", touchEnd)
+    return () => {
+      target.removeEventListener("pointermove", inspect)
+      target.removeEventListener("pointerleave", leave)
+      target.removeEventListener("pointerdown", dismiss)
+      target.removeEventListener("wheel", dismiss)
+      target.removeEventListener("touchstart", touchStart)
+      target.removeEventListener("touchmove", touchMove)
+      target.removeEventListener("touchend", touchEnd)
+      target.removeEventListener("touchcancel", touchEnd)
+      dismiss()
+    }
+  }
+  $effect(() => {
+    if (!point && !watching) return
+    const controller = new AbortController()
+    const { signal } = controller
+    window.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (finger && !event.isPrimary) dismiss()
+      },
+      { signal },
+    )
+    window.addEventListener("blur", dismiss, { signal })
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Escape") dismiss()
+      },
+      { signal },
+    )
+    window.addEventListener("resize", dismiss, { signal })
+    document.addEventListener("scroll", dismiss, { capture: true, signal })
+    return () => controller.abort()
+  })
+  $effect(() => {
+    if (rendering) {
+      const waiting = pointer
+      dismiss()
+      pointer = waiting
+      watching = !!waiting
+    } else if (pointer && canvas?.matches(":hover")) hover()
+  })
+  function refine(target: HTMLCanvasElement) {
+    const source = pdf,
+      number = page,
+      image = canvas,
+      scale = magnification * ratio
+    if (!source || !image || rendering) return
+    const density = Math.min(devicePixelRatio, 2),
+      bounds = target.getBoundingClientRect(),
+      original = image.getBoundingClientRect()
+    if (!bounds.width || !bounds.height || !original.width || !original.height) return
+    const width = Math.ceil(bounds.width * density),
+      height = Math.ceil(bounds.height * density)
+    if (target.width !== width) target.width = width
+    if (target.height !== height) target.height = height
+    const context = target.getContext("2d")!
+    const areaWidth = ((bounds.width / scale) * image.width) / original.width
+    const areaHeight = ((bounds.height / scale) * image.height) / original.height
+    let raster = document.createElement("canvas")
+    let detail = document.createElement("canvas")
+    raster.width = detail.width = width
+    raster.height = detail.height = height
+    let crop: { x: number; y: number; width: number; height: number } | undefined
+    let disposed = false
+    let position: typeof point
+    let running = false
+    let frame: number | undefined
+    let sheet: Awaited<ReturnType<PDFDocumentProxy["getPage"]>> | undefined
+    let task: ReturnType<Awaited<ReturnType<PDFDocumentProxy["getPage"]>>["render"]> | undefined
+    function releasePage() {
+      sheet?.cleanup()
+      sheet = undefined
+    }
+    function paint() {
+      if (!position) return
+      context.fillStyle = "#ffffff"
+      context.fillRect(0, 0, width, height)
+      context.drawImage(
+        image!,
+        position.x * image!.width - areaWidth / 2,
+        position.y * image!.height - areaHeight / 2,
+        areaWidth,
+        areaHeight,
+        0,
+        0,
+        width,
+        height,
+      )
+      if (crop) context.drawImage(detail, (crop.x - position.x) * crop.width, (crop.y - position.y) * crop.height)
+    }
+    async function draw() {
+      frame = undefined
+      const at = position
+      if (!at || disposed) return
+      running = true
+      try {
+        // Keep decoded PDF operators while the lens is open instead of rebuilding each crop.
+        sheet ??= await source!.getPage(number)
+        if (disposed) return
+        const { AnnotationMode } = await loadRenderer()
+        if (disposed) return
+        const size = sheet.getViewport({ scale: 1 })
+        const viewport = sheet.getViewport({
+          scale: (original.width / size.width) * scale * density,
+        })
+        task = sheet.render({
+          canvas: raster,
+          viewport,
+          annotationMode: AnnotationMode.DISABLE,
+          transform: [1, 0, 0, 1, width / 2 - at.x * viewport.width, height / 2 - at.y * viewport.height],
+        })
+        await task.promise
+        if (!disposed) {
+          ;[detail, raster] = [raster, detail]
+          crop = { x: at.x, y: at.y, width: viewport.width, height: viewport.height }
+          paint()
+        }
+      } catch {
+        releasePage()
+        /* Keep the displayed image if the optional detail render fails. */
+      } finally {
+        task = undefined
+        running = false
+        if (disposed) {
+          releasePage()
+          raster.width = raster.height = detail.width = detail.height = 0
+        } else if (at !== position) frame = requestAnimationFrame(() => void draw())
+        else refining = false
+      }
+    }
+    $effect(() => {
+      position = point
+      if (!position) return
+      paint()
+      refining = true
+      // Finish active PDF work, then refine the latest position without a settling delay.
+      if (!running && frame === undefined) frame = requestAnimationFrame(() => void draw())
+    })
+    return () => {
+      disposed = true
+      cancelAnimationFrame(frame ?? 0)
+      task?.cancel()
+      if (!running) {
+        releasePage()
+        raster.width = raster.height = detail.width = detail.height = 0
+      }
+    }
+  }
+  function inspect(event: PointerEvent) {
+    if (event.pointerType !== "mouse" || event.buttons || !canvas || !pdf || !finePointer?.matches) return
+    pointer = { x: event.clientX, y: event.clientY }
+    watching = true
+    if (rendering) return
+    if (point) return show(event.clientX, event.clientY)
+    hover()
+  }
+  function hover() {
+    clearTimeout(opening)
+    watching = true
+    opening = setTimeout(() => {
+      opening = undefined
+      if (pointer) show(pointer.x, pointer.y)
+    }, 180)
+  }
+  function show(x: number, y: number, touch = false) {
+    if (!canvas || !pdf || rendering) return
+    const bounds = canvas.getBoundingClientRect(),
+      width = Math.max(0, Math.min(320, innerWidth - 24, innerHeight - 24))
+    if (!bounds.width || !bounds.height) return
+    point = {
+      x: Math.max(0, Math.min(1, (x - bounds.left) / bounds.width)),
+      y: Math.max(0, Math.min(1, (y - bounds.top) / bounds.height)),
+      size: width,
+      left: touch
+        ? Math.max(12, Math.min(x - width / 2, innerWidth - width - 12))
+        : bounds.right + width + 28 <= innerWidth
+          ? bounds.right + 16
+          : Math.max(12, bounds.left - width - 16),
+      top: Math.max(
+        12,
+        Math.min(touch ? (y - width - 32 >= 12 ? y - width - 32 : y + 32) : bounds.top, innerHeight - width - 12),
+      ),
+    }
+  }
+  $effect(observe)
+</script>
+
+{#if point}
+  <div
+    class="lens"
+    role="region"
+    aria-label={`Magnified page ${pageNumber ?? page} at ${magnification}×`}
+    aria-busy={refining}
+    style:inset-inline-start={`${point.left}px`}
+    style:inset-block-start={`${point.top}px`}
+    style:inline-size={`${point.size}px`}
+    style:block-size={`${point.size}px`}
+    {@attach float}
+  >
+    <canvas {@attach refine} width="0" height="0"></canvas>
+    {#if name}<p class="lens-name">{name}</p>{/if}
+  </div>
+{/if}

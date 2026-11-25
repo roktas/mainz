@@ -1,0 +1,326 @@
+<!-- Owns Product tour steps, target tracking, spotlight geometry, and navigation. -->
+
+<script module lang="ts">
+  export type TourStep =
+    | "input"
+    | "input-grid"
+    | "input-list"
+    | "input-page"
+    | "style"
+    | "style-profile"
+    | "output-grid"
+    | "output-list"
+    | "output-selection"
+    | "output-page"
+    | "download"
+</script>
+
+<script lang="ts">
+  import { tick } from "svelte"
+  import { MediaQuery } from "svelte/reactivity"
+  import Icon from "./Icon.svelte"
+
+  let {
+    hasInput,
+    hasOutput,
+    styleable,
+    hasProfiles,
+    change,
+    restore,
+    ended,
+    active = $bindable(false),
+  }: {
+    hasInput: boolean
+    hasOutput: boolean
+    styleable: boolean
+    hasProfiles: boolean
+    change: (step?: TourStep) => void
+    restore: () => void
+    ended: () => void
+    active?: boolean
+  } = $props()
+  const id = $props.id()
+  const motion = new MediaQuery("(prefers-reduced-motion: no-preference)")
+  let tour: HTMLDivElement
+  let index = $state(0)
+  let context: string | undefined
+  let target = $state<HTMLElement>()
+  let tab = $state<HTMLElement>()
+  let previousStep: TourStep | undefined
+  let focus = $state({ x: 0, y: 0, width: 0, height: 0 })
+  const steps = $derived<{ key: TourStep; title: string; text: string[] }[]>([
+    ...(hasInput
+      ? [
+          {
+            key: "input" as const,
+            title: "Open your PDFs",
+            text: [
+              "Open PDF adds one or more files, kept on this device. Input shows each original; Output holds your chosen pages from any Input.",
+              "Use the filename menu to switch or remove an Input. In single-pane view, activate the current Input button to open the menu. Each Input keeps its position, view, and selection.",
+            ],
+          },
+          {
+            key: "input-grid" as const,
+            title: "Choose pages in Grid",
+            text: [
+              "Choose the Grid tab to see page images. Select pages using images, grips, or the page field. Borders and the page field show the same selection.",
+              "Or type a sequence: 3-5,2,2,7. The field’s + adds it to Output, clears the preparation, and selects the new Output pages. Its menu sets repetitions and front alignment.",
+              "Selection moves addition into the bar and hides card buttons. Without a selection, a card’s + adds one copy.",
+            ],
+          },
+          {
+            key: "input-list" as const,
+            title: "Find pages in List",
+            text: [
+              "Choose the List tab for page numbers and names. Grid and List share selection with Page.",
+              "Select rows, then use the bar’s + to add them to Output. A row’s + adds that page without changing your selection.",
+              "The eye opens Page. Return with the List tab to find the inspected row. The page number opens its details.",
+            ],
+          },
+          {
+            key: "input-page" as const,
+            title: "Inspect an Input page",
+            text: [
+              "Page shows all original pages once, in order, regardless of selection. The outer chevrons browse without changing selection.",
+              "On touch screens, use the page-selection field. With a mouse, the heading grip selects or unselects. Selection stays shared with Grid and the field. With a selection, use the bar’s + to add it. Without a selection, bottom + adds the current page.",
+              "Use Go to page to jump to a page. The counter opens page details when available. On touch screens, pinch to zoom.",
+            ],
+          },
+        ]
+      : []),
+    ...(styleable
+      ? [
+          {
+            key: "style" as const,
+            title: "Adjust the styles",
+            text: [
+              "Style affects this Input’s applicable pages and Output copies. Input keeps its original appearance. The prepared PDF supplies the controls.",
+              "Open controls to edit color, opacity, or other values within the PDF’s units and limits. Output updates as you edit.",
+              "Reset restores authored values. Switching Inputs keeps styles. Open the same PDF again to style another independent Input.",
+            ],
+          },
+        ]
+      : []),
+    ...(hasProfiles
+      ? [
+          {
+            key: "style-profile" as const,
+            title: "Choose a Style profile",
+            text: [
+              "Read a profile’s description, then choose it to apply its values to this Input’s applicable pages.",
+              "Adjust values as needed. Custom means no named profile matches. Choose a profile again to reapply it; Reset restores authored values.",
+            ],
+          },
+        ]
+      : []),
+    {
+      key: "output-grid",
+      title: "Arrange Output in Grid",
+      text: hasOutput
+        ? [
+            "Copies appear in print order, numbered by current position. Each number opens its source details. A folded corner marks a back face; a border and tint mark selection.",
+            "Select with images, grips, or the field. The bar moves, removes, or duplicates selected pages. Clear resets selection and repeat settings, keeping Output.",
+            "Selection hides individual controls. Clear restores them. The first menu moves selected pages, repeats consecutive pages, and inserts blanks.",
+          ]
+        : [
+            "Add Input pages. Grid shows copies in print order, with current positions and sources.",
+            "Select with images, grips, or the field. Without a selection, a card’s − removes one page and + duplicates it. Selection shows bar actions for one or several pages and temporarily hides card controls.",
+          ],
+    },
+    {
+      key: "output-list",
+      title: "Arrange Output in List",
+      text: [
+        "Choose the List tab to see each Output copy in order. Page numbers open source details, and the eye opens Page.",
+        "Drag a row’s grip to move it. Row actions move one page earlier or later, remove it, or duplicate it.",
+        "Selected rows show a tick. The page field and bar apply actions to your selection across List, Grid, and Page.",
+      ],
+    },
+    {
+      key: "output-selection",
+      title: "Edit selected Output pages",
+      text: [
+        "Select Output pages with their images, grips, or this field. The bar applies each action to the selection.",
+        "← moves pages earlier and → moves them later in print order. An unavailable direction stays in place but is disabled. On narrow screens, find these moves in the … menu.",
+        "− removes selected pages. + adds one copy of the selection after its last page. Without a selection, these controls are disabled in this tour; your pages stay unchanged.",
+      ],
+    },
+    {
+      key: "output-page",
+      title: "Check Output in Page",
+      text: [
+        ...(hasOutput
+          ? [
+              "Inspect Output in print order. Outer chevrons browse without changing selection. Selection stays shared with Grid and the field.",
+              "Without an Output selection, bottom − removes the current page and bottom + duplicates it. Use the bar to edit selected pages.",
+              "Use Go to page to jump to a page. The counter opens page details. On touch screens, pinch to zoom.",
+            ]
+          : [
+              "Add Input pages to inspect Output at a larger size, in print order. Chevrons browse; blanks and padding keep their physical proportions.",
+            ]),
+        "Compare page appears when a style change affects the current page. With two panes, it opens the matching Input page. With one pane, it switches between styled and original views.",
+      ],
+    },
+    {
+      key: "download",
+      title: "Save, print, or view Output",
+      text: [
+        "Download or Share saves the Output PDF with its page order, copies, blanks, and styles. Original PDFs stay intact.",
+        "In single-pane view, activate the current Output button for Print PDF, View PDF, and Export recipe. Print PDF prepares the PDF for printing. View PDF opens it in your browser.",
+        "Export recipe saves a JSON file with your page order and styles. Open it with the source PDFs to continue later.",
+        "Preparation shows progress. Cancel or an error keeps the workspace so you can adjust and retry.",
+      ],
+    },
+  ])
+  const step = $derived(steps[Math.min(index, steps.length - 1)])
+
+  function focusTarget(element = target, button = tab) {
+    if (!element) return
+    const rect = element.getBoundingClientRect()
+    const heading = button?.getBoundingClientRect() ?? rect
+    const left = Math.max(0, Math.min(innerWidth, Math.min(rect.left, heading.left) - 24))
+    const top = Math.max(0, Math.min(innerHeight, Math.min(rect.top, heading.top) - 24))
+    const right = Math.max(0, Math.min(innerWidth, Math.max(rect.right, heading.right) + 24))
+    const bottom = Math.max(0, Math.min(innerHeight, Math.max(rect.bottom, heading.bottom) + 24))
+    focus = {
+      x: (left + right) / 2,
+      y: (top + bottom) / 2,
+      width: right - left,
+      height: bottom - top,
+    }
+  }
+  async function point() {
+    const key = step.key
+    change(key)
+    await tick()
+    if (tour.matches(":popover-open")) {
+      const previous = target
+      const previousTab = tab
+      target = document.querySelector<HTMLElement>(`[data-tour-target="${key}"]`) ?? undefined
+      tab = document.querySelector<HTMLElement>(`[data-tour-tab="${key}"]`) ?? undefined
+      target?.scrollIntoView({
+        block: "nearest",
+        inline: "nearest",
+        behavior: "instant",
+      })
+      tab?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" })
+      if (key !== previousStep || target !== previous || tab !== previousTab) tour.scrollTop = 0
+      previousStep = key
+      focusTarget()
+      if (target !== previous && motion.current) {
+        tour.animate([{ opacity: 0.65 }, { opacity: 1 }], {
+          duration: 280,
+          easing: "ease-out",
+          pseudoElement: "::backdrop",
+        })
+      }
+    }
+  }
+  export function start() {
+    index = 0
+    tour.showPopover()
+  }
+  function advance(delta: number) {
+    index = Math.max(0, Math.min(steps.length - 1, index + delta))
+    void point()
+  }
+  export function close() {
+    if (!tour.matches(":popover-open")) return
+    tour.dataset.restored = "true"
+    tour.hidePopover()
+    restore()
+  }
+  $effect(() => {
+    const next = `${hasInput}:${hasOutput}:${styleable}:${hasProfiles}`
+    if (context !== undefined && context !== next && tour.matches(":popover-open")) close()
+    context = next
+  })
+  let focusFrame = 0
+  function scheduleFocus() {
+    if (!active || focusFrame) return
+    focusFrame = requestAnimationFrame(() => {
+      focusFrame = 0
+      if (active) focusTarget()
+    })
+  }
+  $effect(() => {
+    const observer = new ResizeObserver(() => {
+      if (active && (target || tab)) focusTarget()
+    })
+    if (target) observer.observe(target)
+    if (tab) observer.observe(tab)
+    return () => {
+      observer.disconnect()
+      cancelAnimationFrame(focusFrame)
+      focusFrame = 0
+    }
+  })
+</script>
+
+<svelte:window
+  onresize={() => {
+    if (active) void point()
+  }}
+  onkeydown={(event) => {
+    if (event.key === "Escape" && active) close()
+  }}
+/>
+<svelte:document onscrollcapture={scheduleFocus} />
+
+<div
+  bind:this={tour}
+  id={`${id}-tour`}
+  class="help-tour"
+  popover="auto"
+  role="dialog"
+  aria-label="Product tour"
+  data-step={step.key}
+  style:--focus-x={`${focus.x}px`}
+  style:--focus-y={`${focus.y}px`}
+  style:--focus-width={`${focus.width}px`}
+  style:--focus-height={`${focus.height}px`}
+  onbeforetoggle={(event) => {
+    if (event.newState === "closed") {
+      active = false
+      target = undefined
+      tab = undefined
+      change()
+    }
+  }}
+  ontoggle={(event) => {
+    if (event.newState === "closed") {
+      const skipRestore = tour.dataset.workspaceAction === "true" || tour.dataset.restored === "true"
+      delete tour.dataset.workspaceAction
+      delete tour.dataset.restored
+      if (!skipRestore) restore()
+      ended()
+    } else {
+      active = true
+      void point()
+      tour.querySelector<HTMLButtonElement>(".help-actions .primary")?.focus()
+    }
+  }}
+>
+  <div class="dialog-heading">
+    <span class="tour-progress"
+      ><span class="tour-label">Product tour · </span>{Math.min(index + 1, steps.length)} / {steps.length}</span
+    >
+    <button class="text-button" onclick={close}>End tour</button>
+  </div>
+  <div class="tour-copy" aria-live="polite" aria-atomic="true">
+    <h2>{step.title}</h2>
+    {#each step.text as text (text)}<p>{text}</p>{/each}
+  </div>
+  <div class="help-actions">
+    <button disabled={index === 0} onclick={() => advance(-1)}><Icon name="previous" />Back</button>
+    <button
+      class="primary"
+      onclick={() => {
+        if (index >= steps.length - 1) close()
+        else advance(1)
+      }}
+    >
+      {#if index >= steps.length - 1}Finish{:else}Next<Icon name="next" />{/if}
+    </button>
+  </div>
+</div>

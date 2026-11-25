@@ -1,0 +1,797 @@
+/* Coordinates workspace layout, headings, and responsive navigation. */
+
+@layer layouts {
+  @scope (#app) {
+    .composer {
+      --document-icon-size: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      container: composer / inline-size;
+      overflow-anchor: none;
+    }
+    .empty-input {
+      display: flex;
+      margin-block-end: var(--gap);
+    }
+    .composition-panels {
+      display: grid;
+      flex: 1;
+      gap: var(--gutter);
+    }
+    .selection-panel,
+    .composition-output {
+      min-inline-size: 0;
+      container-type: inline-size;
+    }
+    .composition-output:only-child {
+      grid-column: 1 / -1;
+      border-inline-start: 0;
+      padding-inline-start: 0;
+    }
+    .composer .section-heading {
+      min-block-size: 46px;
+      align-items: center;
+      & h2 {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        font-size: var(--heading);
+      }
+    }
+    .output-name {
+      padding: 0;
+      min-inline-size: 0;
+      min-block-size: 44px;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      color: inherit;
+      font: inherit;
+      gap: 0.5em;
+      & > svg:last-child {
+        inline-size: 16px;
+        block-size: 16px;
+        rotate: 90deg;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          color: var(--accent);
+        }
+      }
+      &:focus-visible {
+        outline: 2px solid var(--secondary);
+        outline-offset: 2px;
+      }
+    }
+    .composer .output-actions > .primary {
+      flex: 1;
+    }
+
+    .composition-totals {
+      inline-size: max-content;
+      max-inline-size: 100%;
+      flex: none;
+      overflow: clip;
+      white-space: nowrap;
+      font-size: var(--small);
+      color: var(--muted);
+      & strong {
+        color: var(--accent);
+      }
+    }
+    .output-details {
+      margin: 0;
+      inset-block: auto;
+      inset-inline: auto;
+      margin-block-start: calc(var(--gap) / 2);
+      position-area: block-end span-inline-end;
+      position-try-fallbacks:
+        flip-block,
+        flip-inline,
+        flip-block flip-inline;
+      max-inline-size: calc(100vi - 2 * var(--gutter));
+      padding: var(--gap);
+      font-size: var(--small);
+    }
+    .composition-empty {
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: var(--gap);
+      min-block-size: 10rem;
+      padding: var(--gutter);
+      color: var(--muted);
+      text-align: center;
+    }
+    :is(.empty, .composition-empty) {
+      & :is(h3, p) {
+        font-size: var(--body);
+      }
+    }
+    @container composer (width > 55em) {
+      .composition-panels {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+    }
+
+    .workspace-bar,
+    .mobile-workspace-tabs {
+      display: none;
+    }
+    .composer {
+      & .page-grip {
+        display: grid;
+        place-items: center;
+        min-inline-size: 44px;
+        min-block-size: 44px;
+        padding: 0;
+        border: 0;
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--accent);
+        cursor: grab;
+        & svg {
+          stroke-width: 2.4;
+        }
+        &:focus-visible {
+          outline: 2px solid transparent;
+          & svg {
+            color: var(--keyboard-focus);
+            filter: drop-shadow(0 0 2px color-mix(in oklch, currentColor 85%, transparent))
+              drop-shadow(0 0 6px color-mix(in oklch, currentColor 70%, transparent));
+          }
+        }
+      }
+      & .page-face {
+        position: absolute;
+        z-index: 2;
+        pointer-events: none;
+        inset-block-start: calc(-1 * var(--page-stroke));
+        inset-inline-end: calc(-1 * var(--page-stroke));
+        inline-size: 44px;
+        block-size: 44px;
+      }
+      & [data-face="back"] .page-face {
+        --fold-fill: color-mix(in oklch, var(--border) 35%, var(--muted));
+        &::before {
+          content: "";
+          position: absolute;
+          inset-block-start: 0;
+          inset-inline-end: 0;
+          inline-size: var(--fold);
+          block-size: var(--fold);
+          background: var(--paper);
+        }
+        & .page-fold {
+          position: absolute;
+          inset-block-start: calc(var(--page-stroke) / 2);
+          inset-inline-end: calc(var(--page-stroke) / 2);
+          inline-size: calc(var(--fold) - var(--page-stroke));
+          block-size: calc(var(--fold) - var(--page-stroke));
+          overflow: visible;
+          filter: drop-shadow(-1px 1px 2px var(--shadow));
+        }
+        & .fold-fill {
+          fill: var(--fold-fill);
+          stroke: var(--fold-fill);
+          stroke-width: 0;
+        }
+        & .fold-edge {
+          fill: none;
+          stroke: var(--page-border);
+          stroke-width: var(--page-stroke);
+          stroke-linecap: butt;
+          stroke-linejoin: round;
+        }
+      }
+      & .selected[data-face="back"] .page-face .fold-fill {
+        stroke-width: var(--page-stroke);
+      }
+      & .input-heading {
+        display: grid;
+        align-content: start;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 0.175em;
+        & > .input-picker {
+          grid-column: 1;
+          grid-row: 1;
+          margin-inline-end: 0.125em;
+        }
+        & > .input-preview-tools {
+          grid-column: 2;
+          grid-row: 1;
+        }
+        & > .file-picker {
+          grid-column: 3;
+          grid-row: 1;
+        }
+        & .file-picker {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5em;
+          white-space: nowrap;
+        }
+      }
+      & .source-tabs,
+      & .output-tabs {
+        container: toolbar / inline-size;
+        flex-wrap: nowrap;
+        border-block-end: 1px solid var(--border);
+        border-image: linear-gradient(var(--border), var(--border)) 0 0 1 / 0 0 1px / 0 calc(var(--gutter) / 2);
+        margin-block-start: var(--gap);
+        margin-block-end: calc(var(--gap) / 2);
+        padding-block-end: max(8px, var(--gap) / 2);
+        inline-size: 100%;
+        gap: 0.25em;
+        & .tabs {
+          flex-wrap: nowrap;
+          gap: clamp(0.25rem, 1cqi, 0.75rem);
+          & > button {
+            white-space: nowrap;
+          }
+        }
+      }
+      & .source-tabs {
+        & > button[aria-expanded="true"] {
+          color: var(--accent);
+        }
+        & .style-actions {
+          margin-inline-start: auto;
+        }
+      }
+      & .output-state {
+        position: relative;
+        display: block flex;
+        align-items: center;
+        min-inline-size: 0;
+        justify-content: end;
+        text-align: end;
+        &:not([data-overflow]) > button {
+          display: none;
+        }
+        &[data-overflow] > .composition-totals {
+          position: absolute;
+          visibility: hidden;
+        }
+      }
+      & .input-heading {
+        container: heading / inline-size;
+        &:has(.input-picker[open]) {
+          z-index: 5;
+        }
+      }
+      & .composition-output > .section-heading {
+        container: heading / inline-size;
+        display: grid;
+        align-content: start;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 0.5em;
+        & > div:first-child {
+          display: block flex;
+          align-items: center;
+          min-block-size: 44px;
+        }
+      }
+    }
+    @container composer (width > 55em) {
+      .composer .section-heading h2 {
+        font-size: 1rem;
+        & .workspace-icon {
+          inline-size: var(--document-icon-size);
+          block-size: var(--document-icon-size);
+        }
+      }
+      .composer .input-heading .file-picker,
+      .composer .output-actions > .primary {
+        inline-size: 9em;
+        min-inline-size: 9em;
+      }
+      .composer .selection-panel {
+        padding-inline-end: var(--gutter);
+      }
+      .composer .composition-output {
+        padding-inline-start: var(--gutter);
+        border-inline-start: 0;
+        position: relative;
+        &::before {
+          content: "";
+          position: absolute;
+          inset-block: 0;
+          inset-inline-start: 0;
+          inline-size: 1px;
+          background: var(--border);
+        }
+        &:only-child {
+          padding-inline-start: 0;
+          &::before {
+            display: none;
+          }
+        }
+      }
+    }
+    .input-picker {
+      position: relative;
+      container-type: inline-size;
+      min-inline-size: 0;
+      & > summary {
+        display: flex;
+        align-items: center;
+        border-radius: var(--radius);
+        & h2 {
+          display: flex;
+          flex-wrap: nowrap;
+          flex: 1;
+          min-inline-size: 0;
+          align-items: center;
+          gap: 0.5em;
+          white-space: nowrap;
+          color: var(--ink);
+        }
+        & .count {
+          font-size: var(--small);
+        }
+      }
+      & .input-current {
+        flex: 1;
+        min-inline-size: 0;
+        overflow: clip;
+        text-overflow: ellipsis;
+        font-size: var(--body);
+        font-weight: 400;
+        color: var(--accent);
+      }
+      & .input-label {
+        @container (inline-size < 9em) {
+          position: absolute;
+          inline-size: 1px;
+          overflow: clip;
+          clip-path: inset(50%);
+        }
+      }
+      & .input-chevron {
+        flex: none;
+        rotate: 90deg;
+        display: grid;
+        place-items: center;
+        font-size: var(--small);
+        color: var(--muted);
+      }
+    }
+    :is(.input-picker, .workspace-bar) {
+      & .input-list {
+        --input-control-height: max(46px, calc(3.25rem + 2px));
+        position: absolute;
+        z-index: 5;
+        inset-block-start: calc(100% + 4px);
+        inset-inline: 0 auto;
+        inline-size: min(32rem, calc(100vi - 2 * var(--gutter)));
+        max-block-size: 70dvb;
+        padding: var(--gap);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--gap);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        box-shadow: 0 8px 24px var(--shadow);
+        overflow: auto;
+        overscroll-behavior: contain;
+        & .input-choice {
+          display: flex;
+          align-items: center;
+          gap: 0.85em;
+          min-block-size: var(--input-control-height);
+          padding-inline: 0.75em;
+          border: 1px solid var(--edge);
+          border-radius: var(--radius);
+          &:has(.input-choice-select[aria-pressed="true"]) {
+            border-color: var(--accent);
+          }
+          & > .guidance-label {
+            position: relative;
+            display: grid;
+            place-items: center;
+            flex: none;
+            inline-size: 2rem;
+            block-size: 2rem;
+            min-inline-size: 2rem;
+            min-block-size: 2rem;
+            padding: 0;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface);
+            color: var(--muted);
+            font-size: var(--small);
+            &::after {
+              content: "";
+              position: absolute;
+              inset: calc((2rem - 44px) / 2);
+            }
+          }
+          &:has(.input-choice-select[aria-pressed="true"]) > .guidance-label {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: light-dark(white, black);
+          }
+          & > .input-choice-select {
+            display: flex;
+            flex: 1;
+            align-items: center;
+            justify-content: start;
+            gap: 0.5em;
+            min-inline-size: 0;
+            min-block-size: 44px;
+            padding-inline: 0;
+            border: 0;
+            background: transparent;
+            color: light-dark(black, white);
+            text-align: start;
+            & > span:first-child {
+              flex: 1;
+              min-inline-size: 0;
+              overflow-wrap: anywhere;
+            }
+            @media (hover: hover) and (pointer: fine) {
+              &:hover {
+                background: transparent;
+                color: light-dark(black, white);
+              }
+            }
+          }
+        }
+        & .input-choice-title {
+          max-inline-size: 45%;
+          overflow: clip;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          color: var(--muted);
+          font-weight: 400;
+        }
+        & .input-list-actions {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: var(--gap);
+          justify-self: end;
+          inline-size: min(100%, 20rem);
+          & > button {
+            inline-size: 100%;
+            min-inline-size: 0;
+            min-block-size: var(--input-control-height);
+            padding-inline: 0.35em;
+            font-size: var(--small);
+            white-space: nowrap;
+          }
+          & > .danger {
+            grid-column: 2;
+          }
+        }
+      }
+    }
+    @container composer (width <= 30em) {
+      .composer :is(.source-tabs, .output-tabs) {
+        column-gap: 0;
+      }
+      .composer .page-destination {
+        flex: none;
+        inline-size: 44px;
+      }
+      .input-list .input-choice-title {
+        display: none;
+      }
+    }
+    @container composer (width <= 55em) {
+      .composer[data-view="input"] .composition-output,
+      .composer[data-view="output"] .selection-panel {
+        display: none;
+      }
+      .composer .workspace-bar {
+        anchor-name: --workspace-bar;
+        --workspace-action-size: 46px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) var(--workspace-action-size);
+        align-items: center;
+        gap: 8px;
+        margin-block-end: 4px;
+        flex: none;
+        & > :is(.file-picker, .output-actions) {
+          grid-column: 2;
+          grid-row: 1;
+        }
+        & > .file-picker,
+        & > .output-actions > .primary {
+          display: grid;
+          place-items: center;
+          inline-size: var(--workspace-action-size);
+          min-inline-size: var(--workspace-action-size);
+          block-size: var(--workspace-action-size);
+          min-block-size: var(--workspace-action-size);
+          padding: 4px;
+          border: 1px solid transparent;
+          border-radius: 10px;
+          background: var(--accent);
+          color: var(--on-accent);
+          & svg {
+            inline-size: 24px;
+            block-size: 24px;
+          }
+          &:focus-visible {
+            outline: 2px solid var(--secondary);
+            outline-offset: 1px;
+          }
+          & > span {
+            display: none;
+          }
+          &:active {
+            filter: brightness(0.9);
+          }
+        }
+        & .mobile-workspace-tabs {
+          grid-column: 1;
+          grid-row: 1;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          min-inline-size: 0;
+          border-radius: 10px;
+          background: var(--soft);
+          & > button {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-inline-size: 0;
+            min-block-size: 46px;
+            padding: 4px;
+            gap: 0;
+            border: 1px solid transparent;
+            border-radius: 9px;
+            background: transparent;
+            color: var(--muted);
+            font-size: var(--body);
+            font-weight: 600;
+            line-height: 1.3;
+            box-shadow: none;
+            &[aria-pressed="true"] {
+              border-color: var(--border);
+              background: var(--surface);
+              color: var(--ink);
+              box-shadow: 0 1px 3px var(--shadow);
+            }
+            &:active {
+              background: var(--tint);
+            }
+            &:focus-visible {
+              outline: 2px solid var(--secondary);
+              outline-offset: 1px;
+            }
+          }
+        }
+        & .workspace-label {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto minmax(auto, 1fr);
+          align-items: center;
+          inline-size: 100%;
+          & > span {
+            grid-column: 2;
+          }
+          & > svg {
+            justify-self: start;
+            margin-inline-start: clamp(4px, 2cqi - 3px, 6px);
+            inline-size: clamp(14px, 5cqi - 3px, 18px);
+            block-size: auto;
+            rotate: 90deg;
+            color: var(--accent);
+          }
+        }
+        &:has(.document-menu:popover-open) [popovertarget] > .workspace-label svg {
+          rotate: -90deg;
+        }
+        & .workspace-counts {
+          contain: inline-size;
+          position: relative;
+          display: block;
+          inline-size: 100%;
+          min-inline-size: 0;
+          font-size: var(--small);
+          font-weight: 400;
+          color: var(--muted);
+          text-align: center;
+          line-height: 1.3;
+          & strong {
+            font-weight: inherit;
+            color: inherit;
+          }
+          & > .composition-totals {
+            display: block;
+            inline-size: 100%;
+            font: inherit;
+            line-height: inherit;
+          }
+          & > .page-count {
+            display: none;
+            white-space: normal;
+          }
+          &[data-overflow] {
+            & > .composition-totals {
+              position: absolute;
+              visibility: hidden;
+            }
+            & > .page-count {
+              display: block;
+            }
+          }
+        }
+        & .document-menu {
+          position: fixed;
+          inset: 0;
+          align-self: start;
+          margin: auto;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 4px;
+          padding: 8px;
+          inline-size: min(32rem, calc(100vi - 2 * var(--gutter)));
+          block-size: fit-content;
+          max-block-size: 70dvb;
+          align-content: start;
+          overflow: auto;
+          overscroll-behavior: contain;
+          border-color: var(--border);
+          border-radius: 12px;
+          &:not(:popover-open) {
+            display: none;
+          }
+          @supports (inset-block-start: anchor(end)) {
+            position-anchor: --workspace-bar;
+            inset-block: calc(anchor(end) + 4px) var(--gutter);
+            inset-inline: anchor(start) auto;
+            block-size: stretch;
+            max-block-size: max-content;
+            inline-size: min(32rem, anchor-size(inline));
+            margin: 0;
+            &.document-actions {
+              inset-inline: auto anchor(end);
+            }
+          }
+          & > hr {
+            margin-block: 4px;
+            margin-inline: 0;
+            border: 0;
+            border-block-start: 1px solid var(--border);
+          }
+        }
+        & .input-list-actions {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          inline-size: 100%;
+          justify-self: stretch;
+          margin: 0;
+          padding: 0;
+          gap: 4px;
+          & > .danger {
+            grid-column: 1;
+          }
+        }
+        & .file-actions {
+          display: grid;
+        }
+        & :is(.document-actions, .file-actions, .input-list-actions) > button {
+          justify-content: start;
+          inline-size: 100%;
+          min-inline-size: 0;
+          min-block-size: 44px;
+          padding: 8px;
+          gap: 12px;
+          border: 0;
+          background: transparent;
+          font-size: var(--body);
+          font-weight: 600;
+          & > svg {
+            inline-size: 24px;
+            block-size: 24px;
+          }
+          &:focus-visible {
+            outline: 2px solid var(--secondary);
+            outline-offset: -2px;
+          }
+        }
+      }
+      .composer .editing-toolbar {
+        margin-block: 4px;
+        padding-block-end: 4px;
+        border-image: none;
+        gap: 0;
+        & > .tabs {
+          gap: 0;
+          & > button {
+            min-inline-size: 44px;
+            min-block-size: 44px;
+            padding-inline: 8px;
+          }
+        }
+      }
+      .composer :is(.sequence-entry, .style-profile) {
+        margin-block: 8px;
+        & > p {
+          margin-block-start: 4px;
+        }
+      }
+      .composer .sequence-entry {
+        margin-block-end: calc(8px - var(--content-inset));
+      }
+      .composer .style-profile {
+        row-gap: 4px;
+        padding-block-end: 8px;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .workspace-bar > .file-picker:hover,
+        .workspace-bar > .output-actions > .primary:hover {
+          background: var(--hover);
+        }
+        .mobile-workspace-tabs > button:hover {
+          color: var(--accent);
+          background: var(--tint);
+        }
+      }
+    }
+    @container composer (width < 18em) {
+      .composer .workspace-bar {
+        --workspace-action-size: 44px;
+        column-gap: 0;
+        margin-inline: -10px;
+        & .mobile-workspace-tabs > button {
+          padding-inline: 0;
+        }
+      }
+    }
+    @container toolbar (width <= 26em) {
+      .tabs {
+        gap: 0;
+      }
+      .tabs > button > span {
+        display: none;
+      }
+    }
+    @container composer (width > 55em) {
+      @container heading (width <= 28em) {
+        .composer .input-picker > summary h2 {
+          gap: 0.25em;
+        }
+      }
+      @container heading (width <= 22em) {
+        .composer .input-state {
+          & > .composition-totals {
+            position: absolute;
+            visibility: hidden;
+          }
+          & > button {
+            display: inline-flex;
+            min-inline-size: 44px;
+          }
+        }
+      }
+    }
+    @container heading (width <= 16em) {
+      .composer .output-actions > button {
+        min-inline-size: 44px;
+        padding-inline: 4px;
+      }
+    }
+  }
+}
+
+@layer views {
+  @scope (.composer) {
+    .output-filename {
+      border-color: var(--accent);
+    }
+    .output-filename > button {
+      flex: none;
+      border-inline-start: 1px solid var(--border);
+      border-radius: 0;
+      & svg {
+        rotate: 90deg;
+      }
+    }
+  }
+}

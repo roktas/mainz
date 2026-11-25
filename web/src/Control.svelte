@@ -1,0 +1,344 @@
+<!-- Edits one Style parameter with its baseline, constraints, and reset. -->
+
+<script module lang="ts">
+  const finePointer = typeof matchMedia === "function" ? matchMedia("(hover: hover) and (pointer: fine)") : undefined
+</script>
+
+<script lang="ts">
+  import { onDestroy } from "svelte"
+  import { current, feedback, step } from "./styles.ts"
+  import type { Entry } from "./styles.ts"
+  import Icon from "./Icon.svelte"
+  import Feedback from "./Feedback.svelte"
+  let {
+    id,
+    entry,
+    draft,
+    change,
+    reset,
+    coverage,
+    scope,
+    caption,
+    compact = false,
+  }: {
+    id: string
+    entry: Entry
+    draft?: string
+    change: (id: string, text: string) => void
+    reset: (id: string) => void
+    coverage?: number
+    scope: string
+    caption?: string
+    compact?: boolean
+  } = $props()
+  const key = $props.id()
+  let hovering = $state(false)
+  let opening = $state<ReturnType<typeof setTimeout>>()
+  let pinned = $state(false)
+  let editing = $state<string>()
+  let details = $state<HTMLDetailsElement>(null!)
+  const schema = $derived(entry.parameter.schema)
+  const title = $derived(
+    (schema.title ?? id.replaceAll("-", " ")).replace(
+      /(^|[^\p{L}\p{N}])(\p{L})/gu,
+      (_, prefix, letter) => prefix + letter.toUpperCase(),
+    ),
+  )
+  const property = $derived(entry.parameter.binding.property)
+  const text = $derived(current(entry, draft))
+  const error = $derived(draft !== undefined ? feedback(entry, text) : undefined)
+  const override = $derived(draft !== undefined || Object.hasOwn(entry.parameter, "value"))
+  const opacity = $derived(property.endsWith("opacity"))
+  const unit = $derived(property === "stroke-width" ? "mm" : opacity ? "%" : "")
+  const color = $derived(property.endsWith("color") && !schema.enum)
+  const width = $derived(property === "stroke-width" && !schema.enum)
+  const swatch = $derived(color && /^#[0-9a-fA-F]{6}$/.test(text))
+  const slider = $derived(
+    opacity &&
+      !schema.enum &&
+      text !== "" &&
+      !error &&
+      schema.exclusiveMinimum === undefined &&
+      schema.exclusiveMaximum === undefined,
+  )
+  const decrease = $derived(color || width ? step(entry, text, -1) : undefined)
+  const increase = $derived(color || width ? step(entry, text, 1) : undefined)
+  function format(value: string | number, exact = false): string {
+    if (!opacity || value === "") return String(value)
+    const percentage = Number(value) * 100
+    return String(exact ? percentage : Number(percentage.toFixed(1)))
+  }
+  const describedBy = $derived(
+    [
+      schema.description ? `${key}-description` : "",
+      `${key}-choice`,
+      `${key}-state`,
+      `${key}-scope`,
+      schema.type === "number" ? `${key}-constraints` : "",
+      `${key}-error`,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  )
+  function leave() {
+    clearTimeout(opening)
+    opening = undefined
+    hovering = false
+  }
+  $effect(() => {
+    if (!hovering && !pinned && opening === undefined) return
+    const controller = new AbortController()
+    const { signal } = controller
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault()
+          pinned = false
+          leave()
+        }
+      },
+      { signal },
+    )
+    window.addEventListener(
+      "scroll",
+      (event) => {
+        if (!details?.contains(event.target as Node)) leave()
+      },
+      { capture: true, signal },
+    )
+    window.addEventListener("resize", leave, { signal })
+    window.addEventListener("blur", leave, { signal })
+    document.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (!details?.contains(event.target as Node)) {
+          pinned = false
+          leave()
+        }
+      },
+      { signal },
+    )
+    return () => controller.abort()
+  })
+  onDestroy(() => clearTimeout(opening))
+</script>
+
+{#snippet information()}
+  <!-- Escape closes information before its enclosing editor. -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <details
+    class="details compact"
+    bind:this={details}
+    open={hovering || pinned}
+    data-hover-pending={opening !== undefined || undefined}
+    onpointerenter={(event) => {
+      if (event.pointerType !== "mouse" || !finePointer?.matches || pinned || hovering || opening !== undefined) return
+      opening = setTimeout(() => {
+        opening = undefined
+        hovering = true
+      }, 220)
+    }}
+    onpointerleave={leave}
+    onkeydown={(event) => {
+      if (event.key !== "Escape" || !(hovering || pinned || opening !== undefined)) return
+      event.preventDefault()
+      event.stopPropagation()
+      pinned = false
+      leave()
+      details.querySelector("summary")?.focus({ preventScroll: true })
+    }}
+  >
+    <summary
+      aria-label={`Details for ${title}`}
+      title={`Details for ${title}`}
+      onclick={(event) => {
+        event.preventDefault()
+        pinned = !pinned
+        leave()
+      }}><Icon name="info" /></summary
+    >
+    <!-- Keyboard users need focus here to scroll long authored details. -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div tabindex="0" role="region" aria-label={`${title} information`}>
+      {#if schema.details?.trim()}<p class="parameter-details">{schema.details}</p>{/if}
+      <code class="parameter-id">{id}</code>
+      <p id={`${key}-state`}>
+        {#if entry.baseline.kind === "uniform"}Baseline: {format(entry.baseline.value, true)}{unit ? ` ${unit}` : ""}
+        {:else if entry.baseline.kind === "mixed"}Mixed baseline · no single original value.
+        {:else}Unrepresentable baseline: {entry.baseline.reason}{/if}
+      </p>
+      <p id={`${key}-scope`} class="scope">Input pages: {scope}</p>
+      {#if coverage !== undefined}<p>{coverage} eligible Output pages</p>{/if}
+      {#if schema.type === "number"}<p id={`${key}-constraints`} class="constraints">
+          {schema.minimum !== undefined ? `Minimum: ${format(schema.minimum, true)}${unit}. ` : ""}
+          {schema.exclusiveMinimum !== undefined
+            ? `Greater than ${format(schema.exclusiveMinimum, true)}${unit}. `
+            : ""}
+          {schema.maximum !== undefined ? `Maximum: ${format(schema.maximum, true)}${unit}. ` : ""}
+          {schema.exclusiveMaximum !== undefined
+            ? `Less than ${format(schema.exclusiveMaximum, true)}${unit}. `
+            : ""}Fractional values are allowed.
+        </p>{/if}
+    </div>
+  </details>
+{/snippet}
+
+<article class={["control", { compact }]} aria-labelledby={`${key}-title`}>
+  <div class="control-label">
+    <div>
+      {#if property === "display"}<span id={`${key}-title`}
+          >{#if caption && caption !== title}<span class="visually-hidden">{title}</span><span aria-hidden="true"
+              >{caption}</span
+            >{:else}{title}{/if}</span
+        >
+      {:else}<label id={`${key}-title`} for={`${key}-input`}
+          >{#if caption && caption !== title}<span class="visually-hidden">{title}{unit ? ` (${unit})` : ""}</span><span
+              aria-hidden="true">{caption}{unit ? ` (${unit})` : ""}</span
+            >{:else}{title}{unit ? ` (${unit})` : ""}{/if}</label
+        >{/if}
+      {#if schema.description}<span id={`${key}-description`} class="control-description">
+          {schema.description}
+        </span>{/if}
+    </div>
+    {@render information()}
+  </div>
+  <p id={`${key}-choice`} class={["state", { override }]}>
+    <strong>{override ? "Explicit override" : "Original state"}</strong>
+    {#if property === "display" && text === ""}<span> · No single value</span>{/if}
+  </p>
+  <div class={["entry", { invalid: !!error }]}>
+    {#if color}
+      <div class="picker" title={`Choose ${title}`}>
+        <span
+          class={["swatch", { unassigned: !swatch }]}
+          style:background={swatch ? text : undefined}
+          aria-hidden="true"
+        ></span>
+        <input
+          type="color"
+          aria-label={`Choose ${title}`}
+          aria-describedby={describedBy}
+          value={swatch ? text : "#000000"}
+          oninput={(event) => change(id, event.currentTarget.value)}
+        />
+      </div>
+    {/if}
+    {#if property === "display"}
+      <div
+        class="visibility"
+        role="radiogroup"
+        aria-labelledby={`${key}-title`}
+        aria-describedby={describedBy}
+        aria-invalid={!!error}
+      >
+        {#each ["inline", "none"] as value (value)}
+          <label>
+            <input
+              id={value === "inline" ? `${key}-input` : `${key}-hide`}
+              type="radio"
+              name={`${key}-display`}
+              {value}
+              checked={text === value}
+              onchange={() => change(id, value)}
+            />
+            <Icon name={value === "inline" ? "eye" : "eye-off"} />
+            {value === "inline" ? "Show" : "Hide"}
+          </label>
+        {/each}
+      </div>
+    {:else if schema.enum}
+      <div class="select">
+        <select
+          id={`${key}-input`}
+          value={text}
+          aria-describedby={describedBy}
+          aria-invalid={!!error}
+          onchange={(event) => change(id, event.currentTarget.value)}
+        >
+          {#if text === ""}<option value="" disabled>Choose a value · {entry.baseline.kind} baseline</option>{/if}
+          {#each schema.enum as option (option)}<option
+              value={String(option)}
+              disabled={!!feedback(entry, String(option))}>{format(option, true)}</option
+            >{/each}
+        </select>
+        <Icon name="next" />
+      </div>
+    {:else if schema.type === "number"}
+      {#if slider}
+        <input
+          class="slider"
+          type="range"
+          aria-label={`Adjust ${title}`}
+          min={Math.max(0, schema.minimum ?? 0)}
+          max={Math.min(1, schema.maximum ?? 1)}
+          step="any"
+          value={Number(text)}
+          aria-valuetext={`${format(text)}%`}
+          aria-describedby={describedBy}
+          oninput={(event) => change(id, event.currentTarget.value)}
+        />
+      {/if}
+      <input
+        id={`${key}-input`}
+        class={{ exact: slider }}
+        type="number"
+        step="any"
+        value={opacity ? (editing ?? format(text, !!error)) : text}
+        title={opacity && text !== "" ? `${format(text, true)}%` : undefined}
+        min={opacity ? 100 * Math.max(0, schema.minimum ?? 0) : schema.minimum}
+        max={opacity ? 100 * Math.min(1, schema.maximum ?? 1) : schema.maximum}
+        placeholder={entry.baseline.kind === "uniform" ? undefined : "No single value"}
+        aria-describedby={describedBy}
+        aria-invalid={!!error}
+        onblur={() => (editing = undefined)}
+        oninput={(event) => {
+          const value = event.currentTarget.value
+          if (opacity) editing = value
+          change(id, opacity && value !== "" ? String(Number(value) / 100) : value)
+        }}
+      />
+      {#if opacity}<span class="unit" aria-hidden="true">%</span>{/if}
+    {:else}
+      <input
+        id={`${key}-input`}
+        type="text"
+        value={text}
+        spellcheck={false}
+        autocomplete="off"
+        placeholder={entry.baseline.kind === "uniform" ? undefined : "No single value"}
+        aria-describedby={describedBy}
+        aria-invalid={!!error}
+        oninput={(event) => change(id, event.currentTarget.value)}
+      />
+    {/if}
+    {#if color || width}
+      <button
+        type="button"
+        class="step"
+        aria-label={color ? `Darken ${title}` : `Decrease ${title}`}
+        title={color ? `Darken ${title}` : `Decrease ${title}`}
+        disabled={decrease === undefined}
+        onclick={() => change(id, decrease!)}>−</button
+      >
+      <button
+        type="button"
+        class="step"
+        aria-label={color ? `Lighten ${title}` : `Increase ${title}`}
+        title={color ? `Lighten ${title}` : `Increase ${title}`}
+        disabled={increase === undefined}
+        onclick={() => change(id, increase!)}>+</button
+      >
+    {/if}
+    <button
+      type="button"
+      class="reset"
+      aria-label={`Reset ${title}`}
+      title={`Reset ${title}`}
+      disabled={!override}
+      onclick={() => reset(id)}><span aria-hidden="true">↺</span></button
+    >
+  </div>
+
+  <Feedback header kind="error" text={error} summary={`Check ${title}.`} id={`${key}-error`} />
+</article>

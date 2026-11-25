@@ -1,0 +1,23 @@
+{
+  "targets": { "guides": { "selectors": ["#Guides"] } },
+  "parameters": {
+    "opacity": {
+      "family": "checks",
+      "key": "opacity",
+      "schema": { "title": "Guides", "type": "number", "minimum": 0, "maximum": 1 },
+      "binding": { "targets": ["guides"], "property": "stroke-opacity" }
+    }
+  },
+  "profileSets": [
+    {
+      "id": "print",
+      "family": "checks",
+      "name": "Print",
+      "parameters": ["opacity"],
+      "profiles": [
+        { "id": "original", "name": "Original", "overrides": {} },
+        { "id": "fine", "name": "Fine", "overrides": { "opacity": 0.4 } }
+      ]
+    }
+  ]
+}
