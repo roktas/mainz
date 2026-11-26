@@ -600,7 +600,13 @@
       }
       @media (hover: hover) and (pointer: fine) {
         & .load-back:hover svg {
-          filter: drop-shadow(0 0 5px color-mix(in oklch, var(--accent) 55%, transparent));
+          filter: drop-shadow(
+            0 0 5px
+              light-dark(
+                color-mix(in oklch, var(--accent) 22%, transparent),
+                color-mix(in oklch, var(--accent) 55%, transparent)
+              )
+          );
         }
       }
       & .binding-file {

@@ -125,7 +125,11 @@
           background: transparent;
           box-shadow: none;
           color: var(--accent);
-          text-shadow: 0 0 0.5em color-mix(in oklch, var(--accent) 60%, transparent);
+          text-shadow: 0 0 0.5em
+            light-dark(
+              color-mix(in oklch, var(--accent) 22%, transparent),
+              color-mix(in oklch, var(--accent) 60%, transparent)
+            );
         }
       }
       &:active:not(:disabled) {

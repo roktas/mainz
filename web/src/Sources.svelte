@@ -55,7 +55,7 @@
             id={`${key}-source-${source.id}`}
             number={source.number}
             title={titleOf(source.input)}
-          />{/if}{source.input.name}</span
+          />{/if}<span>{source.input.name}</span></span
       >{#if source.input.title && source.input.title !== source.input.name}<span
           class="input-choice-title"
           title={source.input.title}>{source.input.title}</span

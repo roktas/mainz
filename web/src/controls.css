@@ -275,20 +275,20 @@
 }
 @layer layouts {
   @scope (#app) {
-    :is(.icon-button, .theme, .tool, .page-grip, .reset, .step:not(.primary, .danger)) {
+    :is(.icon-button, .tool, .page-grip, .reset, .step:not(.primary, .danger)) {
       @media (hover: hover) and (pointer: fine) {
         &:hover:not(:disabled) {
           background: transparent;
           box-shadow: none;
           text-shadow:
-            0 0 3px color-mix(in oklch, currentColor 85%, transparent),
-            0 0 12px color-mix(in oklch, currentColor 70%, transparent);
+            0 0 3px color-mix(in oklch, currentColor var(--glow-tight), transparent),
+            0 0 12px color-mix(in oklch, currentColor var(--glow-soft), transparent);
           &:not(.danger) {
             color: var(--accent);
           }
           & svg {
-            filter: drop-shadow(0 0 2px color-mix(in oklch, currentColor 85%, transparent))
-              drop-shadow(0 0 6px color-mix(in oklch, currentColor 70%, transparent));
+            filter: drop-shadow(0 0 2px color-mix(in oklch, currentColor var(--glow-tight), transparent))
+              drop-shadow(0 0 6px color-mix(in oklch, currentColor var(--glow-soft), transparent));
           }
         }
       }

@@ -721,10 +721,57 @@ test(
       await page.goto(`${server.resolvedUrls.local[0]}?demo=toc-multiple`)
       await page.locator(".composer[aria-busy=false]").waitFor()
       await page.locator(".input-picker .count", { hasText: "2" }).waitFor()
-      await page.locator(".input-picker > summary h2").click()
-      await input.locator(".input-list").waitFor()
-      assert.ok((await input.locator(".input-list .input-choice-select [data-provenance]").count()) >= 2)
-      await page.keyboard.press("Escape")
+      for (const scheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme: scheme })
+        await page.locator(".input-picker > summary h2").click()
+        await input.locator(".input-list").waitFor()
+        assert.ok((await input.locator(".input-list .input-choice-select [data-provenance]").count()) >= 2)
+        const gaps = await input.locator(".input-list .input-choice-select").evaluateAll((buttons) =>
+          buttons.map((button) => {
+            const dot = button.querySelector("[data-provenance] i").getBoundingClientRect()
+            const name = button.querySelector(":scope > span:first-child > span:last-child").getBoundingClientRect()
+            return name.left - dot.right
+          }),
+        )
+        assert.ok(
+          gaps.every((gap) => gap >= 4),
+          `${scheme}: expected dot gap >= 4px, got ${JSON.stringify(gaps)}`,
+        )
+        const secondChoice = input.locator(".input-list .input-choice").nth(1)
+        const rest = await secondChoice.evaluate((row) => ({
+          border: getComputedStyle(row).borderTopColor,
+          background: getComputedStyle(row).backgroundColor,
+        }))
+        await secondChoice.locator("> .input-choice-select").hover()
+        const hovered = await secondChoice.evaluate((row) => {
+          const select = row.querySelector(":scope > .input-choice-select")
+          return {
+            selectShadow: getComputedStyle(select).boxShadow,
+            border: getComputedStyle(row).borderTopColor,
+            background: getComputedStyle(row).backgroundColor,
+            shadow: getComputedStyle(row).boxShadow,
+          }
+        })
+        assert.equal(hovered.selectShadow, "none")
+        assert.notEqual(hovered.border, rest.border)
+        assert.notEqual(hovered.background, rest.background)
+        assert.notEqual(hovered.shadow, "none")
+        await page.keyboard.press("Escape")
+      }
+      const glowAlpha = async (scheme) => {
+        await page.emulateMedia({ colorScheme: scheme })
+        const iconButton = input.getByRole("button", { name: "View Input PDF", exact: true })
+        await iconButton.hover()
+        const filter = await iconButton.locator("svg").evaluate((svg) => getComputedStyle(svg).filter)
+        const matches = [...filter.matchAll(/(?:rgba\([^)]*,\s*([\d.]+)|\/\s*([\d.]+))\)/g)]
+          .map((match) => Number(match[1] ?? match[2]))
+          .filter(Number.isFinite)
+        assert.ok(matches.length >= 1, `${scheme}: expected drop-shadow alpha in ${filter}`)
+        return Math.max(...matches)
+      }
+      const lightAlpha = await glowAlpha("light")
+      const darkAlpha = await glowAlpha("dark")
+      assert.ok(lightAlpha < darkAlpha, `Expected softer light glow (${lightAlpha}) than dark (${darkAlpha})`)
 
       const help = page.getByRole("button", { name: "Help", exact: true })
       await help.click()

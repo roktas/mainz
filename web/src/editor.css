@@ -28,14 +28,14 @@
         @media (hover: hover) and (pointer: fine) {
           &:hover:not(:has(input:disabled)) {
             background: var(--tint);
-            box-shadow: 0 0 12px color-mix(in oklch, var(--accent) 30%, transparent);
+            box-shadow: 0 0 12px color-mix(in oklch, var(--accent) var(--glow-box), transparent);
           }
         }
         &:active:not(:has(input:disabled)) {
           filter: brightness(1.5);
           transition-duration: 0s;
           @media (hover: hover) and (pointer: fine) {
-            box-shadow: 0 0 14px color-mix(in oklch, var(--accent) 45%, transparent);
+            box-shadow: 0 0 14px color-mix(in oklch, var(--accent) var(--glow-box-active), transparent);
           }
         }
         @media (prefers-reduced-motion: no-preference) {

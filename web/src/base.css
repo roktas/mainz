@@ -50,8 +50,16 @@
     --body: clamp(0.8125rem, 0.78rem + 0.08vi, 0.875rem);
     --heading: clamp(1rem, 0.93rem + 0.14vi, 1.125rem);
     --logo-horizontal-opacity: 0.35;
+    --glow-tight: 22%;
+    --glow-soft: 14%;
+    --glow-box: 15%;
+    --glow-box-active: 24%;
     @media (prefers-color-scheme: dark) {
       --logo-horizontal-opacity: 0.2;
+      --glow-tight: 85%;
+      --glow-soft: 70%;
+      --glow-box: 30%;
+      --glow-box-active: 45%;
     }
     --ease-out: ease-out;
     --ease-in-out: ease-in-out;
@@ -65,10 +73,18 @@
     &[data-theme="light"] {
       color-scheme: light;
       --logo-horizontal-opacity: 0.35;
+      --glow-tight: 22%;
+      --glow-soft: 14%;
+      --glow-box: 15%;
+      --glow-box-active: 24%;
     }
     &[data-theme="dark"] {
       color-scheme: dark;
       --logo-horizontal-opacity: 0.2;
+      --glow-tight: 85%;
+      --glow-soft: 70%;
+      --glow-box: 30%;
+      --glow-box-active: 45%;
     }
   }
 }
@@ -134,7 +150,7 @@
         background: var(--tint);
         border-color: var(--accent);
         &:not(.page-image) {
-          box-shadow: 0 0 12px color-mix(in oklch, var(--accent) 30%, transparent);
+          box-shadow: 0 0 12px color-mix(in oklch, var(--accent) var(--glow-box), transparent);
         }
       }
     }
@@ -143,7 +159,7 @@
       transition-duration: 0s;
       @media (hover: hover) and (pointer: fine) {
         &:not(.page-image) {
-          box-shadow: 0 0 14px color-mix(in oklch, var(--accent) 45%, transparent);
+          box-shadow: 0 0 14px color-mix(in oklch, var(--accent) var(--glow-box-active), transparent);
         }
       }
     }

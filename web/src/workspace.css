@@ -379,6 +379,7 @@
         overflow: auto;
         overscroll-behavior: contain;
         & .input-choice {
+          position: relative;
           display: flex;
           align-items: center;
           gap: 0.85em;
@@ -386,11 +387,35 @@
           padding-inline: 0.75em;
           border: 1px solid var(--edge);
           border-radius: var(--radius);
+          @media (prefers-reduced-motion: no-preference) {
+            transition:
+              background-color 120ms var(--ease-out),
+              border-color 120ms var(--ease-out),
+              box-shadow 120ms var(--ease-out);
+          }
           &:has(.input-choice-select[aria-pressed="true"]) {
             border-color: var(--accent);
           }
+          @media (hover: hover) and (pointer: fine) {
+            &:has(> .input-choice-select:hover) {
+              background: var(--tint);
+              border-color: var(--accent);
+              box-shadow: 0 0 12px color-mix(in oklch, var(--accent) var(--glow-box), transparent);
+            }
+          }
+          &:has(> .input-choice-select:active) {
+            background: var(--tint);
+            border-color: var(--accent);
+            @media (hover: hover) and (pointer: fine) {
+              box-shadow: 0 0 14px color-mix(in oklch, var(--accent) var(--glow-box-active), transparent);
+            }
+          }
+          &:has(> .input-choice-select:focus-visible) {
+            border-color: var(--secondary);
+          }
           & > .guidance-label {
             position: relative;
+            z-index: 1;
             display: grid;
             place-items: center;
             flex: none;
@@ -414,6 +439,16 @@
             background: var(--accent);
             border-color: var(--accent);
             color: light-dark(white, black);
+            &:focus-visible {
+              outline: 2px solid var(--on-accent);
+              outline-offset: -3px;
+            }
+            @media (hover: hover) and (pointer: fine) {
+              &:hover {
+                background: var(--hover);
+                border-color: var(--hover);
+              }
+            }
           }
           & > .input-choice-select {
             display: flex;
@@ -428,16 +463,37 @@
             background: transparent;
             color: light-dark(black, white);
             text-align: start;
+            &::after {
+              content: "";
+              position: absolute;
+              inset: 0;
+            }
             & > span:first-child {
+              display: flex;
+              align-items: center;
+              gap: 0.5em;
               flex: 1;
               min-inline-size: 0;
-              overflow-wrap: anywhere;
+              & > span:last-child {
+                min-inline-size: 0;
+                overflow-wrap: anywhere;
+              }
+            }
+            &:focus-visible {
+              outline: 2px solid transparent;
             }
             @media (hover: hover) and (pointer: fine) {
               &:hover {
                 background: transparent;
                 color: light-dark(black, white);
+                box-shadow: none;
               }
+            }
+            &:active {
+              background: transparent;
+              color: light-dark(black, white);
+              box-shadow: none;
+              filter: none;
             }
           }
         }

@@ -241,6 +241,27 @@
 
 @layer layouts {
   @scope (#app) {
+    .theme {
+      @media (hover: hover) and (pointer: fine) {
+        &:hover:not(:disabled) {
+          background: transparent;
+          box-shadow: none;
+          & svg {
+            filter: drop-shadow(0 0 2px color-mix(in oklch, currentColor var(--glow-tight), transparent))
+              drop-shadow(0 0 6px color-mix(in oklch, currentColor var(--glow-soft), transparent));
+          }
+        }
+      }
+      &:active:not(:disabled) {
+        background: transparent;
+        box-shadow: none;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        & svg {
+          transition: filter 120ms var(--ease-out);
+        }
+      }
+    }
     @media (width <= 30em) {
       .header-inner {
         gap: 0.25rem;

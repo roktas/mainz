@@ -333,6 +333,16 @@ test(
         assert.equal(await landing.evaluate((link) => getComputedStyle(link).textDecorationLine), "none")
         await landing.hover()
         assert.notEqual(await landing.evaluate((link) => getComputedStyle(link).textShadow), "none")
+        const landingTheme = page.getByRole("button", { name: "Dark theme", exact: true })
+        await landingTheme.hover()
+        const appThemeHover = await landingTheme.evaluate((button) => {
+          const svg = [...button.querySelectorAll("svg")].find((node) => getComputedStyle(node).display !== "none")
+          return {
+            boxShadow: getComputedStyle(button).boxShadow,
+            backgroundColor: getComputedStyle(button).backgroundColor,
+            filter: getComputedStyle(svg).filter,
+          }
+        })
         await page.getByRole("button", { name: "Help", exact: true }).click()
         const help = page.getByRole("dialog", { name: "Help", exact: true })
         assert.equal(
@@ -394,14 +404,41 @@ test(
         await page.getByRole("navigation", { name: "Screencasts", exact: true }).waitFor()
         assert.deepEqual(await frame(), original, "Screencasts reuse the application frame and logo dimensions")
         const theme = page.getByRole("button", { name: "Dark theme", exact: true })
+        const readThemeStyle = () =>
+          page.evaluate(() => ({
+            scheme: getComputedStyle(document.documentElement).colorScheme,
+            background: getComputedStyle(document.documentElement).backgroundColor,
+          }))
+        const initialStyle = await readThemeStyle()
         const previous = await theme.getAttribute("aria-pressed")
         await theme.click()
         assert.notEqual(await theme.getAttribute("aria-pressed"), previous)
         const chosen = await page.evaluate(() => document.documentElement.dataset.theme)
+        const toggledStyle = await readThemeStyle()
+        assert.equal(toggledStyle.scheme, chosen)
+        assert.notEqual(toggledStyle.background, initialStyle.background)
         await page.reload()
         await theme.waitFor()
         assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), chosen)
         assert.equal(await page.evaluate(() => localStorage.getItem("mainz:theme")), chosen)
+        assert.deepEqual(await readThemeStyle(), toggledStyle)
+        await theme.hover()
+        const helpThemeHover = await theme.evaluate((button) => {
+          const svg = [...button.querySelectorAll("svg")].find((node) => getComputedStyle(node).display !== "none")
+          return {
+            boxShadow: getComputedStyle(button).boxShadow,
+            backgroundColor: getComputedStyle(button).backgroundColor,
+            filter: getComputedStyle(svg).filter,
+          }
+        })
+        assert.equal(helpThemeHover.boxShadow, "none")
+        assert.equal(helpThemeHover.backgroundColor, "rgba(0, 0, 0, 0)")
+        assert.ok(helpThemeHover.filter.includes("drop-shadow("), helpThemeHover.filter)
+        assert.deepEqual(helpThemeHover, appThemeHover)
+        await theme.click()
+        const revertedStyle = await readThemeStyle()
+        assert.equal(revertedStyle.scheme, chosen === "light" ? "dark" : "light")
+        assert.equal(revertedStyle.background, initialStyle.background)
         assert.equal(await page.locator("nav img").count(), 2)
         await page.emulateMedia({ reducedMotion: "no-preference" })
         await page.waitForFunction(() =>

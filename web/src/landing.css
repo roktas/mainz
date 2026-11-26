@@ -83,9 +83,19 @@
       @media (hover: hover) and (pointer: fine) {
         &:hover {
           color: var(--accent);
-          text-shadow: 0 0 12px color-mix(in oklch, var(--accent) 35%, transparent);
+          text-shadow: 0 0 12px
+            light-dark(
+              color-mix(in oklch, var(--accent) 18%, transparent),
+              color-mix(in oklch, var(--accent) 35%, transparent)
+            );
           & svg {
-            filter: drop-shadow(0 0 5px color-mix(in oklch, var(--secondary) 45%, transparent));
+            filter: drop-shadow(
+              0 0 5px
+                light-dark(
+                  color-mix(in oklch, var(--secondary) 22%, transparent),
+                  color-mix(in oklch, var(--secondary) 45%, transparent)
+                )
+            );
           }
         }
       }

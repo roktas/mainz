@@ -7,8 +7,17 @@
     <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#800080" />
     <style>
-      html {
-        color-scheme: light dark;
+      @layer tokens, base, components, layouts, views;
+      @layer tokens {
+        :root {
+          color-scheme: light dark;
+        }
+        :root[data-theme="light"] {
+          color-scheme: light;
+        }
+        :root[data-theme="dark"] {
+          color-scheme: dark;
+        }
       }
     </style>
     <base href="%BASE_URL%" />
